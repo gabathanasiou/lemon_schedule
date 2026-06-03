@@ -1,5 +1,5 @@
 export type IntExt = 'INT' | 'EXT' | 'INT/EXT';
-export type DayNight = 'DAY' | 'NIGHT' | 'EVENING' | 'DAWN' | 'DUSK';
+export type DayNight = 'DAY' | 'NIGHT' | 'MORNING' | 'EVENING' | 'DAWN' | 'DUSK';
 export type RowType = 'SCENE' | 'BREAK' | 'NOTE';
 
 export interface Scene {

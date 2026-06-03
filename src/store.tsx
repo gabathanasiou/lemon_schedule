@@ -1,86 +1,68 @@
-import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, DayNight, IntExt } from './types';
+import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
+import { Project, Scene, ScheduleVersion, ScheduleRow } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
-// Storage stuff
-const STORAGE_KEY = 'a-little-bit-of-hope-project';
+const LEGACY_KEY = 'a-little-bit-of-hope-project';
+const INDEX_KEY = 'lemon_schedule_project_index';
+const PROJECT_KEY_PREFIX = 'lemon_schedule_project_v1_';
 
-const initialProject: Project = {
-  title: 'Untitled Project',
-  draftNumber: '1',
-  scenes: [
-    {
-      id: generateUUID(),
-      sceneNumber: '1',
-      pageCount: '1 3/8',
-      pageCountDecimal: 1.375,
-      scriptDay: '1',
-      intExt: 'INT',
-      set: 'APARTMENT',
-      dayNight: 'DAY',
-      description: 'Main character wakes up.',
-      cast: '1',
-      notes: '',
-      shootDay: null
-    },
-    {
-      id: generateUUID(),
-      sceneNumber: '2',
-      pageCount: '1/8',
-      pageCountDecimal: 0.125,
-      scriptDay: '1',
-      intExt: 'EXT',
-      set: 'STREET',
-      dayNight: 'DAY',
-      description: 'New scene',
-      cast: '',
-      notes: '',
-      shootDay: null
-    },
-    {
-      id: generateUUID(),
-      sceneNumber: '3',
-      pageCount: '2 1/8',
-      pageCountDecimal: 2.125,
-      scriptDay: '1',
-      intExt: 'INT',
-      set: 'CLUB',
-      dayNight: 'NIGHT',
-      description: 'They have a drink.',
-      cast: '1, 2',
-      notes: '',
-      shootDay: null
-    },
-    {
-      id: generateUUID(),
-      sceneNumber: '4',
-      pageCount: '4/8',
-      pageCountDecimal: 0.5,
-      scriptDay: '1',
-      intExt: 'EXT',
-      set: 'ALLEY',
-      dayNight: 'NIGHT',
-      description: 'Someone waits in the dark.',
-      cast: '2',
-      notes: '',
-      shootDay: null
+export interface ProjectMeta {
+  id: string;
+  title: string;
+  lastModified: number;
+  createdAt: number;
+}
+
+function getProjectStorageKey(id: string): string {
+  return `${PROJECT_KEY_PREFIX}${id}`;
+}
+
+function loadProjectListFromStorage(): ProjectMeta[] {
+  try {
+    const stored = localStorage.getItem(INDEX_KEY);
+    if (stored) {
+      const list: ProjectMeta[] = JSON.parse(stored);
+      return list.map(p => ({ createdAt: p.lastModified, ...p }));
     }
-  ],
-  versions: [
-    {
-      id: generateUUID(),
+  } catch (e) {
+    console.error("Failed to load project list", e);
+  }
+  return [];
+}
+
+function saveProjectListToStorage(list: ProjectMeta[]) {
+  localStorage.setItem(INDEX_KEY, JSON.stringify(list));
+}
+
+function loadProjectFromStorage(id: string): Project | null {
+  try {
+    const stored = localStorage.getItem(getProjectStorageKey(id));
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.scenes && parsed.versions) return parsed;
+    }
+  } catch (e) {
+    console.error("Failed to load project", e);
+  }
+  return null;
+}
+
+function makeBlankProject(title = 'Untitled Project'): Project {
+  const id = generateUUID();
+  return {
+    title,
+    draftNumber: '1',
+    scenes: [],
+    versions: [{
+      id,
       name: 'v1 - Initial Schedule',
       createdAt: Date.now(),
       rows: [],
-      dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: 'SATURDAY 6TH JUNE 2026' } }
-    }
-  ],
-  activeVersionId: ''
-};
-
-if (initialProject.versions[0]) {
-  initialProject.activeVersionId = initialProject.versions[0].id;
+      dayMeta: {}
+    }],
+    activeVersionId: id,
+  };
 }
 
 type Action =
@@ -93,7 +75,9 @@ type Action =
   | { type: 'DELETE_SCENE', payload: string }
   | { type: 'SORT_SCENES' }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
-  | { type: 'NEW_VERSION', payload: { name: string, cloneFromId: string } }
+  | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null } }
+  | { type: 'DELETE_VERSION', payload: string }
+  | { type: 'RENAME_VERSION', payload: { id: string, name: string } }
   | { type: 'SET_ACTIVE_VERSION', payload: string }
   | { type: 'IMPORT_SCENES', payload: Scene[] }
   | { type: 'DELETE_DAY', day: number }
@@ -189,20 +173,60 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'NEW_VERSION': {
-      const parent = state.present.versions.find(v => v.id === action.payload.cloneFromId);
-      if (!parent) return state;
-      const newVersion: ScheduleVersion = {
-        ...parent,
-        id: generateUUID(),
-        name: action.payload.name,
-        createdAt: Date.now(),
-        // clone rows with new IDs
-        rows: parent.rows.map(r => ({ ...r, id: generateUUID() }))
-      };
+      let newVersion: ScheduleVersion;
+      const parent = action.payload.cloneFromId 
+        ? state.present.versions.find(v => v.id === action.payload.cloneFromId)
+        : null;
+
+      if (parent) {
+        newVersion = {
+          ...parent,
+          id: generateUUID(),
+          name: action.payload.name,
+          createdAt: Date.now(),
+          rows: parent.rows.map(r => ({ ...r, id: generateUUID() }))
+        };
+      } else {
+        newVersion = {
+          id: generateUUID(),
+          name: action.payload.name,
+          createdAt: Date.now(),
+          rows: [],
+          dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: '' } }
+        };
+      }
       return applyChange({
         ...state.present,
         versions: [...state.present.versions, newVersion],
         activeVersionId: newVersion.id
+      });
+    }
+
+    case 'DELETE_VERSION': {
+      const versionId = action.payload;
+      const newVersions = state.present.versions.filter(v => v.id !== versionId);
+      
+      let newActiveId = state.present.activeVersionId;
+      if (newActiveId === versionId) {
+        newActiveId = newVersions.length > 0 ? newVersions[0].id : '';
+      }
+      
+      if (newVersions.length === 0) {
+        return state;
+      }
+      
+      return applyChange({
+        ...state.present,
+        versions: newVersions,
+        activeVersionId: newActiveId
+      });
+    }
+
+    case 'RENAME_VERSION': {
+      const { id, name } = action.payload;
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v => v.id === id ? { ...v, name } : v)
       });
     }
 
@@ -239,43 +263,96 @@ function reducer(state: State, action: Action): State {
 interface ProjectContextType {
   state: State;
   dispatch: React.Dispatch<Action>;
+  projectList: ProjectMeta[];
+  currentProjectId: string | null;
+  initialized: boolean;
+  createProject: (title?: string) => string;
+  openProject: (id: string) => void;
+  deleteProject: (id: string) => void;
+  renameProject: (id: string, title: string) => void;
+  duplicateProject: (id: string) => void;
+  importProjectFromData: (data: Project) => string;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+  const [projectList, setProjectList] = useState<ProjectMeta[]>(() => loadProjectListFromStorage());
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  const blank = makeBlankProject();
+
   const [state, dispatch] = useReducer(reducer, {
     past: [],
-    present: initialProject,
+    present: blank,
     future: []
   });
 
-  // Load from local storage
+  // On mount: migrate legacy data or load most recent project
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
+    const legacyData = localStorage.getItem(LEGACY_KEY);
+    if (legacyData) {
+      try {
+        const parsed = JSON.parse(legacyData);
         if (parsed.scenes && parsed.versions) {
+          const id = generateUUID();
+          localStorage.setItem(getProjectStorageKey(id), legacyData);
+          localStorage.removeItem(LEGACY_KEY);
+
+          const meta: ProjectMeta = { id, title: parsed.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
+          saveProjectListToStorage([meta]);
+          setProjectList([meta]);
+
           dispatch({ type: 'LOAD', payload: parsed });
+          setCurrentProjectId(id);
+          setInitialized(true);
+          return;
         }
+      } catch (e) {
+        console.error("Failed to migrate legacy project", e);
       }
-    } catch(e) {
-      console.error("Failed to load project from local storage", e);
     }
+
+    const list = loadProjectListFromStorage();
+    if (list.length > 0) {
+      setProjectList(list);
+      const sorted = [...list].sort((a, b) => b.lastModified - a.lastModified);
+      const latest = sorted[0];
+      const project = loadProjectFromStorage(latest.id);
+      if (project) {
+        dispatch({ type: 'LOAD', payload: project });
+        setCurrentProjectId(latest.id);
+      }
+    }
+
+    setInitialized(true);
   }, []);
 
-  // Save to local storage
+  // Auto-save current project to its storage key
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.present));
-  }, [state.present]);
+    if (!currentProjectId) return;
+    localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
+    setProjectList(prev => {
+      const existing = prev.find(p => p.id === currentProjectId);
+      if (!existing) return prev;
+      const updated = prev.map(p =>
+        p.id === currentProjectId
+          ? { ...p, title: state.present.title, lastModified: Date.now() }
+          : p
+      );
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+  }, [state.present, currentProjectId]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!currentProjectId) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-      
+
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         dispatch({ type: 'UNDO' });
@@ -286,15 +363,146 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
       if (cmdOrCtrl && e.key === 's') {
         e.preventDefault();
-        // save handled by effect
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [currentProjectId]);
+
+  // Save current project state to localStorage immediately
+  const flushCurrentProject = useCallback(() => {
+    if (!currentProjectId) return;
+    localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
+    setProjectList(prev => {
+      const existing = prev.find(p => p.id === currentProjectId);
+      if (!existing) return prev;
+      const updated = prev.map(p =>
+        p.id === currentProjectId
+          ? { ...p, title: state.present.title, lastModified: Date.now() }
+          : p
+      );
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+  }, [currentProjectId, state.present]);
+
+  const createProject = useCallback((title?: string): string => {
+    flushCurrentProject();
+
+    const id = generateUUID();
+    const newProject = makeBlankProject(title);
+
+    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(newProject));
+
+    const meta: ProjectMeta = { id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
+    setProjectList(prev => {
+      const updated = [...prev, meta];
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+
+    dispatch({ type: 'LOAD', payload: newProject });
+    setCurrentProjectId(id);
+    return id;
+  }, [flushCurrentProject]);
+
+  const openProject = useCallback((id: string) => {
+    flushCurrentProject();
+
+    const project = loadProjectFromStorage(id);
+    if (project) {
+      dispatch({ type: 'LOAD', payload: project });
+      setCurrentProjectId(id);
+    }
+  }, [flushCurrentProject]);
+
+  const deleteProject = useCallback((id: string) => {
+    localStorage.removeItem(getProjectStorageKey(id));
+
+    const currentIndex = loadProjectListFromStorage();
+    const remaining = currentIndex.filter(p => p.id !== id);
+    saveProjectListToStorage(remaining);
+    setProjectList(remaining);
+
+    if (currentProjectId === id) {
+      if (remaining.length > 0) {
+        openProject(remaining[0].id);
+      } else {
+        setCurrentProjectId(null);
+      }
+    }
+  }, [currentProjectId, openProject]);
+
+  const renameProject = useCallback((id: string, title: string) => {
+    if (currentProjectId === id) {
+      dispatch({ type: 'UPDATE_PROJECT', payload: { title } });
+    }
+    setProjectList(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, title } : p);
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+  }, [currentProjectId]);
+
+  const duplicateProject = useCallback((id: string) => {
+    flushCurrentProject();
+
+    const original = id === currentProjectId ? state.present : loadProjectFromStorage(id);
+    if (!original) return;
+
+    const newId = generateUUID();
+    const newProject: Project = {
+      ...original,
+      title: `${original.title} Copy`,
+      versions: original.versions.map(v => ({
+        ...v,
+        id: generateUUID(),
+        rows: v.rows.map(r => ({ ...r, id: generateUUID() }))
+      }))
+    };
+
+    localStorage.setItem(getProjectStorageKey(newId), JSON.stringify(newProject));
+
+    const meta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
+    setProjectList(prev => {
+      const updated = [...prev, meta];
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+  }, [flushCurrentProject, currentProjectId, state.present]);
+
+  const importProjectFromData = useCallback((data: Project): string => {
+    flushCurrentProject();
+
+    const id = generateUUID();
+    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(data));
+
+    const meta: ProjectMeta = { id, title: data.title || 'Imported Project', lastModified: Date.now(), createdAt: Date.now() };
+    setProjectList(prev => {
+      const updated = [...prev, meta];
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+
+    dispatch({ type: 'LOAD', payload: data });
+    setCurrentProjectId(id);
+    return id;
+  }, [flushCurrentProject]);
 
   return (
-    <ProjectContext.Provider value={{ state, dispatch }}>
+    <ProjectContext.Provider value={{
+      state,
+      dispatch,
+      projectList,
+      currentProjectId,
+      initialized,
+      createProject,
+      openProject,
+      deleteProject,
+      renameProject,
+      duplicateProject,
+      importProjectFromData
+    }}>
       {children}
     </ProjectContext.Provider>
   );
