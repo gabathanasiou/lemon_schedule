@@ -5,10 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Convert "1 3/8" or "2/8" or "1" to decimal
+// Convert "1 3/8" or "2/8" or "1" or "1.4" (eighths) or "1.5" (decimal) to number
 export function parsePageCount(fraction: string): number {
   if (!fraction) return 0;
+
+  // "1.4" with a single digit 0-7 after the dot → eighths notation (1 + 4/8 = 1.5)
   const parts = fraction.trim().split(' ');
+  if (parts.length === 1) {
+    const decimalMatch = parts[0].match(/^(-?\d+)\.(\d+)$/);
+    if (decimalMatch && decimalMatch[2].length === 1 && /^[0-7]$/.test(decimalMatch[2])) {
+      return parseInt(decimalMatch[1], 10) + parseInt(decimalMatch[2], 10) / 8;
+    }
+  }
+
   let whole = 0;
   let fracPart = '';
 
