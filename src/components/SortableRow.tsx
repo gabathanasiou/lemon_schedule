@@ -262,12 +262,20 @@ export const SortableRow: React.FC<{
                   />
                 </td>}
                 <td className="col-ie">
-                  <CellInput
-                    value={scene.intExt}
-                    onChange={val => updateScene({intExt: val as any})}
-                    className={`${inputClass} text-left`}
-                    readOnly
-                  />
+                  {textEditingEnabled ? (
+                    <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer text-center w-full">
+                      <option value="INT">INT</option>
+                      <option value="EXT">EXT</option>
+                      <option value="INT/EXT">INT/EXT</option>
+                    </select>
+                  ) : (
+                    <CellInput
+                      value={scene.intExt}
+                      onChange={val => updateScene({intExt: val as any})}
+                      className={`${inputClass} text-left`}
+                      readOnly
+                    />
+                  )}
                 </td>
                 <td className="col-set">
                   <CellInput
@@ -278,12 +286,23 @@ export const SortableRow: React.FC<{
                   />
                 </td>
                 <td className="col-dn">
-                  <CellInput
-                    value={scene.dayNight}
-                    onChange={val => updateScene({dayNight: val as any})}
-                    className={`${inputClass} text-left`}
-                    readOnly
-                  />
+                  {textEditingEnabled ? (
+                    <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer text-center w-full">
+                      <option value="DAY">DAY</option>
+                      <option value="NIGHT">NIGHT</option>
+                      <option value="MORNING">MORNING</option>
+                      <option value="EVENING">EVENING</option>
+                      <option value="DAWN">DAWN</option>
+                      <option value="DUSK">DUSK</option>
+                    </select>
+                  ) : (
+                    <CellInput
+                      value={scene.dayNight}
+                      onChange={val => updateScene({dayNight: val as any})}
+                      className={`${inputClass} text-left`}
+                      readOnly
+                    />
+                  )}
                 </td>
                 <td className="col-cast">
                   <CellInput
