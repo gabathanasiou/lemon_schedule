@@ -26,13 +26,7 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
 function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
-  const year = d.getFullYear();
-  const suffixes = ['TH', 'ST', 'ND', 'RD'];
-  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
-  return `${weekday} ${day}${suffix} ${month} ${year}`;
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 interface DaySectionProps {
@@ -82,7 +76,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
                       {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
                       <td className="print-col-ie" />
-                      <td className="print-col-set" colSpan={3}>{r.noteText || ''}</td>
+                      <td className="print-col-set" style={{textAlign: 'center'}}>{r.noteText || ''}</td>
+                      <td className="print-col-dn" />
+                      <td className="print-col-cast" />
                       <td className="print-col-pgs" />
                     </tr>
                   </tbody>
@@ -98,7 +94,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
                       {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
                       <td className="print-col-ie" />
-                      <td className="print-col-set" colSpan={3}>{r.breakLabel || 'BREAK'}</td>
+                      <td className="print-col-set" style={{textAlign: 'center'}}>{r.breakLabel || 'BREAK'}</td>
+                      <td className="print-col-dn" />
+                      <td className="print-col-cast" />
                       <td className="print-col-pgs" />
                     </tr>
                   </tbody>
@@ -175,9 +173,7 @@ const PRINT_STYLE = `
     border-bottom: 2pt solid #18181b;
   }
   .print-title {
-    font-weight: 800;
     margin: 0;
-    letter-spacing: 0.5pt;
   }
   .print-subtitle {
     color: #52525b;
@@ -193,19 +189,15 @@ const PRINT_STYLE = `
     background: #000000;
     color: #ffffff;
     padding: 8pt 10pt;
-    font-weight: 700;
   }
   .print-day-number {
-    letter-spacing: 1.5pt;
     flex: 0 0 auto;
   }
   .print-day-date {
-    font-weight: 400;
     text-align: center;
     flex: 1;
   }
   .print-day-call {
-    font-weight: 400;
     flex: 0 0 auto;
   }
   .print-table {
@@ -221,14 +213,14 @@ const PRINT_STYLE = `
     padding: 3pt 1pt;
     vertical-align: top;
   }
-  .print-col-sc { width: 20pt; text-align: center !important; font-weight: 700; }
+  .print-col-sc { width: 15pt; text-align: center !important; }
   .print-col-call { width: 20pt; text-align: center !important; }
-  .print-col-dur { width: 20pt; text-align: center !important; }
+  .print-col-dur { width: 30pt; text-align: center !important; }
   .print-col-ie { width: 34pt; text-align: left !important; }
-  .print-col-set { width: 120pt; text-align: left !important; text-transform: uppercase; }
+  .print-col-set { width: 120pt; text-align: left; text-transform: uppercase; }
   .print-col-dn { width: 40pt; text-align: left !important; }
   .print-col-cast { width: 56pt; text-align: left !important; }
-  .print-col-pgs { width: 34pt; text-align: center !important; font-weight: 700; }
+  .print-col-pgs { width: 34pt; text-align: center !important; }
 
   .print-table .print-row-scene td,
   .print-table .print-row-desc td {
@@ -246,7 +238,6 @@ const PRINT_STYLE = `
     border-right: 1px solid #591b1b;
     border-bottom: 1px solid #591b1b;
   }
-
   .print-row-scene td { padding-bottom: 3pt !important; }
   .print-row-desc td { vertical-align: middle; padding-top: 0 !important; }
   .print-cell-desc {
@@ -278,10 +269,8 @@ const PRINT_STYLE = `
     border-top: 0.5pt solid #d4d4d8;
   }
   .print-footer-end-label {
-    font-weight: 700;
   }
   .print-footer-date {
-    font-weight: 400;
     flex: 1;
     text-align: center;
   }
