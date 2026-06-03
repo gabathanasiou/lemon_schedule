@@ -26,7 +26,13 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
 function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+  const year = d.getFullYear();
+  const suffixes = ['TH', 'ST', 'ND', 'RD'];
+  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
+  return `${weekday} ${day}${suffix} ${month} ${year}`;
 }
 
 interface DaySectionProps {
@@ -135,7 +141,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
       <div className="print-day-footer">
         <span className="print-footer-end-label">End of Day #{dayInt}</span>
-        {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
+        {meta?.date && <span className="print-footer-date">{new Date(meta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         <span className="print-footer-spacer" />
         <span>Total Pages: {formatPageCount(totalPages)}</span>
         <span>EST. TIME: {formatDuration(runningElapsed)}</span>
