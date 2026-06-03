@@ -74,32 +74,35 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         <span className="print-day-call">{meta?.unitCall || ''}</span>
       </div>
 
-      <table className="print-table">
-          {computedRows.map((r) => {
+      {computedRows.map((r) => {
             if (r.type === 'NOTE') {
               return (
-                <tbody key={r.id} style={{ pageBreakInside: 'avoid' }}>
-                  <tr className="print-row-note">
-                    <td className="print-col-sc" />
-                    {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                    {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
-                    <td colSpan={contentColspan} className="print-cell-note">{r.noteText || ''}</td>
-                    <td className="print-col-pgs" />
-                  </tr>
-                </tbody>
+                <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
+                  <tbody>
+                    <tr className="print-row-note">
+                      <td className="print-col-sc" />
+                      {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
+                      {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
+                      <td colSpan={contentColspan} className="print-cell-note">{r.noteText || ''}</td>
+                      <td className="print-col-pgs" />
+                    </tr>
+                  </tbody>
+                </table>
               );
             }
             if (r.type === 'BREAK') {
               return (
-                <tbody key={r.id} style={{ pageBreakInside: 'avoid' }}>
-                  <tr className="print-row-break">
-                    <td className="print-col-sc" />
-                    {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                    {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
-                    <td colSpan={contentColspan} className="print-cell-break">{r.breakLabel || 'BREAK'}</td>
-                    <td className="print-col-pgs" />
-                  </tr>
-                </tbody>
+                <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
+                  <tbody>
+                    <tr className="print-row-break">
+                      <td className="print-col-sc" />
+                      {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
+                      {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
+                      <td colSpan={contentColspan} className="print-cell-break">{r.breakLabel || 'BREAK'}</td>
+                      <td className="print-col-pgs" />
+                    </tr>
+                  </tbody>
+                </table>
               );
             }
             const scene = scenes.find(s => s.id === r.sceneId);
@@ -107,29 +110,30 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             const rowStyle = sceneStyle(scene);
             const bgColor = rowStyle.background || '#ffffff';
             return (
-              <tbody key={r.id} style={{ pageBreakInside: 'avoid', '--td-border-color': bgColor } as any}>
-                <tr className="print-row-scene" style={rowStyle}>
-                  <td className="print-col-sc">{scene.sceneNumber}</td>
-                  {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                  {showDurations && <td className="print-col-dur">{formatDuration(r.estimatedDuration || 0)}</td>}
-                  <td className="print-col-ie">{scene.intExt}</td>
-                  <td className="print-col-set">{scene.set}</td>
-                  <td className="print-col-dn">{scene.dayNight}</td>
-                  <td className="print-col-cast">{scene.cast}</td>
-                  <td className="print-col-pgs">{scene.pageCount}</td>
-                </tr>
-                <tr className="print-row-desc" style={rowStyle}>
-                  <td className="print-col-sc" />
-                  {showTimes && <td className="print-col-call" />}
-                  {showDurations && <td className="print-col-dur" />}
-                  <td colSpan={5} className="print-cell-desc">
-                    {scene.description || ''}
-                  </td>
-                </tr>
-              </tbody>
+              <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', '--td-border-color': bgColor } as any}>
+                <tbody>
+                  <tr className="print-row-scene" style={rowStyle}>
+                    <td className="print-col-sc">{scene.sceneNumber}</td>
+                    {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
+                    {showDurations && <td className="print-col-dur">{formatDuration(r.estimatedDuration || 0)}</td>}
+                    <td className="print-col-ie">{scene.intExt}</td>
+                    <td className="print-col-set">{scene.set}</td>
+                    <td className="print-col-dn">{scene.dayNight}</td>
+                    <td className="print-col-cast">{scene.cast}</td>
+                    <td className="print-col-pgs">{scene.pageCount}</td>
+                  </tr>
+                  <tr className="print-row-desc" style={rowStyle}>
+                    <td className="print-col-sc" />
+                    {showTimes && <td className="print-col-call" />}
+                    {showDurations && <td className="print-col-dur" />}
+                    <td colSpan={5} className="print-cell-desc">
+                      {scene.description || ''}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             );
           })}
-      </table>
 
       <div className="print-day-footer">
         <span className="print-footer-end-label">End of Day #{dayInt}</span>
@@ -207,10 +211,11 @@ const PRINT_STYLE = `
   .print-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 0;
-  }
-  .print-table tbody {
+    margin: 0;
+    padding: 0;
+    border: none;
     page-break-inside: avoid;
+    break-inside: avoid;
   }
   .print-table td {
     padding: 2pt 4pt;
@@ -227,17 +232,19 @@ const PRINT_STYLE = `
 
   .print-table .print-row-scene td,
   .print-table .print-row-desc td {
-    border: 1px solid var(--td-border-color, #ffffff);
+    border-right: 1px solid var(--td-border-color, #ffffff);
+    border-bottom: 1px solid var(--td-border-color, #ffffff);
   }
 
   .print-table .print-row-note td,
   .print-table .print-row-break td {
     background: #591b1b;
     color: #ffffff;
-    border: 1px solid #591b1b;
     vertical-align: middle;
     padding-top: 6pt !important;
     padding-bottom: 6pt !important;
+    border-right: 1px solid #591b1b;
+    border-bottom: 1px solid #591b1b;
   }
   .print-cell-note,
   .print-cell-break {
@@ -255,7 +262,7 @@ const PRINT_STYLE = `
   .print-table tbody tr:first-child td {
     border-top: 1px solid #000 !important;
   }
-  .print-table tbody tr:last-child td {
+  .print-table:last-of-type tbody tr:last-child td {
     border-bottom: 1px solid #000 !important;
   }
   .print-table td:first-child {
