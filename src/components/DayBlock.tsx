@@ -140,14 +140,6 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               onChange={e => updateMeta({unitCall: e.target.value})}
               className="bg-zinc-800 px-2 py-1 rounded outline-none border border-transparent focus:border-zinc-500 font-bold"
             />
-         </div>
-         <div className="flex items-center gap-4">
-            <input 
-              value={meta?.date || ''} 
-              onChange={e => updateMeta({date: e.target.value})} 
-              placeholder="ENTER DATE"
-              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white uppercase w-64"
-            />
             <button 
               onClick={() => dispatch({ type: 'DELETE_DAY', day: dayInt })}
               className="opacity-50 hover:opacity-100 hover:text-red-400 transition-colors"
@@ -155,6 +147,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             >
               <Trash2 className="w-4 h-4" />
             </button>
+         </div>
+         <div className="flex items-center gap-4">
+            <input 
+              type="date"
+              value={meta?.date || ''} 
+              onChange={e => updateMeta({date: e.target.value})} 
+              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white"
+            />
          </div>
       </div>
 

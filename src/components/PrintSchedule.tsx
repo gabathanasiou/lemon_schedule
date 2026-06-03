@@ -23,6 +23,18 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
   return { background: '#ffffff', color: '#18181b' };
 }
 
+function formatDateLong(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+  const year = d.getFullYear();
+  const suffixes = ['TH', 'ST', 'ND', 'RD'];
+  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
+  return `${weekday} ${day}${suffix} ${month} ${year}`;
+}
+
 interface DaySectionProps {
   dayInt: number;
   rows: ScheduleRow[];
@@ -57,28 +69,12 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   return (
     <div className="print-day">
       <div className="print-day-header">
-        <div className="print-day-header-left">
-          <span className="print-day-number">DAY {dayInt}</span>
-          {meta?.date && <span className="print-day-date">{meta.date}</span>}
-        </div>
-        <div className="print-day-header-right">
-          {meta?.unitCall && <span>Call: {meta.unitCall}</span>}
-        </div>
+        <span className="print-day-number">DAY #{dayInt}</span>
+        {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
+        <span className="print-day-call">{meta?.unitCall || ''}</span>
       </div>
 
       <table className="print-table">
-        <thead>
-          <tr>
-            <th className="print-col-sc">SC #</th>
-            {showTimes && <th className="print-col-call">CALL</th>}
-            {showDurations && <th className="print-col-dur">DUR</th>}
-            <th className="print-col-ie">I/E</th>
-            <th className="print-col-set">SET</th>
-            <th className="print-col-dn">D/N</th>
-            <th className="print-col-cast">CAST</th>
-            <th className="print-col-pgs">PGS</th>
-          </tr>
-        </thead>
           {computedRows.map((r) => {
             if (r.type === 'NOTE') {
               return (
@@ -86,7 +82,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                   <tr className="print-row-note">
                     <td className="print-col-sc" />
                     {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                    {showDurations && <td className="print-col-dur">{formatDuration(r.estimatedDuration || 0)}</td>}
+                    {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
                     <td colSpan={contentColspan} className="print-cell-note">{r.noteText || ''}</td>
                     <td className="print-col-pgs" />
                   </tr>
@@ -109,8 +105,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             const scene = scenes.find(s => s.id === r.sceneId);
             if (!scene) return null;
             const rowStyle = sceneStyle(scene);
+            const bgColor = rowStyle.background || '#ffffff';
             return (
-              <tbody key={r.id} style={{ pageBreakInside: 'avoid' }}>
+              <tbody key={r.id} style={{ pageBreakInside: 'avoid', '--td-border-color': bgColor } as any}>
                 <tr className="print-row-scene" style={rowStyle}>
                   <td className="print-col-sc">{scene.sceneNumber}</td>
                   {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
@@ -135,9 +132,11 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       </table>
 
       <div className="print-day-footer">
-        <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
-        <span className="print-footer-spacer">Shoot Time: <strong>{formatDuration(runningElapsed)}</strong></span>
-        <span className="print-end-label">END OF DAY {dayInt}</span>
+        <span className="print-footer-end-label">End of Day #{dayInt}</span>
+        {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
+        <span className="print-footer-spacer" />
+        <span>Total Pages: {formatPageCount(totalPages)}</span>
+        <span>EST. TIME: {formatDuration(runningElapsed)}</span>
       </div>
     </div>
   );
@@ -158,8 +157,8 @@ const PRINT_STYLE = `
   }
   .print-root {
     font-family: Helvetica, Arial, sans-serif;
-    font-size: 7pt;
-    line-height: 1.2;
+    font-size: 5.5pt;
+    line-height: 1;
     color: #18181b;
     padding: 0;
     -webkit-print-color-adjust: exact;
@@ -172,13 +171,11 @@ const PRINT_STYLE = `
     border-bottom: 1.5pt solid #18181b;
   }
   .print-title {
-    font-size: 12pt;
     font-weight: 800;
     margin: 0;
     letter-spacing: 0.5pt;
   }
   .print-subtitle {
-    font-size: 7pt;
     color: #52525b;
     margin: 2pt 0 0 0;
   }
@@ -189,86 +186,106 @@ const PRINT_STYLE = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #27272a;
+    background: #000000;
     color: #ffffff;
-    padding: 4pt 8pt;
+    padding: 6pt 8pt;
     font-weight: 700;
-    font-size: 8pt;
-  }
-  .print-day-header-left {
-    display: flex;
-    align-items: center;
-    gap: 8pt;
   }
   .print-day-number {
-    background: #18181b;
-    padding: 1.5pt 6pt;
-    border-radius: 2pt;
     letter-spacing: 1pt;
+    flex: 0 0 auto;
   }
   .print-day-date {
-    font-size: 7pt;
     font-weight: 400;
-    opacity: 0.8;
+    text-align: center;
+    flex: 1;
   }
-  .print-day-header-right {
-    font-size: 7pt;
-    opacity: 0.9;
+  .print-day-call {
+    font-weight: 400;
+    flex: 0 0 auto;
   }
   .print-table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 0;
-    font-size: 6.5pt;
   }
-  .print-table thead th {
-    background: #f4f4f5;
-    padding: 3pt 4pt;
-    text-align: left;
-    font-weight: 700;
-    font-size: 6pt;
-    letter-spacing: 0.3pt;
-    text-transform: uppercase;
-    color: #18181b;
-    white-space: nowrap;
+  .print-table tbody {
+    page-break-inside: avoid;
   }
-  .print-table tbody td {
+  .print-table td {
     padding: 2pt 4pt;
     vertical-align: top;
   }
   .print-col-sc { width: 18pt; text-align: center !important; font-weight: 700; }
-  .print-col-call { width: 28pt; text-align: center !important; font-size: 6.5pt; }
-  .print-col-dur { width: 28pt; text-align: center !important; }
-  .print-col-ie { width: 28pt; text-align: left !important; font-weight: 700; }
-  .print-col-set { text-align: left !important; font-weight: 700; text-transform: uppercase; }
-  .print-col-dn { width: 30pt; text-align: left !important; font-weight: 700; }
+  .print-col-call { width: 22pt; text-align: center !important; }
+  .print-col-dur { width: 22pt; text-align: center !important; }
+  .print-col-ie { width: 28pt; text-align: left !important; }
+  .print-col-set { text-align: left !important; text-transform: uppercase; }
+  .print-col-dn { width: 20pt; text-align: left !important; }
   .print-col-cast { width: 38pt; text-align: left !important; }
   .print-col-pgs { width: 22pt; text-align: center !important; font-weight: 700; }
 
-  .print-row-note td { background: #7a2e2e; color: #ffffff; font-style: italic; }
-  .print-cell-note { font-style: italic; font-size: 6.5pt; padding: 3pt 5pt !important; text-align: center !important; }
-  .print-row-break td { background: #591b1b; color: #ffffff; }
-  .print-cell-break { text-align: center !important; text-transform: uppercase; letter-spacing: 1pt; font-size: 6.5pt; padding: 3pt 5pt !important; }
-  .print-row-desc td { padding-top: 0 !important; }
-  .print-cell-desc { font-size: 6pt; opacity: 0.75; line-height: 1.3; }
+  .print-table .print-row-scene td,
+  .print-table .print-row-desc td {
+    border: 1px solid var(--td-border-color, #ffffff);
+  }
+
+  .print-table .print-row-note td,
+  .print-table .print-row-break td {
+    background: #591b1b;
+    color: #ffffff;
+    border: 1px solid #591b1b;
+    vertical-align: middle;
+    padding-top: 6pt !important;
+    padding-bottom: 6pt !important;
+  }
+  .print-cell-note,
+  .print-cell-break {
+    text-align: center !important;
+    padding: 6pt 5pt !important;
+  }
+
+  .print-row-scene td { padding-bottom: 2pt !important; }
+  .print-row-desc td { vertical-align: middle; padding-top: 0 !important; }
+  .print-cell-desc {
+    line-height: 1;
+    text-align: left !important;
+  }
+
+  .print-table tbody tr:first-child td {
+    border-top: 1px solid #000 !important;
+  }
+  .print-table tbody tr:last-child td {
+    border-bottom: 1px solid #000 !important;
+  }
+  .print-table td:first-child {
+    border-left: 1px solid #000 !important;
+  }
+  .print-table td:last-child {
+    border-right: 1px solid #000 !important;
+  }
 
   .print-day-footer {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    background: #18181b;
-    color: #ffffff;
-    padding: 3pt 8pt;
-    font-size: 6.5pt;
+    background: #ffffff;
+    color: #18181b;
+    padding: 3pt 4pt;
     gap: 16pt;
+    border-top: 0.5pt solid #d4d4d8;
   }
-  .print-end-label {
-    margin-left: auto;
-    background: #000000;
-    padding: 1.5pt 8pt;
-    letter-spacing: 1pt;
+  .print-footer-end-label {
     font-weight: 700;
-    font-size: 6pt;
+  }
+  .print-footer-date {
+    font-weight: 400;
+    opacity: 0.7;
+    flex: 1;
+    text-align: center;
+  }
+  .print-footer-spacer {
+    flex: 1;
   }
 `;
 
