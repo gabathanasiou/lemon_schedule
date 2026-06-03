@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useProject } from '../store';
-import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
@@ -67,6 +67,7 @@ export function ScheduleTab() {
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
+  const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
@@ -209,10 +210,31 @@ export function ScheduleTab() {
     setActiveType(e.active.data.current?.type || null);
   };
 
+  const handleDragOver = (e: DragOverEvent) => {
+    const overId = e.over?.id as string | undefined;
+    if (overId && activeType === 'ROW') {
+      const day = getDayFromId(overId);
+      if (day !== null) {
+        const dayRows = scheduledRows[day] || [];
+        if (dayRows.some(r => r.id === overId)) {
+          setInsertBeforeId(overId);
+        } else {
+          setInsertBeforeId(`day-${day}`);
+        }
+      } else {
+        setInsertBeforeId(null);
+      }
+    } else {
+      setInsertBeforeId(null);
+    }
+  };
+
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
+    const lastInsertBeforeId = insertBeforeId;
     setActiveId(null);
     setActiveType(null);
+    setInsertBeforeId(null);
     
     if (!over) return;
 
@@ -283,24 +305,26 @@ export function ScheduleTab() {
       if (activeRow.shootDay === overDay) {
         newRows = reorderDay(newRows, overDay, activeId, overId);
       } else {
-        const movedRow = { ...activeRow, shootDay: overDay };
         newRows = newRows.filter(r => r.id !== activeId);
-        newRows.push(movedRow);
-        newRows = reorderDay(newRows, overDay, activeId, overId);
+        let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
+        let targetOverId = lastInsertBeforeId && !lastInsertBeforeId.startsWith('day-') && dayRows.some(r => r.id === lastInsertBeforeId)
+          ? lastInsertBeforeId : null;
+        let insertIndex = targetOverId ? dayRows.findIndex(r => r.id === targetOverId) : dayRows.length;
+        if (insertIndex === -1) insertIndex = dayRows.length;
+        const movedRow = { ...activeRow, shootDay: overDay };
+        dayRows.splice(insertIndex, 0, movedRow);
+        dayRows.forEach((r, i) => r.order = i);
+        newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
       }
     } else {
       const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
       newRows = newRows.filter(r => !draggingIds.includes(r.id));
       
       let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      const overIndex = dayRows.findIndex(r => r.id === overId);
-      
-      let insertIndex = dayRows.length;
-      if (overIndex !== -1) {
-         insertIndex = overIndex;
-      } else if (overId.startsWith('day-')) {
-         insertIndex = dayRows.length;
-      }
+      let targetOverId = lastInsertBeforeId && !lastInsertBeforeId.startsWith('day-') && dayRows.some(r => r.id === lastInsertBeforeId)
+        ? lastInsertBeforeId : null;
+      let insertIndex = targetOverId ? dayRows.findIndex(r => r.id === targetOverId) : dayRows.length;
+      if (insertIndex === -1) insertIndex = dayRows.length;
       
       const newItems = draggingItems.map(item => ({ ...item, shootDay: overDay }));
       dayRows.splice(insertIndex, 0, ...newItems);
@@ -322,6 +346,7 @@ export function ScheduleTab() {
       sensors={sensors}
       collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div 
@@ -367,6 +392,9 @@ export function ScheduleTab() {
                   selectedIds={selectedRowIds}
                   onRowClick={handleRowClick}
                   textEditingEnabled={textEditingEnabled}
+                  insertBeforeId={insertBeforeId}
+                  activeRowId={activeId}
+                  activeDragRow={activeDragRow}
                 />
               ))}
             </SortableContext>

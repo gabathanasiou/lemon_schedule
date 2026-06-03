@@ -126,10 +126,11 @@ export const SortableRow: React.FC<{
                 <CellInput 
                   value={row.noteText} 
                   onChange={val => updateRow({noteText: val})} 
-                  className={`${inputClass} text-center italic truncate max-w-full`} 
+                  className={`${inputClass} text-center italic max-w-full`} 
                   placeholder="Enter note here..."
                   onBlur={() => setEditingFieldId(null)}
                   autoFocus={editingFieldId === row.id}
+                  multiline
                 />
               )}
            </div>

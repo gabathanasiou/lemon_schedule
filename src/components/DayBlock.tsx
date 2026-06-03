@@ -7,9 +7,59 @@ import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils'
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { GripHorizontal, Trash2 } from 'lucide-react';
-import { ScheduleRow, ShootDayMeta } from '../types';
+import { ScheduleRow, ShootDayMeta, Scene } from '../types';
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled }) => {
+const sceneCardClass = (scene?: Scene | null): string => {
+  if (!scene) return 'bg-white text-zinc-900';
+  const intExt = (scene.intExt || '').toUpperCase();
+  const dayNight = (scene.dayNight || '').toUpperCase();
+  if (intExt.includes('INT') && dayNight.includes('DAY')) return 'bg-[#FFFFFF] text-[#464646]';
+  if (intExt.includes('EXT') && dayNight.includes('DAY')) return 'bg-[#BDD857] text-[#000000]';
+  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return 'bg-[#67832E] text-[#F2FCE3]';
+  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return 'bg-[#2148A7] text-[#FFFFFF]';
+  if (intExt.includes('INT') && dayNight.includes('MORNING')) return 'bg-[#EFBEA0] text-[#4A3730]';
+  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return 'bg-[#E88AA5] text-[#FFFFFF]';
+  if (intExt.includes('INT') && dayNight.includes('EVENING')) return 'bg-[#E29926] text-[#000000]';
+  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return 'bg-[#CE7D21] text-[#000000]';
+  return 'bg-white text-zinc-900';
+};
+
+const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scenes }) => {
+  if (row.type === 'NOTE') {
+    return (
+      <div className="opacity-30 flex items-stretch bg-white text-zinc-900 min-h-[44px] font-sans text-[12px] font-bold tracking-tight border-b sm:border-black/20 shrink-0">
+        <div className="flex-1 flex items-center justify-center px-3 italic">{row.noteText || 'Note'}</div>
+      </div>
+    );
+  }
+
+  if (row.type === 'BREAK') {
+    return (
+      <div className="opacity-30 flex items-stretch bg-[#591b1b] text-white min-h-[44px] font-sans text-[12px] font-bold tracking-tight border-b sm:border-black/20 shrink-0">
+        <div className="flex-1 flex items-center justify-center px-3">{row.breakLabel || 'BREAK'}</div>
+      </div>
+    );
+  }
+
+  const scene = scenes.find(s => s.id === row.sceneId);
+  return (
+    <div className={`opacity-30 flex items-stretch min-h-[44px] font-sans text-[12px] font-bold tracking-tight border-b sm:border-black/20 shrink-0 ${sceneCardClass(scene)}`}>
+      {scene && (
+        <>
+          <div className="flex items-center justify-center w-[50px] shrink-0 px-1 border-r border-black/10">{scene.sceneNumber}</div>
+          <div className="flex-1 flex items-center px-3 gap-1 min-w-0">
+            <span className="uppercase shrink-0">{scene.intExt}.</span>
+            <span className="uppercase tracking-wider truncate">{scene.set}</span>
+            <span className="opacity-50 shrink-0">-</span>
+            <span className="uppercase shrink-0">{scene.dayNight}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -38,7 +88,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         id: activeVersion.id,
         dayMeta: {
           ...activeVersion.dayMeta,
-          [dayInt]: { ...(activeVersion.dayMeta[dayInt] || { shootTime: '08:00', date: '' }), ...updates }
+          [dayInt]: { ...(activeVersion.dayMeta[dayInt] || { unitCall: '08:00', date: '' }), ...updates }
         }
       }
     });
@@ -49,7 +99,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   let totalPages = 0;
 
   const computedRows = rows.map(r => {
-    const callTime = addMinutesToTime(meta?.shootTime || '08:00', runningElapsed);
+    const callTime = addMinutesToTime(meta?.unitCall || '08:00', runningElapsed);
     let dur = 0;
     
     if (r.type === 'SCENE') {
@@ -83,11 +133,11 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                <GripHorizontal className="w-5 h-5 text-zinc-400" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-zinc-400 bg-black px-3 py-1 rounded tracking-widest">DAY {dayInt}</span>
+               <span className="text-zinc-400 bg-black px-3 py-1 rounded tracking-widest">DAY {dayInt}</span>
             </div>
             <input 
-              value={meta?.shootTime || '08:00'} 
-              onChange={e => updateMeta({shootTime: e.target.value})}
+              value={meta?.unitCall || '08:00'} 
+              onChange={e => updateMeta({unitCall: e.target.value})}
               className="bg-zinc-800 px-2 py-1 rounded outline-none border border-transparent focus:border-zinc-500 font-bold"
             />
          </div>
@@ -125,25 +175,40 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         <div className="w-[50px] text-center border-l border-zinc-300 py-2">PAGES</div>
       </div>
 
-      <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch">
+      <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-          {computedRows.map(r => (
-            <SortableRow 
-              key={r.id} 
-              row={r} 
-              scenes={project.scenes} 
-              isSelected={selectedIds.has(r.id)}
-              onSelectToggle={(e) => onRowClick?.(r.id, e)}
-              textEditingEnabled={textEditingEnabled}
-            />
-          ))}
+          {computedRows.map((r, i) => {
+            const isCrossContext = activeRowId && !rows.some(row => row.id === activeRowId);
+            return (
+              <React.Fragment key={r.id}>
+                {isCrossContext && insertBeforeId === r.id && activeDragRow && (
+                  <GhostCard row={activeDragRow} scenes={project.scenes} />
+                )}
+                <SortableRow 
+                  row={r} 
+                  scenes={project.scenes} 
+                  isSelected={selectedIds.has(r.id)}
+                  onSelectToggle={(e) => onRowClick?.(r.id, e)}
+                  textEditingEnabled={textEditingEnabled}
+                />
+                {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
+                  <GhostCard row={activeDragRow} scenes={project.scenes} />
+                )}
+              </React.Fragment>
+            );
+          })}
         </SortableContext>
         
         {/* Drop target filler if empty */}
         {rows.length === 0 && (
-          <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold">
-            Drop scenes here
-          </div>
+          <>
+            {activeRowId && insertBeforeId === `day-${dayInt}` && activeDragRow && (
+              <GhostCard row={activeDragRow} scenes={project.scenes} />
+            )}
+            <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold">
+              Drop scenes here
+            </div>
+          </>
         )}
       </div>
 
