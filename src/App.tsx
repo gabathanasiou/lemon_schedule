@@ -3,11 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProjectProvider, useProject } from './store';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { ProjectManager } from './components/ProjectManager';
+import PrintDialog from './components/PrintDialog';
+import PrintSchedule from './components/PrintSchedule';
+import DropdownMenu from './components/DropdownMenu';
+import DropdownItem from './components/DropdownItem';
+import DropdownDivider from './components/DropdownDivider';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen } from 'lucide-react';
 
 function AppContent() {
@@ -17,10 +22,30 @@ function AppContent() {
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [printOptions, setPrintOptions] = useState<{showTimes: boolean; showDurations: boolean} | null>(null);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
   const noProject = currentProjectId === null;
+
+  useEffect(() => {
+    if (printOptions) {
+      const onAfterPrint = () => setPrintOptions(null);
+      window.addEventListener('afterprint', onAfterPrint);
+      setTimeout(() => window.print(), 200);
+      return () => window.removeEventListener('afterprint', onAfterPrint);
+    }
+  }, [printOptions]);
+
+  if (printOptions) {
+    return (
+      <div>
+        <PrintSchedule project={project} showTimes={printOptions.showTimes} showDurations={printOptions.showDurations} />
+      </div>
+    );
+  }
 
   if (noProject) {
     return <ProjectManager />;
@@ -55,6 +80,8 @@ function AppContent() {
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} />
       )}
+
+      {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} />}
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
@@ -110,172 +137,130 @@ function AppContent() {
           </div>
 
           {activeTab === 'schedule' && (
-            <div className="relative">
-              <button 
-                onClick={() => setShowVersionsMenu(prev => !prev)}
-                className="flex items-center space-x-1.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium"
-              >
-                <span>Version: <strong className="text-zinc-300 font-semibold">{version?.name || 'Select Version'}</strong></span>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
-              </button>
-
-              {showVersionsMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => { setShowVersionsMenu(false); setEditingVersionId(null); }} />
+            <DropdownMenu
+              open={showVersionsMenu}
+              onClose={() => { setShowVersionsMenu(false); setEditingVersionId(null); }}
+              width="w-80"
+              trigger={
+                <button 
+                  onClick={() => setShowVersionsMenu(prev => !prev)}
+                  className="flex items-center space-x-1.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium"
+                >
+                  <span>Version: <strong className="text-zinc-300 font-semibold">{version?.name || 'Select Version'}</strong></span>
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                </button>
+              }
+            >
+              <div className="px-3 py-2 border-b border-zinc-800 text-zinc-400 font-bold text-[11px] tracking-wider uppercase">
+                Schedule Versions
+              </div>
+              
+              <div className="max-h-60 overflow-y-auto py-1 space-y-0.5">
+                {project.versions.map(v => {
+                  const isActive = v.id === project.activeVersionId;
+                  const isEditing = v.id === editingVersionId;
                   
-                  <div className="absolute right-0 top-full mt-2 w-80 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-2 flex flex-col font-sans select-none">
-                    <div className="px-3 py-2 border-b border-zinc-800 text-zinc-400 font-bold text-[11px] tracking-wider uppercase">
-                      Schedule Versions
-                    </div>
-                    
-                    <div className="max-h-60 overflow-y-auto py-1 space-y-0.5">
-                      {project.versions.map(v => {
-                        const isActive = v.id === project.activeVersionId;
-                        const isEditing = v.id === editingVersionId;
-                        
-                        return (
-                          <div 
-                            key={v.id} 
-                            className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? 'bg-zinc-900 text-white font-medium' : 'hover:bg-zinc-900/60'}`}
+                  return (
+                    <div 
+                      key={v.id} 
+                      className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? 'bg-zinc-900 text-white font-medium' : 'hover:bg-zinc-900/60'}`}
+                    >
+                      {isEditing ? (
+                        <div className="flex items-center space-x-1 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="text" 
+                            value={editingName} 
+                            onChange={e => setEditingName(e.target.value)}
+                            className="bg-zinc-800 border border-zinc-700 text-white px-2 py-0.5 rounded outline-none text-xs flex-1"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                if (editingName.trim()) {
+                                  dispatch({ type: 'RENAME_VERSION', payload: { id: v.id, name: editingName.trim() } });
+                                }
+                                setEditingVersionId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingVersionId(null);
+                              }
+                            }}
+                          />
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); if (editingName.trim()) { dispatch({ type: 'RENAME_VERSION', payload: { id: v.id, name: editingName.trim() } }); } setEditingVersionId(null); }}
+                            className="p-1 hover:bg-zinc-700 rounded text-emerald-400"
                           >
-                            {isEditing ? (
-                              <div className="flex items-center space-x-1 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
-                                <input 
-                                  type="text" 
-                                  value={editingName} 
-                                  onChange={e => setEditingName(e.target.value)}
-                                  className="bg-zinc-800 border border-zinc-700 text-white px-2 py-0.5 rounded outline-none text-xs flex-1"
-                                  autoFocus
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                      if (editingName.trim()) {
-                                        dispatch({ type: 'RENAME_VERSION', payload: { id: v.id, name: editingName.trim() } });
-                                      }
-                                      setEditingVersionId(null);
-                                    } else if (e.key === 'Escape') {
-                                      setEditingVersionId(null);
-                                    }
-                                  }}
-                                />
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (editingName.trim()) {
-                                      dispatch({ type: 'RENAME_VERSION', payload: { id: v.id, name: editingName.trim() } });
-                                    }
-                                    setEditingVersionId(null);
-                                  }}
-                                  className="p-1 hover:bg-zinc-700 rounded text-emerald-400"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingVersionId(null);
-                                  }}
-                                  className="p-1 hover:bg-zinc-700 rounded text-rose-400"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span 
-                                onClick={() => {
-                                  dispatch({ type: 'SET_ACTIVE_VERSION', payload: v.id });
-                                  setShowVersionsMenu(false);
-                                }}
-                                className="truncate flex-1 cursor-pointer"
-                                title={v.name}
-                              >
-                                {v.name}
-                              </span>
-                            )}
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setEditingVersionId(null); }}
+                            className="p-1 hover:bg-zinc-700 rounded text-rose-400"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span 
+                          onClick={() => { dispatch({ type: 'SET_ACTIVE_VERSION', payload: v.id }); setShowVersionsMenu(false); }}
+                          className="truncate flex-1 cursor-pointer"
+                          title={v.name}
+                        >
+                          {v.name}
+                        </span>
+                      )}
 
-                            {!isEditing && (
-                              <div className="flex items-center space-x-1 ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <button 
-                                  onClick={() => {
-                                    setEditingVersionId(v.id);
-                                    setEditingName(v.name);
-                                  }}
-                                  className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors"
-                                  title="Rename version"
-                                >
-                                  <Pencil className="w-3.5 h-3.5 text-zinc-400" />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    const newName = prompt("Name for duplicated version?", `${v.name} Copy`);
-                                    if (newName) {
-                                      dispatch({ type: 'NEW_VERSION', payload: { name: newName, cloneFromId: v.id } });
-                                    }
-                                  }}
-                                  className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors"
-                                  title="Duplicate version"
-                                >
-                                  <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    if (project.versions.length <= 1) return;
-                                    if (confirm(`Are you sure you want to delete "${v.name}"? This cannot be undone.`)) {
-                                      dispatch({ type: 'DELETE_VERSION', payload: v.id });
-                                    }
-                                  }}
-                                  disabled={project.versions.length <= 1}
-                                  className={`p-1 rounded transition-colors ${project.versions.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-rose-950/40 hover:text-rose-400'}`}
-                                  title="Delete version"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {!isEditing && (
+                        <div className="flex items-center space-x-1 ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => { setEditingVersionId(v.id); setEditingName(v.name); }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Rename version">
+                            <Pencil className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                          <button onClick={() => { const newName = prompt("Name for duplicated version?", `${v.name} Copy`); if (newName) { dispatch({ type: 'NEW_VERSION', payload: { name: newName, cloneFromId: v.id } }); } }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Duplicate version">
+                            <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                          <button onClick={() => { if (project.versions.length <= 1) return; if (confirm(`Are you sure you want to delete "${v.name}"? This cannot be undone.`)) { dispatch({ type: 'DELETE_VERSION', payload: v.id }); } }} disabled={project.versions.length <= 1} className={`p-1 rounded transition-colors ${project.versions.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-rose-950/40 hover:text-rose-400'}`} title="Delete version">
+                            <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                        </div>
+                      )}
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="border-t border-zinc-800 mt-1 pt-1.5 flex flex-col space-y-1">
-                      <button 
-                        onClick={() => {
-                          const name = prompt("Name for duplicated version?", `${version?.name || 'Version'} Copy`);
-                          if (name) {
-                            dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId } });
-                            setShowVersionsMenu(false);
-                          }
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white flex items-center gap-2 text-xs transition-colors"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-zinc-400" /> Duplicate Active Version
-                      </button>
-                      <button 
-                        onClick={() => {
-                          const name = prompt("Name for new version?", `Version ${project.versions.length + 1}`);
-                          if (name) {
-                            dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } });
-                            setShowVersionsMenu(false);
-                          }
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white flex items-center gap-2 text-xs transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-zinc-400" /> Create Blank Version
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+              <div className="border-t border-zinc-800 mt-1 pt-1.5 flex flex-col space-y-1">
+                <DropdownItem onClick={() => { const name = prompt("Name for duplicated version?", `${version?.name || 'Version'} Copy`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId } }); setShowVersionsMenu(false); } }} icon={<Copy className="w-3.5 h-3.5" />}>
+                  Duplicate Active Version
+                </DropdownItem>
+                <DropdownItem onClick={() => { const name = prompt("Name for new version?", `Version ${project.versions.length + 1}`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } }); setShowVersionsMenu(false); } }} icon={<Plus className="w-3.5 h-3.5" />}>
+                  Create Blank Version
+                </DropdownItem>
+              </div>
+            </DropdownMenu>
           )}
-          
-          <div className="flex space-x-2 relative group cursor-pointer z-50">
-             <span className="px-3 py-1 items-center flex hover:bg-zinc-800 rounded transition-colors">Export ▾</span>
-             <div className="absolute right-0 top-full mt-1 bg-zinc-900 border border-zinc-800 rounded shadow-2xl hidden group-hover:flex flex-col w-48 text-zinc-300">
-               <button onClick={handleExportCSV} className="text-left px-4 py-2 hover:bg-zinc-800 hover:text-white flex items-center gap-2"><Download className="w-3 h-3"/> Breakdown to CSV</button>
-               <button onClick={handleExportJSON} className="text-left px-4 py-2 hover:bg-zinc-800 hover:text-white flex items-center gap-2"><Download className="w-3 h-3"/> Save Project as JSON</button>
-               <button onClick={() => window.print()} className="text-left px-4 py-2 hover:bg-zinc-800 hover:text-white flex items-center gap-2 border-t border-zinc-800"><Printer className="w-3 h-3"/> Print Schedule</button>
-             </div>
-          </div>
+
+          <DropdownMenu
+              open={showExportMenu}
+              onClose={() => setShowExportMenu(false)}
+              width="w-48"
+              trigger={
+                <button
+                  onClick={() => setShowExportMenu(prev => !prev)}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 hover:bg-zinc-800 rounded transition-colors font-sans cursor-pointer select-none"
+                >
+                  <span>Export</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-400" />
+                </button>
+              }
+            >
+              <DropdownItem onClick={handleExportCSV} icon={<Download className="w-3.5 h-3.5" />}>
+                Breakdown to CSV
+              </DropdownItem>
+              <DropdownItem onClick={handleExportJSON} icon={<Download className="w-3.5 h-3.5" />}>
+                Save Project as JSON
+              </DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowPrintDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Print Schedule
+              </DropdownItem>
+            </DropdownMenu>
           <span className="text-zinc-500">Auto-saved</span>
         </div>
       </header>
