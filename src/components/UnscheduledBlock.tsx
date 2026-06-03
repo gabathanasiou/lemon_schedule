@@ -1,56 +1,88 @@
 import React from 'react';
-import { Scene } from '../types';
-import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { Scene, ScheduleRow } from '../types';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableRow } from './SortableRow';
+import { useProject } from '../store';
+import { generateUUID } from '../lib/utils';
+import { Plus } from 'lucide-react';
 
-export const UnscheduledBlock: React.FC<{ scenes: Scene[] }> = ({ scenes }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `unscheduled_bin`,
+export const UnscheduledBlock: React.FC<{ 
+  rows: ScheduleRow[], 
+  projectScenes: Scene[],
+  textEditingEnabled: boolean,
+  onAction?: (action: string) => void,
+  contextMenu?: any,
+  setContextMenu?: any
+}> = ({ rows, projectScenes, textEditingEnabled }) => {
+  const { state, dispatch } = useProject();
+  
+  const { setNodeRef } = useDroppable({
+    id: 'unscheduled_bin',
     data: { type: 'UNSCHEDULED_BIN' }
   });
 
+  const addRow = (type: 'NOTE' | 'BREAK') => {
+    const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
+    if (!activeVersion) return;
+    const newOrder = rows.length > 0 ? Math.max(...rows.map(r => r.order)) + 1 : 0;
+    
+    const newRow: ScheduleRow = type === 'NOTE' ? {
+      id: generateUUID(),
+      type: 'NOTE',
+      shootDay: null,
+      order: newOrder,
+      noteText: ''
+    } : {
+      id: generateUUID(),
+      type: 'BREAK',
+      shootDay: null,
+      order: newOrder,
+      breakLabel: 'LUNCH',
+      breakDuration: 60
+    };
+
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: [...activeVersion.rows, newRow] } });
+  };
+
   return (
-    <div className="w-80 border-l border-zinc-300 bg-white flex flex-col">
-      <div className="p-3 bg-zinc-900 text-white font-bold text-[12px] uppercase tracking-wider">
-        Unscheduled Scenes ({scenes.length})
+    <div className="w-[340px] bg-white border-r border-zinc-200 shadow-xl flex flex-col z-20 print:hidden relative shrink-0">
+      <div className="p-4 border-b border-zinc-200 bg-zinc-50 shadow-sm sticky top-0 z-10 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-sm tracking-widest text-zinc-800">UNSCHEDULED</h2>
+            <p className="text-xs text-zinc-500 mt-1">{rows.length} Items</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => addRow('NOTE')} className="flex-1 text-xs font-bold bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-100 py-1.5 rounded flex items-center justify-center gap-1 shadow-sm">
+             <Plus className="w-3 h-3" /> NOTE
+          </button>
+          <button onClick={() => addRow('BREAK')} className="flex-1 text-xs font-bold bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-100 py-1.5 rounded flex items-center justify-center gap-1 shadow-sm">
+             <Plus className="w-3 h-3" /> BREAK
+          </button>
+        </div>
       </div>
-      <div 
-        ref={setNodeRef} 
-        className={`flex-1 overflow-auto p-2 space-y-2 transition-colors ${isOver ? 'bg-zinc-100 ring-inset ring-2 ring-blue-400' : ''}`}
-      >
-        {scenes.map(s => (
-          <DraggableScene key={s.id} scene={s} />
-        ))}
-        {scenes.length === 0 && (
-          <div className="text-zinc-500 text-xs p-4 text-center">All scenes scheduled.</div>
+      
+      <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0 bg-zinc-100 items-stretch">
+        <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
+          {rows.map((r) => (
+            <div key={r.id} className="shadow-sm rounded overflow-hidden border border-black/20">
+               <SortableRow 
+                 row={r}
+                 scenes={projectScenes}
+                 isCompact
+                 textEditingEnabled={textEditingEnabled}
+               />
+            </div>
+          ))}
+        </SortableContext>
+        {rows.length === 0 && (
+          <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold text-center">
+            Drop items here to unschedule
+          </div>
         )}
       </div>
-      <div className="p-2 border-t border-zinc-200 bg-zinc-50 text-[10px] text-zinc-500 text-center uppercase tracking-wide font-bold">
-         Drag scenes here to unschedule<br />Drag breaks here to delete
-      </div>
-    </div>
-  );
-}
-
-export const DraggableScene: React.FC<{ scene: Scene, isOverlay?: boolean }> = ({ scene, isOverlay }) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: scene.id,
-    data: { type: 'UNSCHEDULED_SCENE' }
-  });
-
-  return (
-    <div
-      ref={isOverlay ? undefined : setNodeRef}
-      {...(isOverlay ? {} : listeners)}
-      {...(isOverlay ? {} : attributes)}
-      className={`p-2 border rounded shadow-sm text-[12px] font-sans ${isDragging && !isOverlay ? 'opacity-50' : 'bg-white border-zinc-400 hover:border-zinc-400 cursor-grab'} ${isOverlay ? 'shadow-2xl scale-105 border-zinc-900 pointer-events-none ring-2 ring-black' : ''}`}
-    >
-      <div className="flex font-bold mb-1 items-center gap-2">
-        <span className="w-8">{scene.sceneNumber}</span>
-        <span className="text-zinc-500">{scene.intExt}</span>
-        <span className="text-zinc-500">{scene.dayNight}</span>
-      </div>
-      <div className="font-bold truncate uppercase">{scene.set}</div>
-      <div className="text-zinc-500 truncate mt-1">{scene.description}</div>
     </div>
   );
 }
