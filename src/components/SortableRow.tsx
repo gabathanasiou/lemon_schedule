@@ -86,7 +86,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch">
           <table className="schedule-table flex-1">
             <tbody>
-              <tr style={noteStyle}>
+              <tr className="row-note" style={noteStyle}>
                 <td className="col-sc" />
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">
@@ -126,7 +126,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch">
           <table className="schedule-table flex-1">
             <tbody>
-              <tr style={breakStyle}>
+              <tr className="row-break" style={breakStyle}>
                 <td className="col-sc" />
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">

@@ -346,6 +346,7 @@ export function ScheduleTab() {
       <style>{`
         .schedule-table {
           width: 100%;
+          table-layout: fixed;
           border-collapse: collapse;
           font-family: Helvetica, Arial, sans-serif;
           font-size: 13px;
@@ -356,6 +357,7 @@ export function ScheduleTab() {
           vertical-align: middle;
           border-right: 0.5px solid rgba(0,0,0,0.1);
           border-bottom: 0.5px solid rgba(0,0,0,0.1);
+          overflow: hidden;
         }
         .schedule-table tbody tr:first-child td:first-child {
           border-left: none;
@@ -363,9 +365,9 @@ export function ScheduleTab() {
         .schedule-table tbody tr:last-child td:last-child {
           border-right: none;
         }
-        .col-sc { width: 40px; text-align: center; font-weight: 600; }
-        .col-call { width: 60px; text-align: center; }
-        .col-dur { width: 70px; text-align: center; }
+        .col-sc { width: 20px; text-align: center; font-weight: 600; }
+        .col-call { width: 35px; text-align: center; }
+        .col-dur { width: 40px; text-align: center; }
         .col-ie { width: 50px; text-align: center; }
         .col-set { width: 200px; }
         .col-dn { width: 75px; text-align: center; }
@@ -374,6 +376,11 @@ export function ScheduleTab() {
         .col-desc {
           text-align: left;
           line-height: 1.2;
+        }
+        .schedule-table .row-note td,
+        .schedule-table .row-break td {
+          padding-top: 14px !important;
+          padding-bottom: 14px !important;
         }
       `}</style>
     <DndContext 
