@@ -64,14 +64,12 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     return { ...r, computedCallTime: callTime, computedElapsed: runningElapsed };
   });
 
-  const contentColspan = 4; // I/E + SET + D/N + CAST
-
   return (
     <div className="print-day">
       <div className="print-day-header">
         <span className="print-day-number">DAY #{dayInt}</span>
         {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
-        <span className="print-day-call">{meta?.unitCall || ''}</span>
+        <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
       </div>
 
       {computedRows.map((r) => {
@@ -83,7 +81,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       <td className="print-col-sc" />
                       {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
                       {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
-                      <td colSpan={contentColspan} className="print-cell-note">{r.noteText || ''}</td>
+                      <td className="print-col-ie" />
+                      <td className="print-col-set" colSpan={3}>{r.noteText || ''}</td>
                       <td className="print-col-pgs" />
                     </tr>
                   </tbody>
@@ -98,7 +97,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       <td className="print-col-sc" />
                       {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
                       {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
-                      <td colSpan={contentColspan} className="print-cell-break">{r.breakLabel || 'BREAK'}</td>
+                      <td className="print-col-ie" />
+                      <td className="print-col-set" colSpan={3}>{r.breakLabel || 'BREAK'}</td>
                       <td className="print-col-pgs" />
                     </tr>
                   </tbody>
@@ -161,8 +161,8 @@ const PRINT_STYLE = `
   }
   .print-root {
     font-family: Helvetica, Arial, sans-serif;
-    font-size: 5.5pt;
-    line-height: 1;
+    font-size: 8pt;
+    line-height: 1.1;
     color: #18181b;
     padding: 0;
     -webkit-print-color-adjust: exact;
@@ -170,9 +170,9 @@ const PRINT_STYLE = `
   }
   .print-title-section {
     text-align: center;
-    padding-bottom: 8pt;
-    margin-bottom: 8pt;
-    border-bottom: 1.5pt solid #18181b;
+    padding-bottom: 10pt;
+    margin-bottom: 10pt;
+    border-bottom: 2pt solid #18181b;
   }
   .print-title {
     font-weight: 800;
@@ -192,11 +192,11 @@ const PRINT_STYLE = `
     align-items: center;
     background: #000000;
     color: #ffffff;
-    padding: 6pt 8pt;
+    padding: 8pt 10pt;
     font-weight: 700;
   }
   .print-day-number {
-    letter-spacing: 1pt;
+    letter-spacing: 1.5pt;
     flex: 0 0 auto;
   }
   .print-day-date {
@@ -218,17 +218,17 @@ const PRINT_STYLE = `
     break-inside: avoid;
   }
   .print-table td {
-    padding: 2pt 4pt;
+    padding: 3pt 1pt;
     vertical-align: top;
   }
-  .print-col-sc { width: 18pt; text-align: center !important; font-weight: 700; }
-  .print-col-call { width: 22pt; text-align: center !important; }
-  .print-col-dur { width: 22pt; text-align: center !important; }
-  .print-col-ie { width: 28pt; text-align: left !important; }
-  .print-col-set { text-align: left !important; text-transform: uppercase; }
-  .print-col-dn { width: 20pt; text-align: left !important; }
-  .print-col-cast { width: 38pt; text-align: left !important; }
-  .print-col-pgs { width: 22pt; text-align: center !important; font-weight: 700; }
+  .print-col-sc { width: 20pt; text-align: center !important; font-weight: 700; }
+  .print-col-call { width: 20pt; text-align: center !important; }
+  .print-col-dur { width: 20pt; text-align: center !important; }
+  .print-col-ie { width: 34pt; text-align: left !important; }
+  .print-col-set { width: 120pt; text-align: left !important; text-transform: uppercase; }
+  .print-col-dn { width: 40pt; text-align: left !important; }
+  .print-col-cast { width: 56pt; text-align: left !important; }
+  .print-col-pgs { width: 34pt; text-align: center !important; font-weight: 700; }
 
   .print-table .print-row-scene td,
   .print-table .print-row-desc td {
@@ -241,21 +241,16 @@ const PRINT_STYLE = `
     background: #591b1b;
     color: #ffffff;
     vertical-align: middle;
-    padding-top: 6pt !important;
-    padding-bottom: 6pt !important;
+    padding-top: 9pt !important;
+    padding-bottom: 9pt !important;
     border-right: 1px solid #591b1b;
     border-bottom: 1px solid #591b1b;
   }
-  .print-cell-note,
-  .print-cell-break {
-    text-align: center !important;
-    padding: 6pt 5pt !important;
-  }
 
-  .print-row-scene td { padding-bottom: 2pt !important; }
+  .print-row-scene td { padding-bottom: 3pt !important; }
   .print-row-desc td { vertical-align: middle; padding-top: 0 !important; }
   .print-cell-desc {
-    line-height: 1;
+    line-height: 1.1;
     text-align: left !important;
   }
 
@@ -278,8 +273,8 @@ const PRINT_STYLE = `
     align-items: center;
     background: #ffffff;
     color: #18181b;
-    padding: 3pt 4pt;
-    gap: 16pt;
+    padding: 4pt 6pt;
+    gap: 20pt;
     border-top: 0.5pt solid #d4d4d8;
   }
   .print-footer-end-label {
@@ -287,7 +282,6 @@ const PRINT_STYLE = `
   }
   .print-footer-date {
     font-weight: 400;
-    opacity: 0.7;
     flex: 1;
     text-align: center;
   }
