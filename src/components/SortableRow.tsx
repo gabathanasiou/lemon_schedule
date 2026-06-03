@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow } from '../types';
@@ -18,6 +18,7 @@ export const SortableRow: React.FC<{
 }> = ({ row, scenes, isOverlay, isSelected, onSelectToggle, isCompact, textEditingEnabled }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
 
   const {
     attributes,
@@ -88,10 +89,10 @@ export const SortableRow: React.FC<{
     ...attributes,
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
-    className: `${bgClass} flex items-stretch group relative transition-colors text-[12px] font-bold tracking-tight min-h-[44px] font-sans border-b sm:border-black/20 shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected ? 'ring-2 ring-blue-500 z-50' : ''} ${isCompact ? 'min-h-[40px] px-1' : ''}`
+    className: `${bgClass} flex items-stretch group relative transition-colors text-[12px] font-bold tracking-tight min-h-[44px] font-sans border-b sm:border-black/20 shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected ? 'ring-2 ring-blue-500 z-50' : ''} ${isCompact ? 'min-h-[40px] px-1' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
   };
 
-  const Grip = () => (
+  const Grip = () => textEditingEnabled ? null : (
     <div className="w-[8px] flex flex-col items-center justify-center shrink-0 z-10 transition-colors opacity-0 group-hover:opacity-100 bg-black/10 text-white cursor-grab active:cursor-grabbing">
     </div>
   );
@@ -118,20 +119,26 @@ export const SortableRow: React.FC<{
                </div>
              </>
          )}
-         <div className="flex-1 flex px-3 items-center justify-center min-w-0 py-2">
-            <CellInput 
-              value={row.noteText} 
-              onChange={val => updateRow({noteText: val})} 
-              className={`${inputClass} text-center italic truncate max-w-full`} 
-              placeholder="Enter note here..."
-            />
-         </div>
-         {!isCompact && <div className={cellClass + " w-[50px] border-l border-r-0"}></div>}
-      </div>
-    );
-  }
+           <div className="flex-1 flex px-3 items-center justify-center min-w-0 py-2" onDoubleClick={() => setEditingFieldId(row.id)}>
+              {!textEditingEnabled && editingFieldId !== row.id ? (
+                <span className="text-center italic truncate max-w-full">{row.noteText || 'Enter note here...'}</span>
+              ) : (
+                <CellInput 
+                  value={row.noteText} 
+                  onChange={val => updateRow({noteText: val})} 
+                  className={`${inputClass} text-center italic truncate max-w-full`} 
+                  placeholder="Enter note here..."
+                  onBlur={() => setEditingFieldId(null)}
+                  autoFocus={editingFieldId === row.id}
+                />
+              )}
+           </div>
+          {!isCompact && <div className={cellClass + " w-[50px] border-l border-r-0"}></div>}
+       </div>
+     );
+   }
 
-  if (row.type === 'BREAK') {
+   if (row.type === 'BREAK') {
     return (
       <div {...commonProps}>
          <Grip />
@@ -150,14 +157,20 @@ export const SortableRow: React.FC<{
                </div>
              </>
          )}
-         <div className="flex-1 flex px-3 items-center justify-center min-w-0 py-2">
-            <CellInput 
-              value={row.breakLabel} 
-              onChange={val => updateRow({breakLabel: val})} 
-              className={`${inputClass} font-bold text-center truncate max-w-full`} 
-              placeholder="ENTER BREAK TEXT"
-            />
-         </div>
+          <div className="flex-1 flex px-3 items-center justify-center min-w-0 py-2" onDoubleClick={() => setEditingFieldId(row.id)}>
+             {!textEditingEnabled && editingFieldId !== row.id ? (
+               <span className="font-bold text-center truncate max-w-full">{row.breakLabel || 'ENTER BREAK TEXT'}</span>
+             ) : (
+                <CellInput 
+                  value={row.breakLabel} 
+                  onChange={val => updateRow({breakLabel: val})} 
+                  className={`${inputClass} font-bold text-center truncate max-w-full`} 
+                  placeholder="ENTER BREAK TEXT"
+                  onBlur={() => setEditingFieldId(null)}
+                  autoFocus={editingFieldId === row.id}
+                />
+             )}
+          </div>
          {!isCompact && <div className={cellClass + " w-[50px] border-l border-r-0"}></div>}
       </div>
     );
@@ -186,15 +199,26 @@ export const SortableRow: React.FC<{
              {/* Combined top line: INT. SET - NIGHT + Cast */}
              <div className="flex items-center justify-between gap-2 text-[12px] font-bold leading-tight">
                 <div className="flex items-center min-w-0 gap-1 flex-1">
-                   {textEditingEnabled ? (
-                     <>
-                       <CellInput value={scene.intExt} onChange={val => updateScene({intExt: val as any})} className={`${inputClass} text-left uppercase shrink-0`} />
-                       <span className="opacity-50">.</span>
-                       <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} text-left uppercase tracking-wider flex-1`} />
-                       <span className="opacity-50">-</span>
-                       <CellInput value={scene.dayNight} onChange={val => updateScene({dayNight: val as any})} className={`${inputClass} text-left uppercase shrink-0`} />
-                     </>
-                    ) : (
+                    {textEditingEnabled ? (
+                      <>
+                        <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none uppercase shrink-0 text-inherit font-bold cursor-pointer">
+                          <option value="INT">INT</option>
+                          <option value="EXT">EXT</option>
+                          <option value="INT/EXT">INT/EXT</option>
+                        </select>
+                        <span className="opacity-50">.</span>
+                        <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} text-left uppercase tracking-wider flex-1`} />
+                        <span className="opacity-50">-</span>
+                        <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none uppercase shrink-0 text-inherit font-bold cursor-pointer">
+                          <option value="DAY">DAY</option>
+                          <option value="NIGHT">NIGHT</option>
+                          <option value="MORNING">MORNING</option>
+                          <option value="EVENING">EVENING</option>
+                          <option value="DAWN">DAWN</option>
+                          <option value="DUSK">DUSK</option>
+                        </select>
+                      </>
+                     ) : (
                       <span className="truncate uppercase tracking-wider">
                         {scene.intExt}. {scene.set} - {scene.dayNight}
                       </span>
@@ -264,14 +288,33 @@ export const SortableRow: React.FC<{
             {/* Top line */}
             <div className="flex items-center w-full gap-2 text-[13px] leading-tight font-bold">
                <div className="pl-3 shrink-0 flex items-center justify-start">
-                 <CellInput value={scene.intExt} onChange={val => updateScene({intExt: val as any})} className={`${inputClass} text-left`} readOnly={!textEditingEnabled} />
-               </div>
-               <div className="flex-1 flex items-center justify-start min-w-0 pr-2">
-                 <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} text-left uppercase tracking-wider block max-w-full`} readOnly={!textEditingEnabled} />
-               </div>
-               <div className="w-[50px] shrink-0 flex items-center justify-start">
-                 <CellInput value={scene.dayNight} onChange={val => updateScene({dayNight: val as any})} className={`${inputClass} text-left`} readOnly={!textEditingEnabled} />
-               </div>
+                  {textEditingEnabled ? (
+                    <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none text-inherit font-bold cursor-pointer">
+                      <option value="INT">INT</option>
+                      <option value="EXT">EXT</option>
+                      <option value="INT/EXT">INT/EXT</option>
+                    </select>
+                  ) : (
+                    <CellInput value={scene.intExt} onChange={val => updateScene({intExt: val as any})} className={`${inputClass} text-left`} readOnly />
+                  )}
+                </div>
+                <div className="flex-1 flex items-center justify-start min-w-0 pr-2">
+                  <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} text-left uppercase tracking-wider block max-w-full`} readOnly={!textEditingEnabled} />
+                </div>
+                <div className="w-[50px] shrink-0 flex items-center justify-start">
+                  {textEditingEnabled ? (
+                    <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none text-inherit font-bold cursor-pointer">
+                      <option value="DAY">DAY</option>
+                      <option value="NIGHT">NIGHT</option>
+                      <option value="MORNING">MORNING</option>
+                      <option value="EVENING">EVENING</option>
+                      <option value="DAWN">DAWN</option>
+                      <option value="DUSK">DUSK</option>
+                    </select>
+                  ) : (
+                    <CellInput value={scene.dayNight} onChange={val => updateScene({dayNight: val as any})} className={`${inputClass} text-left`} readOnly />
+                  )}
+                </div>
                <div className="w-[80px] shrink-0 flex items-center justify-end">
                  <CellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right font-normal`} placeholder="Cast" readOnly={!textEditingEnabled} />
                </div>

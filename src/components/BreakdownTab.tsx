@@ -118,7 +118,7 @@ export function BreakdownTab() {
                 </td>
                 <td className="border-r border-zinc-200 p-0">
                   <select value={s.dayNight} onChange={e => updateScene(s.id, {dayNight: e.target.value as any})} className="w-full h-full bg-transparent px-2 py-2 outline-none opacity-80 cursor-pointer">
-                    <option value="DAY">DAY</option><option value="NIGHT">NIGHT</option><option value="EVENING">EVENING</option><option value="DAWN">DAWN</option><option value="DUSK">DUSK</option>
+                    <option value="DAY">DAY</option><option value="NIGHT">NIGHT</option><option value="MORNING">MORNING</option><option value="EVENING">EVENING</option><option value="DAWN">DAWN</option><option value="DUSK">DUSK</option>
                   </select>
                 </td>
                 <td className="border-r border-zinc-200 p-0">

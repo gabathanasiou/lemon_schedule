@@ -1,12 +1,64 @@
 import React, { useState } from 'react';
 import { useProject } from '../store';
-import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core';
+import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
+
+// Custom pointer-based collision detection
+const customCollisionDetection: CollisionDetection = (args) => {
+  const { active, pointerCoordinates, droppableContainers } = args;
+
+  // Filter droppable containers based on what we are dragging to avoid mismatch/flickering
+  const isDraggingDay = active.data.current?.type === 'DAY';
+  const filteredContainers = droppableContainers.filter((container) => {
+    const isDayWrap = (container.id as string).startsWith('day-wrap-');
+    if (isDraggingDay) {
+      return isDayWrap;
+    } else {
+      return !isDayWrap;
+    }
+  });
+
+  if (pointerCoordinates) {
+    const collisions: { id: string; distance: number; area: number }[] = [];
+
+    for (const container of filteredContainers) {
+      const rect = container.rect.current;
+      if (rect) {
+        // Calculate the shortest distance from pointer to the bounding box
+        const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
+        const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const area = rect.width * rect.height;
+        collisions.push({ id: container.id as string, distance, area });
+      }
+    }
+
+    // Sort by distance first (closest first).
+    // If distances are equal (e.g. pointer is inside multiple containers),
+    // sort by area (smaller area first, so nested items like rows are preferred over day blocks).
+    collisions.sort((a, b) => {
+      if (a.distance !== b.distance) {
+        return a.distance - b.distance;
+      }
+      return a.area - b.area;
+    });
+
+    if (collisions.length > 0) {
+      return collisions.map(c => ({ id: c.id }));
+    }
+  }
+
+  // Fallback to closestCorners with filtered containers if no pointer coordinates
+  return closestCorners({
+    ...args,
+    droppableContainers: filteredContainers,
+  });
+};
 
 export function ScheduleTab() {
   const { state, dispatch } = useProject();
@@ -35,7 +87,7 @@ export function ScheduleTab() {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: textEditingEnabled ? 999999 : 5 } })
   );
 
   if (!activeVersion) return <div>No active version</div>;
@@ -63,7 +115,7 @@ export function ScheduleTab() {
     return acc;
   }, {} as Record<number, ScheduleRow[]>);
 
-  Object.values(scheduledRows).forEach(dayRows => {
+  (Object.values(scheduledRows) as ScheduleRow[][]).forEach(dayRows => {
     dayRows.sort((a, b) => a.order - b.order);
   });
 
@@ -175,7 +227,7 @@ export function ScheduleTab() {
       const overDay = getDayFromId(overId);
       
       if (overDay !== null && activeDay !== overDay) {
-         let newRows = [...rows];
+         let newRows = [...augmentedRows];
          newRows = newRows.map(r => {
            if (r.shootDay === activeDay) return { ...r, shootDay: -1 }; 
            if (r.shootDay === overDay) return { ...r, shootDay: activeDay };
@@ -268,12 +320,12 @@ export function ScheduleTab() {
   return (
     <DndContext 
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <div 
-         className="flex-1 flex overflow-hidden bg-zinc-200/50 relative"
+         className="flex-1 flex overflow-hidden bg-zinc-200/50 relative min-h-0"
          onClick={() => setContextMenu(null)}
          onContextMenu={(e) => {
              const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
@@ -325,7 +377,7 @@ export function ScheduleTab() {
                    const nextDay = existingDays.length > 0 ? Math.max(...existingDays) + 1 : 1;
                    dispatch({
                      type: 'UPDATE_VERSION',
-                     payload: { id: activeVersion.id, dayMeta: { ...activeVersion.dayMeta, [nextDay]: { shootTime: '08:00', date: '' } } }
+                     payload: { id: activeVersion.id, dayMeta: { ...activeVersion.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: '' } } }
                    });
                  }}
                  className="bg-black text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-black/20 hover:scale-105 transition-transform"

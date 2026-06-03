@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export const CellInput: React.FC<{ 
   value?: string | number, 
@@ -7,14 +7,24 @@ export const CellInput: React.FC<{
   placeholder?: string,
   clearOnType?: boolean,
   col?: string,
-  readOnly?: boolean
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly }) => {
+  readOnly?: boolean,
+  onBlur?: () => void,
+  autoFocus?: boolean
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [localVal, setLocalVal] = useState(value?.toString() || '');
   const [isPristine, setIsPristine] = useState(false);
 
   useEffect(() => {
     setLocalVal(value?.toString() || '');
   }, [value]);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [autoFocus]);
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     if (readOnly) return;
@@ -78,10 +88,11 @@ export const CellInput: React.FC<{
 
   return (
     <div className={`relative inline-grid items-center min-w-0 ${className.includes('w-full') ? 'w-full' : ''} ${className.includes('flex-1') ? 'flex-1' : ''}`} style={{ gridTemplateColumns: gridCol }}>
-      <span className={`invisible col-start-1 row-start-1 whitespace-pre px-[2px] truncate ${spanClassName}`}>
+      <span className={`invisible col-start-1 row-start-1 whitespace-pre px-[2px] truncate pointer-events-none ${spanClassName}`}>
          {localVal || placeholder || ' '}
       </span>
       <input
+        ref={inputRef}
         data-col={col}
         value={localVal}
         onChange={handleChange}
@@ -91,6 +102,7 @@ export const CellInput: React.FC<{
           if (localVal !== value?.toString()) {
              onChange(localVal);
           }
+          onBlur?.();
         }}
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
