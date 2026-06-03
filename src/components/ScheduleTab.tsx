@@ -342,6 +342,40 @@ export function ScheduleTab() {
   const activeDragRow = activeId && activeType === 'ROW' ? augmentedRows.find(r => r.id === activeId) : null;
 
   return (
+    <>
+      <style>{`
+        .schedule-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Helvetica, Arial, sans-serif;
+          font-size: 13px;
+          line-height: 1.2;
+        }
+        .schedule-table td {
+          padding: 4px 4px;
+          vertical-align: middle;
+          border-right: 0.5px solid rgba(0,0,0,0.1);
+          border-bottom: 0.5px solid rgba(0,0,0,0.1);
+        }
+        .schedule-table tbody tr:first-child td:first-child {
+          border-left: none;
+        }
+        .schedule-table tbody tr:last-child td:last-child {
+          border-right: none;
+        }
+        .col-sc { width: 40px; text-align: center; font-weight: 600; }
+        .col-call { width: 60px; text-align: center; }
+        .col-dur { width: 70px; text-align: center; }
+        .col-ie { width: 50px; text-align: center; }
+        .col-set { width: 200px; }
+        .col-dn { width: 75px; text-align: center; }
+        .col-cast { width: 80px; text-align: left; }
+        .col-pgs { width: 50px; text-align: center; }
+        .col-desc {
+          text-align: left;
+          line-height: 1.2;
+        }
+      `}</style>
     <DndContext 
       sensors={sensors}
       collisionDetection={customCollisionDetection}
@@ -381,7 +415,7 @@ export function ScheduleTab() {
              </button>
           </div>
 
-          <div className="w-full max-w-4xl space-y-12">
+          <div className="w-full max-w-4xl">
             <SortableContext items={existingDays.map(d => `day-wrap-${d}`)} strategy={verticalListSortingStrategy}>
               {existingDays.map(dayInt => (
                 <DayBlock 
@@ -450,5 +484,6 @@ export function ScheduleTab() {
         </div>
       )}
     </DndContext>
+    </>
   );
 }

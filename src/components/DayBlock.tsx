@@ -5,7 +5,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 import { SortableRow } from './SortableRow';
-import { generateUUID } from '../lib/utils';
 import { GripHorizontal, Trash2 } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
 
@@ -123,56 +122,43 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   const totalShootTime = runningElapsed;
 
+  const baseStyle = {
+    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontSize: '13px',
+    lineHeight: '1.2',
+  };
+
   return (
-    <div ref={setDragRef} style={style} className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col font-sans break-inside-avoid shadow-black/10 border border-zinc-200">
+    <div ref={setDragRef} style={{...style, ...baseStyle}} className="bg-white flex flex-col">
       
       {/* Day Ribbon Banner */}
-      <div className="bg-zinc-800 text-white font-bold text-[14px] flex justify-between p-3 items-center group sticky top-0 z-10 print:static">
-         <div className="flex items-center gap-4">
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:bg-zinc-700 p-1 rounded transition-colors -ml-1">
-               <GripHorizontal className="w-5 h-5 text-zinc-400" />
+      <div className="bg-black text-white text-[13px] flex justify-between px-3 py-2 items-center">
+         <div className="flex items-center gap-3">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:bg-zinc-800 p-1 rounded transition-colors -ml-1">
+               <GripHorizontal className="w-4 h-4 text-zinc-500" />
             </div>
-            <div className="flex items-center gap-2">
-               <span className="text-zinc-400 bg-black px-3 py-1 rounded tracking-widest">DAY {dayInt}</span>
-            </div>
+            <span className="font-semibold">DAY {dayInt}</span>
             <input 
               value={meta?.unitCall || '08:00'} 
               onChange={e => updateMeta({unitCall: e.target.value})}
-              className="bg-zinc-800 px-2 py-1 rounded outline-none border border-transparent focus:border-zinc-500 font-bold"
+              className="bg-zinc-900 px-2 py-0.5 rounded outline-none border border-transparent focus:border-zinc-600 w-16 text-center"
             />
             <button 
               onClick={() => dispatch({ type: 'DELETE_DAY', day: dayInt })}
-              className="opacity-50 hover:opacity-100 hover:text-red-400 transition-colors"
+              className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
               title="Delete Day"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
          </div>
-         <div className="flex items-center gap-4">
+         <div className="flex items-center gap-2">
             <input 
               type="date"
               value={meta?.date || ''} 
               onChange={e => updateMeta({date: e.target.value})} 
-              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white"
+              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white text-[12px]"
             />
          </div>
-      </div>
-
-      {/* Header Row */}
-      <div className="bg-zinc-100 text-zinc-500 font-bold text-[11px] tracking-wider flex items-stretch border-b-2 border-zinc-300">
-        <div className="w-[8px] border-r border-zinc-300"></div> {/* Grip aligner */}
-        <div className="w-[50px] text-center border-r border-zinc-300 py-2">SC #</div>
-        <div className="w-[60px] text-center border-r border-zinc-300 py-2">CALL</div>
-        <div className="w-[70px] text-center border-r border-zinc-300 py-2">DUR</div>
-        <div className="flex-1 flex flex-col justify-center min-w-0 pr-3 gap-0.5 py-2">
-           <div className="flex items-center w-full gap-2">
-             <div className="pl-3 shrink-0 text-left">I/E</div>
-             <div className="flex-1 text-left min-w-0 pr-2">SET / DESCRIPTION</div>
-             <div className="w-[50px] shrink-0 text-left">D/N</div>
-             <div className="w-[80px] shrink-0 text-right">CAST</div>
-           </div>
-        </div>
-        <div className="w-[50px] text-center border-l border-zinc-300 py-2">PAGES</div>
       </div>
 
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
@@ -214,13 +200,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       {/* Day Footer stats */}
       {rows.length > 0 && (
-        <div className="bg-zinc-900 text-white font-bold text-xs flex justify-between p-3 border-t-2 border-zinc-950 mt-auto items-center">
-          <div className="flex gap-8 text-zinc-400">
-             <span>TOTAL PAGES: <strong className="text-white">{formatPageCount(totalPages)}</strong></span>
-             <span>SHOOT TIME: <strong className="text-white">{formatDuration(totalShootTime)}</strong></span>
-          </div>
-          <div className="flex items-center gap-4 text-zinc-300 bg-black px-4 py-1.5 rounded tracking-widest uppercase">
-            END OF DAY {dayInt}
+        <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300 text-[12px]"
+          style={{fontFamily: 'Helvetica, Arial, sans-serif'}}>
+          <span className="font-semibold">End of Day #{dayInt}</span>
+          <div className="flex gap-4 text-zinc-600">
+             <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
+             <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
           </div>
         </div>
       )}
