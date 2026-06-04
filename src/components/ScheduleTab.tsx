@@ -669,7 +669,7 @@ export function ScheduleTab() {
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
           if (selectedRowIds.size > 1) {
             return (
-              <ContextMenuItem onClick={() => {
+              <ContextMenuItem variant="danger" onClick={() => {
                 const ids = Array.from(selectedRowIds);
                 const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
                 dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });

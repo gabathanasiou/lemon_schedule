@@ -43,8 +43,8 @@ export const ContextMenuItem: React.FC<{
     onClick={onClick}
     className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
       variant === 'danger'
-        ? 'hover:bg-red-50 text-red-600'
-        : 'hover:bg-zinc-50'
+        ? 'hover:bg-red-100 text-red-600'
+        : 'hover:bg-zinc-100'
     }`}
   >
     {icon}
