@@ -1,9 +1,9 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent } from 'react-spreadsheet';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, Selection, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { Scene, IntExt, DayNight, CastMember } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import Papa from 'papaparse';
 import { CastTab } from './CastTab';
 
@@ -33,10 +33,58 @@ export function BreakdownTab() {
   const scenes = project.scenes;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [subTab, setSubTab] = useState<'scenes' | 'cast'>('scenes');
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number } | null>(null);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
   }, [dispatch]);
+
+  const insertSceneAt = (index: number) => {
+    const newScene: Scene = {
+      id: generateUUID(),
+      sceneNumber: '',
+      pageCount: '1',
+      pageCountDecimal: 1.0,
+      scriptDay: '1',
+      intExt: 'INT' as IntExt,
+      set: 'NEW SET',
+      dayNight: 'DAY' as DayNight,
+      description: 'New scene',
+      cast: '',
+      notes: '',
+      shootDay: null
+    };
+    dispatch({ type: 'IMPORT_SCENES', payload: [...scenes.slice(0, index), newScene, ...scenes.slice(index)] });
+  };
+
+  const duplicateSceneAt = (index: number) => {
+    const original = scenes[index];
+    if (!original) return;
+    const duplicate: Scene = { ...original, id: generateUUID() };
+    const base = original.sceneNumber.replace(/[A-Z]+$/, '');
+    const used = scenes.filter(s => s.id !== original.id && s.sceneNumber.match(new RegExp('^' + base + '[A-Z]$'))).map(s => s.sceneNumber.slice(-1));
+    let letter = 'A';
+    for (let c = 65; c <= 90; c++) { if (!used.includes(String.fromCharCode(c))) { letter = String.fromCharCode(c); break; } }
+    duplicate.sceneNumber = base + letter;
+    dispatch({ type: 'IMPORT_SCENES', payload: [...scenes.slice(0, index + 1), duplicate, ...scenes.slice(index + 1)] });
+  };
+
+  const deleteSelectedRows = () => {
+    const indices = [...selectedRows].sort((a: number, b: number) => b - a);
+    for (const idx of indices) {
+      if (idx < scenes.length) deleteScene(scenes[idx].id);
+    }
+  };
+
+  const cleanEmptyRows = () => {
+    const toDelete: string[] = [];
+    for (const s of scenes) {
+      const isEmpty = !s.sceneNumber && !s.set && !s.description && !s.cast && !s.notes && s.pageCount === '1' && s.intExt === 'INT' && s.dayNight === 'DAY';
+      if (isEmpty) toDelete.push(s.id);
+    }
+    for (const id of toDelete) dispatch({ type: 'DELETE_SCENE', payload: id });
+  };
 
   const DeleteViewer: DataViewerComponent<CellBase<string>> = useCallback(({ row }) => {
     const scene = scenes[row];
@@ -414,6 +462,18 @@ export function BreakdownTab() {
     return rows;
   }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor]);
 
+  const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected }) => (
+    <td
+      className={`Spreadsheet__header text-center cursor-pointer select-none text-zinc-400 hover:text-zinc-600 transition-colors ${selected ? 'bg-blue-50' : ''}`}
+      style={{ width: 28, minWidth: 28, maxWidth: 28, fontSize: 10 }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, row });
+      }}
+    >≡</td>
+  ), []);
+
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantomIndex = scenes.length;
 
@@ -650,8 +710,24 @@ export function BreakdownTab() {
             data={data}
             onChange={handleChange}
             columnLabels={COLUMNS.map(c => c.label)}
-            hideRowIndicators
+            RowIndicator={RowIndicator}
             ColumnIndicator={CustomColIndicator}
+            onSelect={(sel) => {
+              if (sel instanceof EntireRowsSelection) {
+                const range = sel.toRange(data);
+                if (range) {
+                  const rows = new Set<number>();
+                  for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
+                  setSelectedRows(rows);
+                }
+              } else if (sel instanceof RangeSelection) {
+                const rows = new Set<number>();
+                for (let r = sel.range.start.row; r <= sel.range.end.row; r++) rows.add(r);
+                setSelectedRows(rows);
+              } else {
+                setSelectedRows(new Set());
+              }
+            }}
             onKeyDown={e => {
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                 e.preventDefault();
@@ -669,6 +745,9 @@ export function BreakdownTab() {
           </button>
           <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-4 py-1.5 text-zinc-700 rounded text-sm hover:bg-zinc-50 transition-colors">
             Sort by Scene #
+          </button>
+          <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-3 py-1.5 text-zinc-500 rounded text-sm hover:bg-zinc-50 transition-colors">
+            Clean Empty Rows
           </button>
           <div className="relative">
             <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
@@ -688,6 +767,42 @@ export function BreakdownTab() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div
+            className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] text-sm text-zinc-700 min-w-[180px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            {contextMenu.row < scenes.length && (
+              <>
+                <button onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                  <Plus className="w-3 h-3 text-zinc-400" /> Insert Above
+                </button>
+                <button onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                  <ArrowDown className="w-3 h-3 text-zinc-400" /> Insert Below
+                </button>
+                <button onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                  <Copy className="w-3 h-3 text-zinc-400" /> Duplicate
+                </button>
+                <div className="h-[1px] bg-zinc-200 my-1" />
+              </>
+            )}
+            {selectedRows.size > 0 && (
+              <button onClick={() => { deleteSelectedRows(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
+                <Trash2 className="w-3 h-3" /> Delete {selectedRows.size > 1 ? `${selectedRows.size} rows` : 'Row'}
+              </button>
+            )}
+            {contextMenu.row >= scenes.length && (
+              <button onClick={() => { addScene(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                <Plus className="w-3 h-3 text-zinc-400" /> Add Scene
+              </button>
+            )}
+          </div>
         </>
       )}
     </div>
