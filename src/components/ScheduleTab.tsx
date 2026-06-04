@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
@@ -256,11 +257,29 @@ export function ScheduleTab() {
     setContextMenu(null);
   };
 
+  const reorderDay = (allRows: ScheduleRow[], day: number | null, activeId: string, overId: string) => {
+    let dayRows = allRows.filter(r => r.shootDay === day).sort((a, b) => a.order - b.order);
+    const activeIndex = dayRows.findIndex(r => r.id === activeId);
+    const overIndex = dayRows.findIndex(r => r.id === overId);
+    
+    if (activeIndex !== -1 && overIndex !== -1) {
+      const targetIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
+      dayRows = arrayMove(dayRows, activeIndex, targetIndex);
+      dayRows.forEach((r, i) => r.order = i);
+      return [...allRows.filter(r => r.shootDay !== day), ...dayRows];
+    }
+    return allRows;
+  };
+
+  const selectedRowIdsRef = useRef(selectedRowIds);
+  selectedRowIdsRef.current = selectedRowIds;
+
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
     const draggedId = e.active.id as string;
-    const currentSelection = selectedRowIds;
     setActiveId(draggedId);
+    setActiveType(e.active.data.current?.type || null);
+    const currentSelection = selectedRowIdsRef.current;
     if (currentSelection.has(draggedId) && currentSelection.size > 1) {
       setActiveDragIds(new Set(currentSelection));
     } else {
