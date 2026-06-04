@@ -8,6 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
+import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -630,20 +631,14 @@ export function ScheduleTab() {
       </DragOverlay>
 
       {/* Context Menu */}
-      {contextMenu && (
-        <div 
-          className="fixed bg-white border border-zinc-200 shadow-xl rounded py-1 z-[9999] text-sm font-semibold text-zinc-700 min-w-[160px]"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-           <button onClick={() => handleContextMenuAction('add_note')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Add Note Below</button>
-           <button onClick={() => handleContextMenuAction('add_break')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Add Break Below</button>
-           <div className="h-[1px] bg-zinc-200 my-1"></div>
-           <button onClick={() => handleContextMenuAction('duplicate')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Duplicate (Ghost Scene)</button>
-           <div className="h-[1px] bg-zinc-200 my-1"></div>
-           <button onClick={() => handleContextMenuAction('delete')} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 transition-colors">Delete Row</button>
-        </div>
-      )}
+      <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
+        <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
+        <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Delete Row</ContextMenuItem>
+      </ContextMenu>
     </DndContext>
     </>
   );

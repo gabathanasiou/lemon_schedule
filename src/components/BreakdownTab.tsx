@@ -1,11 +1,12 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, Selection, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { Scene, IntExt, DayNight, CastMember } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
-import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowUp, ArrowDown } from 'lucide-react';
+import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown } from 'lucide-react';
 import Papa from 'papaparse';
 import { CastTab } from './CastTab';
+import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 
 const COLUMNS = [
   { key: 'sceneNumber', label: 'Scene #' },
@@ -771,44 +772,24 @@ export function BreakdownTab() {
       )}
 
       {/* Context Menu */}
-      {contextMenu && (
-        <>
-          <div className="fixed inset-0 z-[9998]" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
-          <div
-            className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] text-sm text-zinc-700 min-w-[180px]"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
-          >
-          {contextMenu.row < scenes.length && (
-            <>
-              <button onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                <Plus className="w-3 h-3 text-zinc-400" /> Insert Above
-              </button>
-              <button onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                <ArrowDown className="w-3 h-3 text-zinc-400" /> Insert Below
-              </button>
-              <button onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                <Copy className="w-3 h-3 text-zinc-400" /> Duplicate
-              </button>
-              <div className="h-[1px] bg-zinc-200 my-1" />
-              {selectedRows.size > 1 ? (
-                <button onClick={() => { deleteSelectedRows(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
-                  <Trash2 className="w-3 h-3" /> Delete {selectedRows.size} rows
-                </button>
-              ) : (
-                <button onClick={() => { deleteScene(scenes[contextMenu.row]?.id); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
-                  <Trash2 className="w-3 h-3" /> Delete Row
-                </button>
-              )}
-            </>
-          )}
-          {contextMenu.row >= scenes.length && (
-            <button onClick={() => { addScene(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-              <Plus className="w-3 h-3 text-zinc-400" /> Add Scene
-            </button>
-          )}
-          </div>
-        </>
-      )}
+      <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
+        {contextMenu && contextMenu.row < scenes.length && (
+          <>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />}>Insert Above</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
+            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
+            <ContextMenuDivider />
+            {selectedRows.size > 1 ? (
+              <ContextMenuItem onClick={() => { deleteSelectedRows(); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3 h-3" />}>Delete {selectedRows.size} rows</ContextMenuItem>
+            ) : (
+              <ContextMenuItem onClick={() => { deleteScene(scenes[contextMenu.row]?.id); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3 h-3" />}>Delete Row</ContextMenuItem>
+            )}
+          </>
+        )}
+        {contextMenu && contextMenu.row >= scenes.length && (
+          <ContextMenuItem onClick={() => { addScene(); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />}>Add Scene</ContextMenuItem>
+        )}
+      </ContextMenu>
     </div>
   );
 }
