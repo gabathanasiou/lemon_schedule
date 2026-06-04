@@ -53,74 +53,65 @@ export function BreakdownTab() {
 
   const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
-    const [highlightedIndex, setHighlightedIndex] = useState(0);
     const committedRef = useRef(false);
     const castMembers = project.castMembers || [];
-    const query = val.split(',').pop()?.trim().toLowerCase() || '';
-    const filtered = castMembers.filter(m =>
-      !query || m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query)
-    );
     const currentIds = val.split(',').map(x => x.trim()).filter(Boolean);
-    const addId = (id: string) => {
-      if (!currentIds.includes(id)) {
-        setVal(prev => {
-          const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
-          ids.push(id);
-          return ids.join(', ');
-        });
-      }
-      setHighlightedIndex(0);
+
+    const sorted = [...castMembers].sort((a, b) => {
+      const aSel = currentIds.includes(a.id);
+      const bSel = currentIds.includes(b.id);
+      if (aSel !== bSel) return aSel ? -1 : 1;
+      const na = parseInt(a.id, 10);
+      const nb = parseInt(b.id, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+
+    const toggle = (id: string) => {
+      setVal(prev => {
+        const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
+        const idx = ids.indexOf(id);
+        if (idx >= 0) ids.splice(idx, 1);
+        else ids.push(id);
+        return ids.join(', ');
+      });
     };
+
+    const commit = () => {
+      committedRef.current = true;
+      onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
+      exitEditMode();
+    };
+
     return (
       <div className="relative w-full h-full">
         <input
           value={val}
-          onChange={e => { setVal(e.target.value); setHighlightedIndex(0); }}
+          onChange={e => setVal(e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === 'Tab') {
-              e.preventDefault();
-              committedRef.current = true;
-              onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
-              exitEditMode();
-            }
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1));
-            }
-            if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.max(i - 1, 0));
-            }
+            if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
             if (e.key === 'Escape') exitEditMode();
           }}
-          onBlur={() => {
-            if (!committedRef.current) {
-              onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
-              exitEditMode();
-            }
-          }}
+          onBlur={() => { if (!committedRef.current) commit(); }}
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px] font-mono"
           placeholder="1, 2, JOHN"
         />
-        {filtered.length > 0 && (
-          <div className="absolute top-full left-0 min-w-[200px] bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
-            {filtered.map((m, i) => {
-              const checked = currentIds.includes(m.id);
-              return (
-                <div
-                  key={m.id}
-                  className={`px-2 py-1 text-[13px] cursor-pointer flex items-center gap-2 font-mono ${i === highlightedIndex ? 'bg-blue-100' : checked ? 'bg-zinc-50' : 'hover:bg-zinc-50'}`}
-                  onMouseDown={e => { e.preventDefault(); addId(m.id); }}
-                >
-                  <span className="text-zinc-400 shrink-0 w-12 text-right">{m.id}.</span>
-                  <span className={checked ? 'text-zinc-900 font-semibold' : 'text-zinc-700'}>{m.name || <span className="italic text-zinc-400">—</span>}</span>
-                  {checked && <span className="ml-auto text-[10px] text-blue-600 font-bold">ON</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="absolute top-full left-0 min-w-[220px] bg-white border border-zinc-200 shadow-lg z-50 max-h-64 overflow-y-auto">
+          {sorted.map(m => {
+            const checked = currentIds.includes(m.id);
+            return (
+              <div
+                key={m.id}
+                className={`px-2 py-1 text-[13px] cursor-pointer flex items-center gap-2 font-mono hover:bg-zinc-50 ${checked ? 'bg-zinc-50' : ''}`}
+                onMouseDown={e => { e.preventDefault(); toggle(m.id); }}
+              >
+                <span className="text-zinc-400 shrink-0 w-12 text-right">{m.id}.</span>
+                <span className={checked ? 'text-zinc-900 font-semibold' : 'text-zinc-600'}>{m.name || <span className="italic text-zinc-400">—</span>}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }, [project.castMembers]);
