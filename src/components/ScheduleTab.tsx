@@ -138,6 +138,25 @@ export function ScheduleTab() {
   const activeVersionRef = useRef(activeVersion);
   activeVersionRef.current = activeVersion;
 
+  const pasteClipboard = useCallback((targetId: string) => {
+    const ver = activeVersionRef.current;
+    if (!ver) return;
+    const targetRow = augmentedRows.find(r => r.id === targetId);
+    if (!targetRow) return;
+    const targetShootDay = targetRow.shootDay;
+    const newRows = ver.rows.map(r => ({ ...r }));
+    const cutIds = Array.from(clipboardIds);
+    const pasted = cutIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
+    let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !cutIds.includes(r.id)).sort((a, b) => a.order - b.order);
+    const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
+    dayRows.splice(insIdx + 1, 0, ...pasted);
+    dayRows.forEach((r, i) => r.order = i);
+    const final = [...newRows.filter(r => !cutIds.includes(r.id)), ...dayRows];
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
+    setClipboardIds(new Set());
+    setSelectedRowIds(new Set());
+  }, [clipboardIds, dispatch]);
+
   useEffect(() => () => {
     const ver = activeVersionRef.current;
     if (!ver) return;
@@ -174,20 +193,7 @@ export function ScheduleTab() {
           if (rA && rB) return (rA.order || 0) - (rB.order || 0);
           return 0;
         });
-        const targetRow = augmentedRows.find(r => r.id === sorted[0]);
-        if (!targetRow) return;
-        const targetShootDay = targetRow.shootDay;
-        const newRows = ver.rows.map(r => ({ ...r }));
-        const cutIds = Array.from(clipboardIds);
-        const pasted = cutIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
-        let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !cutIds.includes(r.id)).sort((a, b) => a.order - b.order);
-        const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
-        dayRows.splice(insIdx + 1, 0, ...pasted);
-        dayRows.forEach((r, i) => r.order = i);
-        const final = [...newRows.filter(r => !cutIds.includes(r.id)), ...dayRows];
-        dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
-        setClipboardIds(new Set());
-        setSelectedRowIds(new Set());
+        pasteClipboard(sorted[0]);
       }
     };
     window.addEventListener('keydown', handler);
@@ -770,33 +776,13 @@ export function ScheduleTab() {
             setSelectedRowIds(new Set());
             setContextMenu(null);
           };
-          const pasteHere = () => {
-            if (!row || !activeVersion) return;
-            const ver = activeVersion;
-            const [targetId] = [row.id];
-            const targetRow = augmentedRows.find(r => r.id === targetId);
-            if (!targetRow) return;
-            const targetShootDay = targetRow.shootDay;
-            const newRows = ver.rows.map(r => ({ ...r }));
-            const cutIds = Array.from(clipboardIds);
-            const pasted = cutIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
-            let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !cutIds.includes(r.id)).sort((a, b) => a.order - b.order);
-            const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
-            dayRows.splice(insIdx + 1, 0, ...pasted);
-            dayRows.forEach((r, i) => r.order = i);
-            const final = [...newRows.filter(r => !cutIds.includes(r.id)), ...dayRows];
-            dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
-            setClipboardIds(new Set());
-            setSelectedRowIds(new Set());
-            setContextMenu(null);
-          };
 
           if (selectedRowIds.size > 1) {
             return (
               <>
                 <ContextMenuItem onClick={cutSelection}>Cut {selectedRowIds.size} Ribbons</ContextMenuItem>
               {clipboardIds.size > 0 && (
-                  <ContextMenuItem onClick={pasteHere}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { pasteClipboard(row!.id); setContextMenu(null); }}>Paste</ContextMenuItem>
                 )}
                 <ContextMenuDivider />
                 <ContextMenuItem variant="danger" onClick={() => {
@@ -815,9 +801,9 @@ export function ScheduleTab() {
             <>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
-              {activeDragIds.size > 0 && (
+              {clipboardIds.size > 0 && (
                 <>
-                  <ContextMenuItem onClick={pasteHere}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { pasteClipboard(row!.id); setContextMenu(null); }}>Paste</ContextMenuItem>
                 </>
               )}
               <ContextMenuDivider />
