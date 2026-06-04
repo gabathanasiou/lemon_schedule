@@ -8,6 +8,7 @@ import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
+const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
 
 export const UnscheduledBlock: React.FC<{ 
   rows: ScheduleRow[], 
@@ -18,7 +19,9 @@ export const UnscheduledBlock: React.FC<{
   setContextMenu?: any
 }> = ({ rows, projectScenes, textEditingEnabled }) => {
   const { state, dispatch } = useProject();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
+  });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 340; } catch { return 340; }
@@ -29,6 +32,10 @@ export const UnscheduledBlock: React.FC<{
     widthRef.current = width;
     localStorage.setItem(SIDEBAR_KEY, String(width));
   }, [width]);
+
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_KEY, String(isCollapsed));
+  }, [isCollapsed]);
   const panelRef = useRef<HTMLDivElement>(null);
   
   const { setNodeRef } = useDroppable({
