@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta } from '../types';
 import { generateUUID } from '../lib/utils';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -17,9 +17,9 @@ function toDateKey(date: Date): string {
 function getCalendarDays(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
   const startOfWeek = firstDay.getDay();
-  const days: { date: Date; dateKey: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
   const cursor = new Date(year, month, 1 - startOfWeek);
   const todayKey = toDateKey(new Date());
+  const days: { date: Date; dateKey: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
   for (let i = 0; i < 42; i++) {
     const isCurrentMonth = cursor.getMonth() === month;
     days.push({ date: new Date(cursor), dateKey: toDateKey(cursor), isCurrentMonth, isToday: toDateKey(cursor) === todayKey });
@@ -43,7 +43,6 @@ function sceneColor(scene?: Scene | null) {
   return { bg: '#ffffff', text: '#18181b' };
 }
 
-/* ── Scene Card (draggable) ── */
 const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, scene }) => {
   if (!scene) {
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
@@ -67,31 +66,54 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, scene }
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
   });
-  const style = isDragging ? { opacity: 0.3 } : { cursor: 'grab' };
   return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} style={isDragging ? { opacity: 0.3 } : { cursor: 'grab' }} {...listeners} {...attributes}>
       <SceneCardContent row={row} scene={scene} />
     </div>
   );
 };
 
-/* ── Droppable Day Cell ── */
 const DayCell: React.FC<{
   dateKey: string; date: Date; isCurrentMonth: boolean; isToday: boolean;
+  isWorkingDay: boolean; shootDay: number | null; label: string | null;
   rows: ScheduleRow[]; scenes: Scene[];
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes }) => {
+  onToggle: (dateKey: string) => void;
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, onToggle }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
-    data: { type: 'DAY_CELL', date: dateKey },
+    data: { type: 'DAY_CELL', date: dateKey, shootDay },
   });
+
+  const { attributes, listeners, setNodeRef: setHandleRef, isDragging } = useDraggable({
+    id: shootDay !== null ? `day-handle-${shootDay}` : 'day-handle-inactive',
+    data: shootDay !== null ? { type: 'DAY', shootDay, date: dateKey } : {},
+    disabled: !isWorkingDay || shootDay === null,
+  });
+
   return (
     <div ref={setNodeRef}
       className={`min-h-[80px] h-full border-r border-b border-zinc-200 p-1 flex flex-col
-        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : 'bg-white'}
+        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay ? 'bg-zinc-100 text-zinc-400' : 'bg-white'}
         ${isOver ? '!bg-blue-50' : ''}`}
     >
-      <div className={`text-[10px] font-semibold mb-0.5 px-0.5 ${isToday ? 'bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-zinc-600' : 'text-zinc-300'}`}>
-        {date.getDate()}
+      <div className="flex items-center justify-between mb-0.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(dateKey); }}
+          className={`text-[10px] font-semibold px-0.5 rounded flex items-center justify-center
+            ${isToday ? 'bg-blue-500 text-white w-5 h-5' : !isWorkingDay && isCurrentMonth ? 'text-zinc-300 hover:bg-zinc-200' : isCurrentMonth ? 'text-zinc-600 hover:bg-zinc-200' : 'text-zinc-200'}`}
+          title={isWorkingDay ? 'Remove working day' : 'Add working day'}
+        >
+          {date.getDate()}
+        </button>
+        {isWorkingDay && shootDay !== null && label && (
+          <div ref={setHandleRef} {...listeners} {...attributes}
+            style={{ opacity: isDragging ? 0.3 : 1, cursor: 'grab' }}
+            className="flex items-center gap-1 text-[7px] font-bold text-green-600 select-none hover:text-green-800 group"
+            title={`Day ${shootDay} — drag to move`}>
+            {label}
+            <GripVertical className="w-3 h-3 opacity-40 group-hover:opacity-100" />
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
         {rows.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />))}
@@ -100,7 +122,6 @@ const DayCell: React.FC<{
   );
 };
 
-/* ── Unscheduled Sidebar ── */
 const UnscheduledSidebar: React.FC<{
   dayBlocks: { shootDay: number; rows: ScheduleRow[] }[];
   loose: ScheduleRow[];
@@ -124,7 +145,6 @@ const UnscheduledSidebar: React.FC<{
   );
 };
 
-/* ── Calendar Tab ── */
 export const CalendarTab: React.FC = () => {
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -133,10 +153,32 @@ export const CalendarTab: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
+  const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
+
+  const workingMap = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!activeVersion) return m;
+    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
+      if (v.date) m.set(v.date, Number(k));
+    }
+    return m;
+  }, [activeVersion]);
+
+  const workingLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    const workingDates = [...workingMap.keys()].sort();
+    if (workingDates.length === 0) return labels;
+    labels.set(workingDates[0], 'SW');
+    if (workingDates.length > 1) labels.set(workingDates[workingDates.length - 1], 'FW');
+    for (let i = 1; i < workingDates.length - 1; i++) {
+      labels.set(workingDates[i], 'W');
+    }
+    return labels;
+  }, [workingMap]);
 
   const sceneIdsInRows = new Set(activeVersion?.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
   const missingScenes = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
@@ -175,8 +217,20 @@ export const CalendarTab: React.FC = () => {
     return { dayBlocks, loose };
   }, [augmentedRows, activeVersion]);
 
+  const handleToggle = useCallback((dateKey: string) => {
+    dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
+  }, [dispatch]);
+
   const handleDragStart = (e: DragStartEvent) => {
-    setActiveDragRow(augmentedRows.find(r => r.id === e.active.id) || null);
+    const data = e.active.data.current as any;
+    if (data?.type === 'DAY') {
+      setActiveDragDay(data.shootDay);
+    setActiveDragRow(null);
+    setActiveDragDay(null);
+    } else {
+      setActiveDragRow(augmentedRows.find(r => r.id === e.active.id) || null);
+      setActiveDragDay(null);
+    }
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -184,10 +238,36 @@ export const CalendarTab: React.FC = () => {
     setActiveDragRow(null);
     if (!over || !activeVersion) return;
 
+    const activeData = active.data.current as any;
+
+    /* ── Day drag: swap/move dayMeta dates ── */
+    if (activeData?.type === 'DAY') {
+      const sourceDay = activeData.shootDay as number;
+      const sourceDate = activeData.date as string;
+      const overData = over.data.current as any;
+      let targetDate: string | null = null;
+      if (overData?.type === 'DAY_CELL' && typeof overData.date === 'string') {
+        targetDate = overData.date;
+      } else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
+        targetDate = over.id.slice(4);
+      }
+      if (!targetDate || sourceDate === targetDate) return;
+
+      const targetEntry = (Object.entries(activeVersion.dayMeta) as [string, ShootDayMeta][]).find(([, m]) => m.date === targetDate);
+      const newDayMeta = { ...activeVersion.dayMeta };
+      newDayMeta[sourceDay] = { ...newDayMeta[sourceDay], date: targetDate };
+      if (targetEntry) {
+        const targetDay = Number(targetEntry[0]);
+        newDayMeta[targetDay] = { ...newDayMeta[targetDay], date: sourceDate };
+      }
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, dayMeta: newDayMeta } });
+      return;
+    }
+
+    /* ── Scene drop ── */
     const row = augmentedRows.find(r => r.id === active.id);
     if (!row) return;
 
-    /* ── Determine target ── */
     if (over.id === 'unscheduled') {
       if (row.shootDay === null && row.id.startsWith('row-synth-')) return;
       if (row.shootDay === null) return;
@@ -198,34 +278,19 @@ export const CalendarTab: React.FC = () => {
       return;
     }
 
-    /* ── Get date string from day cell ── */
     const overData = over.data.current as any;
     let dateStr: string | null = null;
+    let targetShootDay: number | null = null;
     if (overData?.type === 'DAY_CELL' && typeof overData.date === 'string') {
       dateStr = overData.date;
+      targetShootDay = overData.shootDay ?? null;
     } else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
       dateStr = over.id.slice(4);
     }
-    if (!dateStr) return;
+    if (!dateStr || targetShootDay === null) return;
 
-    /* ── Find or create the shootDay for this date ── */
-    const entry = Object.entries(activeVersion.dayMeta || {}).find(([, m]: [string, ShootDayMeta]) => m.date === dateStr);
-    let newShootDay: number;
-    let newDayMeta: Record<number, ShootDayMeta> = activeVersion.dayMeta;
+    if (row.shootDay === targetShootDay && !row.id.startsWith('row-synth-')) return;
 
-    if (entry) {
-      newShootDay = parseInt(entry[0]);
-    } else {
-      newShootDay = Math.max(0, ...Object.keys(activeVersion.dayMeta || {}).map(Number), 0) + 1;
-      newDayMeta = {
-        ...activeVersion.dayMeta,
-        [newShootDay]: { shootDay: newShootDay, unitCall: '08:00', date: dateStr },
-      };
-    }
-
-    if (row.shootDay === newShootDay && !row.id.startsWith('row-synth-')) return;
-
-    /* ── Build updated rows ── */
     const isSynthetic = row.id.startsWith('row-synth-');
     let updatedRows: ScheduleRow[];
 
@@ -234,18 +299,18 @@ export const CalendarTab: React.FC = () => {
         id: generateUUID(),
         type: 'SCENE',
         sceneId: row.sceneId!,
-        shootDay: newShootDay,
+        shootDay: targetShootDay,
         order: 0,
         estimatedDuration: row.estimatedDuration,
       };
       updatedRows = [...activeVersion.rows, newRow];
     } else {
       updatedRows = activeVersion.rows.map(r =>
-        r.id === row.id ? { ...r, shootDay: newShootDay, order: 0 } : r
+        r.id === row.id ? { ...r, shootDay: targetShootDay, order: 0 } : r
       );
     }
 
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: updatedRows, dayMeta: newDayMeta } });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: updatedRows } });
   };
 
   const goPrev = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
@@ -253,6 +318,7 @@ export const CalendarTab: React.FC = () => {
 
   const monthName = new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
   const activeScene = activeDragRow ? project.scenes.find(s => s.id === activeDragRow.sceneId) : undefined;
+  const activeDayRows = activeDragDay !== null ? (augmentedRows.filter(r => r.shootDay === activeDragDay) || []) : [];
 
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
@@ -266,16 +332,30 @@ export const CalendarTab: React.FC = () => {
               <h2 className="font-semibold text-sm">{monthName}</h2>
               <button onClick={goNext} className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
             </div>
+            <span className="text-[10px] text-zinc-400">
+              <span className="text-[7px] font-bold text-green-600 mr-1">SW</span>Start &nbsp;
+              <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">W</span>Work &nbsp;
+              <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">FW</span>Finish
+            </span>
           </div>
           <div className="grid grid-cols-7 border-l border-t border-zinc-200">
             {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
           </div>
           <div className="flex-1 overflow-y-auto min-h-0">
             <div className="grid grid-cols-7 border-l border-zinc-200">
-              {days.map((day, i) => (
-                <DayCell key={i} dateKey={day.dateKey} date={day.date} isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
-                  rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes} />
-              ))}
+              {days.map((day, i) => {
+                const sd = workingMap.get(day.dateKey) ?? null;
+                  return (
+                  <DayCell key={i}
+                    dateKey={day.dateKey} date={day.date}
+                    isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
+                    isWorkingDay={sd !== null} shootDay={sd}
+                    label={workingLabels.get(day.dateKey) ?? null}
+                    rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
+                    onToggle={handleToggle}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -283,6 +363,13 @@ export const CalendarTab: React.FC = () => {
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
         {activeDragRow ? <div style={{ opacity: 0.9 }}><SceneCardContent row={activeDragRow} scene={activeScene} /></div> : null}
+        {activeDragDay !== null && activeDayRows.length > 0 ? (
+          <div className="flex flex-col gap-0.5 opacity-90">
+            {activeDayRows.map(r => (
+              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} />
+            ))}
+          </div>
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

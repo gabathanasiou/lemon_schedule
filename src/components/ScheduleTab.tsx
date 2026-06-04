@@ -123,13 +123,12 @@ export function ScheduleTab() {
   const unscheduledRows = augmentedRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
 
   const existingDays = Array.from(new Set([
-    ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0)
-    .sort((a, b) => {
-      const dateA = activeVersion.dayMeta?.[a]?.date || '';
-      const dateB = activeVersion.dayMeta?.[b]?.date || '';
-      return dateA.localeCompare(dateB);
-    });
+    ...Object.keys(activeVersion.dayMeta || {}).map(Number),
+  ])).sort((a, b) => {
+    const dateA = activeVersion.dayMeta?.[a]?.date || '';
+    const dateB = activeVersion.dayMeta?.[b]?.date || '';
+    return dateA.localeCompare(dateB);
+  });
 
   const getDayFromId = (id: string): number | null => {
     if (id.startsWith('day-wrap-') || id.startsWith('day-')) {
@@ -459,21 +458,6 @@ export function ScheduleTab() {
                 />
               ))}
             </SortableContext>
-
-            <div className="flex justify-center mt-8">
-               <button 
-                 onClick={() => {
-                    const nextDay = existingDays.length > 0 ? Math.max(...existingDays) + 1 : 1;
-                    dispatch({
-                      type: 'UPDATE_VERSION',
-                      payload: { id: activeVersion.id, dayMeta: { ...activeVersion.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: '' } } }
-                    });
-                 }}
-                 className="bg-black text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-black/20 hover:scale-105 transition-transform"
-               >
-                 + ADD SHOOT DAY
-               </button>
-            </div>
           </div>
         </div>
       </div>

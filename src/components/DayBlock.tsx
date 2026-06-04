@@ -8,6 +8,18 @@ import { SortableRow } from './SortableRow';
 import { GripHorizontal, Trash2 } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
 
+function formatDateLong(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+  const year = d.getFullYear();
+  const suffixes = ['TH', 'ST', 'ND', 'RD'];
+  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
+  return `${weekday} ${day}${suffix} ${month} ${year}`;
+}
+
 const sceneCardClass = (scene?: Scene | null): string => {
   if (!scene) return 'bg-white text-zinc-900';
   const intExt = (scene.intExt || '').toUpperCase();
@@ -145,21 +157,18 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               className="bg-zinc-900 px-2 py-0.5 rounded outline-none border border-transparent focus:border-zinc-600 w-16 text-center"
             />
             <button 
-              onClick={() => dispatch({ type: 'DELETE_DAY', day: dayInt })}
+              onClick={() => {
+                dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt });
+              }}
               className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
-              title="Delete Day"
+              title="Remove all scenes from this day"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
          </div>
-         <div className="flex items-center gap-2">
-            <input 
-              type="date"
-              value={meta?.date || ''} 
-              onChange={e => updateMeta({date: e.target.value})} 
-              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white"
-            />
-         </div>
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-400">{meta?.date ? formatDateLong(meta.date) : ''}</span>
+          </div>
       </div>
 
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">

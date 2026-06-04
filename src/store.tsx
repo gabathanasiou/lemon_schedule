@@ -104,6 +104,8 @@ type Action =
   | { type: 'SET_ACTIVE_VERSION', payload: string }
   | { type: 'IMPORT_SCENES', payload: Scene[] }
   | { type: 'DELETE_DAY', day: number }
+  | { type: 'UNSCHEDULE_DAY', day: number }
+  | { type: 'TOGGLE_WORKING_DAY', date: string }
 
 interface State {
   past: Project[];
@@ -316,6 +318,49 @@ function reducer(state: State, action: Action): State {
             rows: v.rows.filter(r => r.shootDay !== action.day),
             dayMeta: Object.fromEntries(Object.entries(v.dayMeta).filter(([k]) => Number(k) !== action.day))
           };
+        })
+      });
+    }
+
+    case 'UNSCHEDULE_DAY': {
+      const activeVerId = state.present.activeVersionId;
+      if (!activeVerId) return state;
+      const day = action.day;
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v => {
+          if (v.id !== activeVerId) return v;
+          return {
+            ...v,
+            rows: v.rows.map(r => r.shootDay === day ? { ...r, shootDay: null as any, order: 999999 } : r)
+          };
+        })
+      });
+    }
+
+    case 'TOGGLE_WORKING_DAY': {
+      const date = action.date;
+      const activeVerId = state.present.activeVersionId;
+      if (!activeVerId) return state;
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v => {
+          if (v.id !== activeVerId) return v;
+          const existing = Object.entries(v.dayMeta).find(([, m]) => m.date === date);
+          if (existing) {
+            const day = Number(existing[0]);
+            return {
+              ...v,
+              rows: v.rows.map(r => r.shootDay === day ? { ...r, shootDay: null as any, order: 999999 } : r),
+              dayMeta: Object.fromEntries(Object.entries(v.dayMeta).filter(([k]) => Number(k) !== day))
+            };
+          } else {
+            const nextDay = Math.max(0, ...Object.keys(v.dayMeta || {}).map(Number), 0) + 1;
+            return {
+              ...v,
+              dayMeta: { ...v.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date } }
+            };
+          }
         })
       });
     }
