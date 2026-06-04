@@ -245,7 +245,7 @@ const UnscheduledSidebar: React.FC<{
   );
 };
 
-export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false }) => {
+export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }> = ({ showDesc = false, showBreaks = true }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -334,6 +334,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false
     augmentedRows.forEach(r => {
       if (r.shootDay === null) return;
       if (activeDragIds.has(r.id)) return;
+      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return;
       const meta = activeVersion.dayMeta?.[r.shootDay];
       if (!meta?.date) return;
       const dk = meta.date;
@@ -341,11 +342,12 @@ export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false
       map.get(dk)!.push(r);
     });
     return map;
-  }, [augmentedRows, activeVersion, activeDragIds]);
+  }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
 
   const unscheduledRows = useMemo(() => {
     const withoutDay = augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
+      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
       if (r.shootDay === null) return true;
       const meta = activeVersion?.dayMeta?.[r.shootDay];
       return !meta?.date;

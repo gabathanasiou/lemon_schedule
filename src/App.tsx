@@ -37,6 +37,7 @@ function AppContent() {
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
+  const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
   const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const project = state.present;
@@ -225,6 +226,13 @@ function AppContent() {
                   className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 ${showCalendarDesc ? 'text-white font-semibold' : ''}`}>
                   Description
                 </button>
+                <DropdownDivider />
+                <div className="px-3 py-1 text-zinc-400 text-[9px] uppercase tracking-wider font-mono">Show</div>
+                <button onClick={() => { setShowCalendarBreaks(!showCalendarBreaks); }}
+                  className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 flex items-center justify-between">
+                  <span>Breaks &amp; Notes</span>
+                  <span className={`w-3 h-3 rounded border ${showCalendarBreaks ? 'bg-blue-500 border-blue-500' : 'border-zinc-500'}`} />
+                </button>
               </DropdownMenu>
             )}
           </div>
@@ -390,7 +398,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : <RulesTab />}
       </main>
 
       {showTrash && (
