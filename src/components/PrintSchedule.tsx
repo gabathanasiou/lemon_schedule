@@ -141,7 +141,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
           })}
 
       <div className="print-day-footer">
-        <span className="print-footer-end-label">End of Day #{chronoDay}</span>
+        <span className="print-footer-end-label">
+          End of Day #{chronoDay}
+          {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
+        </span>
         {meta?.date && <span className="print-footer-date">{new Date(meta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         <span className="print-footer-spacer" />
         <span>Total Pages: {formatPageCount(totalPages)}</span>

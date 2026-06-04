@@ -226,14 +226,21 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         )}
       </div>
 
-      {/* Day Footer stats */}
+      {/* Day Footer */}
       {rows.length > 0 && (
-        <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300"
+        <div className="flex items-center px-3 py-1.5 border-t border-zinc-300 gap-5"
           style={{fontFamily: 'Helvetica, Arial, sans-serif'}}>
-          <span className="font-semibold">End of Day #{displayDay}</span>
-          <div className="flex gap-4 text-zinc-600">
-             <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
-             <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
+          <span className="font-semibold shrink-0">
+            End of Day #{displayDay}
+            {totalShootTime > 0 && <span className="text-zinc-600 font-normal"> · {addMinutesToTime(meta?.unitCall || '08:00', totalShootTime)}</span>}
+          </span>
+          <span className="flex-1 text-center text-zinc-500 text-xs">
+            {meta?.date ? new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''}
+          </span>
+          <span className="flex-1" />
+          <div className="flex gap-4 text-zinc-600 text-xs shrink-0">
+            <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
+            <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
           </div>
         </div>
       )}
