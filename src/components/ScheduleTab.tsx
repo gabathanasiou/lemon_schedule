@@ -243,7 +243,7 @@ export function ScheduleTab() {
     }))
   ];
 
-  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id)).reduce((acc, row) => {
+  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id) && !clipboardIds.has(r.id)).reduce((acc, row) => {
     if (row.shootDay !== null) {
       if (!acc[row.shootDay]) acc[row.shootDay] = [];
       acc[row.shootDay].push(row);
@@ -255,7 +255,7 @@ export function ScheduleTab() {
     dayRows.sort((a, b) => a.order - b.order);
   });
 
-  const unscheduledBase = augmentedRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
+  const unscheduledBase = augmentedRows.filter(r => r.shootDay === null && !clipboardIds.has(r.id)).sort((a, b) => a.order - b.order);
   const unscheduledRows = activeId ? unscheduledBase.filter(r => !activeDragIds.has(r.id)) : unscheduledBase;
 
   const cutRows = (clipboardIds.size > 0)
