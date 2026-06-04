@@ -259,9 +259,8 @@ export function ScheduleTab() {
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
     const draggedId = e.active.id as string;
+    const currentSelection = selectedRowIds;
     setActiveId(draggedId);
-    setActiveType(e.active.data.current?.type || null);
-    const currentSelection = selectedRowIdsRef.current;
     if (currentSelection.has(draggedId) && currentSelection.size > 1) {
       setActiveDragIds(new Set(currentSelection));
     } else {
