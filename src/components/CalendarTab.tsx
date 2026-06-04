@@ -191,8 +191,10 @@ const UnscheduledSidebar: React.FC<{
   activeDragIds?: Set<string>;
   selectedIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
-}> = ({ rows, scenes, showDesc, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick }) => {
+  onSort?: (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => void;
+}> = ({ rows, scenes, showDesc, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 200; } catch { return 200; }
   });
@@ -231,7 +233,27 @@ const UnscheduledSidebar: React.FC<{
       className="border-r border-zinc-200 bg-zinc-50 flex flex-col shrink-0 relative overflow-hidden"
       style={{ width: `${width}px` }}
     >
-      <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white">UNSCHEDULED</div>
+      <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white flex items-center justify-between">
+        <span>UNSCHEDULED</span>
+        {onSort && (
+          <div className="relative">
+            <button onClick={() => setShowSortMenu(p => !p)} className="text-[10px] text-zinc-400 hover:text-zinc-600 font-normal">
+              Sort ▾
+            </button>
+            {showSortMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col text-[10px] font-sans font-semibold">
+                  <button onClick={() => { onSort('scene_number'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Scene Number</button>
+                  <button onClick={() => { onSort('script_day'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Script Day</button>
+                  <button onClick={() => { onSort('page_count'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Page Count (Longest)</button>
+                  <button onClick={() => { onSort('set_name'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Set / Location</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
       <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 ${isOver ? 'bg-blue-50' : ''}`}>
         {rows.map((r, i, arr) => (
           <React.Fragment key={r.id}>
@@ -376,6 +398,33 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const handleToggle = useCallback((dateKey: string) => {
     dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
   }, [dispatch]);
+
+  const sortUnscheduled = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
+    if (!activeVersion) return;
+    const scheduled = activeVersion.rows.filter(r => r.shootDay !== null);
+    const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
+    const missingScenes = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
+    const unscheduled: ScheduleRow[] = [
+      ...activeVersion.rows.filter(r => r.shootDay === null),
+      ...missingScenes.map(s => ({ id: generateUUID(), type: 'SCENE' as const, sceneId: s.id, shootDay: null as number | null, order: 999999, estimatedDuration: 30 })),
+    ];
+    unscheduled.sort((a, b) => {
+      if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
+      if (a.type === 'SCENE' && b.type !== 'SCENE') return -1;
+      if (a.type !== 'SCENE' && b.type !== 'SCENE') return 0;
+      const sA = project.scenes.find(s => s.id === a.sceneId);
+      const sB = project.scenes.find(s => s.id === b.sceneId);
+      if (!sA || !sB) return 0;
+      if (criterion === 'scene_number') return sA.sceneNumber.localeCompare(sB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' });
+      if (criterion === 'script_day') return sA.scriptDay.localeCompare(sB.scriptDay, undefined, { numeric: true, sensitivity: 'base' });
+      if (criterion === 'page_count') return sB.pageCountDecimal - sA.pageCountDecimal;
+      if (criterion === 'set_name') return sA.set.localeCompare(sB.set);
+      return 0;
+    });
+    const combined = [...scheduled, ...unscheduled];
+    combined.forEach((r, i) => { r.order = i; });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+  }, [activeVersion, project.scenes, dispatch]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -532,7 +581,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   return (
     <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '11px' }}>
-        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} />
+        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
