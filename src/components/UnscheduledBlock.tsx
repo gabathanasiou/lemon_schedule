@@ -21,13 +21,14 @@ export const UnscheduledBlock: React.FC<{
   setContextMenu?: any,
   selectedIds?: Set<string>,
   activeDragIds?: Set<string>,
+  clipboardIds?: Set<string>,
   onRowClick?: (id: string, e: React.MouseEvent) => void,
   onSelectionChange?: (ids: Set<string>, isAddMode: boolean) => void,
   insertBeforeId?: string | null,
   activeDragRow?: ScheduleRow | null,
   activeDragRows?: ScheduleRow[],
   activeRowId?: string | null,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, clipboardIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -295,7 +296,7 @@ export const UnscheduledBlock: React.FC<{
                     scenes={projectScenes}
                     isCompact
                     isSelected={selectedIds?.has(r.id) ?? false}
-                    isFaded={activeDragIds?.has(r.id) ?? false}
+                    isFaded={(activeDragIds?.has(r.id) || clipboardIds?.has(r.id)) ?? false}
                     onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                     textEditingEnabled={textEditingEnabled}
                   />

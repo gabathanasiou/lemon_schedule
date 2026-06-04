@@ -72,6 +72,7 @@ export function ScheduleTab() {
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
+  const [clipboardIds, setClipboardIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
@@ -138,13 +139,17 @@ export function ScheduleTab() {
   activeVersionRef.current = activeVersion;
 
   useEffect(() => () => {
-    if (activeDragIds.size > 0) {
-      const ver = activeVersionRef.current;
-      if (ver) {
-        const ids = Array.from(activeDragIds);
-        const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-        dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
-      }
+    const ver = activeVersionRef.current;
+    if (!ver) return;
+    const ids = Array.from(activeDragIds);
+    if (ids.length > 0) {
+      const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
+    }
+    const cutIds = Array.from(clipboardIds);
+    if (cutIds.length > 0) {
+      const newRows = ver.rows.map(r => cutIds.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
     }
   }, []); // eslint-disable-line
 
@@ -157,11 +162,11 @@ export function ScheduleTab() {
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'x' && selectedRowIds.size > 0) {
         e.preventDefault();
-        setActiveDragIds(new Set(selectedRowIds));
+        setClipboardIds(new Set(selectedRowIds));
         setSelectedRowIds(new Set());
       }
 
-      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && activeDragIds.size > 0 && selectedRowIds.size > 0) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && clipboardIds.size > 0 && selectedRowIds.size > 0) {
         e.preventDefault();
         const sorted = [...selectedRowIds].sort((a, b) => {
           const rA = augmentedRows.find(rx => rx.id === a);
@@ -173,15 +178,15 @@ export function ScheduleTab() {
         if (!targetRow) return;
         const targetShootDay = targetRow.shootDay;
         const newRows = ver.rows.map(r => ({ ...r }));
-        const draggedIds = Array.from(activeDragIds);
-        const pasted = draggedIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
-        let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !draggedIds.includes(r.id)).sort((a, b) => a.order - b.order);
+        const cutIds = Array.from(clipboardIds);
+        const pasted = cutIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
+        let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !cutIds.includes(r.id)).sort((a, b) => a.order - b.order);
         const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
         dayRows.splice(insIdx + 1, 0, ...pasted);
         dayRows.forEach((r, i) => r.order = i);
-        const final = [...newRows.filter(r => r.shootDay !== targetShootDay || draggedIds.includes(r.id)), ...dayRows];
+        const final = [...newRows.filter(r => r.shootDay !== targetShootDay || cutIds.includes(r.id)), ...dayRows];
         dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
-        setActiveDragIds(new Set());
+        setClipboardIds(new Set());
         setSelectedRowIds(new Set());
       }
     };
@@ -253,8 +258,8 @@ export function ScheduleTab() {
   const unscheduledBase = augmentedRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
   const unscheduledRows = activeId ? unscheduledBase.filter(r => !activeDragIds.has(r.id)) : unscheduledBase;
 
-  const cutRows = (!activeId && activeDragIds.size > 0)
-    ? augmentedRows.filter(r => activeDragIds.has(r.id) && r.shootDay !== null).sort((a, b) => a.order - b.order)
+  const cutRows = (clipboardIds.size > 0)
+    ? augmentedRows.filter(r => clipboardIds.has(r.id) && r.shootDay !== null).sort((a, b) => a.order - b.order)
     : [];
 
   const unscheduledAll = [...unscheduledRows, ...cutRows];
@@ -648,7 +653,7 @@ export function ScheduleTab() {
               }
           }}
       >
-        <UnscheduledBlock rows={unscheduledAll} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
+        <UnscheduledBlock rows={unscheduledAll} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} clipboardIds={clipboardIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -689,11 +694,11 @@ export function ScheduleTab() {
                     <button onClick={() => {
                       const ver = activeVersion;
                       if (ver) {
-                        const ids = Array.from(activeDragIds);
+                        const ids = Array.from(clipboardIds);
                         const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
                         dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
                       }
-                      setActiveDragIds(new Set());
+                      setClipboardIds(new Set());
                     }} className="hover:text-amber-900 font-bold">&times;</button>
                   </span>
                 )}
@@ -761,27 +766,27 @@ export function ScheduleTab() {
         {(() => {
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
           const cutSelection = () => {
-            setActiveDragIds(new Set(selectedRowIds));
+            setClipboardIds(new Set(selectedRowIds));
             setSelectedRowIds(new Set());
             setContextMenu(null);
           };
           const pasteHere = () => {
             if (!row || !activeVersion) return;
             const ver = activeVersion;
-            const sorted = [row.id];
-            const targetRow = augmentedRows.find(r => r.id === sorted[0]);
+            const [targetId] = [row.id];
+            const targetRow = augmentedRows.find(r => r.id === targetId);
             if (!targetRow) return;
             const targetShootDay = targetRow.shootDay;
             const newRows = ver.rows.map(r => ({ ...r }));
-            const draggedIds = Array.from(activeDragIds);
-            const pasted = draggedIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
-            let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !draggedIds.includes(r.id)).sort((a, b) => a.order - b.order);
+            const cutIds = Array.from(clipboardIds);
+            const pasted = cutIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
+            let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !cutIds.includes(r.id)).sort((a, b) => a.order - b.order);
             const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
             dayRows.splice(insIdx + 1, 0, ...pasted);
             dayRows.forEach((r, i) => r.order = i);
-            const final = [...newRows.filter(r => r.shootDay !== targetShootDay || draggedIds.includes(r.id)), ...dayRows];
+            const final = [...newRows.filter(r => r.shootDay !== targetShootDay || cutIds.includes(r.id)), ...dayRows];
             dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
-            setActiveDragIds(new Set());
+            setClipboardIds(new Set());
             setSelectedRowIds(new Set());
             setContextMenu(null);
           };
@@ -790,7 +795,7 @@ export function ScheduleTab() {
             return (
               <>
                 <ContextMenuItem onClick={cutSelection}>Cut {selectedRowIds.size} Ribbons</ContextMenuItem>
-                {activeDragIds.size > 0 && (
+              {clipboardIds.size > 0 && (
                   <ContextMenuItem onClick={pasteHere}>Paste</ContextMenuItem>
                 )}
                 <ContextMenuDivider />
@@ -816,7 +821,7 @@ export function ScheduleTab() {
                 </>
               )}
               <ContextMenuDivider />
-              <ContextMenuItem onClick={() => { setActiveDragIds(new Set([row!.id])); setContextMenu(null); }}>Cut</ContextMenuItem>
+              <ContextMenuItem onClick={() => { setClipboardIds(new Set([row!.id])); setContextMenu(null); }}>Cut</ContextMenuItem>
               {row?.type === 'SCENE' && (
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
