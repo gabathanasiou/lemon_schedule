@@ -124,8 +124,12 @@ export function ScheduleTab() {
 
   const existingDays = Array.from(new Set([
     ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0);
-  existingDays.sort((a, b) => a - b);
+  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0)
+    .sort((a, b) => {
+      const dateA = activeVersion.dayMeta?.[a]?.date || '';
+      const dateB = activeVersion.dayMeta?.[b]?.date || '';
+      return dateA.localeCompare(dateB);
+    });
 
   const getDayFromId = (id: string): number | null => {
     if (id.startsWith('day-wrap-') || id.startsWith('day-')) {
@@ -439,7 +443,7 @@ export function ScheduleTab() {
 
           <div className="w-full max-w-4xl">
             <SortableContext items={existingDays.map(d => `day-wrap-${d}`)} strategy={verticalListSortingStrategy}>
-              {existingDays.map(dayInt => (
+              {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 
                   dayInt={dayInt} 
@@ -451,6 +455,7 @@ export function ScheduleTab() {
                   insertBeforeId={insertBeforeId}
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
+                  chronoDay={i + 1}
                 />
               ))}
             </SortableContext>

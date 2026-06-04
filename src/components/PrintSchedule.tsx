@@ -42,9 +42,10 @@ interface DaySectionProps {
   scenes: Scene[];
   showTimes: boolean;
   showDurations: boolean;
+  chronoDay: number;
 }
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay }) => {
   let runningElapsed = 0;
   let totalPages = 0;
 
@@ -67,7 +68,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   return (
     <div className="print-day">
       <div className="print-day-header">
-        <span className="print-day-number">DAY #{dayInt}</span>
+        <span className="print-day-number">DAY #{chronoDay}</span>
         {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
         <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
       </div>
@@ -140,7 +141,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
           })}
 
       <div className="print-day-footer">
-        <span className="print-footer-end-label">End of Day #{dayInt}</span>
+        <span className="print-footer-end-label">End of Day #{chronoDay}</span>
         {meta?.date && <span className="print-footer-date">{new Date(meta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         <span className="print-footer-spacer" />
         <span>Total Pages: {formatPageCount(totalPages)}</span>
@@ -315,8 +316,12 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
 
   const existingDays = Array.from(new Set([
     ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0);
-  existingDays.sort((a, b) => a - b);
+  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0)
+    .sort((a, b) => {
+      const dateA = activeVersion.dayMeta?.[a]?.date || '';
+      const dateB = activeVersion.dayMeta?.[b]?.date || '';
+      return dateA.localeCompare(dateB);
+    });
 
   return (
     <div>
@@ -327,7 +332,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
           <p className="print-subtitle">Schedule Version: {activeVersion.name}</p>
         </div>
 
-        {existingDays.map(dayInt => (
+        {existingDays.map((dayInt, i) => (
           <DaySection
             key={dayInt}
             dayInt={dayInt}
@@ -336,6 +341,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
             scenes={scenes}
             showTimes={showTimes}
             showDurations={showDurations}
+            chronoDay={i + 1}
           />
         ))}
       </div>

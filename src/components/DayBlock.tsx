@@ -58,7 +58,8 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, chronoDay }) => {
+  const displayDay = chronoDay ?? dayInt;
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -137,7 +138,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:bg-zinc-800 p-1 rounded transition-colors -ml-1">
                <GripHorizontal className="w-4 h-4 text-zinc-500" />
             </div>
-            <span className="font-semibold">DAY {dayInt}</span>
+            <span className="font-semibold">DAY {displayDay}</span>
             <input 
               value={meta?.unitCall || '08:00'} 
               onChange={e => updateMeta({unitCall: e.target.value})}
@@ -202,7 +203,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       {rows.length > 0 && (
         <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300"
           style={{fontFamily: 'Helvetica, Arial, sans-serif'}}>
-          <span className="font-semibold">End of Day #{dayInt}</span>
+          <span className="font-semibold">End of Day #{displayDay}</span>
           <div className="flex gap-4 text-zinc-600">
              <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
              <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
