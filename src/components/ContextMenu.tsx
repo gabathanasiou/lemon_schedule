@@ -18,7 +18,7 @@ export const ContextMenu: React.FC<{
 
   return (
     <div
-      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] text-sm text-zinc-700 min-w-[180px]"
+      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px]"
       style={{ top: y, left: x }}
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => { e.preventDefault(); onClose(); }}
