@@ -218,30 +218,43 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       </div>
 
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
-        <SortableContext items={rows.map(r => r.id).filter(id => !activeDragIds.has(id))} strategy={verticalListSortingStrategy}>
-          {computedRows.filter(r => !activeDragIds.has(r.id)).map((r, i) => {
-            const isRowGhostTarget = activeRowId && activeDragRows.length > 0;
-            return (
-              <React.Fragment key={r.id}>
-                {isRowGhostTarget && insertBeforeId === r.id && activeDragRow && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-                )}
-                <SortableRow 
-                  row={r} 
-                  scenes={project.scenes} 
-                  isSelected={selectedIds.has(r.id)}
-                  isFaded={activeDragIds.has(r.id)}
-                  onSelectToggle={(e) => onRowClick?.(r.id, e)}
-                  textEditingEnabled={textEditingEnabled}
-                  sceneViolations={sceneViolationMap.get(r.sceneId || '')}
-                />
-                {isRowGhostTarget && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </SortableContext>
+        {(() => {
+          const sortedComputedRows = [...computedRows].sort((a, b) => {
+            const aDragged = activeDragIds.has(a.id);
+            const bDragged = activeDragIds.has(b.id);
+            if (aDragged !== bDragged) return aDragged ? -1 : 1;
+            return a.order - b.order;
+          });
+          const sortableItems = sortedComputedRows.map(r => r.id);
+          const lastNonDraggedIdx = sortedComputedRows.reduce((last, r, idx) => !activeDragIds.has(r.id) ? idx : last, -1);
+
+          return (
+            <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+              {sortedComputedRows.map((r, i) => {
+                const isRowGhostTarget = activeRowId && activeDragRows.length > 0;
+                return (
+                  <React.Fragment key={r.id}>
+                    {isRowGhostTarget && insertBeforeId === r.id && activeDragRow && (
+                      <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+                    )}
+                    <SortableRow 
+                      row={r} 
+                      scenes={project.scenes} 
+                      isSelected={selectedIds.has(r.id)}
+                      isFaded={activeDragIds.has(r.id)}
+                      onSelectToggle={(e) => onRowClick?.(r.id, e)}
+                      textEditingEnabled={textEditingEnabled}
+                      sceneViolations={sceneViolationMap.get(r.sceneId || '')}
+                    />
+                    {isRowGhostTarget && i === lastNonDraggedIdx && insertBeforeId === `day-${dayInt}` && activeDragRow && (
+                      <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </SortableContext>
+          );
+        })()}
         
         {/* Drop target filler if empty */}
         {rows.length === 0 && (
