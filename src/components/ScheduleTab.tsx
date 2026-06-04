@@ -261,6 +261,8 @@ export function ScheduleTab() {
       return;
     } else if (action === 'delete') {
       newRows = newRows.filter(r => r.id !== rowId);
+    } else if (action === 'unschedule') {
+      newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
     }
 
     newRows = newRows.sort((a, b) => {
@@ -548,18 +550,21 @@ export function ScheduleTab() {
             setContextMenu(null);
             setSelectedRowIds(new Set());
           }}
-         onContextMenu={(e) => {
-             const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
-             if (rowEl) {
-                e.preventDefault();
-                const rowId = rowEl.getAttribute('data-row-id')!;
-                const shootDayAttr = rowEl.getAttribute('data-shoot-day');
-                const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
-                setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay });
-             } else {
-                setContextMenu(null);
-             }
-         }}
+          onContextMenu={(e) => {
+              const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
+              if (rowEl) {
+                 e.preventDefault();
+                 const rowId = rowEl.getAttribute('data-row-id')!;
+                 if (!selectedRowIds.has(rowId)) {
+                   setSelectedRowIds(new Set([rowId]));
+                 }
+                 const shootDayAttr = rowEl.getAttribute('data-shoot-day');
+                 const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
+                 setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay });
+              } else {
+                 setContextMenu(null);
+              }
+          }}
       >
         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
         
@@ -665,19 +670,29 @@ export function ScheduleTab() {
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
               <ContextMenuDivider />
               {row?.type === 'SCENE' && (
-                <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
-              )}
-              {row?.type === 'NOTE' && (
                 <>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')}>Duplicate Note</ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('change_color')}>Change Color</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
+                  <ContextMenuDivider />
+                  <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')}>Remove Ribbon</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Delete Scene</ContextMenuItem>
                 </>
               )}
-              {row?.type === 'BREAK' && (
-                <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')}>Duplicate Break</ContextMenuItem>
+              {(row?.type === 'NOTE' || row?.type === 'BREAK') && (
+                <>
+                  {row?.type === 'NOTE' && (
+                    <>
+                      <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')}>Duplicate Note</ContextMenuItem>
+                      <ContextMenuItem onClick={() => handleContextMenuAction('change_color')}>Change Color</ContextMenuItem>
+                    </>
+                  )}
+                  {row?.type === 'BREAK' && (
+                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')}>Duplicate Break</ContextMenuItem>
+                  )}
+                  <ContextMenuDivider />
+                  <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')}>Remove Ribbon</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Delete</ContextMenuItem>
+                </>
               )}
-              <ContextMenuDivider />
-              <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Remove Ribbon</ContextMenuItem>
             </>
           );
         })()}
@@ -686,7 +701,7 @@ export function ScheduleTab() {
       {/* Color Picker Modal */}
       {colorPicker && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50" onClick={() => setColorPicker(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-[300px] flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[300px] flex flex-col gap-4" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') applyNoteColor(); if (e.key === 'Escape') setColorPicker(null); }}>
             <h3 className="text-sm font-bold text-zinc-800">Note Color</h3>
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-600">Background</span>
