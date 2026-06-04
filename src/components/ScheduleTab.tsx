@@ -72,7 +72,6 @@ export function ScheduleTab() {
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
-  const [clipboardIds, setClipboardIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
@@ -111,47 +110,38 @@ export function ScheduleTab() {
   };
 
   const cutSelected = () => {
-    if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled) return;
-    setClipboardIds(new Set(selectedRowIds));
+    if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
+    const ids = Array.from(selectedRowIds);
+    const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: -1 } : r);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setSelectedRowIds(new Set());
   };
 
   const pasteClipboard = (targetRowId: string) => {
-    if (clipboardIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled) return;
-    if (!activeVersion) return;
+    if (activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const targetRow = augmentedRows.find(r => r.id === targetRowId);
     if (!targetRow) return;
 
-    const clipboardItems = Array.from(clipboardIds)
+    const clipboardItems = augmentedRows
+      .filter(r => r.shootDay === -1)
       .sort((a, b) => {
-        const rA = augmentedRows.find(r => r.id === a);
-        const rB = augmentedRows.find(r => r.id === b);
-        if (rA && rB) {
-          if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
-          return rA.order - rB.order;
-        }
-        return 0;
+        if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+        return a.order - b.order;
       })
-      .map(id => augmentedRows.find(r => r.id === id)!)
-      .filter(Boolean);
+      .map(r => ({ ...r, shootDay: targetRow.shootDay }));
+
+    if (clipboardItems.length === 0) return;
 
     const overDay = targetRow.shootDay;
     let newRows = activeVersion.rows.map(r => ({ ...r }));
-    newRows = newRows.filter(r => !clipboardIds.has(r.id));
+    newRows = newRows.filter(r => r.shootDay !== -1);
     let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
     const targetIdx = dayRows.findIndex(r => r.id === targetRowId);
     const insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
-    const sanitizedItems = clipboardItems.map(item => ({
-      ...item,
-      shootDay: overDay,
-      id: item.id.startsWith('row-synth-') ? generateUUID() : item.id,
-      order: 0,
-    }));
-    dayRows.splice(insertIdx, 0, ...sanitizedItems);
+    dayRows.splice(insertIdx, 0, ...clipboardItems);
     dayRows.forEach((r, i) => r.order = i);
     newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    setClipboardIds(new Set());
   };
 
   useEffect(() => {
@@ -177,7 +167,7 @@ export function ScheduleTab() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedRowIds, clipboardIds, activeDragIds, textEditingEnabled, activeVersion]);
+  }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -212,17 +202,15 @@ export function ScheduleTab() {
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const activeDragIdsRef = useRef(activeDragIds);
   activeDragIdsRef.current = activeDragIds;
-  const clipboardIdsRef = useRef(clipboardIds);
-  clipboardIdsRef.current = clipboardIds;
   const activeVersionRef = useRef(activeVersion);
   activeVersionRef.current = activeVersion;
 
   useEffect(() => {
     return () => {
-      const allIds = new Set([...activeDragIdsRef.current, ...clipboardIdsRef.current]);
+      const ids = activeDragIdsRef.current;
       const version = activeVersionRef.current;
-      if (allIds.size > 0 && version) {
-        const newRows = version.rows.map(r => allIds.has(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+      if (ids.size > 0 && version) {
+        const newRows = version.rows.map(r => ids.has(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
         dispatch({ type: 'UPDATE_VERSION', payload: { id: version.id, rows: newRows } });
       }
     };
@@ -262,7 +250,7 @@ export function ScheduleTab() {
     }))
   ];
 
-  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id) && !clipboardIds.has(r.id)).reduce((acc, row) => {
+  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id) && r.shootDay !== -1).reduce((acc, row) => {
     if (row.shootDay !== null) {
       if (!acc[row.shootDay]) acc[row.shootDay] = [];
       acc[row.shootDay].push(row);
@@ -274,7 +262,7 @@ export function ScheduleTab() {
     dayRows.sort((a, b) => a.order - b.order);
   });
 
-  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id) && !clipboardIds.has(r.id)).sort((a, b) => a.order - b.order);
+  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order);
 
   const existingDays = Array.from(new Set([
     ...Object.keys(activeVersion.dayMeta || {}).map(Number),
@@ -763,6 +751,7 @@ export function ScheduleTab() {
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
         {(() => {
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
+          const inClipboard = augmentedRows.filter(r => r.shootDay === -1).length;
           if (selectedRowIds.size > 1) {
             return (
               <>
@@ -782,9 +771,9 @@ export function ScheduleTab() {
           }
           return (
             <>
-              {clipboardIds.size > 0 && (
+              {inClipboard > 0 && (
                 <>
-                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste Below ({clipboardIds.size})</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste Below ({inClipboard})</ContextMenuItem>
                   <ContextMenuDivider />
                 </>
               )}
