@@ -71,6 +71,7 @@ export function ScheduleTab() {
   const [activeType, setActiveType] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
@@ -88,7 +89,7 @@ export function ScheduleTab() {
       setLastClickedId(id);
     } else if (e.shiftKey && lastClickedId) {
       e.stopPropagation();
-      const allIds = augmentedRows.map(r => r.id);
+      const allIds = flatRowIdsRef.current;
       const idxA = allIds.indexOf(lastClickedId);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) {
@@ -232,6 +233,90 @@ export function ScheduleTab() {
         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
         selectNextAfterRemove(new Set(ids as string[]));
       }
+      if (e.key === 'Enter' && selectedRowIds.size === 1 && !textEditingEnabled) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        const selectedId = [...selectedRowIds][0] as string;
+        const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
+        if (selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK')) {
+          e.preventDefault();
+          setFocusedRowId(selectedId);
+          const input = scheduleScrollRef.current?.querySelector<HTMLElement>(
+            `[data-row-id="${selectedId}"] ${selectedRow.type === 'NOTE' ? 'textarea' : 'input:not([data-col])'}`
+          );
+          input?.focus();
+          input?.select();
+        }
+      }
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !textEditingEnabled) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        if (!activeVersion) return;
+        e.preventDefault();
+        const flat = flatRowIdsRef.current;
+        if (flat.length === 0) return;
+        const isShift = e.shiftKey;
+        const isDown = e.key === 'ArrowDown';
+        if (isShift) {
+          const anchor = lastClickedIdRef.current;
+          const anchorIdx = anchor ? flat.indexOf(anchor) : -1;
+          if (anchorIdx === -1) {
+            setSelectedRowIds(new Set([flat[0]]));
+            setLastClickedId(flat[0]);
+            scrollToRow(flat[0]);
+            return;
+          }
+          const currentIds = Array.from(selectedRowIds);
+          const indices = currentIds.map(id => flat.indexOf(id)).filter(i => i >= 0);
+          let from: number, to: number;
+          if (indices.length === 0) {
+            from = anchorIdx;
+            to = isDown ? Math.min(anchorIdx + 1, flat.length - 1) : Math.max(anchorIdx - 1, 0);
+          } else {
+            const minIdx = Math.min(...indices);
+            const maxIdx = Math.max(...indices);
+            if (isDown) {
+              if (minIdx < anchorIdx) {
+                from = minIdx + 1;
+                to = maxIdx;
+              } else {
+                from = anchorIdx;
+                to = Math.min(maxIdx + 1, flat.length - 1);
+              }
+            } else {
+              if (maxIdx > anchorIdx) {
+                from = minIdx;
+                to = maxIdx - 1;
+              } else {
+                from = Math.max(minIdx - 1, 0);
+                to = anchorIdx;
+              }
+            }
+          }
+          setSelectedRowIds(new Set(flat.slice(from, to + 1)));
+          const scrollTarget = isDown ? to : from;
+          scrollToRow(flat[scrollTarget]);
+        } else {
+          const currentIds = Array.from(selectedRowIds);
+          if (currentIds.length === 0) {
+            setSelectedRowIds(new Set([flat[0]]));
+            setLastClickedId(flat[0]);
+            scrollToRow(flat[0]);
+            return;
+          }
+          const lastId = isDown ? currentIds[currentIds.length - 1] : currentIds[0];
+          const idx = flat.indexOf(lastId);
+          if (isDown && idx < flat.length - 1) {
+            setSelectedRowIds(new Set([flat[idx + 1]]));
+            setLastClickedId(flat[idx + 1]);
+            scrollToRow(flat[idx + 1]);
+          } else if (!isDown && idx > 0) {
+            setSelectedRowIds(new Set([flat[idx - 1]]));
+            setLastClickedId(flat[idx - 1]);
+            scrollToRow(flat[idx - 1]);
+          }
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -251,6 +336,17 @@ export function ScheduleTab() {
   }, [textEditingEnabled]);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!focusedRowId) return;
+    const id = setTimeout(() => setFocusedRowId(null), 3000);
+    return () => clearTimeout(id);
+  }, [focusedRowId]);
+  const scrollToRow = (rowId: string) => {
+    requestAnimationFrame(() => {
+      const el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
   const activeDragIdsRef = useRef(activeDragIds);
   activeDragIdsRef.current = activeDragIds;
   const activeVersionRef = useRef(activeVersion);
@@ -340,8 +436,9 @@ export function ScheduleTab() {
 
     // Dummy rows can only add notes/breaks
     if (isDummy && (action === 'add_note' || action === 'add_break')) {
+      const newId = generateUUID();
       const newRow: ScheduleRow = {
-        id: generateUUID(),
+        id: newId,
         type: action === 'add_note' ? 'NOTE' : 'BREAK',
         shootDay,
         order: 0,
@@ -350,6 +447,9 @@ export function ScheduleTab() {
       const newRows = [...activeVersion.rows, newRow];
       newRows.forEach((r, i) => r.order = i);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+      setSelectedRowIds(new Set([newId]));
+      setFocusedRowId(newId);
+      scrollToRow(newId);
       setContextMenu(null);
       return;
     }
@@ -358,30 +458,23 @@ export function ScheduleTab() {
     const row = augmentedRows[rowIndex];
 
     let newRows = augmentedRows.map(r => ({ ...r }));
+    let newRowIds: string[] = [];
     if (action === 'add_note') {
-      const newRow: ScheduleRow = {
-        id: generateUUID(),
-        type: 'NOTE',
-        shootDay,
-        order: row.order + 0.5,
-        noteText: ''
-      };
-      newRows.push(newRow);
+      const newId = generateUUID();
+      newRows.push({
+        id: newId, type: 'NOTE', shootDay, order: row.order + 0.5, noteText: ''
+      });
+      newRowIds.push(newId);
     } else if (action === 'add_break') {
-      const newRow: ScheduleRow = {
-        id: generateUUID(),
-        type: 'BREAK',
-        shootDay,
-        order: row.order + 0.5,
-        breakLabel: 'LUNCH',
-        breakDuration: 60
-      };
-      newRows.push(newRow);
+      const newId = generateUUID();
+      newRows.push({
+        id: newId, type: 'BREAK', shootDay, order: row.order + 0.5, breakLabel: 'LUNCH', breakDuration: 60
+      });
+      newRowIds.push(newId);
     } else if (action === 'duplicate' && row.type === 'SCENE') {
+      const newId = generateUUID();
       const newRow: ScheduleRow = {
-        ...row,
-        id: generateUUID(),
-        order: row.order + 0.5,
+        ...row, id: newId, order: row.order + 0.5,
       };
       const originalScene = project.scenes.find(s => s.id === row.sceneId);
       if (originalScene) {
@@ -406,8 +499,11 @@ export function ScheduleTab() {
         dispatch({ type: 'ADD_SCENE', payload: newScene });
       }
       newRows.push(newRow);
+      newRowIds.push(newId);
     } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break') && (row.type === 'NOTE' || row.type === 'BREAK')) {
-      newRows.push({ ...row, id: generateUUID(), order: row.order + 0.5 });
+      const newId = generateUUID();
+      newRows.push({ ...row, id: newId, order: row.order + 0.5 });
+      newRowIds.push(newId);
     } else if (action === 'change_color' && row.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
       setContextMenu(null);
@@ -424,9 +520,14 @@ export function ScheduleTab() {
        if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
        return a.order - b.order;
     });
-    newRows.forEach((r, i) => r.order = i); // re-normalize
+    newRows.forEach((r, i) => r.order = i);
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    if (newRowIds.length > 0) {
+      setSelectedRowIds(new Set(newRowIds));
+      setFocusedRowId(newRowIds[0]);
+      scrollToRow(newRowIds[0]);
+    }
     if (action === 'delete' || action === 'unschedule') {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
@@ -458,6 +559,14 @@ export function ScheduleTab() {
 
   const selectedRowIdsRef = useRef(selectedRowIds);
   selectedRowIdsRef.current = selectedRowIds;
+  const lastClickedIdRef = useRef(lastClickedId);
+  lastClickedIdRef.current = lastClickedId;
+  const flatRowIdsRef = useRef<string[]>([]);
+  flatRowIdsRef.current = existingDays.flatMap(dayInt => {
+    const dayRows = scheduledRows[dayInt];
+    if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
+    return dayRows.map(r => r.id);
+  });
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
@@ -792,6 +901,7 @@ export function ScheduleTab() {
                   activeDragRow={activeDragRow}
                   activeDragRows={activeDragRows}
                   chronoDay={i + 1}
+                  focusedRowId={focusedRowId}
                 />
               ))}
           </div>

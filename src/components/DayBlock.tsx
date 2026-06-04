@@ -95,7 +95,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> =
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
@@ -236,6 +236,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   onSelectToggle={(e) => onRowClick?.(r.id, e)}
                   textEditingEnabled={textEditingEnabled}
                   sceneViolations={sceneViolationMap.get(r.sceneId || '')}
+                  focusedRowId={focusedRowId}
                 />
                 {isRowGhostTarget && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
                   <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
@@ -252,7 +253,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             data-row-id={`empty-${dayInt}`}
             data-shoot-day={dayInt}
             onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-            className="flex items-center px-4 py-3 text-zinc-300 text-[9pt] cursor-pointer hover:bg-zinc-50 border-b border-zinc-100 italic select-none"
+            className={`flex items-center px-4 py-3 text-[9pt] cursor-pointer border-b border-zinc-100 italic select-none transition-colors ${selectedIds.has(`empty-${dayInt}`) ? 'bg-zinc-100 text-zinc-300' : 'text-zinc-300'}`}
             style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}
           >
             No scenes in this day · right-click for options

@@ -65,6 +65,7 @@ export const CellInput: React.FC<{
       e.preventDefault();
       const currentTarget = e.currentTarget;
       currentTarget.blur();
+      if (multiline) return;
       setTimeout(() => {
         const query = col ? `input[data-col="${col}"], textarea[data-col="${col}"]` : 'input.cell-input, textarea.cell-input';
         const allInputs = Array.from(document.querySelectorAll(query)).filter(el => !(el as HTMLInputElement).readOnly) as (HTMLInputElement | HTMLTextAreaElement)[];

@@ -343,7 +343,8 @@ export const SortableRow: React.FC<{
   isCompact?: boolean,
   textEditingEnabled?: boolean,
   sceneViolations?: string[],
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations }) => {
+  focusedRowId?: string | null,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -433,6 +434,7 @@ export const SortableRow: React.FC<{
                         className={`${inputClass} text-center`}
                         placeholder="Enter note here..."
                         multiline
+                        autoFocus={focusedRowId === row.id}
                       />
                     </td>
                     <td className="col-dn" />
@@ -446,6 +448,7 @@ export const SortableRow: React.FC<{
                       className={`${inputClass} text-center`}
                       placeholder="Enter note here..."
                       multiline
+                      autoFocus={focusedRowId === row.id}
                     />
                   </td>
                 )}
@@ -487,6 +490,7 @@ export const SortableRow: React.FC<{
                         onChange={val => updateRow({breakLabel: val.toUpperCase()})}
                         className={`${inputClass} text-center`}
                         placeholder="ENTER BREAK TEXT"
+                        autoFocus={focusedRowId === row.id}
                       />
                     </td>
                     <td className="col-dn" />
@@ -499,6 +503,7 @@ export const SortableRow: React.FC<{
                       onChange={val => updateRow({breakLabel: val.toUpperCase()})}
                       className={`${inputClass} text-center`}
                       placeholder="ENTER BREAK TEXT"
+                      autoFocus={focusedRowId === row.id}
                     />
                   </td>
                 )}
