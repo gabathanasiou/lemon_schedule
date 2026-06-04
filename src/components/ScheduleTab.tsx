@@ -94,9 +94,6 @@ export function ScheduleTab() {
         setSelectedRowIds(new Set(range));
       }
     } else {
-      if (selectedRowIds.size > 0 && (e.target as HTMLElement).tagName !== 'INPUT') {
-         setSelectedRowIds(new Set());
-      }
       setLastClickedId(id);
     }
   };

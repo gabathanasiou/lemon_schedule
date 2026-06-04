@@ -66,7 +66,7 @@ export function useMarquee(
     const isShiftDown = () => _shiftKey;
     const isAddMode = () => _addMode;
 
-    const onMouseDown = (e: MouseEvent) => {
+    const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       const target = e.target as HTMLElement;
       if (!isShiftDown() && target.closest('[data-row-id]')) return;
@@ -76,13 +76,15 @@ export function useMarquee(
       startX = e.clientX - rect.left + container.scrollLeft;
       startY = e.clientY - rect.top + container.scrollTop;
       active = true;
+      hadMovement = false;
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
       setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
       e.preventDefault();
+      e.stopPropagation();
     };
 
-    const onMouseMove = (e: MouseEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       if (!active) return;
       const rect = container.getBoundingClientRect();
       const curX = e.clientX - rect.left + container.scrollLeft;
@@ -110,11 +112,11 @@ export function useMarquee(
             intersected.add(el.getAttribute('data-row-id')!);
           }
         });
-        onSelectionChange(intersected, isAddMode());
+        onSelectionChange(intersected, _addMode);
       }
     };
 
-    const onMouseUp = () => {
+    const onPointerUp = () => {
       if (!active) return;
       active = false;
       document.body.style.userSelect = '';
@@ -123,15 +125,15 @@ export function useMarquee(
       if (hadMovement) _marqueeJustEndedRef.current = true;
     };
 
-    container.addEventListener('mousedown', onMouseDown);
-    container.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('pointerdown', onPointerDown);
+    container.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
     return () => {
-      container.removeEventListener('mousedown', onMouseDown);
-      container.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      container.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [containerRef, onSelectionChange]);
+  }, [containerRef, onSelectionChange, isEnabled]);
 
   return { marqueeBox, justEndedRef: _marqueeJustEndedRef };
 }
