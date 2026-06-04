@@ -25,9 +25,9 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
 }
 
 function darkenHex(hex: string): string {
-  const r = Math.round(parseInt(hex.slice(1,3),16) * 0.8).toString(16).padStart(2,'0');
-  const g = Math.round(parseInt(hex.slice(3,5),16) * 0.8).toString(16).padStart(2,'0');
-  const b = Math.round(parseInt(hex.slice(5,7),16) * 0.8).toString(16).padStart(2,'0');
+  const r = Math.round(parseInt(hex.slice(1,3),16) * 0.9).toString(16).padStart(2,'0');
+  const g = Math.round(parseInt(hex.slice(3,5),16) * 0.9).toString(16).padStart(2,'0');
+  const b = Math.round(parseInt(hex.slice(5,7),16) * 0.9).toString(16).padStart(2,'0');
   return `#${r}${g}${b}`;
 }
 
