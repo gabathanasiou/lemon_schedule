@@ -102,6 +102,7 @@ export function BreakdownTab() {
             if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
             if (e.key === 'Escape') exitEditMode();
           }}
+          onBlur={() => commit()}
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px] font-mono"
           placeholder="1, 2, JOHN"
