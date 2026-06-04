@@ -51,12 +51,20 @@ function AppContent() {
 
   useEffect(() => {
     if (printOptions) {
-      const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
+      const vNum = (version?.name?.match(/\d+/) || ['1'])[0].padStart(2, '0');
+      const vName = `V${vNum}`;
       const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
       const times = printOptions.showTimes ? 'Timed' : 'NoTimes';
-      const days = printOptions.selectedDays.length === 0 ? 'None'
-        : printOptions.selectedDays.length === 1 ? `Day${printOptions.selectedDays[0]}`
-        : `Days${printOptions.selectedDays.length}`;
+      const sorted = [...printOptions.selectedDays].sort((a, b) => a - b);
+      let days = 'None';
+      if (sorted.length > 0) {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        let consecutive = true;
+        for (let i = 1; i < sorted.length; i++) if (sorted[i] !== sorted[i - 1] + 1) { consecutive = false; break; }
+        days = consecutive && sorted.length > 1
+          ? `Days#${pad(sorted[0])}-#${pad(sorted[sorted.length - 1])}`
+          : `Day${sorted.map(d => `#${pad(d)}`).join('')}`;
+      }
       const fileName = `${title}_${vName}_${times}_${days}`;
 
       const oldTitle = document.title;

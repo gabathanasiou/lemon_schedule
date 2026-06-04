@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { useProject } from '../store';
 import { X, CheckSquare, Square } from 'lucide-react';
 
+function pad(n: number): string { return String(n).padStart(2, '0'); }
+
+function formatDays(days: number[]): string {
+  if (days.length === 0) return 'None';
+  let consecutive = true;
+  for (let i = 1; i < days.length; i++) {
+    if (days[i] !== days[i - 1] + 1) { consecutive = false; break; }
+  }
+  if (consecutive && days.length > 1) {
+    return `Days#${pad(days[0])}-#${pad(days[days.length - 1])}`;
+  }
+  return `Day${days.map(d => `#${pad(d)}`).join('')}`;
+}
+
 function formatDayDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   if (isNaN(d.getTime())) return dateStr;
@@ -50,17 +64,11 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   };
 
   const versionName = activeVersion?.name || '';
-  const versionShort = versionName.replace(/^v/, '').split(' -')[0] || versionName.split(' ')[0] || versionName;
+  const versionShort = `V${(versionName.match(/\d+/) || ['1'])[0].padStart(2, '0')}`;
   const sanitizedTitle = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
   const timesPart = showTimes ? 'Timed' : 'NoTimes';
-  const daysList = Array.from(selectedDays).sort((a: number, b: number) => a - b);
-  const daysPart = selectedDays.size === dayEntries.length
-    ? 'All'
-    : daysList.length === 1
-    ? `Day${daysList[0]}`
-    : daysList.length <= 3
-    ? `Days${daysList.join(',')}`
-    : `Days${daysList.length}`;
+  const daysList = [...selectedDays].sort((a: number, b: number) => a - b);
+  const daysPart = formatDays(daysList);
   const fileName = `${sanitizedTitle}_${versionShort}_${timesPart}_${daysPart}`;
 
   return (
@@ -130,7 +138,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             onClick={() => onPrint({
               showTimes,
               showDurations,
-              selectedDays: Array.from(selectedDays as Set<number>).sort((a: number, b: number) => a - b),
+              selectedDays: [...selectedDays].sort((a: number, b: number) => a - b),
             })}
             disabled={selectedDays.size === 0}
             className="px-6 py-2 bg-zinc-900 text-white text-sm font-bold rounded-lg hover:bg-zinc-800 transition-colors shadow-lg shadow-black/10 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
