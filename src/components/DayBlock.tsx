@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
@@ -91,6 +91,45 @@ const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ row
   );
 };
 
+const GhostDropOverlay: React.FC<{ 
+  insertBeforeId: string; 
+  children: React.ReactNode;
+}> = ({ insertBeforeId, children }) => {
+  const [top, setTop] = useState<number | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const dropContainer = ref.current?.parentElement;
+    if (!dropContainer) return;
+    
+    let targetEl: Element | null = null;
+    
+    if (insertBeforeId.startsWith('day-')) {
+      const lastRow = dropContainer.querySelector(`[data-row-id]:last-of-type`);
+      if (lastRow) {
+        const rect = lastRow.getBoundingClientRect();
+        const containerRect = dropContainer.getBoundingClientRect();
+        setTop(rect.bottom - containerRect.top + dropContainer.scrollTop);
+      }
+    } else {
+      targetEl = dropContainer.querySelector(`[data-row-id="${insertBeforeId}"]`);
+      if (targetEl) {
+        const rect = targetEl.getBoundingClientRect();
+        const containerRect = dropContainer.getBoundingClientRect();
+        setTop(rect.top - containerRect.top + dropContainer.scrollTop);
+      }
+    }
+  }, [insertBeforeId]);
+
+  if (top === null) return null;
+
+  return (
+    <div ref={ref} style={{ position: 'absolute', left: 0, right: 0, top, zIndex: 100 }}>
+      {children}
+    </div>
+  );
+};
+
 export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay }) => {
   const displayDay = chronoDay ?? dayInt;
   const { state, dispatch } = useProject();
@@ -169,6 +208,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     lineHeight: '1.2',
   };
 
+  const isCrossContext = activeRowId ? !rows.some(row => row.id === activeRowId) : false;
+
   return (
     <div style={baseStyle} className="bg-white flex flex-col">
       
@@ -207,14 +248,20 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-14 text-center"
             />
          </div>
-      </div>
+       </div>
 
-      <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
+      <div ref={(node) => setDropRef(node)} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
+        {!isCrossContext && activeDragRow && insertBeforeId && activeDragRows.length > 0 && (
+          <GhostDropOverlay insertBeforeId={insertBeforeId}>
+            <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+          </GhostDropOverlay>
+        )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
            {computedRows.map((r, i) => {
+            const isCrossContext = activeRowId && !rows.some(row => row.id === activeRowId);
             return (
               <React.Fragment key={r.id}>
-            {insertBeforeId === r.id && activeDragRow && (
+            {isCrossContext && insertBeforeId === r.id && activeDragRow && (
               <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
             )}
             <SortableRow 
