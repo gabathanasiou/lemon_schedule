@@ -125,7 +125,10 @@ export function ScheduleTab() {
   const existingDays = Array.from(new Set([
     ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
     ...(activeVersion.dayMeta ? Object.keys(activeVersion.dayMeta).map(Number) : [])
-  ]));
+  ])).filter(d => {
+    const meta = activeVersion.dayMeta?.[d];
+    return meta?.date && !isNaN(new Date(meta.date).getTime());
+  });
   existingDays.sort((a, b) => a - b);
 
   const getDayFromId = (id: string): number | null => {
@@ -459,11 +462,12 @@ export function ScheduleTab() {
             <div className="flex justify-center mt-8">
                <button 
                  onClick={() => {
-                   const nextDay = existingDays.length > 0 ? Math.max(...existingDays) + 1 : 1;
-                   dispatch({
-                     type: 'UPDATE_VERSION',
-                     payload: { id: activeVersion.id, dayMeta: { ...activeVersion.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: '' } } }
-                   });
+                    const nextDay = existingDays.length > 0 ? Math.max(...existingDays) + 1 : 1;
+                    const today = new Date().toISOString().split('T')[0];
+                    dispatch({
+                      type: 'UPDATE_VERSION',
+                      payload: { id: activeVersion.id, dayMeta: { ...activeVersion.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: today } } }
+                    });
                  }}
                  className="bg-black text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-black/20 hover:scale-105 transition-transform"
                >
