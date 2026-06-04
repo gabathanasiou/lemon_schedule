@@ -299,9 +299,6 @@ export const UnscheduledBlock: React.FC<{
                     onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                     textEditingEnabled={textEditingEnabled}
                   />
-                  {showGhosts && i === arr.length - 1 && insertBeforeId === `end-unscheduled` && (
-                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
-                  )}
                 </React.Fragment>
               ))}
             </SortableContext>

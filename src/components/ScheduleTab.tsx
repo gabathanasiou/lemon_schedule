@@ -178,6 +178,7 @@ export function ScheduleTab() {
   });
 
   const getDayFromId = (id: string): number | null => {
+    if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
     if (id.startsWith('day-wrap-') || id.startsWith('day-') || id.startsWith('end-')) {
       return parseInt(id.replace('day-wrap-', '').replace('day-', '').replace('end-', ''), 10);
     }
@@ -361,7 +362,7 @@ export function ScheduleTab() {
     if (!activeRow) return;
 
     let overDay = getDayFromId(overId);
-    if (overId === 'unscheduled_bin' || (overDay === null && augmentedRows.some(r => r.id === overId && r.shootDay === null))) {
+    if (overId === 'unscheduled_bin' || overId === 'end-unscheduled' || (overDay === null && augmentedRows.some(r => r.id === overId && r.shootDay === null))) {
       overDay = null; // explicit drop to unscheduled
     } else if (overDay === null && !overId.startsWith('day-') && !overId.startsWith('end-')) {
       return; // invalid drop
