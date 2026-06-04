@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -52,6 +52,10 @@ function loadProjectFromStorage(id: string): Project | null {
           ...t,
           versionName: t.versionName || 'Unknown'
         }));
+        parsed.versionTrash = (parsed.versionTrash || []).filter((t: VersionTrashItem) => {
+          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
         return parsed;
       }
     }
@@ -76,7 +80,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
       dayMeta: {}
     }],
     activeVersionId: id,
-    trash: []
+    trash: [],
+    versionTrash: []
   };
 }
 
@@ -90,6 +95,7 @@ type Action =
   | { type: 'DELETE_SCENE', payload: string }
   | { type: 'RESTORE_SCENE', payload: string }
   | { type: 'EMPTY_TRASH' }
+  | { type: 'RESTORE_VERSION_FROM_TRASH', payload: string }
   | { type: 'SORT_SCENES' }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
   | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null } }
@@ -248,21 +254,36 @@ function reducer(state: State, action: Action): State {
 
     case 'DELETE_VERSION': {
       const versionId = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
       const newVersions = state.present.versions.filter(v => v.id !== versionId);
       
-      let newActiveId = state.present.activeVersionId;
-      if (newActiveId === versionId) {
-        newActiveId = newVersions.length > 0 ? newVersions[0].id : '';
-      }
-      
-      if (newVersions.length === 0) {
-        return state;
-      }
+      if (newVersions.length === 0) return state;
+
+      const newActiveId = state.present.activeVersionId === versionId
+        ? newVersions[0].id
+        : state.present.activeVersionId;
+
+      const trashItem: VersionTrashItem = {
+        version: { ...version },
+        deletedAt: Date.now()
+      };
       
       return applyChange({
         ...state.present,
         versions: newVersions,
-        activeVersionId: newActiveId
+        activeVersionId: newActiveId,
+        versionTrash: [...(state.present.versionTrash || []), trashItem]
+      });
+    }
+
+    case 'RESTORE_VERSION_FROM_TRASH': {
+      const item = (state.present.versionTrash || []).find(t => t.version.id === action.payload);
+      if (!item) return state;
+      return applyChange({
+        ...state.present,
+        versions: [...state.present.versions, item.version],
+        versionTrash: (state.present.versionTrash || []).filter(t => t.version.id !== action.payload)
       });
     }
 

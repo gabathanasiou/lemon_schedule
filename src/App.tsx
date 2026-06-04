@@ -5,8 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { ProjectProvider, useProject } from './store';
+import { TrashItem, VersionTrashItem } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
+import { CalendarTab } from './components/CalendarTab';
 import { ProjectManager } from './components/ProjectManager';
 import PrintDialog from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
@@ -17,7 +19,7 @@ import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, U
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule'>('breakdown');
+  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar'>('breakdown');
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
@@ -113,6 +115,12 @@ function AppContent() {
               className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'schedule' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
             >
               Schedule
+            </button>
+            <button 
+              onClick={() => setActiveTab('calendar')}
+              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'calendar' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+            >
+              Calendar
             </button>
           </div>
         </div>
@@ -235,7 +243,7 @@ function AppContent() {
                 </DropdownItem>
                 <DropdownDivider />
                 <DropdownItem onClick={() => { setShowVersionsMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                  Trash ({project.trash?.length || 0})
+                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0)})
                 </DropdownItem>
               </div>
             </DropdownMenu>
@@ -272,7 +280,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab /> : <ScheduleTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : <CalendarTab />}
       </main>
 
       {showTrash && (
@@ -288,31 +296,41 @@ function AppContent() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {(project.trash || []).length === 0 ? (
+              {[...(project.trash || []).map(t => ({ ...t, _kind: 'scene' as const })), ...(project.versionTrash || []).map(t => ({ ...t, _kind: 'version' as const }))]
+                .sort((a, b) => b.deletedAt - a.deletedAt)
+                .length === 0 ? (
                 <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>
               ) : (
-                (project.trash || []).map(item => (
-                  <div key={item.scene.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
-                    <div className="min-w-0">
-                      <div className="text-white text-sm font-semibold truncate">
-                        {item.scene.sceneNumber}. {item.scene.set}
+                [...(project.trash || []).map(t => ({ ...t, _kind: 'scene' as const })), ...(project.versionTrash || []).map(t => ({ ...t, _kind: 'version' as const }))]
+                  .sort((a, b) => b.deletedAt - a.deletedAt)
+                  .map((item: any) => (
+                    <div key={item._kind === 'scene' ? item.scene.id : item.version.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
+                      <div className="min-w-0">
+                        <div className="text-white text-sm font-semibold truncate">
+                          {item._kind === 'scene'
+                            ? `${(item as TrashItem).scene.sceneNumber}. ${(item as TrashItem).scene.set}`
+                            : (item as VersionTrashItem).version.name
+                          }
+                        </div>
+                        <div className="text-zinc-500 text-[11px] mt-0.5">
+                          {item._kind === 'scene'
+                            ? `${(item as TrashItem).versionName} \u00b7 ${new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                            : `Version \u00b7 ${new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                          }
+                        </div>
                       </div>
-                      <div className="text-zinc-500 text-[11px] mt-0.5">
-                        {item.versionName} &middot; {new Date(item.deletedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
+                      <button
+                        onClick={() => dispatch({ type: item._kind === 'scene' ? 'RESTORE_SCENE' : 'RESTORE_VERSION_FROM_TRASH', payload: item._kind === 'scene' ? item.scene.id : item.version.id })}
+                        className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white p-1 rounded transition-all"
+                        title="Restore"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => dispatch({ type: 'RESTORE_SCENE', payload: item.scene.id })}
-                      className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white p-1 rounded transition-all"
-                      title="Restore"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
+                  ))
               )}
             </div>
-            {(project.trash || []).length > 0 && (
+            {((project.trash || []).length + (project.versionTrash || []).length) > 0 && (
               <div className="border-t border-zinc-800 px-5 py-3">
                 <button
                   onClick={() => { if (confirm('Permanently delete all trash items?')) dispatch({ type: 'EMPTY_TRASH' }); }}

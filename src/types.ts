@@ -60,6 +60,11 @@ export interface TrashItem {
   versionName: string;
 }
 
+export interface VersionTrashItem {
+  version: ScheduleVersion;
+  deletedAt: number;
+}
+
 export interface Project {
   title: string;
   draftNumber: string;
@@ -67,4 +72,5 @@ export interface Project {
   versions: ScheduleVersion[];
   activeVersionId: string;
   trash: TrashItem[];
+  versionTrash: VersionTrashItem[];
 }
