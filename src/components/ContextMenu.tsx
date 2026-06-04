@@ -9,21 +9,28 @@ export const ContextMenu: React.FC<{
 }> = ({ open, x, y, onClose, children }) => {
   useEffect(() => {
     if (!open) return;
-    const handler = () => onClose();
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
+    const handler = (e: MouseEvent) => {
+      if (e.button !== 2) onClose(); // close on left/middle click
+    };
+    window.addEventListener('mousedown', handler, true);
+    return () => window.removeEventListener('mousedown', handler, true);
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px]"
-      style={{ top: y, left: x }}
-      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-[9998]"
+      onClick={onClose}
       onContextMenu={(e) => { e.preventDefault(); onClose(); }}
     >
-      {children}
+      <div
+        className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px]"
+        style={{ top: y, left: x }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
     </div>
   );
 };
