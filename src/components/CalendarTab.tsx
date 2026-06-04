@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { DndContext, useDraggable, useDroppable, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import React, { useState, useMemo, useCallback } from 'react';
+import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta } from '../types';
 import { generateUUID } from '../lib/utils';
@@ -30,65 +30,61 @@ function getCalendarDays(year: number, month: number) {
   return days;
 }
 
+function sceneColor(scene?: Scene | null) {
+  if (!scene) return { bg: '#591b1b', text: '#ffffff' };
+  const intExt = (scene.intExt || '').toUpperCase();
+  const dayNight = (scene.dayNight || '').toUpperCase();
+  if (intExt.includes('INT') && dayNight.includes('DAY')) return { bg: '#ffffff', text: '#464646' };
+  if (intExt.includes('EXT') && dayNight.includes('DAY')) return { bg: '#bdd857', text: '#000000' };
+  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return { bg: '#67832e', text: '#f2fce3' };
+  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return { bg: '#2148a7', text: '#ffffff' };
+  if (intExt.includes('INT') && dayNight.includes('MORNING')) return { bg: '#efbea0', text: '#4a3730' };
+  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return { bg: '#e88aa5', text: '#ffffff' };
+  if (intExt.includes('INT') && dayNight.includes('EVENING')) return { bg: '#e29926', text: '#000000' };
+  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return { bg: '#ce7d21', text: '#000000' };
+  return { bg: '#ffffff', text: '#18181b' };
+}
+
 interface SceneCardProps {
   row: ScheduleRow;
   scene?: Scene;
-  isGhost?: boolean;
+  isPreview?: boolean;
 }
 
-const SceneCard: React.FC<SceneCardProps> = ({ row, scene, isGhost }) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: row.id,
-    data: { type: 'SCENE_CARD', row },
-  });
-
-  if (isDragging) return null;
-
-  const style = transform ? {
-    transform: `translate(${transform.x}px, ${transform.y}px)`,
-    zIndex: 10,
-  } : undefined;
-
+const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, scene }) => {
   if (!scene) {
     if (row.type === 'BREAK') {
-      return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}
-          className="text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 rounded truncate cursor-grab mb-0.5"
-        >
-          {row.breakLabel || 'BREAK'}
-        </div>
-      );
+      return <div className="text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 rounded truncate mb-0.5">{row.breakLabel || 'BREAK'}</div>;
     }
     if (row.type === 'NOTE') {
-      return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}
-          className="text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 rounded truncate cursor-grab mb-0.5 italic"
-        >
-          {row.noteText || 'Note'}
-        </div>
-      );
+      return <div className="text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 rounded truncate mb-0.5 italic">{row.noteText || 'Note'}</div>;
     }
     return null;
   }
-
-  const intExt = (scene.intExt || '').toUpperCase();
-  const dayNight = (scene.dayNight || '').toUpperCase();
-  let bgColor = '#ffffff';
-  let textColor = '#18181b';
-  if (intExt.includes('INT') && dayNight.includes('DAY')) { bgColor = '#ffffff'; textColor = '#464646'; }
-  else if (intExt.includes('EXT') && dayNight.includes('DAY')) { bgColor = '#bdd857'; textColor = '#000000'; }
-  else if (intExt.includes('INT') && dayNight.includes('NIGHT')) { bgColor = '#67832e'; textColor = '#f2fce3'; }
-  else if (intExt.includes('EXT') && dayNight.includes('NIGHT')) { bgColor = '#2148a7'; textColor = '#ffffff'; }
-  else if (intExt.includes('INT') && dayNight.includes('MORNING')) { bgColor = '#efbea0'; textColor = '#4a3730'; }
-  else if (intExt.includes('EXT') && dayNight.includes('MORNING')) { bgColor = '#e88aa5'; textColor = '#ffffff'; }
-  else if (intExt.includes('INT') && dayNight.includes('EVENING')) { bgColor = '#e29926'; textColor = '#000000'; }
-  else if (intExt.includes('EXT') && dayNight.includes('EVENING')) { bgColor = '#ce7d21'; textColor = '#000000'; }
-
+  const c = sceneColor(scene);
   return (
-    <div ref={setNodeRef} style={{ ...style, background: bgColor, color: textColor }} {...listeners} {...attributes}
-      className={`text-[9px] truncate px-1.5 py-0.5 rounded mb-0.5 leading-tight cursor-grab whitespace-nowrap ${isGhost ? 'opacity-60 border border-dashed border-black/30' : 'font-semibold'}`}
+    <div style={{ background: c.bg, color: c.text }}
+      className="text-[9px] truncate px-1.5 py-0.5 rounded mb-0.5 leading-tight whitespace-nowrap font-semibold"
     >
-      {scene.sceneNumber}. {intExt}. {scene.set}
+      {scene.sceneNumber}. {scene.set}
+    </div>
+  );
+};
+
+const SceneCard: React.FC<SceneCardProps> = ({ row, scene, isPreview }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: row.id,
+    data: { type: 'SCENE_CARD', row, scene },
+  });
+
+  if (!isPreview && isDragging) {
+    return <div className="opacity-30 mb-0.5"><SceneCardContent row={row} scene={scene} /></div>;
+  }
+
+  const style = isPreview ? undefined : { cursor: 'grab' };
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <SceneCardContent row={row} scene={scene} />
     </div>
   );
 };
@@ -99,11 +95,10 @@ const DayCell: React.FC<{
   isToday: boolean;
   rows: ScheduleRow[];
   scenes: Scene[];
-  isUnscheduled?: boolean;
-}> = ({ date, isCurrentMonth, isToday, rows, scenes, isUnscheduled }) => {
+}> = ({ date, isCurrentMonth, isToday, rows, scenes }) => {
   const { setNodeRef, isOver } = useDroppable({
-    id: isUnscheduled ? 'unscheduled' : `day-${date.toISOString()}`,
-    data: { type: 'DAY_CELL', date },
+    id: `day-${date.toDateString()}`,
+    data: { type: 'DAY_CELL', date: date.toDateString() },
   });
 
   return (
@@ -114,7 +109,7 @@ const DayCell: React.FC<{
         ${isOver ? 'bg-blue-50' : ''}`}
     >
       <div className={`text-[10px] font-semibold mb-0.5 px-0.5 ${isToday ? 'bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center' : isCurrentMonth ? 'text-zinc-600' : 'text-zinc-300'}`}>
-        {isToday ? date.getDate() : date.getDate()}
+        {date.getDate()}
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
         {rows.map(r => (
@@ -132,9 +127,10 @@ export const CalendarTab: React.FC = () => {
 
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
   );
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
@@ -154,13 +150,13 @@ export const CalendarTab: React.FC = () => {
     })),
   ], [activeVersion?.rows, missingScenes]);
 
-  const getRowDate = (row: ScheduleRow): Date | null => {
+  const getRowDate = useCallback((row: ScheduleRow): Date | null => {
     if (row.shootDay === null) return null;
     const meta = activeVersion?.dayMeta?.[row.shootDay];
     if (!meta?.date) return null;
     const d = new Date(meta.date);
     return isNaN(d.getTime()) ? null : d;
-  };
+  }, [activeVersion?.dayMeta]);
 
   const rowsByDay = useMemo(() => {
     const map = new Map<string, ScheduleRow[]>();
@@ -173,84 +169,88 @@ export const CalendarTab: React.FC = () => {
       }
     });
     return map;
-  }, [augmentedRows]);
+  }, [augmentedRows, getRowDate]);
 
   const unscheduledRows = useMemo(() =>
-    augmentedRows.filter(r => {
-      const date = getRowDate(r);
-      return date === null;
-    }).sort((a, b) => a.order - b.order),
-    [augmentedRows]);
+    augmentedRows.filter(r => getRowDate(r) === null).sort((a, b) => a.order - b.order),
+    [augmentedRows, getRowDate]);
+
+  const handleDragStart = (e: DragStartEvent) => {
+    const row = augmentedRows.find(r => r.id === e.active.id);
+    setActiveDragRow(row || null);
+  };
 
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
+    setActiveDragRow(null);
     if (!over) return;
 
     const rowId = active.id as string;
     const row = augmentedRows.find(r => r.id === rowId);
     if (!row) return;
 
-    const overId = over.id as string;
+    const overData = over.data.current as { type: string; date?: string } | undefined;
     let newShootDay: number | null = null;
 
-    if (overId === 'unscheduled') {
+    if (overData?.type === 'UNSCHEDULED') {
       newShootDay = null;
-    } else if (overId.startsWith('day-')) {
-      const overDate = new Date(overId.replace('day-', ''));
+    } else if (overData?.type === 'DAY_CELL' && overData.date) {
+      const overDate = new Date(overData.date);
       const entry = Object.entries(activeVersion?.dayMeta || {}).find(([, meta]: [string, ShootDayMeta]) => {
-        if (!(meta as ShootDayMeta).date) return false;
-        const d = new Date((meta as ShootDayMeta).date);
+        if (!meta.date) return false;
+        const d = new Date(meta.date);
         return !isNaN(d.getTime()) && isSameDay(d, overDate);
       });
       if (entry) {
         newShootDay = parseInt(entry[0]);
       } else {
-        const nextDay = Math.max(0, ...Object.keys(activeVersion?.dayMeta || {}).map(Number)) + 1;
-        const newMeta = { ...activeVersion?.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: overDate.toISOString().split('T')[0] } };
-        const cloneRow = (r: ScheduleRow) => ({ ...r, id: r.id.startsWith('row-synth-') ? generateUUID() : r.id });
-        const updatedRows = augmentedRows.map(cloneRow).map(r => r.id === rowId ? { ...r, shootDay: nextDay } : r);
+        const nextDay = Math.max(0, ...Object.keys(activeVersion?.dayMeta || {}).map(Number), 0) + 1;
+        const dateStr = overDate.toISOString().split('T')[0];
+        const newMeta = { ...activeVersion?.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: dateStr } };
+        const updatedRows = augmentedRows.map(r => {
+          const id = r.id.startsWith('row-synth-') ? generateUUID() : r.id;
+          if (r.id === rowId || (row.id.startsWith('row-synth-') && r.sceneId === row.sceneId && r.id === row.id)) {
+            return { ...r, id, shootDay: nextDay, order: 0 };
+          }
+          return { ...r, id };
+        });
         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: updatedRows, dayMeta: newMeta } });
         return;
       }
-    } else return;
+    } else {
+      return;
+    }
 
     if (row.shootDay === newShootDay) return;
 
-    const cloneRow = (r: ScheduleRow) => { const { id, ...rest } = r; return { ...rest, id: r.id.startsWith('row-synth-') ? crypto.randomUUID() : r.id }; };
-    const updatedRows = augmentedRows.map(cloneRow).map(r => {
-      if (r.id === rowId || (row.id.startsWith('row-synth-') && r.sceneId === row.sceneId)) {
-        return { ...r, shootDay: newShootDay, order: newShootDay === null ? 999999 : 0 };
+    const updatedRows = augmentedRows.map(r => {
+      const id = r.id.startsWith('row-synth-') ? generateUUID() : r.id;
+      if (r.id === rowId || (row.id.startsWith('row-synth-') && r.sceneId === row.sceneId && r.id === row.id)) {
+        return { ...r, id, shootDay: newShootDay, order: newShootDay === null ? 999999 : 0 };
       }
-      return r;
+      return { ...r, id };
     });
-
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: updatedRows } });
   };
 
   const goToPrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(y => y - 1);
-    } else {
-      setCurrentMonth(m => m - 1);
-    }
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
+    else setCurrentMonth(m => m - 1);
   };
 
   const goToNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(y => y + 1);
-    } else {
-      setCurrentMonth(m => m + 1);
-    }
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
+    else setCurrentMonth(m => m + 1);
   };
 
   const monthName = new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
+  const activeScene = activeDragRow ? project.scenes.find(s => s.id === activeDragRow.sceneId) : undefined;
+
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '11px' }}>
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
@@ -292,20 +292,39 @@ export const CalendarTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="w-[200px] border-l border-zinc-200 bg-zinc-50 flex flex-col shrink-0">
-          <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white">
-            UNSCHEDULED
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
-            {unscheduledRows.map(r => (
-              <SceneCard key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} />
-            ))}
-            {unscheduledRows.length === 0 && (
-              <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>
-            )}
-          </div>
-        </div>
+        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} />
       </div>
+
+      <DragOverlay dropAnimation={null}>
+        {activeDragRow ? (
+          <div style={{ opacity: 0.9 }}>
+            <SceneCardContent row={activeDragRow} scene={activeScene} />
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
+  );
+};
+
+const UnscheduledSidebar: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ rows, scenes }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'unscheduled',
+    data: { type: 'UNSCHEDULED' },
+  });
+
+  return (
+    <div className="w-[200px] border-l border-zinc-200 bg-zinc-50 flex flex-col shrink-0">
+      <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white">
+        UNSCHEDULED
+      </div>
+      <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 transition-colors ${isOver ? 'bg-blue-50' : ''}`}>
+        {rows.map(r => (
+          <SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />
+        ))}
+        {rows.length === 0 && (
+          <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>
+        )}
+      </div>
+    </div>
   );
 };
