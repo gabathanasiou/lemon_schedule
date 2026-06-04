@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta } from '../types';
 import { generateUUID } from '../lib/utils';
-import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import DropdownMenu from './DropdownMenu';
+import { ChevronLeft, ChevronRight, GripVertical, Eye, ChevronDown } from 'lucide-react';
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -43,7 +46,7 @@ function sceneColor(scene?: Scene | null) {
   return { bg: '#ffffff', text: '#18181b' };
 }
 
-const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, scene }) => {
+const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean }> = ({ row, scene, showDesc }) => {
   if (!scene) {
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
@@ -56,19 +59,24 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, 
   const c = sceneColor(scene);
   return (
     <div style={{ background: c.bg, color: c.text }} className="text-[9px] truncate px-1.5 py-0.5 rounded mb-0.5 leading-tight whitespace-nowrap font-semibold">
-      {scene.sceneNumber}. {scene.set}
+      {scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}
     </div>
   );
 };
 
-const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, scene }) => {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean }> = ({ row, scene, showDesc }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
   });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
   return (
-    <div ref={setNodeRef} style={isDragging ? { opacity: 0.3 } : { cursor: 'grab' }} {...listeners} {...attributes}>
-      <SceneCardContent row={row} scene={scene} />
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      <SceneCardContent row={row} scene={scene} showDesc={showDesc} />
     </div>
   );
 };
@@ -76,9 +84,9 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene }> = ({ row, scene }
 const DayCell: React.FC<{
   dateKey: string; date: Date; isCurrentMonth: boolean; isToday: boolean;
   isWorkingDay: boolean; shootDay: number | null; label: string | null;
-  rows: ScheduleRow[]; scenes: Scene[];
+  rows: ScheduleRow[]; scenes: Scene[]; showDesc: boolean;
   onToggle: (dateKey: string) => void;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, onToggle }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, onToggle }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, shootDay },
@@ -116,7 +124,9 @@ const DayCell: React.FC<{
         )}
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
-        {rows.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />))}
+        <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
+          {rows.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />))}
+        </SortableContext>
       </div>
     </div>
   );
@@ -126,7 +136,8 @@ const UnscheduledSidebar: React.FC<{
   dayBlocks: { shootDay: number; rows: ScheduleRow[] }[];
   loose: ScheduleRow[];
   scenes: Scene[];
-}> = ({ dayBlocks, loose, scenes }) => {
+  showDesc: boolean;
+}> = ({ dayBlocks, loose, scenes, showDesc }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
   return (
     <div className="w-[200px] border-l border-zinc-200 bg-zinc-50 flex flex-col shrink-0">
@@ -135,10 +146,10 @@ const UnscheduledSidebar: React.FC<{
         {dayBlocks.map(block => (
           <div key={`day-${block.shootDay}`} className="mb-2">
             <div className="text-[9px] font-bold text-zinc-500 uppercase mb-0.5 px-0.5">Day {block.shootDay}</div>
-            {block.rows.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />))}
+            {block.rows.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />))}
           </div>
         ))}
-        {loose.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />))}
+        {loose.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />))}
         {dayBlocks.length === 0 && loose.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
       </div>
     </div>
@@ -154,6 +165,8 @@ export const CalendarTab: React.FC = () => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
+  const [showDesc, setShowDesc] = useState(false);
+  const [showViewMenu, setShowViewMenu] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
 
@@ -268,6 +281,25 @@ export const CalendarTab: React.FC = () => {
     const row = augmentedRows.find(r => r.id === active.id);
     if (!row) return;
 
+    let overRow: ScheduleRow | undefined;
+    if (typeof over.id === 'string' && !over.id.startsWith('day-') && over.id !== 'unscheduled') {
+      overRow = augmentedRows.find(r => r.id === over.id);
+    }
+
+    /* Within-day reorder */
+    if (overRow && row.shootDay === overRow.shootDay && row.shootDay !== null) {
+      const version = activeVersion;
+      const dayRows = augmentedRows.filter(r => r.shootDay === row.shootDay).sort((a, b) => a.order - b.order);
+      const activeIndex = dayRows.findIndex(r => r.id === row.id);
+      const overIndex = dayRows.findIndex(r => r.id === overRow!.id);
+      if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+        const reordered = arrayMove(dayRows, activeIndex, overIndex).map((r: ScheduleRow, i) => ({ ...r, order: i }));
+        const otherRows = version.rows.filter(r => r.shootDay !== row.shootDay);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: version.id, rows: [...otherRows, ...reordered] } });
+      }
+      return;
+    }
+
     if (over.id === 'unscheduled') {
       if (row.shootDay === null && row.id.startsWith('row-synth-')) return;
       if (row.shootDay === null) return;
@@ -323,7 +355,7 @@ export const CalendarTab: React.FC = () => {
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '11px' }}>
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
@@ -332,11 +364,40 @@ export const CalendarTab: React.FC = () => {
               <h2 className="font-semibold text-sm">{monthName}</h2>
               <button onClick={goNext} className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
             </div>
-            <span className="text-[10px] text-zinc-400">
-              <span className="text-[7px] font-bold text-green-600 mr-1">SW</span>Start &nbsp;
-              <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">W</span>Work &nbsp;
-              <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">FW</span>Finish
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-zinc-400">
+                <span className="text-[7px] font-bold text-green-600 mr-1">SW</span>Start &nbsp;
+                <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">W</span>Work &nbsp;
+                <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">FW</span>Finish
+              </span>
+              <span className="text-[10px] text-zinc-300">|</span>
+              <span className="text-[10px] text-zinc-500">{activeVersion.name}</span>
+              <DropdownMenu
+                open={showViewMenu}
+                onClose={() => setShowViewMenu(false)}
+                width="w-40"
+                trigger={
+                  <button
+                    onClick={() => setShowViewMenu(p => !p)}
+                    className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-600 px-1.5 py-0.5 rounded hover:bg-zinc-100"
+                  >
+                    <Eye className="w-3 h-3" />
+                    {showDesc ? 'Description' : 'Title'}
+                    <ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                }
+              >
+                <div className="px-3 py-1 text-zinc-400 text-[9px] uppercase tracking-wider">Show</div>
+                <button onClick={() => { setShowDesc(false); setShowViewMenu(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-100 ${!showDesc ? 'text-blue-600 font-semibold' : ''}`}>
+                  Scene title
+                </button>
+                <button onClick={() => { setShowDesc(true); setShowViewMenu(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-100 ${showDesc ? 'text-blue-600 font-semibold' : ''}`}>
+                  Description
+                </button>
+              </DropdownMenu>
+            </div>
           </div>
           <div className="grid grid-cols-7 border-l border-t border-zinc-200">
             {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
@@ -352,6 +413,7 @@ export const CalendarTab: React.FC = () => {
                     isWorkingDay={sd !== null} shootDay={sd}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
+                    showDesc={showDesc}
                     onToggle={handleToggle}
                   />
                 );
@@ -359,14 +421,14 @@ export const CalendarTab: React.FC = () => {
             </div>
           </div>
         </div>
-        <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} />
+        <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} showDesc={showDesc} />
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
-        {activeDragRow ? <div style={{ opacity: 0.9 }}><SceneCardContent row={activeDragRow} scene={activeScene} /></div> : null}
+        {activeDragRow ? <div style={{ opacity: 0.9 }}><SceneCardContent row={activeDragRow} scene={activeScene} showDesc={showDesc} /></div> : null}
         {activeDragDay !== null && activeDayRows.length > 0 ? (
           <div className="flex flex-col gap-0.5 opacity-90">
             {activeDayRows.map(r => (
-              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} />
+              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />
             ))}
           </div>
         ) : null}

@@ -145,8 +145,7 @@ function AppContent() {
             </button>
           </div>
 
-          {activeTab === 'schedule' && (
-            <DropdownMenu
+          <DropdownMenu
               open={showVersionsMenu}
               onClose={() => { setShowVersionsMenu(false); setEditingVersionId(null); }}
               width="w-80"
@@ -247,7 +246,6 @@ function AppContent() {
                 </DropdownItem>
               </div>
             </DropdownMenu>
-          )}
 
           <DropdownMenu
               open={showExportMenu}
