@@ -302,11 +302,7 @@ export const UnscheduledBlock: React.FC<{
                 </React.Fragment>
               ))}
             </SortableContext>
-            {rows.length === 0 && (
-              <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold text-center">
-                Drop items here to unschedule
-              </div>
-            )}
+            {rows.length === 0 && <div className="flex-1" />}
             <div ref={setEndRef}>
               {showGhosts && insertBeforeId === `end-unscheduled` && (
                 <StackedGhosts rows={activeDragRows} scenes={projectScenes} />

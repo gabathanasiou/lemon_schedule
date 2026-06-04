@@ -249,21 +249,17 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             {showGhosts && insertBeforeId === `day-${dayInt}` && (
               <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
             )}
-            <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold">
-              Drop scenes here
-            </div>
           </>
         )}
       </div>
 
       {/* Day Footer */}
-      {rows.length > 0 && (
-        <>
-          {showGhosts && insertBeforeId === `end-${dayInt}` && (
-            <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-          )}
-          <div ref={setFooterRef} className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
-            style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>
+      <>
+        {showGhosts && insertBeforeId === `end-${dayInt}` && (
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+        )}
+        <div ref={setFooterRef} className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
+          style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>
           <span className="shrink-0">
             End of Day #{displayDay}
             {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
@@ -277,7 +273,6 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
           </div>
         </div>
         </>
-      )}
     </div>
   );
 }
