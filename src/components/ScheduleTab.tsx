@@ -7,7 +7,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
-import { useMarquee, MarqueeOverlay, isShiftKeyDown, useShiftKey } from '../lib/useMarquee';
+import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -106,9 +106,22 @@ export function ScheduleTab() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  useEffect(() => {
+    const onSelectStart = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (target.isContentEditable) return;
+      e.preventDefault();
+    };
+    if (!textEditingEnabled) {
+      document.addEventListener('selectstart', onSelectStart);
+    }
+    return () => document.removeEventListener('selectstart', onSelectStart);
+  }, [textEditingEnabled]);
+
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const marqueeJustEndedRef = useRef(false);
-  const shiftHeld = useShiftKey();
+  const ctrlOrCmdHeld = useAddMode();
 
   const { marqueeBox, justEndedRef: _ } = useMarquee(
     scheduleScrollRef,
@@ -121,7 +134,7 @@ export function ScheduleTab() {
   const sensors = useSensors(
     useSensor(PointerSensor, { 
       activationConstraint: { 
-        distance: shiftHeld || textEditingEnabled ? 999999 : 5 
+        distance: ctrlOrCmdHeld || textEditingEnabled ? 999999 : 5 
       } 
     })
   );
@@ -259,7 +272,7 @@ export function ScheduleTab() {
   };
 
   const handleDragStart = (e: DragStartEvent) => {
-    if (isShiftKeyDown()) return;
+    if (isAddModeActive()) return;
     setActiveId(e.active.id as string);
     setActiveType(e.active.data.current?.type || null);
     if (selectedRowIds.has(e.active.id as string) && selectedRowIds.size > 1) {

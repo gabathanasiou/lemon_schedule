@@ -41,6 +41,19 @@ export const UnscheduledBlock: React.FC<{
   useEffect(() => {
     localStorage.setItem(COLLAPSED_KEY, String(isCollapsed));
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (textEditingEnabled) return;
+    const onSelectStart = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (target.isContentEditable) return;
+      e.preventDefault();
+    };
+    document.addEventListener('selectstart', onSelectStart);
+    return () => document.removeEventListener('selectstart', onSelectStart);
+  }, [textEditingEnabled]);
+
   const panelRef = useRef<HTMLDivElement>(null);
   const unscheduledMarqueeRef = useRef<HTMLDivElement>(null);
 

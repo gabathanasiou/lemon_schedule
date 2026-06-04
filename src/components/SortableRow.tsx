@@ -7,7 +7,7 @@ import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { Flag } from 'lucide-react';
-import { useShiftKey } from '../lib/useMarquee';
+import { useAddMode } from '../lib/useMarquee';
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -339,7 +339,7 @@ export const SortableRow: React.FC<{
 }> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
-  const shiftHeld = useShiftKey();
+  const ctrlOrCmdHeld = useAddMode();
 
   const {
     attributes,
@@ -378,7 +378,7 @@ export const SortableRow: React.FC<{
     ref: setNodeRef,
     style,
     onClick: onSelectToggle,
-    ...(shiftHeld ? {} : listeners),
+    ...(ctrlOrCmdHeld ? {} : listeners),
     ...attributes,
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
