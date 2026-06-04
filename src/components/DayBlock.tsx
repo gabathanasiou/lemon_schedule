@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 import { SortableRow } from './SortableRow';
+import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { GripHorizontal, Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
@@ -177,10 +178,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 </span>
               </Tooltip>
             )}
-            <input 
-              value={meta?.unitCall || '08:00'} 
-              onChange={e => updateMeta({unitCall: e.target.value})}
-              className="bg-zinc-900 px-2 py-0.5 rounded outline-none border border-transparent focus:border-zinc-600 w-16 text-center"
+            <CellInput
+              value={meta?.unitCall || '08:00'}
+              onChange={val => updateMeta({unitCall: val})}
+              clearOnType
+              col="duration"
+              className="bg-zinc-900 px-2 py-0.5 border border-transparent focus-within:border-zinc-600 w-16 text-center"
             />
             <button 
               onClick={() => {
