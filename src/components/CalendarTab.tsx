@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, pointerWithin } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from '@dnd-kit/core';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta } from '../types';
 import { generateUUID } from '../lib/utils';
@@ -100,7 +100,7 @@ const DayCell: React.FC<{
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-[80px] border-r border-b border-zinc-200 p-1 flex flex-col
+      className={`min-h-[80px] h-full border-r border-b border-zinc-200 p-1 flex flex-col
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : 'bg-white'}
         ${isOver ? 'bg-blue-50' : ''}`}
     >
@@ -269,7 +269,7 @@ export const CalendarTab: React.FC = () => {
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '11px' }}>
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
@@ -314,7 +314,7 @@ export const CalendarTab: React.FC = () => {
         <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} />
       </div>
 
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
         {activeDragRow ? (
           <div style={{ opacity: 0.9 }}>
             <SceneCardContent row={activeDragRow} scene={activeScene} />
