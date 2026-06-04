@@ -211,25 +211,24 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-          {computedRows.map((r, i) => {
-            const isCrossContext = activeRowId && !rows.some(row => row.id === activeRowId);
+           {computedRows.map((r, i) => {
             return (
               <React.Fragment key={r.id}>
-                {isCrossContext && insertBeforeId === r.id && activeDragRow && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-                )}
-                <SortableRow 
-                  row={r} 
-                  scenes={project.scenes} 
-                  isSelected={selectedIds.has(r.id)}
-                  isFaded={activeDragIds.has(r.id)}
-                  onSelectToggle={(e) => onRowClick?.(r.id, e)}
-                  textEditingEnabled={textEditingEnabled}
-                  sceneViolations={sceneViolationMap.get(r.sceneId || '')}
-                />
-                {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-                )}
+            {insertBeforeId === r.id && activeDragRow && (
+              <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+            )}
+            <SortableRow 
+              row={r} 
+              scenes={project.scenes} 
+              isSelected={selectedIds.has(r.id)}
+              isFaded={activeDragIds.has(r.id)}
+              onSelectToggle={(e) => onRowClick?.(r.id, e)}
+              textEditingEnabled={textEditingEnabled}
+              sceneViolations={sceneViolationMap.get(r.sceneId || '')}
+            />
+            {i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
+              <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+            )}
               </React.Fragment>
             );
           })}
