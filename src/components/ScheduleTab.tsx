@@ -547,7 +547,10 @@ export function ScheduleTab() {
               marqueeJustEndedRef.current = false;
               return;
             }
-            setContextMenu(null);
+            if (contextMenu) {
+              setContextMenu(null);
+              return;
+            }
             setSelectedRowIds(new Set());
           }}
           onContextMenu={(e) => {
@@ -674,7 +677,6 @@ export function ScheduleTab() {
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')}>Remove Ribbon</ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Delete Scene</ContextMenuItem>
                 </>
               )}
               {(row?.type === 'NOTE' || row?.type === 'BREAK') && (
