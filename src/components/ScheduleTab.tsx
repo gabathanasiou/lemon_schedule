@@ -126,6 +126,24 @@ export function ScheduleTab() {
       const prev = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
       if (prev) candidates.push(prev.id);
     }
+    // If same day is now empty, look across days
+    if (candidates.length === 0) {
+      const firstRemoved = removedRows[0];
+      const dayOrder = existingDays;
+      const startIdx = firstRemoved.shootDay !== null ? dayOrder.indexOf(firstRemoved.shootDay) : -1;
+      // Try next days first
+      for (let i = startIdx + 1; i < dayOrder.length; i++) {
+        const rows = scheduledRows[dayOrder[i]] || [];
+        if (rows.length > 0) { candidates.push(rows[0].id); break; }
+      }
+      // Then try previous days
+      if (candidates.length === 0) {
+        for (let i = startIdx - 1; i >= 0; i--) {
+          const rows = scheduledRows[dayOrder[i]] || [];
+          if (rows.length > 0) { candidates.push(rows[rows.length - 1].id); break; }
+        }
+      }
+    }
     if (candidates.length > 0) setSelectedRowIds(new Set([candidates[0]]));
   };
 
