@@ -181,12 +181,17 @@ const DayCell: React.FC<{
 };
 
 const UnscheduledSidebar: React.FC<{
-  dayBlocks: { shootDay: number; rows: ScheduleRow[] }[];
-  loose: ScheduleRow[];
+  rows: ScheduleRow[];
   scenes: Scene[];
   showDesc: boolean;
   sceneViolationMap: Map<string, string[]>;
-}> = ({ dayBlocks, loose, scenes, showDesc, sceneViolationMap }) => {
+  activeDragRows?: ScheduleRow[];
+  insertBeforeId?: string | null;
+  activeRowId?: string | null;
+  activeDragIds?: Set<string>;
+  selectedIds?: Set<string>;
+  onRowClick?: (id: string, e: React.MouseEvent) => void;
+}> = ({ rows, scenes, showDesc, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 200; } catch { return 200; }
@@ -228,14 +233,28 @@ const UnscheduledSidebar: React.FC<{
     >
       <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white">UNSCHEDULED</div>
       <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 ${isOver ? 'bg-blue-50' : ''}`}>
-        {dayBlocks.map(block => (
-          <div key={`day-${block.shootDay}`} className="mb-2">
-            <div className="text-[9px] font-bold text-zinc-500 uppercase mb-0.5 px-0.5">Day {block.shootDay}</div>
-            {block.rows.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} />))}
-          </div>
+        {rows.map((r, i, arr) => (
+          <React.Fragment key={r.id}>
+            {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
+              <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+                {activeDragRows.slice(0, 2).map(dr => (
+                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                ))}
+                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+              </div>
+            )}
+            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
+            {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
+              <div className="opacity-40 flex flex-col gap-0 mt-0.5">
+                {activeDragRows.slice(0, 2).map(dr => (
+                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                ))}
+                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+              </div>
+            )}
+          </React.Fragment>
         ))}
-        {loose.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} />))}
-        {dayBlocks.length === 0 && loose.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
+        {rows.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
       </div>
       <div
         className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
@@ -345,21 +364,14 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
 
   const unscheduledRows = useMemo(() => {
-    const withoutDay = augmentedRows.filter(r => {
+    return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
       if (r.shootDay === null) return true;
       const meta = activeVersion?.dayMeta?.[r.shootDay];
       return !meta?.date;
     }).sort((a, b) => a.order - b.order);
-    const dayBlocks: { shootDay: number; rows: ScheduleRow[] }[] = [];
-    const loose: ScheduleRow[] = [];
-    const bySD = new Map<number, ScheduleRow[]>();
-    withoutDay.forEach(r => { if (r.shootDay !== null) { if (!bySD.has(r.shootDay)) bySD.set(r.shootDay, []); bySD.get(r.shootDay)!.push(r); } else loose.push(r); });
-    bySD.forEach((rows, day) => dayBlocks.push({ shootDay: day, rows: rows.sort((a, b) => a.order - b.order) }));
-    dayBlocks.sort((a, b) => a.shootDay - b.shootDay);
-    return { dayBlocks, loose };
-  }, [augmentedRows, activeVersion, activeDragIds]);
+  }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
 
   const handleToggle = useCallback((dateKey: string) => {
     dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
@@ -520,7 +532,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   return (
     <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '11px' }}>
-        <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} />
+        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
