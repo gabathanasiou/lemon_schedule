@@ -667,6 +667,19 @@ export function ScheduleTab() {
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
         {(() => {
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
+          if (selectedRowIds.size > 1) {
+            return (
+              <ContextMenuItem onClick={() => {
+                const ids = Array.from(selectedRowIds);
+                const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+                dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                setSelectedRowIds(new Set());
+                setContextMenu(null);
+              }}>
+                Remove {selectedRowIds.size} Ribbons
+              </ContextMenuItem>
+            );
+          }
           return (
             <>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
