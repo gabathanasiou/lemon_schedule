@@ -124,8 +124,7 @@ export function ScheduleTab() {
 
   const existingDays = Array.from(new Set([
     ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-    ...(activeVersion.dayMeta ? Object.keys(activeVersion.dayMeta).map(Number) : [])
-  ]));
+  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0);
   existingDays.sort((a, b) => a - b);
 
   const getDayFromId = (id: string): number | null => {
