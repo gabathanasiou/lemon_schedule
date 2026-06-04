@@ -7,7 +7,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
-import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
+import { useMarquee, MarqueeOverlay, isShiftKeyDown } from '../lib/useMarquee';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -255,6 +255,7 @@ export function ScheduleTab() {
   };
 
   const handleDragStart = (e: DragStartEvent) => {
+    if (isShiftKeyDown()) return;
     setActiveId(e.active.id as string);
     setActiveType(e.active.data.current?.type || null);
     if (selectedRowIds.has(e.active.id as string) && selectedRowIds.size > 1) {
@@ -471,7 +472,13 @@ export function ScheduleTab() {
         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative">
+        <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
+          onClick={(e) => {
+            if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
+            setSelectedRowIds(new Set());
+            setContextMenu(null);
+          }}
+        >
           {marqueeBox && (
             <div
               style={{

@@ -13,6 +13,8 @@ let _listenersInitialized = false;
 const _marqueeJustEndedRef = { current: false };
 const _shiftListeners = new Set<() => void>();
 
+export function isShiftKeyDown() { return _shiftKey; }
+
 export function useShiftKey(): boolean {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -69,6 +71,8 @@ export function useMarquee(
       startX = e.clientX - rect.left + container.scrollLeft;
       startY = e.clientY - rect.top + container.scrollTop;
       active = true;
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
       setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
     };
 
@@ -107,6 +111,8 @@ export function useMarquee(
     const onMouseUp = () => {
       if (!active) return;
       active = false;
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
       setMarqueeBox(null);
       if (hadMovement) _marqueeJustEndedRef.current = true;
     };
