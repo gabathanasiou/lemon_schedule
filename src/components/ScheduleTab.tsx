@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -7,6 +7,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
+import { useSelectionContainer, boxesIntersect } from '@air/react-drag-to-select';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -69,6 +70,8 @@ export function ScheduleTab() {
   const [activeType, setActiveType] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
+  const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
 
@@ -80,16 +83,101 @@ export function ScheduleTab() {
         if (next.has(id)) next.delete(id); else next.add(id);
         return next;
       });
+      setLastClickedId(id);
+    } else if (e.shiftKey && lastClickedId) {
+      e.stopPropagation();
+      const allIds = augmentedRows.map(r => r.id);
+      const idxA = allIds.indexOf(lastClickedId);
+      const idxB = allIds.indexOf(id);
+      if (idxA >= 0 && idxB >= 0) {
+        const range = allIds.slice(Math.min(idxA, idxB), Math.max(idxA, idxB) + 1);
+        setSelectedRowIds(new Set(range));
+      }
     } else {
       if (selectedRowIds.size > 0 && (e.target as HTMLElement).tagName !== 'INPUT') {
          setSelectedRowIds(new Set());
       }
+      setLastClickedId(id);
     }
   };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: textEditingEnabled ? 999999 : 5 } })
   );
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedRowIds(new Set());
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { (window as any).__marqueeAddMode = e.metaKey || e.ctrlKey; };
+    const up = () => { (window as any).__marqueeAddMode = false; };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, []);
+
+  const scheduleScrollRef = useRef<HTMLDivElement>(null);
+
+  const { DragSelection } = useSelectionContainer({
+    shouldStartSelecting: (e) => {
+      const target = (e as any).target as HTMLElement;
+      if (target.closest('[data-row-id]')) return false;
+      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return false;
+      return true;
+    },
+    onSelectionChange: (box) => {
+      const container = scheduleScrollRef.current;
+      if (!container) return;
+      const scrollTop = container.scrollTop;
+      const scrollLeft = container.scrollLeft;
+      const containerRect = container.getBoundingClientRect();
+      const rowEls = container.querySelectorAll('[data-row-id]');
+      const intersected = new Set<string>();
+
+      rowEls.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const elBox = {
+          left: rect.left - containerRect.left + scrollLeft,
+          top: rect.top - containerRect.top + scrollTop,
+          width: rect.width,
+          height: rect.height,
+        };
+        const selBox = {
+          left: box.left + scrollLeft,
+          top: box.top + scrollTop,
+          width: box.width,
+          height: box.height,
+        };
+        if (boxesIntersect(elBox, selBox)) {
+          intersected.add(el.getAttribute('data-row-id')!);
+        }
+      });
+
+      const isAddMode = (window as any).__marqueeAddMode || false;
+      setSelectedRowIds(prev => {
+        if (isAddMode) {
+          const next = new Set(prev);
+          intersected.forEach(id => next.add(id));
+          return next;
+        }
+        return intersected;
+      });
+    },
+    selectionProps: {
+      style: {
+        background: 'rgba(99, 149, 255, 0.15)',
+        border: '1px solid rgba(99, 149, 255, 0.8)',
+      },
+    },
+  });
 
   if (!activeVersion) return <div>No active version</div>;
 
@@ -226,6 +314,11 @@ export function ScheduleTab() {
   const handleDragStart = (e: DragStartEvent) => {
     setActiveId(e.active.id as string);
     setActiveType(e.active.data.current?.type || null);
+    if (selectedRowIds.has(e.active.id as string) && selectedRowIds.size > 1) {
+      setActiveDragIds(new Set(selectedRowIds));
+    } else {
+      setActiveDragIds(new Set([e.active.id as string]));
+    }
   };
 
   const handleDragOver = (e: DragOverEvent) => {
@@ -253,6 +346,7 @@ export function ScheduleTab() {
     setActiveId(null);
     setActiveType(null);
     setInsertBeforeId(null);
+    setActiveDragIds(new Set());
     
     if (!over) return;
 
@@ -409,8 +503,8 @@ export function ScheduleTab() {
       onDragEnd={handleDragEnd}
     >
       <div 
-         className="flex-1 flex bg-zinc-200/50 relative min-h-0"
-         onClick={() => setContextMenu(null)}
+          className="flex-1 flex bg-zinc-200/50 relative min-h-0"
+          onClick={() => { setContextMenu(null); setSelectedRowIds(new Set()); }}
          onContextMenu={(e) => {
              const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
              if (rowEl) {
@@ -424,13 +518,22 @@ export function ScheduleTab() {
              }
          }}
       >
-        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} />
+        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} />
         
         {/* Main Schedule Area */}
-        <div className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32">
+        <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32">
+          {DragSelection}
           
-          <div className="w-full max-w-4xl flex justify-between items-center mb-6">
-             <h2 className="text-xl font-bold">Schedule Breakdown</h2>
+           <div className="w-full max-w-4xl flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold">Schedule Breakdown</h2>
+                {selectedRowIds.size > 0 && (
+                  <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    {selectedRowIds.size} selected
+                    <button onClick={() => setSelectedRowIds(new Set())} className="hover:text-blue-900 font-bold">&times;</button>
+                  </span>
+                )}
+              </div>
              <button 
                 onClick={() => setTextEditingEnabled(p => !p)}
                 className={`px-4 py-2 rounded text-sm font-bold shadow-sm transition-all focus:outline-none flex items-center gap-2 ${textEditingEnabled ? 'bg-blue-500 text-white shadow-blue-500/30' : 'bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-50'}`}
@@ -448,6 +551,7 @@ export function ScheduleTab() {
                   rows={scheduledRows[dayInt] || []}
                   meta={activeVersion?.dayMeta[dayInt]}
                   selectedIds={selectedRowIds}
+                  activeDragIds={activeDragIds}
                   onRowClick={handleRowClick}
                   textEditingEnabled={textEditingEnabled}
                   insertBeforeId={insertBeforeId}
@@ -462,11 +566,25 @@ export function ScheduleTab() {
 
       <DragOverlay dropAnimation={null}>
         {activeDragRow ? (
-          <div className="w-[1024px] max-w-4xl pointer-events-none relative shadow-2xl">
-            <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} />
-            {selectedRowIds.size > 1 && selectedRowIds.has(activeId as string) && (
-               <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white">
-                 +{selectedRowIds.size - 1} selected
+          <div className="w-[1024px] max-w-4xl pointer-events-none relative">
+            {activeDragIds.size > 1 && Array.from(activeDragIds).slice(0, 3).reverse().map((id, i, arr) => {
+              const row = augmentedRows.find(r => r.id === id);
+              if (!row) return null;
+              const isTop = i === arr.length - 1;
+              const offset = (arr.length - 1 - i) * 4;
+              const opacity = isTop ? 1 : 1 - (arr.length - 1 - i) * 0.2;
+              return (
+                <div key={id} style={{ position: isTop ? 'relative' : 'absolute', top: offset, left: 0, right: 0, opacity, zIndex: isTop ? 10 : 5 - i }}>
+                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} />
+                </div>
+              );
+            })}
+            {activeDragIds.size === 1 && activeDragIds.has(activeId as string) && (
+              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} />
+            )}
+            {activeDragIds.size > 1 && (
+               <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white z-20">
+                 ×{activeDragIds.size}
                </div>
             )}
           </div>

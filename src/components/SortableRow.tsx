@@ -330,11 +330,12 @@ export const SortableRow: React.FC<{
   scenes: Scene[], 
   isOverlay?: boolean,
   isSelected?: boolean,
+  isFaded?: boolean,
   onSelectToggle?: (e: React.MouseEvent) => void,
   isCompact?: boolean,
   textEditingEnabled?: boolean,
   sceneViolations?: string[],
-}> = ({ row, scenes, isOverlay, isSelected, onSelectToggle, isCompact, textEditingEnabled, sceneViolations }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
 
@@ -379,7 +380,7 @@ export const SortableRow: React.FC<{
     ...attributes,
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
-    className: `group relative transition-colors shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected ? 'ring-2 ring-blue-500 z-50' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
+    className: `group relative transition-colors shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'opacity-60 border-l-4 border-l-blue-500' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
   };
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";

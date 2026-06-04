@@ -72,7 +72,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, chronoDay }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, chronoDay }) => {
   const displayDay = chronoDay ?? dayInt;
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -203,6 +203,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   row={r} 
                   scenes={project.scenes} 
                   isSelected={selectedIds.has(r.id)}
+                  isFaded={activeDragIds.has(r.id)}
                   onSelectToggle={(e) => onRowClick?.(r.id, e)}
                   textEditingEnabled={textEditingEnabled}
                   sceneViolations={sceneViolationMap.get(r.sceneId || '')}

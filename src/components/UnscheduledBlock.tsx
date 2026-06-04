@@ -16,8 +16,11 @@ export const UnscheduledBlock: React.FC<{
   textEditingEnabled: boolean,
   onAction?: (action: string) => void,
   contextMenu?: any,
-  setContextMenu?: any
-}> = ({ rows, projectScenes, textEditingEnabled }) => {
+  setContextMenu?: any,
+  selectedIds?: Set<string>,
+  activeDragIds?: Set<string>,
+  onRowClick?: (id: string, e: React.MouseEvent) => void,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -251,6 +254,9 @@ export const UnscheduledBlock: React.FC<{
                   row={r}
                   scenes={projectScenes}
                   isCompact
+                  isSelected={selectedIds?.has(r.id) ?? false}
+                  isFaded={activeDragIds?.has(r.id) ?? false}
+                  onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                   textEditingEnabled={textEditingEnabled}
                 />
               ))}
