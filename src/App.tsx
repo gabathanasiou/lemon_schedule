@@ -15,7 +15,7 @@ import PrintSchedule from './components/PrintSchedule';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings } from 'lucide-react';
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
@@ -28,6 +28,8 @@ function AppContent() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<{showTimes: boolean; showDurations: boolean} | null>(null);
   const [showTrash, setShowTrash] = useState(false);
+  const [showCalendarDesc, setShowCalendarDesc] = useState(false);
+  const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -103,7 +105,7 @@ function AppContent() {
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
           </div>
-          <div className="flex space-x-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
+          <div className="flex items-center space-x-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
             <button 
               onClick={() => setActiveTab('breakdown')} 
               className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'breakdown' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
@@ -122,6 +124,32 @@ function AppContent() {
             >
               Calendar
             </button>
+            {activeTab === 'calendar' && (
+              <DropdownMenu
+                open={showCalendarViewMenu}
+                onClose={() => setShowCalendarViewMenu(false)}
+                width="w-36"
+                trigger={
+                  <button
+                    onClick={() => setShowCalendarViewMenu(p => !p)}
+                    className="p-1 hover:bg-zinc-800 rounded transition-colors"
+                    title="Calendar view options"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+                  </button>
+                }
+              >
+                <div className="px-3 py-1 text-zinc-400 text-[9px] uppercase tracking-wider font-mono">Show</div>
+                <button onClick={() => { setShowCalendarDesc(false); setShowCalendarViewMenu(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 ${!showCalendarDesc ? 'text-white font-semibold' : ''}`}>
+                  Scene title
+                </button>
+                <button onClick={() => { setShowCalendarDesc(true); setShowCalendarViewMenu(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 ${showCalendarDesc ? 'text-white font-semibold' : ''}`}>
+                  Description
+                </button>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -278,7 +306,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : <CalendarTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : <CalendarTab showDesc={showCalendarDesc} />}
       </main>
 
       {showTrash && (

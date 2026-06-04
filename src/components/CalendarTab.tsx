@@ -1,12 +1,13 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta } from '../types';
 import { generateUUID } from '../lib/utils';
-import DropdownMenu from './DropdownMenu';
-import { ChevronLeft, ChevronRight, GripVertical, Eye, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+
+const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -139,8 +140,40 @@ const UnscheduledSidebar: React.FC<{
   showDesc: boolean;
 }> = ({ dayBlocks, loose, scenes, showDesc }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
+  const [width, setWidth] = useState<number>(() => {
+    try { const v = localStorage.getItem(SIDEBAR_KEY); if (v) return parseInt(v); } catch {}
+    return 200;
+  });
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const startX = e.clientX;
+    const startWidth = panelRef.current?.offsetWidth || width;
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(400, Math.max(160, startWidth + e.clientX - startX));
+      if (panelRef.current) panelRef.current.style.width = `${newWidth}px`;
+      setWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [width]);
+
+  useEffect(() => { localStorage.setItem(SIDEBAR_KEY, String(width)); }, [width]);
+
   return (
-    <div className="w-[200px] border-l border-zinc-200 bg-zinc-50 flex flex-col shrink-0">
+    <div ref={panelRef}
+      className="border-l border-zinc-200 bg-zinc-50 flex flex-col shrink-0 relative overflow-hidden"
+      style={{ width: `${width}px` }}
+    >
       <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white">UNSCHEDULED</div>
       <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 ${isOver ? 'bg-blue-50' : ''}`}>
         {dayBlocks.map(block => (
@@ -152,11 +185,15 @@ const UnscheduledSidebar: React.FC<{
         {loose.map(r => (<SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />))}
         {dayBlocks.length === 0 && loose.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
       </div>
+      <div
+        className="absolute top-0 bottom-0 left-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
+        onMouseDown={handleResizeStart}
+      />
     </div>
   );
 };
 
-export const CalendarTab: React.FC = () => {
+export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -165,8 +202,6 @@ export const CalendarTab: React.FC = () => {
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
-  const [showDesc, setShowDesc] = useState(false);
-  const [showViewMenu, setShowViewMenu] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
 
@@ -364,40 +399,11 @@ export const CalendarTab: React.FC = () => {
               <h2 className="font-semibold text-sm">{monthName}</h2>
               <button onClick={goNext} className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] text-zinc-400">
-                <span className="text-[7px] font-bold text-green-600 mr-1">SW</span>Start &nbsp;
-                <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">W</span>Work &nbsp;
-                <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">FW</span>Finish
-              </span>
-              <span className="text-[10px] text-zinc-300">|</span>
-              <span className="text-[10px] text-zinc-500">{activeVersion.name}</span>
-              <DropdownMenu
-                open={showViewMenu}
-                onClose={() => setShowViewMenu(false)}
-                width="w-40"
-                trigger={
-                  <button
-                    onClick={() => setShowViewMenu(p => !p)}
-                    className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-600 px-1.5 py-0.5 rounded hover:bg-zinc-100"
-                  >
-                    <Eye className="w-3 h-3" />
-                    {showDesc ? 'Description' : 'Title'}
-                    <ChevronDown className="w-2.5 h-2.5" />
-                  </button>
-                }
-              >
-                <div className="px-3 py-1 text-zinc-400 text-[9px] uppercase tracking-wider">Show</div>
-                <button onClick={() => { setShowDesc(false); setShowViewMenu(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-100 ${!showDesc ? 'text-blue-600 font-semibold' : ''}`}>
-                  Scene title
-                </button>
-                <button onClick={() => { setShowDesc(true); setShowViewMenu(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-100 ${showDesc ? 'text-blue-600 font-semibold' : ''}`}>
-                  Description
-                </button>
-              </DropdownMenu>
-            </div>
+            <span className="text-[10px] text-zinc-400">
+              <span className="text-[7px] font-bold text-green-600 mr-1">SW</span>Start &nbsp;
+              <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">W</span>Work &nbsp;
+              <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">FW</span>Finish
+            </span>
           </div>
           <div className="grid grid-cols-7 border-l border-t border-zinc-200">
             {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
