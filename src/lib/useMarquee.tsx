@@ -105,7 +105,6 @@ export function useMarquee(
       document.body.style.webkitUserSelect = 'none';
       setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
       e.preventDefault();
-      e.stopPropagation();
     };
 
     const onPointerMove = (e: PointerEvent) => {
