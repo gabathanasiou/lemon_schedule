@@ -217,7 +217,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
          </div>
       </div>
 
-      <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
+      <div ref={setDropRef} className="flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {computedRows.map((r, i) => {
             const isRowGhostTarget = activeRowId && activeDragRows.length > 0;
