@@ -115,7 +115,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     <div className="print-day">
       <div className="print-day-header">
         <span className="print-day-number">DAY #{chronoDay}</span>
-        {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
+        {meta?.date && <span className="print-day-date">{new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
       </div>
 
@@ -213,18 +213,6 @@ const PRINT_STYLE = `
   @page {
     size: landscape;
     margin: 10mm 8mm;
-  }
-  @media print {
-    .print-page-number {
-      position: fixed;
-      bottom: 8mm;
-      right: 8mm;
-      font-family: Helvetica, Arial, sans-serif;
-      font-size: 8pt;
-    }
-    .print-page-number::after {
-      content: counter(page);
-    }
   }
   .print-root {
     font-family: Helvetica, Arial, sans-serif;
@@ -444,17 +432,19 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   return (
     <div>
       <style>{PRINT_STYLE}</style>
+      {showPageNumbers && (
+        <style>{`@page { @bottom-right { content: counter(page); font-family: Helvetica, Arial, sans-serif; font-size: 8pt; } }`}</style>
+      )}
       <div className="print-root">
         {showCastList && <CastListPrint castMembers={project.castMembers || []} relevantCastIds={printedCastIds} />}
 
         <div className="print-title-section">
           <h1 className="print-title">{project.title || 'Production Schedule'}</h1>
-          <p className="print-subtitle">Schedule Version: {activeVersion.name}{showExportDate ? ` — ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}</p>
+          <p className="print-subtitle">Schedule Version: {activeVersion.name}{showExportDate ? ` ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}</p>
         </div>
 
         {existingDays.length > 0 && (
           <div className="print-schedule-pages" style={{ counterReset: 'page' }}>
-            {showPageNumbers && <div className="print-page-number" />}
             {existingDays.map((dayInt, i) => (
               <DaySection
                 key={dayInt}
