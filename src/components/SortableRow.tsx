@@ -1,22 +1,12 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow, ProjectRule } from '../types';
+import { Scene, ScheduleRow } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
-import { AlertTriangle } from 'lucide-react';
-
-function sceneViolations(scene: Scene, row: ScheduleRow, rules: ProjectRule[]): string[] {
-  if (!row.shootDay || row.shootDay === null) return [];
-  const msgs: string[] = [];
-  for (const rule of rules) {
-    if (rule.type !== 'DATE_RESTRICTION') continue;
-    if (!scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
-    msgs.push(`Cast ${rule.castId} cannot work on ${rule.date}`);
-  }
-  return msgs;
-}
+import { Tooltip } from './Tooltip';
+import { Flag } from 'lucide-react';
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -40,8 +30,9 @@ export const SortableRow: React.FC<{
   isSelected?: boolean,
   onSelectToggle?: (e: React.MouseEvent) => void,
   isCompact?: boolean,
-  textEditingEnabled?: boolean
-}> = ({ row, scenes, isOverlay, isSelected, onSelectToggle, isCompact, textEditingEnabled }) => {
+  textEditingEnabled?: boolean,
+  sceneViolations?: string[],
+}> = ({ row, scenes, isOverlay, isSelected, onSelectToggle, isCompact, textEditingEnabled, sceneViolations }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
 
@@ -90,6 +81,15 @@ export const SortableRow: React.FC<{
   };
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
+
+  const hasViolations = sceneViolations && sceneViolations.length > 0;
+  const violationBadge = hasViolations ? (
+    <Tooltip content={sceneViolations.join('\n• ')}>
+      <span className="inline-flex items-center text-red-500 ml-0.5">
+        <Flag className="w-2.5 h-2.5 fill-red-500" />
+      </span>
+    </Tooltip>
+  ) : null;
 
   if (row.type === 'NOTE') {
     const noteStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
@@ -198,8 +198,6 @@ export const SortableRow: React.FC<{
   }
 
   if (scene) {
-    const scViolations = sceneViolations(scene, row, state.present.rules || []);
-    const vTitle = scViolations.join(' • ');
     const rowStyle = sceneStyle(scene);
     const borderStyle = { ...rowStyle, borderBottom: '0.5px solid rgba(0,0,0,0.1)' };
 
@@ -211,17 +209,15 @@ export const SortableRow: React.FC<{
               <tbody>
                 <tr style={rowStyle}>
                   <td className="col-sc relative">
-                    <CellInput
-                      value={scene.sceneNumber}
-                      onChange={val => updateScene({sceneNumber: val})}
-                      className={`${inputClass} text-center`}
-                      readOnly={!textEditingEnabled}
-                    />
-                    {scViolations.length > 0 && (
-                      <div className="absolute top-0 right-0" title={vTitle}>
-                        <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center gap-px">
+                      <CellInput
+                        value={scene.sceneNumber}
+                        onChange={val => updateScene({sceneNumber: val})}
+                        className={`${inputClass} text-center`}
+                        readOnly={!textEditingEnabled}
+                      />
+                      {violationBadge}
+                    </div>
                   </td>
                   {textEditingEnabled ? (
                     <>
@@ -286,17 +282,15 @@ export const SortableRow: React.FC<{
             <tbody>
               <tr style={borderStyle}>
                 <td className="col-sc relative">
-                  <CellInput
-                    value={scene.sceneNumber}
-                    onChange={val => updateScene({sceneNumber: val})}
-                    className={`${inputClass} text-center`}
-                    readOnly={!textEditingEnabled}
-                  />
-                  {scViolations.length > 0 && (
-                    <div className="absolute top-0 right-0" title={vTitle}>
-                      <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
-                    </div>
-                  )}
+                  <div className="flex items-center justify-center gap-px">
+                    <CellInput
+                      value={scene.sceneNumber}
+                      onChange={val => updateScene({sceneNumber: val})}
+                      className={`${inputClass} text-center`}
+                      readOnly={!textEditingEnabled}
+                    />
+                    {violationBadge}
+                  </div>
                 </td>
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">
@@ -394,4 +388,4 @@ export const SortableRow: React.FC<{
   }
 
   return null;
-}
+};

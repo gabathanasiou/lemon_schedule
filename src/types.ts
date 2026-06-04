@@ -76,6 +76,7 @@ export interface RuleViolation {
   message: string;
   shootDay?: number;
   sceneId?: string;
+  sceneIds?: string[];
 }
 
 export interface Project {

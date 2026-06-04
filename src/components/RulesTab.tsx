@@ -85,7 +85,7 @@ export const RulesTab: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-semibold">Days (optional)</label>
+                  <label className="text-[10px] text-zinc-500 uppercase font-semibold">Shoot Days (optional)</label>
                   <input
                     value={days}
                     onChange={e => setDays(e.target.value)}

@@ -5,7 +5,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 import { SortableRow } from './SortableRow';
-import { GripHorizontal, Trash2, AlertTriangle } from 'lucide-react';
+import { Tooltip } from './Tooltip';
+import { GripHorizontal, Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
 import { checkDay } from '../lib/rulesEngine';
 
@@ -97,7 +98,17 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     if (!activeVersion) return [];
     return checkDay(dayInt, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta);
   }, [dayInt, project.rules, project.scenes, activeVersion]);
-  const vMessages = violations.map(v => v.message).join('\n');
+  const vMessages = violations.map(v => v.message).join('\n• ');
+  const sceneViolationMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const v of violations) {
+      for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
+        if (!map.has(sid)) map.set(sid, []);
+        if (!map.get(sid)!.includes(v.message)) map.get(sid)!.push(v.message);
+      }
+    }
+    return map;
+  }, [violations]);
 
   const updateMeta = (updates: Partial<ShootDayMeta>) => {
     if (!activeVersion) return;
@@ -159,12 +170,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             </div>
             <span className="font-semibold">DAY {displayDay}</span>
             {violations.length > 0 && (
-              <span className="text-red-400 group/flag relative cursor-help" title={vMessages}>
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[7px] font-bold rounded-full w-3 h-3 flex items-center justify-center">
-                  {violations.length}
+              <Tooltip content={vMessages}>
+                <span className="flex items-center gap-0.5 text-red-400">
+                  <Flag className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-bold">{violations.length}</span>
                 </span>
-              </span>
+              </Tooltip>
             )}
             <input 
               value={meta?.unitCall || '08:00'} 
@@ -201,6 +212,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   isSelected={selectedIds.has(r.id)}
                   onSelectToggle={(e) => onRowClick?.(r.id, e)}
                   textEditingEnabled={textEditingEnabled}
+                  sceneViolations={sceneViolationMap.get(r.id)}
                 />
                 {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
                   <GhostCard row={activeDragRow} scenes={project.scenes} />
