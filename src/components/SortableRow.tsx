@@ -511,9 +511,23 @@ export const SortableRow: React.FC<{
               </tbody>
             </table>
         </div>
+        <div className="absolute top-0.5 right-0.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <button
+            className="w-3 h-3 rounded-full border border-white/30 cursor-pointer"
+            style={{ background: noteBg }}
+            onClick={(e) => { e.stopPropagation(); bgRef.current?.click(); }}
+          />
+          <button
+            className="w-3 h-3 rounded-full border border-white/30 cursor-pointer"
+            style={{ background: noteText }}
+            onClick={(e) => { e.stopPropagation(); textRef.current?.click(); }}
+          />
+        </div>
+        <input ref={bgRef} type="color" value={noteBg} onChange={e => updateRow({ noteColor: e.target.value })} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
+        <input ref={textRef} type="color" value={noteText} onChange={e => updateRow({ noteTextColor: e.target.value })} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
       </div>
-      );
-    }
+    );
+  }
 
     return (
       <div {...commonProps}>
