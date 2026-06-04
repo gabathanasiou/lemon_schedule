@@ -158,7 +158,6 @@ export function ScheduleTab() {
   const pasteClipboard = (targetRowId: string) => {
     if (activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const targetRow = augmentedRows.find(r => r.id === targetRowId);
-    if (!targetRow) return;
 
     const clipboardItems = augmentedRows
       .filter(r => r.shootDay === -1)
@@ -166,16 +165,29 @@ export function ScheduleTab() {
         if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
         return a.order - b.order;
       })
-      .map(r => ({ ...r, shootDay: targetRow.shootDay }));
+      .map(r => ({ ...r }));
 
     if (clipboardItems.length === 0) return;
 
-    const overDay = targetRow.shootDay;
+    // Determine target day: from row or from dummy row ID
+    let overDay: number | null;
+    let insertIdx: number;
+    if (targetRow) {
+      overDay = targetRow.shootDay;
+      let dayRows = activeVersion.rows.filter(r => r.shootDay === overDay && r.shootDay !== -1).sort((a, b) => a.order - b.order);
+      const targetIdx = dayRows.findIndex(r => r.id === targetRowId);
+      insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
+    } else if (targetRowId.startsWith('empty-')) {
+      overDay = parseInt(targetRowId.replace('empty-', ''), 10);
+      insertIdx = 0;
+    } else {
+      return;
+    }
+
     let newRows = activeVersion.rows.map(r => ({ ...r }));
     newRows = newRows.filter(r => r.shootDay !== -1);
+    clipboardItems.forEach(item => item.shootDay = overDay);
     let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-    const targetIdx = dayRows.findIndex(r => r.id === targetRowId);
-    const insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
     dayRows.splice(insertIdx, 0, ...clipboardItems);
     dayRows.forEach((r, i) => r.order = i);
     newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
