@@ -9,12 +9,14 @@ export const RulesTab: React.FC = () => {
   const project = state.present;
   const rules = project.rules || [];
 
-  const [newType, setNewType] = useState<'MAX_HOURS' | 'DATE_RESTRICTION'>('MAX_HOURS');
+  const [newType, setNewType] = useState<'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW'>('MAX_HOURS');
   const [castId, setCastId] = useState('');
   const [maxHours, setMaxHours] = useState('8');
   const [dates, setDates] = useState<string[]>([]);
   const [dateInput, setDateInput] = useState('');
   const [date, setDate] = useState('');
+  const [windowStart, setWindowStart] = useState('');
+  const [windowEnd, setWindowEnd] = useState('');
 
   const addDate = () => {
     if (!dateInput) return;
@@ -30,6 +32,13 @@ export const RulesTab: React.FC = () => {
     if (newType === 'MAX_HOURS') {
       const h = parseFloat(maxHours) || 8;
       rule = { id: generateUUID(), type: 'MAX_HOURS', castId: castId.trim(), maxHours: h, dates: dates.length > 0 ? dates : undefined };
+    } else if (newType === 'TIME_WINDOW') {
+      if (!date) return;
+      rule = {
+        id: generateUUID(), type: 'TIME_WINDOW', castId: castId.trim(), date,
+        windowStart: windowStart || undefined,
+        windowEnd: windowEnd || undefined,
+      };
     } else {
       if (!date) return;
       rule = { id: generateUUID(), type: 'DATE_RESTRICTION', castId: castId.trim(), date };
@@ -38,12 +47,21 @@ export const RulesTab: React.FC = () => {
     setCastId('');
     setDates([]);
     setDate('');
+    setWindowStart('');
+    setWindowEnd('');
   };
 
   const ruleLabel = (r: ProjectRule) => {
     if (r.type === 'MAX_HOURS') {
       const d = r.dates?.length ? ` (${r.dates.length === 1 ? r.dates[0] : `${r.dates.length} dates`})` : ' (All days)';
       return `Cast ${r.castId}: max ${r.maxHours}h/day${d}`;
+    }
+    if (r.type === 'TIME_WINDOW') {
+      const w = r.windowStart && r.windowEnd
+        ? `${r.windowStart}–${r.windowEnd}`
+        : r.windowStart ? `after ${r.windowStart}`
+        : `before ${r.windowEnd}`;
+      return `Cast ${r.castId}: only ${w} on ${r.date}`;
     }
     return `Cast ${r.castId}: cannot work on ${r.date}`;
   };
@@ -69,6 +87,7 @@ export const RulesTab: React.FC = () => {
               >
                 <option value="MAX_HOURS">Max Hours/Day</option>
                 <option value="DATE_RESTRICTION">Date Restriction</option>
+                <option value="TIME_WINDOW">Time Window</option>
               </select>
             </div>
 
@@ -120,6 +139,27 @@ export const RulesTab: React.FC = () => {
                   )}
                 </div>
               </>
+            ) : newType === 'TIME_WINDOW' ? (
+              <>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-zinc-500 uppercase font-semibold">Date</label>
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                    className="border border-zinc-300 rounded px-2 py-1.5 text-sm" />
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-500 uppercase font-semibold">From</label>
+                    <input type="time" value={windowStart} onChange={e => setWindowStart(e.target.value)}
+                      className="border border-zinc-300 rounded px-2 py-1.5 text-sm w-28" />
+                  </div>
+                  <span className="text-zinc-400 text-sm pb-1.5">to</span>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] text-zinc-500 uppercase font-semibold">To</label>
+                    <input type="time" value={windowEnd} onChange={e => setWindowEnd(e.target.value)}
+                      className="border border-zinc-300 rounded px-2 py-1.5 text-sm w-28" />
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] text-zinc-500 uppercase font-semibold">Restricted Date</label>
@@ -150,7 +190,7 @@ export const RulesTab: React.FC = () => {
               <div key={r.id} className="flex items-center justify-between bg-white border border-zinc-200 rounded px-4 py-3 group">
                 <div>
                   <span className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded mr-2">
-                    {r.type === 'MAX_HOURS' ? 'MAX HOURS' : 'DATE RESTRICTION'}
+                    {r.type === 'MAX_HOURS' ? 'MAX HOURS' : r.type === 'TIME_WINDOW' ? 'TIME WINDOW' : 'DATE RESTRICTION'}
                   </span>
                   <span className="text-sm">{ruleLabel(r)}</span>
                 </div>

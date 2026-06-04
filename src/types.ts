@@ -68,10 +68,11 @@ export interface VersionTrashItem {
 export type ProjectRule =
   | { id: string; type: 'MAX_HOURS'; castId: string; maxHours: number; dates?: string[] }
   | { id: string; type: 'DATE_RESTRICTION'; castId: string; date: string }
+  | { id: string; type: 'TIME_WINDOW'; castId: string; date: string; windowStart?: string; windowEnd?: string }
 
 export interface RuleViolation {
   ruleId: string;
-  ruleType: 'MAX_HOURS' | 'DATE_RESTRICTION';
+  ruleType: 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW';
   castId: string;
   message: string;
   shootDay?: number;

@@ -1,4 +1,5 @@
 import { ProjectRule, RuleViolation, Scene, ScheduleRow, ShootDayMeta } from '../types';
+import { addMinutesToTime } from './utils';
 
 function ordinal(n: number): string {
   const s = ['TH', 'ST', 'ND', 'RD'];
@@ -66,6 +67,47 @@ export function checkDay(
           message: `${rule.castId} unavailable on ${formatDate(rule.date)}`,
           shootDay,
           sceneIds: affectedScenes,
+        });
+      }
+      continue;
+    }
+
+    if (rule.type === 'TIME_WINDOW') {
+      if (!dayDate || dayDate !== rule.date) continue;
+      const unitCall = dayMeta[shootDay]?.unitCall || '08:00';
+      let runningMin = 0;
+      const flaggedScenes: string[] = [];
+      for (const row of dayRows.sort((a, b) => a.order - b.order)) {
+        const callTime = addMinutesToTime(unitCall, runningMin);
+        const dur = row.type === 'BREAK' ? (row.breakDuration || 0) : (row.estimatedDuration || 0);
+        const endTime = addMinutesToTime(callTime, dur);
+
+        if (row.type === 'SCENE' && row.sceneId) {
+          const scene = scenes.find(s => s.id === row.sceneId);
+          if (scene && scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) {
+            let flag = false;
+            if (rule.windowStart && rule.windowEnd) {
+              if (callTime < rule.windowStart || endTime > rule.windowEnd) flag = true;
+            } else if (rule.windowStart) {
+              if (callTime < rule.windowStart) flag = true;
+            } else if (rule.windowEnd) {
+              if (endTime > rule.windowEnd) flag = true;
+            }
+            if (flag) flaggedScenes.push(scene.id);
+          }
+        }
+        runningMin += dur;
+      }
+      if (flaggedScenes.length > 0) {
+        const desc = rule.windowStart && rule.windowEnd
+          ? `${rule.windowStart}–${rule.windowEnd}`
+          : rule.windowStart ? `after ${rule.windowStart}`
+          : `before ${rule.windowEnd}`;
+        violations.push({
+          ruleId: rule.id, ruleType: 'TIME_WINDOW', castId: rule.castId,
+          message: `${rule.castId} only available ${desc} on ${formatDate(rule.date)}`,
+          shootDay,
+          sceneIds: flaggedScenes,
         });
       }
       continue;
