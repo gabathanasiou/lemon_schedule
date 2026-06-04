@@ -141,33 +141,37 @@ const UnscheduledSidebar: React.FC<{
 }> = ({ dayBlocks, loose, scenes, showDesc }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
   const [width, setWidth] = useState<number>(() => {
-    try { const v = localStorage.getItem(SIDEBAR_KEY); if (v) return parseInt(v); } catch {}
-    return 200;
+    try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 200; } catch { return 200; }
   });
   const panelRef = useRef<HTMLDivElement>(null);
+  const widthRef = useRef(width);
+
+  useEffect(() => {
+    widthRef.current = width;
+    localStorage.setItem(SIDEBAR_KEY, String(width));
+  }, [width]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     const startX = e.clientX;
-    const startWidth = panelRef.current?.offsetWidth || width;
+    const startWidth = panelRef.current?.offsetWidth || widthRef.current;
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = Math.min(400, Math.max(160, startWidth + e.clientX - startX));
+      widthRef.current = newWidth;
       if (panelRef.current) panelRef.current.style.width = `${newWidth}px`;
-      setWidth(newWidth);
     };
     const handleMouseUp = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      setWidth(widthRef.current);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [width]);
-
-  useEffect(() => { localStorage.setItem(SIDEBAR_KEY, String(width)); }, [width]);
+  }, []);
 
   return (
     <div ref={panelRef}
