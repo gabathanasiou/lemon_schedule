@@ -148,6 +148,21 @@ export function ScheduleTab() {
   }, [textEditingEnabled]);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
+  const activeDragIdsRef = useRef(activeDragIds);
+  activeDragIdsRef.current = activeDragIds;
+  const activeVersionRef = useRef(activeVersion);
+  activeVersionRef.current = activeVersion;
+
+  useEffect(() => {
+    return () => {
+      const ids = activeDragIdsRef.current;
+      const version = activeVersionRef.current;
+      if (ids.size > 0 && version) {
+        const newRows = version.rows.map(r => ids.has(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: version.id, rows: newRows } });
+      }
+    };
+  }, []);
   const ctrlOrCmdHeld = useAddMode();
 
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
