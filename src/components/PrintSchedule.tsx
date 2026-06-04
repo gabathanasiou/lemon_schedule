@@ -126,7 +126,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
-                    <tr className="print-row-note" style={(r as any).noteColor ? { background: (r as any).noteColor, color: (r as any).noteTextColor || '#ffffff', '--td-border-color': (r as any).noteColor } as any : {}}>
+                    <tr className="print-row-note" style={(r as any).noteColor ? { '--note-bg': (r as any).noteColor, '--note-fg': (r as any).noteTextColor || '#ffffff', '--td-border-color': (r as any).noteColor } as any : {}}>
                       <td className="print-col-sc" />
                       {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
                       {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
@@ -294,8 +294,8 @@ const PRINT_STYLE = `
 
   .print-table .print-row-note td,
   .print-table .print-row-break td {
-    background: #591b1b;
-    color: #ffffff;
+    background: var(--note-bg, #591b1b);
+    color: var(--note-fg, #ffffff);
     vertical-align: middle;
     padding-top: 9pt !important;
     padding-bottom: 9pt !important;
