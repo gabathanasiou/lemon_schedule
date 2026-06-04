@@ -386,10 +386,10 @@ export function ScheduleTab() {
         .col-sc { width: 40px; text-align: center; overflow: visible !important; padding: 0 !important; }
         .col-call { width: 35px; text-align: center; }
         .col-dur { width: 40px; text-align: center; }
-        .col-ie { width: 50px; text-align: center; }
-        .col-set { width: 200px; }
-        .col-dn { width: 75px; text-align: center; }
-        .col-cast { width: 50px; text-align: left; }
+        .col-ie { width: 50px; text-align: center; overflow: visible !important; }
+        .col-set { width: 200px; overflow: visible !important; }
+        .col-dn { width: 75px; text-align: center; overflow: visible !important; }
+        .col-cast { width: 50px; text-align: left; overflow: visible !important; }
         .col-pgs { width: 50px; text-align: center; }
         .col-desc {
           text-align: left;
@@ -409,7 +409,7 @@ export function ScheduleTab() {
       onDragEnd={handleDragEnd}
     >
       <div 
-         className="flex-1 flex overflow-hidden bg-zinc-200/50 relative min-h-0"
+         className="flex-1 flex bg-zinc-200/50 relative min-h-0"
          onClick={() => setContextMenu(null)}
          onContextMenu={(e) => {
              const rowEl = (e.target as HTMLElement).closest('[data-row-id]');

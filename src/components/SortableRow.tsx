@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, CastMember } from '../types';
@@ -23,6 +23,49 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
   return { background: '#ffffff', color: '#18181b' };
 }
 
+const DD_ITEM = (active: boolean) => `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,Arial,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+const DD_CONTAINER = "absolute top-full z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1";
+
+type CloseRef = React.MutableRefObject<(() => void) | null>;
+const globalDropdownCloseRef: CloseRef = { current: null };
+
+function useDropdown(open: boolean, ref: React.RefObject<HTMLDivElement>, onClose?: () => void) {
+  useEffect(() => {
+    if (open) {
+      globalDropdownCloseRef.current = () => onClose?.();
+      const onClick = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) {
+          onClose?.();
+        }
+      };
+      document.addEventListener('mousedown', onClick);
+      return () => {
+        document.removeEventListener('mousedown', onClick);
+        globalDropdownCloseRef.current = undefined;
+      };
+    }
+  }, [open, ref, onClose]);
+}
+
+function useOpenHandler(setOpen: (v: boolean) => void) {
+  return useCallback(() => {
+    globalDropdownCloseRef.current?.();
+    setOpen(true);
+  }, [setOpen]);
+}
+
+function sortCastMembers(list: CastMember[], currentIds: string[]) {
+  return [...list].sort((a, b) => {
+    const aSel = currentIds.includes(a.id);
+    const bSel = currentIds.includes(b.id);
+    if (aSel !== bSel) return aSel ? -1 : 1;
+    const na = parseInt(a.id, 10);
+    const nb = parseInt(b.id, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.id.localeCompare(b.id, undefined, { numeric: true });
+  });
+}
+
 const CastCellInput: React.FC<{
   value: string;
   onChange: (val: string) => void;
@@ -33,76 +76,249 @@ const CastCellInput: React.FC<{
   const castMembers = state.present.castMembers || [];
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [localIds, setLocalIds] = useState<string[]>(() =>
+    (value || '').split(',').map(x => x.trim()).filter(Boolean)
+  );
   const ref = useRef<HTMLDivElement>(null);
 
-  const currentIds = (value || '').split(',').map(x => x.trim()).filter(Boolean);
-  const filtered = castMembers.filter(m =>
-    !query || m.id.toLowerCase().includes(query.toLowerCase()) || m.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const handleOpen = useOpenHandler(setOpen);
 
-  useEffect(() => {
-    if (open) {
-      const onClick = (e: MouseEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-      };
-      document.addEventListener('mousedown', onClick);
-      return () => document.removeEventListener('mousedown', onClick);
-    }
-  }, [open]);
-
-  const add = (id: string) => {
-    const ids = new Set(currentIds);
-    if (ids.has(id)) {
-      ids.delete(id);
-    } else {
-      ids.add(id);
-    }
-    onChange([...ids].join(', '));
+  useDropdown(open, ref, () => {
+    onChange(localIds.join(', '));
+    setOpen(false);
     setQuery('');
-  };
+  });
+
+  const add = useCallback((id: string) => {
+    setLocalIds(prev => {
+      const ids = [...prev];
+      const idx = ids.indexOf(id);
+      if (idx >= 0) ids.splice(idx, 1);
+      else ids.push(id);
+      return ids;
+    });
+    setQuery('');
+  }, []);
 
   const commit = () => {
-    onChange([...new Set(currentIds)].join(', '));
+    onChange(localIds.join(', '));
     setOpen(false);
     setQuery('');
   };
+
+  const filtered = castMembers.filter(m =>
+    !query || m.id.toLowerCase().includes(query.toLowerCase()) || m.name.toLowerCase().includes(query.toLowerCase())
+  );
+  const sorted = sortCastMembers(filtered, localIds);
 
   if (readOnly) {
     return <span className={className}>{value || '—'}</span>;
   }
 
   return (
-    <div ref={ref} className={`relative ${className || ''}`}>
+    <div ref={ref} className={`relative ${className || ''}`} onMouseDown={e => e.stopPropagation()}>
       <input
-        value={open ? query : (value || '')}
-        onChange={e => { setQuery(e.target.value); setOpen(true); }}
-        onFocus={() => { setQuery(''); setOpen(true); }}
+        value={open ? (query || localIds.join(', ')) : (value || '')}
+        onChange={e => { setQuery(e.target.value); handleOpen(); }}
+        onFocus={handleOpen}
         placeholder="Cast"
-        className="text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-right"
+        className="text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-left"
         onKeyDown={e => {
           if (e.key === 'Escape') { setOpen(false); setQuery(''); }
           if (e.key === 'Enter') { e.preventDefault(); commit(); }
         }}
       />
-      {open && filtered.length > 0 && (
-        <div className="absolute top-full right-0 z-50 bg-zinc-950 border border-zinc-700 rounded-lg shadow-2xl p-1 min-w-[180px] max-h-56 overflow-y-auto mt-1">
-          {filtered.map(m => {
-            const checked = currentIds.includes(m.id);
+      {open && sorted.length > 0 && (
+        <div className={`${DD_CONTAINER} left-0 min-w-[180px] max-h-56`}>
+          {sorted.map(m => {
+            const checked = localIds.includes(m.id);
             return (
               <button
                 key={m.id}
                 type="button"
                 onMouseDown={e => { e.preventDefault(); add(m.id); }}
-                className={`w-full text-left px-2 py-1 text-xs rounded flex items-center gap-2 font-mono transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                className={`w-full text-left ${DD_ITEM(checked)} flex items-center gap-2`}
               >
-                <span className="text-zinc-500 shrink-0">{m.id}.</span>
+                <span className="text-zinc-400 shrink-0">{m.id}.</span>
                 <span className="truncate">{m.name || '—'}</span>
               </button>
             );
           })}
-          <div className="px-2 py-1 text-[10px] text-zinc-600 text-center border-t border-zinc-800">
-            Tab or Enter to confirm
-          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const INT_EXT_OPTIONS = ['INT', 'EXT', 'INT/EXT'];
+const DAY_NIGHT_OPTIONS = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+
+const IECellInput: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  readOnly?: boolean;
+}> = ({ value, onChange, className, readOnly }) => {
+  const [open, setOpen] = useState(false);
+  const initialIdx = INT_EXT_OPTIONS.indexOf(value);
+  const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleOpen = useOpenHandler(setOpen);
+
+  useDropdown(open, ref, () => setOpen(false));
+
+  const commit = (val: string) => {
+    onChange(val);
+    setOpen(false);
+  };
+
+  if (readOnly) return <span className={className}>{value || '—'}</span>;
+
+  return (
+    <div ref={ref} className={`relative ${className || ''}`} onMouseDown={e => e.stopPropagation()}>
+      <input
+        value={value}
+        readOnly
+        onClick={() => { setHighlightedIndex(INT_EXT_OPTIONS.indexOf(value)); handleOpen(); }}
+        className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left"
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, INT_EXT_OPTIONS.length - 1)); }
+          if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(INT_EXT_OPTIONS[highlightedIndex]); }
+          if (e.key === 'Escape') setOpen(false);
+        }}
+      />
+      {open && (
+        <div className={`${DD_CONTAINER} left-0 min-w-[120px]`}>
+          {INT_EXT_OPTIONS.map((opt, i) => (
+            <div
+              key={opt}
+              className={DD_ITEM(i === highlightedIndex)}
+              onMouseDown={e => { e.preventDefault(); commit(opt); }}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DNCellInput: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  readOnly?: boolean;
+}> = ({ value, onChange, className, readOnly }) => {
+  const [open, setOpen] = useState(false);
+  const initialIdx = DAY_NIGHT_OPTIONS.indexOf(value);
+  const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleOpen = useOpenHandler(setOpen);
+
+  useDropdown(open, ref, () => setOpen(false));
+
+  const commit = (val: string) => {
+    onChange(val);
+    setOpen(false);
+  };
+
+  if (readOnly) return <span className={className}>{value || '—'}</span>;
+
+  return (
+    <div ref={ref} className={`relative ${className || ''}`} onMouseDown={e => e.stopPropagation()}>
+      <input
+        value={value}
+        readOnly
+        onClick={() => { setHighlightedIndex(DAY_NIGHT_OPTIONS.indexOf(value)); handleOpen(); }}
+        className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left"
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, DAY_NIGHT_OPTIONS.length - 1)); }
+          if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(DAY_NIGHT_OPTIONS[highlightedIndex]); }
+          if (e.key === 'Escape') setOpen(false);
+        }}
+      />
+      {open && (
+        <div className={`${DD_CONTAINER} left-0 min-w-[140px]`}>
+          {DAY_NIGHT_OPTIONS.map((opt, i) => (
+            <div
+              key={opt}
+              className={DD_ITEM(i === highlightedIndex)}
+              onMouseDown={e => { e.preventDefault(); commit(opt); }}
+            >
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SetCellInput: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  readOnly?: boolean;
+  scenes: Scene[];
+}> = ({ value, onChange, className, readOnly, scenes }) => {
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState(value);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const setOptions = useMemo(() => {
+    const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
+    return [...sets].sort();
+  }, [scenes]);
+
+  const filtered = open && val
+    ? setOptions.filter(opt => opt.includes(val.toUpperCase()))
+    : setOptions;
+
+  const handleOpen = useOpenHandler(setOpen);
+
+  useDropdown(open, ref, () => {
+    setOpen(false);
+    setVal(value);
+  });
+
+  const commit = (opt: string) => {
+    onChange(opt);
+    setOpen(false);
+  };
+
+  if (readOnly) return <span className={className}>{value || '—'}</span>;
+
+  return (
+    <div ref={ref} className={`relative ${className || ''}`} onMouseDown={e => e.stopPropagation()}>
+      <input
+        value={open ? val : value}
+        onChange={e => { setVal(e.target.value.toUpperCase()); setHighlightedIndex(0); handleOpen(); }}
+        onClick={() => { setVal(value); handleOpen(); }}
+        className="bg-transparent outline-none uppercase text-inherit w-full text-left"
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1)); }
+          if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(filtered[0] ? filtered[highlightedIndex] : val.toUpperCase()); }
+          if (e.key === 'Escape') { setOpen(false); setVal(value); }
+        }}
+      />
+      {open && filtered.length > 0 && (
+        <div className={`${DD_CONTAINER} left-0 min-w-[160px]`}>
+          {filtered.map((opt, i) => (
+            <div
+              key={opt}
+              className={`${DD_ITEM(i === highlightedIndex)} uppercase`}
+              onMouseDown={e => { e.preventDefault(); commit(opt); }}
+            >
+              {opt}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -300,43 +516,17 @@ export const SortableRow: React.FC<{
                         value={scene.sceneNumber}
                         onChange={val => updateScene({sceneNumber: val})}
                         className={`${inputClass} text-center`}
-                        readOnly={!textEditingEnabled}
+                        readOnly
                       />
                       {violationBadge}
                     </div>
                   </td>
-                  {textEditingEnabled ? (
-                    <>
-                      <td className="col-ie">
-                        <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full">
-                          <option value="INT">INT</option>
-                          <option value="EXT">EXT</option>
-                          <option value="INT/EXT">INT/EXT</option>
-                        </select>
-                      </td>
-                      <td className="col-set">
-                        <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} uppercase block`} />
-                        <CellInput value={scene.description} onChange={val => updateScene({description: val})} className={`${inputClass} opacity-60 block`} placeholder="Scene Description" />
-                      </td>
-                      <td className="col-dn">
-                        <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full">
-                          <option value="DAY">DAY</option>
-                          <option value="NIGHT">NIGHT</option>
-                          <option value="MORNING">MORNING</option>
-                          <option value="EVENING">EVENING</option>
-                          <option value="DAWN">DAWN</option>
-                          <option value="DUSK">DUSK</option>
-                        </select>
-                      </td>
-                    </>
-                  ) : (
-                    <td colSpan={3} className="col-set">
-                      <span className="uppercase truncate block">{scene.intExt}. {scene.set} - {scene.dayNight}</span>
-                      {scene.description && <span className="opacity-60 truncate block">{scene.description}</span>}
-                    </td>
-                  )}
+                  <td colSpan={3} className="col-set">
+                    <span className="uppercase truncate block">{scene.intExt}. {scene.set} - {scene.dayNight}</span>
+                    {scene.description && <span className="opacity-60 truncate block">{scene.description}</span>}
+                  </td>
                   <td className="col-cast">
-                    <CastCellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right`} readOnly={!textEditingEnabled} />
+                    <CastCellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right`} readOnly />
                   </td>
                   <td className="col-pgs">
                     <CellInput
@@ -346,7 +536,7 @@ export const SortableRow: React.FC<{
                         updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
                       }}
                       className={`${inputClass} text-center`}
-                      readOnly={!textEditingEnabled}
+                      readOnly
                     />
                   </td>
                 </tr>
@@ -385,47 +575,13 @@ export const SortableRow: React.FC<{
                   />
                 </td>}
                 <td className="col-ie">
-                  {textEditingEnabled ? (
-                    <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer text-center w-full">
-                      <option value="INT">INT</option>
-                      <option value="EXT">EXT</option>
-                      <option value="INT/EXT">INT/EXT</option>
-                    </select>
-                  ) : (
-                    <CellInput
-                      value={scene.intExt}
-                      onChange={val => updateScene({intExt: val as any})}
-                      className={`${inputClass} text-left`}
-                      readOnly
-                    />
-                  )}
+                  <IECellInput value={scene.intExt} onChange={val => updateScene({intExt: val as any})} className="text-left w-full" readOnly={!textEditingEnabled} />
                 </td>
                 <td className="col-set">
-                  <CellInput
-                    value={scene.set}
-                    onChange={val => updateScene({set: val})}
-                    className={`${inputClass} text-left uppercase`}
-                    readOnly={!textEditingEnabled}
-                  />
+                  <SetCellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} text-left uppercase`} readOnly={!textEditingEnabled} scenes={scenes} />
                 </td>
                 <td className="col-dn">
-                  {textEditingEnabled ? (
-                    <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer text-center w-full">
-                      <option value="DAY">DAY</option>
-                      <option value="NIGHT">NIGHT</option>
-                      <option value="MORNING">MORNING</option>
-                      <option value="EVENING">EVENING</option>
-                      <option value="DAWN">DAWN</option>
-                      <option value="DUSK">DUSK</option>
-                    </select>
-                  ) : (
-                    <CellInput
-                      value={scene.dayNight}
-                      onChange={val => updateScene({dayNight: val as any})}
-                      className={`${inputClass} text-left`}
-                      readOnly
-                    />
-                  )}
+                  <DNCellInput value={scene.dayNight} onChange={val => updateScene({dayNight: val as any})} className="text-left w-full" readOnly={!textEditingEnabled} />
                 </td>
                 <td className="col-cast">
                   <CastCellInput

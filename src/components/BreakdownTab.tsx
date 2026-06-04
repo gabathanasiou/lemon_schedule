@@ -147,21 +147,70 @@ export function BreakdownTab() {
   }, []);
 
   const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const [val, setVal] = useState(cell?.value || '');
+    const initialVal = cell?.value || '';
+    const setOptions = useMemo(() => {
+      const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
+      return [...sets].sort();
+    }, [scenes]);
+    const initialIdx = setOptions.indexOf(initialVal.toUpperCase());
+    const [val, setVal] = useState(initialVal);
+    const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
+    const committedRef = useRef(false);
+    const filtered = setOptions.filter(opt => opt.includes(val.toUpperCase()));
+
+    const commit = (value: string) => {
+      committedRef.current = true;
+      const match = setOptions.find(opt => opt === value.toUpperCase()) || value.toUpperCase();
+      onChange({ value: match });
+      exitEditMode();
+    };
+
     return (
-      <input
-        type="text"
-        value={val}
-        onChange={e => setVal(e.target.value.toUpperCase())}
-        onBlur={() => { onChange({ value: val.toUpperCase() }); exitEditMode(); }}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { onChange({ value: val.toUpperCase() }); exitEditMode(); }
-          if (e.key === 'Escape') exitEditMode();
-        }}
-        autoFocus
-      />
+      <div className="relative w-full h-full">
+        <input
+          type="text"
+          value={val}
+          onChange={e => { setVal(e.target.value.toUpperCase()); setHighlightedIndex(0); }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              e.preventDefault();
+              commit(filtered[0] ? filtered[highlightedIndex] : val);
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setHighlightedIndex(i => Math.min(i + 1, setOptions.length - 1));
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setHighlightedIndex(i => Math.max(i - 1, 0));
+            }
+            if (e.key === 'Escape') exitEditMode();
+          }}
+          onBlur={() => {
+            if (!committedRef.current) {
+              commit(filtered[0] ? filtered[highlightedIndex] : val);
+            }
+          }}
+          autoFocus
+          className="w-full h-full border-0 outline-none px-2 text-[13px]"
+        />
+        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
+          {setOptions.map((opt, i) => (
+            <div
+              key={opt}
+              className={`px-2 py-1 text-[13px] cursor-pointer uppercase ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
+              onMouseDown={e => { e.preventDefault(); commit(opt); }}
+            >
+              {opt}
+            </div>
+          ))}
+          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
+            Tab or Enter to confirm
+          </div>
+        </div>
+      </div>
     );
-  }, []);
+  }, [scenes]);
 
   const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const initialVal = cell?.value || '';
@@ -207,7 +256,7 @@ export function BreakdownTab() {
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px]"
         />
-        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 overflow-y-auto">
+        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
           {INT_EXT_OPTIONS.map((opt, i) => (
             <div
               key={opt}
@@ -269,7 +318,7 @@ export function BreakdownTab() {
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px]"
         />
-        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 overflow-y-auto">
+        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
           {DAY_NIGHT_OPTIONS.map((opt, i) => (
             <div
               key={opt}
