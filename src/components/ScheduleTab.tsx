@@ -109,6 +109,26 @@ export function ScheduleTab() {
     }
   };
 
+  const selectNextAfterRemove = (removedIds: Set<string>) => {
+    const removedRows = Array.from(removedIds).map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
+    if (removedRows.length === 0) return;
+    removedRows.sort((a, b) => {
+      if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+      return a.order - b.order;
+    });
+    const candidates: string[] = [];
+    for (const r of removedRows) {
+      const next = augmentedRows.filter(x => x.shootDay === r.shootDay && x.order > r.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
+      if (next) candidates.push(next.id);
+    }
+    if (candidates.length === 0) {
+      const first = removedRows[0];
+      const prev = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
+      if (prev) candidates.push(prev.id);
+    }
+    if (candidates.length > 0) setSelectedRowIds(new Set([candidates[0]]));
+  };
+
   const cutSelected = () => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const ids = Array.from(selectedRowIds);
@@ -177,9 +197,10 @@ export function ScheduleTab() {
         e.preventDefault();
         if (!activeVersion) return;
         const ids = Array.from(selectedRowIds);
+        const removed = new Set(ids);
         const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-        setSelectedRowIds(new Set());
+        selectNextAfterRemove(removed);
       }
     };
     window.addEventListener('keydown', handler);
@@ -358,6 +379,9 @@ export function ScheduleTab() {
     newRows.forEach((r, i) => r.order = i); // re-normalize
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    if (action === 'delete' || action === 'unschedule') {
+      selectNextAfterRemove(new Set([rowId]));
+    }
     setContextMenu(null);
   };
 
@@ -766,7 +790,7 @@ export function ScheduleTab() {
                   const ids = Array.from(selectedRowIds);
                   const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
                   dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                  setSelectedRowIds(new Set());
+                  selectNextAfterRemove(new Set(ids));
                   setContextMenu(null);
                 }}>
                   Remove {selectedRowIds.size} Ribbons
