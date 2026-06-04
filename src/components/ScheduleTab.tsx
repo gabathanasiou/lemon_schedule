@@ -5,7 +5,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
-import { generateUUID, parseDuration } from '../lib/utils';
+import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -76,7 +76,6 @@ export function ScheduleTab() {
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
-  const [bulkDuration, setBulkDuration] = useState<string | null>(null);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -219,39 +218,6 @@ export function ScheduleTab() {
     }
     return () => document.removeEventListener('selectstart', onSelectStart);
   }, [textEditingEnabled]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (textEditingEnabled || activeDragIds.size > 0) return;
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-      
-      if (bulkDuration !== null) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          const mins = parseDuration(bulkDuration);
-          if (mins > 0 && activeVersion) {
-            const ids = Array.from(selectedRowIds);
-            const newRows = activeVersion.rows.map(r => ids.includes(r.id) && r.type === 'SCENE' ? { ...r, estimatedDuration: mins } : r);
-            dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-          }
-          setBulkDuration(null);
-          return;
-        }
-        if (e.key === 'Escape') { e.preventDefault(); setBulkDuration(null); return; }
-        if (e.key === 'Backspace') { e.preventDefault(); setBulkDuration(p => p ? (p.length > 1 ? p.slice(0, -1) : null) : null); return; }
-        if (/^[0-9]$/.test(e.key)) { e.preventDefault(); setBulkDuration(p => (p || '') + e.key); return; }
-        return;
-      }
-      
-      if (selectedRowIds.size > 0 && /^[0-9]$/.test(e.key)) {
-        e.preventDefault();
-        setBulkDuration(e.key);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [bulkDuration, textEditingEnabled, activeDragIds, selectedRowIds, activeVersion]);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const activeDragIdsRef = useRef(activeDragIds);
@@ -776,8 +742,6 @@ export function ScheduleTab() {
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
                   activeDragRows={activeDragRows}
-                  bulkDuration={bulkDuration}
-                  onBulkDurationChange={setBulkDuration}
                   chronoDay={i + 1}
                 />
               ))}

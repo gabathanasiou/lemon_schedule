@@ -41,8 +41,10 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   const h = compact ? 'min-h-[30px]' : 'min-h-[44px]';
   const sz = compact ? 'text-[7pt]' : '';
   if (row.type === 'NOTE') {
+    const bg = row.noteColor || '#591b1b';
+    const fg = row.noteTextColor || '#ffffff';
     return (
-      <div className={`opacity-30 flex items-stretch bg-white text-zinc-900 ${h} border-b shrink-0 ${sz}`}>
+      <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: bg, color: fg }}>
         <div className="flex-1 flex items-center justify-center px-3 italic">{row.noteText || 'Note'}</div>
       </div>
     );
@@ -93,7 +95,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> =
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number; bulkDuration?: string | null; onBulkDurationChange?: (v: string | null) => void }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, bulkDuration, onBulkDurationChange }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
@@ -234,8 +236,6 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   onSelectToggle={(e) => onRowClick?.(r.id, e)}
                   textEditingEnabled={textEditingEnabled}
                   sceneViolations={sceneViolationMap.get(r.sceneId || '')}
-                  bulkDuration={bulkDuration}
-                  onBulkDurationChange={onBulkDurationChange}
                 />
                 {isRowGhostTarget && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
                   <StackedGhosts rows={activeDragRows} scenes={project.scenes} />

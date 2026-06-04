@@ -343,9 +343,7 @@ export const SortableRow: React.FC<{
   isCompact?: boolean,
   textEditingEnabled?: boolean,
   sceneViolations?: string[],
-  bulkDuration?: string | null;
-  onBulkDurationChange?: (v: string | null) => void;
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, bulkDuration, onBulkDurationChange }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -584,24 +582,13 @@ export const SortableRow: React.FC<{
                 </td>
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">
-                  {isSelected && bulkDuration !== null && row.type === 'SCENE' && onBulkDurationChange ? (
-                    <CellInput
-                      value={bulkDuration}
-                      onChange={val => onBulkDurationChange(val || null)}
-                      clearOnType
-                      col="duration"
-                      autoFocus
-                      className={`${inputClass} text-center`}
-                    />
-                  ) : (
-                    <CellInput
-                      value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
-                      onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
-                      clearOnType
-                      col="duration"
-                      className={`${inputClass} text-center`}
-                    />
-                  )}
+                  <CellInput
+                    value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
+                    onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+                    clearOnType
+                    col="duration"
+                    className={`${inputClass} text-center`}
+                  />
                 </td>}
                 <td className="col-ie">
                   <IECellInput value={scene.intExt} onChange={val => updateScene({intExt: val as any})} className="text-left w-full" readOnly={!textEditingEnabled} />
