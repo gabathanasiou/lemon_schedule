@@ -473,7 +473,7 @@ export const SortableRow: React.FC<{
 
     if (isCompact) {
       return (
-        <div {...commonProps}>
+        <div {...commonProps} onDoubleClick={() => bgRef.current?.click()}>
           <div className="flex items-stretch">
           <table className="schedule-table flex-1">
               <tbody>
