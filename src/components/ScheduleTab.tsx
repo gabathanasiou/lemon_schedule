@@ -563,8 +563,8 @@ export function ScheduleTab() {
                 top: marqueeBox.top,
                 width: marqueeBox.width,
                 height: marqueeBox.height,
-                background: 'rgba(99, 149, 255, 0.15)',
-                border: '1px solid rgba(99, 149, 255, 0.8)',
+                background: 'transparent',
+                border: '1px dotted #3168D8',
                 pointerEvents: 'none',
                 zIndex: 1000,
               }}
