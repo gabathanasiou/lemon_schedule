@@ -95,6 +95,7 @@ export function ScheduleTab() {
         setSelectedRowIds(new Set(range));
       }
     } else {
+      e.stopPropagation();
       setSelectedRowIds(new Set([id]));
       setLastClickedId(id);
     }

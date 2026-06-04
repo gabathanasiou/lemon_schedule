@@ -377,9 +377,9 @@ export const SortableRow: React.FC<{
   const commonProps = {
     ref: setNodeRef,
     style,
-    onClick: onSelectToggle,
     ...(ctrlOrCmdHeld ? {} : listeners),
     ...attributes,
+    onClick: onSelectToggle,
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
     className: `group relative transition-colors shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'before:absolute before:inset-0 before:bg-black/15 before:pointer-events-none before:z-10 before:content-[\'\']' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
