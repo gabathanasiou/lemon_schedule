@@ -212,7 +212,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
         <SortableContext items={rows.map(r => r.id).filter(id => !activeDragIds.has(id))} strategy={verticalListSortingStrategy}>
           {computedRows.filter(r => !activeDragIds.has(r.id)).map((r, i) => {
-            const isCrossContext = activeRowId && (!rows.some(row => row.id === activeRowId) || activeDragRows.length > 1);
+            const isCrossContext = activeRowId && activeDragRows.length > 0;
             return (
               <React.Fragment key={r.id}>
                 {isCrossContext && insertBeforeId === r.id && activeDragRow && (
