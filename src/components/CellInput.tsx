@@ -111,7 +111,7 @@ export const CellInput: React.FC<{
   
   const activeClass = readOnly 
     ? 'cursor-default pointer-events-none' 
-    : 'focus:ring-1 focus:ring-blue-500/50 focus:bg-blue-50 focus:text-black hover:bg-black/5 cursor-text';
+    : 'focus:ring-1 focus:ring-blue-500/50 cursor-text';
 
   const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded px-[2px] min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
 

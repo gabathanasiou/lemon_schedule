@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow } from '../types';
-import { formatDuration, parseDuration } from '../lib/utils';
+import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 
@@ -241,7 +241,17 @@ export const SortableRow: React.FC<{
                       <span>{scene.cast || '—'}</span>
                     )}
                   </td>
-                  <td className="col-pgs">{scene.pageCount}</td>
+                  <td className="col-pgs">
+                    <CellInput
+                      value={scene.pageCount}
+                      onChange={val => {
+                        const decimal = parsePageCount(val);
+                        updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
+                      }}
+                      className={`${inputClass} text-center`}
+                      readOnly={!textEditingEnabled}
+                    />
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -326,7 +336,17 @@ export const SortableRow: React.FC<{
                     readOnly={!textEditingEnabled}
                   />
                 </td>
-                <td className="col-pgs">{scene.pageCount}</td>
+                <td className="col-pgs">
+                  <CellInput
+                    value={scene.pageCount}
+                    onChange={val => {
+                      const decimal = parsePageCount(val);
+                      updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
+                    }}
+                    className={`${inputClass} text-center`}
+                    readOnly={!textEditingEnabled}
+                  />
+                </td>
               </tr>
               <tr style={rowStyle}>
                 <td className="col-sc" />
