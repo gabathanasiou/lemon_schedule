@@ -134,6 +134,50 @@ export function ScheduleTab() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch]);
 
+  const activeVersionRef = useRef(activeVersion);
+  activeVersionRef.current = activeVersion;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      const ver = activeVersionRef.current;
+      if (!ver || activeId || textEditingEnabled) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && selectedRowIds.size > 0) {
+        e.preventDefault();
+        setActiveDragIds(new Set(selectedRowIds));
+        setSelectedRowIds(new Set());
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && activeDragIds.size > 0 && selectedRowIds.size > 0) {
+        e.preventDefault();
+        const sorted = [...selectedRowIds].sort((a, b) => {
+          const rA = augmentedRows.find(rx => rx.id === a);
+          const rB = augmentedRows.find(rx => rx.id === b);
+          if (rA && rB) return (rA.order || 0) - (rB.order || 0);
+          return 0;
+        });
+        const targetRow = augmentedRows.find(r => r.id === sorted[0]);
+        if (!targetRow) return;
+        const targetShootDay = targetRow.shootDay;
+        const newRows = ver.rows.map(r => ({ ...r }));
+        const draggedIds = Array.from(activeDragIds);
+        const pasted = draggedIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
+        let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !draggedIds.includes(r.id)).sort((a, b) => a.order - b.order);
+        const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
+        dayRows.splice(insIdx + 1, 0, ...pasted);
+        dayRows.forEach((r, i) => r.order = i);
+        const final = [...newRows.filter(r => r.shootDay !== targetShootDay || draggedIds.includes(r.id)), ...dayRows];
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
+        setActiveDragIds(new Set());
+        setSelectedRowIds(new Set());
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedRowIds, activeDragIds, activeId, textEditingEnabled, dispatch]);
+
   useEffect(() => {
     const onSelectStart = (e: Event) => {
       const target = e.target as HTMLElement;
