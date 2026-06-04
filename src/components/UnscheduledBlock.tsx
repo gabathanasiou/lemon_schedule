@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Scene, ScheduleRow } from '../types';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -6,6 +6,8 @@ import { SortableRow } from './SortableRow';
 import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 
 export const UnscheduledBlock: React.FC<{ 
   rows: ScheduleRow[], 
@@ -18,7 +20,15 @@ export const UnscheduledBlock: React.FC<{
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [width, setWidth] = useState(340);
+  const [width, setWidth] = useState<number>(() => {
+    try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 340; } catch { return 340; }
+  });
+  const widthRef = useRef(width);
+
+  useEffect(() => {
+    widthRef.current = width;
+    localStorage.setItem(SIDEBAR_KEY, String(width));
+  }, [width]);
   const panelRef = useRef<HTMLDivElement>(null);
   
   const { setNodeRef } = useDroppable({
@@ -104,23 +114,24 @@ export const UnscheduledBlock: React.FC<{
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     const startX = e.clientX;
-    const startWidth = panelRef.current?.offsetWidth || width;
+    const startWidth = panelRef.current?.offsetWidth || widthRef.current;
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = Math.min(600, Math.max(200, startWidth + e.clientX - startX));
+      widthRef.current = newWidth;
       if (panelRef.current) {
         panelRef.current.style.width = `${newWidth}px`;
       }
-      setWidth(newWidth);
     };
     const handleMouseUp = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      setWidth(widthRef.current);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [width]);
+  }, []);
 
   return (
     <div 
