@@ -851,7 +851,7 @@ export function ScheduleTab() {
             <>
               {inClipboard > 0 && (
                 <>
-                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste Below ({inClipboard})</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste{row ? ' Below' : ''} ({inClipboard})</ContextMenuItem>
                   <ContextMenuDivider />
                 </>
               )}
@@ -861,8 +861,8 @@ export function ScheduleTab() {
                   <ContextMenuDivider />
                 </>
               )}
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note{row ? ' Below' : ''}</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break{row ? ' Below' : ''}</ContextMenuItem>
               {row && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
