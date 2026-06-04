@@ -43,7 +43,8 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
-    .sort((a, b) => (a.date).localeCompare(b.date));
+    .sort((a, b) => (a.date).localeCompare(b.date))
+    .map((d, i) => ({ ...d, chrono: i + 1 }));
 
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
 
@@ -69,7 +70,8 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const parts = [sanitizedTitle, versionShort];
   if (!showTimes) parts.push('NoTimes');
   if (selectedDays.size > 0 && selectedDays.size < dayEntries.length) {
-    parts.push(formatDays([...selectedDays].sort((a: number, b: number) => a - b)));
+    const chronos = dayEntries.filter(d => selectedDays.has(d.dayInt)).map(d => d.chrono);
+    parts.push(formatDays(chronos));
   }
   const fileName = parts.join('_');
 
@@ -108,7 +110,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               </button>
             </div>
             <div className="max-h-[300px] overflow-y-auto space-y-0.5">
-              {dayEntries.map(({ dayInt, date }) => (
+              {dayEntries.map(({ dayInt, date, chrono }) => (
                 <label
                   key={dayInt}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-colors ${selectedDays.has(dayInt) ? 'bg-white border border-zinc-200' : 'hover:bg-zinc-100'}`}
@@ -119,7 +121,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                     onChange={() => toggleDay(dayInt)}
                     className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-zinc-800 font-medium">Day {dayInt}</span>
+                  <span className="text-sm text-zinc-800 font-medium">Day {chrono}</span>
                   {date && <span className="text-xs text-zinc-500 truncate">{formatDayDateLong(date)}</span>}
                 </label>
               ))}

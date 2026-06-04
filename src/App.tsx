@@ -56,15 +56,24 @@ function AppContent() {
       const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
       const parts = [title, vName];
       if (!printOptions.showTimes) parts.push('NoTimes');
-      const sorted = [...printOptions.selectedDays].sort((a, b) => a - b);
-      const allDays = Object.keys(version?.dayMeta || {}).length;
-      if (sorted.length > 0 && sorted.length < allDays) {
+
+      const allDaysSorted = Object.keys(version?.dayMeta || {}).map(Number).sort((a, b) => {
+        const da = version?.dayMeta?.[a]?.date || '';
+        const db = version?.dayMeta?.[b]?.date || '';
+        return da.localeCompare(db);
+      });
+      const dayToChrono = new Map(allDaysSorted.map((d, i) => [d, i + 1]));
+      const selectedChronos = printOptions.selectedDays
+        .map(d => dayToChrono.get(d) || d)
+        .sort((a, b) => a - b);
+
+      if (selectedChronos.length > 0 && selectedChronos.length < allDaysSorted.length) {
         const pad = (n: number) => String(n).padStart(2, '0');
         let consecutive = true;
-        for (let i = 1; i < sorted.length; i++) if (sorted[i] !== sorted[i - 1] + 1) { consecutive = false; break; }
-        parts.push(consecutive && sorted.length > 1
-          ? `Days#${pad(sorted[0])}-#${pad(sorted[sorted.length - 1])}`
-          : `Day${sorted.map(d => `#${pad(d)}`).join('')}`);
+        for (let i = 1; i < selectedChronos.length; i++) if (selectedChronos[i] !== selectedChronos[i - 1] + 1) { consecutive = false; break; }
+        parts.push(consecutive && selectedChronos.length > 1
+          ? `Days#${pad(selectedChronos[0])}-#${pad(selectedChronos[selectedChronos.length - 1])}`
+          : `Day${selectedChronos.map(d => `#${pad(d)}`).join('')}`);
       }
       const fileName = parts.join('_');
 
