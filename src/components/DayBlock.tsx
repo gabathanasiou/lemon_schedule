@@ -212,7 +212,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   isSelected={selectedIds.has(r.id)}
                   onSelectToggle={(e) => onRowClick?.(r.id, e)}
                   textEditingEnabled={textEditingEnabled}
-                  sceneViolations={sceneViolationMap.get(r.id)}
+                  sceneViolations={sceneViolationMap.get(r.sceneId || '')}
                 />
                 {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
                   <GhostCard row={activeDragRow} scenes={project.scenes} />
