@@ -37,11 +37,11 @@ const sceneCardClass = (scene?: Scene | null): string => {
   return 'bg-white text-zinc-900';
 };
 
-const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scenes }) => {
+const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean }> = ({ row, scenes, compact }) => {
   if (row.type === 'NOTE') {
     return (
       <div className="opacity-30 flex items-stretch bg-white text-zinc-900 min-h-[44px] border-b shrink-0">
-        <div className="flex-1 flex items-center justify-center px-3 italic">{row.noteText || 'Note'}</div>
+        <div className={`flex-1 flex items-center justify-center px-3 italic ${compact ? 'text-[7pt] min-h-[30px]' : ''}`}>{row.noteText || 'Note'}</div>
       </div>
     );
   }
@@ -49,17 +49,17 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
   if (row.type === 'BREAK') {
     return (
       <div className="opacity-30 flex items-stretch bg-[#591b1b] text-white min-h-[44px] border-b shrink-0">
-        <div className="flex-1 flex items-center justify-center px-3">{row.breakLabel || 'BREAK'}</div>
+        <div className={`flex-1 flex items-center justify-center px-3 ${compact ? 'text-[7pt] min-h-[30px]' : ''}`}>{row.breakLabel || 'BREAK'}</div>
       </div>
     );
   }
 
   const scene = scenes.find(s => s.id === row.sceneId);
   return (
-    <div className={`opacity-30 flex items-stretch min-h-[44px] border-b shrink-0 ${sceneCardClass(scene)}`}>
+    <div className={`opacity-30 flex items-stretch border-b shrink-0 ${compact ? 'min-h-[30px] text-[7pt]' : 'min-h-[44px]'} ${sceneCardClass(scene)}`}>
       {scene && (
         <>
-          <div className="flex items-center justify-center w-[50px] shrink-0 px-1 border-r border-black/10">{scene.sceneNumber}</div>
+          <div className={`flex items-center justify-center shrink-0 px-1 border-r border-black/10 ${compact ? 'w-[30px]' : 'w-[50px]'}`}>{scene.sceneNumber}</div>
           <div className="flex-1 flex items-center px-3 gap-1 min-w-0">
             <span className="uppercase shrink-0">{scene.intExt}.</span>
             <span className="uppercase truncate">{scene.set}</span>
@@ -72,7 +72,26 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, chronoDay }) => {
+const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ rows, scenes }) => {
+  if (rows.length === 0) return null;
+  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} />;
+  const maxShow = Math.min(rows.length, 5);
+  const rest = rows.length - maxShow;
+  return (
+    <div className="flex flex-col shrink-0">
+      {rows.slice(0, maxShow).map((r, i) => (
+        <GhostCard key={r.id} row={r} scenes={scenes} compact />
+      ))}
+      {rest > 0 && (
+        <div className="opacity-30 flex items-center justify-center min-h-[30px] bg-zinc-100 text-zinc-500 text-[10px] font-bold border-b shrink-0">
+          +{rest} more
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay }) => {
   const displayDay = chronoDay ?? dayInt;
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -197,7 +216,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             return (
               <React.Fragment key={r.id}>
                 {isCrossContext && insertBeforeId === r.id && activeDragRow && (
-                  <GhostCard row={activeDragRow} scenes={project.scenes} />
+                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
                 )}
                 <SortableRow 
                   row={r} 
@@ -209,7 +228,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   sceneViolations={sceneViolationMap.get(r.sceneId || '')}
                 />
                 {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
-                  <GhostCard row={activeDragRow} scenes={project.scenes} />
+                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
                 )}
               </React.Fragment>
             );
@@ -220,7 +239,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         {rows.length === 0 && (
           <>
             {activeRowId && insertBeforeId === `day-${dayInt}` && activeDragRow && (
-              <GhostCard row={activeDragRow} scenes={project.scenes} />
+              <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
             )}
             <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold">
               Drop scenes here

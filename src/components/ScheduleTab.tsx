@@ -434,6 +434,24 @@ export function ScheduleTab() {
     return augmentedRows.find(r => r.id === ids[0]) || null;
   })();
 
+  const activeDragRows = (() => {
+    if (!activeId || activeType !== 'ROW') return [];
+    return activeDragIds.size > 1
+      ? Array.from(activeDragIds)
+          .sort((a, b) => {
+            const rA = augmentedRows.find(r => r.id === a);
+            const rB = augmentedRows.find(r => r.id === b);
+            if (rA && rB) {
+              if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
+              return rA.order - rB.order;
+            }
+            return 0;
+          })
+          .map(id => augmentedRows.find(r => r.id === id)!)
+          .filter(Boolean)
+      : [activeDragRow!].filter(Boolean);
+  })();
+
   return (
     <>
       <style>{`
@@ -565,6 +583,7 @@ export function ScheduleTab() {
                   insertBeforeId={insertBeforeId}
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
+                  activeDragRows={activeDragRows}
                   chronoDay={i + 1}
                 />
               ))}
