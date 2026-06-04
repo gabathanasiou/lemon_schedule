@@ -118,6 +118,23 @@ export function ScheduleTab() {
   }, []);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedRowIds.size > 0 && !textEditingEnabled) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        e.preventDefault();
+        if (!activeVersion) return;
+        const ids = Array.from(selectedRowIds);
+        const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        setSelectedRowIds(new Set());
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch]);
+
+  useEffect(() => {
     const onSelectStart = (e: Event) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
