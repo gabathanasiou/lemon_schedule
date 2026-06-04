@@ -118,7 +118,7 @@ function AppContent() {
     const fileName = `${title}_${vName}_${times}_${days}`;
     return (
       <div>
-        <PrintSchedule project={project} showTimes={printOptions.showTimes} showDurations={printOptions.showDurations} selectedDays={printOptions.selectedDays} fileName={fileName} />
+        <PrintSchedule project={project} showTimes={printOptions.showTimes} showDurations={printOptions.showDurations} showCastList={printOptions.showCastList} showExportDate={printOptions.showExportDate} showPageNumbers={printOptions.showPageNumbers} selectedDays={printOptions.selectedDays} fileName={fileName} />
       </div>
     );
   }
@@ -397,7 +397,7 @@ function AppContent() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setShowTrash(false)}>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-              <div>
+      <div style={{ background: '#ffffff', width: '100%' }}>
                 <h2 className="text-white font-bold text-sm">Trash</h2>
                 <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
               </div>

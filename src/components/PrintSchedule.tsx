@@ -6,6 +6,9 @@ interface PrintScheduleProps {
   project: Project;
   showTimes: boolean;
   showDurations: boolean;
+  showCastList: boolean;
+  showExportDate: boolean;
+  showPageNumbers: boolean;
   selectedDays: number[];
   fileName: string;
 }
@@ -46,6 +49,47 @@ interface DaySectionProps {
   showDurations: boolean;
   chronoDay: number;
 }
+
+const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
+  const sorted = [...castMembers]
+    .filter(m => relevantCastIds.has(m.id))
+    .sort((a, b) => {
+      const na = parseInt(a.id, 10);
+      const nb = parseInt(b.id, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+  if (sorted.length === 0) return null;
+
+  const ROWS = 10;
+  const COLS = 3;
+  const grid: (typeof sorted[0] | null)[][] = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  for (let i = 0; i < sorted.length; i++) {
+    const col = Math.floor(i / ROWS);
+    const row = i % ROWS;
+    if (col < COLS) grid[row][col] = sorted[i];
+  }
+
+  return (
+    <div className="cast-list-page">
+      <style>{CAST_LIST_STYLE}</style>
+      <h2 className="cast-list-title">CAST LIST</h2>
+      <table className="cast-list-table">
+        <tbody>
+          {grid.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((m, ci) => (
+                <td key={ci} className="cast-list-cell">
+                  {m ? <><span className="cast-list-id">{m.id}.</span> {m.name}</> : ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay }) => {
   let runningElapsed = 0;
@@ -158,9 +202,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
 const PRINT_STYLE = `
   @media print {
-    html, body, #root {
+    html, body, #root, #root > * {
       height: initial !important;
       overflow: initial !important;
+      background: #ffffff !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -169,20 +214,36 @@ const PRINT_STYLE = `
     size: landscape;
     margin: 10mm 8mm;
   }
+  @media print {
+    .print-page-number {
+      position: fixed;
+      bottom: 8mm;
+      right: 8mm;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 8pt;
+    }
+    .print-page-number::after {
+      content: counter(page);
+    }
+  }
   .print-root {
     font-family: Helvetica, Arial, sans-serif;
     font-size: 8pt;
     line-height: 1.1;
     color: #18181b;
     padding: 0;
+    margin: 0;
+    width: 100%;
+    background: #ffffff;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   .print-title-section {
-    text-align: center;
+    text-align: left;
     padding-bottom: 10pt;
     margin-bottom: 10pt;
     border-bottom: 2pt solid #18181b;
+    background: #ffffff;
   }
   .print-title {
     margin: 0;
@@ -193,6 +254,7 @@ const PRINT_STYLE = `
   }
   .print-day {
     page-break-inside: auto;
+    background: #ffffff;
   }
   .print-day-header {
     display: flex;
@@ -291,7 +353,43 @@ const PRINT_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, selectedDays, fileName }) => {
+const CAST_LIST_STYLE = `
+  .cast-list-page {
+    page-break-after: always;
+    padding-top: 10pt;
+    background: #ffffff;
+  }
+  .cast-list-title {
+    text-align: left;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: 700;
+    margin: 0 0 8pt 0;
+    border-bottom: 1pt solid #000;
+    padding-bottom: 4pt;
+  }
+  .cast-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    table-layout: fixed;
+  }
+  .cast-list-table td {
+    width: 33.33%;
+    padding: 2pt 8pt;
+    vertical-align: top;
+    border: none;
+  }
+  .cast-list-cell {
+    line-height: 1.4;
+  }
+  .cast-list-id {
+    font-weight: 600;
+  }
+`;
+
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, fileName }) => {
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -328,27 +426,49 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
       return dateA.localeCompare(dateB);
     });
 
+  const printedSceneIds = new Set<string>();
+  for (const dayInt of existingDays) {
+    for (const row of (scheduledRows[dayInt] || [])) {
+      if (row.sceneId) printedSceneIds.add(row.sceneId);
+    }
+  }
+  const printedCastIds = new Set<string>();
+  for (const s of scenes) {
+    if (printedSceneIds.has(s.id)) {
+      for (const id of (s.cast || '').split(',').map(x => x.trim()).filter(Boolean)) {
+        printedCastIds.add(id);
+      }
+    }
+  }
+
   return (
     <div>
       <style>{PRINT_STYLE}</style>
       <div className="print-root">
+        {showCastList && <CastListPrint castMembers={project.castMembers || []} relevantCastIds={printedCastIds} />}
+
         <div className="print-title-section">
           <h1 className="print-title">{project.title || 'Production Schedule'}</h1>
-          <p className="print-subtitle">Schedule Version: {activeVersion.name}</p>
+          <p className="print-subtitle">Schedule Version: {activeVersion.name}{showExportDate ? ` — ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}</p>
         </div>
 
-        {existingDays.map((dayInt, i) => (
-          <DaySection
-            key={dayInt}
-            dayInt={dayInt}
-            rows={scheduledRows[dayInt] || []}
-            meta={activeVersion.dayMeta?.[dayInt]}
-            scenes={scenes}
-            showTimes={showTimes}
-            showDurations={showDurations}
-            chronoDay={i + 1}
-          />
-        ))}
+        {existingDays.length > 0 && (
+          <div className="print-schedule-pages" style={{ counterReset: 'page' }}>
+            {showPageNumbers && <div className="print-page-number" />}
+            {existingDays.map((dayInt, i) => (
+              <DaySection
+                key={dayInt}
+                dayInt={dayInt}
+                rows={scheduledRows[dayInt] || []}
+                meta={activeVersion.dayMeta?.[dayInt]}
+                scenes={scenes}
+                showTimes={showTimes}
+                showDurations={showDurations}
+                chronoDay={i + 1}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

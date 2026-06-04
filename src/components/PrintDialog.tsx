@@ -2,20 +2,6 @@ import React, { useState } from 'react';
 import { useProject } from '../store';
 import { X, CheckSquare, Square } from 'lucide-react';
 
-function pad(n: number): string { return String(n).padStart(2, '0'); }
-
-function formatDays(days: number[]): string {
-  if (days.length === 0) return 'None';
-  let consecutive = true;
-  for (let i = 1; i < days.length; i++) {
-    if (days[i] !== days[i - 1] + 1) { consecutive = false; break; }
-  }
-  if (consecutive && days.length > 1) {
-    return `Days#${pad(days[0])}-#${pad(days[days.length - 1])}`;
-  }
-  return `Day${days.map(d => `#${pad(d)}`).join('')}`;
-}
-
 function formatDayDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   if (isNaN(d.getTime())) return dateStr;
@@ -31,6 +17,9 @@ function formatDayDateLong(dateStr: string): string {
 export interface PrintOptions {
   showTimes: boolean;
   showDurations: boolean;
+  showCastList: boolean;
+  showExportDate: boolean;
+  showPageNumbers: boolean;
   selectedDays: number[];
 }
 
@@ -40,6 +29,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const [showTimes, setShowTimes] = useState(true);
   const [showDurations, setShowDurations] = useState(true);
+  const [showCastList, setShowCastList] = useState(true);
+  const [showExportDate, setShowExportDate] = useState(true);
+  const [showPageNumbers, setShowPageNumbers] = useState(true);
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
@@ -64,17 +56,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     });
   };
 
-  const versionName = activeVersion?.name || '';
-  const versionShort = `V${(versionName.match(/\d+/) || ['1'])[0].padStart(2, '0')}`;
-  const sanitizedTitle = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
-  const parts = [sanitizedTitle, versionShort];
-  if (!showTimes) parts.push('NoTimes');
-  if (selectedDays.size > 0 && selectedDays.size < dayEntries.length) {
-    const chronos = dayEntries.filter(d => selectedDays.has(d.dayInt)).map(d => d.chrono);
-    parts.push(formatDays(chronos));
-  }
-  const fileName = parts.join('_');
-
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-[600px] max-h-[90vh] flex flex-col overflow-hidden">
@@ -86,16 +67,37 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-3">
-            <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">Columns</h3>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-              <span className="text-sm text-zinc-700 font-medium">Call Times</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-              <span className="text-sm text-zinc-700 font-medium">Durations</span>
-            </label>
+          <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-3">Schedule</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showCastList} onChange={e => setShowCastList(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="text-sm text-zinc-700 font-medium">Cast List</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="text-sm text-zinc-700 font-medium">Call Times</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="text-sm text-zinc-700 font-medium">Durations</span>
+                </label>
+              </div>
+            </div>
+            <div className="border-t border-zinc-200 pt-4">
+              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-3">Page Style</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showExportDate} onChange={e => setShowExportDate(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="text-sm text-zinc-700 font-medium">Export Date</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showPageNumbers} onChange={e => setShowPageNumbers(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="text-sm text-zinc-700 font-medium">Page Numbers</span>
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">
@@ -130,11 +132,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               )}
             </div>
           </div>
-
-          <div className="bg-zinc-950 rounded-lg p-3 text-center">
-            <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-mono">File name</span>
-            <p className="text-white text-xs font-mono mt-0.5 break-all">{fileName}.pdf</p>
-          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-200 bg-zinc-50">
@@ -142,6 +139,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             onClick={() => onPrint({
               showTimes,
               showDurations,
+              showCastList,
+              showExportDate,
+              showPageNumbers,
               selectedDays: [...selectedDays].sort((a: number, b: number) => a - b),
             })}
             disabled={selectedDays.size === 0}
