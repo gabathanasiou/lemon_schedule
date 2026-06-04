@@ -143,7 +143,7 @@ export function ScheduleTab() {
     if (rowIndex === -1) return;
     const row = augmentedRows[rowIndex];
 
-    let newRows = [...augmentedRows];
+    let newRows = augmentedRows.map(r => ({ ...r }));
     if (action === 'add_note') {
       const newRow: ScheduleRow = {
         id: generateUUID(),
@@ -265,7 +265,7 @@ export function ScheduleTab() {
       const overDay = getDayFromId(overId);
       
       if (overDay !== null && activeDay !== overDay) {
-         let newRows = [...augmentedRows];
+         let newRows = augmentedRows.map(r => ({ ...r }));
          newRows = newRows.map(r => {
            if (r.shootDay === activeDay) return { ...r, shootDay: -1 }; 
            if (r.shootDay === overDay) return { ...r, shootDay: activeDay };
@@ -307,7 +307,7 @@ export function ScheduleTab() {
        });
     }
 
-    let newRows = [...augmentedRows];
+    let newRows = augmentedRows.map(r => ({ ...r }));
     
     // helper to clean synth IDs when saving
     const sanitizeRow = (r: ScheduleRow) => {
