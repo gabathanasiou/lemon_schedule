@@ -386,9 +386,9 @@ export function ScheduleTab() {
         .col-sc { width: 40px; text-align: center; overflow: visible !important; padding: 0 !important; }
         .col-call { width: 35px; text-align: center; }
         .col-dur { width: 40px; text-align: center; }
-        .col-ie { width: 50px; text-align: center; overflow: visible !important; }
+        .col-ie { width: 50px; text-align: left; overflow: visible !important; }
         .col-set { width: 200px; overflow: visible !important; }
-        .col-dn { width: 75px; text-align: center; overflow: visible !important; }
+        .col-dn { width: 75px; text-align: left; overflow: visible !important; }
         .col-cast { width: 50px; text-align: left; overflow: visible !important; }
         .col-pgs { width: 50px; text-align: center; }
         .col-desc {
