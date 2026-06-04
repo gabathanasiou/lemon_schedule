@@ -116,7 +116,7 @@ export const SortableRow: React.FC<{
                     <td className="col-set" style={{textAlign: 'center'}}>
                       <CellInput
                         value={row.noteText || ''}
-                        onChange={val => updateRow({noteText: val})}
+                        onChange={val => updateRow({noteText: val.toUpperCase()})}
                         className={`${inputClass} text-center`}
                         placeholder="Enter note here..."
                         multiline
@@ -129,7 +129,7 @@ export const SortableRow: React.FC<{
                   <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
                     <CellInput
                       value={row.noteText || ''}
-                      onChange={val => updateRow({noteText: val})}
+                      onChange={val => updateRow({noteText: val.toUpperCase()})}
                       className={`${inputClass} text-center`}
                       placeholder="Enter note here..."
                       multiline
@@ -170,7 +170,7 @@ export const SortableRow: React.FC<{
                     <td className="col-set" style={{textAlign: 'center'}}>
                       <CellInput
                         value={row.breakLabel || ''}
-                        onChange={val => updateRow({breakLabel: val})}
+                        onChange={val => updateRow({breakLabel: val.toUpperCase()})}
                         className={`${inputClass} text-center`}
                         placeholder="ENTER BREAK TEXT"
                       />
@@ -182,7 +182,7 @@ export const SortableRow: React.FC<{
                   <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
                     <CellInput
                       value={row.breakLabel || ''}
-                      onChange={val => updateRow({breakLabel: val})}
+                      onChange={val => updateRow({breakLabel: val.toUpperCase()})}
                       className={`${inputClass} text-center`}
                       placeholder="ENTER BREAK TEXT"
                     />
