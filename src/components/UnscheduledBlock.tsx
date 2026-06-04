@@ -3,6 +3,7 @@ import { Scene, ScheduleRow } from '../types';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableRow } from './SortableRow';
+import { StackedGhosts } from './DayBlock';
 import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -22,7 +23,11 @@ export const UnscheduledBlock: React.FC<{
   activeDragIds?: Set<string>,
   onRowClick?: (id: string, e: React.MouseEvent) => void,
   onSelectionChange?: (ids: Set<string>, isAddMode: boolean) => void,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange }) => {
+  insertBeforeId?: string | null,
+  activeDragRow?: ScheduleRow | null,
+  activeDragRows?: ScheduleRow[],
+  activeRowId?: string | null,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -56,6 +61,7 @@ export const UnscheduledBlock: React.FC<{
 
   const panelRef = useRef<HTMLDivElement>(null);
   const unscheduledMarqueeRef = useRef<HTMLDivElement>(null);
+  const showGhosts = activeRowId && activeDragRows.length > 0;
 
   const { marqueeBox } = useMarquee(
     unscheduledMarqueeRef,
@@ -68,6 +74,11 @@ export const UnscheduledBlock: React.FC<{
   const { setNodeRef } = useDroppable({
     id: 'unscheduled_bin',
     data: { type: 'UNSCHEDULED_BIN' }
+  });
+
+  const { setNodeRef: setEndRef } = useDroppable({
+    id: 'end-unscheduled',
+    data: { type: 'UNSCHEDULED_END' }
   });
 
   const addRow = (type: 'NOTE' | 'BREAK') => {
@@ -274,17 +285,24 @@ export const UnscheduledBlock: React.FC<{
             <MarqueeOverlay box={marqueeBox} />
             <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
             <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-              {rows.map((r) => (
-                <SortableRow 
-                  key={r.id}
-                  row={r}
-                  scenes={projectScenes}
-                  isCompact
-                  isSelected={selectedIds?.has(r.id) ?? false}
-                  isFaded={activeDragIds?.has(r.id) ?? false}
-                  onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
-                  textEditingEnabled={textEditingEnabled}
-                />
+              {rows.map((r, i, arr) => (
+                <React.Fragment key={r.id}>
+                  {showGhosts && insertBeforeId === r.id && (
+                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+                  )}
+                  <SortableRow 
+                    row={r}
+                    scenes={projectScenes}
+                    isCompact
+                    isSelected={selectedIds?.has(r.id) ?? false}
+                    isFaded={activeDragIds?.has(r.id) ?? false}
+                    onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
+                    textEditingEnabled={textEditingEnabled}
+                  />
+                  {showGhosts && i === arr.length - 1 && insertBeforeId === `end-unscheduled` && (
+                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+                  )}
+                </React.Fragment>
               ))}
             </SortableContext>
             {rows.length === 0 && (
@@ -292,6 +310,11 @@ export const UnscheduledBlock: React.FC<{
                 Drop items here to unschedule
               </div>
             )}
+            <div ref={setEndRef}>
+              {showGhosts && insertBeforeId === `end-unscheduled` && (
+                <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+              )}
+            </div>
           </div>
           </div>
         </div>

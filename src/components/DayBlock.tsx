@@ -74,7 +74,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   );
 };
 
-const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ rows, scenes }) => {
+export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ rows, scenes }) => {
   if (rows.length === 0) return null;
   if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} />;
   const maxShow = Math.min(rows.length, 5);

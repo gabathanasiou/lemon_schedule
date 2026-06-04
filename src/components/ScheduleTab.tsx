@@ -293,6 +293,10 @@ export function ScheduleTab() {
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
     if (overId && activeType === 'ROW') {
+      if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
+        setInsertBeforeId('end-unscheduled');
+        return;
+      }
       const day = getDayFromId(overId);
       if (day !== null) {
         const dayRows = scheduledRows[day] || [];
@@ -302,7 +306,12 @@ export function ScheduleTab() {
           setInsertBeforeId(`day-${day}`);
         }
       } else {
-        setInsertBeforeId(null);
+        const isUnscheduledRow = unscheduledRows.some(r => r.id === overId);
+        if (isUnscheduledRow) {
+          setInsertBeforeId(overId);
+        } else {
+          setInsertBeforeId(null);
+        }
       }
     } else {
       setInsertBeforeId(null);
@@ -525,7 +534,7 @@ export function ScheduleTab() {
              }
          }}
       >
-        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} />
+        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
