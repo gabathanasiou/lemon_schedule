@@ -263,7 +263,8 @@ export function ScheduleTab() {
     const overIndex = dayRows.findIndex(r => r.id === overId);
     
     if (activeIndex !== -1 && overIndex !== -1) {
-      dayRows = arrayMove(dayRows, activeIndex, activeIndex < overIndex ? overIndex - 1 : overIndex);
+      const targetIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
+      dayRows = arrayMove(dayRows, activeIndex, targetIndex);
       dayRows.forEach((r, i) => r.order = i);
       return [...allRows.filter(r => r.shootDay !== day), ...dayRows];
     }
