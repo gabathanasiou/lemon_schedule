@@ -7,7 +7,6 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
-import { useSelectionContainer, boxesIntersect } from '@air/react-drag-to-select';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -127,62 +126,84 @@ export function ScheduleTab() {
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const marqueeJustEndedRef = useRef(false);
 
-  const { DragSelection } = useSelectionContainer({
-    eventsElement: (typeof document !== 'undefined' ? document.body : undefined) as any,
-    shouldStartSelecting: (target) => {
-      if (!(target instanceof HTMLElement)) return true;
-      if (target.closest('[data-row-id]')) return false;
-      if (target.closest('button, input, select, textarea, [role="button"]')) return false;
-      return true;
-    },
-    onSelectionChange: (box) => {
-      const container = scheduleScrollRef.current;
-      if (!container) return;
-      const scrollTop = container.scrollTop;
-      const scrollLeft = container.scrollLeft;
-      const containerRect = container.getBoundingClientRect();
-      const rowEls = container.querySelectorAll('[data-row-id]');
-      const intersected = new Set<string>();
+  const [marqueeBox, setMarqueeBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
-      rowEls.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const elBox = {
-          left: rect.left - containerRect.left + scrollLeft,
-          top: rect.top - containerRect.top + scrollTop,
-          width: rect.width,
-          height: rect.height,
-        };
-        const selBox = {
-          left: box.left + scrollLeft,
-          top: box.top + scrollTop,
-          width: box.width,
-          height: box.height,
-        };
-        if (boxesIntersect(elBox, selBox)) {
-          intersected.add(el.getAttribute('data-row-id')!);
-        }
-      });
+  useEffect(() => {
+    const container = scheduleScrollRef.current;
+    if (!container) return;
 
-      const isAddMode = (window as any).__marqueeAddMode || false;
-      setSelectedRowIds(prev => {
-        if (isAddMode) {
-          const next = new Set(prev);
-          intersected.forEach(id => next.add(id));
-          return next;
-        }
-        return intersected;
-      });
-    },
-    onSelectionEnd: () => {
+    let startX = 0, startY = 0;
+    let active = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-row-id]')) return;
+      if (target.closest('button, input, select, textarea, [role="button"]')) return;
+
+      const rect = container.getBoundingClientRect();
+      startX = e.clientX - rect.left + container.scrollLeft;
+      startY = e.clientY - rect.top + container.scrollTop;
+      active = true;
+      setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
+      e.preventDefault();
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!active) return;
+      const rect = container.getBoundingClientRect();
+      const curX = e.clientX - rect.left + container.scrollLeft;
+      const curY = e.clientY - rect.top + container.scrollTop;
+      const left = Math.min(startX, curX);
+      const top = Math.min(startY, curY);
+      const width = Math.abs(curX - startX);
+      const height = Math.abs(curY - startY);
+
+      setMarqueeBox({ left, top, width, height });
+
+      if (width > 10 || height > 10) {
+        const isAddMode = (window as any).__marqueeAddMode || false;
+        const rowEls = container.querySelectorAll('[data-row-id]');
+        const intersected = new Set<string>();
+        rowEls.forEach((el) => {
+          const r = el.getBoundingClientRect();
+          const eb = {
+            left: r.left - rect.left + container.scrollLeft,
+            top: r.top - rect.top + container.scrollTop,
+            width: r.width,
+            height: r.height,
+          };
+          if (eb.left < left + width && eb.left + eb.width > left && eb.top < top + height && eb.top + eb.height > top) {
+            intersected.add(el.getAttribute('data-row-id')!);
+          }
+        });
+        setSelectedRowIds(prev => {
+          if (isAddMode) {
+            const next = new Set(prev);
+            intersected.forEach(id => next.add(id));
+            return next;
+          }
+          return intersected;
+        });
+      }
+    };
+
+    const onMouseUp = () => {
+      if (!active) return;
+      active = false;
+      setMarqueeBox(null);
       marqueeJustEndedRef.current = true;
-    },
-    selectionProps: {
-      style: {
-        background: 'rgba(99, 149, 255, 0.15)',
-        border: '1px solid rgba(99, 149, 255, 0.8)',
-      },
-    },
-  });
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   if (!activeVersion) return <div>No active version</div>;
 
@@ -533,8 +554,22 @@ export function ScheduleTab() {
         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32">
-          {DragSelection}
+        <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative">
+          {marqueeBox && (
+            <div
+              style={{
+                position: 'absolute',
+                left: marqueeBox.left,
+                top: marqueeBox.top,
+                width: marqueeBox.width,
+                height: marqueeBox.height,
+                background: 'rgba(99, 149, 255, 0.15)',
+                border: '1px solid rgba(99, 149, 255, 0.8)',
+                pointerEvents: 'none',
+                zIndex: 1000,
+              }}
+            />
+          )}
           
            <div className="w-full max-w-4xl flex justify-between items-center mb-6">
               <div className="flex items-center gap-3">
