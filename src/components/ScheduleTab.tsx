@@ -419,7 +419,20 @@ export function ScheduleTab() {
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
   };
 
-  const activeDragRow = activeId && activeType === 'ROW' ? augmentedRows.find(r => r.id === activeId) : null;
+  const activeDragRow = (() => {
+    if (!activeId || activeType !== 'ROW') return null;
+    const ids = Array.from(activeDragIds.size > 1 ? activeDragIds : [activeId]);
+    ids.sort((a, b) => {
+      const rA = augmentedRows.find(r => r.id === a);
+      const rB = augmentedRows.find(r => r.id === b);
+      if (rA && rB) {
+        if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
+        return rA.order - rB.order;
+      }
+      return 0;
+    });
+    return augmentedRows.find(r => r.id === ids[0]) || null;
+  })();
 
   return (
     <>
