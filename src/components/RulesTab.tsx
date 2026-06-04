@@ -12,6 +12,7 @@ export const RulesTab: React.FC = () => {
   const project = state.present;
   const rules = project.rules || [];
   const scenes = project.scenes;
+  const castMembers = project.castMembers || [];
 
   const [showForm, setShowForm] = useState(false);
   const [editingRule, setEditingRule] = useState<ProjectRule | null>(null);
@@ -221,6 +222,7 @@ export const RulesTab: React.FC = () => {
         open={showForm}
         initial={editingRule}
         scenes={scenes}
+        castMembers={castMembers}
         onClose={() => { setShowForm(false); setEditingRule(null); }}
         onSave={handleSave}
       />

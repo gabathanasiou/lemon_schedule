@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow } from '../types';
+import { Scene, ScheduleRow, CastMember } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
@@ -22,6 +22,89 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
   if (intExt.includes('EXT') && dayNight.includes('EVENING')) return { background: '#ce7d21', color: '#000000' };
   return { background: '#ffffff', color: '#18181b' };
 }
+
+const CastCellInput: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  readOnly?: boolean;
+}> = ({ value, onChange, className, readOnly }) => {
+  const { state } = useProject();
+  const castMembers = state.present.castMembers || [];
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  const currentIds = (value || '').split(',').map(x => x.trim()).filter(Boolean);
+  const filtered = castMembers.filter(m =>
+    !query || m.id.toLowerCase().includes(query.toLowerCase()) || m.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  useEffect(() => {
+    if (open) {
+      const onClick = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      };
+      document.addEventListener('mousedown', onClick);
+      return () => document.removeEventListener('mousedown', onClick);
+    }
+  }, [open]);
+
+  const add = (id: string) => {
+    const ids = new Set(currentIds);
+    if (ids.has(id)) {
+      ids.delete(id);
+    } else {
+      ids.add(id);
+    }
+    onChange([...ids].join(', '));
+    setQuery('');
+  };
+
+  const commit = () => {
+    onChange([...new Set(currentIds)].join(', '));
+    setOpen(false);
+    setQuery('');
+  };
+
+  if (readOnly) {
+    return <span className={className}>{value || '—'}</span>;
+  }
+
+  return (
+    <div ref={ref} className={`relative ${className || ''}`}>
+      <input
+        value={open ? query : (value || '')}
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => { setQuery(''); setOpen(true); }}
+        placeholder="Cast"
+        className="text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-right"
+        onKeyDown={e => {
+          if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+          if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        }}
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute top-full right-0 z-50 bg-zinc-950 border border-zinc-700 rounded-lg shadow-2xl p-1 min-w-[180px] max-h-56 overflow-y-auto mt-1">
+          {filtered.map(m => {
+            const checked = currentIds.includes(m.id);
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onMouseDown={e => { e.preventDefault(); add(m.id); }}
+                className={`w-full text-left px-2 py-1 text-xs rounded flex items-center gap-2 font-mono transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+              >
+                <span className="text-zinc-500 shrink-0">{m.id}.</span>
+                <span className="truncate">{m.name || '—'}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const SortableRow: React.FC<{ 
   row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number }, 
@@ -250,11 +333,7 @@ export const SortableRow: React.FC<{
                     </td>
                   )}
                   <td className="col-cast">
-                    {textEditingEnabled ? (
-                      <CellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right`} placeholder="Cast" />
-                    ) : (
-                      <span>{scene.cast || '—'}</span>
-                    )}
+                    <CastCellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right`} readOnly={!textEditingEnabled} />
                   </td>
                   <td className="col-pgs">
                     <CellInput
@@ -346,11 +425,10 @@ export const SortableRow: React.FC<{
                   )}
                 </td>
                 <td className="col-cast">
-                  <CellInput
+                  <CastCellInput
                     value={scene.cast}
                     onChange={val => updateScene({cast: val})}
                     className={`${inputClass} text-right`}
-                    placeholder="Cast"
                     readOnly={!textEditingEnabled}
                   />
                 </td>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ProjectRule, Scene } from '../../types';
+import { ProjectRule, Scene, CastMember } from '../../types';
 import { generateUUID, getUniqueCastIds, cn } from '../../lib/utils';
 import {
   RULE_TYPE_META, RuleFormState, RuleType, blankRuleForm, formFromRule,
@@ -11,12 +11,13 @@ interface RuleFormModalProps {
   open: boolean;
   initial: ProjectRule | null;
   scenes: Scene[];
+  castMembers: CastMember[];
   onClose: () => void;
   onSave: (rule: ProjectRule) => void;
 }
 
 export const RuleFormModal: React.FC<RuleFormModalProps> = ({
-  open, initial, scenes, onClose, onSave,
+  open, initial, scenes, castMembers, onClose, onSave,
 }) => {
   const [form, setForm] = useState<RuleFormState>(blankRuleForm());
   const [error, setError] = useState('');
@@ -58,7 +59,17 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
 
   if (!open) return null;
 
-  const castOptions = getUniqueCastIds(scenes);
+  const castOptions = [...new Set([
+    ...getUniqueCastIds(scenes),
+    ...castMembers.map(m => m.id),
+  ])].sort((a, b) => {
+    const na = parseInt(a, 10);
+    const nb = parseInt(b, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    if (!isNaN(na)) return -1;
+    if (!isNaN(nb)) return 1;
+    return a.localeCompare(b);
+  });
   const filteredCast = castOptions.filter(c =>
     c.toLowerCase().includes(castQuery.toLowerCase())
   );
@@ -196,19 +207,22 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
             />
             {castOpen && filteredCast.length > 0 && (
               <div className="absolute z-10 top-full mt-1 w-full bg-white border border-zinc-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {filteredCast.map(c => (
+                {filteredCast.map(c => {
+                  const member = castMembers.find(m => m.id === c);
+                  return (
                   <button
                     key={c}
                     type="button"
                     onClick={() => { setCastQuery(c); setForm(f => ({ ...f, castId: c })); setCastOpen(false); }}
                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-zinc-50 font-mono flex items-center justify-between"
                   >
-                    <span>{c}</span>
+                    <span>{c}{member?.name ? <span className="text-zinc-400 ml-2 font-sans">. {member.name}</span> : null}</span>
                     <span className="text-[10px] text-zinc-400">
                       {scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(c)).length} scenes
                     </span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
             {castOptions.length === 0 && (
