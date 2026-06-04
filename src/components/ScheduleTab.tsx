@@ -380,7 +380,7 @@ export function ScheduleTab() {
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     if (action === 'delete' || action === 'unschedule') {
-      selectNextAfterRemove(new Set([rowId]));
+      selectNextAfterRemove(new Set<string>([rowId]));
     }
     setContextMenu(null);
   };
@@ -790,7 +790,7 @@ export function ScheduleTab() {
                   const ids = Array.from(selectedRowIds);
                   const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
                   dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                  selectNextAfterRemove(new Set(ids));
+                  selectNextAfterRemove(new Set<string>(ids));
                   setContextMenu(null);
                 }}>
                   Remove {selectedRowIds.size} Ribbons
