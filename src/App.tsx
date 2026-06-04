@@ -11,7 +11,7 @@ import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
 import { RulesTab } from './components/RulesTab';
 import { ProjectManager } from './components/ProjectManager';
-import PrintDialog from './components/PrintDialog';
+import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
@@ -34,7 +34,7 @@ function AppContent() {
   const [editingName, setEditingName] = useState("");
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [printOptions, setPrintOptions] = useState<{showTimes: boolean; showDurations: boolean} | null>(null);
+  const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
@@ -51,12 +51,25 @@ function AppContent() {
 
   useEffect(() => {
     if (printOptions) {
-      const onAfterPrint = () => setPrintOptions(null);
+      const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
+      const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+      const times = printOptions.showTimes ? 'Timed' : 'NoTimes';
+      const days = printOptions.selectedDays.length === 0 ? 'None'
+        : printOptions.selectedDays.length === 1 ? `Day${printOptions.selectedDays[0]}`
+        : `Days${printOptions.selectedDays.length}`;
+      const fileName = `${title}_${vName}_${times}_${days}`;
+
+      const oldTitle = document.title;
+      document.title = fileName;
+      const onAfterPrint = () => {
+        document.title = oldTitle;
+        setPrintOptions(null);
+      };
       window.addEventListener('afterprint', onAfterPrint);
       setTimeout(() => window.print(), 200);
       return () => window.removeEventListener('afterprint', onAfterPrint);
     }
-  }, [printOptions]);
+  }, [printOptions, project.title, version?.name]);
 
   useEffect(() => {
     if (!storage.handle || !currentProjectId) return;
@@ -78,9 +91,16 @@ function AppContent() {
   }, [state.present, storage.handle, currentProjectId]);
 
   if (printOptions) {
+    const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
+    const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+    const times = printOptions.showTimes ? 'Timed' : 'NoTimes';
+    const days = printOptions.selectedDays.length === 0 ? 'None'
+      : printOptions.selectedDays.length === 1 ? `Day${printOptions.selectedDays[0]}`
+      : `Days${printOptions.selectedDays.length}`;
+    const fileName = `${title}_${vName}_${times}_${days}`;
     return (
       <div>
-        <PrintSchedule project={project} showTimes={printOptions.showTimes} showDurations={printOptions.showDurations} />
+        <PrintSchedule project={project} showTimes={printOptions.showTimes} showDurations={printOptions.showDurations} selectedDays={printOptions.selectedDays} fileName={fileName} />
       </div>
     );
   }
@@ -119,7 +139,7 @@ function AppContent() {
         <ProjectManager onClose={() => setShowProjectManager(false)} />
       )}
 
-      {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} />}
+      {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} onClose={() => setShowPrintDialog(false)} />}
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">

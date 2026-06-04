@@ -6,6 +6,8 @@ interface PrintScheduleProps {
   project: Project;
   showTimes: boolean;
   showDurations: boolean;
+  selectedDays: number[];
+  fileName: string;
 }
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
@@ -289,7 +291,7 @@ const PRINT_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, selectedDays, fileName }) => {
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -319,7 +321,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
 
   const existingDays = Array.from(new Set([
     ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0)
+  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0 && selectedDays.includes(d))
     .sort((a, b) => {
       const dateA = activeVersion.dayMeta?.[a]?.date || '';
       const dateB = activeVersion.dayMeta?.[b]?.date || '';
