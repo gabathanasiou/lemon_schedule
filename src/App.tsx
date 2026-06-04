@@ -13,7 +13,7 @@ import PrintSchedule from './components/PrintSchedule';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw } from 'lucide-react';
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
@@ -25,6 +25,7 @@ function AppContent() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<{showTimes: boolean; showDurations: boolean} | null>(null);
+  const [showTrash, setShowTrash] = useState(false);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -229,8 +230,12 @@ function AppContent() {
                 <DropdownItem onClick={() => { const name = prompt("Name for duplicated version?", `${version?.name || 'Version'} Copy`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId } }); setShowVersionsMenu(false); } }} icon={<Copy className="w-3.5 h-3.5" />}>
                   Duplicate Active Version
                 </DropdownItem>
-                <DropdownItem onClick={() => { const name = prompt("Name for new version?", `Version ${project.versions.length + 1}`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } }); setShowVersionsMenu(false); } }} icon={<Plus className="w-3.5 h-3.5" />}>
+                <DropdownItem onClick={() => { const name = prompt("Name for new version?", `V${String(project.versions.length + 1).padStart(2, '0')}`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } }); setShowVersionsMenu(false); } }} icon={<Plus className="w-3.5 h-3.5" />}>
                   Create Blank Version
+                </DropdownItem>
+                <DropdownDivider />
+                <DropdownItem onClick={() => { setShowVersionsMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
+                  Trash ({project.trash?.length || 0})
                 </DropdownItem>
               </div>
             </DropdownMenu>
@@ -269,6 +274,58 @@ function AppContent() {
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
         {activeTab === 'breakdown' ? <BreakdownTab /> : <ScheduleTab />}
       </main>
+
+      {showTrash && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setShowTrash(false)}>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+              <div>
+                <h2 className="text-white font-bold text-sm">Trash</h2>
+                <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
+              </div>
+              <button onClick={() => setShowTrash(false)} className="text-zinc-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {(project.trash || []).length === 0 ? (
+                <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>
+              ) : (
+                (project.trash || []).map(item => (
+                  <div key={item.scene.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
+                    <div className="min-w-0">
+                      <div className="text-white text-sm font-semibold truncate">
+                        {item.scene.sceneNumber}. {item.scene.set}
+                      </div>
+                      <div className="text-zinc-500 text-[11px] mt-0.5">
+                        {item.versionName} &middot; {new Date(item.deletedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => dispatch({ type: 'RESTORE_SCENE', payload: item.scene.id })}
+                      className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white p-1 rounded transition-all"
+                      title="Restore"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            {(project.trash || []).length > 0 && (
+              <div className="border-t border-zinc-800 px-5 py-3">
+                <button
+                  onClick={() => { if (confirm('Permanently delete all trash items?')) dispatch({ type: 'EMPTY_TRASH' }); }}
+                  className="w-full text-center text-red-500 hover:text-red-400 text-xs font-semibold py-1.5 rounded hover:bg-red-500/10 transition-colors"
+                >
+                  Empty Trash
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

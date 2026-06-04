@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -40,7 +40,20 @@ function loadProjectFromStorage(id: string): Project | null {
     const stored = localStorage.getItem(getProjectStorageKey(id));
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.scenes && parsed.versions) return parsed;
+      if (parsed.scenes && parsed.versions) {
+        parsed.versions = parsed.versions.map((v: ScheduleVersion) => ({
+          ...v,
+          updatedAt: v.updatedAt || v.createdAt || Date.now()
+        }));
+        parsed.trash = (parsed.trash || []).filter((t: TrashItem) => {
+          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+          return Date.now() - t.deletedAt < thirtyDays;
+        }).map((t: TrashItem) => ({
+          ...t,
+          versionName: t.versionName || 'Unknown'
+        }));
+        return parsed;
+      }
     }
   } catch (e) {
     console.error("Failed to load project", e);
@@ -58,10 +71,12 @@ function makeBlankProject(title = 'Untitled Project'): Project {
       id,
       name: 'v1 - Initial Schedule',
       createdAt: Date.now(),
+      updatedAt: Date.now(),
       rows: [],
       dayMeta: {}
     }],
     activeVersionId: id,
+    trash: []
   };
 }
 
@@ -73,6 +88,8 @@ type Action =
   | { type: 'ADD_SCENE', payload: Scene }
   | { type: 'UPDATE_SCENE', payload: Partial<Scene> & { id: string } }
   | { type: 'DELETE_SCENE', payload: string }
+  | { type: 'RESTORE_SCENE', payload: string }
+  | { type: 'EMPTY_TRASH' }
   | { type: 'SORT_SCENES' }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
   | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null } }
@@ -147,14 +164,39 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'DELETE_SCENE': {
-      // Also remove from all schedules
+      const scene = state.present.scenes.find(s => s.id === action.payload);
+      if (!scene) return state;
+      const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
+      const trashItem: TrashItem = {
+        scene: { ...scene },
+        deletedAt: Date.now(),
+        versionName: activeVersion?.name || 'Unknown'
+      };
       return applyChange({
         ...state.present,
         scenes: state.present.scenes.filter(s => s.id !== action.payload),
         versions: state.present.versions.map(v => ({
           ...v,
           rows: v.rows.filter(r => r.sceneId !== action.payload)
-        }))
+        })),
+        trash: [...state.present.trash, trashItem]
+      });
+    }
+
+    case 'RESTORE_SCENE': {
+      const item = state.present.trash.find(t => t.scene.id === action.payload);
+      if (!item) return state;
+      return applyChange({
+        ...state.present,
+        scenes: [...state.present.scenes, item.scene],
+        trash: state.present.trash.filter(t => t.scene.id !== action.payload)
+      });
+    }
+
+    case 'EMPTY_TRASH': {
+      return applyChange({
+        ...state.present,
+        trash: []
       });
     }
 
@@ -168,7 +210,7 @@ function reducer(state: State, action: Action): State {
     case 'UPDATE_VERSION': {
       return applyChange({
         ...state.present,
-        versions: state.present.versions.map(v => v.id === action.payload.id ? { ...v, ...action.payload } : v)
+        versions: state.present.versions.map(v => v.id === action.payload.id ? { ...v, ...action.payload, updatedAt: Date.now() } : v)
       });
     }
 
@@ -184,6 +226,7 @@ function reducer(state: State, action: Action): State {
           id: generateUUID(),
           name: action.payload.name,
           createdAt: Date.now(),
+          updatedAt: Date.now(),
           rows: parent.rows.map(r => ({ ...r, id: generateUUID() }))
         };
       } else {
@@ -191,6 +234,7 @@ function reducer(state: State, action: Action): State {
           id: generateUUID(),
           name: action.payload.name,
           createdAt: Date.now(),
+          updatedAt: Date.now(),
           rows: [],
           dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: '' } }
         };
@@ -226,7 +270,7 @@ function reducer(state: State, action: Action): State {
       const { id, name } = action.payload;
       return applyChange({
         ...state.present,
-        versions: state.present.versions.map(v => v.id === id ? { ...v, name } : v)
+        versions: state.present.versions.map(v => v.id === id ? { ...v, name, updatedAt: Date.now() } : v)
       });
     }
 

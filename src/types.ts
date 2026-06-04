@@ -49,8 +49,15 @@ export interface ScheduleVersion {
   id: string;
   name: string;
   createdAt: number;
+  updatedAt: number;
   rows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>; // key is shootDay
+}
+
+export interface TrashItem {
+  scene: Scene;
+  deletedAt: number;
+  versionName: string;
 }
 
 export interface Project {
@@ -59,4 +66,5 @@ export interface Project {
   scenes: Scene[];
   versions: ScheduleVersion[];
   activeVersionId: string;
+  trash: TrashItem[];
 }
