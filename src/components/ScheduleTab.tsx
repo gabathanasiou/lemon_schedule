@@ -688,6 +688,11 @@ export function ScheduleTab() {
                     <button onClick={() => setSelectedRowIds(new Set())} className="hover:text-blue-900 font-bold">&times;</button>
                   </span>
                 )}
+                {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
+                  <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    {augmentedRows.filter(r => r.shootDay === -1).length} in buffer
+                  </span>
+                )}
               </div>
              <button 
                 onClick={() => setTextEditingEnabled(p => !p)}
@@ -755,7 +760,7 @@ export function ScheduleTab() {
           if (selectedRowIds.size > 1) {
             return (
               <>
-                <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut {selectedRowIds.size} Ribbons</ContextMenuItem>
+                <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
                 <ContextMenuDivider />
                 <ContextMenuItem variant="danger" onClick={() => {
                   const ids = Array.from(selectedRowIds);
@@ -777,7 +782,7 @@ export function ScheduleTab() {
                   <ContextMenuDivider />
                 </>
               )}
-              <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut</ContextMenuItem>
+              <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut to Buffer</ContextMenuItem>
               <ContextMenuDivider />
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
