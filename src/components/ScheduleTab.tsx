@@ -120,10 +120,9 @@ export function ScheduleTab() {
   }, [textEditingEnabled]);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
-  const marqueeJustEndedRef = useRef(false);
   const ctrlOrCmdHeld = useAddMode();
 
-  const { marqueeBox, justEndedRef: _ } = useMarquee(
+  const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     scheduleScrollRef,
     useCallback((ids, isAddMode) => {
       setSelectedRowIds(prev => isAddMode ? new Set([...prev, ...ids]) : ids);
