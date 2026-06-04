@@ -302,12 +302,21 @@ export const UnscheduledBlock: React.FC<{
                 </React.Fragment>
               ))}
             </SortableContext>
-            {rows.length === 0 && <div className="flex-1" />}
-            <div ref={setEndRef}>
-              {showGhosts && insertBeforeId === `end-unscheduled` && (
-                <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
-              )}
-            </div>
+            {rows.length === 0 && (
+              <>
+                {showGhosts && insertBeforeId === `end-unscheduled` && (
+                  <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+                )}
+                <div className="flex-1" />
+              </>
+            )}
+            {rows.length > 0 && (
+              <div ref={setEndRef}>
+                {showGhosts && insertBeforeId === `end-unscheduled` && (
+                  <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+                )}
+              </div>
+            )}
           </div>
           </div>
         </div>

@@ -242,14 +242,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             );
           })}
         </SortableContext>
-        
-        {/* Drop target filler if empty */}
-        {rows.length === 0 && (
-          <>
-            {showGhosts && insertBeforeId === `day-${dayInt}` && (
-              <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-            )}
-          </>
+        {computedRows.length === 0 && showGhosts && insertBeforeId === `day-${dayInt}` && (
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
         )}
       </div>
 
