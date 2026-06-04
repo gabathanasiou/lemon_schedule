@@ -539,6 +539,7 @@ export function ScheduleTab() {
       dayRows.splice(insertIndex, 0, movedRow);
       dayRows.forEach((r, i) => r.order = i);
       newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
+      setSelectedRowIds(new Set([activeId]));
     } else {
       const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
       const dayRowsBefore = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
@@ -557,7 +558,7 @@ export function ScheduleTab() {
       dayRows.splice(insertIndex, 0, ...newItems);
       dayRows.forEach((r, i) => r.order = i);
       newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
-      setSelectedRowIds(new Set());
+      setSelectedRowIds(new Set(draggingIds));
     }
 
     // Convert synthetic rows that got modified into real rows
