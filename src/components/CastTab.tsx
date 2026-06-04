@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState, useRef } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, ColumnIndicatorComponent } from 'react-spreadsheet';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { CastMember } from '../types';
 import { Trash2 } from 'lucide-react';
@@ -35,6 +35,23 @@ export const CastTab: React.FC = () => {
       </div>
     );
   }, [sorted, dispatch]);
+
+  const NameEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
+    const [val, setVal] = useState(cell?.value || '');
+    return (
+      <input
+        type="text"
+        value={val}
+        onChange={e => setVal(e.target.value.toUpperCase())}
+        onBlur={() => { onChange({ value: val.toUpperCase() }); exitEditMode(); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { onChange({ value: val.toUpperCase() }); exitEditMode(); }
+          if (e.key === 'Escape') exitEditMode();
+        }}
+        autoFocus
+      />
+    );
+  }, []);
 
   const DEFAULT_WIDTHS = [80, 300, 40];
 
@@ -85,15 +102,16 @@ export const CastTab: React.FC = () => {
   const data = useMemo((): CellBase[][] => {
     const rows = sorted.map(m => [
       { value: m.id },
-      { value: m.name },
+      { value: m.name, DataEditor: NameEditor },
       { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
     rows.push(COLUMNS.map((_, i) => {
       if (i === ACTIONS_COL) return { value: '', readOnly: true };
+      if (i === 1) return { value: '', DataEditor: NameEditor };
       return { value: '' };
     }));
     return rows;
-  }, [sorted, DeleteViewer]);
+  }, [sorted, DeleteViewer, NameEditor]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantomRow = newData[sorted.length];
