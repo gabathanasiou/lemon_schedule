@@ -305,7 +305,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   }
 
   const scheduledRows = augmentedRows.reduce((acc, row) => {
-    if (row.shootDay !== null) {
+    if (row.shootDay !== null && row.type !== 'DAY_BREAK') {
       if (!acc[row.shootDay]) acc[row.shootDay] = [];
       acc[row.shootDay].push(row);
     }

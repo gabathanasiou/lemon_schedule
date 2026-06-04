@@ -77,7 +77,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       rows: [],
-      dayMeta: {}
+      dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: '' } }
     }],
     activeVersionId: id,
     trash: [],
@@ -236,12 +236,28 @@ function reducer(state: State, action: Action): State {
           rows: parent.rows.map(r => ({ ...r, id: generateUUID() }))
         };
       } else {
+        const sceneRows = state.present.scenes
+          .sort((a, b) => a.sceneNumber.localeCompare(b.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }))
+          .map((s, i) => ({
+            id: generateUUID(),
+            type: 'SCENE' as const,
+            sceneId: s.id,
+            shootDay: 1,
+            order: i,
+            estimatedDuration: 30
+          }));
+        const dayBreak: ScheduleRow = {
+          id: generateUUID(),
+          type: 'DAY_BREAK' as const,
+          shootDay: 1,
+          order: -1
+        };
         newVersion = {
           id: generateUUID(),
           name: action.payload.name,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          rows: [],
+          rows: [dayBreak, ...sceneRows],
           dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: '' } }
         };
       }
@@ -307,15 +323,36 @@ function reducer(state: State, action: Action): State {
     case 'DELETE_DAY': {
       const activeVerId = state.present.activeVersionId;
       if (!activeVerId) return state;
+      const day = action.day;
+      if (day === 1) {
+        return applyChange({
+          ...state.present,
+          versions: state.present.versions.map(v => {
+            if (v.id !== activeVerId) return v;
+            return { ...v, rows: v.rows.filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === 1)) };
+          })
+        });
+      }
       return applyChange({
         ...state.present,
         versions: state.present.versions.map(v => {
           if (v.id !== activeVerId) return v;
-          return {
-            ...v,
-            rows: v.rows.filter(r => r.shootDay !== action.day),
-            dayMeta: Object.fromEntries(Object.entries(v.dayMeta).filter(([k]) => Number(k) !== action.day))
-          };
+          const targetDay = day - 1;
+          const mergedRows = v.rows
+            .filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === day))
+            .map(r => {
+              if (r.shootDay === day) return { ...r, shootDay: targetDay };
+              if (r.shootDay > day) return { ...r, shootDay: r.shootDay - 1 };
+              return r;
+            });
+          const newDayMeta: Record<number, any> = {};
+          for (const [k, val] of Object.entries(v.dayMeta)) {
+            const kn = Number(k);
+            if (kn === day) continue;
+            if (kn > day) newDayMeta[kn - 1] = { ...val, shootDay: kn - 1 };
+            else newDayMeta[kn] = val;
+          }
+          return { ...v, rows: mergedRows, dayMeta: newDayMeta };
         })
       });
     }

@@ -1,11 +1,10 @@
 import React from 'react';
-import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 import { SortableRow } from './SortableRow';
-import { GripHorizontal, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
 
 const sceneCardClass = (scene?: Scene | null): string => {
@@ -58,27 +57,23 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, chronoDay }) => {
+const visibleRows = (rows: ScheduleRow[]) => rows.filter(r => r.type !== 'DAY_BREAK');
+
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeType?: string | null, chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeType, chronoDay }) => {
   const displayDay = chronoDay ?? dayInt;
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
-  const { attributes, listeners, setNodeRef: setDragRef, transform, transition, isDragging } = useSortable({
-    id: `day-wrap-${dayInt}`,
-    data: { type: 'DAY', dayInt }
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id: `day-break-${dayInt}`,
+    data: { type: 'DAY_BREAK', dayInt }
   });
 
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
     data: { type: 'DAY_DROPZONE', dayInt }
   });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
 
   const updateMeta = (updates: Partial<ShootDayMeta>) => {
     if (!activeVersion) return;
@@ -94,14 +89,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     });
   };
 
-  // Compute accumulated times & page counts
   let runningElapsed = 0;
   let totalPages = 0;
 
-  const computedRows = rows.map(r => {
+  const computedRows = visibleRows(rows).map(r => {
     const callTime = addMinutesToTime(meta?.unitCall || '08:00', runningElapsed);
     let dur = 0;
-    
     if (r.type === 'SCENE') {
       dur = r.estimatedDuration || 0;
       const scene = project.scenes.find(s => s.id === r.sceneId);
@@ -111,14 +104,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     } else if (r.type === 'NOTE') {
       dur = r.estimatedDuration || 0;
     }
-
     runningElapsed += dur;
-
-    return {
-      ...r,
-      computedCallTime: callTime,
-      computedElapsed: runningElapsed
-    };
+    return { ...r, computedCallTime: callTime, computedElapsed: runningElapsed };
   });
 
   const totalShootTime = runningElapsed;
@@ -130,54 +117,57 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   };
 
   return (
-    <div ref={setDragRef} style={{...style, ...baseStyle}} className="bg-white flex flex-col">
-      
-      {/* Day Ribbon Banner */}
-      <div className="bg-black text-white flex justify-between px-3 py-2 items-center">
-         <div className="flex items-center gap-3">
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:bg-zinc-800 p-1 rounded transition-colors -ml-1">
-               <GripHorizontal className="w-4 h-4 text-zinc-500" />
-            </div>
-            <span className="font-semibold">DAY {displayDay}</span>
-            <input 
-              value={meta?.unitCall || '08:00'} 
-              onChange={e => updateMeta({unitCall: e.target.value})}
-              className="bg-zinc-900 px-2 py-0.5 rounded outline-none border border-transparent focus:border-zinc-600 w-16 text-center"
-            />
-            <button 
-              onClick={() => dispatch({ type: 'DELETE_DAY', day: dayInt })}
-              className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
-              title="Delete Day"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-         </div>
-         <div className="flex items-center gap-2">
-            <input 
-              type="date"
-              value={meta?.date || ''} 
-              onChange={e => updateMeta({date: e.target.value})} 
-              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white"
-            />
-         </div>
+    <div style={{ ...baseStyle, opacity: isDragging ? 0.4 : 1 }} className="bg-white flex flex-col">
+
+      {/* Day Break Ribbon - draggable */}
+      <div ref={setDragRef} {...listeners} {...attributes} className="bg-black text-white flex justify-between px-3 py-2 items-center cursor-grab active:cursor-grabbing">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold">DAY {displayDay}</span>
+          <input
+            value={meta?.unitCall || '08:00'}
+            onChange={e => updateMeta({ unitCall: e.target.value })}
+            className="bg-zinc-900 px-2 py-0.5 rounded outline-none border border-transparent focus:border-zinc-600 w-16 text-center"
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); dispatch({ type: 'DELETE_DAY', day: dayInt }); }}
+            className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
+            title="Delete Day"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={meta?.date || ''}
+            onChange={e => updateMeta({ date: e.target.value })}
+            className="bg-transparent text-right outline-none text-zinc-400 focus:text-white"
+          />
+        </div>
       </div>
 
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
-        <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={computedRows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {computedRows.map((r, i) => {
             const isCrossContext = activeRowId && !rows.some(row => row.id === activeRowId);
             return (
               <React.Fragment key={r.id}>
+                {activeType === 'DAY_BREAK' && insertBeforeId === r.id && (
+                  <div className="h-[3px] bg-black w-full" />
+                )}
                 {isCrossContext && insertBeforeId === r.id && activeDragRow && (
                   <GhostCard row={activeDragRow} scenes={project.scenes} />
                 )}
-                <SortableRow 
-                  row={r} 
-                  scenes={project.scenes} 
+                <SortableRow
+                  row={r}
+                  scenes={project.scenes}
                   isSelected={selectedIds.has(r.id)}
                   onSelectToggle={(e) => onRowClick?.(r.id, e)}
                   textEditingEnabled={textEditingEnabled}
                 />
+                {activeType === 'DAY_BREAK' && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && (
+                  <div className="h-[3px] bg-black w-full" />
+                )}
                 {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
                   <GhostCard row={activeDragRow} scenes={project.scenes} />
                 )}
@@ -185,10 +175,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             );
           })}
         </SortableContext>
-        
-        {/* Drop target filler if empty */}
-        {rows.length === 0 && (
+
+        {visibleRows(rows).length === 0 && (
           <>
+            {activeType === 'DAY_BREAK' && insertBeforeId === `day-${dayInt}` && (
+              <div className="h-[3px] bg-black w-full" />
+            )}
             {activeRowId && insertBeforeId === `day-${dayInt}` && activeDragRow && (
               <GhostCard row={activeDragRow} scenes={project.scenes} />
             )}
@@ -199,17 +191,16 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         )}
       </div>
 
-      {/* Day Footer stats */}
-      {rows.length > 0 && (
+      {visibleRows(rows).length > 0 && (
         <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300"
-          style={{fontFamily: 'Helvetica, Arial, sans-serif'}}>
+          style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
           <span className="font-semibold">End of Day #{displayDay}</span>
           <div className="flex gap-4 text-zinc-600">
-             <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
-             <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
+            <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
+            <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
           </div>
         </div>
       )}
     </div>
   );
-}
+};

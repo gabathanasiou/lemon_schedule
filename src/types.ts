@@ -1,6 +1,6 @@
 export type IntExt = 'INT' | 'EXT' | 'INT/EXT';
 export type DayNight = 'DAY' | 'NIGHT' | 'MORNING' | 'EVENING' | 'DAWN' | 'DUSK';
-export type RowType = 'SCENE' | 'BREAK' | 'NOTE';
+export type RowType = 'SCENE' | 'BREAK' | 'NOTE' | 'DAY_BREAK';
 
 export interface Scene {
   id: string;

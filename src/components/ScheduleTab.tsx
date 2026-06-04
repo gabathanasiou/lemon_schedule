@@ -1,26 +1,25 @@
 import React, { useState } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
-import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
-import { ScheduleRow, Scene } from '../types';
+import { ScheduleRow, Scene, ShootDayMeta } from '../types';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
   const { active, pointerCoordinates, droppableContainers } = args;
 
-  // Filter droppable containers based on what we are dragging to avoid mismatch/flickering
-  const isDraggingDay = active.data.current?.type === 'DAY';
+  const isDraggingDay = active.data.current?.type === 'DAY_BREAK';
+  if (isDraggingDay) {
+    return closestCorners(args);
+  }
+
   const filteredContainers = droppableContainers.filter((container) => {
     const isDayWrap = (container.id as string).startsWith('day-wrap-');
-    if (isDraggingDay) {
-      return isDayWrap;
-    } else {
-      return !isDayWrap;
-    }
+    return !isDayWrap;
   });
 
   if (pointerCoordinates) {
@@ -123,15 +122,17 @@ export function ScheduleTab() {
   const unscheduledRows = augmentedRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
 
   const existingDays = Array.from(new Set([
-    ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0)
-    .sort((a, b) => {
-      const dateA = activeVersion.dayMeta?.[a]?.date || '';
-      const dateB = activeVersion.dayMeta?.[b]?.date || '';
-      return dateA.localeCompare(dateB);
-    });
+    ...Object.keys(activeVersion.dayMeta || {}).map(Number),
+  ])).sort((a, b) => {
+    const dateA = activeVersion.dayMeta?.[a]?.date || '';
+    const dateB = activeVersion.dayMeta?.[b]?.date || '';
+    return dateA.localeCompare(dateB);
+  });
 
   const getDayFromId = (id: string): number | null => {
+    if (id.startsWith('day-break-')) {
+      return parseInt(id.replace('day-break-', ''), 10);
+    }
     if (id.startsWith('day-wrap-') || id.startsWith('day-')) {
       return parseInt(id.replace('day-wrap-', '').replace('day-', ''), 10);
     }
@@ -139,7 +140,7 @@ export function ScheduleTab() {
     return row ? row.shootDay : null;
   };
 
-  const handleContextMenuAction = (action: string) => {
+const handleContextMenuAction = (action: string) => {
     if (!contextMenu || !activeVersion) return;
     const { rowId, shootDay } = contextMenu;
     const rowIndex = augmentedRows.findIndex(r => r.id === rowId);
@@ -195,6 +196,43 @@ export function ScheduleTab() {
         dispatch({ type: 'ADD_SCENE', payload: newScene });
       }
       newRows.push(newRow);
+    } else if (action === 'add_day_break') {
+      if (shootDay === null) { setContextMenu(null); return; }
+      const nextDay = shootDay + 1;
+      const insertOrder = row.order + 0.5;
+      const breakRow: ScheduleRow = {
+        id: generateUUID(),
+        type: 'DAY_BREAK',
+        shootDay: nextDay,
+        order: insertOrder
+      };
+      newRows = newRows.map(r => {
+        if (r.id === rowId) return r;
+        if (r.shootDay === shootDay && r.order > row.order) return { ...r, shootDay: nextDay };
+        if (r.shootDay >= nextDay) return { ...r, shootDay: r.shootDay + 1 };
+        return r;
+      });
+      newRows.push(breakRow);
+      const newDayMeta: Record<number, any> = {};
+      for (const [k, val] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
+        const kn = Number(k);
+        if (kn >= nextDay) newDayMeta[kn + 1] = { ...val, shootDay: kn + 1 };
+        else newDayMeta[kn] = val;
+      }
+      const lastDate = activeVersion.dayMeta?.[shootDay]?.date || '';
+      let date = '';
+      if (lastDate) {
+        const d = new Date(lastDate + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        date = `${y}-${m}-${day}`;
+      }
+      newDayMeta[nextDay] = { shootDay: nextDay, unitCall: '08:00', date };
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, dayMeta: newDayMeta } });
+      setContextMenu(null);
+      return;
     } else if (action === 'delete') {
       newRows = newRows.filter(r => r.id !== rowId);
     }
@@ -205,7 +243,7 @@ export function ScheduleTab() {
        if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
        return a.order - b.order;
     });
-    newRows.forEach((r, i) => r.order = i); // re-normalize
+    newRows.forEach((r, i) => r.order = i);
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setContextMenu(null);
@@ -231,7 +269,18 @@ export function ScheduleTab() {
 
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
-    if (overId && activeType === 'ROW') {
+    if (overId && activeType === 'DAY_BREAK') {
+      const day = getDayFromId(overId);
+      if (day !== null) {
+        if (augmentedRows.some(r => r.id === overId)) {
+          setInsertBeforeId(overId);
+        } else {
+          setInsertBeforeId(`day-${day}`);
+        }
+      } else {
+        setInsertBeforeId(null);
+      }
+    } else if (overId && activeType === 'ROW') {
       const day = getDayFromId(overId);
       if (day !== null) {
         const dayRows = scheduledRows[day] || [];
@@ -262,7 +311,76 @@ export function ScheduleTab() {
 
     if (activeId === overId) return;
 
-    // Day dragging logic
+    // Day break dragging logic
+    if (active.data.current?.type === 'DAY_BREAK') {
+      const sourceDay = parseInt(activeId.replace('day-break-', ''), 10);
+      const overDay = getDayFromId(overId);
+      if (overDay === null || sourceDay === overDay) return;
+
+      const targetRowId = overId.startsWith('day-') ? null : overId;
+
+      let workingRows = augmentedRows.map(r => ({ ...r }));
+
+      // Step 1: Remove source DAY_BREAK, merge its rows into previous day
+      const prevDay = sourceDay > 1 ? sourceDay - 1 : 2;
+      workingRows = workingRows.filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === sourceDay));
+      workingRows = workingRows.map(r => {
+        if (r.shootDay === sourceDay) return { ...r, shootDay: prevDay };
+        if (r.shootDay > sourceDay) return { ...r, shootDay: r.shootDay - 1 };
+        return r;
+      });
+
+      const workingMeta: Record<number, any> = {};
+      const sourceMeta = activeVersion.dayMeta?.[sourceDay];
+      for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
+        const kn = Number(k);
+        if (kn === sourceDay) continue;
+        if (kn > sourceDay) workingMeta[kn - 1] = { ...v, shootDay: kn - 1 };
+        else workingMeta[kn] = v;
+      }
+
+      // Step 2: Determine target after renumbering
+      const adjustedOverDay = overDay > sourceDay ? overDay - 1 : overDay;
+      const targetRow = targetRowId ? workingRows.find(r => r.id === targetRowId) : null;
+      const targetShootDay = targetRow ? targetRow.shootDay! : adjustedOverDay;
+      const nextDay = targetShootDay + 1;
+
+      // Step 3: Insert new DAY_BREAK at target position, split day
+      const insertOrder = targetRow ? targetRow.order + 0.5 : 999;
+      const newBreak: ScheduleRow = {
+        id: generateUUID(),
+        type: 'DAY_BREAK',
+        shootDay: nextDay,
+        order: insertOrder
+      };
+
+      workingRows = workingRows.map(r => {
+        if (targetRow && r.shootDay === targetShootDay && r.order > targetRow.order) return { ...r, shootDay: nextDay };
+        if (r.shootDay >= nextDay) return { ...r, shootDay: r.shootDay + 1 };
+        return r;
+      });
+      workingRows.push(newBreak);
+
+      const finalMeta: Record<number, any> = {};
+      for (const [k, v] of Object.entries(workingMeta)) {
+        const kn = Number(k);
+        if (kn >= nextDay) finalMeta[kn + 1] = { ...v, shootDay: kn + 1 };
+        else finalMeta[kn] = v;
+      }
+      finalMeta[nextDay] = {
+        shootDay: nextDay,
+        unitCall: sourceMeta?.unitCall || '08:00',
+        date: sourceMeta?.date || ''
+      };
+
+      const persistentRows = workingRows.map(r =>
+        r.id.startsWith('row-synth-') ? { ...r, id: generateUUID() } : r
+      );
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows, dayMeta: finalMeta } });
+      return;
+    }
+
+    // Old DAY type handling (legacy day-wrap sortable)
     if (active.data.current?.type === 'DAY') {
       const activeDay = parseInt(activeId.replace('day-wrap-', ''), 10);
       const overDay = getDayFromId(overId);
@@ -442,7 +560,6 @@ export function ScheduleTab() {
           </div>
 
           <div className="w-full max-w-4xl">
-            <SortableContext items={existingDays.map(d => `day-wrap-${d}`)} strategy={verticalListSortingStrategy}>
               {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 
@@ -455,25 +572,10 @@ export function ScheduleTab() {
                   insertBeforeId={insertBeforeId}
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
+                  activeType={activeType}
                   chronoDay={i + 1}
                 />
               ))}
-            </SortableContext>
-
-            <div className="flex justify-center mt-8">
-               <button 
-                 onClick={() => {
-                    const nextDay = existingDays.length > 0 ? Math.max(...existingDays) + 1 : 1;
-                    dispatch({
-                      type: 'UPDATE_VERSION',
-                      payload: { id: activeVersion.id, dayMeta: { ...activeVersion.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date: '' } } }
-                    });
-                 }}
-                 className="bg-black text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-black/20 hover:scale-105 transition-transform"
-               >
-                 + ADD SHOOT DAY
-               </button>
-            </div>
           </div>
         </div>
       </div>
@@ -488,7 +590,12 @@ export function ScheduleTab() {
                </div>
             )}
           </div>
-        ) : activeType === 'DAY' ? (
+        ) : activeType === 'DAY_BREAK' ? (
+           <div className="bg-black text-white px-3 py-2 flex items-center gap-3 rounded opacity-90 pointer-events-none w-full max-w-4xl shadow-2xl">
+             <span className="font-semibold">DAY {activeId?.toString().replace('day-break-', '')}</span>
+             <span className="text-zinc-400">CALL {activeVersion.dayMeta?.[parseInt(activeId?.toString().replace('day-break-', '') || '1')]?.unitCall || '08:00'}</span>
+           </div>
+         ) : activeType === 'DAY' ? (
           <div className="bg-white shadow-2xl border-4 border-blue-500 w-full max-w-4xl h-32 rounded flex items-center justify-center font-bold text-lg opacity-90 scale-105 pointer-events-none">
              Moving Shoot Day...
           </div>
@@ -504,6 +611,8 @@ export function ScheduleTab() {
         >
            <button onClick={() => handleContextMenuAction('add_note')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Add Note Below</button>
            <button onClick={() => handleContextMenuAction('add_break')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Add Break Below</button>
+           <div className="h-[1px] bg-zinc-200 my-1"></div>
+           <button onClick={() => handleContextMenuAction('add_day_break')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Insert Day Break Below</button>
            <div className="h-[1px] bg-zinc-200 my-1"></div>
            <button onClick={() => handleContextMenuAction('duplicate')} className="w-full text-left px-4 py-2 hover:bg-zinc-100 transition-colors">Duplicate (Ghost Scene)</button>
            <div className="h-[1px] bg-zinc-200 my-1"></div>
