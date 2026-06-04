@@ -324,6 +324,24 @@ export function ScheduleTab() {
     if (!contextMenu || !activeVersion) return;
     const { rowId, shootDay } = contextMenu;
     const rowIndex = augmentedRows.findIndex(r => r.id === rowId);
+    const isDummy = rowId.startsWith('empty-');
+
+    // Dummy rows can only add notes/breaks
+    if (isDummy && (action === 'add_note' || action === 'add_break')) {
+      const newRow: ScheduleRow = {
+        id: generateUUID(),
+        type: action === 'add_note' ? 'NOTE' : 'BREAK',
+        shootDay,
+        order: 0,
+        ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
+      };
+      const newRows = [...activeVersion.rows, newRow];
+      newRows.forEach((r, i) => r.order = i);
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+      setContextMenu(null);
+      return;
+    }
+
     if (rowIndex === -1) return;
     const row = augmentedRows[rowIndex];
 
@@ -825,11 +843,15 @@ export function ScheduleTab() {
                   <ContextMenuDivider />
                 </>
               )}
-              <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut to Buffer</ContextMenuItem>
-              <ContextMenuDivider />
+              {row && (
+                <>
+                  <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut to Buffer</ContextMenuItem>
+                  <ContextMenuDivider />
+                </>
+              )}
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
-              <ContextMenuDivider />
+              {row && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>

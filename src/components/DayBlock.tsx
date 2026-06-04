@@ -247,6 +247,17 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         {computedRows.length === 0 && showGhosts && insertBeforeId === `day-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
         )}
+        {computedRows.length === 0 && !activeRowId && (
+          <div
+            data-row-id={`empty-${dayInt}`}
+            data-shoot-day={dayInt}
+            onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
+            className="flex items-center px-4 py-3 text-zinc-300 text-[9pt] cursor-pointer hover:bg-zinc-50 border-b border-zinc-100 italic select-none"
+            style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}
+          >
+            No scenes in this day · right-click for options
+          </div>
+        )}
       </div>
 
       {/* Day Footer */}
