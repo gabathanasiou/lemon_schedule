@@ -72,7 +72,6 @@ export function ScheduleTab() {
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
-  const [clipboardIds, setClipboardIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
@@ -135,71 +134,6 @@ export function ScheduleTab() {
     return () => window.removeEventListener('keydown', handler);
   }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch]);
 
-  const activeVersionRef = useRef(activeVersion);
-  activeVersionRef.current = activeVersion;
-
-  const pasteClipboard = useCallback((targetId: string) => {
-    const ver = activeVersionRef.current;
-    if (!ver) return;
-    const targetRow = augmentedRows.find(r => r.id === targetId);
-    if (!targetRow) return;
-    const targetShootDay = targetRow.shootDay;
-    const newRows = ver.rows.map(r => ({ ...r }));
-    const cutIds = Array.from(clipboardIds);
-    const pasted = cutIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
-    let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !cutIds.includes(r.id)).sort((a, b) => a.order - b.order);
-    const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
-    dayRows.splice(insIdx + 1, 0, ...pasted);
-    dayRows.forEach((r, i) => r.order = i);
-    const final = [...newRows.filter(r => !cutIds.includes(r.id)), ...dayRows];
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
-    setClipboardIds(new Set());
-    setSelectedRowIds(new Set());
-  }, [clipboardIds, dispatch]);
-
-  useEffect(() => () => {
-    const ver = activeVersionRef.current;
-    if (!ver) return;
-    const ids = Array.from(activeDragIds);
-    if (ids.length > 0) {
-      const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
-    }
-    const cutIds = Array.from(clipboardIds);
-    if (cutIds.length > 0) {
-      const newRows = ver.rows.map(r => cutIds.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
-    }
-  }, []); // eslint-disable-line
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-      const ver = activeVersionRef.current;
-      if (!ver || activeId || textEditingEnabled) return;
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'x' && selectedRowIds.size > 0) {
-        e.preventDefault();
-        setClipboardIds(new Set(selectedRowIds));
-        setSelectedRowIds(new Set());
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'v' && clipboardIds.size > 0 && selectedRowIds.size > 0) {
-        e.preventDefault();
-        const sorted = [...selectedRowIds].sort((a, b) => {
-          const rA = augmentedRows.find(rx => rx.id === a);
-          const rB = augmentedRows.find(rx => rx.id === b);
-          if (rA && rB) return (rA.order || 0) - (rB.order || 0);
-          return 0;
-        });
-        pasteClipboard(sorted[0]);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedRowIds, activeDragIds, activeId, textEditingEnabled, dispatch]);
-
   useEffect(() => {
     const onSelectStart = (e: Event) => {
       const target = e.target as HTMLElement;
@@ -249,7 +183,7 @@ export function ScheduleTab() {
     }))
   ];
 
-  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id) && !clipboardIds.has(r.id)).reduce((acc, row) => {
+  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id)).reduce((acc, row) => {
     if (row.shootDay !== null) {
       if (!acc[row.shootDay]) acc[row.shootDay] = [];
       acc[row.shootDay].push(row);
@@ -261,14 +195,7 @@ export function ScheduleTab() {
     dayRows.sort((a, b) => a.order - b.order);
   });
 
-  const unscheduledBase = augmentedRows.filter(r => r.shootDay === null && !clipboardIds.has(r.id)).sort((a, b) => a.order - b.order);
-  const unscheduledRows = activeId ? unscheduledBase.filter(r => !activeDragIds.has(r.id)) : unscheduledBase;
-
-  const cutRows = (clipboardIds.size > 0)
-    ? augmentedRows.filter(r => clipboardIds.has(r.id) && r.shootDay !== null).sort((a, b) => a.order - b.order)
-    : [];
-
-  const unscheduledAll = [...unscheduledRows, ...cutRows];
+  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order);
 
   const existingDays = Array.from(new Set([
     ...Object.keys(activeVersion.dayMeta || {}).map(Number),
@@ -659,7 +586,7 @@ export function ScheduleTab() {
               }
           }}
       >
-        <UnscheduledBlock rows={unscheduledAll} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} clipboardIds={clipboardIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
+        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -692,20 +619,6 @@ export function ScheduleTab() {
                   <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
                     {selectedRowIds.size} selected
                     <button onClick={() => setSelectedRowIds(new Set())} className="hover:text-blue-900 font-bold">&times;</button>
-                  </span>
-                )}
-                {cutRows.length > 0 && (
-                  <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                    {cutRows.length} cut
-                    <button onClick={() => {
-                      const ver = activeVersion;
-                      if (ver) {
-                        const ids = Array.from(clipboardIds);
-                        const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-                        dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
-                      }
-                      setClipboardIds(new Set());
-                    }} className="hover:text-amber-900 font-bold">&times;</button>
                   </span>
                 )}
               </div>
@@ -771,43 +684,24 @@ export function ScheduleTab() {
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
         {(() => {
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
-          const cutSelection = () => {
-            setClipboardIds(new Set(selectedRowIds));
-            setSelectedRowIds(new Set());
-            setContextMenu(null);
-          };
-
           if (selectedRowIds.size > 1) {
             return (
-              <>
-                <ContextMenuItem onClick={cutSelection}>Cut {selectedRowIds.size} Ribbons</ContextMenuItem>
-              {clipboardIds.size > 0 && (
-                  <ContextMenuItem onClick={() => { pasteClipboard(row!.id); setContextMenu(null); }}>Paste</ContextMenuItem>
-                )}
-                <ContextMenuDivider />
-                <ContextMenuItem variant="danger" onClick={() => {
-                  const ids = Array.from(selectedRowIds);
-                  const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-                  dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                  setSelectedRowIds(new Set());
-                  setContextMenu(null);
-                }}>
-                  Remove {selectedRowIds.size} Ribbons
-                </ContextMenuItem>
-              </>
+              <ContextMenuItem variant="danger" onClick={() => {
+                const ids = Array.from(selectedRowIds);
+                const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+                dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                setSelectedRowIds(new Set());
+                setContextMenu(null);
+              }}>
+                Remove {selectedRowIds.size} Ribbons
+              </ContextMenuItem>
             );
           }
           return (
             <>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
-              {clipboardIds.size > 0 && (
-                <>
-                  <ContextMenuItem onClick={() => { pasteClipboard(row!.id); setContextMenu(null); }}>Paste</ContextMenuItem>
-                </>
-              )}
               <ContextMenuDivider />
-              <ContextMenuItem onClick={() => { setClipboardIds(new Set([row!.id])); setContextMenu(null); }}>Cut</ContextMenuItem>
               {row?.type === 'SCENE' && (
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
