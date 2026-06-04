@@ -24,6 +24,13 @@ function sceneStyle(scene?: Scene | null): React.CSSProperties {
   return { background: '#ffffff', color: '#18181b' };
 }
 
+function darkenHex(hex: string): string {
+  const r = Math.round(parseInt(hex.slice(1,3),16) * 0.8).toString(16).padStart(2,'0');
+  const g = Math.round(parseInt(hex.slice(3,5),16) * 0.8).toString(16).padStart(2,'0');
+  const b = Math.round(parseInt(hex.slice(5,7),16) * 0.8).toString(16).padStart(2,'0');
+  return `#${r}${g}${b}`;
+}
+
 const DD_ITEM = (active: boolean) => `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,Arial,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
 const DD_CONTAINER = "absolute top-full z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1";
 
@@ -382,7 +389,7 @@ export const SortableRow: React.FC<{
     onClick: onSelectToggle,
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
-    className: `group relative transition-colors shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'brightness-[0.85]' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
+    className: `group relative transition-colors shrink-0 ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
   };
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
@@ -505,6 +512,10 @@ export const SortableRow: React.FC<{
   if (scene) {
     const rowStyle = sceneStyle(scene);
     const borderStyle = { ...rowStyle, borderBottom: '0.5px solid rgba(0,0,0,0.1)' };
+    if (isSelected && !isFaded) {
+      rowStyle.background = darkenHex(rowStyle.background as string);
+      borderStyle.background = darkenHex(borderStyle.background as string);
+    }
 
     if (isCompact) {
       return (
