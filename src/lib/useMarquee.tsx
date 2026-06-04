@@ -52,46 +52,6 @@ function initKeyboardListeners() {
   window.addEventListener('blur', blur);
 }
 
-export function useAddMode(): boolean {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const fn = () => tick(n => n + 1);
-    _addModeListeners.add(fn);
-    return () => { _addModeListeners.delete(fn); };
-  }, []);
-  return _addMode;
-}
-
-function initKeyboardListeners() {
-  if (_listenersInitialized) return;
-  _listenersInitialized = true;
-  const down = (e: KeyboardEvent) => {
-    if (e.key === 'Shift') { _shiftKey = true; _shiftListeners.forEach(fn => fn()); }
-    if (e.metaKey || e.ctrlKey) {
-      const next = true;
-      if (next !== _addMode) {
-        _addMode = next;
-        _addModeListeners.forEach(fn => fn());
-      }
-    }
-  };
-  const up = (e: KeyboardEvent) => {
-    if (e.key === 'Shift') { _shiftKey = false; _shiftListeners.forEach(fn => fn()); }
-    if (!e.metaKey && !e.ctrlKey) {
-      _addMode = false;
-      _addModeListeners.forEach(fn => fn());
-    }
-  };
-  const blur = () => {
-    _shiftKey = false; _addMode = false;
-    _shiftListeners.forEach(fn => fn());
-    _addModeListeners.forEach(fn => fn());
-  };
-  window.addEventListener('keydown', down);
-  window.addEventListener('keyup', up);
-  window.addEventListener('blur', blur);
-}
-
 export function useMarquee(
   containerRef: React.RefObject<HTMLElement>,
   onSelectionChange: (ids: Set<string>, isAddMode: boolean) => void,
