@@ -184,7 +184,7 @@ export function ScheduleTab() {
         const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
         dayRows.splice(insIdx + 1, 0, ...pasted);
         dayRows.forEach((r, i) => r.order = i);
-        const final = [...newRows.filter(r => r.shootDay !== targetShootDay || cutIds.includes(r.id)), ...dayRows];
+        const final = [...newRows.filter(r => !cutIds.includes(r.id)), ...dayRows];
         dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
         setClipboardIds(new Set());
         setSelectedRowIds(new Set());
@@ -784,7 +784,7 @@ export function ScheduleTab() {
             const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
             dayRows.splice(insIdx + 1, 0, ...pasted);
             dayRows.forEach((r, i) => r.order = i);
-            const final = [...newRows.filter(r => r.shootDay !== targetShootDay || cutIds.includes(r.id)), ...dayRows];
+            const final = [...newRows.filter(r => !cutIds.includes(r.id)), ...dayRows];
             dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
             setClipboardIds(new Set());
             setSelectedRowIds(new Set());
