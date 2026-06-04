@@ -405,6 +405,7 @@ export const SortableRow: React.FC<{
 
   if (row.type === 'NOTE') {
     const noteStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
+    if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
     return (
       <div {...commonProps}>
         <div className="flex items-stretch">
@@ -459,6 +460,7 @@ export const SortableRow: React.FC<{
 
   if (row.type === 'BREAK') {
     const breakStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
+    if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
     return (
       <div {...commonProps}>
         <div className="flex items-stretch">
