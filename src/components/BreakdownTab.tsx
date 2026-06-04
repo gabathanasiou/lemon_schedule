@@ -416,28 +416,32 @@ export function BreakdownTab() {
 
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantomIndex = scenes.length;
-    const phantomRow = newData[phantomIndex];
 
-    if (phantomRow) {
-      const hasContent = phantomRow.slice(0, ACTIONS_COL).some(c => {
+    // Process all pasted/extra rows beyond existing scenes
+    let createdAny = false;
+    for (let row = phantomIndex; row < newData.length; row++) {
+      const row_data = newData[row];
+      if (!row_data) continue;
+      const hasContent = row_data.slice(0, ACTIONS_COL).some(c => {
         const v = c?.value;
         return v !== undefined && v !== null && String(v).trim() !== '';
       });
-      if (hasContent) {
-        const newScene: Partial<Record<string, any>> = { shootDay: null };
-        for (let col = 0; col < ACTIONS_COL; col++) {
-          const val = phantomRow[col]?.value ?? '';
-          newScene[COLUMNS[col].key] = val;
-        }
-        newScene.id = generateUUID();
-        const decimal = parsePageCount(newScene.pageCount || '1');
-        newScene.pageCount = formatPageCount(decimal);
-        newScene.pageCountDecimal = decimal;
-        newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
-        dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
-        return;
+      if (!hasContent) continue;
+      const newScene: Partial<Record<string, any>> = { shootDay: null };
+      for (let col = 0; col < ACTIONS_COL; col++) {
+        const val = row_data[col]?.value ?? '';
+        newScene[COLUMNS[col].key] = val;
       }
+      newScene.id = generateUUID();
+      const decimal = parsePageCount(newScene.pageCount || '1');
+      newScene.pageCount = formatPageCount(decimal);
+      newScene.pageCountDecimal = decimal;
+      newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
+      dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
+      createdAny = true;
     }
+
+    if (createdAny) return;
 
     for (let row = 0; row < Math.min(scenes.length, newData.length); row++) {
       for (let col = 0; col < ACTIONS_COL; col++) {
