@@ -66,10 +66,12 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const versionName = activeVersion?.name || '';
   const versionShort = `V${(versionName.match(/\d+/) || ['1'])[0].padStart(2, '0')}`;
   const sanitizedTitle = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
-  const timesPart = showTimes ? 'Timed' : 'NoTimes';
-  const daysList = [...selectedDays].sort((a: number, b: number) => a - b);
-  const daysPart = formatDays(daysList);
-  const fileName = `${sanitizedTitle}_${versionShort}_${timesPart}_${daysPart}`;
+  const parts = [sanitizedTitle, versionShort];
+  if (!showTimes) parts.push('NoTimes');
+  if (selectedDays.size > 0 && selectedDays.size < dayEntries.length) {
+    parts.push(formatDays([...selectedDays].sort((a: number, b: number) => a - b)));
+  }
+  const fileName = parts.join('_');
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
