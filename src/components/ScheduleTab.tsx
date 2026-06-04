@@ -137,6 +137,17 @@ export function ScheduleTab() {
   const activeVersionRef = useRef(activeVersion);
   activeVersionRef.current = activeVersion;
 
+  useEffect(() => () => {
+    if (activeDragIds.size > 0) {
+      const ver = activeVersionRef.current;
+      if (ver) {
+        const ids = Array.from(activeDragIds);
+        const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
+      }
+    }
+  }, []); // eslint-disable-line
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -144,7 +155,7 @@ export function ScheduleTab() {
       const ver = activeVersionRef.current;
       if (!ver || activeId || textEditingEnabled) return;
 
-      if ((e.metaKey || e.ctrlKey) && e.key === 'c' && selectedRowIds.size > 0) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x' && selectedRowIds.size > 0) {
         e.preventDefault();
         setActiveDragIds(new Set(selectedRowIds));
         setSelectedRowIds(new Set());
@@ -728,24 +739,63 @@ export function ScheduleTab() {
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
         {(() => {
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
+          const cutSelection = () => {
+            setActiveDragIds(new Set(selectedRowIds));
+            setSelectedRowIds(new Set());
+            setContextMenu(null);
+          };
+          const pasteHere = () => {
+            if (!row || !activeVersion) return;
+            const ver = activeVersion;
+            const sorted = [row.id];
+            const targetRow = augmentedRows.find(r => r.id === sorted[0]);
+            if (!targetRow) return;
+            const targetShootDay = targetRow.shootDay;
+            const newRows = ver.rows.map(r => ({ ...r }));
+            const draggedIds = Array.from(activeDragIds);
+            const pasted = draggedIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean).map(r => ({ ...r, shootDay: targetShootDay }));
+            let dayRows = newRows.filter(r => r.shootDay === targetShootDay && !draggedIds.includes(r.id)).sort((a, b) => a.order - b.order);
+            const insIdx = dayRows.findIndex(r => r.id === targetRow.id);
+            dayRows.splice(insIdx + 1, 0, ...pasted);
+            dayRows.forEach((r, i) => r.order = i);
+            const final = [...newRows.filter(r => r.shootDay !== targetShootDay || draggedIds.includes(r.id)), ...dayRows];
+            dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: final } });
+            setActiveDragIds(new Set());
+            setSelectedRowIds(new Set());
+            setContextMenu(null);
+          };
+
           if (selectedRowIds.size > 1) {
             return (
-              <ContextMenuItem variant="danger" onClick={() => {
-                const ids = Array.from(selectedRowIds);
-                const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-                dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                setSelectedRowIds(new Set());
-                setContextMenu(null);
-              }}>
-                Remove {selectedRowIds.size} Ribbons
-              </ContextMenuItem>
+              <>
+                <ContextMenuItem onClick={cutSelection}>Cut {selectedRowIds.size} Ribbons</ContextMenuItem>
+                {activeDragIds.size > 0 && (
+                  <ContextMenuItem onClick={pasteHere}>Paste</ContextMenuItem>
+                )}
+                <ContextMenuDivider />
+                <ContextMenuItem variant="danger" onClick={() => {
+                  const ids = Array.from(selectedRowIds);
+                  const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+                  dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                  setSelectedRowIds(new Set());
+                  setContextMenu(null);
+                }}>
+                  Remove {selectedRowIds.size} Ribbons
+                </ContextMenuItem>
+              </>
             );
           }
           return (
             <>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
+              {activeDragIds.size > 0 && (
+                <>
+                  <ContextMenuItem onClick={pasteHere}>Paste</ContextMenuItem>
+                </>
+              )}
               <ContextMenuDivider />
+              <ContextMenuItem onClick={() => { setActiveDragIds(new Set([row!.id])); setContextMenu(null); }}>Cut</ContextMenuItem>
               {row?.type === 'SCENE' && (
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
