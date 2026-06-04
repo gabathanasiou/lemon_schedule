@@ -1,7 +1,7 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
-import { Scene, IntExt, DayNight } from '../types';
+import { Scene, IntExt, DayNight, CastMember } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -22,9 +22,10 @@ const COLUMNS = [
 
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
-const ACTIONS_COL = COLUMNS.length - 1;
-const INT_EXT_COL = COLUMNS.findIndex(c => c.key === 'intExt');
-const DAY_NIGHT_COL = COLUMNS.findIndex(c => c.key === 'dayNight');
+const ACTIONS_COL = 9;
+const INT_EXT_COL = 3;
+const DAY_NIGHT_COL = 5;
+const CAST_COL = 7;
 
 export function BreakdownTab() {
   const { state, dispatch } = useProject();
@@ -49,6 +50,80 @@ export function BreakdownTab() {
       </div>
     );
   }, [scenes, deleteScene]);
+
+  const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
+    const [val, setVal] = useState(cell?.value || '');
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const committedRef = useRef(false);
+    const castMembers = project.castMembers || [];
+    const query = val.split(',').pop()?.trim().toLowerCase() || '';
+    const filtered = castMembers.filter(m =>
+      !query || m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query)
+    );
+    const currentIds = val.split(',').map(x => x.trim()).filter(Boolean);
+    const addId = (id: string) => {
+      if (!currentIds.includes(id)) {
+        setVal(prev => {
+          const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
+          ids.push(id);
+          return ids.join(', ');
+        });
+      }
+      setHighlightedIndex(0);
+    };
+    return (
+      <div className="relative w-full h-full">
+        <input
+          value={val}
+          onChange={e => { setVal(e.target.value); setHighlightedIndex(0); }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === 'Tab') {
+              e.preventDefault();
+              committedRef.current = true;
+              onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
+              exitEditMode();
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1));
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              setHighlightedIndex(i => Math.max(i - 1, 0));
+            }
+            if (e.key === 'Escape') exitEditMode();
+          }}
+          onBlur={() => {
+            if (!committedRef.current) {
+              onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
+              exitEditMode();
+            }
+          }}
+          autoFocus
+          className="w-full h-full border-0 outline-none px-2 text-[13px] font-mono"
+          placeholder="1, 2, JOHN"
+        />
+        {filtered.length > 0 && (
+          <div className="absolute top-full left-0 min-w-[200px] bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
+            {filtered.map((m, i) => {
+              const checked = currentIds.includes(m.id);
+              return (
+                <div
+                  key={m.id}
+                  className={`px-2 py-1 text-[13px] cursor-pointer flex items-center gap-2 font-mono ${i === highlightedIndex ? 'bg-blue-100' : checked ? 'bg-zinc-50' : 'hover:bg-zinc-50'}`}
+                  onMouseDown={e => { e.preventDefault(); addId(m.id); }}
+                >
+                  <span className="text-zinc-400 shrink-0 w-12 text-right">{m.id}.</span>
+                  <span className={checked ? 'text-zinc-900 font-semibold' : 'text-zinc-700'}>{m.name || <span className="italic text-zinc-400">—</span>}</span>
+                  {checked && <span className="ml-auto text-[10px] text-blue-600 font-bold">ON</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }, [project.castMembers]);
 
   const PageCountEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
@@ -264,7 +339,7 @@ export function BreakdownTab() {
       { value: scene.set, DataEditor: SetEditor },
       { value: scene.dayNight, DataEditor: DayNightEditor },
       { value: scene.description },
-      { value: scene.cast },
+      { value: scene.cast, DataEditor: CastEditor },
       { value: scene.notes },
       { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
@@ -274,10 +349,11 @@ export function BreakdownTab() {
       if (i === 3) return { value: '', DataEditor: IntExtEditor };
       if (i === 4) return { value: '', DataEditor: SetEditor };
       if (i === 5) return { value: '', DataEditor: DayNightEditor };
+      if (i === CAST_COL) return { value: '', DataEditor: CastEditor };
       return { value: '' };
     }));
     return rows;
-  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor]);
+  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantomIndex = scenes.length;
