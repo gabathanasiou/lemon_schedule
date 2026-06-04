@@ -156,11 +156,21 @@ const DayCell: React.FC<{
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
               {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
-                <div className="opacity-30 text-[9px] px-1.5 py-0.5 mb-0.5 bg-zinc-200 rounded truncate">…</div>
+                <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+                  {activeDragRows.slice(0, 3).map(dr => (
+                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                  ))}
+                  {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+                </div>
               )}
               <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
               {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
-                <div className="opacity-30 text-[9px] px-1.5 py-0.5 mb-0.5 bg-zinc-200 rounded truncate">…</div>
+                <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+                  {activeDragRows.slice(0, 3).map(dr => (
+                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                  ))}
+                  {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+                </div>
               )}
             </React.Fragment>
           ))}
