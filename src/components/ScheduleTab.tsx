@@ -197,10 +197,9 @@ export function ScheduleTab() {
         e.preventDefault();
         if (!activeVersion) return;
         const ids = Array.from(selectedRowIds);
-        const removed = new Set(ids);
         const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-        selectNextAfterRemove(removed);
+        selectNextAfterRemove(new Set(ids as string[]));
       }
     };
     window.addEventListener('keydown', handler);
@@ -380,7 +379,7 @@ export function ScheduleTab() {
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     if (action === 'delete' || action === 'unschedule') {
-      selectNextAfterRemove(new Set<string>([rowId]));
+      selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);
   };
@@ -790,7 +789,7 @@ export function ScheduleTab() {
                   const ids = Array.from(selectedRowIds);
                   const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
                   dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                  selectNextAfterRemove(new Set<string>(ids));
+                  selectNextAfterRemove(new Set(ids as string[]));
                   setContextMenu(null);
                 }}>
                   Remove {selectedRowIds.size} Ribbons
