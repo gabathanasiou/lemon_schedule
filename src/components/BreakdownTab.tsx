@@ -778,30 +778,34 @@ export function BreakdownTab() {
             className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] text-sm text-zinc-700 min-w-[180px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
-            {contextMenu.row < scenes.length && (
-              <>
-                <button onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                  <Plus className="w-3 h-3 text-zinc-400" /> Insert Above
-                </button>
-                <button onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                  <ArrowDown className="w-3 h-3 text-zinc-400" /> Insert Below
-                </button>
-                <button onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                  <Copy className="w-3 h-3 text-zinc-400" /> Duplicate
-                </button>
-                <div className="h-[1px] bg-zinc-200 my-1" />
-              </>
-            )}
-            {selectedRows.size > 0 && (
-              <button onClick={() => { deleteSelectedRows(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
-                <Trash2 className="w-3 h-3" /> Delete {selectedRows.size > 1 ? `${selectedRows.size} rows` : 'Row'}
+          {contextMenu.row < scenes.length && (
+            <>
+              <button onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                <Plus className="w-3 h-3 text-zinc-400" /> Insert Above
               </button>
-            )}
-            {contextMenu.row >= scenes.length && (
-              <button onClick={() => { addScene(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
-                <Plus className="w-3 h-3 text-zinc-400" /> Add Scene
+              <button onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                <ArrowDown className="w-3 h-3 text-zinc-400" /> Insert Below
               </button>
-            )}
+              <button onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+                <Copy className="w-3 h-3 text-zinc-400" /> Duplicate
+              </button>
+              <div className="h-[1px] bg-zinc-200 my-1" />
+              {selectedRows.size > 1 ? (
+                <button onClick={() => { deleteSelectedRows(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
+                  <Trash2 className="w-3 h-3" /> Delete {selectedRows.size} rows
+                </button>
+              ) : (
+                <button onClick={() => { deleteScene(scenes[contextMenu.row]?.id); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 flex items-center gap-2">
+                  <Trash2 className="w-3 h-3" /> Delete Row
+                </button>
+              )}
+            </>
+          )}
+          {contextMenu.row >= scenes.length && (
+            <button onClick={() => { addScene(); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-zinc-50 flex items-center gap-2">
+              <Plus className="w-3 h-3 text-zinc-400" /> Add Scene
+            </button>
+          )}
           </div>
         </>
       )}
