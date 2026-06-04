@@ -95,6 +95,7 @@ const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ row
 
 export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay }) => {
   const displayDay = chronoDay ?? dayInt;
+  const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -102,6 +103,11 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
     data: { type: 'DAY_DROPZONE', dayInt }
+  });
+
+  const { setNodeRef: setFooterRef } = useDroppable({
+    id: `end-${dayInt}`,
+    data: { type: 'DAY_END', dayInt }
   });
 
   const violations = useMemo(() => {
@@ -214,10 +220,10 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">
         <SortableContext items={rows.map(r => r.id).filter(id => !activeDragIds.has(id))} strategy={verticalListSortingStrategy}>
           {computedRows.filter(r => !activeDragIds.has(r.id)).map((r, i) => {
-            const isCrossContext = activeRowId && activeDragRows.length > 0;
+            const isRowGhostTarget = activeRowId && activeDragRows.length > 0;
             return (
               <React.Fragment key={r.id}>
-                {isCrossContext && insertBeforeId === r.id && activeDragRow && (
+                {isRowGhostTarget && insertBeforeId === r.id && activeDragRow && (
                   <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
                 )}
                 <SortableRow 
@@ -229,7 +235,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   textEditingEnabled={textEditingEnabled}
                   sceneViolations={sceneViolationMap.get(r.sceneId || '')}
                 />
-                {isCrossContext && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
+                {isRowGhostTarget && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
                   <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
                 )}
               </React.Fragment>
@@ -240,7 +246,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         {/* Drop target filler if empty */}
         {rows.length === 0 && (
           <>
-            {activeRowId && insertBeforeId === `day-${dayInt}` && activeDragRow && (
+            {showGhosts && insertBeforeId === `day-${dayInt}` && (
               <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
             )}
             <div className="flex-1 flex items-center justify-center p-8 text-zinc-300 border-2 border-dashed border-zinc-200 m-2 rounded-lg font-bold">
@@ -252,8 +258,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       {/* Day Footer */}
       {rows.length > 0 && (
-        <div className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
-          style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>
+        <>
+          {showGhosts && insertBeforeId === `end-${dayInt}` && (
+            <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+          )}
+          <div ref={setFooterRef} className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
+            style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>
           <span className="shrink-0">
             End of Day #{displayDay}
             {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
@@ -266,6 +276,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
           </div>
         </div>
+        </>
       )}
     </div>
   );

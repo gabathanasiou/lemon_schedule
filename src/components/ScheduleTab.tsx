@@ -178,8 +178,8 @@ export function ScheduleTab() {
   });
 
   const getDayFromId = (id: string): number | null => {
-    if (id.startsWith('day-wrap-') || id.startsWith('day-')) {
-      return parseInt(id.replace('day-wrap-', '').replace('day-', ''), 10);
+    if (id.startsWith('day-wrap-') || id.startsWith('day-') || id.startsWith('end-')) {
+      return parseInt(id.replace('day-wrap-', '').replace('day-', '').replace('end-', ''), 10);
     }
     const row = augmentedRows.find(r => r.id === id);
     return row ? row.shootDay : null;
@@ -354,7 +354,7 @@ export function ScheduleTab() {
     let overDay = getDayFromId(overId);
     if (overId === 'unscheduled_bin' || (overDay === null && augmentedRows.some(r => r.id === overId && r.shootDay === null))) {
       overDay = null; // explicit drop to unscheduled
-    } else if (overDay === null && !overId.startsWith('day-')) {
+    } else if (overDay === null && !overId.startsWith('day-') && !overId.startsWith('end-')) {
       return; // invalid drop
     }
 
@@ -388,7 +388,8 @@ export function ScheduleTab() {
       } else {
         newRows = newRows.filter(r => r.id !== activeId);
         let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-        let targetOverId = lastInsertBeforeId && !lastInsertBeforeId.startsWith('day-') && dayRows.some(r => r.id === lastInsertBeforeId)
+        const isDayEnd = lastInsertBeforeId?.startsWith('day-') || lastInsertBeforeId?.startsWith('end-');
+        let targetOverId = lastInsertBeforeId && !isDayEnd && dayRows.some(r => r.id === lastInsertBeforeId)
           ? lastInsertBeforeId : null;
         let insertIndex = targetOverId ? dayRows.findIndex(r => r.id === targetOverId) : dayRows.length;
         if (insertIndex === -1) insertIndex = dayRows.length;
@@ -400,7 +401,8 @@ export function ScheduleTab() {
     } else {
       const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
       const dayRowsBefore = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      const targetOverId = lastInsertBeforeId && !lastInsertBeforeId.startsWith('day-') && dayRowsBefore.some(r => r.id === lastInsertBeforeId)
+      const isDayEnd = lastInsertBeforeId?.startsWith('day-') || lastInsertBeforeId?.startsWith('end-');
+      const targetOverId = lastInsertBeforeId && !isDayEnd && dayRowsBefore.some(r => r.id === lastInsertBeforeId)
         ? lastInsertBeforeId : null;
       const rawIndex = targetOverId ? dayRowsBefore.findIndex(r => r.id === targetOverId) : dayRowsBefore.length;
       const insertIndex = rawIndex === -1 ? 0 : rawIndex - draggingIds.filter(id => {
