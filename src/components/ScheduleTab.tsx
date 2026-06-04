@@ -365,7 +365,7 @@ export function ScheduleTab() {
           table-layout: fixed;
           border-collapse: collapse;
           font-family: Helvetica, Arial, sans-serif;
-          font-size: 13px;
+          font-size: 8pt;
           line-height: 1.2;
         }
         .schedule-table td {
@@ -381,13 +381,13 @@ export function ScheduleTab() {
         .schedule-table tbody tr:last-child td:last-child {
           border-right: none;
         }
-        .col-sc { width: 25px; text-align: center; }
+        .col-sc { width: 40px; text-align: center; overflow: visible !important; padding: 0 !important; }
         .col-call { width: 35px; text-align: center; }
         .col-dur { width: 40px; text-align: center; }
         .col-ie { width: 50px; text-align: center; }
         .col-set { width: 200px; }
         .col-dn { width: 75px; text-align: center; }
-        .col-cast { width: 80px; text-align: left; }
+        .col-cast { width: 50px; text-align: left; }
         .col-pgs { width: 50px; text-align: center; }
         .col-desc {
           text-align: left;

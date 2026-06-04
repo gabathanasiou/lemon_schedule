@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Scene, ScheduleRow } from '../types';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -18,6 +18,8 @@ export const UnscheduledBlock: React.FC<{
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [width, setWidth] = useState(340);
+  const panelRef = useRef<HTMLDivElement>(null);
   
   const { setNodeRef } = useDroppable({
     id: 'unscheduled_bin',
@@ -97,10 +99,37 @@ export const UnscheduledBlock: React.FC<{
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
   };
 
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    const startX = e.clientX;
+    const startWidth = panelRef.current?.offsetWidth || width;
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(600, Math.max(200, startWidth + e.clientX - startX));
+      if (panelRef.current) {
+        panelRef.current.style.width = `${newWidth}px`;
+      }
+      setWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [width]);
+
   return (
     <div 
-      ref={isCollapsed ? setNodeRef : undefined}
-      className={`${isCollapsed ? 'w-[44px] bg-zinc-50' : 'w-[340px] bg-white'} border-r border-zinc-200 shadow-xl flex flex-col z-20 print:hidden relative shrink-0 transition-all duration-300 ease-in-out overflow-hidden`}
+      ref={(node: HTMLDivElement | null) => {
+        panelRef.current = node;
+        if (isCollapsed && setNodeRef) setNodeRef(node);
+      }}
+      className={`${isCollapsed ? 'w-[44px] bg-zinc-50' : 'bg-white'} border-r border-zinc-200 shadow-xl flex flex-col z-20 print:hidden relative shrink-0 overflow-hidden`}
+      style={isCollapsed ? undefined : { width: `${width}px` }}
     >
       {isCollapsed ? (
         <div 
@@ -125,7 +154,7 @@ export const UnscheduledBlock: React.FC<{
           </div>
         </div>
       ) : (
-        <div className="flex flex-col h-full w-[340px] shrink-0">
+        <div className="flex flex-col h-full" style={{ width: '100%' }}>
           <div className="p-4 border-b border-zinc-200 bg-zinc-50 shadow-sm sticky top-0 z-10 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div>
@@ -196,17 +225,16 @@ export const UnscheduledBlock: React.FC<{
             </div>
           </div>
           
-          <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0 bg-zinc-100 items-stretch">
+          <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-white items-stretch">
             <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
               {rows.map((r) => (
-                <div key={r.id} className="shadow-sm rounded overflow-hidden border border-black/20 shrink-0">
-                   <SortableRow 
-                     row={r}
-                     scenes={projectScenes}
-                     isCompact
-                     textEditingEnabled={textEditingEnabled}
-                   />
-                </div>
+                <SortableRow 
+                  key={r.id}
+                  row={r}
+                  scenes={projectScenes}
+                  isCompact
+                  textEditingEnabled={textEditingEnabled}
+                />
               ))}
             </SortableContext>
             {rows.length === 0 && (
@@ -216,6 +244,12 @@ export const UnscheduledBlock: React.FC<{
             )}
           </div>
         </div>
+      )}
+      {!isCollapsed && (
+        <div
+          className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
+          onMouseDown={handleResizeStart}
+        />
       )}
     </div>
   );

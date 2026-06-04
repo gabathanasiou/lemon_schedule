@@ -88,28 +88,42 @@ export const SortableRow: React.FC<{
             <tbody>
               <tr className="row-note" style={noteStyle}>
                 <td className="col-sc" />
-                {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
-                {!isCompact && <td className="col-dur">
-                  <CellInput
-                    value={row.estimatedDuration === 0 || !row.estimatedDuration ? '--' : formatDuration(row.estimatedDuration || 0)}
-                    onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
-                    clearOnType
-                    col="duration"
-                    className={`${inputClass} text-center`}
-                  />
-                </td>}
-                <td className="col-ie" />
-                <td className="col-set" style={{textAlign: 'center'}}>
-                  <CellInput
-                    value={row.noteText || ''}
-                    onChange={val => updateRow({noteText: val})}
-                    className={`${inputClass} text-center`}
-                    placeholder="Enter note here..."
-                    multiline
-                  />
-                </td>
-                <td className="col-dn" />
-                <td className="col-cast" />
+                {!isCompact ? (
+                  <>
+                    <td className="col-call">{row.computedCallTime}</td>
+                    <td className="col-dur">
+                      <CellInput
+                        value={row.estimatedDuration === 0 || !row.estimatedDuration ? '--' : formatDuration(row.estimatedDuration || 0)}
+                        onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+                        clearOnType
+                        col="duration"
+                        className={`${inputClass} text-center`}
+                      />
+                    </td>
+                    <td className="col-ie" />
+                    <td className="col-set" style={{textAlign: 'center'}}>
+                      <CellInput
+                        value={row.noteText || ''}
+                        onChange={val => updateRow({noteText: val})}
+                        className={`${inputClass} text-center`}
+                        placeholder="Enter note here..."
+                        multiline
+                      />
+                    </td>
+                    <td className="col-dn" />
+                    <td className="col-cast" />
+                  </>
+                ) : (
+                  <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
+                    <CellInput
+                      value={row.noteText || ''}
+                      onChange={val => updateRow({noteText: val})}
+                      className={`${inputClass} text-center`}
+                      placeholder="Enter note here..."
+                      multiline
+                    />
+                  </td>
+                )}
                 <td className="col-pgs" />
               </tr>
             </tbody>
@@ -128,27 +142,40 @@ export const SortableRow: React.FC<{
             <tbody>
               <tr className="row-break" style={breakStyle}>
                 <td className="col-sc" />
-                {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
-                {!isCompact && <td className="col-dur">
-                  <CellInput
-                    value={formatDuration(row.breakDuration || 0)}
-                    onChange={val => updateRow({breakDuration: parseDuration(val)})}
-                    clearOnType
-                    col="duration"
-                    className={`${inputClass} text-center`}
-                  />
-                </td>}
-                <td className="col-ie" />
-                <td className="col-set" style={{textAlign: 'center'}}>
-                  <CellInput
-                    value={row.breakLabel || ''}
-                    onChange={val => updateRow({breakLabel: val})}
-                    className={`${inputClass} text-center`}
-                    placeholder="ENTER BREAK TEXT"
-                  />
-                </td>
-                <td className="col-dn" />
-                <td className="col-cast" />
+                {!isCompact ? (
+                  <>
+                    <td className="col-call">{row.computedCallTime}</td>
+                    <td className="col-dur">
+                      <CellInput
+                        value={formatDuration(row.breakDuration || 0)}
+                        onChange={val => updateRow({breakDuration: parseDuration(val)})}
+                        clearOnType
+                        col="duration"
+                        className={`${inputClass} text-center`}
+                      />
+                    </td>
+                    <td className="col-ie" />
+                    <td className="col-set" style={{textAlign: 'center'}}>
+                      <CellInput
+                        value={row.breakLabel || ''}
+                        onChange={val => updateRow({breakLabel: val})}
+                        className={`${inputClass} text-center`}
+                        placeholder="ENTER BREAK TEXT"
+                      />
+                    </td>
+                    <td className="col-dn" />
+                    <td className="col-cast" />
+                  </>
+                ) : (
+                  <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
+                    <CellInput
+                      value={row.breakLabel || ''}
+                      onChange={val => updateRow({breakLabel: val})}
+                      className={`${inputClass} text-center`}
+                      placeholder="ENTER BREAK TEXT"
+                    />
+                  </td>
+                )}
                 <td className="col-pgs" />
               </tr>
             </tbody>
@@ -177,49 +204,36 @@ export const SortableRow: React.FC<{
                       readOnly={!textEditingEnabled}
                     />
                   </td>
-                  <td className="col-call" />
-                  <td className="col-dur" />
-                  <td className="col-ie">
-                    {textEditingEnabled ? (
-                      <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full">
-                        <option value="INT">INT</option>
-                        <option value="EXT">EXT</option>
-                        <option value="INT/EXT">INT/EXT</option>
-                      </select>
-                    ) : (
-                      <span className="uppercase">{scene.intExt}</span>
-                    )}
-                  </td>
-                  <td className="col-set">
-                    <span className="uppercase truncate block">
-                      {textEditingEnabled ? (
-                        <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} uppercase`} />
-                      ) : (
-                        scene.set
-                      )}
-                    </span>
-                    <span className="opacity-60 truncate block">
-                      {textEditingEnabled ? (
-                        <CellInput value={scene.description} onChange={val => updateScene({description: val})} className={`${inputClass}`} placeholder="Scene Description" />
-                      ) : (
-                        scene.description
-                      )}
-                    </span>
-                  </td>
-                  <td className="col-dn">
-                    {textEditingEnabled ? (
-                      <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full">
-                        <option value="DAY">DAY</option>
-                        <option value="NIGHT">NIGHT</option>
-                        <option value="MORNING">MORNING</option>
-                        <option value="EVENING">EVENING</option>
-                        <option value="DAWN">DAWN</option>
-                        <option value="DUSK">DUSK</option>
-                      </select>
-                    ) : (
-                      <span className="uppercase">{scene.dayNight}</span>
-                    )}
-                  </td>
+                  {textEditingEnabled ? (
+                    <>
+                      <td className="col-ie">
+                        <select value={scene.intExt} onChange={e => updateScene({intExt: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full">
+                          <option value="INT">INT</option>
+                          <option value="EXT">EXT</option>
+                          <option value="INT/EXT">INT/EXT</option>
+                        </select>
+                      </td>
+                      <td className="col-set">
+                        <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} uppercase block`} />
+                        <CellInput value={scene.description} onChange={val => updateScene({description: val})} className={`${inputClass} opacity-60 block`} placeholder="Scene Description" />
+                      </td>
+                      <td className="col-dn">
+                        <select value={scene.dayNight} onChange={e => updateScene({dayNight: e.target.value as any})} className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full">
+                          <option value="DAY">DAY</option>
+                          <option value="NIGHT">NIGHT</option>
+                          <option value="MORNING">MORNING</option>
+                          <option value="EVENING">EVENING</option>
+                          <option value="DAWN">DAWN</option>
+                          <option value="DUSK">DUSK</option>
+                        </select>
+                      </td>
+                    </>
+                  ) : (
+                    <td colSpan={3} className="col-set">
+                      <span className="uppercase truncate block">{scene.intExt}. {scene.set} - {scene.dayNight}</span>
+                      {scene.description && <span className="opacity-60 truncate block">{scene.description}</span>}
+                    </td>
+                  )}
                   <td className="col-cast">
                     {textEditingEnabled ? (
                       <CellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right`} placeholder="Cast" />

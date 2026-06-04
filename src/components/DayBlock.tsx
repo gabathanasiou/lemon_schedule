@@ -124,7 +124,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   const baseStyle = {
     fontFamily: 'Helvetica, Arial, sans-serif',
-    fontSize: '13px',
+    fontSize: '8pt',
     lineHeight: '1.2',
   };
 
@@ -132,7 +132,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     <div ref={setDragRef} style={{...style, ...baseStyle}} className="bg-white flex flex-col">
       
       {/* Day Ribbon Banner */}
-      <div className="bg-black text-white text-[13px] flex justify-between px-3 py-2 items-center">
+      <div className="bg-black text-white flex justify-between px-3 py-2 items-center">
          <div className="flex items-center gap-3">
             <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:bg-zinc-800 p-1 rounded transition-colors -ml-1">
                <GripHorizontal className="w-4 h-4 text-zinc-500" />
