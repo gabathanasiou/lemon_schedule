@@ -371,7 +371,7 @@ export const SortableRow: React.FC<{
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging && !isOverlay ? 0.3 : 1,
+    opacity: isDragging && !isOverlay ? 0.3 : undefined,
   };
 
   const commonProps = {
