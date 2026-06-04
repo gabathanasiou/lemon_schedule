@@ -122,12 +122,10 @@ export const CastTab: React.FC = () => {
       if (hasContent) {
         const newId = String(phantomRow[0]?.value ?? '').trim();
         const newName = String(phantomRow[1]?.value ?? '').trim().toUpperCase();
-        if (newId) {
-          const maxId = cast.reduce((max, c) => { const n = parseInt(c.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
-          const id = parseInt(newId, 10);
-          dispatch({ type: 'ADD_CAST_MEMBER', payload: { id: isNaN(id) ? String(maxId + 1) : newId, name: newName } });
-          return;
-        }
+        const maxId = cast.reduce((max, c) => { const n = parseInt(c.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
+        const id = newId || String(maxId + 1);
+        dispatch({ type: 'ADD_CAST_MEMBER', payload: { id, name: newName } });
+        return;
       }
     }
 
