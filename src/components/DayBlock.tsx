@@ -26,7 +26,7 @@ const sceneCardClass = (scene?: Scene | null): string => {
 const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scenes }) => {
   if (row.type === 'NOTE') {
     return (
-      <div className="opacity-30 flex items-stretch bg-white text-zinc-900 min-h-[44px] font-sans text-[12px] font-bold tracking-tight border-b sm:border-black/20 shrink-0">
+      <div className="opacity-30 flex items-stretch bg-white text-zinc-900 min-h-[44px] border-b shrink-0">
         <div className="flex-1 flex items-center justify-center px-3 italic">{row.noteText || 'Note'}</div>
       </div>
     );
@@ -34,7 +34,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
 
   if (row.type === 'BREAK') {
     return (
-      <div className="opacity-30 flex items-stretch bg-[#591b1b] text-white min-h-[44px] font-sans text-[12px] font-bold tracking-tight border-b sm:border-black/20 shrink-0">
+      <div className="opacity-30 flex items-stretch bg-[#591b1b] text-white min-h-[44px] border-b shrink-0">
         <div className="flex-1 flex items-center justify-center px-3">{row.breakLabel || 'BREAK'}</div>
       </div>
     );
@@ -42,13 +42,13 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[] }> = ({ row, scene
 
   const scene = scenes.find(s => s.id === row.sceneId);
   return (
-    <div className={`opacity-30 flex items-stretch min-h-[44px] font-sans text-[12px] font-bold tracking-tight border-b sm:border-black/20 shrink-0 ${sceneCardClass(scene)}`}>
+    <div className={`opacity-30 flex items-stretch min-h-[44px] border-b shrink-0 ${sceneCardClass(scene)}`}>
       {scene && (
         <>
           <div className="flex items-center justify-center w-[50px] shrink-0 px-1 border-r border-black/10">{scene.sceneNumber}</div>
           <div className="flex-1 flex items-center px-3 gap-1 min-w-0">
             <span className="uppercase shrink-0">{scene.intExt}.</span>
-            <span className="uppercase tracking-wider truncate">{scene.set}</span>
+            <span className="uppercase truncate">{scene.set}</span>
             <span className="opacity-50 shrink-0">-</span>
             <span className="uppercase shrink-0">{scene.dayNight}</span>
           </div>
@@ -156,7 +156,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               type="date"
               value={meta?.date || ''} 
               onChange={e => updateMeta({date: e.target.value})} 
-              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white text-[12px]"
+              className="bg-transparent text-right outline-none text-zinc-400 focus:text-white"
             />
          </div>
       </div>
@@ -200,7 +200,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       {/* Day Footer stats */}
       {rows.length > 0 && (
-        <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300 text-[12px]"
+        <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300"
           style={{fontFamily: 'Helvetica, Arial, sans-serif'}}>
           <span className="font-semibold">End of Day #{dayInt}</span>
           <div className="flex gap-4 text-zinc-600">

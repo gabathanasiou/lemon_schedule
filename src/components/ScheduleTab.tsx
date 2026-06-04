@@ -171,9 +171,25 @@ export function ScheduleTab() {
       };
       const originalScene = project.scenes.find(s => s.id === row.sceneId);
       if (originalScene) {
-         const newScene: Scene = { ...originalScene, id: generateUUID(), ghostOf: originalScene.id };
-         newRow.sceneId = newScene.id;
-         dispatch({ type: 'ADD_SCENE', payload: newScene });
+        const baseNumber = originalScene.sceneNumber.replace(/[A-Z]+$/, '');
+        const existingLetters = project.scenes
+          .filter(s => s.id !== originalScene.id && s.sceneNumber.match(new RegExp('^' + baseNumber + '[A-Z]$')))
+          .map(s => s.sceneNumber.slice(-1));
+        let nextLetter = 'A';
+        for (let code = 65; code <= 90; code++) {
+          const letter = String.fromCharCode(code);
+          if (!existingLetters.includes(letter)) {
+            nextLetter = letter;
+            break;
+          }
+        }
+        const newScene: Scene = {
+          ...originalScene,
+          id: generateUUID(),
+          sceneNumber: baseNumber + nextLetter
+        };
+        newRow.sceneId = newScene.id;
+        dispatch({ type: 'ADD_SCENE', payload: newScene });
       }
       newRows.push(newRow);
     } else if (action === 'delete') {
@@ -365,7 +381,7 @@ export function ScheduleTab() {
         .schedule-table tbody tr:last-child td:last-child {
           border-right: none;
         }
-        .col-sc { width: 20px; text-align: center; font-weight: 600; }
+        .col-sc { width: 25px; text-align: center; }
         .col-call { width: 35px; text-align: center; }
         .col-dur { width: 40px; text-align: center; }
         .col-ie { width: 50px; text-align: center; }

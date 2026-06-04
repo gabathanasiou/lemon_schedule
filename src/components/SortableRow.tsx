@@ -159,8 +159,7 @@ export const SortableRow: React.FC<{
   }
 
   if (scene) {
-    const isGhostOrHasGhost = !!scene.ghostOf || scenes.some(s => s.ghostOf === scene.id);
-    const rowStyle = isGhostOrHasGhost ? { ...sceneStyle(scene), opacity: 0.7 } : sceneStyle(scene);
+    const rowStyle = sceneStyle(scene);
     const borderStyle = { ...rowStyle, borderBottom: '0.5px solid rgba(0,0,0,0.1)' };
 
     if (isCompact) {
@@ -174,8 +173,8 @@ export const SortableRow: React.FC<{
                     <CellInput
                       value={scene.sceneNumber}
                       onChange={val => updateScene({sceneNumber: val})}
-                      className={`${inputClass} text-center ${isGhostOrHasGhost ? 'italic font-serif opacity-80' : ''}`}
-                      readOnly={!textEditingEnabled && !isGhostOrHasGhost}
+                      className={`${inputClass} text-center`}
+                      readOnly={!textEditingEnabled}
                     />
                   </td>
                   <td className="col-call" />
@@ -192,14 +191,14 @@ export const SortableRow: React.FC<{
                     )}
                   </td>
                   <td className="col-set">
-                    <span className="uppercase tracking-wider truncate block">
+                    <span className="uppercase truncate block">
                       {textEditingEnabled ? (
-                        <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} uppercase tracking-wider`} />
+                        <CellInput value={scene.set} onChange={val => updateScene({set: val})} className={`${inputClass} uppercase`} />
                       ) : (
                         scene.set
                       )}
                     </span>
-                    <span className="text-[11px] opacity-60 truncate block">
+                    <span className="opacity-60 truncate block">
                       {textEditingEnabled ? (
                         <CellInput value={scene.description} onChange={val => updateScene({description: val})} className={`${inputClass}`} placeholder="Scene Description" />
                       ) : (
@@ -247,8 +246,8 @@ export const SortableRow: React.FC<{
                   <CellInput
                     value={scene.sceneNumber}
                     onChange={val => updateScene({sceneNumber: val})}
-                    className={`${inputClass} text-center ${isGhostOrHasGhost ? 'italic font-serif opacity-80' : ''}`}
-                    readOnly={!textEditingEnabled && !isGhostOrHasGhost}
+                    className={`${inputClass} text-center`}
+                    readOnly={!textEditingEnabled}
                   />
                 </td>
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
@@ -281,7 +280,7 @@ export const SortableRow: React.FC<{
                   <CellInput
                     value={scene.set}
                     onChange={val => updateScene({set: val})}
-                    className={`${inputClass} text-left uppercase tracking-wider`}
+                    className={`${inputClass} text-left uppercase`}
                     readOnly={!textEditingEnabled}
                   />
                 </td>
