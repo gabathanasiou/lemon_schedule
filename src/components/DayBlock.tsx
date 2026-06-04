@@ -1,13 +1,12 @@
 import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 import { SortableRow } from './SortableRow';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
-import { GripHorizontal, Trash2, Flag } from 'lucide-react';
+import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
 import { checkDay } from '../lib/rulesEngine';
 
@@ -79,21 +78,10 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
-  const { attributes, listeners, setNodeRef: setDragRef, transform, transition, isDragging } = useSortable({
-    id: `day-wrap-${dayInt}`,
-    data: { type: 'DAY', dayInt }
-  });
-
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
     data: { type: 'DAY_DROPZONE', dayInt }
   });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
 
   const violations = useMemo(() => {
     if (!activeVersion) return [];
@@ -161,15 +149,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   };
 
   return (
-    <div ref={setDragRef} style={{...style, ...baseStyle}} className="bg-white flex flex-col">
+    <div style={baseStyle} className="bg-white flex flex-col">
       
       {/* Day Ribbon Banner */}
-      <div className="bg-black text-white flex justify-between px-3 py-2 items-center">
-         <div className="flex items-center gap-3">
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:bg-zinc-800 p-1 rounded transition-colors -ml-1">
-               <GripHorizontal className="w-4 h-4 text-zinc-500" />
-            </div>
-            <span className="font-semibold">DAY {displayDay}</span>
+      <div className="bg-black text-white flex justify-between items-center px-3 py-2">
+         <div className="flex items-center gap-2 shrink-0">
+            <span className="font-bold">DAY #{displayDay}</span>
             {violations.length > 0 && (
               <Tooltip content={vMessages}>
                 <span className="flex items-center gap-0.5 text-red-400">
@@ -178,13 +163,6 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 </span>
               </Tooltip>
             )}
-            <CellInput
-              value={meta?.unitCall || '08:00'}
-              onChange={val => updateMeta({unitCall: val})}
-              clearOnType
-              col="duration"
-              className="bg-zinc-900 px-2 py-0.5 border border-transparent focus-within:border-zinc-600 w-16 text-center"
-            />
             <button 
               onClick={() => {
                 dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt });
@@ -195,9 +173,19 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               <Trash2 className="w-3.5 h-3.5" />
             </button>
          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-400">{meta?.date ? formatDateLong(meta.date) : ''}</span>
-          </div>
+         <span className="flex-1 text-center font-semibold">
+            {meta?.date ? formatDateLong(meta.date) : ''}
+         </span>
+         <div className="flex items-center gap-1 shrink-0">
+            <span className="font-semibold text-xs text-zinc-300">CALL</span>
+            <CellInput
+              value={meta?.unitCall || '08:00'}
+              onChange={val => updateMeta({unitCall: val})}
+              clearOnType
+              col="duration"
+              className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-14 text-center"
+            />
+         </div>
       </div>
 
       <div ref={setDropRef} className="flex-1 flex flex-col min-h-[50px] print:min-h-0 bg-white items-stretch relative">

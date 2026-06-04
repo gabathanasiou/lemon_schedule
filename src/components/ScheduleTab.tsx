@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
-import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
@@ -441,7 +441,6 @@ export function ScheduleTab() {
           </div>
 
           <div className="w-full max-w-4xl">
-            <SortableContext items={existingDays.map(d => `day-wrap-${d}`)} strategy={verticalListSortingStrategy}>
               {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 
@@ -457,7 +456,6 @@ export function ScheduleTab() {
                   chronoDay={i + 1}
                 />
               ))}
-            </SortableContext>
           </div>
         </div>
       </div>
@@ -471,10 +469,6 @@ export function ScheduleTab() {
                  +{selectedRowIds.size - 1} selected
                </div>
             )}
-          </div>
-        ) : activeType === 'DAY' ? (
-          <div className="bg-white shadow-2xl border-4 border-blue-500 w-full max-w-4xl h-32 rounded flex items-center justify-center font-bold text-lg opacity-90 scale-105 pointer-events-none">
-             Moving Shoot Day...
           </div>
         ) : null}
       </DragOverlay>
