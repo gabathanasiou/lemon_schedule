@@ -167,9 +167,32 @@ export const CalendarTab: React.FC = () => {
     return map;
   }, [augmentedRows, getRowDate]);
 
-  const unscheduledRows = useMemo(() =>
-    augmentedRows.filter(r => getRowDate(r) === null).sort((a, b) => a.order - b.order),
-    [augmentedRows, getRowDate]);
+  const unscheduledRows = useMemo(() => {
+    const withoutDay = augmentedRows.filter(r => {
+      const date = getRowDate(r);
+      return r.shootDay === null || date === null;
+    }).sort((a, b) => a.order - b.order);
+
+    const dayBlocks: { shootDay: number; rows: ScheduleRow[] }[] = [];
+    const loose: ScheduleRow[] = [];
+
+    const byShootDay = new Map<number, ScheduleRow[]>();
+    withoutDay.forEach(r => {
+      if (r.shootDay !== null) {
+        if (!byShootDay.has(r.shootDay)) byShootDay.set(r.shootDay, []);
+        byShootDay.get(r.shootDay)!.push(r);
+      } else {
+        loose.push(r);
+      }
+    });
+
+    byShootDay.forEach((rows, day) => {
+      dayBlocks.push({ shootDay: day, rows: rows.sort((a, b) => a.order - b.order) });
+    });
+    dayBlocks.sort((a, b) => a.shootDay - b.shootDay);
+
+    return { dayBlocks, loose };
+  }, [augmentedRows, getRowDate]);
 
   const handleDragStart = (e: DragStartEvent) => {
     const row = augmentedRows.find(r => r.id === e.active.id);
@@ -288,7 +311,7 @@ export const CalendarTab: React.FC = () => {
           </div>
         </div>
 
-        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} />
+        <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} />
       </div>
 
       <DragOverlay dropAnimation={null}>
@@ -302,7 +325,11 @@ export const CalendarTab: React.FC = () => {
   );
 };
 
-const UnscheduledSidebar: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ rows, scenes }) => {
+const UnscheduledSidebar: React.FC<{
+  dayBlocks: { shootDay: number; rows: ScheduleRow[] }[];
+  loose: ScheduleRow[];
+  scenes: Scene[];
+}> = ({ dayBlocks, loose, scenes }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: 'unscheduled',
     data: { type: 'UNSCHEDULED' },
@@ -314,10 +341,20 @@ const UnscheduledSidebar: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = (
         UNSCHEDULED
       </div>
       <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 transition-colors ${isOver ? 'bg-blue-50' : ''}`}>
-        {rows.map(r => (
+        {dayBlocks.map(block => (
+          <div key={`day-${block.shootDay}`} className="mb-2">
+            <div className="text-[9px] font-bold text-zinc-500 uppercase mb-0.5 px-0.5">
+              Day {block.shootDay}
+            </div>
+            {block.rows.map(r => (
+              <SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />
+            ))}
+          </div>
+        ))}
+        {loose.map(r => (
           <SceneCard key={r.id} row={r} scene={scenes.find(s => s.id === r.sceneId)} />
         ))}
-        {rows.length === 0 && (
+        {dayBlocks.length === 0 && loose.length === 0 && (
           <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>
         )}
       </div>
