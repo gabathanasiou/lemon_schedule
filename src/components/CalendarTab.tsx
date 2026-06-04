@@ -55,8 +55,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
     return (
-      <div className={`text-[9px] font-semibold text-white px-1.5 py-0.5 rounded truncate mb-0.5 ${row.type === 'NOTE' ? 'italic' : ''}`}
-        style={{ background: row.noteColor || '#591b1b', color: row.noteTextColor || '#ffffff' }}>
+      <div className={`text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 rounded truncate mb-0.5 ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );

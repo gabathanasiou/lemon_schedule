@@ -75,6 +75,7 @@ export function ScheduleTab() {
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
+  const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -252,6 +253,11 @@ export function ScheduleTab() {
         dispatch({ type: 'ADD_SCENE', payload: newScene });
       }
       newRows.push(newRow);
+    } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break') && (row.type === 'NOTE' || row.type === 'BREAK')) {
+      newRows.push({ ...row, id: generateUUID(), order: row.order + 0.5 });
+    } else if (action === 'change_color' && row.type === 'NOTE') {
+      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
+      return;
     } else if (action === 'delete') {
       newRows = newRows.filter(r => r.id !== rowId);
     }
@@ -266,6 +272,15 @@ export function ScheduleTab() {
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setContextMenu(null);
+  };
+
+  const applyNoteColor = () => {
+    if (!colorPicker || !activeVersion) return;
+    const newRows = activeVersion.rows.map(r =>
+      r.id === colorPicker.rowId ? { ...r, noteColor: colorPicker.bg, noteTextColor: colorPicker.text } : r
+    );
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    setColorPicker(null);
   };
 
   const reorderDay = (allRows: ScheduleRow[], day: number | null, activeId: string, overId: string) => {
@@ -641,13 +656,52 @@ export function ScheduleTab() {
 
       {/* Context Menu */}
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
-        <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
-        <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
-        <ContextMenuDivider />
-        <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
-        <ContextMenuDivider />
-        <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Remove Ribbon</ContextMenuItem>
+        {(() => {
+          const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
+          return (
+            <>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
+              <ContextMenuDivider />
+              {row?.type === 'SCENE' && (
+                <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
+              )}
+              {row?.type === 'NOTE' && (
+                <>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')}>Duplicate Note</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('change_color')}>Change Color</ContextMenuItem>
+                </>
+              )}
+              {row?.type === 'BREAK' && (
+                <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')}>Duplicate Break</ContextMenuItem>
+              )}
+              <ContextMenuDivider />
+              <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Remove Ribbon</ContextMenuItem>
+            </>
+          );
+        })()}
       </ContextMenu>
+
+      {/* Color Picker Modal */}
+      {colorPicker && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50" onClick={() => setColorPicker(null)}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[280px] flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-zinc-800">Note Color</h3>
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-zinc-600">Background</label>
+              <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-10 h-8 cursor-pointer border-0 p-0" />
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-zinc-600">Text</label>
+              <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-10 h-8 cursor-pointer border-0 p-0" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setColorPicker(null)} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded">Cancel</button>
+              <button onClick={applyNoteColor} className="px-4 py-1.5 text-xs bg-zinc-900 text-white rounded font-semibold">Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
     </DndContext>
     </>
   );

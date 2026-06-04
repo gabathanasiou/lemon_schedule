@@ -404,12 +404,7 @@ export const SortableRow: React.FC<{
   ) : null;
 
   if (row.type === 'NOTE') {
-    const [showColorPicker, setShowColorPicker] = useState(false);
-    const bgRef = useRef<HTMLInputElement>(null);
-    const textRef = useRef<HTMLInputElement>(null);
-    const noteBg = row.noteColor || '#591b1b';
-    const noteText = row.noteTextColor || '#ffffff';
-    const noteStyle: React.CSSProperties = { background: noteBg, color: noteText };
+    const noteStyle: React.CSSProperties = { background: row.noteColor || '#591b1b', color: row.noteTextColor || '#ffffff' };
     if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
     return (
       <div {...commonProps}>
@@ -457,7 +452,60 @@ export const SortableRow: React.FC<{
                 <td className="col-pgs" />
               </tr>
             </tbody>
-            </table>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  if (row.type === 'BREAK') {
+    const breakStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
+    if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
+    return (
+      <div {...commonProps}>
+        <div className="flex items-stretch">
+          <table className="schedule-table flex-1">
+            <tbody>
+              <tr className="row-break" style={breakStyle}>
+                <td className="col-sc" />
+                {!isCompact ? (
+                  <>
+                    <td className="col-call">{row.computedCallTime}</td>
+                    <td className="col-dur">
+                      <CellInput
+                        value={formatDuration(row.breakDuration || 0)}
+                        onChange={val => updateRow({breakDuration: parseDuration(val)})}
+                        clearOnType
+                        col="duration"
+                        className={`${inputClass} text-center`}
+                      />
+                    </td>
+                    <td className="col-ie" />
+                    <td className="col-set" style={{textAlign: 'center'}}>
+                      <CellInput
+                        value={row.breakLabel || ''}
+                        onChange={val => updateRow({breakLabel: val.toUpperCase()})}
+                        className={`${inputClass} text-center`}
+                        placeholder="ENTER BREAK TEXT"
+                      />
+                    </td>
+                    <td className="col-dn" />
+                    <td className="col-cast" />
+                  </>
+                ) : (
+                  <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
+                    <CellInput
+                      value={row.breakLabel || ''}
+                      onChange={val => updateRow({breakLabel: val.toUpperCase()})}
+                      className={`${inputClass} text-center`}
+                      placeholder="ENTER BREAK TEXT"
+                    />
+                  </td>
+                )}
+                <td className="col-pgs" />
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -510,24 +558,10 @@ export const SortableRow: React.FC<{
                 </tr>
               </tbody>
             </table>
+          </div>
         </div>
-        <div className="absolute top-0.5 right-0.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-          <button
-            className="w-3 h-3 rounded-full border border-white/30 cursor-pointer"
-            style={{ background: noteBg }}
-            onClick={(e) => { e.stopPropagation(); bgRef.current?.click(); }}
-          />
-          <button
-            className="w-3 h-3 rounded-full border border-white/30 cursor-pointer"
-            style={{ background: noteText }}
-            onClick={(e) => { e.stopPropagation(); textRef.current?.click(); }}
-          />
-        </div>
-        <input ref={bgRef} type="color" value={noteBg} onChange={e => updateRow({ noteColor: e.target.value })} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-        <input ref={textRef} type="color" value={noteText} onChange={e => updateRow({ noteTextColor: e.target.value })} className="absolute opacity-0 w-0 h-0 pointer-events-none" />
-      </div>
-    );
-  }
+      );
+    }
 
     return (
       <div {...commonProps}>
