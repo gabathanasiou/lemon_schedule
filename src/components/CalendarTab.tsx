@@ -77,11 +77,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ row, scene, isPreview }) => {
     data: { type: 'SCENE_CARD', row, scene },
   });
 
-  if (!isPreview && isDragging) {
-    return <div className="opacity-30 mb-0.5"><SceneCardContent row={row} scene={scene} /></div>;
-  }
-
-  const style = isPreview ? undefined : { cursor: 'grab' };
+  const style = isDragging && !isPreview ? { opacity: 0.3, cursor: 'grabbing' } : isPreview ? undefined : { cursor: 'grab' };
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
       <SceneCardContent row={row} scene={scene} />
