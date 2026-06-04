@@ -98,14 +98,7 @@ export function ScheduleTab() {
       }
     } else {
       e.stopPropagation();
-      setSelectedRowIds(prev => {
-        if (prev.has(id)) {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        }
-        return new Set([id]);
-      });
+      setSelectedRowIds(new Set([id]));
       setLastClickedId(id);
     }
   };
