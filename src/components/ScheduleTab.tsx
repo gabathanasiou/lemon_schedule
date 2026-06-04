@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
@@ -155,7 +154,7 @@ export function ScheduleTab() {
     }))
   ];
 
-  const scheduledRows = augmentedRows.reduce((acc, row) => {
+  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id)).reduce((acc, row) => {
     if (row.shootDay !== null) {
       if (!acc[row.shootDay]) acc[row.shootDay] = [];
       acc[row.shootDay].push(row);
@@ -167,7 +166,7 @@ export function ScheduleTab() {
     dayRows.sort((a, b) => a.order - b.order);
   });
 
-  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
+  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order);
 
   const existingDays = Array.from(new Set([
     ...Object.keys(activeVersion.dayMeta || {}).map(Number),
@@ -256,23 +255,6 @@ export function ScheduleTab() {
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setContextMenu(null);
   };
-
-  const reorderDay = (allRows: ScheduleRow[], day: number | null, activeId: string, overId: string) => {
-    let dayRows = allRows.filter(r => r.shootDay === day).sort((a, b) => a.order - b.order);
-    const activeIndex = dayRows.findIndex(r => r.id === activeId);
-    const overIndex = dayRows.findIndex(r => r.id === overId);
-    
-    if (activeIndex !== -1 && overIndex !== -1) {
-      const targetIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
-      dayRows = arrayMove(dayRows, activeIndex, targetIndex);
-      dayRows.forEach((r, i) => r.order = i);
-      return [...allRows.filter(r => r.shootDay !== day), ...dayRows];
-    }
-    return allRows;
-  };
-
-  const selectedRowIdsRef = useRef(selectedRowIds);
-  selectedRowIdsRef.current = selectedRowIds;
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
@@ -383,21 +365,17 @@ export function ScheduleTab() {
     }
 
     if (draggingIds.length === 1) {
-      if (activeRow.shootDay === overDay) {
-        newRows = reorderDay(newRows, overDay, activeId, overId);
-      } else {
-        newRows = newRows.filter(r => r.id !== activeId);
-        let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-        const isDayEnd = lastInsertBeforeId?.startsWith('day-') || lastInsertBeforeId?.startsWith('end-');
-        let targetOverId = lastInsertBeforeId && !isDayEnd && dayRows.some(r => r.id === lastInsertBeforeId)
-          ? lastInsertBeforeId : null;
-        let insertIndex = targetOverId ? dayRows.findIndex(r => r.id === targetOverId) : dayRows.length;
-        if (insertIndex === -1) insertIndex = dayRows.length;
-        const movedRow = { ...activeRow, shootDay: overDay };
-        dayRows.splice(insertIndex, 0, movedRow);
-        dayRows.forEach((r, i) => r.order = i);
-        newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
-      }
+      newRows = newRows.filter(r => r.id !== activeId);
+      let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
+      const isDayEnd = lastInsertBeforeId?.startsWith('day-') || lastInsertBeforeId?.startsWith('end-');
+      let targetOverId = lastInsertBeforeId && !isDayEnd && dayRows.some(r => r.id === lastInsertBeforeId)
+        ? lastInsertBeforeId : null;
+      let insertIndex = targetOverId ? dayRows.findIndex(r => r.id === targetOverId) : dayRows.length;
+      if (insertIndex === -1) insertIndex = dayRows.length;
+      const movedRow = { ...activeRow, shootDay: overDay };
+      dayRows.splice(insertIndex, 0, movedRow);
+      dayRows.forEach((r, i) => r.order = i);
+      newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
     } else {
       const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
       const dayRowsBefore = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
