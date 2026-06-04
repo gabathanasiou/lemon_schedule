@@ -54,6 +54,7 @@ export function BreakdownTab() {
   const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
     const committedRef = useRef(false);
+    const wrapperRef = useRef<HTMLDivElement>(null);
     const castMembers = project.castMembers || [];
     const currentIds = val.split(',').map(x => x.trim()).filter(Boolean);
 
@@ -78,13 +79,22 @@ export function BreakdownTab() {
     };
 
     const commit = () => {
+      if (committedRef.current) return;
       committedRef.current = true;
       onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
       exitEditMode();
     };
 
+    useEffect(() => {
+      const onClick = (e: MouseEvent) => {
+        if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) commit();
+      };
+      document.addEventListener('mousedown', onClick);
+      return () => document.removeEventListener('mousedown', onClick);
+    }, [val, commit]);
+
     return (
-      <div className="relative w-full h-full">
+      <div ref={wrapperRef} className="relative w-full h-full">
         <input
           value={val}
           onChange={e => setVal(e.target.value)}
@@ -92,7 +102,6 @@ export function BreakdownTab() {
             if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
             if (e.key === 'Escape') exitEditMode();
           }}
-          onBlur={() => { if (!committedRef.current) commit(); }}
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px] font-mono"
           placeholder="1, 2, JOHN"
@@ -103,11 +112,11 @@ export function BreakdownTab() {
             return (
               <div
                 key={m.id}
-                className={`px-2 py-1 text-[13px] cursor-pointer flex items-center gap-2 font-mono hover:bg-zinc-50 ${checked ? 'bg-zinc-50' : ''}`}
+                className={`px-2 py-1 text-[13px] cursor-pointer flex items-center gap-2 font-mono hover:bg-zinc-50 ${checked ? 'bg-blue-50' : ''}`}
                 onMouseDown={e => { e.preventDefault(); toggle(m.id); }}
               >
                 <span className="text-zinc-400 shrink-0 w-12 text-right">{m.id}.</span>
-                <span className={checked ? 'text-zinc-900 font-semibold' : 'text-zinc-600'}>{m.name || <span className="italic text-zinc-400">—</span>}</span>
+                <span className={checked ? 'text-blue-700 font-semibold' : 'text-zinc-600'}>{m.name || <span className="italic text-zinc-400">—</span>}</span>
               </div>
             );
           })}
