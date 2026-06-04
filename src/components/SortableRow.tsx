@@ -1,10 +1,22 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow } from '../types';
+import { Scene, ScheduleRow, ProjectRule } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
+import { AlertTriangle } from 'lucide-react';
+
+function sceneViolations(scene: Scene, row: ScheduleRow, rules: ProjectRule[]): string[] {
+  if (!row.shootDay || row.shootDay === null) return [];
+  const msgs: string[] = [];
+  for (const rule of rules) {
+    if (rule.type !== 'DATE_RESTRICTION') continue;
+    if (!scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
+    msgs.push(`Cast ${rule.castId} cannot work on ${rule.date}`);
+  }
+  return msgs;
+}
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -186,6 +198,8 @@ export const SortableRow: React.FC<{
   }
 
   if (scene) {
+    const scViolations = sceneViolations(scene, row, state.present.rules || []);
+    const vTitle = scViolations.join(' • ');
     const rowStyle = sceneStyle(scene);
     const borderStyle = { ...rowStyle, borderBottom: '0.5px solid rgba(0,0,0,0.1)' };
 
@@ -196,13 +210,18 @@ export const SortableRow: React.FC<{
           <table className="schedule-table flex-1">
               <tbody>
                 <tr style={rowStyle}>
-                  <td className="col-sc">
+                  <td className="col-sc relative">
                     <CellInput
                       value={scene.sceneNumber}
                       onChange={val => updateScene({sceneNumber: val})}
                       className={`${inputClass} text-center`}
                       readOnly={!textEditingEnabled}
                     />
+                    {scViolations.length > 0 && (
+                      <div className="absolute top-0 right-0" title={vTitle}>
+                        <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
+                      </div>
+                    )}
                   </td>
                   {textEditingEnabled ? (
                     <>
@@ -266,13 +285,18 @@ export const SortableRow: React.FC<{
           <table className="schedule-table flex-1">
             <tbody>
               <tr style={borderStyle}>
-                <td className="col-sc">
+                <td className="col-sc relative">
                   <CellInput
                     value={scene.sceneNumber}
                     onChange={val => updateScene({sceneNumber: val})}
                     className={`${inputClass} text-center`}
                     readOnly={!textEditingEnabled}
                   />
+                  {scViolations.length > 0 && (
+                    <div className="absolute top-0 right-0" title={vTitle}>
+                      <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
+                    </div>
+                  )}
                 </td>
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, ProjectRule } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -68,6 +68,7 @@ function loadProjectFromStorage(id: string): Project | null {
 function makeBlankProject(title = 'Untitled Project'): Project {
   const id = generateUUID();
   return {
+    id,
     title,
     draftNumber: '1',
     scenes: [],
@@ -81,7 +82,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     }],
     activeVersionId: id,
     trash: [],
-    versionTrash: []
+    versionTrash: [],
+    rules: []
   };
 }
 
@@ -106,6 +108,8 @@ type Action =
   | { type: 'DELETE_DAY', day: number }
   | { type: 'UNSCHEDULE_DAY', day: number }
   | { type: 'TOGGLE_WORKING_DAY', date: string }
+  | { type: 'ADD_RULE'; payload: ProjectRule }
+  | { type: 'DELETE_RULE'; payload: string }
 
 interface State {
   past: Project[];
@@ -364,6 +368,18 @@ function reducer(state: State, action: Action): State {
         })
       });
     }
+
+    case 'ADD_RULE':
+      return applyChange({
+        ...state.present,
+        rules: [...(state.present.rules || []), action.payload]
+      });
+
+    case 'DELETE_RULE':
+      return applyChange({
+        ...state.present,
+        rules: (state.present.rules || []).filter(r => r.id !== action.payload)
+      });
 
     default:
       return state;

@@ -9,6 +9,7 @@ import { TrashItem, VersionTrashItem } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
+import { RulesTab } from './components/RulesTab';
 import { ProjectManager } from './components/ProjectManager';
 import PrintDialog from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
@@ -19,7 +20,7 @@ import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, U
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar'>('breakdown');
+  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
@@ -123,6 +124,12 @@ function AppContent() {
               className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'calendar' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
             >
               Calendar
+            </button>
+            <button 
+              onClick={() => setActiveTab('rules')}
+              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'rules' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+            >
+              Rules
             </button>
             {activeTab === 'calendar' && (
               <DropdownMenu
@@ -306,7 +313,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : <CalendarTab showDesc={showCalendarDesc} />}
+        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} /> : <RulesTab />}
       </main>
 
       {showTrash && (

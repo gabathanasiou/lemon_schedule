@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 import { SortableRow } from './SortableRow';
-import { GripHorizontal, Trash2 } from 'lucide-react';
+import { GripHorizontal, Trash2, AlertTriangle } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene } from '../types';
+import { checkDay } from '../lib/rulesEngine';
 
 function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -92,6 +93,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const violations = useMemo(() => {
+    if (!activeVersion) return [];
+    return checkDay(dayInt, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta);
+  }, [dayInt, project.rules, project.scenes, activeVersion]);
+  const vMessages = violations.map(v => v.message).join('\n');
+
   const updateMeta = (updates: Partial<ShootDayMeta>) => {
     if (!activeVersion) return;
     dispatch({
@@ -151,6 +158,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                <GripHorizontal className="w-4 h-4 text-zinc-500" />
             </div>
             <span className="font-semibold">DAY {displayDay}</span>
+            {violations.length > 0 && (
+              <span className="text-red-400 group/flag relative cursor-help" title={vMessages}>
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[7px] font-bold rounded-full w-3 h-3 flex items-center justify-center">
+                  {violations.length}
+                </span>
+              </span>
+            )}
             <input 
               value={meta?.unitCall || '08:00'} 
               onChange={e => updateMeta({unitCall: e.target.value})}

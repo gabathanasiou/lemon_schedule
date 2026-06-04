@@ -175,7 +175,7 @@ const UnscheduledSidebar: React.FC<{
 
   return (
     <div ref={panelRef}
-      className="border-l border-zinc-200 bg-zinc-50 flex flex-col shrink-0 relative overflow-hidden"
+      className="border-r border-zinc-200 bg-zinc-50 flex flex-col shrink-0 relative overflow-hidden"
       style={{ width: `${width}px` }}
     >
       <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white">UNSCHEDULED</div>
@@ -190,7 +190,7 @@ const UnscheduledSidebar: React.FC<{
         {dayBlocks.length === 0 && loose.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
       </div>
       <div
-        className="absolute top-0 bottom-0 left-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
+        className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
         onMouseDown={handleResizeStart}
       />
     </div>
@@ -396,6 +396,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false
   return (
     <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '11px' }}>
+        <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} showDesc={showDesc} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
@@ -431,7 +432,6 @@ export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false
             </div>
           </div>
         </div>
-        <UnscheduledSidebar dayBlocks={unscheduledRows.dayBlocks} loose={unscheduledRows.loose} scenes={project.scenes} showDesc={showDesc} />
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
         {activeDragRow ? <div style={{ opacity: 0.9 }}><SceneCardContent row={activeDragRow} scene={activeScene} showDesc={showDesc} /></div> : null}

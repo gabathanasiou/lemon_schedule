@@ -65,7 +65,21 @@ export interface VersionTrashItem {
   deletedAt: number;
 }
 
+export type ProjectRule =
+  | { id: string; type: 'MAX_HOURS'; castId: string; maxHours: number; days?: number[] }
+  | { id: string; type: 'DATE_RESTRICTION'; castId: string; date: string }
+
+export interface RuleViolation {
+  ruleId: string;
+  ruleType: 'MAX_HOURS' | 'DATE_RESTRICTION';
+  castId: string;
+  message: string;
+  shootDay?: number;
+  sceneId?: string;
+}
+
 export interface Project {
+  id: string;
   title: string;
   draftNumber: string;
   scenes: Scene[];
@@ -73,4 +87,5 @@ export interface Project {
   activeVersionId: string;
   trash: TrashItem[];
   versionTrash: VersionTrashItem[];
+  rules: ProjectRule[];
 }
