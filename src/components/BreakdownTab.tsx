@@ -55,7 +55,7 @@ export function BreakdownTab() {
       notes: '',
       shootDay: null
     };
-    dispatch({ type: 'IMPORT_SCENES', payload: [...scenes.slice(0, index), newScene, ...scenes.slice(index)] });
+    dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
   };
 
   const duplicateSceneAt = (index: number) => {
@@ -67,7 +67,7 @@ export function BreakdownTab() {
     let letter = 'A';
     for (let c = 65; c <= 90; c++) { if (!used.includes(String.fromCharCode(c))) { letter = String.fromCharCode(c); break; } }
     duplicate.sceneNumber = base + letter;
-    dispatch({ type: 'IMPORT_SCENES', payload: [...scenes.slice(0, index + 1), duplicate, ...scenes.slice(index + 1)] });
+    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: duplicate } });
   };
 
   const deleteSelectedRows = () => {

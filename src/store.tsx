@@ -103,6 +103,7 @@ type Action =
   | { type: 'EMPTY_TRASH' }
   | { type: 'RESTORE_VERSION_FROM_TRASH', payload: string }
   | { type: 'SORT_SCENES' }
+  | { type: 'INSERT_SCENE_AT', payload: { index: number; scene: Scene } }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
   | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null } }
   | { type: 'DELETE_VERSION', payload: string }
@@ -224,10 +225,16 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'SORT_SCENES': {
-      const sorted = [...state.present.scenes].sort((a, b) => {
-        return a.sceneNumber.localeCompare(b.sceneNumber, undefined, { numeric: true, sensitivity: 'base' });
-      });
+      const sorted = [...state.present.scenes].sort((a, b) => 
+        a.sceneNumber.localeCompare(b.sceneNumber, undefined, { numeric: true, sensitivity: 'base' })
+      );
       return applyChange({ ...state.present, scenes: sorted });
+    }
+
+    case 'INSERT_SCENE_AT': {
+      const { index, scene } = action.payload;
+      const updated = [...state.present.scenes.slice(0, index), scene, ...state.present.scenes.slice(index)];
+      return applyChange({ ...state.present, scenes: updated });
     }
 
     case 'UPDATE_VERSION': {
