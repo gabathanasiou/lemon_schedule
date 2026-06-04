@@ -38,25 +38,27 @@ const sceneCardClass = (scene?: Scene | null): string => {
 };
 
 const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean }> = ({ row, scenes, compact }) => {
+  const h = compact ? 'min-h-[30px]' : 'min-h-[44px]';
+  const sz = compact ? 'text-[7pt]' : '';
   if (row.type === 'NOTE') {
     return (
-      <div className="opacity-30 flex items-stretch bg-white text-zinc-900 min-h-[44px] border-b shrink-0">
-        <div className={`flex-1 flex items-center justify-center px-3 italic ${compact ? 'text-[7pt] min-h-[30px]' : ''}`}>{row.noteText || 'Note'}</div>
+      <div className={`opacity-30 flex items-stretch bg-white text-zinc-900 ${h} border-b shrink-0 ${sz}`}>
+        <div className="flex-1 flex items-center justify-center px-3 italic">{row.noteText || 'Note'}</div>
       </div>
     );
   }
 
   if (row.type === 'BREAK') {
     return (
-      <div className="opacity-30 flex items-stretch bg-[#591b1b] text-white min-h-[44px] border-b shrink-0">
-        <div className={`flex-1 flex items-center justify-center px-3 ${compact ? 'text-[7pt] min-h-[30px]' : ''}`}>{row.breakLabel || 'BREAK'}</div>
+      <div className={`opacity-30 flex items-stretch bg-[#591b1b] text-white ${h} border-b shrink-0 ${sz}`}>
+        <div className="flex-1 flex items-center justify-center px-3">{row.breakLabel || 'BREAK'}</div>
       </div>
     );
   }
 
   const scene = scenes.find(s => s.id === row.sceneId);
   return (
-    <div className={`opacity-30 flex items-stretch border-b shrink-0 ${compact ? 'min-h-[30px] text-[7pt]' : 'min-h-[44px]'} ${sceneCardClass(scene)}`}>
+    <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz} ${sceneCardClass(scene)}`}>
       {scene && (
         <>
           <div className={`flex items-center justify-center shrink-0 px-1 border-r border-black/10 ${compact ? 'w-[30px]' : 'w-[50px]'}`}>{scene.sceneNumber}</div>
