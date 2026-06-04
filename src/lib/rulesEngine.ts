@@ -73,7 +73,7 @@ export function checkDay(
     }
 
     if (rule.type === 'TIME_WINDOW') {
-      if (!dayDate || dayDate !== rule.date) continue;
+      if (rule.date && (!dayDate || dayDate !== rule.date)) continue;
       const unitCall = dayMeta[shootDay]?.unitCall || '08:00';
       let runningMin = 0;
       const flaggedScenes: string[] = [];
@@ -99,13 +99,18 @@ export function checkDay(
         runningMin += dur;
       }
       if (flaggedScenes.length > 0) {
-        const desc = rule.windowStart && rule.windowEnd
-          ? `${rule.windowStart}–${rule.windowEnd}`
-          : rule.windowStart ? `after ${rule.windowStart}`
-          : `before ${rule.windowEnd}`;
+const ws = rule.windowStart || '00:00';
+        const we = rule.windowEnd || '23:59';
+        const fullDay = ws === '00:00' && we === '23:59';
+        const desc = fullDay
+            ? 'during all day'
+            : rule.windowStart && rule.windowEnd
+            ? `${ws}–${we}`
+            : rule.windowStart ? `after ${ws}`
+            : `before ${we}`;
         violations.push({
           ruleId: rule.id, ruleType: 'TIME_WINDOW', castId: rule.castId,
-          message: `${rule.castId} only available ${desc} on ${formatDate(rule.date)}`,
+          message: `${rule.castId} only available ${desc}${rule.date ? ` on ${formatDate(rule.date)}` : ''}`,
           shootDay,
           sceneIds: flaggedScenes,
         });

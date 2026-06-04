@@ -109,6 +109,7 @@ type Action =
   | { type: 'UNSCHEDULE_DAY', day: number }
   | { type: 'TOGGLE_WORKING_DAY', date: string }
   | { type: 'ADD_RULE'; payload: ProjectRule }
+  | { type: 'UPDATE_RULE'; payload: ProjectRule }
   | { type: 'DELETE_RULE'; payload: string }
 
 interface State {
@@ -373,6 +374,12 @@ function reducer(state: State, action: Action): State {
       return applyChange({
         ...state.present,
         rules: [...(state.present.rules || []), action.payload]
+      });
+
+    case 'UPDATE_RULE':
+      return applyChange({
+        ...state.present,
+        rules: (state.present.rules || []).map(r => r.id === action.payload.id ? action.payload : r)
       });
 
     case 'DELETE_RULE':
