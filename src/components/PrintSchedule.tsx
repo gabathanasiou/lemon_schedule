@@ -126,7 +126,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
-                    <tr className="print-row-note">
+                    <tr className="print-row-note" style={r.noteColor || r.noteTextColor ? { background: r.noteColor || '#591b1b', color: r.noteTextColor || '#ffffff' } : {}}>
                       <td className="print-col-sc" />
                       {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
                       {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}

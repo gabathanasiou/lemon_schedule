@@ -36,6 +36,8 @@ export interface ScheduleRow {
   
   // NOTE specific
   noteText?: string;
+  noteColor?: string;
+  noteTextColor?: string;
 }
 
 export interface ShootDayMeta {

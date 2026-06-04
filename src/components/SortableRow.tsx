@@ -404,7 +404,12 @@ export const SortableRow: React.FC<{
   ) : null;
 
   if (row.type === 'NOTE') {
-    const noteStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const bgRef = useRef<HTMLInputElement>(null);
+    const textRef = useRef<HTMLInputElement>(null);
+    const noteBg = row.noteColor || '#591b1b';
+    const noteText = row.noteTextColor || '#ffffff';
+    const noteStyle: React.CSSProperties = { background: noteBg, color: noteText };
     if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
     return (
       <div {...commonProps}>
@@ -418,7 +423,7 @@ export const SortableRow: React.FC<{
                     <td className="col-call">{row.computedCallTime}</td>
                     <td className="col-dur">
                       <CellInput
-                        value={row.estimatedDuration === 0 || !row.estimatedDuration ? '--' : formatDuration(row.estimatedDuration || 0)}
+                        value={row.estimatedDuration === 0 || !row.estimatedDuration ? '' : formatDuration(row.estimatedDuration || 0)}
                         onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
                         clearOnType
                         col="duration"
@@ -452,60 +457,7 @@ export const SortableRow: React.FC<{
                 <td className="col-pgs" />
               </tr>
             </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
-  if (row.type === 'BREAK') {
-    const breakStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
-    if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
-    return (
-      <div {...commonProps}>
-        <div className="flex items-stretch">
-          <table className="schedule-table flex-1">
-            <tbody>
-              <tr className="row-break" style={breakStyle}>
-                <td className="col-sc" />
-                {!isCompact ? (
-                  <>
-                    <td className="col-call">{row.computedCallTime}</td>
-                    <td className="col-dur">
-                      <CellInput
-                        value={formatDuration(row.breakDuration || 0)}
-                        onChange={val => updateRow({breakDuration: parseDuration(val)})}
-                        clearOnType
-                        col="duration"
-                        className={`${inputClass} text-center`}
-                      />
-                    </td>
-                    <td className="col-ie" />
-                    <td className="col-set" style={{textAlign: 'center'}}>
-                      <CellInput
-                        value={row.breakLabel || ''}
-                        onChange={val => updateRow({breakLabel: val.toUpperCase()})}
-                        className={`${inputClass} text-center`}
-                        placeholder="ENTER BREAK TEXT"
-                      />
-                    </td>
-                    <td className="col-dn" />
-                    <td className="col-cast" />
-                  </>
-                ) : (
-                  <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
-                    <CellInput
-                      value={row.breakLabel || ''}
-                      onChange={val => updateRow({breakLabel: val.toUpperCase()})}
-                      className={`${inputClass} text-center`}
-                      placeholder="ENTER BREAK TEXT"
-                    />
-                  </td>
-                )}
-                <td className="col-pgs" />
-              </tr>
-            </tbody>
-          </table>
+            </table>
         </div>
       </div>
     );
@@ -558,8 +510,8 @@ export const SortableRow: React.FC<{
                 </tr>
               </tbody>
             </table>
-          </div>
         </div>
+      </div>
       );
     }
 
