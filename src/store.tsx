@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, ProjectRule } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -45,15 +45,17 @@ function loadProjectFromStorage(id: string): Project | null {
           ...v,
           updatedAt: v.updatedAt || v.createdAt || Date.now()
         }));
+        const thirtyDays = 30 * 24 * 60 * 60 * 1000;
         parsed.trash = (parsed.trash || []).filter((t: TrashItem) => {
-          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
           return Date.now() - t.deletedAt < thirtyDays;
         }).map((t: TrashItem) => ({
           ...t,
           versionName: t.versionName || 'Unknown'
         }));
         parsed.versionTrash = (parsed.versionTrash || []).filter((t: VersionTrashItem) => {
-          const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
+        parsed.rulesTrash = (parsed.rulesTrash || []).filter((t: RuleTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
         return parsed;
@@ -83,6 +85,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     activeVersionId: id,
     trash: [],
     versionTrash: [],
+    rulesTrash: [],
     rules: []
   };
 }
@@ -111,6 +114,7 @@ type Action =
   | { type: 'ADD_RULE'; payload: ProjectRule }
   | { type: 'UPDATE_RULE'; payload: ProjectRule }
   | { type: 'DELETE_RULE'; payload: string }
+  | { type: 'RESTORE_RULE_FROM_TRASH'; payload: string }
 
 interface State {
   past: Project[];
@@ -209,7 +213,9 @@ function reducer(state: State, action: Action): State {
     case 'EMPTY_TRASH': {
       return applyChange({
         ...state.present,
-        trash: []
+        trash: [],
+        versionTrash: [],
+        rulesTrash: [],
       });
     }
 
@@ -382,11 +388,29 @@ function reducer(state: State, action: Action): State {
         rules: (state.present.rules || []).map(r => r.id === action.payload.id ? action.payload : r)
       });
 
-    case 'DELETE_RULE':
+    case 'DELETE_RULE': {
+      const rule = (state.present.rules || []).find(r => r.id === action.payload);
+      if (!rule) return state;
+      const trashItem: RuleTrashItem = {
+        rule: { ...rule },
+        deletedAt: Date.now(),
+      };
       return applyChange({
         ...state.present,
-        rules: (state.present.rules || []).filter(r => r.id !== action.payload)
+        rules: (state.present.rules || []).filter(r => r.id !== action.payload),
+        rulesTrash: [...(state.present.rulesTrash || []), trashItem],
       });
+    }
+
+    case 'RESTORE_RULE_FROM_TRASH': {
+      const item = (state.present.rulesTrash || []).find(t => t.rule.id === action.payload);
+      if (!item) return state;
+      return applyChange({
+        ...state.present,
+        rules: [...(state.present.rules || []), item.rule],
+        rulesTrash: (state.present.rulesTrash || []).filter(t => t.rule.id !== action.payload),
+      });
+    }
 
     default:
       return state;

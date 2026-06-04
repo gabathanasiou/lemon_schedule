@@ -64,9 +64,7 @@ export const RulesTab: React.FC = () => {
   };
 
   const handleDelete = (rule: ProjectRule) => {
-    if (confirm(`Delete this rule?\n\n${describeRule(rule)}`)) {
-      dispatch({ type: 'DELETE_RULE', payload: rule.id });
-    }
+    dispatch({ type: 'DELETE_RULE', payload: rule.id });
   };
 
   const handleSave = (rule: ProjectRule) => {

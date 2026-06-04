@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ProjectProvider, useProject } from './store';
-import { TrashItem, VersionTrashItem, Project } from './types';
+import { TrashItem, VersionTrashItem, RuleTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
@@ -17,8 +17,13 @@ import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
 import { StorageStatus, useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
+import { RULE_TYPE_META, describeRule } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive } from 'lucide-react';
+
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
@@ -304,7 +309,7 @@ function AppContent() {
                 </DropdownItem>
                 <DropdownDivider />
                 <DropdownItem onClick={() => { setShowVersionsMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0)})
+                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0)})
                 </DropdownItem>
               </div>
             </DropdownMenu>
@@ -363,41 +368,56 @@ function AppContent() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">
-              {[...(project.trash || []).map(t => ({ ...t, _kind: 'scene' as const })), ...(project.versionTrash || []).map(t => ({ ...t, _kind: 'version' as const }))]
-                .sort((a, b) => b.deletedAt - a.deletedAt)
-                .length === 0 ? (
-                <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>
-              ) : (
-                [...(project.trash || []).map(t => ({ ...t, _kind: 'scene' as const })), ...(project.versionTrash || []).map(t => ({ ...t, _kind: 'version' as const }))]
-                  .sort((a, b) => b.deletedAt - a.deletedAt)
-                  .map((item: any) => (
-                    <div key={item._kind === 'scene' ? item.scene.id : item.version.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
+              {(() => {
+                const items: Array<{ kind: 'scene'; id: string; data: TrashItem }
+                  | { kind: 'version'; id: string; data: VersionTrashItem }
+                  | { kind: 'rule'; id: string; data: RuleTrashItem }> = [
+                    ...(project.trash || []).map(t => ({ kind: 'scene' as const, id: t.scene.id, data: t })),
+                    ...(project.versionTrash || []).map(t => ({ kind: 'version' as const, id: t.version.id, data: t })),
+                    ...(project.rulesTrash || []).map(t => ({ kind: 'rule' as const, id: t.rule.id, data: t })),
+                  ].sort((a, b) => b.data.deletedAt - a.data.deletedAt);
+                if (items.length === 0) {
+                  return <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>;
+                }
+                return items.map(item => {
+                  let title: string;
+                  let subtitle: string;
+                  if (item.kind === 'scene') {
+                    const t = item.data as TrashItem;
+                    title = `${t.scene.sceneNumber}. ${t.scene.set}`;
+                    subtitle = `${t.versionName} · ${formatTime(t.deletedAt)}`;
+                  } else if (item.kind === 'version') {
+                    const t = item.data as VersionTrashItem;
+                    title = t.version.name;
+                    subtitle = `Version · ${formatTime(t.deletedAt)}`;
+                  } else {
+                    const t = item.data as RuleTrashItem;
+                    const meta = RULE_TYPE_META[t.rule.type];
+                    title = `${meta.short} · Cast ${t.rule.castId} · ${describeRule(t.rule)}`;
+                    subtitle = `Rule · ${formatTime(t.deletedAt)}`;
+                  }
+                  const actionType = item.kind === 'scene' ? 'RESTORE_SCENE'
+                    : item.kind === 'version' ? 'RESTORE_VERSION_FROM_TRASH'
+                    : 'RESTORE_RULE_FROM_TRASH';
+                  return (
+                    <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
                       <div className="min-w-0">
-                        <div className="text-white text-sm font-semibold truncate">
-                          {item._kind === 'scene'
-                            ? `${(item as TrashItem).scene.sceneNumber}. ${(item as TrashItem).scene.set}`
-                            : (item as VersionTrashItem).version.name
-                          }
-                        </div>
-                        <div className="text-zinc-500 text-[11px] mt-0.5">
-                          {item._kind === 'scene'
-                            ? `${(item as TrashItem).versionName} \u00b7 ${new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-                            : `Version \u00b7 ${new Date(item.deletedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
-                          }
-                        </div>
+                        <div className="text-white text-sm font-semibold truncate">{title}</div>
+                        <div className="text-zinc-500 text-[11px] mt-0.5">{subtitle}</div>
                       </div>
                       <button
-                        onClick={() => dispatch({ type: item._kind === 'scene' ? 'RESTORE_SCENE' : 'RESTORE_VERSION_FROM_TRASH', payload: item._kind === 'scene' ? item.scene.id : item.version.id })}
+                        onClick={() => dispatch({ type: actionType as any, payload: item.id })}
                         className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white p-1 rounded transition-all"
                         title="Restore"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  ))
-              )}
+                  );
+                });
+              })()}
             </div>
-            {((project.trash || []).length + (project.versionTrash || []).length) > 0 && (
+            {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0)) > 0 && (
               <div className="border-t border-zinc-800 px-5 py-3">
                 <button
                   onClick={() => { if (confirm('Permanently delete all trash items?')) dispatch({ type: 'EMPTY_TRASH' }); }}
