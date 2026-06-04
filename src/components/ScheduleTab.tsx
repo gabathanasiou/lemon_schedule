@@ -180,6 +180,7 @@ export function ScheduleTab() {
     dayRows.forEach((r, i) => r.order = i);
     newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    setSelectedRowIds(new Set(clipboardItems.map(r => r.id)));
   };
 
   useEffect(() => {
