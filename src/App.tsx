@@ -196,12 +196,6 @@ function AppContent() {
             >
               Calendar
             </button>
-            <button 
-              onClick={() => setActiveTab('rules')}
-              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'rules' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
-            >
-              Rules
-            </button>
             {activeTab === 'calendar' && (
               <DropdownMenu
                 open={showCalendarViewMenu}
@@ -235,6 +229,12 @@ function AppContent() {
                 </button>
               </DropdownMenu>
             )}
+            <button 
+              onClick={() => setActiveTab('rules')}
+              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'rules' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+            >
+              Rules
+            </button>
           </div>
         </div>
 
