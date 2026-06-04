@@ -270,14 +270,22 @@ export function ScheduleTab() {
     return allRows;
   };
 
+  const selectedRowIdsRef = useRef(selectedRowIds);
+  selectedRowIdsRef.current = selectedRowIds;
+
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
-    setActiveId(e.active.id as string);
+    const draggedId = e.active.id as string;
+    setActiveId(draggedId);
     setActiveType(e.active.data.current?.type || null);
-    if (selectedRowIds.has(e.active.id as string) && selectedRowIds.size > 1) {
-      setActiveDragIds(new Set(selectedRowIds));
+    const currentSelection = selectedRowIdsRef.current;
+    if (currentSelection.has(draggedId) && currentSelection.size > 1) {
+      setActiveDragIds(new Set(currentSelection));
     } else {
-      setActiveDragIds(new Set([e.active.id as string]));
+      if (currentSelection.size > 0) {
+        setSelectedRowIds(new Set());
+      }
+      setActiveDragIds(new Set([draggedId]));
     }
   };
 
