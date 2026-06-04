@@ -121,6 +121,9 @@ export function BreakdownTab() {
               </div>
             );
           })}
+          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
+            Tab or Enter to confirm
+          </div>
         </div>
       </div>
     );
@@ -161,8 +164,10 @@ export function BreakdownTab() {
   }, []);
 
   const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const [val, setVal] = useState(cell?.value || '');
-    const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const initialVal = cell?.value || '';
+    const initialIdx = INT_EXT_OPTIONS.findIndex(opt => opt.toLowerCase() === initialVal.toLowerCase());
+    const [val, setVal] = useState(initialVal);
+    const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
     const committedRef = useRef(false);
     const filtered = INT_EXT_OPTIONS.filter(opt => opt.toLowerCase().includes(val.toLowerCase()));
 
@@ -186,7 +191,7 @@ export function BreakdownTab() {
             }
             if (e.key === 'ArrowDown') {
               e.preventDefault();
-              setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1));
+              setHighlightedIndex(i => Math.min(i + 1, INT_EXT_OPTIONS.length - 1));
             }
             if (e.key === 'ArrowUp') {
               e.preventDefault();
@@ -202,26 +207,29 @@ export function BreakdownTab() {
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px]"
         />
-        {filtered.length > 0 && filtered.length < INT_EXT_OPTIONS.length && (
-          <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 overflow-y-auto">
-            {filtered.map((opt, i) => (
-              <div
-                key={opt}
-                className={`px-2 py-1 text-[13px] cursor-pointer ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
-                onMouseDown={e => { e.preventDefault(); commit(opt); }}
-              >
-                {opt}
-              </div>
-            ))}
+        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 overflow-y-auto">
+          {INT_EXT_OPTIONS.map((opt, i) => (
+            <div
+              key={opt}
+              className={`px-2 py-1 text-[13px] cursor-pointer ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
+              onMouseDown={e => { e.preventDefault(); commit(opt); }}
+            >
+              {opt}
+            </div>
+          ))}
+          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
+            Tab or Enter to confirm
           </div>
-        )}
+        </div>
       </div>
     );
   }, []);
 
   const DayNightEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const [val, setVal] = useState(cell?.value || '');
-    const [highlightedIndex, setHighlightedIndex] = useState(0);
+    const initialVal = cell?.value || '';
+    const initialIdx = DAY_NIGHT_OPTIONS.findIndex(opt => opt.toLowerCase() === initialVal.toLowerCase());
+    const [val, setVal] = useState(initialVal);
+    const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
     const committedRef = useRef(false);
     const filtered = DAY_NIGHT_OPTIONS.filter(opt => opt.toLowerCase().includes(val.toLowerCase()));
 
@@ -245,7 +253,7 @@ export function BreakdownTab() {
             }
             if (e.key === 'ArrowDown') {
               e.preventDefault();
-              setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1));
+              setHighlightedIndex(i => Math.min(i + 1, DAY_NIGHT_OPTIONS.length - 1));
             }
             if (e.key === 'ArrowUp') {
               e.preventDefault();
@@ -261,19 +269,20 @@ export function BreakdownTab() {
           autoFocus
           className="w-full h-full border-0 outline-none px-2 text-[13px]"
         />
-        {filtered.length > 0 && filtered.length < DAY_NIGHT_OPTIONS.length && (
-          <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 overflow-y-auto">
-            {filtered.map((opt, i) => (
-              <div
-                key={opt}
-                className={`px-2 py-1 text-[13px] cursor-pointer ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
-                onMouseDown={e => { e.preventDefault(); commit(opt); }}
-              >
-                {opt}
-              </div>
-            ))}
+        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 overflow-y-auto">
+          {DAY_NIGHT_OPTIONS.map((opt, i) => (
+            <div
+              key={opt}
+              className={`px-2 py-1 text-[13px] cursor-pointer ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
+              onMouseDown={e => { e.preventDefault(); commit(opt); }}
+            >
+              {opt}
+            </div>
+          ))}
+          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
+            Tab or Enter to confirm
           </div>
-        )}
+        </div>
       </div>
     );
   }, []);

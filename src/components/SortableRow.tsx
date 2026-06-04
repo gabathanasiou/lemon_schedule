@@ -100,6 +100,9 @@ const CastCellInput: React.FC<{
               </button>
             );
           })}
+          <div className="px-2 py-1 text-[10px] text-zinc-600 text-center border-t border-zinc-800">
+            Tab or Enter to confirm
+          </div>
         </div>
       )}
     </div>
