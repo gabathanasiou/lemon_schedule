@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ProjectProvider, useProject } from './store';
-import { TrashItem, VersionTrashItem } from './types';
+import { TrashItem, VersionTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
@@ -16,7 +16,9 @@ import PrintSchedule from './components/PrintSchedule';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings } from 'lucide-react';
+import { StorageStatus, useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
+import { writeProjectToFolder } from './lib/persistentStorage';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive } from 'lucide-react';
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
@@ -31,10 +33,16 @@ function AppContent() {
   const [showTrash, setShowTrash] = useState(false);
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
   const noProject = currentProjectId === null;
+
+  const storage = useStorage();
+  const autosaveTimerRef = useRef<number | null>(null);
+  const ctx = useProject();
+  const importProjectFromData = ctx.importProjectFromData;
 
   useEffect(() => {
     if (printOptions) {
@@ -44,6 +52,25 @@ function AppContent() {
       return () => window.removeEventListener('afterprint', onAfterPrint);
     }
   }, [printOptions]);
+
+  useEffect(() => {
+    if (!storage.handle || !currentProjectId) return;
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    storage.setStatus('saving');
+    autosaveTimerRef.current = window.setTimeout(async () => {
+      try {
+        await writeProjectToFolder(storage.handle!, project);
+        storage.setStatus('saved');
+      } catch (e: any) {
+        const msg = e?.message || 'Save failed';
+        const isPerm = /permission/i.test(msg);
+        storage.setStatus(isPerm ? 'no-permission' : 'error', msg);
+      }
+    }, 800);
+    return () => {
+      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    };
+  }, [state.present, storage.handle, currentProjectId]);
 
   if (printOptions) {
     return (
@@ -307,7 +334,14 @@ function AppContent() {
                 Print Schedule
               </DropdownItem>
             </DropdownMenu>
-          <span className="text-zinc-500">Auto-saved</span>
+          <StorageStatus
+            handle={storage.handle}
+            status={storage.status}
+            errorMessage={storage.errorMessage}
+            onHandleChange={storage.setHandle}
+            onStatusChange={storage.setStatus}
+            onRestoreClick={(entries, projects) => setShowRestoreModal({ entries, projects })}
+          />
         </div>
       </header>
 
@@ -373,6 +407,74 @@ function AppContent() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {showRestoreModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowRestoreModal(null)}>
+          <div
+            className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <HardDrive className="w-4 h-4 text-sky-400" />
+                <h2 className="text-white font-bold text-sm">Restore from folder</h2>
+              </div>
+              <button onClick={() => setShowRestoreModal(null)} className="text-zinc-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
+              {showRestoreModal.entries.length} {showRestoreModal.entries.length === 1 ? 'project' : 'projects'} found in your save folder.
+              Restoring will merge them with your current projects.
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {showRestoreModal.entries.length === 0 ? (
+                <div className="text-zinc-500 text-center py-12 text-sm">No projects in folder.</div>
+              ) : (
+                showRestoreModal.entries.map(entry => (
+                  <div key={entry.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900">
+                    <div className="min-w-0">
+                      <div className="text-white text-sm font-semibold truncate">{entry.title || 'Untitled'}</div>
+                      <div className="text-zinc-500 text-[11px] mt-0.5">
+                        Last saved {new Date(entry.lastModified).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="border-t border-zinc-800 px-5 py-3 flex items-center gap-2">
+              <button
+                onClick={() => setShowRestoreModal(null)}
+                className="flex-1 px-4 py-2 rounded text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={showRestoreModal.projects.length === 0}
+                onClick={async () => {
+                  try {
+                    const projectsToImport: Project[] = showRestoreModal.projects.map(p => JSON.parse(p.data));
+                    for (const proj of projectsToImport) {
+                      try {
+                        importProjectFromData(proj);
+                      } catch (e) {
+                        console.error('Failed to import', proj.id, e);
+                      }
+                    }
+                    setShowRestoreModal(null);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                className="flex-1 px-4 py-2 rounded text-sm font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Restore {showRestoreModal.projects.length} {showRestoreModal.projects.length === 1 ? 'project' : 'projects'}
+              </button>
+            </div>
           </div>
         </div>
       )}
