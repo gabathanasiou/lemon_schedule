@@ -152,7 +152,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     <div style={baseStyle} className="bg-white flex flex-col">
       
       {/* Day Ribbon Banner */}
-      <div className="bg-black text-white flex justify-between items-center px-3 py-2">
+      <div className="bg-black text-white flex justify-between items-center px-3 py-4">
          <div className="flex items-center gap-2 shrink-0">
             <span className="font-bold">DAY #{displayDay}</span>
             {violations.length > 0 && (
