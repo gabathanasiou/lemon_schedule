@@ -96,12 +96,7 @@ export function ScheduleTab() {
       }
     } else {
       if (!textEditingEnabled) {
-        e.stopPropagation();
-        setSelectedRowIds(prev => {
-          const next = new Set(prev);
-          if (next.has(id)) next.delete(id); else next.add(id);
-          return next;
-        });
+        setSelectedRowIds(new Set([id]));
       }
       setLastClickedId(id);
     }
