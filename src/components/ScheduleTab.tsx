@@ -125,12 +125,14 @@ export function ScheduleTab() {
   }, []);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
+  const marqueeJustEndedRef = useRef(false);
 
   const { DragSelection } = useSelectionContainer({
-    shouldStartSelecting: (e) => {
-      const target = (e as any).target as HTMLElement;
+    eventsElement: (typeof document !== 'undefined' ? document.body : undefined) as any,
+    shouldStartSelecting: (target) => {
+      if (!(target instanceof HTMLElement)) return true;
       if (target.closest('[data-row-id]')) return false;
-      if (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return false;
+      if (target.closest('button, input, select, textarea, [role="button"]')) return false;
       return true;
     },
     onSelectionChange: (box) => {
@@ -170,6 +172,9 @@ export function ScheduleTab() {
         }
         return intersected;
       });
+    },
+    onSelectionEnd: () => {
+      marqueeJustEndedRef.current = true;
     },
     selectionProps: {
       style: {
@@ -504,7 +509,14 @@ export function ScheduleTab() {
     >
       <div 
           className="flex-1 flex bg-zinc-200/50 relative min-h-0"
-          onClick={() => { setContextMenu(null); setSelectedRowIds(new Set()); }}
+          onClick={() => {
+            if (marqueeJustEndedRef.current) {
+              marqueeJustEndedRef.current = false;
+              return;
+            }
+            setContextMenu(null);
+            setSelectedRowIds(new Set());
+          }}
          onContextMenu={(e) => {
              const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
              if (rowEl) {
