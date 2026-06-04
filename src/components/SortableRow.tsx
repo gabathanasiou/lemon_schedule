@@ -390,7 +390,7 @@ export const SortableRow: React.FC<{
     onClick: onSelectToggle,
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
-    className: `group relative transition-colors shrink-0 outline-none ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[0_0_0_2px_#3b82f6] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
+    className: `group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[0_0_0_2px_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
   };
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
@@ -518,10 +518,8 @@ export const SortableRow: React.FC<{
 
   if (scene) {
     const rowStyle = sceneStyle(scene);
-    const borderStyle = { ...rowStyle, borderBottom: '0.5px solid rgba(0,0,0,0.1)' };
     if (isSelected && !isFaded) {
       rowStyle.background = darkenHex(rowStyle.background as string);
-      borderStyle.background = darkenHex(borderStyle.background as string);
     }
 
     if (isCompact) {
@@ -573,7 +571,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch">
           <table className="schedule-table flex-1">
             <tbody>
-              <tr style={borderStyle}>
+              <tr style={rowStyle}>
                 <td className="col-sc relative">
                   <div className="flex items-center justify-center gap-px">
                     <CellInput

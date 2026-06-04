@@ -180,7 +180,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   };
 
   return (
-    <div style={baseStyle} className="bg-white flex flex-col">
+    <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
       {/* Day Ribbon Banner */}
       <div className="bg-black text-white flex justify-between items-center px-3 py-4">
@@ -253,7 +253,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             data-row-id={`empty-${dayInt}`}
             data-shoot-day={dayInt}
             onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-            className={`flex items-center px-4 py-3 text-[9pt] cursor-pointer border-b border-zinc-100 italic select-none transition-colors relative ${selectedIds.has(`empty-${dayInt}`) ? 'bg-zinc-100 text-zinc-300 shadow-[0_0_0_2px_#3b82f6] z-10' : 'text-zinc-300'}`}
+            className={`flex items-center px-4 py-3 text-[9pt] cursor-pointer border-b-[2px] border-black italic select-none transition-colors relative ${selectedIds.has(`empty-${dayInt}`) ? 'bg-zinc-100 text-zinc-300 shadow-[0_0_0_2px_#000000] z-10' : 'text-zinc-300'}`}
             style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}
           >
             No scenes in this day · right-click for options

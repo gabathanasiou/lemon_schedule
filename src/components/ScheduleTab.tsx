@@ -788,15 +788,7 @@ export function ScheduleTab() {
         .schedule-table td {
           padding: 4px 4px;
           vertical-align: middle;
-          border-right: 0.5px solid rgba(0,0,0,0.1);
-          border-bottom: 0.5px solid rgba(0,0,0,0.1);
           overflow: hidden;
-        }
-        .schedule-table tbody tr:first-child td:first-child {
-          border-left: none;
-        }
-        .schedule-table tbody tr:last-child td:last-child {
-          border-right: none;
         }
         .col-sc { width: 40px; text-align: center; overflow: visible !important; padding: 0 !important; }
         .col-call { width: 35px; text-align: center; }

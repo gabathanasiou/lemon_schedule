@@ -184,7 +184,7 @@ export const UnscheduledBlock: React.FC<{
         panelRef.current = node;
         if (isCollapsed && setNodeRef) setNodeRef(node);
       }}
-      className={`${isCollapsed ? 'w-[44px] bg-zinc-50' : 'bg-white'} border-r border-zinc-200 shadow-xl flex flex-col z-20 print:hidden relative shrink-0 overflow-hidden`}
+      className={`${isCollapsed ? 'w-[44px] bg-zinc-50' : 'bg-white'} border-[2px] border-black shadow-xl flex flex-col z-20 print:hidden relative shrink-0 overflow-hidden`}
       style={isCollapsed ? undefined : { width: `${width}px` }}
     >
       {isCollapsed ? (
