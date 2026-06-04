@@ -257,6 +257,7 @@ export function ScheduleTab() {
       newRows.push({ ...row, id: generateUUID(), order: row.order + 0.5 });
     } else if (action === 'change_color' && row.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
+      setContextMenu(null);
       return;
     } else if (action === 'delete') {
       newRows = newRows.filter(r => r.id !== rowId);
@@ -685,15 +686,24 @@ export function ScheduleTab() {
       {/* Color Picker Modal */}
       {colorPicker && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50" onClick={() => setColorPicker(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-[280px] flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[300px] flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-zinc-800">Note Color</h3>
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-zinc-600">Background</label>
-              <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-10 h-8 cursor-pointer border-0 p-0" />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-600">Background</span>
+              <div className="flex items-center gap-2">
+                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-300 cursor-pointer p-0" />
+                <span className="text-[10px] text-zinc-400 font-mono">{colorPicker.bg}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-zinc-600">Text</label>
-              <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-10 h-8 cursor-pointer border-0 p-0" />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-600">Text</span>
+              <div className="flex items-center gap-2">
+                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-300 cursor-pointer p-0" />
+                <span className="text-[10px] text-zinc-400 font-mono">{colorPicker.text}</span>
+              </div>
+            </div>
+            <div className="text-xs text-zinc-500 px-3 py-2 rounded border border-zinc-200" style={{ background: colorPicker.bg, color: colorPicker.text }}>
+              Preview text
             </div>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setColorPicker(null)} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded">Cancel</button>
