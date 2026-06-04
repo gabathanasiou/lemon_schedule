@@ -11,19 +11,30 @@ let _shiftKey = false;
 let _addMode = false;
 let _listenersInitialized = false;
 const _marqueeJustEndedRef = { current: false };
+const _shiftListeners = new Set<() => void>();
+
+export function useShiftKey(): boolean {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const fn = () => tick(n => n + 1);
+    _shiftListeners.add(fn);
+    return () => { _shiftListeners.delete(fn); };
+  }, []);
+  return _shiftKey;
+}
 
 function initKeyboardListeners() {
   if (_listenersInitialized) return;
   _listenersInitialized = true;
   const down = (e: KeyboardEvent) => {
-    if (e.key === 'Shift') _shiftKey = true;
+    if (e.key === 'Shift') { _shiftKey = true; _shiftListeners.forEach(fn => fn()); }
     if (e.metaKey || e.ctrlKey) _addMode = true;
   };
   const up = (e: KeyboardEvent) => {
-    if (e.key === 'Shift') _shiftKey = false;
+    if (e.key === 'Shift') { _shiftKey = false; _shiftListeners.forEach(fn => fn()); }
     _addMode = e.metaKey || e.ctrlKey;
   };
-  const blur = () => { _shiftKey = false; _addMode = false; };
+  const blur = () => { _shiftKey = false; _addMode = false; _shiftListeners.forEach(fn => fn()); };
   window.addEventListener('keydown', down);
   window.addEventListener('keyup', up);
   window.addEventListener('blur', blur);
@@ -59,7 +70,6 @@ export function useMarquee(
       startY = e.clientY - rect.top + container.scrollTop;
       active = true;
       setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
-      e.preventDefault();
     };
 
     const onMouseMove = (e: MouseEvent) => {
