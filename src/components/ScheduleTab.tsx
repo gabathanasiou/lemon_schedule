@@ -250,7 +250,14 @@ export function ScheduleTab() {
     dayRows.sort((a, b) => a.order - b.order);
   });
 
-  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order);
+  const unscheduledBase = augmentedRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
+  const unscheduledRows = activeId ? unscheduledBase.filter(r => !activeDragIds.has(r.id)) : unscheduledBase;
+
+  const cutRows = (!activeId && activeDragIds.size > 0)
+    ? augmentedRows.filter(r => activeDragIds.has(r.id) && r.shootDay !== null).sort((a, b) => a.order - b.order)
+    : [];
+
+  const unscheduledAll = [...unscheduledRows, ...cutRows];
 
   const existingDays = Array.from(new Set([
     ...Object.keys(activeVersion.dayMeta || {}).map(Number),
@@ -641,7 +648,7 @@ export function ScheduleTab() {
               }
           }}
       >
-        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
+        <UnscheduledBlock rows={unscheduledAll} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -674,6 +681,20 @@ export function ScheduleTab() {
                   <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
                     {selectedRowIds.size} selected
                     <button onClick={() => setSelectedRowIds(new Set())} className="hover:text-blue-900 font-bold">&times;</button>
+                  </span>
+                )}
+                {cutRows.length > 0 && (
+                  <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    {cutRows.length} cut
+                    <button onClick={() => {
+                      const ver = activeVersion;
+                      if (ver) {
+                        const ids = Array.from(activeDragIds);
+                        const newRows = ver.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+                        dispatch({ type: 'UPDATE_VERSION', payload: { id: ver.id, rows: newRows } });
+                      }
+                      setActiveDragIds(new Set());
+                    }} className="hover:text-amber-900 font-bold">&times;</button>
                   </span>
                 )}
               </div>
