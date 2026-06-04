@@ -84,9 +84,10 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean;
     transition,
     ...(isDragging ? { opacity: 0.3 } : {}),
   };
-  return (
+    return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
       onClick={(e) => onToggle?.(row.id, e)}
+      data-row-id={row.id}
       className={`${isSelected ? 'before:absolute before:inset-0 before:bg-black/15 before:pointer-events-none before:z-10 before:content-[\'\'] relative' : ''}`}>
       <SceneCardContent row={row} scene={scene} showDesc={showDesc} violations={violations} />
       {isFaded && <div className="absolute inset-0 bg-white/50 pointer-events-none" />}
@@ -457,12 +458,15 @@ export const CalendarTab: React.FC<{ showDesc?: boolean }> = ({ showDesc = false
     let targetShootDay: number | null = null;
     const overData = over.data.current as any;
     if (over.id === 'unscheduled') targetShootDay = null;
-    else if (overData?.type === 'DAY_CELL' && overData.shootDay !== undefined) targetShootDay = overData.shootDay ?? null;
+    else if (overData?.type === 'DAY_CELL' && overData.shootDay != null) targetShootDay = overData.shootDay;
     else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
       const raw = over.id.slice(4);
       const meta = activeVersion.dayMeta || {};
       const dateMap = new Map((Object.entries(meta) as [string, ShootDayMeta][]).map(([k, v]) => [v.date || '', Number(k)]));
       targetShootDay = dateMap.get(raw) ?? null;
+    } else {
+      const overRow = augmentedRows.find(r => r.id === over.id);
+      if (overRow && overRow.shootDay != null) targetShootDay = overRow.shootDay;
     }
 
     if (targetShootDay === undefined) return;
