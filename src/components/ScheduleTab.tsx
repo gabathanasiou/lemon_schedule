@@ -7,6 +7,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
+import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -112,98 +113,14 @@ export function ScheduleTab() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => { (window as any).__marqueeAddMode = e.metaKey || e.ctrlKey; };
-    const up = () => { (window as any).__marqueeAddMode = false; };
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-    };
-  }, []);
-
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
-  const marqueeJustEndedRef = useRef(false);
 
-  const [marqueeBox, setMarqueeBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
-
-  useEffect(() => {
-    const container = scheduleScrollRef.current;
-    if (!container) return;
-
-    let startX = 0, startY = 0;
-    let active = false;
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-row-id]')) return;
-      if (target.closest('button, input, select, textarea, [role="button"]')) return;
-
-      const rect = container.getBoundingClientRect();
-      startX = e.clientX - rect.left + container.scrollLeft;
-      startY = e.clientY - rect.top + container.scrollTop;
-      active = true;
-      setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
-      e.preventDefault();
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!active) return;
-      const rect = container.getBoundingClientRect();
-      const curX = e.clientX - rect.left + container.scrollLeft;
-      const curY = e.clientY - rect.top + container.scrollTop;
-      const left = Math.min(startX, curX);
-      const top = Math.min(startY, curY);
-      const width = Math.abs(curX - startX);
-      const height = Math.abs(curY - startY);
-
-      setMarqueeBox({ left, top, width, height });
-
-      if (width > 10 || height > 10) {
-        const isAddMode = (window as any).__marqueeAddMode || false;
-        const rowEls = container.querySelectorAll('[data-row-id]');
-        const intersected = new Set<string>();
-        rowEls.forEach((el) => {
-          const r = el.getBoundingClientRect();
-          const eb = {
-            left: r.left - rect.left + container.scrollLeft,
-            top: r.top - rect.top + container.scrollTop,
-            width: r.width,
-            height: r.height,
-          };
-          if (eb.left < left + width && eb.left + eb.width > left && eb.top < top + height && eb.top + eb.height > top) {
-            intersected.add(el.getAttribute('data-row-id')!);
-          }
-        });
-        setSelectedRowIds(prev => {
-          if (isAddMode) {
-            const next = new Set(prev);
-            intersected.forEach(id => next.add(id));
-            return next;
-          }
-          return intersected;
-        });
-      }
-    };
-
-    const onMouseUp = () => {
-      if (!active) return;
-      active = false;
-      setMarqueeBox(null);
-      marqueeJustEndedRef.current = true;
-    };
-
-    container.addEventListener('mousedown', onMouseDown);
-    container.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    return () => {
-      container.removeEventListener('mousedown', onMouseDown);
-      container.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, []);
+  const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
+    scheduleScrollRef,
+    useCallback((ids, isAddMode) => {
+      setSelectedRowIds(prev => isAddMode ? new Set([...prev, ...ids]) : ids);
+    }, []),
+  );
 
   if (!activeVersion) return <div>No active version</div>;
 
@@ -551,7 +468,7 @@ export function ScheduleTab() {
              }
          }}
       >
-        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} />
+        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative">

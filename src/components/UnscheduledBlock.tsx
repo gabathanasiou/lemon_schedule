@@ -6,6 +6,7 @@ import { SortableRow } from './SortableRow';
 import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
@@ -20,7 +21,8 @@ export const UnscheduledBlock: React.FC<{
   selectedIds?: Set<string>,
   activeDragIds?: Set<string>,
   onRowClick?: (id: string, e: React.MouseEvent) => void,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick }) => {
+  onSelectionChange?: (ids: Set<string>, isAddMode: boolean) => void,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -40,6 +42,14 @@ export const UnscheduledBlock: React.FC<{
     localStorage.setItem(COLLAPSED_KEY, String(isCollapsed));
   }, [isCollapsed]);
   const panelRef = useRef<HTMLDivElement>(null);
+  const unscheduledMarqueeRef = useRef<HTMLDivElement>(null);
+
+  const { marqueeBox } = useMarquee(
+    unscheduledMarqueeRef,
+    useCallback((ids, isAddMode) => {
+      onSelectionChange?.(ids, isAddMode);
+    }, [onSelectionChange]),
+  );
   
   const { setNodeRef } = useDroppable({
     id: 'unscheduled_bin',
@@ -246,7 +256,9 @@ export const UnscheduledBlock: React.FC<{
             </div>
           </div>
           
-          <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-white items-stretch">
+          <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-white items-stretch relative">
+            <MarqueeOverlay box={marqueeBox} />
+            <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
             <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
               {rows.map((r) => (
                 <SortableRow 
@@ -266,6 +278,7 @@ export const UnscheduledBlock: React.FC<{
                 Drop items here to unschedule
               </div>
             )}
+          </div>
           </div>
         </div>
       )}
