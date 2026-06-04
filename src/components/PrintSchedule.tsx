@@ -94,6 +94,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
 const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay }) => {
   let runningElapsed = 0;
   let totalPages = 0;
+  let totalBreakTime = 0;
 
   const computedRows = rows.map(r => {
     const callTime = addMinutesToTime(meta?.unitCall || '08:00', runningElapsed);
@@ -104,6 +105,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       if (scene) totalPages += scene.pageCountDecimal;
     } else if (r.type === 'BREAK') {
       dur = r.breakDuration || 0;
+      totalBreakTime += dur;
     } else if (r.type === 'NOTE') {
       dur = r.estimatedDuration || 0;
     }
@@ -194,7 +196,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         {meta?.date && <span className="print-footer-date">{new Date(meta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         <span className="print-footer-spacer" />
         <span>Total Pages: {formatPageCount(totalPages)}</span>
-        <span>EST. TIME: {formatDuration(runningElapsed)}</span>
+        <span>EST. TIME: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}</span>
       </div>
     </div>
   );
@@ -250,7 +252,7 @@ const PRINT_STYLE = `
     align-items: center;
     background: #000000;
     color: #ffffff;
-    padding: 8pt 10pt;
+    padding: 16pt 10pt;
   }
   .print-day-number {
     flex: 0 0 auto;

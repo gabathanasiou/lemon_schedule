@@ -116,6 +116,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   // Compute accumulated times & page counts
   let runningElapsed = 0;
   let totalPages = 0;
+  let totalBreakTime = 0;
 
   const computedRows = rows.map(r => {
     const callTime = addMinutesToTime(meta?.unitCall || '08:00', runningElapsed);
@@ -127,6 +128,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       if (scene) totalPages += scene.pageCountDecimal;
     } else if (r.type === 'BREAK') {
       dur = r.breakDuration || 0;
+      totalBreakTime += dur;
     } else if (r.type === 'NOTE') {
       dur = r.estimatedDuration || 0;
     }
@@ -140,7 +142,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     };
   });
 
-  const totalShootTime = runningElapsed;
+  const totalShootTime = runningElapsed - totalBreakTime;
 
   const baseStyle = {
     fontFamily: 'Helvetica, Arial, sans-serif',
@@ -228,18 +230,18 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       {/* Day Footer */}
       {rows.length > 0 && (
-        <div className="flex justify-between items-center px-3 py-1.5 border-t border-zinc-300"
-          style={{fontFamily: 'Helvetica, Arial, sans-serif'}}>
-          <span className="font-semibold shrink-0">
+        <div className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
+          style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>
+          <span className="shrink-0">
             End of Day #{displayDay}
-            {totalShootTime > 0 && <span className="text-zinc-600 font-normal"> · {addMinutesToTime(meta?.unitCall || '08:00', totalShootTime)}</span>}
+            {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
           </span>
-          <span className="flex-1 text-center text-zinc-500 text-xs">
+          <span className="flex-1 text-center">
             {meta?.date ? new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''}
           </span>
-          <div className="flex gap-4 text-zinc-600 text-xs shrink-0">
+          <div className="flex shrink-0" style={{gap: '20pt'}}>
             <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
-            <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong></span>
+            <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
           </div>
         </div>
       )}
