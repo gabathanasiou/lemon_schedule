@@ -5,6 +5,7 @@ import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2 } from 'lucide-react';
 import Papa from 'papaparse';
+import { CastTab } from './CastTab';
 
 const COLUMNS = [
   { key: 'sceneNumber', label: 'Scene #' },
@@ -30,6 +31,7 @@ export function BreakdownTab() {
   const project = state.present;
   const scenes = project.scenes;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [subTab, setSubTab] = useState<'scenes' | 'cast'>('scenes');
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -388,8 +390,18 @@ export function BreakdownTab() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 shadow-xl overflow-hidden relative">
+      <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
+        <button onClick={() => setSubTab('scenes')} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'scenes' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+          Scene Breakdown
+        </button>
+        <button onClick={() => setSubTab('cast')} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'cast' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+          Cast
+        </button>
+      </div>
+      {subTab === 'cast' ? <CastTab /> : (
+        <>
       <div className="flex-1 overflow-auto bg-white">
-        <div className="min-w-[800px]">
+      <div className="min-w-[800px]">
            <style>{`
             .Spreadsheet {
               border-collapse: collapse;
@@ -537,6 +549,8 @@ export function BreakdownTab() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

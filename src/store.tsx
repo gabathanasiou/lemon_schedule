@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -86,7 +86,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     trash: [],
     versionTrash: [],
     rulesTrash: [],
-    rules: []
+    rules: [],
+    castMembers: [],
   };
 }
 
@@ -115,6 +116,9 @@ type Action =
   | { type: 'UPDATE_RULE'; payload: ProjectRule }
   | { type: 'DELETE_RULE'; payload: string }
   | { type: 'RESTORE_RULE_FROM_TRASH'; payload: string }
+  | { type: 'ADD_CAST_MEMBER'; payload: CastMember }
+  | { type: 'UPDATE_CAST_MEMBER'; payload: CastMember }
+  | { type: 'DELETE_CAST_MEMBER'; payload: string }
 
 interface State {
   past: Project[];
@@ -411,6 +415,24 @@ function reducer(state: State, action: Action): State {
         rulesTrash: (state.present.rulesTrash || []).filter(t => t.rule.id !== action.payload),
       });
     }
+
+    case 'ADD_CAST_MEMBER':
+      return applyChange({
+        ...state.present,
+        castMembers: [...(state.present.castMembers || []), action.payload],
+      });
+
+    case 'UPDATE_CAST_MEMBER':
+      return applyChange({
+        ...state.present,
+        castMembers: (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c),
+      });
+
+    case 'DELETE_CAST_MEMBER':
+      return applyChange({
+        ...state.present,
+        castMembers: (state.present.castMembers || []).filter(c => c.id !== action.payload),
+      });
 
     default:
       return state;
