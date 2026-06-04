@@ -637,7 +637,7 @@ export function ScheduleTab() {
         <ContextMenuDivider />
         <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
         <ContextMenuDivider />
-        <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Delete Row</ContextMenuItem>
+        <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Remove Ribbon</ContextMenuItem>
       </ContextMenu>
     </DndContext>
     </>
