@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useProject } from '../store';
 import { ProjectRule } from '../types';
 import { generateUUID } from '../lib/utils';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
   const { state, dispatch } = useProject();
@@ -12,29 +12,37 @@ export const RulesTab: React.FC = () => {
   const [newType, setNewType] = useState<'MAX_HOURS' | 'DATE_RESTRICTION'>('MAX_HOURS');
   const [castId, setCastId] = useState('');
   const [maxHours, setMaxHours] = useState('8');
-  const [days, setDays] = useState('');
+  const [dates, setDates] = useState<string[]>([]);
+  const [dateInput, setDateInput] = useState('');
   const [date, setDate] = useState('');
+
+  const addDate = () => {
+    if (!dateInput) return;
+    if (!dates.includes(dateInput)) setDates([...dates, dateInput]);
+    setDateInput('');
+  };
+
+  const removeDate = (d: string) => setDates(dates.filter(x => x !== d));
 
   const addRule = () => {
     if (!castId.trim()) return;
     let rule: ProjectRule;
     if (newType === 'MAX_HOURS') {
       const h = parseFloat(maxHours) || 8;
-      const d = days.trim() ? days.split(',').map(Number).filter(n => !isNaN(n)) : undefined;
-      rule = { id: generateUUID(), type: 'MAX_HOURS', castId: castId.trim(), maxHours: h, days: d };
+      rule = { id: generateUUID(), type: 'MAX_HOURS', castId: castId.trim(), maxHours: h, dates: dates.length > 0 ? dates : undefined };
     } else {
       if (!date) return;
       rule = { id: generateUUID(), type: 'DATE_RESTRICTION', castId: castId.trim(), date };
     }
     dispatch({ type: 'ADD_RULE', payload: rule });
     setCastId('');
-    setDays('');
+    setDates([]);
     setDate('');
   };
 
   const ruleLabel = (r: ProjectRule) => {
     if (r.type === 'MAX_HOURS') {
-      const d = r.days?.length ? ` (Days: ${r.days.join(', ')})` : ' (All days)';
+      const d = r.dates?.length ? ` (${r.dates.length === 1 ? r.dates[0] : `${r.dates.length} dates`})` : ' (All days)';
       return `Cast ${r.castId}: max ${r.maxHours}h/day${d}`;
     }
     return `Cast ${r.castId}: cannot work on ${r.date}`;
@@ -85,13 +93,31 @@ export const RulesTab: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-zinc-500 uppercase font-semibold">Shoot Days (optional)</label>
-                  <input
-                    value={days}
-                    onChange={e => setDays(e.target.value)}
-                    placeholder="e.g. 1,2,3"
-                    className="border border-zinc-300 rounded px-2 py-1.5 text-sm w-24"
-                  />
+                  <label className="text-[10px] text-zinc-500 uppercase font-semibold">Only on dates</label>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="date"
+                      value={dateInput}
+                      onChange={e => setDateInput(e.target.value)}
+                      className="border border-zinc-300 rounded px-2 py-1.5 text-sm"
+                    />
+                    <button
+                      onClick={addDate}
+                      className="bg-zinc-200 text-zinc-700 px-2 py-1.5 rounded text-sm hover:bg-zinc-300"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {dates.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {dates.map(d => (
+                        <span key={d} className="flex items-center gap-0.5 bg-white border border-zinc-300 rounded px-1.5 py-0.5 text-[10px]">
+                          {d}
+                          <button onClick={() => removeDate(d)} className="text-zinc-400 hover:text-red-500"><X className="w-2.5 h-2.5" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

@@ -172,7 +172,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             {violations.length > 0 && (
               <Tooltip content={vMessages}>
                 <span className="flex items-center gap-0.5 text-red-400">
-                  <Flag className="w-3.5 h-3.5" />
+                  <Flag className="w-3.5 h-3.5 fill-red-400" />
                   <span className="text-[10px] font-bold">{violations.length}</span>
                 </span>
               </Tooltip>

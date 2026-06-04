@@ -24,24 +24,28 @@ export function checkDay(
 
   for (const rule of rules) {
     if (rule.type === 'MAX_HOURS') {
-      if (rule.days && !rule.days.includes(shootDay)) continue;
+      if (rule.dates && rule.dates.length > 0 && (!dayDate || !rule.dates.includes(dayDate))) continue;
       let totalMin = 0;
-      const sceneIds = new Set<string>();
-      for (const row of dayRows) {
+      let exceeded = false;
+      const flaggedScenes: string[] = [];
+      for (const row of dayRows.sort((a, b) => a.order - b.order)) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene || !scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
         totalMin += row.estimatedDuration || 0;
-        sceneIds.add(scene.id);
+        if (totalMin / 60 > rule.maxHours) {
+          exceeded = true;
+          flaggedScenes.push(scene.id);
+        }
       }
-      const hours = totalMin / 60;
-      if (hours > rule.maxHours) {
+      if (exceeded) {
+        const hours = totalMin / 60;
         const exceed = hours - rule.maxHours;
         violations.push({
           ruleId: rule.id, ruleType: 'MAX_HOURS', castId: rule.castId,
           message: `${rule.castId}: ${hours.toFixed(1)}h scheduled — limit is ${rule.maxHours}h (+${exceed.toFixed(1)}h over)`,
           shootDay,
-          sceneIds: [...sceneIds],
+          sceneIds: flaggedScenes,
         });
       }
       continue;

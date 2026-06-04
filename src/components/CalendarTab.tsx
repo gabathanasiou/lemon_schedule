@@ -62,7 +62,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
   const c = sceneColor(scene);
   const vFlag = violations && violations.length > 0 ? (
     <Tooltip content={violations.join('\n• ')}>
-      <Flag className="w-2 h-2 text-red-500 shrink-0" />
+      <Flag className="w-2 h-2 text-red-500 fill-red-500 shrink-0" />
     </Tooltip>
   ) : null;
   return (
@@ -126,7 +126,7 @@ const DayCell: React.FC<{
         </button>
         {violations.length > 0 && (
           <Tooltip content={violations.map(v => v.message).join('\n• ')}>
-            <Flag className="w-2.5 h-2.5 text-red-400 shrink-0" />
+            <Flag className="w-2.5 h-2.5 text-red-400 fill-red-400 shrink-0" />
           </Tooltip>
         )}
         {isWorkingDay && shootDay !== null && label && (

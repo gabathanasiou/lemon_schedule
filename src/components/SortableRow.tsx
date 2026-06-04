@@ -86,7 +86,7 @@ export const SortableRow: React.FC<{
   const violationBadge = hasViolations ? (
     <Tooltip content={sceneViolations.join('\n• ')}>
       <span className="inline-flex items-center text-red-500 ml-0.5">
-        <Flag className="w-2.5 h-2.5 fill-red-500" />
+        <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
       </span>
     </Tooltip>
   ) : null;
