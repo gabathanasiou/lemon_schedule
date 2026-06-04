@@ -7,7 +7,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
-import { useMarquee, MarqueeOverlay, isShiftKeyDown } from '../lib/useMarquee';
+import { useMarquee, MarqueeOverlay, isShiftKeyDown, useShiftKey } from '../lib/useMarquee';
 
 // Custom pointer-based collision detection
 const customCollisionDetection: CollisionDetection = (args) => {
@@ -101,10 +101,6 @@ export function ScheduleTab() {
     }
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: textEditingEnabled ? 999999 : 5 } })
-  );
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelectedRowIds(new Set());
@@ -114,12 +110,23 @@ export function ScheduleTab() {
   }, []);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
+  const marqueeJustEndedRef = useRef(false);
+  const shiftHeld = useShiftKey();
 
-  const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
+  const { marqueeBox, justEndedRef: _ } = useMarquee(
     scheduleScrollRef,
     useCallback((ids, isAddMode) => {
       setSelectedRowIds(prev => isAddMode ? new Set([...prev, ...ids]) : ids);
     }, []),
+    !textEditingEnabled,
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { 
+      activationConstraint: { 
+        distance: shiftHeld || textEditingEnabled ? 999999 : 5 
+      } 
+    })
   );
 
   if (!activeVersion) return <div>No active version</div>;

@@ -49,6 +49,7 @@ export const UnscheduledBlock: React.FC<{
     useCallback((ids, isAddMode) => {
       onSelectionChange?.(ids, isAddMode);
     }, [onSelectionChange]),
+    !textEditingEnabled,
   );
   
   const { setNodeRef } = useDroppable({

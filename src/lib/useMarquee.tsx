@@ -45,12 +45,17 @@ function initKeyboardListeners() {
 export function useMarquee(
   containerRef: React.RefObject<HTMLElement>,
   onSelectionChange: (ids: Set<string>, isAddMode: boolean) => void,
+  isEnabled: boolean = true,
 ) {
   const [marqueeBox, setMarqueeBox] = useState<MarqueeBox | null>(null);
 
-  useEffect(() => { initKeyboardListeners(); }, []);
+  useEffect(() => { 
+    if (!isEnabled) return;
+    initKeyboardListeners(); 
+  }, [isEnabled]);
 
   useEffect(() => {
+    if (!isEnabled) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -74,6 +79,7 @@ export function useMarquee(
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
       setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
+      e.preventDefault();
     };
 
     const onMouseMove = (e: MouseEvent) => {
