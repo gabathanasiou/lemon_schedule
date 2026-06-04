@@ -148,12 +148,36 @@ export function ScheduleTab() {
     if (candidates.length > 0) setSelectedRowIds(new Set([candidates[0]]));
   };
 
+  const selectPrevAfterRemove = (removedIds: Set<string>) => {
+    const removedRows = Array.from(removedIds).map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
+    if (removedRows.length === 0) return;
+    removedRows.sort((a, b) => {
+      if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+      return a.order - b.order;
+    });
+    const first = removedRows[0];
+    const prev = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
+    if (prev) { setSelectedRowIds(new Set([prev.id])); return; }
+    const next = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
+    if (next) { setSelectedRowIds(new Set([next.id])); return; }
+    const dayOrder = existingDays;
+    const startIdx = first.shootDay !== null ? dayOrder.indexOf(first.shootDay) : -1;
+    for (let i = startIdx - 1; i >= 0; i--) {
+      const rows = scheduledRows[dayOrder[i]] || [];
+      if (rows.length > 0) { setSelectedRowIds(new Set([rows[rows.length - 1].id])); return; }
+    }
+    for (let i = startIdx + 1; i < dayOrder.length; i++) {
+      const rows = scheduledRows[dayOrder[i]] || [];
+      if (rows.length > 0) { setSelectedRowIds(new Set([rows[0].id])); return; }
+    }
+  };
+
   const cutSelected = () => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const ids = Array.from(selectedRowIds);
     const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: -1 } : r);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    setSelectedRowIds(new Set());
+    selectPrevAfterRemove(new Set(ids as string[]));
   };
 
   const pasteClipboard = (targetRowId: string) => {
