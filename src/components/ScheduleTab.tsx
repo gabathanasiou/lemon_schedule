@@ -140,7 +140,7 @@ export function ScheduleTab() {
     newRows = newRows.filter(r => !clipboardIds.has(r.id));
     let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
     const targetIdx = dayRows.findIndex(r => r.id === targetRowId);
-    const insertIdx = targetIdx !== -1 ? targetIdx : dayRows.length;
+    const insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
     const sanitizedItems = clipboardItems.map(item => ({
       ...item,
       shootDay: overDay,
@@ -788,6 +788,8 @@ export function ScheduleTab() {
                   <ContextMenuDivider />
                 </>
               )}
+              <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut</ContextMenuItem>
+              <ContextMenuDivider />
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
               <ContextMenuDivider />
