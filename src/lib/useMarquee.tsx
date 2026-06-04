@@ -7,24 +7,49 @@ interface MarqueeBox {
   height: number;
 }
 
-let _shiftKey = false;
-let _addMode = false; // Ctrl/Cmd — both add-to-selection AND marquee-on-ribbons
+let _addMode = false;
 let _listenersInitialized = false;
 const _marqueeJustEndedRef = { current: false };
-const _shiftListeners = new Set<() => void>();
 const _addModeListeners = new Set<() => void>();
 
-export function isShiftKeyDown() { return _shiftKey; }
 export function isAddModeActive() { return _addMode; }
 
-export function useShiftKey(): boolean {
+export function useAddMode(): boolean {
   const [, tick] = useState(0);
   useEffect(() => {
     const fn = () => tick(n => n + 1);
-    _shiftListeners.add(fn);
-    return () => { _shiftListeners.delete(fn); };
+    _addModeListeners.add(fn);
+    return () => { _addModeListeners.delete(fn); };
   }, []);
-  return _shiftKey;
+  return _addMode;
+}
+
+function initKeyboardListeners() {
+  if (_listenersInitialized) return;
+  _listenersInitialized = true;
+  const down = (e: KeyboardEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      if (!_addMode) {
+        _addMode = true;
+        _addModeListeners.forEach(fn => fn());
+      }
+    }
+  };
+  const up = (e: KeyboardEvent) => {
+    if (!e.metaKey && !e.ctrlKey && _addMode) {
+      _addMode = false;
+      _addModeListeners.forEach(fn => fn());
+    }
+  };
+  const blur = () => {
+    if (_addMode) {
+      _addMode = false;
+      _addModeListeners.forEach(fn => fn());
+    }
+  };
+  window.addEventListener('keydown', down);
+  window.addEventListener('keyup', up);
+  window.addEventListener('blur', blur);
 }
 
 export function useAddMode(): boolean {
