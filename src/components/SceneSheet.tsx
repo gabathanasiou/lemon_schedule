@@ -20,6 +20,59 @@ const BREAKDOWN_LABEL: Record<string, string> = {
 };
 let persistedIndex = 0;
 
+function ChipInput({ value, onChange, items, category, castMembers, label }: {
+  value: string; onChange: (v: string) => void;
+  items: { id: string; name: string }[];
+  category: string; castMembers: { id: string; name: string }[];
+  label: string;
+}) {
+  const ids = value.split(',').map(x => x.trim()).filter(Boolean);
+  const resolve = (id: string) => {
+    if (category === 'cast') {
+      const m = castMembers.find(m => m.id === id);
+      return m ? `${id}. ${m.name}` : id;
+    }
+    const item = items.find(i => i.id === id || i.name === id);
+    return item ? (item.id && item.id !== item.name ? `${item.id}. ${item.name}` : item.name) : id;
+  };
+  const remove = (id: string) => {
+    const updated = ids.filter(i => i !== id);
+    onChange(updated.join(', '));
+  };
+  const [addMode, setAddMode] = useState(false);
+  return (
+    <div className="space-y-1">
+      {ids.map(id => (
+        <div key={id} className="flex items-center gap-1 group">
+          <span className="text-[11px] leading-tight">{resolve(id)}</span>
+          <button onClick={() => remove(id)} className="text-zinc-300 hover:text-red-500 transition-colors shrink-0 opacity-0 group-hover:opacity-100 text-xs leading-none">×</button>
+        </div>
+      ))}
+      {addMode ? (
+        <EntityDropdown
+          value=""
+          onChange={v => { onChange(v); setAddMode(false); }}
+          items={items}
+          positioning="fixed"
+          standalone
+          mode="multi"
+          defaultOpen
+          autoFocus
+          placeholder={label}
+          renderItem={(item) => (
+            <>
+              {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
+              <span className="truncate flex-1">{item.name}</span>
+            </>
+          )}
+        />
+      ) : (
+        <button onClick={() => setAddMode(true)} className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors">+ Add</button>
+      )}
+    </div>
+  );
+}
+
 export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: number; onIndexChange?: (idx: number) => void }) {
   const { state, dispatch } = useProject();
   const scenes = state.present.scenes;
@@ -199,20 +252,13 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                     {BREAKDOWN_LABEL[cat]}
                   </div>
                   <div className="p-1.5">
-                    <EntityDropdown
+                    <ChipInput
                       value={val(cat === 'cast' ? 'cast' : cat as keyof Scene) || ''}
                       onChange={v => update(cat === 'cast' ? 'cast' : cat as keyof Scene, v)}
                       items={breakdownItems[cat]}
-                      positioning="fixed"
-                      standalone
-                      mode="multi"
-                      placeholder={BREAKDOWN_LABEL[cat]}
-                      renderItem={(item) => (
-                        <>
-                          {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
-                          <span className="truncate flex-1">{item.name}</span>
-                        </>
-                      )}
+                      category={cat}
+                      castMembers={castMembers}
+                      label={BREAKDOWN_LABEL[cat]}
                     />
                   </div>
                 </div>
