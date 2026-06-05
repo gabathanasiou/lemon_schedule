@@ -141,7 +141,7 @@ const DayCell: React.FC<{
         onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
         title={shootDay != null ? 'Double-click to set status' : ''}
         style={{ opacity: isDragging ? 0.3 : 1, cursor: shootDay != null ? 'grab' : 'default' }}
-        className={`flex items-center justify-between px-2 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'} mb-1`}
+        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
