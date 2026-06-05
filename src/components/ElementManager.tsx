@@ -251,107 +251,117 @@ export function ElementManager() {
         value={val}
         onChange={e => onChange(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
         onKeyDown={handleKey}
-        className="w-full border border-zinc-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
+        className="w-full border border-zinc-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
       />
     );
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">Category</span>
-          <DropdownMenu
-            open={catOpen}
-            onClose={() => setCatOpen(false)}
-            align="left"
-            width="w-56"
-            trigger={
-              <button
-                onClick={() => setCatOpen(p => !p)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-lg text-sm font-semibold text-zinc-800 transition-colors"
-              >
-                {currentCat?.label || category}
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+    <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+      <div className="max-w-5xl mx-auto w-full flex flex-col h-full px-4 py-4 gap-3">
+
+        {/* Top bar card */}
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Category</span>
+            <DropdownMenu
+              open={catOpen}
+              onClose={() => setCatOpen(false)}
+              align="left"
+              width="w-52"
+              trigger={
+                <button
+                  onClick={() => setCatOpen(p => !p)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 rounded-md text-xs font-semibold text-zinc-800 transition-colors"
+                >
+                  {currentCat?.label || category}
+                  <ChevronDown className="w-3 h-3 text-zinc-500" />
+                </button>
+              }
+            >
+              {ELEMENT_CATEGORIES.map(c => (
+                <DropdownItem key={c.key} onClick={() => { switchCategory(c.key); setCatOpen(false); }}>
+                  {c.label}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {hasChanges && (
+              <button onClick={doRevert} className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-500 hover:bg-zinc-100 transition-colors">
+                <Undo2 className="w-3 h-3" />
+                Revert
               </button>
-            }
-          >
-            {ELEMENT_CATEGORIES.map(c => (
-              <DropdownItem key={c.key} onClick={() => { switchCategory(c.key); setCatOpen(false); }}>
-                {c.label}
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {hasChanges && (
-            <button onClick={doRevert} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
-              <Undo2 className="w-3.5 h-3.5" />
-              Revert
+            )}
+            <button onClick={doSave} className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
+              <Save className="w-3 h-3" />
+              {hasChanges ? 'Save Changes' : 'Saved'}
             </button>
-          )}
-          <button onClick={doSave} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
-            <Save className="w-3.5 h-3.5" />
-            {hasChanges ? 'Save Changes' : 'Saved'}
-          </button>
+          </div>
         </div>
-      </div>
 
-      {/* Action bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-200 bg-white flex-wrap">
-        <span className="text-xs text-zinc-400 font-medium">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
-        <span className="text-zinc-300 mx-1">|</span>
-        <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
-          Sort by ID
-        </button>
-        <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
-          Auto-ID
-        </button>
-        <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
-          Clear Zero
-        </button>
-        {!isCast && (
-          <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = r.name.toLowerCase(); if (!seen.has(key)) seen.set(key, r); } return [...seen.values()]; })} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
-            Merge Duplicates
+        {/* Action bar card */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap">
+          <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
+          <span className="text-zinc-300 mx-1">|</span>
+          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+            Sort by ID
           </button>
-        )}
-      </div>
+          <span className="text-zinc-300">·</span>
+          <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+            Auto-ID
+          </button>
+          <span className="text-zinc-300">·</span>
+          <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+            Clear Zero
+          </button>
+          {!isCast && (
+            <>
+              <span className="text-zinc-300">·</span>
+              <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = r.name.toLowerCase(); if (!seen.has(key)) seen.set(key, r); } return [...seen.values()]; })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+                Merge Duplicates
+              </button>
+            </>
+          )}
+        </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto bg-white">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-zinc-50 border-b border-zinc-200 sticky top-0">
-              {isCast && <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider w-20">ID</th>}
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-zinc-400 uppercase tracking-wider w-16">Occ</th>
-              <th className="px-3 py-2.5 text-center w-12" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, ri) => (
-              <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50'} hover:bg-blue-50/30`}>
-                {isCast && (
-                  <td className="px-3 py-1.5">{renderInput(r.key, 'id', r.id, v => updateRow(r.key, 'id', v), true)}</td>
-                )}
-                <td className="px-3 py-1.5">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v))}</td>
-                <td className="px-3 py-1.5 text-center text-sm text-zinc-400 font-medium">{r.occ}</td>
-                <td className="px-3 py-1.5 text-center">
-                  <button onClick={() => deleteRow(r.key)} className="p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100">
-                    <Trash2 className="w-4 h-4 text-red-400" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Table card */}
+        <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm">
+          <div className="h-full overflow-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-200 sticky top-0">
+                  {isCast && <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-16">ID</th>}
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
+                  <th className="px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">Occ</th>
+                  <th className="px-3 py-2 text-center w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, ri) => (
+                  <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-blue-50/20`}>
+                    {isCast && (
+                      <td className="px-3 py-1">{renderInput(r.key, 'id', r.id, v => updateRow(r.key, 'id', v), true)}</td>
+                    )}
+                    <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v))}</td>
+                    <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
+                    <td className="px-3 py-1 text-center">
+                      <button onClick={() => deleteRow(r.key)} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100">
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-        <button onClick={addNew} className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full border-b border-zinc-100">
-          <Plus className="w-4 h-4" />
-          <span>Add {currentCat?.label || 'element'}</span>
-        </button>
+            <button onClick={addNew} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full">
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add {currentCat?.label || 'element'}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Duplicate dialog */}
@@ -365,15 +375,9 @@ export function ElementManager() {
               Merge duplicates into single entries?
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
-              <button onClick={() => { setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">
-                Save as-is
-              </button>
-              <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
-                Merge & Save
-              </button>
-              <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
-                Always Merge
-              </button>
+              <button onClick={() => { setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Save as-is</button>
+              <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">Merge & Save</button>
+              <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">Always Merge</button>
             </div>
           </div>
         </div>
