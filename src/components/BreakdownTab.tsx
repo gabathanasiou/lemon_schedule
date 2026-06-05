@@ -23,6 +23,7 @@ const BREAKDOWN_LABELS: Record<string, string> = {
 };
 
 const COLUMNS = [
+  { key: 'actions', label: '' },
   { key: 'sceneNumber', label: 'Scene #' },
   { key: 'pageCount', label: 'Pages' },
   { key: 'scriptDay', label: 'Script Day' },
@@ -33,10 +34,9 @@ const COLUMNS = [
   { key: 'cast', label: 'Cast' },
   { key: 'notes', label: 'Notes' },
   ...BREAKDOWN_CATEGORIES.map(key => ({ key, label: BREAKDOWN_LABELS[key] })),
-  { key: 'actions', label: '' },
 ];
 
-const ACTIONS_COL = 23;
+const ACTIONS_COL = 0;
 const INT_EXT_COL = 3;
 const DAY_NIGHT_COL = 5;
 const CAST_COL = 7;
@@ -207,7 +207,41 @@ export function BreakdownTab() {
     />
   ), []);
 
-  const DEFAULT_WIDTHS = [60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40];
+  const breakdownEditors = useMemo(() => {
+    const map = new Map<string, DataEditorComponent<CellBase<string>>>();
+    for (const key of BREAKDOWN_CATEGORIES) {
+      const items = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))].sort().map(v => ({ id: v, name: v }));
+      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
+        const committedRef = useRef(false);
+        return (
+          <EntityDropdown
+            value={cell?.value || ''}
+            onChange={val => {
+              if (committedRef.current) return;
+              committedRef.current = true;
+              onChange({ value: val });
+              exitEditMode();
+            }}
+            items={items}
+            positioning="relative"
+            defaultOpen
+            autoFocus
+            mode="multi"
+            renderItem={(item) => (
+              <>
+                {item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
+                <span className="truncate flex-1">{item.name}</span>
+              </>
+            )}
+          />
+        );
+      };
+      map.set(key, Editor);
+    }
+    return map;
+  }, [scenes]);
+
+  const DEFAULT_WIDTHS = [28, 60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
   const [widthVersion, setWidthVersion] = useState(0);
 
@@ -262,6 +296,7 @@ export function BreakdownTab() {
 
   const data = useMemo((): CellBase[][] => {
     const rows = scenes.map(scene => [
+      { value: '', readOnly: true, DataViewer: DeleteViewer },
       { value: scene.sceneNumber },
       { value: scene.pageCount, DataEditor: PageCountEditor },
       { value: scene.scriptDay },
@@ -271,19 +306,20 @@ export function BreakdownTab() {
       { value: scene.description },
       { value: scene.cast, DataEditor: CastEditor },
       { value: scene.notes },
-      { value: '', readOnly: true, DataViewer: DeleteViewer },
+      ...BREAKDOWN_CATEGORIES.map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
     ]);
     rows.push(COLUMNS.map((c, i) => {
-      if (i >= ACTIONS_COL) return { value: '', readOnly: true };
-      if (i === 1) return { value: '', DataEditor: PageCountEditor };
-      if (i === 3) return { value: '', DataEditor: IntExtEditor };
-      if (i === 4) return { value: '', DataEditor: SetEditor };
-      if (i === 5) return { value: '', DataEditor: DayNightEditor };
+      if (i === ACTIONS_COL) return { value: '', readOnly: true };
+      if (i === 2) return { value: '', DataEditor: PageCountEditor };
+      if (i === 4) return { value: '', DataEditor: IntExtEditor };
+      if (i === 5) return { value: '', DataEditor: SetEditor };
+      if (i === 6) return { value: '', DataEditor: DayNightEditor };
       if (i === CAST_COL) return { value: '', DataEditor: CastEditor };
+      if (BREAKDOWN_CATEGORIES.includes(c.key)) return { value: '', DataEditor: breakdownEditors.get(c.key)! };
       return { value: '' };
     }));
     return rows;
-  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor]);
+  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors]);
 
   const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected }) => (
     <td
@@ -305,13 +341,15 @@ export function BreakdownTab() {
     for (let row = phantomIndex; row < newData.length; row++) {
       const row_data = newData[row];
       if (!row_data) continue;
-      const hasContent = row_data.slice(0, ACTIONS_COL).some(c => {
+      const hasContent = row_data.some((c, i) => {
+        if (i === ACTIONS_COL) return false;
         const v = c?.value;
         return v !== undefined && v !== null && String(v).trim() !== '';
       });
       if (!hasContent) continue;
       const newScene: Partial<Record<string, any>> = { shootDay: null };
-      for (let col = 0; col < ACTIONS_COL; col++) {
+      for (let col = 0; col < COLUMNS.length; col++) {
+        if (col === ACTIONS_COL) continue;
         const val = row_data[col]?.value ?? '';
         newScene[COLUMNS[col].key] = val;
       }
@@ -327,7 +365,8 @@ export function BreakdownTab() {
     if (createdAny) return;
 
     for (let row = 0; row < Math.min(scenes.length, newData.length); row++) {
-      for (let col = 0; col < ACTIONS_COL; col++) {
+      for (let col = 0; col < COLUMNS.length; col++) {
+        if (col === ACTIONS_COL) continue;
         const colDef = COLUMNS[col];
         const oldVal = String((scenes as any)[row][colDef.key] ?? '');
         const newVal = String(newData[row]?.[col]?.value ?? '');
@@ -439,7 +478,7 @@ export function BreakdownTab() {
   const totalPagesDecimal = scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 shadow-xl overflow-hidden relative">
+    <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 shadow-xl overflow-hidden relative select-none">
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
         <button onClick={() => setSubTab('scenes')} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'scenes' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
           Scene Breakdown
