@@ -60,6 +60,7 @@ export interface ShootDayMeta {
   date: string; // e.g. "SATURDAY 6TH JUNE 2026"
   order?: number;
   status?: 'work' | 'hold' | 'travel' | 'holiday';
+  castIds?: string;
 }
 
 export interface ScheduleVersion {

@@ -8,6 +8,7 @@ import { generateUUID } from '../lib/utils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser } from 'lucide-react';
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
+import { EntityDropdown } from './EntityDropdown';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
@@ -105,6 +106,7 @@ const DayCell: React.FC<{
   onDoubleClick?: (dateKey: string) => void;
   status?: string;
   chronoDay?: number;
+  dayCastIds?: string;
   activeTool?: string | null;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
@@ -113,7 +115,7 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -130,7 +132,7 @@ const DayCell: React.FC<{
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
   const statusBg = status === 'hold' ? 'bg-amber-100' : status === 'travel' ? 'bg-blue-100' : status === 'holiday' ? 'bg-zinc-200' : '';
 
-  const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
+  const headerLabel = status === 'hold' ? `HOLD${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'travel' ? `TRAVEL${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
 
   return (
     <div ref={setNodeRef}
@@ -304,6 +306,8 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [statusModal, setStatusModal] = useState<{ shootDay: number; dateKey: string } | null>(null);
+  const [modalStatus, setModalStatus] = useState('work');
+  const [modalCastIds, setModalCastIds] = useState('');
 
   const handleStatusDoubleClick = useCallback((dateKey: string) => {
     let day: number | null = null;
@@ -315,6 +319,8 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       const existing = Object.keys(meta).map(Number);
       day = existing.length > 0 ? Math.max(...existing) + 1 : 1;
     }
+    setModalStatus(meta[day]?.status || 'work');
+    setModalCastIds(meta[day]?.castIds || '');
     setStatusModal({ shootDay: day, dateKey });
   }, [activeVersion]);
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -358,6 +364,14 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     const sorted = entries.filter(([, v]) => v.date).sort((a, b) => a[1].date.localeCompare(b[1].date));
     const m = new Map<number, number>();
     sorted.forEach(([k], i) => m.set(Number(k), i + 1));
+    return m;
+  }, [activeVersion]);
+
+  const dayCastIdsMap = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
+      if (v.castIds) m.set(Number(k), v.castIds);
+    }
     return m;
   }, [activeVersion]);
 
@@ -688,6 +702,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     isWorkingDay={sd !== null} shootDay={sd}
                     status={sd != null ? statusMap.get(sd) : undefined}
                     chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
+                    dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
                     activeTool={activeTool}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
@@ -741,33 +756,45 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
 
       {statusModal !== null && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setStatusModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-[260px] p-4 space-y-2" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl shadow-2xl w-[300px] p-4 space-y-2" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Day {statusModal.shootDay}</div>
               <button onClick={() => setStatusModal(null)} className="text-zinc-400 hover:text-zinc-700"><X className="w-3.5 h-3.5" /></button>
             </div>
-            {(['work', 'hold', 'travel', 'holiday'] as const).map(s => {
-              const cur = activeVersion?.dayMeta?.[statusModal.shootDay]?.status;
-              const sel = (cur || 'work') === s;
-              return (
-                <button key={s} type="button"
-                  onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: s }); setStatusModal(null); }}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${sel ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
-                >
-                  <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${sel ? 'border-white' : 'border-zinc-300'}`}>
-                    {sel && <span className="w-2 h-2 bg-white rounded-full" />}
-                  </span>
-                  {s === 'work' ? 'Work' : s === 'hold' ? 'Hold' : s === 'travel' ? 'Travel' : 'Holiday'}
-                </button>
-              );
-            })}
-            <div className="border-t border-zinc-200 pt-2">
+            {(['work', 'hold', 'travel', 'holiday'] as const).map(s => (
+              <button key={s} type="button"
+                onClick={() => setModalStatus(s)}
+                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${modalStatus === s ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
+              >
+                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${modalStatus === s ? 'border-white' : 'border-zinc-300'}`}>
+                  {modalStatus === s && <span className="w-2 h-2 bg-white rounded-full" />}
+                </span>
+                {s === 'work' ? 'Work' : s === 'hold' ? 'Hold' : s === 'travel' ? 'Travel' : 'Holiday'}
+              </button>
+            ))}
+            {(modalStatus === 'hold' || modalStatus === 'travel') && (
+              <div className="pt-1">
+                <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1 font-semibold">Cast Members</div>
+                <EntityDropdown
+                  value={modalCastIds}
+                  onChange={v => setModalCastIds(v)}
+                  items={(project.castMembers || []).map(m => ({ id: m.id, name: m.name }))}
+                  positioning="fixed"
+                  standalone
+                  mode="multi"
+                  placeholder="e.g. 1, 2, 3"
+                />
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-200">
               <button type="button"
                 onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY' as any, date: statusModal.dateKey }); setStatusModal(null); }}
-                className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
-              >
-                Remove — clear all properties
-              </button>
+                className="text-xs font-medium text-rose-600 hover:bg-rose-50 px-2 py-1 rounded transition-colors"
+              >Remove</button>
+              <button type="button"
+                onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: modalStatus, castIds: modalCastIds || '' }); setStatusModal(null); }}
+                className="px-4 py-1.5 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
+              >Apply</button>
             </div>
           </div>
         </div>

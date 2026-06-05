@@ -79,6 +79,7 @@ interface DoodRow {
 interface DoodTotals {
   workDays: number;
   holdDays: number;
+  travelDays: number;
   startDate: string | null;
   finishDate: string | null;
 }
@@ -144,6 +145,11 @@ function deriveDood(
     }
 
     const cells: string[] = days.map(d => {
+      const meta = dayMeta[d.dayInt];
+      if (meta?.status === 'travel' && meta?.castIds) {
+        const tIds = meta.castIds.split(',').map(x => x.trim());
+        if (tIds.includes(castId)) return 'T';
+      }
       if (!appearSet.has(d.dayInt)) {
         return holdDays.has(d.dayInt) ? 'H' : '';
       }
@@ -156,13 +162,20 @@ function deriveDood(
     const swDays = appearanceDays.length > 0 ? 1 : 0;
     const workDays = appearanceDays.length;
     const holdCount = holdDays.size;
-    const totalDays = workDays + holdCount;
+    let travelCount = 0;
+    for (const d of sortedDayInts) {
+      if (dayMeta[d]?.status === 'travel' && dayMeta[d]?.castIds) {
+        const ids = dayMeta[d].castIds!.split(',').map(x => x.trim());
+        if (ids.includes(castId)) travelCount++;
+      }
+    }
+    const totalDays = workDays + holdCount + travelCount;
     const castName = castMembers.find(m => m.id === castId)?.name || '—';
     const startDate = first != null ? (dayMeta[first]?.date || null) : null;
     const finishDate = last != null ? (dayMeta[last]?.date || null) : null;
 
     doodRows.push({ castId, castName, cells } as DoodRow);
-    totals.set(castId, { workDays, holdDays: holdCount, startDate, finishDate });
+    totals.set(castId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate, finishDate });
   }
 
   return { days, rows: doodRows, totals };
@@ -226,7 +239,7 @@ const Dood: React.FC<DoodProps> = ({
               <colgroup>
                 <col style={{ width: '30pt' }} />
                 {group.days.map((_, ci) => <col key={ci} style={{ width: '16pt' }} />)}
-                {isLast && showTotals && <col span={6} style={{ width: '14pt' }} />}
+                {isLast && showTotals && <col span={5} style={{ width: '14pt' }} />}
               </colgroup>
               <thead>
                 <tr>
@@ -238,7 +251,6 @@ const Dood: React.FC<DoodProps> = ({
                   ))}
                   {isLast && showTotals && (
                     <>
-                      <th className="dood-total-border">Co.</th>
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
@@ -259,7 +271,6 @@ const Dood: React.FC<DoodProps> = ({
                       <th className="dood-total-border">Travel</th>
                       <th className="dood-total-border">Work</th>
                       <th className="dood-total-border">Hold</th>
-                      <th className="dood-total-border">Holiday</th>
                       <th className="dood-total-border">Start</th>
                       <th className="dood-total-border">Finish</th>
                     </>
@@ -274,7 +285,6 @@ const Dood: React.FC<DoodProps> = ({
                   ))}
                   {isLast && showTotals && (
                     <>
-                      <th className="dood-total-border" />
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
@@ -303,10 +313,9 @@ const Dood: React.FC<DoodProps> = ({
                       const finishStr = t.finishDate ? formatDateShort(t.finishDate) : '';
                       return (
                         <>
-                          <td className="dood-total-border" />
-                          <td className="dood-total-border">{t.workDays}</td>
-                          <td className="dood-total-border">{t.holdDays}</td>
-                          <td className="dood-total-border" />
+                          <td className="dood-total-border">{t.travelDays > 0 ? t.travelDays : ''}</td>
+                          <td className="dood-total-border">{t.workDays > 0 ? t.workDays : ''}</td>
+                          <td className="dood-total-border">{t.holdDays > 0 ? t.holdDays : ''}</td>
                           <td className="dood-total-border">{startStr || ''}</td>
                           <td className="dood-total-border">{finishStr || ''}</td>
                         </>

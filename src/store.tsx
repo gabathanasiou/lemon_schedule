@@ -114,7 +114,7 @@ type Action =
   | { type: 'DELETE_DAY', day: number }
   | { type: 'UNSCHEDULE_DAY', day: number }
   | { type: 'TOGGLE_WORKING_DAY', date: string }
-  | { type: 'UPDATE_DAY_META'; shootDay: number; date?: string; status?: string }
+  | { type: 'UPDATE_DAY_META'; shootDay: number; date?: string; status?: string; castIds?: string }
   | { type: 'ADD_RULE'; payload: ProjectRule }
   | { type: 'UPDATE_RULE'; payload: ProjectRule }
   | { type: 'DELETE_RULE'; payload: string }
@@ -398,7 +398,7 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'UPDATE_DAY_META': {
-      const { shootDay, status, date } = action;
+      const { shootDay, status, date, castIds } = action;
       const activeVerId = state.present.activeVersionId;
       if (!activeVerId) return state;
       return applyChange({
@@ -416,7 +416,7 @@ function reducer(state: State, action: Action): State {
             rows,
             dayMeta: {
               ...v.dayMeta,
-              [shootDay]: { ...(v.dayMeta[shootDay] || { shootDay, unitCall: '08:00', date: date || '' }), status: newStatus },
+              [shootDay]: { ...(v.dayMeta[shootDay] || { shootDay, unitCall: '08:00', date: date || '' }), status: newStatus, ...(castIds !== undefined ? { castIds } : {}) },
             },
           };
         }),
