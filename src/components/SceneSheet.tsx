@@ -20,54 +20,6 @@ const BREAKDOWN_LABEL: Record<string, string> = {
 };
 let persistedIndex = 0;
 
-function ChipInput({ value, onChange, items, category, castMembers, label }: {
-  value: string; onChange: (v: string) => void;
-  items: { id: string; name: string }[];
-  category: string; castMembers: { id: string; name: string }[];
-  label: string;
-}) {
-  const ids = value.split(',').map(x => x.trim()).filter(Boolean);
-  const resolve = (id: string) => {
-    if (category === 'cast') {
-      const m = castMembers.find(m => m.id === id);
-      return m ? `${id}. ${m.name}` : id;
-    }
-    const item = items.find(i => i.id === id || i.name === id);
-    return item ? (item.id && item.id !== item.name ? `${item.id}. ${item.name}` : item.name) : id;
-  };
-  const remove = (id: string) => {
-    const updated = ids.filter(i => i !== id);
-    onChange(updated.join(', '));
-  };
-  return (
-    <div className="space-y-1">
-      {ids.map(id => (
-        <div key={id} className="flex items-center gap-1 group">
-          <span className="text-[11px] leading-tight">{resolve(id)}</span>
-          <button onClick={() => remove(id)} className="text-zinc-300 hover:text-red-500 transition-colors shrink-0 opacity-0 group-hover:opacity-100 text-xs leading-none">×</button>
-        </div>
-      ))}
-      <div onClick={e => { const inp = (e.currentTarget as HTMLElement).querySelector('input'); if (inp) inp.focus(); }}>
-        <EntityDropdown
-          value={value}
-          onChange={onChange}
-          items={items}
-          positioning="fixed"
-          standalone
-          mode="multi"
-          placeholder=""
-          renderItem={(item) => (
-            <>
-              {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
-              <span className="truncate flex-1">{item.name}</span>
-            </>
-          )}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: number; onIndexChange?: (idx: number) => void }) {
   const { state, dispatch } = useProject();
   const scenes = state.present.scenes;
@@ -133,20 +85,37 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
     for (const cat of BREAKDOWN_CATS) {
-      const stored = breakdownElements[cat] || [];
-      const nameMap = new Map(stored.map((e: any) => [e.name.toLowerCase(), e]));
-      const all = [...new Set([
-        ...stored.map((e: any) => ({ id: e.id || e.name, name: e.name })),
-        ...scenes.flatMap(s => {
-          const v = cat === 'cast' ? s.cast : (s as any)[cat] || '';
-          return v.split(',').map(x => x.trim()).filter(Boolean).map(id => nameMap.get(id.toLowerCase()) || { id, name: id });
-        }),
-      ])];
-      const seen = new Set<string>();
-      result[cat] = all.filter(item => { const k = item.id || item.name; if (seen.has(k)) return false; seen.add(k); return true; });
+      const stored: { id: string; name: string }[] = (breakdownElements[cat] || []);
+      const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
+      const items: { id: string; name: string }[] = [];
+
+      const addItem = (id: string, name: string) => {
+        const key = id || name;
+        if (!items.some(i => (i.id || i.name) === key)) items.push({ id, name });
+      };
+
+      for (const e of stored) addItem(e.id || e.name, e.name);
+      for (const s of scenes) {
+        const raw = cat === 'cast' ? s.cast : (s as any)[cat] || '';
+        for (const v of raw.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+          const matched = nameMap.get(v.toLowerCase());
+          addItem(matched?.id || v, matched?.name || v);
+        }
+      }
+      // Include values from the current scene's unsaved edits
+      if (scene) {
+        const editVal = (edits[scene.id] as Record<string, any>)?.[cat];
+        if (editVal) {
+          for (const v of editVal.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+            const matched = nameMap.get(v.toLowerCase());
+            addItem(matched?.id || v, matched?.name || v);
+          }
+        }
+      }
+      result[cat] = items;
     }
     return result;
-  }, [scenes, breakdownElements]);
+  }, [scenes, breakdownElements, edits, scene]);
 
   if (scenes.length === 0) {
     return (
@@ -206,7 +175,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                       <td key={ci} className={`px-2.5 py-1.5 ${ci < 3 ? 'border-r border-zinc-300' : ''}`}>
                         {field === null ? (
                           <input className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent"
-                            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
                           />
                         ) : field === 'intExt' ? (
                           <AutocompleteDropdown value={val('intExt')} onChange={v => update('intExt', v)} options={INT_EXT_OPTIONS} showAll />
@@ -216,7 +185,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                           <input className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent"
                             value={String(val(field as keyof Scene) || '')}
                             onChange={e => update(field as keyof Scene, e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
                           />
                         )}
                       </td>
@@ -230,6 +199,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                 <td colSpan={3} className="px-2.5 py-1.5">
                   <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none"
                     rows={2} value={val('description') || ''} onChange={e => update('description', e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
                   />
                 </td>
               </tr>
@@ -247,13 +217,20 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                     {BREAKDOWN_LABEL[cat]}
                   </div>
                   <div className="p-1.5">
-                    <ChipInput
+                    <EntityDropdown
                       value={val(cat === 'cast' ? 'cast' : cat as keyof Scene) || ''}
                       onChange={v => update(cat === 'cast' ? 'cast' : cat as keyof Scene, v)}
                       items={breakdownItems[cat]}
-                      category={cat}
-                      castMembers={castMembers}
-                      label={BREAKDOWN_LABEL[cat]}
+                      positioning="fixed"
+                      standalone
+                      mode="multi"
+                      placeholder={BREAKDOWN_LABEL[cat]}
+                      renderItem={(item) => (
+                        <>
+                          {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
+                          <span className="truncate flex-1">{item.name}</span>
+                        </>
+                      )}
                     />
                   </div>
                 </div>
@@ -271,6 +248,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                 <td className="px-2.5 py-1.5">
                   <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none"
                     rows={2} value={val('notes') || ''} onChange={e => update('notes', e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLTextAreaElement).blur(); } }}
                   />
                 </td>
               </tr>
