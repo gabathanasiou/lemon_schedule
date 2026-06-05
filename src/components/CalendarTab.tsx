@@ -55,7 +55,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
     return (
-      <div className={`text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 truncate mb-0.5 ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div className={`text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 truncate mb-0.5 select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
@@ -67,7 +67,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     </Tooltip>
   ) : null;
   return (
-    <div style={{ background: c.bg, color: c.text }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5">
+    <div style={{ background: c.bg, color: c.text }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 select-none cursor-grab">
       <span className="truncate">{scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}</span>
       {vFlag}
     </div>
@@ -104,6 +104,7 @@ const DayCell: React.FC<{
   onToggle: (dateKey: string) => void;
   onDoubleClick?: (shootDay: number) => void;
   status?: string;
+  chronoDay?: number;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
@@ -111,7 +112,7 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -128,7 +129,7 @@ const DayCell: React.FC<{
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
   const statusBg = status === 'hold' ? 'bg-amber-50' : status === 'travel' ? 'bg-blue-50' : status === 'holiday' ? 'bg-zinc-100' : '';
 
-  const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : shootDay != null ? `DAY #${shootDay}` : '';
+  const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
 
   return (
     <div ref={setNodeRef}
@@ -337,6 +338,14 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
       if (v.status) m.set(Number(k), v.status);
     }
+    return m;
+  }, [activeVersion]);
+
+  const chronoDayMap = useMemo(() => {
+    const entries = Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][];
+    const sorted = entries.filter(([, v]) => v.date).sort((a, b) => a[1].date.localeCompare(b[1].date));
+    const m = new Map<number, number>();
+    sorted.forEach(([k], i) => m.set(Number(k), i + 1));
     return m;
   }, [activeVersion]);
 
@@ -633,6 +642,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
                     isWorkingDay={sd !== null} shootDay={sd}
                     status={sd != null ? statusMap.get(sd) : undefined}
+                    chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
@@ -662,11 +672,23 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
             ))}
             {activeDragRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{activeDragRows.length - 3} more</div>}
           </div>
-        ) : activeDragDay !== null && augmentedRows.filter(r => r.shootDay === activeDragDay).length > 0 ? (
-          <div className="flex flex-col gap-0.5 opacity-90">
-            {augmentedRows.filter(r => r.shootDay === activeDragDay).map(r => (
-              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />
-            ))}
+        ) : activeDragDay !== null ? (
+          <div className="bg-white border border-zinc-300 shadow-xl flex flex-col w-[200px] opacity-90">
+            <div className="flex items-center justify-between px-2 py-1.5 bg-zinc-200 text-zinc-700">
+              <span className="text-[10px] font-bold">{activeVersion?.dayMeta?.[activeDragDay]?.date ? new Date(activeVersion.dayMeta[activeDragDay].date + 'T00:00:00').getDate() : activeDragDay}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">
+                {activeVersion?.dayMeta?.[activeDragDay]?.status === 'hold' ? 'HOLD' : activeVersion?.dayMeta?.[activeDragDay]?.status === 'travel' ? 'TRAVEL' : activeVersion?.dayMeta?.[activeDragDay]?.status === 'holiday' ? 'HOLIDAY' : `DAY #${activeDragDay}`}
+              </span>
+              <span className="w-4" />
+            </div>
+            <div className="flex flex-col gap-0.5 p-1.5">
+              {augmentedRows.filter(r => r.shootDay === activeDragDay).map(r => (
+                <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />
+              ))}
+              {augmentedRows.filter(r => r.shootDay === activeDragDay).length === 0 && (
+                <div className="text-[9px] text-zinc-400 text-center py-2">No scenes</div>
+              )}
+            </div>
           </div>
         ) : null}
       </DragOverlay>
