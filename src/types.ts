@@ -15,6 +15,20 @@ export interface Scene {
   description: string;
   cast: string;
   notes: string;
+  extras: string;
+  stunts: string;
+  vehicles: string;
+  props: string;
+  wardrobe: string;
+  makeup: string;
+  sfx: string;
+  vfx: string;
+  sound: string;
+  music: string;
+  animals: string;
+  weapons: string;
+  greenery: string;
+  artDept: string;
   shootDay: number | null;
 }
 

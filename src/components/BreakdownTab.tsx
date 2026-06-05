@@ -10,8 +10,19 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 
+const BREAKDOWN_CATEGORIES = [
+  'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+  'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
+];
+const BREAKDOWN_LABELS: Record<string, string> = {
+  extras: 'Supporting Artists', stunts: 'Stunts', vehicles: 'Vehicles',
+  props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
+  sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
+  animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery',
+  artDept: 'Art Dept',
+};
+
 const COLUMNS = [
-  { key: '_sheetNum', label: 'Sheet #' },
   { key: 'sceneNumber', label: 'Scene #' },
   { key: 'pageCount', label: 'Pages' },
   { key: 'scriptDay', label: 'Script Day' },
@@ -21,15 +32,17 @@ const COLUMNS = [
   { key: 'description', label: 'Description' },
   { key: 'cast', label: 'Cast' },
   { key: 'notes', label: 'Notes' },
+  ...BREAKDOWN_CATEGORIES.map(key => ({ key, label: BREAKDOWN_LABELS[key] })),
   { key: 'actions', label: '' },
 ];
 
+const ACTIONS_COL = 23;
+const INT_EXT_COL = 3;
+const DAY_NIGHT_COL = 5;
+const CAST_COL = 7;
+
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
-const ACTIONS_COL = 10;
-const INT_EXT_COL = 4;
-const DAY_NIGHT_COL = 6;
-const CAST_COL = 8;
 
 export function BreakdownTab() {
   const { state, dispatch } = useProject();
@@ -57,6 +70,20 @@ export function BreakdownTab() {
       description: '',
       cast: '',
       notes: '',
+      extras: '',
+      stunts: '',
+      vehicles: '',
+      props: '',
+      wardrobe: '',
+      makeup: '',
+      sfx: '',
+      vfx: '',
+      sound: '',
+      music: '',
+      animals: '',
+      weapons: '',
+      greenery: '',
+      artDept: '',
       shootDay: null
     };
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
@@ -180,7 +207,7 @@ export function BreakdownTab() {
     />
   ), []);
 
-  const DEFAULT_WIDTHS = [40, 60, 80, 80, 80, 180, 90, 300, 120, 200, 40];
+  const DEFAULT_WIDTHS = [60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 40];
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
   const [widthVersion, setWidthVersion] = useState(0);
 
@@ -234,8 +261,7 @@ export function BreakdownTab() {
   }, [widthVersion]);
 
   const data = useMemo((): CellBase[][] => {
-    const rows = scenes.map((scene, i) => [
-      { value: i + 1, readOnly: true },
+    const rows = scenes.map(scene => [
       { value: scene.sceneNumber },
       { value: scene.pageCount, DataEditor: PageCountEditor },
       { value: scene.scriptDay },
@@ -248,11 +274,11 @@ export function BreakdownTab() {
       { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
     rows.push(COLUMNS.map((c, i) => {
-      if (i === 0 || i >= ACTIONS_COL) return { value: '', readOnly: true };
-      if (i === 2) return { value: '', DataEditor: PageCountEditor };
-      if (i === 4) return { value: '', DataEditor: IntExtEditor };
-      if (i === 5) return { value: '', DataEditor: SetEditor };
-      if (i === 6) return { value: '', DataEditor: DayNightEditor };
+      if (i >= ACTIONS_COL) return { value: '', readOnly: true };
+      if (i === 1) return { value: '', DataEditor: PageCountEditor };
+      if (i === 3) return { value: '', DataEditor: IntExtEditor };
+      if (i === 4) return { value: '', DataEditor: SetEditor };
+      if (i === 5) return { value: '', DataEditor: DayNightEditor };
       if (i === CAST_COL) return { value: '', DataEditor: CastEditor };
       return { value: '' };
     }));
@@ -261,14 +287,14 @@ export function BreakdownTab() {
 
   const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected }) => (
     <td
-      className={`Spreadsheet__header text-center cursor-pointer select-none text-zinc-400 hover:text-zinc-600 transition-colors ${selected ? 'bg-blue-50' : ''}`}
-      style={{ width: 28, minWidth: 28, maxWidth: 28, fontSize: 10 }}
+      className={`Spreadsheet__header text-center cursor-pointer select-none transition-colors ${selected ? 'bg-blue-50' : ''}`}
+      style={{ width: 17, minWidth: 17, maxWidth: 17, fontSize: row < 0 ? 7 : 10, fontWeight: 600 }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        setContextMenu({ x: e.clientX, y: e.clientY, row });
+        if (row >= 0) setContextMenu({ x: e.clientX, y: e.clientY, row });
       }}
-    >≡</td>
+    >{row < 0 ? '#' : row + 1}</td>
   ), []);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
@@ -352,6 +378,20 @@ export function BreakdownTab() {
           description: row['Description'] || '',
           cast: row['Cast'] || '',
           notes: row['Notes'] || '',
+          extras: '',
+          stunts: '',
+          vehicles: '',
+          props: '',
+          wardrobe: '',
+          makeup: '',
+          sfx: '',
+          vfx: '',
+          sound: '',
+          music: '',
+          animals: '',
+          weapons: '',
+          greenery: '',
+          artDept: '',
           shootDay: null
         }));
         if (imported.length > 0) {
@@ -377,6 +417,20 @@ export function BreakdownTab() {
         description: 'New scene',
         cast: '',
         notes: '',
+        extras: '',
+        stunts: '',
+        vehicles: '',
+        props: '',
+        wardrobe: '',
+        makeup: '',
+        sfx: '',
+        vfx: '',
+        sound: '',
+        music: '',
+        animals: '',
+        weapons: '',
+        greenery: '',
+        artDept: '',
         shootDay: null
       }
     });
