@@ -114,8 +114,7 @@ import { EntityDropdown, EntityItem } from './components/EntityDropdown';
 #### Creating a new entity dropdown (Props, Items, etc.)
 The `EntityDropdown` component accepts an `items` prop — pass any `{ id: string, name: string }[]` to create a dropdown for a new entity type without writing a new component. For custom display/search/sort, use `renderItem`, `filterItem`, `sortItems`, and `searchFields` props. For a fully custom dropdown, copy the pattern from `EntityDropdown.tsx` — it uses shared hooks from `src/lib/dropdown.ts` (`useDropdown`, `useOpenHandler`, `sortCastMembers`).
 
-### Key Patterns
-- `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)` — exported from EntityDropdown.tsx for reuse
+Utility classes exported from EntityDropdown.tsx: `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)`.
 
 ### Key Patterns
 - **Click-to-toggle** (NOT hover): All menus use React state + backdrop div for closing.

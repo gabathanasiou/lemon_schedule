@@ -10,8 +10,8 @@ function formatDayDateLong(dateStr: string): string {
   const day = d.getDate();
   const month = d.toLocaleDateString('en-US', { month: 'long' });
   const year = d.getFullYear();
-  const suffixes = ['TH', 'ST', 'ND', 'RD'];
-  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
+  const suffixes = ['th', 'st', 'nd', 'rd'];
+  const suffix = (day >= 11 && day <= 13) ? 'th' : suffixes[day % 10] || 'th';
   return `${weekday} ${day}${suffix} ${month} ${year}`;
 }
 
@@ -57,7 +57,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
 
   const dayItems = useMemo(() => dayEntries.map(d => ({
     id: String(d.chrono),
-    name: `Day ${d.chrono} — ${d.date ? formatDayDateLong(d.date) : 'no date set'}`,
+    name: `Day ${d.chrono}`,
   })), [dayEntries]);
 
   const dayValue = useMemo(() =>
@@ -132,13 +132,15 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               standalone
               mode="multi"
               placeholder="e.g. 1, 2, 3"
-              renderItem={(item, checked) => (
-                <>
-                  <span className="text-zinc-400 shrink-0">#{item.id}</span>
-                  <span className="truncate flex-1">{item.name}</span>
-                  {checked && <span className="text-blue-600 text-[10px] font-medium">Selected</span>}
-                </>
-              )}
+              renderItem={(item) => {
+                const entry = dayEntries.find(d => d.chrono === Number(item.id));
+                return (
+                  <>
+                    <span className="truncate flex-1 font-medium">{item.name}</span>
+                    {entry?.date && <span className="text-xs text-zinc-500 shrink-0">{formatDayDateLong(entry.date)}</span>}
+                  </>
+                );
+              }}
             />
             {dayEntries.length === 0 && (
               <p className="text-xs text-zinc-500 py-4 text-center">No days with dates configured yet.</p>

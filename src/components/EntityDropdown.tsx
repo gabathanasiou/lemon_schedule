@@ -5,7 +5,7 @@ import { useDropdown, useOpenHandler, sortCastMembers } from '../lib/dropdown';
 import { useSmartPosition } from '../lib/useSmartPosition';
 
 export const DD_ITEM_CLASS = (active: boolean) =>
-  `w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
 
 export const DD_PANEL_CLASS = (positioning: string) =>
   positioning === 'fixed'
