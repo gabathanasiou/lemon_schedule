@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject } from '../store';
 import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
@@ -234,6 +234,17 @@ export function ElementManager() {
     setRows(rowsByCat.current[category] || []);
     setSaveVersion(v => v + 1);
   }, [category]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey) {
+        if (e.key === 'n') { e.preventDefault(); addNew(); }
+        if (e.key === 's') { e.preventDefault(); doSave(); }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [addNew, doSave]);
 
   const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean) => {
     const inputId = `${key}-${field}`;
