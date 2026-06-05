@@ -309,17 +309,13 @@ export function ScheduleTab() {
           const refId = anchor && currentIds.includes(anchor) ? anchor : (isDown ? currentIds[currentIds.length - 1] : currentIds[0]);
           const idx = flat.indexOf(refId);
           if (isDown && idx < flat.length - 1) {
-            const next = flat.slice(idx + 1).find(id => !id.startsWith('empty-'));
-            if (!next) return;
-            setSelectedRowIds(new Set([next]));
-            setLastClickedId(next);
-            scrollToRow(next);
+            setSelectedRowIds(new Set([flat[idx + 1]]));
+            setLastClickedId(flat[idx + 1]);
+            scrollToRow(flat[idx + 1]);
           } else if (!isDown && idx > 0) {
-            const prev = flat.slice(0, idx).reverse().find(id => !id.startsWith('empty-'));
-            if (!prev) return;
-            setSelectedRowIds(new Set([prev]));
-            setLastClickedId(prev);
-            scrollToRow(prev);
+            setSelectedRowIds(new Set([flat[idx - 1]]));
+            setLastClickedId(flat[idx - 1]);
+            scrollToRow(flat[idx - 1]);
           }
         }
       }
