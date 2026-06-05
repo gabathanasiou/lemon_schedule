@@ -13,6 +13,8 @@ import { RulesTab } from './components/RulesTab';
 import { ProjectManager } from './components/ProjectManager';
 import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
+import DoodDialog, { DoodOptions } from './components/print/DoodDialog';
+import Dood from './components/print/Dood';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
@@ -33,8 +35,10 @@ function AppContent() {
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [showDoodDialog, setShowDoodDialog] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
+  const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
@@ -51,7 +55,7 @@ function AppContent() {
   const importProjectFromData = ctx.importProjectFromData;
 
   useEffect(() => {
-    if (printOptions) {
+  if (printOptions) {
       const vNum = (version?.name?.match(/\d+/) || ['1'])[0].padStart(2, '0');
       const vName = `V${vNum}`;
       const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
@@ -91,6 +95,21 @@ function AppContent() {
   }, [printOptions, project.title, version?.name]);
 
   useEffect(() => {
+    if (!doodOptions) return;
+    const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+    const fileName = `${title}_DOOD`;
+    const oldTitle = document.title;
+    document.title = fileName;
+    const onAfterPrint = () => {
+      document.title = oldTitle;
+      setDoodOptions(null);
+    };
+    window.addEventListener('afterprint', onAfterPrint);
+    setTimeout(() => window.print(), 200);
+    return () => window.removeEventListener('afterprint', onAfterPrint);
+  }, [doodOptions, project.title]);
+
+  useEffect(() => {
     if (!storage.handle || !currentProjectId) return;
     if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
     storage.setStatus('saving');
@@ -108,6 +127,24 @@ function AppContent() {
       if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
     };
   }, [state.present, storage.handle, currentProjectId]);
+
+  if (doodOptions) {
+    return (
+      <div>
+        <Dood
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          scheduleRows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          castMembers={project.castMembers || []}
+          castIds={doodOptions.castIds}
+          dayInts={doodOptions.dayInts}
+          includeNonShooting={doodOptions.includeNonShooting}
+          showTotals={doodOptions.showTotals}
+        />
+      </div>
+    );
+  }
 
   if (printOptions) {
     const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
@@ -159,6 +196,7 @@ function AppContent() {
       )}
 
       {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} onClose={() => setShowPrintDialog(false)} />}
+      {showDoodDialog && <DoodDialog onPrint={(opts) => { setShowDoodDialog(false); setDoodOptions(opts); }} onClose={() => setShowDoodDialog(false)} />}
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
@@ -383,6 +421,9 @@ function AppContent() {
               <DropdownDivider />
               <DropdownItem onClick={() => { setShowExportMenu(false); setShowPrintDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
                 Print Schedule
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowDoodDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Day Out of Days
               </DropdownItem>
             </DropdownMenu>
           <StorageStatus
