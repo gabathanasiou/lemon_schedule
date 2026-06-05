@@ -354,7 +354,8 @@ export function ScheduleTab() {
   }, [focusedRowId]);
   const scrollToRow = (rowId: string) => {
     requestAnimationFrame(() => {
-      const el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`);
+      const el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`)
+        ?? document.querySelector(`#unscheduled_rows_container [data-row-id="${rowId}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   };
@@ -612,11 +613,94 @@ export function ScheduleTab() {
   const lastClickedIdRef = useRef(lastClickedId);
   lastClickedIdRef.current = lastClickedId;
   const flatRowIdsRef = useRef<string[]>([]);
-  flatRowIdsRef.current = existingDays.flatMap(dayInt => {
-    const dayRows = scheduledRows[dayInt];
-    if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
-    return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
-  });
+  flatRowIdsRef.current = [
+    ...existingDays.flatMap(dayInt => {
+      const dayRows = scheduledRows[dayInt];
+      if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
+      return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
+    }),
+    ...unscheduledRows.map(r => r.id),
+  ];
+
+  const [digitBuffer, setDigitBuffer] = useState('');
+  const digitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const digitDataRef = useRef({ versionId: '', rowIds: [] as string[], rows: [] as ScheduleRow[], buffer: '' });
+  const dayMetaRef = useRef(activeVersion?.dayMeta || {});
+  dayMetaRef.current = activeVersion?.dayMeta || {};
+  const BUFFER_MS = 600;
+
+  const commitDigits = useCallback(() => {
+    const data = digitDataRef.current;
+    if (!data.buffer) return;
+    const dayNum = parseInt(data.buffer, 10);
+    const meta = dayMetaRef.current;
+    const existing = Object.keys(meta).map(Number).sort((a, b) => {
+      const dateA = meta[a]?.date || '';
+      const dateB = meta[b]?.date || '';
+      return dateA.localeCompare(dateB);
+    });
+    const idx = dayNum - 1;
+    if (idx < 0 || idx >= existing.length) {
+      setDigitBuffer('');
+      digitDataRef.current.buffer = '';
+      return;
+    }
+    const targetDay = existing[idx];
+    const dayRows = data.rows.filter(r => r.shootDay === targetDay).sort((a, b) => a.order - b.order);
+    const maxOrder = dayRows.length > 0 ? Math.max(...dayRows.map(r => r.order)) : -1;
+    const newRows = data.rows.map(r => {
+      if (data.rowIds.includes(r.id)) {
+        return { ...r, shootDay: targetDay, order: maxOrder + 1 + data.rowIds.indexOf(r.id) };
+      }
+      return r;
+    });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: newRows } });
+    const lastScheduledId = data.rowIds[data.rowIds.length - 1];
+    const lastIdx = data.rows.findIndex(r => r.id === lastScheduledId);
+    const next = data.rows.slice(lastIdx + 1).find(r => r.shootDay === null || r.shootDay === -1);
+    if (next) {
+      setSelectedRowIds(new Set([next.id]));
+      setLastClickedId(next.id);
+    }
+    setDigitBuffer('');
+    digitDataRef.current.buffer = '';
+  }, [dispatch]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (textEditingEnabled || !activeVersion) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (e.key === 'Enter' && digitDataRef.current.buffer) {
+        e.preventDefault();
+        if (digitTimerRef.current) clearTimeout(digitTimerRef.current);
+        commitDigits();
+        return;
+      }
+      if (!/^[0-9]$/.test(e.key)) return;
+      const unscheduledSelected = activeVersion.rows.filter(r => selectedRowIds.has(r.id) && (r.shootDay === null || r.shootDay === -1));
+      if (unscheduledSelected.length === 0) return;
+      e.preventDefault();
+      const next = digitDataRef.current.buffer + e.key;
+      digitDataRef.current = {
+        versionId: activeVersion.id,
+        rowIds: unscheduledSelected.map(r => r.id),
+        rows: activeVersion.rows,
+        buffer: next,
+      };
+      setDigitBuffer(next);
+      if (digitTimerRef.current) clearTimeout(digitTimerRef.current);
+      digitTimerRef.current = setTimeout(commitDigits, BUFFER_MS);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedRowIds, textEditingEnabled, activeVersion, commitDigits]);
+
+  useEffect(() => {
+    return () => {
+      if (digitTimerRef.current) clearTimeout(digitTimerRef.current);
+    };
+  }, []);
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
@@ -977,6 +1061,25 @@ export function ScheduleTab() {
           </div>
         ) : null}
       </DragOverlay>
+
+      {digitBuffer && (
+        <div className="fixed inset-0 pointer-events-none z-[9999] flex items-start justify-center pt-12">
+          <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-xl shadow-2xl px-6 py-3 flex flex-col items-center gap-1.5 min-w-[140px]">
+            <span className="text-zinc-300 text-xs font-semibold uppercase tracking-widest">Schedule to Day</span>
+            <span className="text-white text-3xl font-bold tabular-nums">{digitBuffer}</span>
+            <div className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
+              <div className="h-full bg-blue-500 rounded-full" style={{ animation: `shrink ${BUFFER_MS}ms linear forwards` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes shrink {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `}</style>
 
       {/* Context Menu */}
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
