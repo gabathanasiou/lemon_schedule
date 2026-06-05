@@ -245,7 +245,7 @@ export function BreakdownTab() {
             mode="multi"
             renderItem={(item) => (
               <>
-                {item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
+                {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
                 <span className="truncate flex-1">{item.name}</span>
               </>
             )}
@@ -386,32 +386,47 @@ export function BreakdownTab() {
         const colDef = COLUMNS[col];
         const oldVal = String((scenes as any)[row][colDef.key] ?? '');
         const newVal = String(newData[row]?.[col]?.value ?? '');
-        if (newVal !== oldVal) {
-          const updates: any = { [colDef.key]: newVal };
-          if (colDef.key === 'pageCount') {
-            const decimal = parsePageCount(newVal);
-            updates.pageCountDecimal = decimal;
-            updates.pageCount = formatPageCount(decimal);
-          }
-          if (colDef.key === 'scriptDay') {
-            updates.scriptDay = newVal.replace(/[^0-9]/g, '');
-          }
-          if (colDef.key === 'set') {
-            updates.set = newVal.toUpperCase();
-          }
-          if (colDef.key === 'intExt') {
-            const match = INT_EXT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
-            if (match) updates.intExt = match;
-          }
-          if (colDef.key === 'dayNight') {
-            const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
-            if (match) updates.dayNight = match;
-          }
-          dispatch({ type: 'UPDATE_SCENE', payload: { id: scenes[row].id, ...updates } });
+          if (newVal !== oldVal) {
+            const updates: any = { [colDef.key]: newVal };
+            if (colDef.key === 'pageCount') {
+              const decimal = parsePageCount(newVal);
+              updates.pageCountDecimal = decimal;
+              updates.pageCount = formatPageCount(decimal);
+            }
+            if (colDef.key === 'scriptDay') {
+              updates.scriptDay = newVal.replace(/[^0-9]/g, '');
+            }
+            if (colDef.key === 'set') {
+              updates.set = newVal.toUpperCase();
+            }
+            if (colDef.key === 'intExt') {
+              const match = INT_EXT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
+              if (match) updates.intExt = match;
+            }
+            if (colDef.key === 'dayNight') {
+              const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
+              if (match) updates.dayNight = match;
+            }
+            if (colDef.key === 'cast' || BREAKDOWN_CATEGORIES.includes(colDef.key)) {
+              const isCast = colDef.key === 'cast';
+              const existing = (project.breakdownElements || {})[colDef.key] || [];
+              const existingSet = new Set(
+                isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
+              );
+              const newItems = newVal.split(',').map(x => x.trim()).filter(Boolean)
+                .filter(v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()));
+              for (const item of newItems) {
+                dispatch({ type: 'ADD_ELEMENT', payload: {
+                  category: colDef.key,
+                  element: isCast ? { id: item, name: '' } : { id: '', name: item }
+                } });
+              }
+            }
+            dispatch({ type: 'UPDATE_SCENE', payload: { id: scenes[row].id, ...updates } });
         }
       }
     }
-  }, [scenes, dispatch]);
+  }, [scenes, dispatch, project]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

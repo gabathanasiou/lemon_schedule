@@ -31,11 +31,11 @@ function loadCategoryElements(project: any, category: string): ProjectElement[] 
   if (category === 'cast') {
     const sceneIds = getElementsFromScenes(project.scenes, 'cast');
     const merged = new Map<string, ProjectElement>();
-    for (const e of sceneIds) merged.set(e.id, e);
+    for (const e of sceneIds) merged.set(e.id, { id: e.id, name: '' });
     for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name });
     return [...merged.values()];
   }
-  return getElementsFromScenes(project.scenes, category);
+  return getElementsFromScenes(project.scenes, category).map(e => ({ id: '', name: e.name }));
 }
 
 interface LocalRow {
