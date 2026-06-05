@@ -453,6 +453,7 @@ export const SortableRow: React.FC<{
                     </td>
                     <td className="col-dn" />
                     <td className="col-cast" />
+                    <td className="col-pgs" />
                   </>
                   ) : (
                   <td colSpan={4} className="col-set">
@@ -510,6 +511,7 @@ export const SortableRow: React.FC<{
                     </td>
                     <td className="col-dn" />
                     <td className="col-cast" />
+                    <td className="col-pgs" />
                   </>
                   ) : (
                   <td colSpan={4} className="col-set">

@@ -183,40 +183,53 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
       {/* Day Ribbon Banner */}
-      <div className="bg-black text-white flex justify-between items-center px-3 py-4">
-         <div className="flex items-center gap-2 shrink-0">
-            <span className="font-bold">DAY #{displayDay}</span>
-            {violations.length > 0 && (
-              <Tooltip content={vMessages}>
-                <span className="flex items-center gap-0.5 text-red-400">
-                  <Flag className="w-3.5 h-3.5 fill-red-400" />
-                  <span className="text-[10px] font-bold">{violations.length}</span>
-                </span>
-              </Tooltip>
-            )}
-            <button 
-              onClick={() => {
-                dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt });
-              }}
-              className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
-              title="Remove all scenes from this day"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-         </div>
-         <span className="flex-1 text-center font-semibold">
-            {meta?.date ? formatDateLong(meta.date) : ''}
-         </span>
-         <div className="flex items-center gap-1 shrink-0">
-            <span className="font-semibold text-xs text-zinc-300">CALL</span>
-            <CellInput
-              value={meta?.unitCall || '08:00'}
-              onChange={val => updateMeta({unitCall: val})}
-              clearOnType
-              col="duration"
-              className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-14 text-center"
-            />
-         </div>
+      <div className="bg-black text-white">
+        <table className="schedule-table">
+          <tbody>
+            <tr className="day-header-row">
+              <td className="col-sc">
+                <span className="font-bold">DAY #{displayDay}</span>
+              </td>
+              <td className="col-call">
+                {violations.length > 0 && (
+                  <Tooltip content={vMessages}>
+                    <span className="inline-flex items-center gap-0.5 text-red-400">
+                      <Flag className="w-3.5 h-3.5 fill-red-400" />
+                      <span className="text-[10px] font-bold">{violations.length}</span>
+                    </span>
+                  </Tooltip>
+                )}
+                <button 
+                  onClick={() => {
+                    dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt });
+                  }}
+                  className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors ml-1"
+                  title="Remove all scenes from this day"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </td>
+              <td className="col-dur" />
+              <td className="col-ie" />
+              <td className="col-set text-center font-semibold">
+                {meta?.date ? formatDateLong(meta.date) : ''}
+              </td>
+              <td className="col-dn" />
+              <td className="col-cast">
+                <span className="font-semibold text-[10px] text-zinc-400">CALL</span>
+              </td>
+              <td className="col-pgs">
+                <CellInput
+                  value={meta?.unitCall || '08:00'}
+                  onChange={val => updateMeta({unitCall: val})}
+                  clearOnType
+                  col="duration"
+                  className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-full text-center"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
