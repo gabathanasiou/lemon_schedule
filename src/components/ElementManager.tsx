@@ -94,8 +94,9 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   }
 
   const [rows, setRows] = useState<LocalRow[]>(() => {
-    const r = loadRows('cast');
-    snapByCat.current['cast'] = [...r];
+    const cat = initialCategory || 'cast';
+    const r = loadRows(cat);
+    snapByCat.current[cat] = [...r];
     return r;
   });
   const [saveVersion, setSaveVersion] = useState(0);

@@ -142,25 +142,22 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
         </div>
 
         {/* Scene header table */}
-        <div className="rounded-xl bg-white border border-zinc-200/80 shadow-sm overflow-hidden">
-          <table className="w-full border-collapse text-sm">
+        <div className="bg-white border border-zinc-300 overflow-hidden">
+          <table className="w-full border-collapse text-xs">
             <tbody>
               {[
-                ['Scene Sheet', String(index + 1), 'Scene No.', 'sceneNumber'],
                 ['Int/Ext', 'intExt', 'Day/Night', 'dayNight'],
                 ['Set', 'set', 'Location', null],
                 ['Pages', 'pageCount', 'Script Day', 'scriptDay'],
               ].map((row, ri) => (
-                <tr key={ri} className={ri < 4 ? 'border-b border-zinc-100' : ''}>
+                <tr key={ri} className="border-b border-zinc-300">
                   {row.map((field, ci) => (
                     ci % 2 === 0 ? (
-                      <td key={ci} className="px-3 py-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider bg-zinc-50/50 w-[100px]">{field}</td>
+                      <td key={ci} className="px-2.5 py-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wider bg-zinc-100 border-r border-zinc-300 w-[90px]">{field}</td>
                     ) : (
-                      <td key={ci} className={`px-3 py-1.5 ${ci < 3 ? 'border-r border-zinc-100' : ''}`}>
-                        {field === 'Scene Sheet' ? (
-                          <span className="text-sm font-semibold text-zinc-800">{index + 1}</span>
-                        ) : field === null ? (
-                          <input className="w-full border-zinc-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border"
+                      <td key={ci} className={`px-2.5 py-1.5 ${ci < 3 ? 'border-r border-zinc-300' : ''}`}>
+                        {field === null ? (
+                          <input className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent"
                             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                           />
                         ) : field === 'intExt' ? (
@@ -168,7 +165,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                         ) : field === 'dayNight' ? (
                           <AutocompleteDropdown value={val('dayNight')} onChange={v => update('dayNight', v)} options={DAY_NIGHT_OPTIONS} showAll />
                         ) : (
-                          <input className="w-full border-zinc-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border"
+                          <input className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent"
                             value={String(val(field as keyof Scene) || '')}
                             onChange={e => update(field as keyof Scene, e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
@@ -181,9 +178,9 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
               ))}
               {/* Synopsis row */}
               <tr>
-                <td className="px-3 py-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider bg-zinc-50/50 w-[100px] align-top">Synopsis</td>
-                <td colSpan={3} className="px-3 py-1.5">
-                  <textarea className="w-full border-zinc-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border resize-none"
+                <td className="px-2.5 py-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wider bg-zinc-100 border-r border-zinc-300 w-[90px] align-top">Synopsis</td>
+                <td colSpan={3} className="px-2.5 py-1.5">
+                  <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none"
                     rows={2} value={val('description') || ''} onChange={e => update('description', e.target.value)}
                   />
                 </td>
@@ -193,15 +190,15 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
         </div>
 
         {/* Category grid */}
-        <div className="flex-1 overflow-auto rounded-xl bg-white border border-zinc-200/80 shadow-sm tab-scroll">
-          <div className="p-3">
-            <div className="grid grid-cols-3 gap-2">
+        <div className="flex-1 overflow-auto tab-scroll">
+          <div>
+            <div className="grid grid-cols-3 gap-px bg-zinc-300 border border-zinc-300">
               {BREAKDOWN_CATS.map(cat => (
-                <div key={cat} className="border border-zinc-200 rounded-lg overflow-hidden">
-                  <div className="bg-zinc-50 px-2.5 py-1.5 border-b border-zinc-200 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                <div key={cat} className="bg-white">
+                  <div className="bg-zinc-100 px-2.5 py-1 border-b border-zinc-300 text-[11px] font-bold text-zinc-700 uppercase tracking-wider">
                     {BREAKDOWN_LABEL[cat]}
                   </div>
-                  <div className="p-2">
+                  <div className="p-1.5">
                     <EntityDropdown
                       value={val(cat === 'cast' ? 'cast' : cat as keyof Scene) || ''}
                       onChange={v => update(cat === 'cast' ? 'cast' : cat as keyof Scene, v)}
@@ -225,13 +222,13 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
         </div>
 
         {/* Notes */}
-        <div className="rounded-xl bg-white border border-zinc-200/80 shadow-sm overflow-hidden">
-          <table className="w-full border-collapse text-sm">
+        <div className="bg-white border border-zinc-300 overflow-hidden">
+          <table className="w-full border-collapse text-xs">
             <tbody>
               <tr>
-                <td className="px-3 py-1.5 text-xs font-semibold text-zinc-400 uppercase tracking-wider bg-zinc-50/50 w-[100px] align-top">Notes</td>
-                <td className="px-3 py-1.5">
-                  <textarea className="w-full border-zinc-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border resize-none"
+                <td className="px-2.5 py-1.5 text-xs font-bold text-zinc-700 uppercase tracking-wider bg-zinc-100 border-r border-zinc-300 w-[90px] align-top">Notes</td>
+                <td className="px-2.5 py-1.5">
+                  <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none"
                     rows={2} value={val('notes') || ''} onChange={e => update('notes', e.target.value)}
                   />
                 </td>
