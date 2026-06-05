@@ -93,9 +93,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const [localIds, setLocalIds] = useState<string[]>(() =>
     (value || '').split(',').map(x => x.trim()).filter(Boolean)
   );
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
   useEffect(() => {
-    if (open) committedRef.current = false;
+    if (open) { committedRef.current = false; setHighlightedIndex(-1); }
   }, [open]);
 
   const currentIds = mode === 'multi'
@@ -160,10 +161,17 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [searchFields]);
 
   const doFilter = filterItem ?? defaultFilter;
-  const searchQuery = mode === 'multi' ? '' : query;
+  const lastSegment = mode === 'multi'
+    ? val.split(',').map(x => x.trim()).filter(Boolean).pop() || ''
+    : '';
+  const searchQuery = mode === 'multi' ? lastSegment : query;
   const filtered = items.filter(m => !searchQuery || doFilter(m, searchQuery));
   const doSort = sortItems ?? sortCastMembers;
   const sorted = doSort(filtered, currentIds);
+
+  const hasExactMatch = lastSegment.length > 0 && items.some(m => m.name.toLowerCase() === lastSegment.toLowerCase());
+  const syntheticItem: EntityItem = { id: lastSegment, name: lastSegment };
+  const dropdownItems = (lastSegment && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
@@ -195,14 +203,34 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         value={displayValue}
         onChange={e => {
           if (mode === 'multi') { setVal(e.target.value); } else { setQuery(e.target.value); }
+          setHighlightedIndex(-1);
           if (!open) { standalone ? setOpen(true) : handleOpen(); }
         }}
         onFocus={() => { if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
         placeholder={placeholder}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
-          if (e.key === 'Escape') { setOpen(false); setQuery(''); }
-          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { setOpen(false); setQuery(''); setHighlightedIndex(-1); }
+          if (e.key === 'Tab') { e.preventDefault(); commit(); }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (dropdownItems.length === 0) return;
+            setHighlightedIndex(prev => Math.min(prev + 1, dropdownItems.length - 1));
+          }
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (dropdownItems.length === 0) return;
+            setHighlightedIndex(prev => Math.max(prev - 1, 0));
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
+              toggle(dropdownItems[highlightedIndex].id);
+              setHighlightedIndex(-1);
+            } else {
+              commit();
+            }
+          }
         }}
       />
       {open && (
@@ -210,17 +238,24 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           className={DD_PANEL_CLASS(positioning)}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
-          {sorted.length > 0 ? sorted.map(m => {
+          {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
             const checked = currentIds.includes(m.id);
+            const highlighted = highlightedIndex === idx;
+            const isSynthetic = lastSegment && !hasExactMatch && idx === 0;
             return (
               <button
-                key={m.id}
+                key={isSynthetic ? '__new__' : m.id}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => toggle(m.id)}
-                className={DD_ITEM_CLASS(checked)}
+                onMouseEnter={() => setHighlightedIndex(idx)}
+                className={`${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`}
               >
-                {renderItem ? renderItem(m, checked) : defaultRenderer(m, checked)}
+                {isSynthetic ? (
+                  <span className="truncate flex-1 italic text-zinc-500">Add &quot;{m.name}&quot;</span>
+                ) : (
+                  renderItem ? renderItem(m, checked) : defaultRenderer(m, checked)
+                )}
               </button>
             );
           }) : (
