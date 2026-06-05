@@ -22,6 +22,7 @@ export interface PrintOptions {
   showExportDate: boolean;
   showPageNumbers: boolean;
   selectedDays: number[];
+  includeStatusDays: boolean;
 }
 
 export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: PrintOptions) => void; onClose: () => void }) {
@@ -33,6 +34,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const [showCastList, setShowCastList] = useState(true);
   const [showExportDate, setShowExportDate] = useState(true);
   const [showPageNumbers, setShowPageNumbers] = useState(true);
+  const [includeStatusDays, setIncludeStatusDays] = useState(true);
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
@@ -115,6 +117,12 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                 </label>
               </div>
             </div>
+            <div className="pt-1">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm text-zinc-700 font-medium">Include hold / travel / holiday days</span>
+              </label>
+            </div>
           </div>
 
           <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">
@@ -156,6 +164,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               showCastList,
               showExportDate,
               showPageNumbers,
+              includeStatusDays,
               selectedDays: [...selectedDays].sort((a: number, b: number) => a - b),
             })}
             disabled={selectedDays.size === 0}

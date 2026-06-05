@@ -10,6 +10,7 @@ interface PrintScheduleProps {
   showExportDate: boolean;
   showPageNumbers: boolean;
   selectedDays: number[];
+  includeStatusDays?: boolean;
   fileName: string;
 }
 
@@ -112,6 +113,19 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     runningElapsed += dur;
     return { ...r, computedCallTime: callTime, computedElapsed: runningElapsed };
   });
+
+  const isStatusDay = meta?.status && meta.status !== 'work';
+
+  if (isStatusDay && rows.length === 0) {
+    return (
+      <div className="print-day">
+        <div className="print-day-header" style={{background: '#000', color: '#fff', justifyContent: 'center'}}>
+          <span className="print-day-number" style={{fontSize: '10pt'}}>{meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
+          {meta?.date && <span className="print-day-date" style={{fontSize: '8pt'}}>{new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="print-day">
@@ -379,7 +393,7 @@ const CAST_LIST_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, fileName }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName }) => {
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -409,7 +423,10 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
 
   const existingDays = Array.from(new Set([
     ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0 && selectedDays.includes(d))
+    ...(includeStatusDays ? Object.entries(activeVersion.dayMeta || {})
+      .filter(([, v]) => (v as ShootDayMeta).status && (v as ShootDayMeta).status !== 'work')
+      .map(([k]) => Number(k)) : []),
+  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0 ? selectedDays.includes(d) : includeStatusDays && selectedDays.includes(d))
     .sort((a, b) => {
       const dateA = activeVersion.dayMeta?.[a]?.date || '';
       const dateB = activeVersion.dayMeta?.[b]?.date || '';
