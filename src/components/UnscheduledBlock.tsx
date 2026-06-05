@@ -28,7 +28,8 @@ export const UnscheduledBlock: React.FC<{
   activeDragRows?: ScheduleRow[],
   activeRowId?: string | null,
   onRowNavigate?: (rowId: string) => void,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate }) => {
+  onCollapseChange?: (collapsed: boolean) => void,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -191,10 +192,10 @@ export const UnscheduledBlock: React.FC<{
       {isCollapsed ? (
         <div 
           className="flex flex-col items-center py-4 h-full cursor-pointer hover:bg-zinc-100 w-full"
-          onClick={() => setIsCollapsed(false)}
+          onClick={() => { setIsCollapsed(false); onCollapseChange?.(false); }}
         >
           <button 
-            onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }}
+            onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); onCollapseChange?.(false); }}
             className="p-1.5 hover:bg-zinc-200 rounded transition-colors text-zinc-500 hover:text-zinc-800 mb-6 cursor-pointer"
             title="Expand Sidebar"
           >
@@ -263,7 +264,7 @@ export const UnscheduledBlock: React.FC<{
                 </div>
 
                 <button 
-                  onClick={() => setIsCollapsed(true)}
+                  onClick={() => { setIsCollapsed(true); onCollapseChange?.(true); }}
                   className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer"
                   title="Collapse Sidebar"
                 >

@@ -255,22 +255,26 @@ export function ScheduleTab() {
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
         if (!activeVersion) return;
         e.preventDefault();
-        const flat = flatRowIdsRef.current;
-        if (flat.length === 0) return;
         const isShift = e.shiftKey;
         const isDown = e.key === 'ArrowDown';
+        const currentIds = Array.from(selectedRowIds);
+        const isUnscheduled = currentIds.some(id => {
+          const row = activeVersion.rows.find(r => r.id === id);
+          return row && (row.shootDay === null || row.shootDay === -1);
+        });
+        const flat = isUnscheduled ? unscheduledFlatRef.current : flatRowIdsRef.current;
+        if (flat.length === 0) return;
           if (isShift) {
-          const shiftFlat = flat.filter(id => !id.startsWith('empty-'));
+          const shiftFlat = isUnscheduled ? flat : flat.filter(id => !id.startsWith('empty-'));
           if (shiftFlat.length === 0) return;
           const anchor = lastClickedIdRef.current;
-          const anchorIdx = (anchor && !anchor.startsWith('empty-')) ? shiftFlat.indexOf(anchor) : -1;
+          const anchorIdx = (anchor && (!isUnscheduled && !anchor.startsWith('empty-'))) ? shiftFlat.indexOf(anchor) : -1;
           if (anchorIdx === -1) {
             setSelectedRowIds(new Set([shiftFlat[0]]));
             setLastClickedId(shiftFlat[0]);
             scrollToRow(shiftFlat[0]);
             return;
           }
-          const currentIds = Array.from(selectedRowIds);
           const indices = currentIds.map(id => shiftFlat.indexOf(id)).filter(i => i >= 0);
           let from: number, to: number;
           if (indices.length === 0) {
@@ -301,9 +305,8 @@ export function ScheduleTab() {
           const scrollTarget = isDown ? to : from;
           scrollToRow(shiftFlat[scrollTarget]);
         } else {
-          const currentIds = Array.from(selectedRowIds);
           if (currentIds.length === 0) {
-            const firstReal = flat.find(id => !id.startsWith('empty-'));
+            const firstReal = flatRowIdsRef.current.find(id => !id.startsWith('empty-'));
             if (!firstReal) return;
             setSelectedRowIds(new Set([firstReal]));
             setLastClickedId(firstReal);
@@ -345,6 +348,62 @@ export function ScheduleTab() {
     }
     return () => document.removeEventListener('selectstart', onSelectStart);
   }, [textEditingEnabled]);
+
+  useEffect(() => {
+    for (const id of selectedRowIds) {
+      const row = activeVersion?.rows.find(r => r.id === id);
+      if (row && (row.shootDay === null || row.shootDay === -1)) {
+        unscheduledLastIdRef.current = id;
+      } else if (row && row.shootDay !== null && row.shootDay !== -1) {
+        stripboardLastIdRef.current = id;
+      }
+    }
+  }, [selectedRowIds, activeVersion]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || textEditingEnabled) return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if (!activeVersion) return;
+      if (sidebarCollapsedRef.current) return;
+      e.preventDefault();
+      const hasUnscheduled = Array.from(selectedRowIds).some(id => {
+        const row = activeVersion.rows.find(r => r.id === id);
+        return row && (row.shootDay === null || row.shootDay === -1);
+      });
+      if (hasUnscheduled) {
+        const id = stripboardLastIdRef.current || flatRowIdsRef.current.find(i => !i.startsWith('empty-')) || null;
+        if (id) {
+          setSelectedRowIds(new Set([id]));
+          setLastClickedId(id);
+          scrollToRow(id);
+        }
+      } else {
+        const id = unscheduledLastIdRef.current || unscheduledFlatRef.current[0] || null;
+        if (id) {
+          setSelectedRowIds(new Set([id]));
+          setLastClickedId(id);
+          scrollToRow(id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [textEditingEnabled, activeVersion, selectedRowIds]);
+
+  const handleCollapseChange = useCallback((collapsed: boolean) => {
+    sidebarCollapsedRef.current = collapsed;
+    if (collapsed) {
+      setSelectedRowIds(prev => {
+        const stripboardOnly = new Set(Array.from(prev).filter(id => {
+          const row = activeVersion?.rows.find(r => r.id === id);
+          return row && row.shootDay !== null && row.shootDay !== -1;
+        }));
+        return stripboardOnly.size > 0 ? stripboardOnly : new Set();
+      });
+    }
+  }, [activeVersion]);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -613,21 +672,23 @@ export function ScheduleTab() {
   const lastClickedIdRef = useRef(lastClickedId);
   lastClickedIdRef.current = lastClickedId;
   const flatRowIdsRef = useRef<string[]>([]);
-  flatRowIdsRef.current = [
-    ...existingDays.flatMap(dayInt => {
-      const dayRows = scheduledRows[dayInt];
-      if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
-      return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
-    }),
-    ...unscheduledRows.map(r => r.id),
-  ];
+  flatRowIdsRef.current = existingDays.flatMap(dayInt => {
+    const dayRows = scheduledRows[dayInt];
+    if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
+    return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
+  });
+  const unscheduledFlatRef = useRef<string[]>([]);
+  unscheduledFlatRef.current = unscheduledRows.map(r => r.id);
+  const stripboardLastIdRef = useRef<string | null>(null);
+  const unscheduledLastIdRef = useRef<string | null>(null);
+  const sidebarCollapsedRef = useRef(false);
 
   const [digitBuffer, setDigitBuffer] = useState('');
   const digitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const digitDataRef = useRef({ versionId: '', rowIds: [] as string[], rows: [] as ScheduleRow[], buffer: '' });
   const dayMetaRef = useRef(activeVersion?.dayMeta || {});
   dayMetaRef.current = activeVersion?.dayMeta || {};
-  const BUFFER_MS = 600;
+  const BUFFER_MS = 350;
 
   const commitDigits = useCallback(() => {
     const data = digitDataRef.current;
@@ -978,7 +1039,7 @@ export function ScheduleTab() {
               }
           }}
       >
-        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} />
+         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onCollapseChange={handleCollapseChange} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -1068,7 +1129,7 @@ export function ScheduleTab() {
             <span className="text-zinc-300 text-xs font-semibold uppercase tracking-widest">Schedule to Day</span>
             <span className="text-white text-3xl font-bold tabular-nums">{digitBuffer}</span>
             <div className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-500 rounded-full" style={{ animation: `shrink ${BUFFER_MS}ms linear forwards` }} />
+              <div key={digitBuffer} className="h-full bg-blue-500 rounded-full" style={{ animation: `shrink ${BUFFER_MS}ms linear forwards` }} />
             </div>
           </div>
         </div>
