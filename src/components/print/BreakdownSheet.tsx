@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Scene, ScheduleRow, ShootDayMeta, CastMember } from '../../types';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
+import { naturalSortSceneStrings } from '../../lib/utils';
 
 const CSS = `
 ${BASE_PRINT_RESET}
@@ -14,8 +15,8 @@ ${BASE_PRINT_RESET}
 .bs-title-left { font-weight: 700; font-size: 10pt; }
 .bs-title-center { text-align: center; text-transform: uppercase; font-weight: 700; font-size: 10pt; }
 .bs-title-right { text-align: right; font-weight: 700; font-size: 10pt; }
-.bs-sheet { page-break-inside: avoid; break-inside: avoid; margin-bottom: 12pt; padding-bottom: 8pt; border-bottom: 1pt solid #999; }
-.bs-sheet:last-child { border-bottom: none; }
+.bs-sheet { page-break-after: always; break-after: page; margin-bottom: 12pt; }
+.bs-sheet:last-child { page-break-after: auto; break-after: auto; }
 .bs-header { width: 100%; border-collapse: collapse; margin-bottom: 6pt; }
 .bs-header td { border: 1px solid #999; padding: 2pt 4pt; vertical-align: top; font-size: 8pt; }
 .bs-header .bs-label { font-weight: 700; width: 80pt; background: #f5f5f5; }
@@ -23,7 +24,7 @@ ${BASE_PRINT_RESET}
 .bs-cat-box { border: 1px solid #999; }
 .bs-cat-header { background: #f5f5f5; padding: 2pt 4pt; font-weight: 700; font-size: 7pt; text-transform: uppercase; border-bottom: 1px solid #999; }
 .bs-cat-body { padding: 3pt 4pt; min-height: 24pt; font-size: 8pt; }
-.bs-footer { font-size: 7pt; color: #666; margin-top: 6pt; }
+.bs-page-info { font-size: 7pt; color: #666; text-align: right; margin-bottom: 4pt; }
 `;
 
 interface BreakdownSheetProps {
@@ -32,6 +33,7 @@ interface BreakdownSheetProps {
   rows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>;
   castMembers: CastMember[];
+  sortOrder: 'sheet' | 'scene';
 }
 
 interface CategoryDef {
@@ -62,9 +64,16 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'notes', label: 'Notes / Special Requirements', getData: () => '' },
 ];
 
-const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes, rows, dayMeta, castMembers }) => {
+const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, sortOrder }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const scenes = useMemo(() => {
+    if (sortOrder === 'scene') {
+      return [...rawScenes].sort((a, b) => naturalSortSceneStrings(a.sceneNumber, b.sceneNumber));
+    }
+    return rawScenes;
+  }, [rawScenes, sortOrder]);
 
   const sceneToDay = useMemo(() => {
     const m = new Map<string, number>();
@@ -77,18 +86,19 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes, rows, da
       <style>{CSS}</style>
       <div className="bs-title">
         <div className="bs-title-left">{title}</div>
-        <div className="bs-title-center">Script Breakdown Sheet</div>
+        <div className="bs-title-center">Scene Breakdown</div>
         <div className="bs-title-right">{genStr}</div>
       </div>
 
-      {scenes.map(scene => (
+      {scenes.map((scene, si) => (
         <div key={scene.id} className="bs-sheet">
+          {si > 0 && <div className="bs-page-info">Page {si + 1} of {scenes.length} — {genStr}</div>}
           <table className="bs-header">
             <tbody>
-              <tr><td className="bs-label">Production</td><td>{title}</td><td className="bs-label">Scene No.</td><td>{scene.sceneNumber}</td></tr>
+              <tr><td className="bs-label">Scene Sheet</td><td>{si + 1}</td><td className="bs-label">Scene No.</td><td>{scene.sceneNumber}</td></tr>
               <tr><td className="bs-label">Int/Ext</td><td>{scene.intExt}</td><td className="bs-label">Day/Night</td><td>{scene.dayNight}</td></tr>
               <tr><td className="bs-label">Set</td><td>{scene.set}</td><td className="bs-label">Location</td><td>&nbsp;</td></tr>
-              <tr><td className="bs-label">Pages</td><td>{scene.pageCount}</td><td className="bs-label">Shooting Day</td><td>{sceneToDay.get(scene.id) ?? '—'}</td></tr>
+              <tr><td className="bs-label">Pages</td><td>{scene.pageCount}</td><td className="bs-label">Script Day</td><td>{scene.scriptDay}</td></tr>
               <tr><td className="bs-label">Synopsis</td><td colSpan={3}>{scene.description}</td></tr>
             </tbody>
           </table>
@@ -106,8 +116,6 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes, rows, da
           </div>
         </div>
       ))}
-
-      <div className="bs-footer">{title} — Script Breakdown Sheet — {genStr}</div>
     </div>
   );
 };

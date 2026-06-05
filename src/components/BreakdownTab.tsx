@@ -11,6 +11,7 @@ import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 
 const COLUMNS = [
+  { key: '_sheetNum', label: 'Sheet #' },
   { key: 'sceneNumber', label: 'Scene #' },
   { key: 'pageCount', label: 'Pages' },
   { key: 'scriptDay', label: 'Script Day' },
@@ -25,10 +26,10 @@ const COLUMNS = [
 
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
-const ACTIONS_COL = 9;
-const INT_EXT_COL = 3;
-const DAY_NIGHT_COL = 5;
-const CAST_COL = 7;
+const ACTIONS_COL = 10;
+const INT_EXT_COL = 4;
+const DAY_NIGHT_COL = 6;
+const CAST_COL = 8;
 
 export function BreakdownTab() {
   const { state, dispatch } = useProject();
@@ -179,7 +180,7 @@ export function BreakdownTab() {
     />
   ), []);
 
-  const DEFAULT_WIDTHS = [60, 80, 80, 80, 180, 90, 300, 120, 200, 40];
+  const DEFAULT_WIDTHS = [40, 60, 80, 80, 80, 180, 90, 300, 120, 200, 40];
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
   const [widthVersion, setWidthVersion] = useState(0);
 
@@ -233,7 +234,8 @@ export function BreakdownTab() {
   }, [widthVersion]);
 
   const data = useMemo((): CellBase[][] => {
-    const rows = scenes.map(scene => [
+    const rows = scenes.map((scene, i) => [
+      { value: i + 1, readOnly: true },
       { value: scene.sceneNumber },
       { value: scene.pageCount, DataEditor: PageCountEditor },
       { value: scene.scriptDay },
@@ -246,11 +248,11 @@ export function BreakdownTab() {
       { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
     rows.push(COLUMNS.map((c, i) => {
-      if (i >= ACTIONS_COL) return { value: '', readOnly: true };
-      if (i === 1) return { value: '', DataEditor: PageCountEditor };
-      if (i === 3) return { value: '', DataEditor: IntExtEditor };
-      if (i === 4) return { value: '', DataEditor: SetEditor };
-      if (i === 5) return { value: '', DataEditor: DayNightEditor };
+      if (i === 0 || i >= ACTIONS_COL) return { value: '', readOnly: true };
+      if (i === 2) return { value: '', DataEditor: PageCountEditor };
+      if (i === 4) return { value: '', DataEditor: IntExtEditor };
+      if (i === 5) return { value: '', DataEditor: SetEditor };
+      if (i === 6) return { value: '', DataEditor: DayNightEditor };
       if (i === CAST_COL) return { value: '', DataEditor: CastEditor };
       return { value: '' };
     }));

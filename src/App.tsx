@@ -239,6 +239,7 @@ function AppContent() {
           rows={version?.rows || []}
           dayMeta={version?.dayMeta || {}}
           castMembers={project.castMembers || []}
+          sortOrder={breakdownSheetOptions.sortOrder}
         />
       </div>
     );
@@ -542,7 +543,7 @@ function AppContent() {
                 Location Breakdown
               </DropdownItem>
               <DropdownItem onClick={() => { setShowExportMenu(false); setShowBreakdownSheetDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Script Breakdown Sheet
+                Scene Breakdown
               </DropdownItem>
             </DropdownMenu>
           <StorageStatus
