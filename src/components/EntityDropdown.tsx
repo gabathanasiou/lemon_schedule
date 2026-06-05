@@ -167,9 +167,25 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const searchQuery = mode === 'multi' ? lastSegment : query;
   const filtered = items.filter(m => !searchQuery || doFilter(m, searchQuery));
   const doSort = sortItems ?? sortCastMembers;
-  const sorted = doSort(filtered, currentIds);
+  const sorted = (mode === 'multi' && searchQuery)
+    ? [...items].sort((a, b) => {
+        const aLower = a.name.toLowerCase();
+        const bLower = b.name.toLowerCase();
+        const q = searchQuery.toLowerCase();
+        const aMatch = aLower.includes(q) || a.id.toLowerCase().includes(q);
+        const bMatch = bLower.includes(q) || b.id.toLowerCase().includes(q);
+        if (aMatch !== bMatch) return aMatch ? -1 : 1;
+        const aSel = currentIds.includes(a.id);
+        const bSel = currentIds.includes(b.id);
+        if (aSel !== bSel) return aSel ? -1 : 1;
+        return a.id.localeCompare(b.id, undefined, { numeric: true });
+      })
+    : doSort(filtered, currentIds);
 
-  const hasExactMatch = lastSegment.length > 0 && items.some(m => m.name.toLowerCase() === lastSegment.toLowerCase());
+  const hasExactMatch = lastSegment.length > 0 && items.some(m =>
+    m.id.toLowerCase() === lastSegment.toLowerCase() ||
+    m.name.toLowerCase() === lastSegment.toLowerCase()
+  );
   const syntheticItem: EntityItem = { id: lastSegment, name: lastSegment };
   const dropdownItems = (lastSegment && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
 
