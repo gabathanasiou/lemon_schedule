@@ -125,6 +125,7 @@ type Action =
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
   | { type: 'AUTO_POPULATE_ELEMENTS'; payload: { category: string; elements: { id: string; name: string }[] } }
+  | { type: 'SAVE_ELEMENTS'; payload: { category: string; elements: { id: string; name: string }[]; sceneIds: string[] } }
 
 interface State {
   past: Project[];
@@ -562,6 +563,71 @@ function reducer(state: State, action: Action): State {
         });
       }
       return applyChange(result);
+    }
+
+    case 'SAVE_ELEMENTS': {
+      const { category, elements } = action.payload;
+      const isCast = category === 'cast';
+      const oldList = state.present.breakdownElements[category] || [];
+      const oldMap = new Map(oldList.map(e => [e.id, e]));
+      const newMap = new Map(elements.map(e => [e.id, e]));
+      const removed = oldList.filter(e => !newMap.has(e.id));
+      const sceneKey = category as keyof Scene;
+      let newScenes = state.present.scenes;
+
+      for (const el of removed) {
+        const matchValue = isCast ? el.id : el.name;
+        newScenes = newScenes.map(scene => {
+          const val = scene[sceneKey] as string;
+          if (!val) return scene;
+          const items = val.split(',').map(x => x.trim()).filter(x => x !== matchValue);
+          return { ...scene, [sceneKey]: items.join(', ') };
+        });
+      }
+
+      // For non-cast: update scenes when name changes
+      if (!isCast) {
+        for (const el of elements) {
+          const oldEl = oldMap.get(el.id);
+          if (oldEl && oldEl.name !== el.name) {
+            const oldName = oldEl.name || oldEl.id;
+            newScenes = newScenes.map(scene => {
+              const val = scene[sceneKey] as string;
+              if (!val) return scene;
+              const items = val.split(',').map(x => x.trim());
+              const idx = items.indexOf(oldName);
+              if (idx < 0) return scene;
+              items[idx] = el.name;
+              return { ...scene, [sceneKey]: items.join(', ') };
+            });
+          }
+        }
+      }
+
+      // For cast: update scenes when ID changes
+      if (isCast) {
+        for (const el of elements) {
+          const oldEl = oldMap.get(el.id);
+          if (oldEl && oldEl.id !== el.id) {
+            newScenes = newScenes.map(scene => {
+              const val = scene[sceneKey] as string;
+              if (!val) return scene;
+              const items = val.split(',').map(x => x.trim());
+              const idx = items.indexOf(oldEl.id);
+              if (idx < 0) return scene;
+              items[idx] = el.id;
+              return { ...scene, [sceneKey]: items.join(', ') };
+            });
+          }
+        }
+      }
+
+      return applyChange({
+        ...state.present,
+        scenes: newScenes,
+        breakdownElements: { ...state.present.breakdownElements, [category]: elements },
+        castMembers: isCast ? elements.map(e => ({ id: e.id, name: e.name })) : state.present.castMembers,
+      });
     }
 
     default:

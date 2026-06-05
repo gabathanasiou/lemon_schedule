@@ -56,8 +56,10 @@ export function ElementManager() {
     loadCategoryElements(project, category).map(e => ({ key: nextKey(), id: e.id, name: e.name }))
   );
   const snapshotRef = useRef<LocalRow[]>(rows);
+  const savingRef = useRef(false);
 
   useEffect(() => {
+    if (savingRef.current) return;
     const loaded = loadCategoryElements(project, category);
     const localRows = loaded.map(e => ({ key: nextKey(), id: e.id, name: e.name }));
     setRows(localRows);
@@ -171,6 +173,7 @@ export function ElementManager() {
   }, [rows.length]);
 
   const doSave = useCallback(() => {
+    savingRef.current = true;
     const snap = snapshotRef.current;
     const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const rowMap = new Map<string, LocalRow>(rows.map(r => [r.key, r]));
@@ -189,6 +192,7 @@ export function ElementManager() {
       }
     }
     snapshotRef.current = rows.map(r => ({ ...r }));
+    savingRef.current = false;
   }, [rows, category, dispatch]);
 
   const doRevert = useCallback(() => {
