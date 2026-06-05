@@ -55,7 +55,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
     return (
-      <div className={`text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 rounded truncate mb-0.5 ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div className={`text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 truncate mb-0.5 ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
@@ -67,7 +67,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     </Tooltip>
   ) : null;
   return (
-    <div style={{ background: c.bg, color: c.text }} className="text-[9px] truncate px-1.5 py-0.5 rounded mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5">
+    <div style={{ background: c.bg, color: c.text }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5">
       <span className="truncate">{scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}</span>
       {vFlag}
     </div>
@@ -155,7 +155,7 @@ const DayCell: React.FC<{
           )}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
