@@ -58,6 +58,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   }, [scene, currentEdits]);
 
   const doSave = useCallback(() => {
+    const added = new Set<string>();
     for (const [id, e] of Object.entries(edits)) {
       if (!e) continue;
       for (const cat of BREAKDOWN_CATS) {
@@ -66,7 +67,9 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
         const elements = breakdownElements[cat] || [];
         const existing = new Set(elements.flatMap((x: any) => [x.name.toLowerCase(), x.id.toLowerCase()]));
         for (const item of v.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-          if (!existing.has(item.toLowerCase())) {
+          const key = `${cat}:${item.toLowerCase()}`;
+          if (!existing.has(item.toLowerCase()) && !added.has(key)) {
+            added.add(key);
             const name = cat === 'cast' ? (castMembers.find(m => m.id === item)?.name || item) : item;
             dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name } } });
           }
@@ -85,8 +88,8 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
       const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
       const items: { id: string; name: string }[] = [];
       const addItem = (iid: string, iname: string) => {
-        const k = iid || iname;
-        if (items.some(i => (i.id || i.name) === k)) return;
+        const k = (iid || iname).toLowerCase();
+        if (items.some(i => (i.id || i.name).toLowerCase() === k)) return;
         if (cat === 'cast') {
           const nameIdx = items.findIndex(i => i.name.toLowerCase() === iname.toLowerCase());
           if (nameIdx >= 0) {

@@ -497,20 +497,18 @@ function reducer(state: State, action: Action): State {
     case 'ADD_ELEMENT': {
       const { category, element } = action.payload;
       const existing = state.present.breakdownElements[category] || [];
-      if (category === 'cast' && element.id) {
-        const cms = state.present.castMembers || [];
-        const cmIdx = cms.findIndex(c => c.id === element.id);
-        const updatedCMs = cmIdx >= 0
-          ? cms.map(c => c.id === element.id ? { ...c, ...element } : c)
-          : [...cms, element];
-        const existingIdx = existing.findIndex(e => e.id === element.id);
-        const updated = existingIdx >= 0
-          ? existing.map(e => e.id === element.id ? { ...e, ...element } : e)
+      const dedupKey = element.id || element.name.toLowerCase();
+      const existingIdx = existing.findIndex(e => (e.id || e.name.toLowerCase()) === dedupKey);
+      if (existingIdx >= 0 || (category === 'cast' && element.id && (state.present.castMembers || []).some(c => c.id === element.id))) {
+        let updated = existingIdx >= 0
+          ? existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element } : e))
           : [...existing, element];
         return applyChange({
           ...state.present,
           breakdownElements: { ...state.present.breakdownElements, [category]: updated },
-          castMembers: updatedCMs,
+          castMembers: category === 'cast'
+            ? (state.present.castMembers || []).map(c => c.id === element.id ? { ...c, ...element } : c)
+            : state.present.castMembers,
         });
       }
       return applyChange({

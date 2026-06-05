@@ -40,7 +40,7 @@ const COLUMNS = [
 const ACTIONS_COL = 0;
 const INT_EXT_COL = 3;
 const DAY_NIGHT_COL = 5;
-const CAST_COL = 7;
+const CAST_COL = 8;
 
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
@@ -189,7 +189,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     const setOptions = useMemo(() => {
       const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
       return [...sets].sort();
-    }, [scenes]);
+  }, [scenes, project.breakdownElements]);
     return (
       <AutocompleteDropdown
         value={cell?.value || ''}
