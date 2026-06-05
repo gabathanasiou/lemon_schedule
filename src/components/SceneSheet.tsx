@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataEditorComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
@@ -20,32 +19,7 @@ const BREAKDOWN_LABEL: Record<string, string> = {
   animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
 };
 
-const COLUMNS = [
-  { key: 'sceneNumber', label: 'Scene #' },
-  { key: 'pageCount', label: 'Pages' },
-  { key: 'scriptDay', label: 'Day' },
-  { key: 'intExt', label: 'I/E' },
-  { key: 'set', label: 'Set' },
-  { key: 'dayNight', label: 'D/N' },
-  { key: 'description', label: 'Synopsis' },
-  { key: 'cast', label: 'Cast' },
-  { key: 'notes', label: 'Notes' },
-  ...BREAKDOWN_CATS.filter(c => c !== 'cast').map(key => ({ key, label: BREAKDOWN_LABEL[key] })),
-];
-
 let persistedIndex = 0;
-
-const CELL_CSS = `
-.Spreadsheet { border-collapse: collapse; width: 100%; font-family: inherit; font-size: 11px; }
-.Spreadsheet__table { border-collapse: collapse; }
-.Spreadsheet__header-row { background: #f4f4f5; }
-.Spreadsheet__header-row th { border: 1px solid #d4d4d8; font-weight: 600; font-size: 9px; color: #52525b; padding: 3px 4px; text-transform: uppercase; letter-spacing: 0.05em; }
-.Spreadsheet__cell { border: 1px solid #d4d4d8; padding: 2px 4px; min-height: 22px; }
-.Spreadsheet__cell--selected { background: #e8f0fe; }
-.Spreadsheet__cell--active { box-shadow: inset 0 0 0 1.5px #18181b; }
-.Spreadsheet__cell input { appearance: none; width: 100%; height: 100%; border: 0; outline: none; padding: 0 2px; font-family: inherit; font-size: 11px; background: transparent; }
-.Spreadsheet__data-editor { appearance: none; width: 100%; height: 100%; border: 0; outline: none; padding: 1px 2px; font-family: inherit; font-size: 11px; }
-`;
 
 export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: number; onIndexChange?: (idx: number) => void }) {
   const { state, dispatch } = useProject();
@@ -58,11 +32,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   useEffect(() => { persistedIndex = index; }, [index]);
   const [sheetInput, setSheetInput] = useState(String(index + 1));
   const [edits, setEdits] = useState<Record<string, Partial<Scene>>>({});
-  const snapRef = useRef<{ id: string }[]>([]);
-
-  useEffect(() => {
-    snapRef.current = scenes.map(s => ({ id: s.id }));
-  }, [scenes]);
+  const inputsRef = useRef<Map<string, HTMLElement>>(new Map());
 
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
@@ -73,22 +43,28 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
     onIndexChange?.(idx);
   }, [scenes.length, onIndexChange]);
 
+  const update = useCallback((field: string, value: any) => {
+    if (!scene) return;
+    setEdits(prev => {
+      const existing = prev[scene.id] || {} as Partial<Scene>;
+      return { ...prev, [scene.id]: { ...existing, [field]: value } };
+    });
+  }, [scene]);
+
   const val = useCallback((field: string): any => {
     if (!scene) return '';
-    return field in currentEdits ? (currentEdits as any)[field] : (scene as any)[field] || '';
+    const cur = (currentEdits as any)[field];
+    return cur !== undefined ? cur : (scene as any)[field] || '';
   }, [scene, currentEdits]);
 
   const doSave = useCallback(() => {
     for (const [id, e] of Object.entries(edits)) {
       if (!e) continue;
       for (const cat of BREAKDOWN_CATS) {
-        const v = (e as any)[cat];
-        if (!v) continue;
+        const v = (e as any)[cat]; if (!v) continue;
         const existing = (breakdownElements[cat] || []).map((x: any) => x.name.toLowerCase());
         for (const item of v.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-          if (!existing.includes(item.toLowerCase())) {
-            dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name: item } } });
-          }
+          if (!existing.includes(item.toLowerCase())) dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name: item } } });
         }
       }
       dispatch({ type: 'UPDATE_SCENE', payload: { id, ...(e as Record<string, any>) } });
@@ -102,144 +78,137 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
       const stored: { id: string; name: string }[] = (breakdownElements[cat] || []);
       const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
       const items: { id: string; name: string }[] = [];
-      const addItem = (id: string, name: string) => {
-        const key = id || name;
-        if (!items.some(i => (i.id || i.name) === key)) items.push({ id, name });
-      };
+      const addItem = (id: string, name: string) => { const k = id || name; if (!items.some(i => (i.id || i.name) === k)) items.push({ id, name }); };
       for (const e of stored) addItem(e.id || e.name, e.name);
       for (const s of scenes) {
         const raw = cat === 'cast' ? s.cast : (s as any)[cat] || '';
         for (const v of raw.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-          const matched = nameMap.get(v.toLowerCase());
-          addItem(matched?.id || v, matched?.name || v);
+          const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v);
         }
       }
       if (scene) {
         const ev = (edits[scene.id] as Record<string, any>)?.[cat];
-        if (ev) for (const v of ev.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-          const matched = nameMap.get(v.toLowerCase());
-          addItem(matched?.id || v, matched?.name || v);
-        }
+        if (ev) for (const v of ev.split(',').map((x: string) => x.trim()).filter(Boolean)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v); }
       }
       result[cat] = items;
     }
     return result;
   }, [scenes, breakdownElements, edits, scene]);
 
-  const data: CellBase[][] = useMemo(() => {
-    if (!scene) return [];
-    return [COLUMNS.map(c => {
-      const raw = val(c.key);
-      if (c.key === 'intExt') {
-        return { value: raw, DataEditor: IntExtEditor };
-      }
-      if (c.key === 'dayNight') {
-        return { value: raw, DataEditor: DayNightEditor };
-      }
-      if (c.key === 'cast') {
-        return { value: raw, DataEditor: CastEditor };
-      }
-      if (c.key === 'description' || c.key === 'notes') {
-        return { value: raw, DataEditor: TextareaEditor };
-      }
-      if (BREAKDOWN_CATS.includes(c.key)) {
-        const items = breakdownItems[c.key] || [];
-        return { value: raw, DataEditor: makeCatEditor(items) };
-      }
-      return { value: raw };
-    })];
-  }, [scene, val, breakdownItems]);
+  const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
+  const focusNext = (key: string) => { /* tab order follows DOM by default */ };
 
-  const update = useCallback((field: string, value: any) => {
-    if (!scene) return;
-    setEdits(prev => {
-      const existing = prev[scene.id] || {} as Partial<Scene>;
-      return { ...prev, [scene.id]: { ...existing, [field]: value } };
-    });
-  }, [scene]);
+  const inputCls = "w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent";
 
-  const handleChange = useCallback((newData: CellBase[][]) => {
-    if (!scene || !newData[0]) return;
-    for (let col = 0; col < COLUMNS.length; col++) {
-      const c = COLUMNS[col];
-      const newVal = String(newData[0][col]?.value ?? '');
-      const oldVal = String(val(c.key));
-      if (newVal !== oldVal) {
-        if (c.key === 'set') update(c.key, newVal.toUpperCase());
-        else if (c.key === 'scriptDay') update(c.key, newVal.replace(/[^0-9]/g, ''));
-        else if (c.key === 'intExt') { const m = INT_EXT_OPTIONS.find(o => o.toLowerCase() === newVal.toLowerCase()); if (m) update(c.key, m); }
-        else if (c.key === 'dayNight') { const m = DAY_NIGHT_OPTIONS.find(o => o.toLowerCase() === newVal.toLowerCase()); if (m) update(c.key, m); }
-        else if (c.key === 'pageCount') { const d = parseInt(newVal.replace(/[^0-9]/g, ''), 10); update(c.key, isNaN(d) ? '' : String(d)); }
-        else update(c.key, newVal);
-      }
-    }
-  }, [scene, val, update]);
-
-  if (scenes.length === 0) {
-    return <div className="flex-1 flex items-center justify-center bg-zinc-50"><p className="text-sm text-zinc-500">No scenes defined yet.</p></div>;
-  }
+  if (scenes.length === 0) return <div className="flex-1 flex items-center justify-center bg-zinc-50"><p className="text-sm text-zinc-500">No scenes defined yet.</p></div>;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full px-4 py-3 gap-3">
+        {/* Nav bar */}
         <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
           <div className="flex items-center gap-2.5">
-            <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-              <ChevronLeft className="w-4 h-4 text-zinc-600" />
-            </button>
+            <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-600" /></button>
             <div className="flex items-center gap-1 text-sm">
               <span className="text-zinc-400">Sheet</span>
-              <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }}
-                className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+              <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
               <span className="text-zinc-400">of {scenes.length}</span>
             </div>
-            <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-              <ChevronRight className="w-4 h-4 text-zinc-600" />
-            </button>
+            <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-400">{Object.keys(edits).length} edited</span>
-            <button onClick={doSave} className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-sm">
-              <Save className="w-3 h-3" /> Save
-            </button>
+            <button onClick={doSave} className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-sm"><Save className="w-3 h-3" /> Save</button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto rounded-xl bg-white border border-zinc-200/80 shadow-sm">
-          <style>{CELL_CSS}</style>
-          <Spreadsheet data={data} onChange={handleChange} columnLabels={COLUMNS.map(c => c.label)} />
+        {/* Header table — matches print layout */}
+        <div className="bg-white border border-zinc-300">
+          <table className="w-full border-collapse text-xs">
+            <tbody>
+              <tr className="border-b border-zinc-300">
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 w-[85px]">Scene Sheet</td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><span className="text-sm font-semibold text-zinc-800">{index + 1}</span></td>
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 w-[85px]">Scene No.</td>
+                <td className="px-2.5 py-1.5"><input className={inputCls} value={val('sceneNumber')} onChange={e => update('sceneNumber', e.target.value)} onKeyDown={blurOnEnter} /></td>
+              </tr>
+              <tr className="border-b border-zinc-300">
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Int/Ext</td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><AutocompleteDropdown value={val('intExt')} onChange={v => update('intExt', v)} options={INT_EXT_OPTIONS} showAll /></td>
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Day/Night</td>
+                <td className="px-2.5 py-1.5"><AutocompleteDropdown value={val('dayNight')} onChange={v => update('dayNight', v)} options={DAY_NIGHT_OPTIONS} showAll /></td>
+              </tr>
+              <tr className="border-b border-zinc-300">
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><input className={inputCls} value={val('set')} onChange={e => update('set', e.target.value.toUpperCase())} onKeyDown={blurOnEnter} /></td>
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
+                <td className="px-2.5 py-1.5"><input className={inputCls} onKeyDown={blurOnEnter} /></td>
+              </tr>
+              <tr className="border-b border-zinc-300">
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Pages</td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><input className={inputCls} value={val('pageCount')} onChange={e => update('pageCount', e.target.value)} onKeyDown={blurOnEnter} /></td>
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Script Day</td>
+                <td className="px-2.5 py-1.5"><input className={inputCls} value={val('scriptDay')} onChange={e => update('scriptDay', e.target.value.replace(/[^0-9]/g, ''))} onKeyDown={blurOnEnter} /></td>
+              </tr>
+              <tr>
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 align-top">Synopsis</td>
+                <td colSpan={3} className="px-2.5 py-1.5">
+                  <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
+                    value={val('description')} onChange={e => update('description', e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Category grid — 3 columns, same editors as breakdown */}
+        <div className="flex-1 overflow-auto tab-scroll">
+          {(() => {
+            const chunkSize = 3;
+            const rows: string[][] = [];
+            for (let i = 0; i < BREAKDOWN_CATS.length; i += chunkSize) rows.push(BREAKDOWN_CATS.slice(i, i + chunkSize));
+            return (
+              <table className="w-full border-collapse text-xs border border-zinc-300">
+                <tbody>
+                  {rows.map((row, ri) => (
+                    <tr key={ri}>
+                      {row.map(cat => (
+                        <td key={cat} className="border border-zinc-300 align-top">
+                          <div className="bg-zinc-100 px-2 py-1 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase">{BREAKDOWN_LABEL[cat]}</div>
+                          <div className="p-1">
+                            {cat === 'cast' ? (
+                              <EntityDropdown value={val('cast')} onChange={v => update('cast', v)} items={[]} positioning="fixed" standalone mode="multi" placeholder="Cast" />
+                            ) : (
+                              <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" standalone mode="multi" placeholder={BREAKDOWN_LABEL[cat]} />
+                            )}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
+        </div>
+
+        {/* Notes */}
+        <div className="bg-white border border-zinc-300">
+          <table className="w-full border-collapse text-xs">
+            <tbody>
+              <tr>
+                <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 w-[85px] align-top">Notes</td>
+                <td className="px-2.5 py-1.5">
+                  <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
+                    value={val('notes')} onChange={e => update('notes', e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
-}
-
-/* --- Editors matching BreakdownTab patterns --- */
-
-const IntExtEditor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => (
-  <AutocompleteDropdown value={cell?.value || ''} onChange={v => { onChange({ value: v }); exitEditMode(); }} options={INT_EXT_OPTIONS} defaultOpen autoFocus showAll />
-);
-const DayNightEditor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => (
-  <AutocompleteDropdown value={cell?.value || ''} onChange={v => { onChange({ value: v }); exitEditMode(); }} options={DAY_NIGHT_OPTIONS} defaultOpen autoFocus showAll />
-);
-const TextareaEditor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
-  const [val, setVal] = useState(cell?.value || '');
-  return <textarea className="w-full border-0 p-0 text-[11px] focus:outline-none resize-none bg-transparent" rows={2} value={val}
-    onChange={e => setVal(e.target.value)}
-    onBlur={() => { onChange({ value: val }); exitEditMode(); }}
-    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onChange({ value: val }); exitEditMode(); } }}
-    autoFocus />;
-};
-const CastEditor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
-  const committedRef = useRef(false);
-  return <EntityDropdown value={cell?.value || ''} onChange={v => { if (committedRef.current) return; committedRef.current = true; onChange({ value: v }); exitEditMode(); }} positioning="relative" defaultOpen autoFocus />;
-};
-
-function makeCatEditor(items: { id: string; name: string }[]): DataEditorComponent<CellBase<string>> {
-  const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
-    const committedRef = useRef(false);
-    return <EntityDropdown value={cell?.value || ''} onChange={v => { if (committedRef.current) return; committedRef.current = true; onChange({ value: v }); exitEditMode(); }} items={items} positioning="relative" defaultOpen autoFocus mode="multi" />;
-  };
-  return Editor;
 }
