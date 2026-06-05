@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { ProjectElement } from '../types';
@@ -27,7 +27,15 @@ const ELEMENT_CATEGORIES = [
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
   const stored = (project.breakdownElements || {})[category];
-  if (stored && stored.length > 0) return [...stored];
+  if (stored && stored.length > 0) {
+    const seen = new Map<string, ProjectElement>();
+    for (const e of stored) {
+      const normalized = category === 'set' ? { ...e, name: e.name.toUpperCase(), id: e.id.toUpperCase() } : e;
+      const key = normalized.id || normalized.name.toLowerCase();
+      if (!seen.has(key)) seen.set(key, normalized);
+    }
+    return [...seen.values()];
+  }
   if (category === 'cast') {
     const sceneIds = getElementsFromScenes(project.scenes, 'cast');
     const merged = new Map<string, ProjectElement>();
@@ -35,7 +43,7 @@ function loadCategoryElements(project: any, category: string): ProjectElement[] 
     for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name });
     return [...merged.values()];
   }
-  return getElementsFromScenes(project.scenes, category).map(e => ({ id: '', name: e.name }));
+  return getElementsFromScenes(project.scenes, category).map(e => ({ id: e.name, name: e.name }));
 }
 
 interface LocalRow {
@@ -55,16 +63,14 @@ export function ElementManager() {
     loadCategoryElements(project, category).map(e => ({ key: elementKey(e), id: e.id, name: e.name }))
   );
   const snapshotRef = useRef<LocalRow[]>(rows);
-  const savingRef = useRef(false);
 
-  useEffect(() => {
-    if (savingRef.current) return;
-    const loaded = loadCategoryElements(project, category);
+  const switchCategory = useCallback((newCat: string) => {
+    setCategory(newCat);
+    const loaded = loadCategoryElements(project, newCat);
     const localRows = loaded.map(e => ({ key: elementKey(e), id: e.id, name: e.name }));
     setRows(localRows);
     snapshotRef.current = localRows;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, dispatch]);
+  }, [project]);
 
   const hasChanges = useMemo(() => {
     const snap = snapshotRef.current;
@@ -123,14 +129,22 @@ export function ElementManager() {
   const data: CellBase[][] = useMemo(() => {
     const result = rows.map(r => ({
       occ: occurrences.get(isCast ? r.id : r.name) || 0
-    })).map(({ occ }, i) => [
+    })).map(({ occ }, i) => isCast ? [
       { value: rows[i].id },
       { value: rows[i].name, DataEditor: NameEditor },
       { value: occ, readOnly: true },
       { value: '', readOnly: true, DataViewer: DeleteViewer },
+    ] : [
+      { value: rows[i].name, DataEditor: NameEditor },
+      { value: occ, readOnly: true },
+      { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
-    result.push([
+    result.push(isCast ? [
       { value: '' },
+      { value: '', DataEditor: NameEditor },
+      { value: '', readOnly: true },
+      { value: '', readOnly: true },
+    ] : [
       { value: '', DataEditor: NameEditor },
       { value: '', readOnly: true },
       { value: '', readOnly: true },
@@ -141,26 +155,29 @@ export function ElementManager() {
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantom = newData[rows.length];
     if (phantom) {
-      const idVal = String(phantom[0]?.value ?? '').trim();
-      const nameVal = String(phantom[1]?.value ?? '').trim().toUpperCase();
+      const idVal = isCast ? String(phantom[0]?.value ?? '').trim() : '';
+      const nameVal = String(isCast ? phantom[1]?.value ?? '' : phantom[0]?.value ?? '').trim().toUpperCase();
       if (idVal || nameVal) {
-        setRows(prev => [...prev, { key: String(Date.now()), id: idVal || String(prev.length + 1), name: nameVal || idVal }]);
+        setRows(prev => [...prev, { key: String(Date.now()), id: idVal || nameVal || String(prev.length + 1), name: nameVal || idVal }]);
         return;
       }
     }
     setRows(prev => {
       const updated = prev.map((r, i) => {
         if (i >= newData.length) return r;
-        const newId = String(newData[i]?.[0]?.value ?? '').trim();
-        const newName = String(newData[i]?.[1]?.value ?? '').trim().toUpperCase();
-        return { ...r, id: newId || r.id, name: newName || r.name };
+        if (isCast) {
+          const newId = String(newData[i]?.[0]?.value ?? '').trim();
+          const newName = String(newData[i]?.[1]?.value ?? '').trim().toUpperCase();
+          return { ...r, id: newId || r.id, name: newName || r.name };
+        }
+        const newName = String(newData[i]?.[0]?.value ?? '').trim().toUpperCase();
+        return { ...r, id: newName || r.id, name: newName || r.name };
       });
       return updated;
     });
-  }, [rows.length]);
+  }, [rows.length, isCast]);
 
   const doSave = useCallback(() => {
-    savingRef.current = true;
     const snap = snapshotRef.current;
     const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const rowMap = new Map<string, LocalRow>(rows.map(r => [r.key, r]));
@@ -168,7 +185,13 @@ export function ElementManager() {
     for (const row of rows) {
       const orig = snapMap.get(row.key);
       if (!orig) {
-        dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: row.id, name: row.name } } });
+        const match = snap.find(s => s.name.toLowerCase() === row.name.toLowerCase());
+        if (match) {
+          dispatch({ type: 'UPDATE_ELEMENT', payload: { category, id: match.id, updates: { id: row.id, name: row.name } } });
+          snapMap.delete(match.key);
+        } else {
+          dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: row.id, name: row.name } } });
+        }
       } else if (orig.id !== row.id || orig.name !== row.name) {
         dispatch({ type: 'UPDATE_ELEMENT', payload: { category, id: orig.id, updates: { id: row.id, name: row.name } } });
       }
@@ -179,7 +202,6 @@ export function ElementManager() {
       }
     }
     snapshotRef.current = rows.map(r => ({ ...r }));
-    savingRef.current = false;
   }, [rows, category, dispatch]);
 
   const doRevert = useCallback(() => {
@@ -193,7 +215,7 @@ export function ElementManager() {
         <div className="w-52">
           <EntityDropdown
             value={category}
-            onChange={val => setCategory(val)}
+            onChange={switchCategory}
             items={catItems}
             positioning="fixed"
             standalone
@@ -207,7 +229,7 @@ export function ElementManager() {
         <Spreadsheet
           data={data}
           onChange={handleChange}
-          columnLabels={['ID', 'Name', 'Occ', '']}
+          columnLabels={isCast ? ['ID', 'Name', 'Occ', ''] : ['Name', 'Occ', '']}
         />
       </div>
 

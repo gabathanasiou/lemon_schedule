@@ -170,11 +170,11 @@ export function BreakdownTab() {
     const setOptions = useMemo(() => {
       const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
       return [...sets].sort();
-  }, [scenes, project]);
+    }, [scenes]);
     return (
       <AutocompleteDropdown
         value={cell?.value || ''}
-        onChange={val => { onChange({ value: val }); exitEditMode(); }}
+        onChange={val => { onChange({ value: val.toUpperCase() }); exitEditMode(); }}
         options={setOptions}
         positioning="relative"
         defaultOpen
@@ -418,7 +418,7 @@ export function BreakdownTab() {
               for (const item of newItems) {
                 dispatch({ type: 'ADD_ELEMENT', payload: {
                   category: colDef.key,
-                  element: isCast ? { id: item, name: '' } : { id: '', name: item }
+                  element: isCast ? { id: item, name: '' } : { id: item, name: item }
                 } });
               }
             }

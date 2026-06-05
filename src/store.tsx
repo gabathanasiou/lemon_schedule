@@ -499,15 +499,22 @@ function reducer(state: State, action: Action): State {
           return { ...scene, [sceneKey]: items.join(', ') };
         });
       } else if (!isCast && updates.name && updates.name !== old.name) {
-        newScenes = state.present.scenes.map(scene => {
-          const val = scene[sceneKey] as string;
-          if (!val) return scene;
-          const items = val.split(',').map(x => x.trim());
-          const idx = items.indexOf(old.name);
-          if (idx < 0) return scene;
-          items[idx] = updates.name!;
-          return { ...scene, [sceneKey]: items.join(', ') };
-        });
+        if (category === 'set') {
+          newScenes = state.present.scenes.map(scene => {
+            if (scene.set !== old.name) return scene;
+            return { ...scene, set: updates.name! };
+          });
+        } else {
+          newScenes = state.present.scenes.map(scene => {
+            const val = scene[sceneKey] as string;
+            if (!val) return scene;
+            const items = val.split(',').map(x => x.trim());
+            const idx = items.indexOf(old.name);
+            if (idx < 0) return scene;
+            items[idx] = updates.name!;
+            return { ...scene, [sceneKey]: items.join(', ') };
+          });
+        }
       }
 
       return applyChange({
@@ -551,15 +558,20 @@ function reducer(state: State, action: Action): State {
 }
 
 export function getElementsFromScenes(scenes: Scene[], category: string): { id: string; name: string }[] {
-  const set = new Set<string>();
   if (category === 'set') {
-    for (const s of scenes) if (s.set.trim()) set.add(s.set.trim());
-  } else {
+    const map = new Map<string, string>();
     for (const s of scenes) {
-      const val = (s as any)[category] as string;
+      const val = s.set.trim().toUpperCase();
       if (!val) continue;
-      for (const id of val.split(',').map(x => x.trim()).filter(Boolean)) set.add(id);
+      if (!map.has(val)) map.set(val, val);
     }
+    return [...map.values()].sort().map(v => ({ id: v, name: v }));
+  }
+  const set = new Set<string>();
+  for (const s of scenes) {
+    const val = (s as any)[category] as string;
+    if (!val) continue;
+    for (const id of val.split(',').map(x => x.trim()).filter(Boolean)) set.add(id);
   }
   return [...set].sort().map(id => ({ id, name: id }));
 }
