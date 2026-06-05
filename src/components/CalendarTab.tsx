@@ -112,9 +112,11 @@ const DayCell: React.FC<{
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
 }> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+  const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, shootDay },
+    disabled: isNonWorkStatus,
   });
 
   const { attributes, listeners, setNodeRef: setHandleRef, isDragging } = useDraggable({
@@ -135,10 +137,9 @@ const DayCell: React.FC<{
       <div className="flex items-center justify-between mb-0.5">
         <div className="flex items-center gap-0.5">
           <div
-            onClick={(e) => { e.stopPropagation(); onToggle(dateKey); }}
             onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
-            title={shootDay != null ? 'Click to toggle working day · Double-click to set status' : 'Click to add working day · Double-click to set status'}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer select-none ${isToday ? 'bg-blue-500 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
+            title={shootDay != null ? 'Double-click to set status' : ''}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded select-none ${isToday ? 'bg-blue-500 text-white' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
           >
             <span className="text-xs font-bold leading-none">{date.getDate()}</span>
             {statusBadge && (
