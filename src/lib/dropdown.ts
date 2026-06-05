@@ -38,12 +38,14 @@ export function useOpenHandler(setOpen: (v: boolean) => void) {
 
 export function sortCastMembers(list: CastMember[], currentIds: string[]) {
   return [...list].sort((a, b) => {
-    const aSel = currentIds.includes(a.id);
-    const bSel = currentIds.includes(b.id);
+    const aMatch = a.id || a.name;
+    const bMatch = b.id || b.name;
+    const aSel = currentIds.includes(aMatch);
+    const bSel = currentIds.includes(bMatch);
     if (aSel !== bSel) return aSel ? -1 : 1;
-    const na = parseInt(a.id, 10);
-    const nb = parseInt(b.id, 10);
+    const na = parseInt(aMatch, 10);
+    const nb = parseInt(bMatch, 10);
     if (!isNaN(na) && !isNaN(nb)) return na - nb;
-    return a.id.localeCompare(b.id, undefined, { numeric: true });
+    return aMatch.localeCompare(bMatch, undefined, { numeric: true });
   });
 }

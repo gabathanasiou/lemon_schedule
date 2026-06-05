@@ -2,8 +2,9 @@ import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useProject } from '../store';
 import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
-import { Trash2, Plus } from 'lucide-react';
-import { EntityDropdown } from './EntityDropdown';
+import { Trash2, Plus, ChevronDown } from 'lucide-react';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 
 const ELEMENT_CATEGORIES = [
   { key: 'cast', label: 'Cast' },
@@ -73,38 +74,62 @@ export function ElementManager() {
 
   const [category, setCategory] = useState('cast');
   const isCast = category === 'cast';
-  const [rows, setRows] = useState<LocalRow[]>(() => {
-    const elems = loadCategoryElements(project, category);
-    const counts = countOccurrences(project.scenes, category, category === 'cast');
+
+  const rowsByCat = useRef<Record<string, LocalRow[]>>({});
+  const snapByCat = useRef<Record<string, LocalRow[]>>({});
+
+  function loadRows(cat: string): LocalRow[] {
+    const elems = loadCategoryElements(project, cat);
+    const counts = countOccurrences(project.scenes, cat, cat === 'cast');
     return elems.map(e => ({
       key: elementKey(e), id: e.id, name: e.name,
-      occ: counts.get((category === 'cast' ? e.id : e.name).toLowerCase()) || 0,
+      occ: counts.get((cat === 'cast' ? e.id : e.name).toLowerCase()) || 0,
     }));
+  }
+
+  const [rows, setRows] = useState<LocalRow[]>(() => {
+    const r = loadRows('cast');
+    snapByCat.current['cast'] = [...r];
+    return r;
   });
-  const snapshotRef = useRef<LocalRow[]>(rows);
+  const [saveVersion, setSaveVersion] = useState(0);
+
+  const saveCurrentCategory = useCallback(() => {
+    rowsByCat.current[category] = rows;
+  }, [category, rows]);
 
   const switchCategory = useCallback((newCat: string) => {
+    if (newCat === category) return;
+    rowsByCat.current[category] = rows;
+    if (rowsByCat.current[newCat]) {
+      setRows(rowsByCat.current[newCat]);
+    } else {
+      const r = loadRows(newCat);
+      snapByCat.current[newCat] = [...r];
+      rowsByCat.current[newCat] = r;
+      setRows(r);
+    }
     setCategory(newCat);
-    const loaded = loadCategoryElements(project, newCat);
-    const counts = countOccurrences(project.scenes, newCat, newCat === 'cast');
-    const localRows = loaded.map(e => ({
-      key: elementKey(e), id: e.id, name: e.name,
-      occ: counts.get((newCat === 'cast' ? e.id : e.name).toLowerCase()) || 0,
-    }));
-    setRows(localRows);
-    snapshotRef.current = localRows;
-  }, [project]);
+  }, [category, rows, project]);
 
   const hasChanges = useMemo(() => {
-    const snap = snapshotRef.current;
-    if (rows.length !== snap.length) return true;
-    for (let i = 0; i < rows.length; i++) {
-      if (rows[i].id !== snap[i].id || rows[i].name !== snap[i].name) return true;
+    rowsByCat.current[category] = rows;
+    const allCats = new Set([...Object.keys(rowsByCat.current), ...Object.keys(snapByCat.current)]);
+    for (const cat of allCats) {
+      const r = rowsByCat.current[cat] || [];
+      const s = snapByCat.current[cat] || [];
+      if (r.length !== s.length) return true;
+      for (let i = 0; i < r.length; i++) {
+        if (r[i].id !== s[i].id || r[i].name !== s[i].name) return true;
+      }
     }
     return false;
-  }, [rows]);
+  }, [rows, category, saveVersion]);
 
-  const catItems = useMemo(() => ELEMENT_CATEGORIES.map(c => ({ id: c.key, name: c.label })), []);
+  const [catOpen, setCatOpen] = useState(false);
+  const currentCat = ELEMENT_CATEGORIES.find(c => c.key === category);
+  const [dupDialog, setDupDialog] = useState<{ cats: string[] } | null>(null);
+  const autoMergeRef = useRef(false);
 
   const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
     setRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
@@ -115,58 +140,120 @@ export function ElementManager() {
   }, []);
 
   const addNew = useCallback(() => {
-    setRows(prev => {
-      const maxNum = prev.reduce((max, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
-      return [...prev, { key: String(Date.now()), id: isCast ? String(maxNum + 1) : '', name: '', occ: 0 }];
-    });
-  }, [isCast]);
+    setRows(prev => [...prev, { key: String(Date.now()), id: '', name: '', occ: 0 }]);
+  }, []);
+
+  function findDuplicates(cat: string): boolean {
+    const rows = rowsByCat.current[cat] || [];
+    if (cat === 'cast') return false;
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const key = r.name.toLowerCase();
+      if (seen.has(key)) return true;
+      seen.add(key);
+    }
+    return false;
+  }
+
+  function mergeCategory(cat: string) {
+    const rows = rowsByCat.current[cat] || [];
+    const seen = new Map<string, LocalRow>();
+    for (const r of rows) {
+      const key = r.name.toLowerCase();
+      if (!seen.has(key)) seen.set(key, r);
+    }
+    rowsByCat.current[cat] = [...seen.values()];
+  }
 
   const doSave = useCallback(() => {
-    const snap = snapshotRef.current;
-    const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
-    const rowMap = new Map<string, LocalRow>(rows.map(r => [r.key, r]));
+    rowsByCat.current[category] = rows;
 
-    for (const row of rows) {
-      const orig = snapMap.get(row.key);
-      if (!orig) {
-        const match = snap.find(s => s.name.toLowerCase() === row.name.toLowerCase());
-        if (match) {
-          dispatch({ type: 'UPDATE_ELEMENT', payload: { category, id: match.id, updates: { id: row.id, name: row.name } } });
-          snapMap.delete(match.key);
-        } else {
-          dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: row.id, name: row.name } } });
-        }
-      } else if (orig.id !== row.id || orig.name !== row.name) {
-        dispatch({ type: 'UPDATE_ELEMENT', payload: { category, id: orig.id, updates: { id: row.id, name: row.name } } });
+    if (!autoMergeRef.current) {
+      const dupCats = Object.keys(rowsByCat.current).filter(cat => findDuplicates(cat));
+      if (dupCats.length > 0) {
+        setDupDialog({ cats: dupCats });
+        return;
       }
     }
-    for (const orig of snap) {
-      if (!rowMap.has(orig.key)) {
-        dispatch({ type: 'DELETE_ELEMENT', payload: { category, id: orig.id } });
-      }
-    }
-    snapshotRef.current = rows.map(r => ({ ...r }));
+
+    performSave();
   }, [rows, category, dispatch]);
 
+  function performSave() {
+    for (const cat of Object.keys(rowsByCat.current)) {
+      if (autoMergeRef.current && cat !== 'cast') mergeCategory(cat);
+      const snap = snapByCat.current[cat] || [];
+      const current = rowsByCat.current[cat] || [];
+      const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
+      const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
+
+      for (const row of current) {
+        const orig = snapMap.get(row.key);
+        if (!orig) {
+          const match = snap.find(s => s.name.toLowerCase() === row.name.toLowerCase());
+          if (match) {
+            dispatch({ type: 'UPDATE_ELEMENT', payload: { category: cat, id: match.id, updates: { id: row.id, name: row.name } } });
+            snapMap.delete(match.key);
+          } else {
+            dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: row.id, name: row.name } } });
+          }
+        } else if (orig.id !== row.id || orig.name !== row.name) {
+          dispatch({ type: 'UPDATE_ELEMENT', payload: { category: cat, id: orig.id, updates: { id: row.id, name: row.name } } });
+        }
+      }
+      for (const orig of snap) {
+        if (!rowMap.has(orig.key)) {
+          const isMerged = !(cat === 'cast') && current.some(r => r.name.toLowerCase() === orig.name.toLowerCase());
+          if (!isMerged) {
+            dispatch({ type: 'DELETE_ELEMENT', payload: { category: cat, id: orig.id } });
+          }
+        }
+      }
+    }
+    snapByCat.current = {};
+    for (const cat of Object.keys(rowsByCat.current)) {
+      snapByCat.current[cat] = (rowsByCat.current[cat] || []).map(r => ({ ...r }));
+      if (autoMergeRef.current && cat !== 'cast') rowsByCat.current[cat] = snapByCat.current[cat];
+    }
+    if (dupDialog) setDupDialog(null);
+    setSaveVersion(v => v + 1);
+  }
+
   const doRevert = useCallback(() => {
-    setRows(snapshotRef.current.map(r => ({ ...r })));
-  }, []);
+    for (const cat of Object.keys(snapByCat.current)) {
+      rowsByCat.current[cat] = snapByCat.current[cat].map(r => ({ ...r }));
+    }
+    setRows(rowsByCat.current[category] || []);
+    setSaveVersion(v => v + 1);
+  }, [category]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 bg-white">
         <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Category:</span>
-        <div className="w-52">
-          <EntityDropdown
-            value={category}
-            onChange={switchCategory}
-            items={catItems}
-            positioning="fixed"
-            standalone
-            mode="single"
-            placeholder="Select category..."
-          />
-        </div>
+        <DropdownMenu
+          open={catOpen}
+          onClose={() => setCatOpen(false)}
+          align="left"
+          width="w-56"
+          trigger={
+            <button
+              onClick={() => setCatOpen(p => !p)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-md text-sm font-medium text-zinc-800 transition-colors"
+            >
+              {currentCat?.label || category}
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+            </button>
+          }
+        >
+          {ELEMENT_CATEGORIES.map(c => (
+            <DropdownItem key={c.key}
+              onClick={() => { switchCategory(c.key); setCatOpen(false); }}
+            >
+              {c.label}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -235,6 +322,18 @@ export function ElementManager() {
           <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
             Clear Zero
           </button>
+          {!isCast && (
+            <button onClick={() => setRows(prev => {
+              const seen = new Map<string, LocalRow>();
+              for (const r of prev) {
+                const key = r.name.toLowerCase();
+                if (!seen.has(key)) seen.set(key, r);
+              }
+              return [...seen.values()];
+            })} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+              Merge Duplicates
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
@@ -247,6 +346,30 @@ export function ElementManager() {
           </button>
         </div>
       </div>
+
+      {dupDialog && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-[420px] p-6 space-y-4">
+            <h3 className="text-base font-bold text-zinc-900">Duplicate Elements Found</h3>
+            <p className="text-sm text-zinc-600">
+              The following categories have elements with the same name:{' '}
+              {dupDialog.cats.map(c => ELEMENT_CATEGORIES.find(ec => ec.key === c)?.label || c).join(', ')}.
+              Merge duplicates into single entries?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button onClick={() => { setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">
+                Save as-is
+              </button>
+              <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                Merge & Save
+              </button>
+              <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                Always Merge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

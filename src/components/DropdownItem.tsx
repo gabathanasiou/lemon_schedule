@@ -7,6 +7,7 @@ interface DropdownItemProps {
   variant?: 'default' | 'danger';
   className?: string;
   children: React.ReactNode;
+  key?: string;
 }
 
 export default function DropdownItem({

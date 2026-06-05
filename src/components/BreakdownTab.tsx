@@ -219,13 +219,15 @@ export function BreakdownTab() {
         const lc = v.toLowerCase();
         const matched = nameMap.get(lc);
         if (matched) {
-          if (!seen.has(matched.id)) { items.push({ id: matched.id, name: matched.name }); seen.add(matched.id); }
+          const key = matched.id || matched.name;
+          if (!seen.has(key)) { items.push({ id: matched.id, name: matched.name }); seen.add(key); }
         } else {
           if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
         }
       }
       for (const e of storedElements) {
-        if (!seen.has(e.id)) { items.push({ id: e.id, name: e.name }); seen.add(e.id); }
+        const key = e.id || e.name;
+        if (!seen.has(key)) { items.push({ id: e.id, name: e.name }); seen.add(key); }
       }
       const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
         const committedRef = useRef(false);

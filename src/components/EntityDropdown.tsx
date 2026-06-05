@@ -241,7 +241,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           if (e.key === 'Enter') {
             e.preventDefault();
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
-              toggle(dropdownItems[highlightedIndex].id);
+              const item = dropdownItems[highlightedIndex];
+              toggle(item.id || item.name);
               setHighlightedIndex(-1);
             } else {
               commit();
@@ -255,7 +256,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
-            const checked = currentIds.includes(m.id);
+            const checked = currentIds.includes(m.id || m.name);
             const highlighted = highlightedIndex === idx;
             const isSynthetic = lastSegment && !hasExactMatch && idx === 0;
             return (
@@ -263,8 +264,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 key={isSynthetic ? '__new__' : m.id}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => toggle(m.id)}
-                onMouseEnter={() => setHighlightedIndex(idx)}
+                onClick={() => { toggle(m.id || m.name); setHighlightedIndex(-1); }}
                 className={`${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`}
               >
                 {isSynthetic ? (
