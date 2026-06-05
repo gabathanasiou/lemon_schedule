@@ -8,7 +8,7 @@ import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { Flag } from 'lucide-react';
 import { useAddMode } from '../lib/useMarquee';
-import { CastDropdown } from './CastDropdown';
+import { EntityDropdown } from './EntityDropdown';
 import { SelectDropdown } from './SelectDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 
@@ -258,7 +258,7 @@ export const SortableRow: React.FC<{
                     {scene.description && <span className="opacity-60 truncate block">{scene.description}</span>}
                   </td>
                   <td className="col-cast">
-                    <CastDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly />
+                    <EntityDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly />
                   </td>
                 </tr>
               </tbody>
@@ -326,7 +326,7 @@ export const SortableRow: React.FC<{
                   />
                 </td>
                 <td className="col-cast">
-                  <CastDropdown
+                  <EntityDropdown
                     value={scene.cast}
                     onChange={val => updateScene({cast: val})}
                     className="text-right w-full"

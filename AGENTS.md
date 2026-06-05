@@ -64,18 +64,20 @@ import DropdownDivider from './components/DropdownDivider';
 #### `CellInput`
 Inline-editable text input/textarea. Used in schedule view for editing scene/break/note text. Handles auto-focus, Enter to confirm, Escape to cancel.
 
-#### `CastDropdown` (`src/components/CastDropdown.tsx`)
-Multi/single-select dropdown for entities with `{ id, name }`. Used for cast, reusable for props, items, or any entity type.
+#### `EntityDropdown` (`src/components/EntityDropdown.tsx`)
+Multi/single-select dropdown for entities with `{ id, name }`. Used for cast, props, items, shoot days — any entity type.
 
 **Multi mode** (default): Input IS the comma-separated value. Type IDs directly ("1, 2, JOHN") — matching items highlight as checked in the full list. Click to toggle, Enter/Tab/blur to commit.
 
 **Single mode**: Search-then-select. Type to filter, click one item → immediately commits.
 
 ```tsx
-import { CastDropdown, EntityItem } from './components/CastDropdown';
+import { EntityDropdown, EntityItem } from './components/EntityDropdown';
+```
 
+```tsx
 // Simple — defaults to store castMembers
-<CastDropdown
+<EntityDropdown
   value="1, 2, 3"
   onChange={val => updateScene({cast: val})}
   className="text-right w-full"
@@ -83,7 +85,7 @@ import { CastDropdown, EntityItem } from './components/CastDropdown';
 />
 
 // Cell editor (always open + auto-focused)
-<CastDropdown
+<EntityDropdown
   value="1, 2, 3"
   onChange={handleChange}
   positioning="relative"
@@ -92,7 +94,7 @@ import { CastDropdown, EntityItem } from './components/CastDropdown';
 />
 
 // Standalone (bordered input, fixed positioning) — for forms
-<CastDropdown
+<EntityDropdown
   value={castIds.join(', ')}
   onChange={val => setCastIds(val.split(',').map(x => x.trim()).filter(Boolean))}
   items={entities}         // custom entity list (override store)
@@ -109,60 +111,11 @@ import { CastDropdown, EntityItem } from './components/CastDropdown';
 />
 ```
 
-#### `SelectDropdown` (`src/components/SelectDropdown.tsx`)
-Single-select dropdown for picking from a fixed list of options (e.g. INT/EXT, DAY/NIGHT).
-```tsx
-import { SelectDropdown } from './components/SelectDropdown';
-
-<SelectDropdown
-  value={scene.intExt}
-  onChange={val => updateScene({intExt: val})}
-  options={['INT', 'EXT', 'INT/EXT']}
-  className="text-left w-full"
-  readOnly={!textEditingEnabled}
-  positioning="relative"     // "relative" | "fixed"
-  standalone                 // bordered input for forms
-/>
-```
-
-#### `AutocompleteDropdown` (`src/components/AutocompleteDropdown.tsx`)
-Single-select autocomplete with search/filter from a dynamic list (e.g. Set names). Use `showAll` for short predetermined lists (INT/EXT, DAY/NIGHT) — shows full list with matching option auto-highlighted for quick Enter selection.
-```tsx
-import { AutocompleteDropdown } from './components/AutocompleteDropdown';
-
-// Large dynamic list — filters as you type
-<AutocompleteDropdown
-  value={scene.set}
-  onChange={val => updateScene({set: val})}
-  options={setOptions}
-  className="text-left w-full"
-  readOnly={!textEditingEnabled}
-  positioning="relative"
-  standalone
-  normalize={v => v.toUpperCase()}
-/>
-
-// Short predetermined list — show all options, highlight match
-<AutocompleteDropdown
-  value={scene.intExt}
-  onChange={val => updateScene({intExt: val})}
-  options={['INT', 'EXT', 'INT/EXT']}
-  positioning="relative"
-  defaultOpen
-  autoFocus
-  showAll
-/>
-```
-
 #### Creating a new entity dropdown (Props, Items, etc.)
-The `CastDropdown` component accepts an `items` prop — pass any `{ id: string, name: string }[]` to create a dropdown for a new entity type without writing a new component. For custom display/search/sort, use `renderItem`, `filterItem`, `sortItems`, and `searchFields` props. For a fully custom dropdown, copy the pattern from `CastDropdown.tsx` — it uses shared hooks from `src/lib/dropdown.ts` (`useDropdown`, `useOpenHandler`, `sortCastMembers`).
+The `EntityDropdown` component accepts an `items` prop — pass any `{ id: string, name: string }[]` to create a dropdown for a new entity type without writing a new component. For custom display/search/sort, use `renderItem`, `filterItem`, `sortItems`, and `searchFields` props. For a fully custom dropdown, copy the pattern from `EntityDropdown.tsx` — it uses shared hooks from `src/lib/dropdown.ts` (`useDropdown`, `useOpenHandler`, `sortCastMembers`).
 
-### Shared Dropdown Hooks (`src/lib/dropdown.ts`)
-- `useDropdown(open, ref, onClose?)` — click-outside + global single-open management
-- `useOpenHandler(setOpen)` — closes any other open dropdown, then opens current
-- `sortCastMembers(list, selectedIds)` — selected-first, then numeric id sort
-- `DD_ITEM`, `DD_CONTAINER` — CSS classes for dropdown items/panel
-- `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)` — exported from CastDropdown.tsx for reuse
+### Key Patterns
+- `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)` — exported from EntityDropdown.tsx for reuse
 
 ### Key Patterns
 - **Click-to-toggle** (NOT hover): All menus use React state + backdrop div for closing.

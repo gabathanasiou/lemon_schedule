@@ -22,7 +22,7 @@ export interface EntityItem {
   name: string;
 }
 
-interface CastDropdownProps {
+interface EntityDropdownProps {
   value: string;
   onChange: (val: string) => void;
   className?: string;
@@ -51,7 +51,7 @@ interface CastDropdownProps {
   autoFocus?: boolean;
 }
 
-export const CastDropdown: React.FC<CastDropdownProps> = ({
+export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   value,
   onChange,
   className,
@@ -86,6 +86,9 @@ export const CastDropdown: React.FC<CastDropdownProps> = ({
   // --- Multi mode: val = full comma-separated text (like CastEditor) ---
   // --- Single mode: query + localIds (search-then-select pattern) ---
   const [val, setVal] = useState(value);
+  useEffect(() => {
+    if (mode === 'multi') setVal(value);
+  }, [value, mode]);
   const [query, setQuery] = useState('');
   const [localIds, setLocalIds] = useState<string[]>(() =>
     (value || '').split(',').map(x => x.trim()).filter(Boolean)

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProject } from '../store';
-import { X, CheckSquare, Square } from 'lucide-react';
+import { X } from 'lucide-react';
+import { EntityDropdown } from './EntityDropdown';
 
 function formatDayDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -38,6 +39,12 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     .sort((a, b) => (a.date).localeCompare(b.date))
     .map((d, i) => ({ ...d, chrono: i + 1 }));
 
+  const chronoToDayInt = useMemo(() => {
+    const m: Record<number, number> = {};
+    dayEntries.forEach(d => { m[d.chrono] = d.dayInt; });
+    return m;
+  }, [dayEntries]);
+
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
 
   const toggleAll = () => {
@@ -48,12 +55,22 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     }
   };
 
-  const toggleDay = (dayInt: number) => {
-    setSelectedDays(prev => {
-      const next = new Set(prev);
-      if (next.has(dayInt)) next.delete(dayInt); else next.add(dayInt);
-      return next;
-    });
+  const dayItems = useMemo(() => dayEntries.map(d => ({
+    id: String(d.chrono),
+    name: `Day ${d.chrono} — ${d.date ? formatDayDateLong(d.date) : 'no date set'}`,
+  })), [dayEntries]);
+
+  const dayValue = useMemo(() =>
+    [...selectedDays]
+      .map(d => dayEntries.find(e => e.dayInt === d)?.chrono)
+      .filter((c): c is number => c != null)
+      .sort((a, b) => a - b)
+      .join(', ')
+  , [selectedDays, dayEntries]);
+
+  const handleDayChange = (val: string) => {
+    const chronos = val.split(',').map(x => Number(x.trim())).filter(n => !isNaN(n) && chronoToDayInt[n]);
+    setSelectedDays(new Set(chronos.map(c => chronoToDayInt[c])));
   };
 
   return (
@@ -103,34 +120,29 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
           <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">Days to Print</h3>
-              <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
-                {selectedDays.size === dayEntries.length ? (
-                  <><Square className="w-3.5 h-3.5" /> Deselect all</>
-                ) : (
-                  <><CheckSquare className="w-3.5 h-3.5" /> Select all</>
-                )}
+              <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                {selectedDays.size === dayEntries.length ? 'Deselect all' : 'Select all'}
               </button>
             </div>
-            <div className="max-h-[300px] overflow-y-auto space-y-0.5">
-              {dayEntries.map(({ dayInt, date, chrono }) => (
-                <label
-                  key={dayInt}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-colors ${selectedDays.has(dayInt) ? 'bg-white border border-zinc-200' : 'hover:bg-zinc-100'}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDays.has(dayInt)}
-                    onChange={() => toggleDay(dayInt)}
-                    className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-zinc-800 font-medium">Day {chrono}</span>
-                  {date && <span className="text-xs text-zinc-500 truncate">{formatDayDateLong(date)}</span>}
-                </label>
-              ))}
-              {dayEntries.length === 0 && (
-                <p className="text-xs text-zinc-500 py-4 text-center">No days with dates configured yet.</p>
+            <EntityDropdown
+              value={dayValue}
+              onChange={handleDayChange}
+              items={dayItems}
+              positioning="fixed"
+              standalone
+              mode="multi"
+              placeholder="e.g. 1, 2, 3"
+              renderItem={(item, checked) => (
+                <>
+                  <span className="text-zinc-400 shrink-0">#{item.id}</span>
+                  <span className="truncate flex-1">{item.name}</span>
+                  {checked && <span className="text-blue-600 text-[10px] font-medium">Selected</span>}
+                </>
               )}
-            </div>
+            />
+            {dayEntries.length === 0 && (
+              <p className="text-xs text-zinc-500 py-4 text-center">No days with dates configured yet.</p>
+            )}
           </div>
         </div>
 

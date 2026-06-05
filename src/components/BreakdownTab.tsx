@@ -7,7 +7,7 @@ import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown } from 'lucide-
 import Papa from 'papaparse';
 import { CastTab } from './CastTab';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import { CastDropdown } from './CastDropdown';
+import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 
 const COLUMNS = [
@@ -111,7 +111,7 @@ export function BreakdownTab() {
       exitEditMode();
     };
     return (
-      <CastDropdown
+      <EntityDropdown
         value={cell?.value || ''}
         onChange={handleChange}
         positioning="relative"

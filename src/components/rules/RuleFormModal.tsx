@@ -6,7 +6,7 @@ import {
 } from './ruleMeta';
 import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFields, CastSceneFlagFields } from './RuleFormFields';
 import { X, AlertCircle, Info } from 'lucide-react';
-import { CastDropdown } from '../CastDropdown';
+import { EntityDropdown } from '../EntityDropdown';
 
 interface RuleFormModalProps {
   open: boolean;
@@ -190,7 +190,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
             <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
               Cast IDs
             </label>
-            <CastDropdown
+            <EntityDropdown
               value={form.castIds.join(', ')}
               onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
               items={castOptions.map(id => {

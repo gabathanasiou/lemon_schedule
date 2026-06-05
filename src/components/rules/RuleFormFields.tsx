@@ -1,7 +1,7 @@
 import React from 'react';
 import { RuleFormState } from './ruleMeta';
 import { cn } from '../../lib/utils';
-import { CastDropdown } from '../CastDropdown';
+import { EntityDropdown } from '../EntityDropdown';
 import { DatePicker } from '../DatePicker';
 
 export const MaxHoursFields: React.FC<{
@@ -197,7 +197,7 @@ export const CastConflictFields: React.FC<{
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
         Group A
       </label>
-      <CastDropdown
+      <EntityDropdown
         value={form.castIds.join(', ')}
         onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
         items={castMembers}
@@ -215,7 +215,7 @@ export const CastConflictFields: React.FC<{
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
         Group B
       </label>
-      <CastDropdown
+      <EntityDropdown
         value={form.conflictCastIds.join(', ')}
         onChange={val => setForm(f => ({ ...f, conflictCastIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
         items={castMembers}
@@ -236,7 +236,7 @@ export const CastSceneFlagFields: React.FC<{
     <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
       Flag scenes containing these cast members
     </label>
-    <CastDropdown
+    <EntityDropdown
       value={form.castIds.join(', ')}
       onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
       items={castMembers}
