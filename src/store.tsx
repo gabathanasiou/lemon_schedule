@@ -133,7 +133,12 @@ interface State {
 
 function reducer(state: State, action: Action): State {
   if (action.type === 'LOAD') {
-    return { past: [], present: action.payload, future: [] };
+    const p = action.payload;
+    return {
+      past: [],
+      present: { ...p, breakdownElements: p.breakdownElements || {} },
+      future: [],
+    };
   }
 
   if (action.type === 'UNDO') {
@@ -460,9 +465,19 @@ function reducer(state: State, action: Action): State {
 
     case 'UPDATE_ELEMENT': {
       const { category, id, updates } = action.payload;
-      const list = state.present.breakdownElements[category] || [];
-      const old = list.find(e => e.id === id);
-      if (!old) return state;
+      let list = state.present.breakdownElements[category] || [];
+      let old = list.find(e => e.id === id);
+      if (!old) {
+        if (category === 'cast') {
+          const cast = (state.present.castMembers || []).find(c => c.id === id);
+          if (cast) { list = [...list, cast]; old = cast; }
+        }
+      }
+      if (!old) {
+        const newEntry: any = { id, name: id };
+        list = [...list, newEntry];
+        old = newEntry;
+      }
       const newElement = { ...old, ...updates };
       const newList = list.map(e => e.id === id ? newElement : e);
 

@@ -33,7 +33,7 @@ export function ElementManager() {
 
   const [category, setCategory] = useState('cast');
 
-  const storedElements: ProjectElement[] = project.breakdownElements?.[category] || [];
+  const storedElements: ProjectElement[] = (project.breakdownElements || {})[category] || [];
   const scenes = project.scenes;
 
   const elements = useMemo(() => {
