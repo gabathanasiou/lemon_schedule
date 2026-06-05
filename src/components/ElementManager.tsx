@@ -38,8 +38,15 @@ export function ElementManager() {
 
   const elements = useMemo(() => {
     if (storedElements.length > 0) return storedElements.sort(sortElements);
+    if (category === 'cast') {
+      const sceneIds = getElementsFromScenes(scenes, 'cast');
+      const merged = new Map<string, ProjectElement>();
+      for (const e of sceneIds) merged.set(e.id, e);
+      for (const m of project.castMembers) merged.set(m.id, { id: m.id, name: m.name });
+      return [...merged.values()].sort(sortElements);
+    }
     return getElementsFromScenes(scenes, category);
-  }, [storedElements, scenes, category]);
+  }, [storedElements, scenes, category, project.castMembers]);
 
   const catItems = useMemo(() => ELEMENT_CATEGORIES.map(c => ({ id: c.key, name: c.label })), []);
 
