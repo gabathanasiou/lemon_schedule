@@ -18,6 +18,7 @@ const BREAKDOWN_LABEL: Record<string, string> = {
   sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
   animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
 };
+let persistedIndex = 0;
 
 export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: number; onIndexChange?: (idx: number) => void }) {
   const { state, dispatch } = useProject();
@@ -25,7 +26,12 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   const breakdownElements = state.present.breakdownElements || {};
   const castMembers = state.present.castMembers || [];
 
-  const [index, setIndex] = useState(typeof initialIndex === 'number' ? initialIndex : 0);
+  const [index, setIndex] = useState(() => {
+    const saved = initialIndex ?? persistedIndex;
+    return Math.min(saved, Math.max(scenes.length - 1, 0));
+  });
+
+  useEffect(() => { persistedIndex = index; setSheetInput(String(index + 1)); }, [index]);
   const [sheetInput, setSheetInput] = useState('1');
   const [edits, setEdits] = useState<Record<string, Partial<Scene>>>({});
   const snapRef = useRef<{ id: string; sceneNumber: string }[]>([]);
