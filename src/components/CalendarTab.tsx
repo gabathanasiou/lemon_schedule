@@ -128,31 +128,35 @@ const DayCell: React.FC<{
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
   const statusBg = status === 'hold' ? 'bg-amber-50' : status === 'travel' ? 'bg-blue-50' : status === 'holiday' ? 'bg-zinc-100' : '';
 
+  const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : shootDay != null ? `DAY #${shootDay}` : `${date.getDate()}`;
+
   return (
     <div ref={setNodeRef}
-      className={`min-h-[80px] h-full border-r border-b border-zinc-200 p-1 flex flex-col
+      className={`min-h-[80px] h-full border-r border-b border-zinc-200 flex flex-col
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-100 text-zinc-400' : statusBg || 'bg-white'}
         ${isOver ? '!bg-blue-50' : ''}`}
     >
-      <div className="flex items-center justify-between mb-0.5">
-        <div
-          ref={setHandleRef} {...listeners} {...attributes}
-          onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
-          title={shootDay != null ? 'Double-click to set status' : ''}
-          style={{ opacity: isDragging ? 0.3 : 1, cursor: shootDay !== null ? 'grab' : 'default' }}
-          className={`flex items-center gap-1 px-1.5 py-0.5 rounded select-none flex-1 ${isToday ? 'bg-blue-500 text-white' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
-        >
-          <span className="text-xs font-bold leading-none">{date.getDate()}</span>
-          {statusBadge && (
-            <span className={`text-[8px] font-bold px-1 rounded-full ${status === 'hold' ? 'bg-amber-100 text-amber-700' : status === 'travel' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-300 text-zinc-600'}`}>{statusBadge}</span>
+      <div
+        ref={setHandleRef} {...listeners} {...attributes}
+        onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
+        title={shootDay != null ? 'Double-click to set status' : ''}
+        style={{ opacity: isDragging ? 0.3 : 1, cursor: shootDay != null ? 'grab' : 'default' }}
+        className={`flex items-center justify-between px-2 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'} mb-1`}
+      >
+        <span className="text-[10px] font-bold uppercase tracking-wider">{headerLabel}</span>
+        <div className="flex items-center gap-1">
+          {violations.length > 0 && (
+            <Tooltip content={violations.map(v => v.message).join('\n• ')}>
+              <Flag className={`w-2.5 h-2.5 fill-red-400 shrink-0 ${isToday ? 'text-white' : 'text-red-400'}`} />
+            </Tooltip>
           )}
+          <div
+            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
+            className={`text-[10px] font-bold w-5 text-center leading-none ${isToday ? '' : ''}`}
+          >
+            {date.getDate()}
+          </div>
         </div>
-
-        {violations.length > 0 && (
-          <Tooltip content={violations.map(v => v.message).join('\n• ')}>
-            <Flag className="w-2.5 h-2.5 text-red-400 fill-red-400 shrink-0" />
-          </Tooltip>
-        )}
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
