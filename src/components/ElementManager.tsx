@@ -44,8 +44,7 @@ interface LocalRow {
   name: string;
 }
 
-let keyCounter = 0;
-function nextKey() { return String(++keyCounter); }
+function elementKey(e: { id: string; name: string }) { return e.id || e.name || '__new__'; }
 
 export function ElementManager() {
   const { state, dispatch } = useProject();
@@ -53,7 +52,7 @@ export function ElementManager() {
 
   const [category, setCategory] = useState('cast');
   const [rows, setRows] = useState<LocalRow[]>(() =>
-    loadCategoryElements(project, category).map(e => ({ key: nextKey(), id: e.id, name: e.name }))
+    loadCategoryElements(project, category).map(e => ({ key: elementKey(e), id: e.id, name: e.name }))
   );
   const snapshotRef = useRef<LocalRow[]>(rows);
   const savingRef = useRef(false);
@@ -61,7 +60,7 @@ export function ElementManager() {
   useEffect(() => {
     if (savingRef.current) return;
     const loaded = loadCategoryElements(project, category);
-    const localRows = loaded.map(e => ({ key: nextKey(), id: e.id, name: e.name }));
+    const localRows = loaded.map(e => ({ key: elementKey(e), id: e.id, name: e.name }));
     setRows(localRows);
     snapshotRef.current = localRows;
 
@@ -70,7 +69,8 @@ export function ElementManager() {
     if (isEmpty && loaded.length > 0) {
       dispatch({ type: 'AUTO_POPULATE_ELEMENTS', payload: { category, elements: loaded } } as any);
     }
-  }, [category, project, dispatch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, dispatch]);
 
   const hasChanges = useMemo(() => {
     const snap = snapshotRef.current;
@@ -157,7 +157,7 @@ export function ElementManager() {
       const idVal = String(phantom[0]?.value ?? '').trim();
       const nameVal = String(phantom[1]?.value ?? '').trim().toUpperCase();
       if (idVal || nameVal) {
-        setRows(prev => [...prev, { key: nextKey(), id: idVal || String(prev.length + 1), name: nameVal || idVal }]);
+        setRows(prev => [...prev, { key: String(Date.now()), id: idVal || String(prev.length + 1), name: nameVal || idVal }]);
         return;
       }
     }
@@ -196,7 +196,7 @@ export function ElementManager() {
   }, [rows, category, dispatch]);
 
   const doRevert = useCallback(() => {
-    setRows(snapshotRef.current.map(r => ({ ...r, key: nextKey() })));
+    setRows(snapshotRef.current.map(r => ({ ...r })));
   }, []);
 
   return (
