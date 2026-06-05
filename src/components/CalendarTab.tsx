@@ -128,7 +128,7 @@ const DayCell: React.FC<{
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
   const statusBg = status === 'hold' ? 'bg-amber-50' : status === 'travel' ? 'bg-blue-50' : status === 'holiday' ? 'bg-zinc-100' : '';
 
-  const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : shootDay != null ? `DAY #${shootDay}` : `${date.getDate()}`;
+  const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : shootDay != null ? `DAY #${shootDay}` : '';
 
   return (
     <div ref={setNodeRef}
@@ -143,20 +143,17 @@ const DayCell: React.FC<{
         style={{ opacity: isDragging ? 0.3 : 1, cursor: shootDay != null ? 'grab' : 'default' }}
         className={`flex items-center justify-between px-2 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'} mb-1`}
       >
-        <span className="text-[10px] font-bold uppercase tracking-wider">{headerLabel}</span>
-        <div className="flex items-center gap-1">
+        <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
+        <span className="w-5 flex justify-center">
+
+
           {violations.length > 0 && (
             <Tooltip content={violations.map(v => v.message).join('\n• ')}>
               <Flag className={`w-2.5 h-2.5 fill-red-400 shrink-0 ${isToday ? 'text-white' : 'text-red-400'}`} />
             </Tooltip>
           )}
-          <div
-            onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
-            className={`text-[10px] font-bold w-5 text-center leading-none ${isToday ? '' : ''}`}
-          >
-            {date.getDate()}
-          </div>
-        </div>
+        </span>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
