@@ -223,6 +223,28 @@ export function ScheduleTab() {
       input?.select();
     }
       }
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !textEditingEnabled && selectedRowIds.size > 0) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        e.preventDefault();
+        const lastSelected = [...selectedRowIds].pop()!;
+        let currentDay: number | null = null;
+        if (lastSelected.startsWith('empty-')) {
+          currentDay = parseInt(lastSelected.replace('empty-', ''), 10);
+        } else {
+          const row = augmentedRows.find(r => r.id === lastSelected);
+          currentDay = row?.shootDay ?? null;
+        }
+        if (currentDay === null) return;
+        const dayIdx = existingDays.indexOf(currentDay);
+        if (dayIdx === -1) return;
+        const nextIdx = e.key === 'ArrowRight' ? dayIdx + 1 : dayIdx - 1;
+        if (nextIdx < 0 || nextIdx >= existingDays.length) return;
+        const targetDay = existingDays[nextIdx];
+        setSelectedRowIds(new Set([`empty-${targetDay}`]));
+        setLastClickedId(`empty-${targetDay}`);
+        scrollToRow(`empty-${targetDay}`);
+      }
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !textEditingEnabled) {
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
@@ -276,21 +298,28 @@ export function ScheduleTab() {
         } else {
           const currentIds = Array.from(selectedRowIds);
           if (currentIds.length === 0) {
-            setSelectedRowIds(new Set([flat[0]]));
-            setLastClickedId(flat[0]);
-            scrollToRow(flat[0]);
+            const firstReal = flat.find(id => !id.startsWith('empty-'));
+            if (!firstReal) return;
+            setSelectedRowIds(new Set([firstReal]));
+            setLastClickedId(firstReal);
+            scrollToRow(firstReal);
             return;
           }
-          const lastId = isDown ? currentIds[currentIds.length - 1] : currentIds[0];
-          const idx = flat.indexOf(lastId);
+          const anchor = lastClickedIdRef.current;
+          const refId = anchor && currentIds.includes(anchor) ? anchor : (isDown ? currentIds[currentIds.length - 1] : currentIds[0]);
+          const idx = flat.indexOf(refId);
           if (isDown && idx < flat.length - 1) {
-            setSelectedRowIds(new Set([flat[idx + 1]]));
-            setLastClickedId(flat[idx + 1]);
-            scrollToRow(flat[idx + 1]);
+            const next = flat.slice(idx + 1).find(id => !id.startsWith('empty-'));
+            if (!next) return;
+            setSelectedRowIds(new Set([next]));
+            setLastClickedId(next);
+            scrollToRow(next);
           } else if (!isDown && idx > 0) {
-            setSelectedRowIds(new Set([flat[idx - 1]]));
-            setLastClickedId(flat[idx - 1]);
-            scrollToRow(flat[idx - 1]);
+            const prev = flat.slice(0, idx).reverse().find(id => !id.startsWith('empty-'));
+            if (!prev) return;
+            setSelectedRowIds(new Set([prev]));
+            setLastClickedId(prev);
+            scrollToRow(prev);
           }
         }
       }
