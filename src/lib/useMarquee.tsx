@@ -78,8 +78,14 @@ export function useMarquee(
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       const target = e.target as HTMLElement;
-      if (!allowOnRibbons() && target.closest('[data-row-id]')) return;
-      if (target.closest('button, input, select, textarea, [role="button"]')) return;
+      const onRibbon = target.closest('[data-row-id]');
+
+      if (onRibbon && e.altKey) {
+        e.stopPropagation();
+      } else {
+        if (!allowOnRibbons() && onRibbon) return;
+        if (target.closest('button, input, select, textarea, [role="button"]')) return;
+      }
 
       const rect = container.getBoundingClientRect();
       startX = e.clientX - rect.left + container.scrollLeft;
@@ -120,7 +126,7 @@ export function useMarquee(
             intersected.add(el.getAttribute('data-row-id')!);
           }
         });
-        onSelectionChange(intersected, _addMode);
+        onSelectionChange(intersected, _addMode || e.shiftKey);
       }
     };
 
