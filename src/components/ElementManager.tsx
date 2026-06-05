@@ -68,11 +68,16 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
   return counts;
 }
 
-export function ElementManager() {
+export function ElementManager({ initialCategory, onCategoryChange }: { initialCategory?: string; onCategoryChange?: (cat: string) => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
 
-  const [category, setCategory] = useState('cast');
+  const [category, setCategory] = useState(initialCategory || 'cast');
+
+  useEffect(() => {
+    if (initialCategory && initialCategory !== category) setCategory(initialCategory);
+  }, [initialCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isCast = category === 'cast';
 
   const rowsByCat = useRef<Record<string, LocalRow[]>>({});
@@ -111,7 +116,8 @@ export function ElementManager() {
       setRows(r);
     }
     setCategory(newCat);
-  }, [category, rows, project]);
+    onCategoryChange?.(newCat);
+  }, [category, rows, project, onCategoryChange]);
 
   const hasChanges = useMemo(() => {
     rowsByCat.current[category] = rows;
@@ -339,7 +345,7 @@ export function ElementManager() {
 
         {/* Table card */}
         <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm">
-          <div className="h-full overflow-auto">
+          <div className="h-full overflow-auto tab-scroll">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200 sticky top-0">

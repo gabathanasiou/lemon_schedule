@@ -19,13 +19,13 @@ const BREAKDOWN_LABEL: Record<string, string> = {
   animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
 };
 
-export function SceneSheet() {
+export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: number; onIndexChange?: (idx: number) => void }) {
   const { state, dispatch } = useProject();
   const scenes = state.present.scenes;
   const breakdownElements = state.present.breakdownElements || {};
   const castMembers = state.present.castMembers || [];
 
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(typeof initialIndex === 'number' ? initialIndex : 0);
   const [sheetInput, setSheetInput] = useState('1');
   const [edits, setEdits] = useState<Record<string, Partial<Scene>>>({});
   const snapRef = useRef<{ id: string; sceneNumber: string }[]>([]);
@@ -41,7 +41,8 @@ export function SceneSheet() {
     const idx = Math.max(0, Math.min(scenes.length - 1, n));
     setIndex(idx);
     setSheetInput(String(idx + 1));
-  }, [scenes.length]);
+    onIndexChange?.(idx);
+  }, [scenes.length, onIndexChange]);
 
   const update = useCallback((field: keyof Scene, value: any) => {
     if (!scene) return;
@@ -104,9 +105,8 @@ export function SceneSheet() {
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full px-4 py-3 gap-3">
-
-        {/* Navigation bar */}
-        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
+        {/* Nav bar */}
+        <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
           <div className="flex items-center gap-2.5">
             <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
               <ChevronLeft className="w-4 h-4 text-zinc-600" />
@@ -187,7 +187,7 @@ export function SceneSheet() {
         </div>
 
         {/* Category grid */}
-        <div className="flex-1 overflow-auto rounded-xl bg-white border border-zinc-200/80 shadow-sm">
+        <div className="flex-1 overflow-auto rounded-xl bg-white border border-zinc-200/80 shadow-sm tab-scroll">
           <div className="p-3">
             <div className="grid grid-cols-3 gap-2">
               {BREAKDOWN_CATS.map(cat => (
