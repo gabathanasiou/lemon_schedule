@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useProject } from '../store';
-import { Scene, IntExt, DayNight } from '../types';
+import { Scene, IntExt, DayNight, ProjectElement } from '../types';
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -59,11 +59,21 @@ export function SceneSheet() {
   const doSave = useCallback(() => {
     for (const [id, e] of Object.entries(edits)) {
       if (!e) continue;
+      for (const cat of BREAKDOWN_CATS) {
+        const val = (e as any)[cat];
+        if (!val) continue;
+        const existing = (breakdownElements[cat] || []).map((x: any) => x.name.toLowerCase());
+        for (const item of val.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+          if (!existing.includes(item.toLowerCase())) {
+            dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name: item } } });
+          }
+        }
+      }
       const payload = { id, ...(e as Record<string, any>) };
       dispatch({ type: 'UPDATE_SCENE', payload });
     }
     setEdits({});
-  }, [edits, dispatch]);
+  }, [edits, dispatch, breakdownElements]);
 
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
@@ -144,7 +154,9 @@ export function SceneSheet() {
                         {field === 'Scene Sheet' ? (
                           <span className="text-sm font-semibold text-zinc-800">{index + 1}</span>
                         ) : field === null ? (
-                          <input className="w-full border-zinc-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border" />
+                          <input className="w-full border-zinc-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border"
+                            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                          />
                         ) : field === 'intExt' ? (
                           <AutocompleteDropdown value={val('intExt')} onChange={v => update('intExt', v)} options={INT_EXT_OPTIONS} showAll />
                         ) : field === 'dayNight' ? (
@@ -153,6 +165,7 @@ export function SceneSheet() {
                           <input className="w-full border-zinc-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 border"
                             value={String(val(field as keyof Scene) || '')}
                             onChange={e => update(field as keyof Scene, e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                           />
                         )}
                       </td>
