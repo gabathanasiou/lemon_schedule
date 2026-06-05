@@ -45,20 +45,24 @@ const CAST_COL = 7;
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
-export function BreakdownTab() {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange }: {
+  subTab: 'scenes' | 'elements' | 'sheet';
+  onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
+  savedCat: string;
+  onCategoryChange: (c: string) => void;
+  savedSheetIdx: number;
+  onSheetIdxChange: (i: number) => void;
+}) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const scenes = project.scenes;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [subTab, setSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
-  const [savedCat, setSavedCat] = useState('cast');
-  const [savedSheetIdx, setSavedSheetIdx] = useState(0);
+  const subTab = externalSubTab;
   const scrollTops = useRef<Record<string, number>>({});
   useEffect(() => {
     const el = document.querySelector('.tab-scroll');
     if (el && scrollTops.current[subTab] !== undefined) el.scrollTop = scrollTops.current[subTab];
   }, [subTab]);
-  const tabScrollerRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number } | null>(null);
 
@@ -523,17 +527,17 @@ export function BreakdownTab() {
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 shadow-xl overflow-hidden relative select-none">
       <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
-        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; setSubTab('scenes'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'scenes' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('scenes'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'scenes' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
           Scene Breakdown
         </button>
-        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; setSubTab('elements'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'elements' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('elements'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'elements' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
           Elements
         </button>
-        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; setSubTab('sheet'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'sheet' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('sheet'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'sheet' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
           Sheet
         </button>
       </div>
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={setSavedCat} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={setSavedSheetIdx} /> : (
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">

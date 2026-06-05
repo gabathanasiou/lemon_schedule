@@ -40,6 +40,9 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
+  const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
+  const [brCategory, setBrCategory] = useState('cast');
+  const [brSheetIdx, setBrSheetIdx] = useState(0);
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
@@ -559,7 +562,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab /> : activeTab === 'schedule' ? <ScheduleTab /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} /> : activeTab === 'schedule' ? <ScheduleTab /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : <RulesTab />}
       </main>
 
       {showTrash && (
