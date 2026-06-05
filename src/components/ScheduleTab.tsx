@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -527,6 +527,16 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
     const dateB = activeVersion.dayMeta?.[b]?.date || '';
     return dateA.localeCompare(dateB);
   });
+
+  const chronoDayMap = useMemo(() => {
+    const m = new Map<number, number>();
+    let counter = 0;
+    for (const d of existingDays) {
+      const status = activeVersion?.dayMeta?.[d]?.status;
+      if (!status || status === 'work') { counter++; m.set(d, counter); }
+    }
+    return m;
+  }, [existingDays, activeVersion]);
 
   const getDayFromId = (id: string): number | null => {
     if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
@@ -1087,7 +1097,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
                   activeDragRows={activeDragRows}
-                  chronoDay={activeVersion?.dayMeta[dayInt]?.status && activeVersion.dayMeta[dayInt].status !== 'work' ? undefined : i + 1}
+                  chronoDay={chronoDayMap.get(dayInt)}
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
                    onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}

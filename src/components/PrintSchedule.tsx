@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta } from '../types';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
@@ -433,6 +433,16 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
       return dateA.localeCompare(dateB);
     });
 
+  const chronoDayMap = useMemo(() => {
+    const m = new Map<number, number>();
+    let counter = 0;
+    for (const d of existingDays) {
+      const status = activeVersion.dayMeta?.[d]?.status;
+      if (!status || status === 'work') { counter++; m.set(d, counter); }
+    }
+    return m;
+  }, [existingDays, activeVersion]);
+
   const printedSceneIds = new Set<string>();
   for (const dayInt of existingDays) {
     for (const row of (scheduledRows[dayInt] || [])) {
@@ -473,7 +483,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 scenes={scenes}
                 showTimes={showTimes}
                 showDurations={showDurations}
-                chronoDay={i + 1}
+                chronoDay={chronoDayMap.get(dayInt)}
               />
             ))}
           </div>

@@ -13,7 +13,7 @@ import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 
-const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 function toDateKey(date: Date): string {
   const y = date.getFullYear();
@@ -24,7 +24,7 @@ function toDateKey(date: Date): string {
 
 function getCalendarDays(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
-  const startOfWeek = firstDay.getDay();
+  const startOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
   const cursor = new Date(year, month, 1 - startOfWeek);
   const todayKey = toDateKey(new Date());
   const days: { date: Date; dateKey: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
@@ -115,12 +115,12 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+  activeDragDay?: number | null;
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, shootDay },
-    disabled: isNonWorkStatus,
   });
 
   const { attributes, listeners, setNodeRef: setHandleRef, isDragging } = useDraggable({
@@ -130,15 +130,20 @@ const DayCell: React.FC<{
   });
 
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
-  const statusBg = status === 'hold' ? 'bg-amber-100' : status === 'travel' ? 'bg-blue-100' : status === 'holiday' ? 'bg-zinc-200' : '';
+  const statusBg = status === 'hold' ? 'bg-red-50' : status === 'travel' ? 'bg-purple-50' : status === 'holiday' ? 'bg-green-50' : '';
+  const headerColor = status === 'hold' ? 'bg-red-600 text-white'
+    : status === 'travel' ? 'bg-purple-600 text-white'
+    : status === 'holiday' ? 'bg-green-700 text-white'
+    : status === 'work' || (!status && isWorkingDay) ? 'bg-zinc-700 text-white'
+    : 'bg-zinc-200 text-zinc-600';
 
   const headerLabel = status === 'hold' ? `HOLD${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'travel' ? `TRAVEL${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
 
   return (
     <div ref={setNodeRef}
       className={`min-h-[80px] h-full border-r border-b border-zinc-200 flex flex-col
-        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-100 text-zinc-400' : statusBg || 'bg-white'}
-        ${isOver ? '!bg-blue-50' : ''}`}
+        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
+        ${isOver && !(activeDragIds?.size && isNonWorkStatus) ? '!bg-blue-50' : ''}`}
     >
         <div
           ref={setHandleRef} {...listeners} {...attributes}
@@ -146,7 +151,7 @@ const DayCell: React.FC<{
           onDoubleClick={(e) => { e.preventDefault(); if (!activeTool && onDoubleClick) onDoubleClick(dateKey); }}
           title={activeTool ? `Click to set ${activeTool}` : 'Double-click to set status'}
           style={{ opacity: isDragging ? 0.3 : 1, cursor: activeTool ? 'pointer' : (isWorkingDay && shootDay != null ? 'grab' : 'default') }}
-        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
+        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
@@ -155,7 +160,7 @@ const DayCell: React.FC<{
 
           {violations.length > 0 && (
             <Tooltip content={violations.map(v => v.message).join('\n• ')}>
-              <Flag className={`w-2.5 h-2.5 fill-red-400 shrink-0 ${isToday ? 'text-white' : 'text-red-400'}`} />
+              <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
             </Tooltip>
           )}
         </span>
@@ -361,7 +366,9 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
 
   const chronoDayMap = useMemo(() => {
     const entries = Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][];
-    const sorted = entries.filter(([, v]) => v.date).sort((a, b) => a[1].date.localeCompare(b[1].date));
+    const sorted = entries
+      .filter(([, v]) => v.date && (!v.status || v.status === 'work'))
+      .sort((a, b) => a[1].date.localeCompare(b[1].date));
     const m = new Map<number, number>();
     sorted.forEach(([k], i) => m.set(Number(k), i + 1));
     return m;
@@ -449,6 +456,8 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const handleToggle = useCallback((dateKey: string) => {
     if (activeTool) {
       if (activeTool === 'remove') {
+        const meta = (activeVersion?.dayMeta ?? {}) as Record<number, ShootDayMeta>;
+        if (!Object.values(meta).some(v => v.date === dateKey)) return;
         dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
       } else {
         const meta = activeVersion?.dayMeta || {};
@@ -610,6 +619,11 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       if (overRow && overRow.shootDay != null) targetShootDay = overRow.shootDay;
     }
 
+    if (targetShootDay != null) {
+      const targetStatus = statusMap.get(targetShootDay);
+      if (targetStatus && targetStatus !== 'work') return;
+    }
+
     if (targetShootDay === undefined) return;
 
     let newRows = activeVersion.rows.map(r => ({ ...r }));
@@ -687,10 +701,10 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
               >{t.label}</button>
             ))}
           </div>
-          <div className="grid grid-cols-7 border-l border-t border-zinc-200">
-            {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
-          </div>
           <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative">
+            <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
+              {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
+            </div>
             <MarqueeOverlay box={marqueeBox} />
             <div className="grid grid-cols-7 border-l border-zinc-200">
               {days.map((day) => {
@@ -718,6 +732,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     activeDragRow={activeDragRow}
                     activeDragRows={activeDragRows}
                     activeRowId={activeId}
+                    activeDragDay={activeDragDay}
                   />
                 );
               })}
@@ -733,12 +748,18 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
             ))}
             {activeDragRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{activeDragRows.length - 3} more</div>}
           </div>
-        ) : activeDragDay !== null ? (
-          <div className="bg-white border border-zinc-300 shadow-xl flex flex-col w-[200px] opacity-90">
-            <div className="flex items-center justify-between px-2 py-1.5 bg-zinc-200 text-zinc-700">
+        ) : activeDragDay !== null ? (() => {
+          const dragStatus = activeVersion?.dayMeta?.[activeDragDay]?.status;
+          const ghostHeader = dragStatus === 'hold' ? 'bg-red-600 text-white'
+            : dragStatus === 'travel' ? 'bg-purple-600 text-white'
+            : dragStatus === 'holiday' ? 'bg-green-700 text-white'
+            : 'bg-zinc-700 text-white';
+          return (
+          <div className="bg-zinc-50 border border-zinc-300 shadow-xl flex flex-col w-[200px] opacity-90">
+            <div className={`flex items-center justify-between px-2 py-1.5 ${ghostHeader}`}>
               <span className="text-[10px] font-bold">{activeVersion?.dayMeta?.[activeDragDay]?.date ? new Date(activeVersion.dayMeta[activeDragDay].date + 'T00:00:00').getDate() : activeDragDay}</span>
               <span className="text-[10px] font-bold uppercase tracking-wider">
-                {activeVersion?.dayMeta?.[activeDragDay]?.status === 'hold' ? 'HOLD' : activeVersion?.dayMeta?.[activeDragDay]?.status === 'travel' ? 'TRAVEL' : activeVersion?.dayMeta?.[activeDragDay]?.status === 'holiday' ? 'HOLIDAY' : `DAY #${activeDragDay}`}
+                {dragStatus === 'hold' ? 'HOLD' : dragStatus === 'travel' ? 'TRAVEL' : dragStatus === 'holiday' ? 'HOLIDAY' : chronoDayMap.get(activeDragDay) ? `DAY #${chronoDayMap.get(activeDragDay)}` : ''}
               </span>
               <span className="w-4" />
             </div>
@@ -751,7 +772,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
               )}
             </div>
           </div>
-        ) : null}
+          ) })() : null}
       </DragOverlay>
 
       {statusModal !== null && (

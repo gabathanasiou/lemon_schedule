@@ -68,6 +68,7 @@ interface DoodDay {
   dayInt: number;
   isoDate: string;
   isShooting: boolean;
+  status?: string;
 }
 
 interface DoodRow {
@@ -116,6 +117,7 @@ function deriveDood(
     dayInt: d,
     isoDate: dayMeta[d].date || '',
     isShooting: shootingDays.has(d) && (!dayMeta[d].status || dayMeta[d].status === 'work'),
+    status: dayMeta[d].status || undefined,
   }));
 
   const doodRows: DoodRow[] = [];
@@ -208,6 +210,15 @@ const Dood: React.FC<DoodProps> = ({
     scenes, scheduleRows, dayMeta, castIds, dayInts, includeNonShooting, castMembers,
   ), [scenes, scheduleRows, dayMeta, castIds, dayInts, includeNonShooting, castMembers]);
 
+  const chronoDayMap = useMemo(() => {
+    const m = new Map<number, number>();
+    let counter = 0;
+    for (const d of data.days) {
+      if (d.isShooting) { counter++; m.set(d.dayInt, counter); }
+    }
+    return m;
+  }, [data.days]);
+
   const now = new Date();
   const genDate = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
   const genTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -280,7 +291,7 @@ const Dood: React.FC<DoodProps> = ({
                   <th className="dood-col-cast">Shooting Day</th>
                   {group.days.map((d, ci) => (
                     <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'}`}>
-                      {group.startIdx + ci + 1}
+                      {d.isShooting ? chronoDayMap.get(d.dayInt) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
                     </th>
                   ))}
                   {isLast && showTotals && (
