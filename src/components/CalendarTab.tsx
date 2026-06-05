@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation } from '../types';
 import { generateUUID } from '../lib/utils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X } from 'lucide-react';
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
@@ -102,6 +102,8 @@ const DayCell: React.FC<{
   violations: RuleViolation[];
   sceneViolationMap: Map<string, string[]>;
   onToggle: (dateKey: string) => void;
+  onDoubleClick?: (shootDay: number) => void;
+  status?: string;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
@@ -109,7 +111,7 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, shootDay },
@@ -121,21 +123,30 @@ const DayCell: React.FC<{
     disabled: !isWorkingDay || shootDay === null,
   });
 
+  const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
+  const statusBg = status === 'hold' ? 'bg-amber-50' : status === 'travel' ? 'bg-blue-50' : status === 'holiday' ? 'bg-zinc-100' : '';
+
   return (
     <div ref={setNodeRef}
       className={`min-h-[80px] h-full border-r border-b border-zinc-200 p-1 flex flex-col
-        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay ? 'bg-zinc-100 text-zinc-400' : 'bg-white'}
+        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-100 text-zinc-400' : statusBg || 'bg-white'}
         ${isOver ? '!bg-blue-50' : ''}`}
     >
       <div className="flex items-center justify-between mb-0.5">
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggle(dateKey); }}
-          className={`text-[10px] font-semibold px-0.5 rounded flex items-center justify-center
-            ${isToday ? 'bg-blue-500 text-white w-5 h-5' : !isWorkingDay && isCurrentMonth ? 'text-zinc-300 hover:bg-zinc-200' : isCurrentMonth ? 'text-zinc-600 hover:bg-zinc-200' : 'text-zinc-200'}`}
-          title={isWorkingDay ? 'Remove working day' : 'Add working day'}
-        >
-          {date.getDate()}
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle(dateKey); }}
+            onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
+            className={`text-[10px] font-semibold px-0.5 rounded flex items-center justify-center
+              ${isToday ? 'bg-blue-500 text-white w-5 h-5' : !isWorkingDay && isCurrentMonth && !status ? 'text-zinc-300 hover:bg-zinc-200' : isCurrentMonth ? 'text-zinc-600 hover:bg-zinc-200' : 'text-zinc-200'}`}
+            title={isWorkingDay ? 'Double-click to set status' : 'Add working day'}
+          >
+            {date.getDate()}
+          </button>
+          {statusBadge && (
+            <span className={`text-[7px] font-bold px-0.5 rounded ${status === 'hold' ? 'bg-amber-100 text-amber-700' : status === 'travel' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-200 text-zinc-600'}`}>{statusBadge}</span>
+          )}
+        </div>
         {violations.length > 0 && (
           <Tooltip content={violations.map(v => v.message).join('\n• ')}>
             <Flag className="w-2.5 h-2.5 text-red-400 fill-red-400 shrink-0" />
@@ -296,6 +307,11 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [statusModal, setStatusModal] = useState<number | null>(null);
+
+  const handleStatusDoubleClick = useCallback((shootDay: number) => {
+    setStatusModal(shootDay);
+  }, []);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
@@ -317,9 +333,16 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
 
   const workingMap = useMemo(() => {
     const m = new Map<string, number>();
-    if (!activeVersion) return m;
     for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
       if (v.date) m.set(v.date, Number(k));
+    }
+    return m;
+  }, [activeVersion]);
+
+  const statusMap = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
+      if (v.status) m.set(Number(k), v.status);
     }
     return m;
   }, [activeVersion]);
@@ -616,6 +639,8 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     dateKey={day.dateKey} date={day.date}
                     isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
                     isWorkingDay={sd !== null} shootDay={sd}
+                    status={sd != null ? statusMap.get(sd) : undefined}
+                    onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
                     showDesc={showDesc}
@@ -652,6 +677,31 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           </div>
         ) : null}
       </DragOverlay>
+
+      {statusModal !== null && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setStatusModal(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-[320px] p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-zinc-900">Day Status</h3>
+              <button onClick={() => setStatusModal(null)} className="text-zinc-400 hover:text-zinc-700 p-1 rounded"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(['work', 'hold', 'travel', 'holiday'] as const).map(s => {
+                const cur = activeVersion?.dayMeta?.[statusModal]?.status;
+                const sel = (cur || 'work') === s;
+                return (
+                  <button key={s} type="button"
+                    onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal, status: s }); setStatusModal(null); }}
+                    className={`py-2.5 px-3 rounded-lg text-sm font-semibold border-2 transition-colors ${sel ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}
+                  >
+                    {s === 'work' ? 'W Work' : s === 'hold' ? 'H Hold' : s === 'travel' ? 'T Travel' : '0 Holiday'}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </DndContext>
   );
 };

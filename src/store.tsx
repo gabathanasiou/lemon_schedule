@@ -114,6 +114,7 @@ type Action =
   | { type: 'DELETE_DAY', day: number }
   | { type: 'UNSCHEDULE_DAY', day: number }
   | { type: 'TOGGLE_WORKING_DAY', date: string }
+  | { type: 'UPDATE_DAY_META', shootDay: number; status?: string }
   | { type: 'ADD_RULE'; payload: ProjectRule }
   | { type: 'UPDATE_RULE'; payload: ProjectRule }
   | { type: 'DELETE_RULE'; payload: string }
@@ -393,6 +394,25 @@ function reducer(state: State, action: Action): State {
             };
           }
         })
+      });
+    }
+
+    case 'UPDATE_DAY_META': {
+      const { shootDay, status } = action;
+      const activeVerId = state.present.activeVersionId;
+      if (!activeVerId) return state;
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v => {
+          if (v.id !== activeVerId) return v;
+          return {
+            ...v,
+            dayMeta: {
+              ...v.dayMeta,
+              [shootDay]: { ...(v.dayMeta[shootDay] || { shootDay, unitCall: '08:00', date: '' }), status: status as any },
+            },
+          };
+        }),
       });
     }
 

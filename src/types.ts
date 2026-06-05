@@ -59,6 +59,7 @@ export interface ShootDayMeta {
   unitCall: string; // HH:mm
   date: string; // e.g. "SATURDAY 6TH JUNE 2026"
   order?: number;
+  status?: 'work' | 'hold' | 'travel' | 'holiday';
 }
 
 export interface ScheduleVersion {

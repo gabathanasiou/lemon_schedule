@@ -114,7 +114,7 @@ function deriveDood(
   const days: DoodDay[] = sortedDayInts.map(d => ({
     dayInt: d,
     isoDate: dayMeta[d].date || '',
-    isShooting: shootingDays.has(d),
+    isShooting: shootingDays.has(d) && (!dayMeta[d].status || dayMeta[d].status === 'work'),
   }));
 
   const doodRows: DoodRow[] = [];
