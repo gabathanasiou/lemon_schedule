@@ -113,7 +113,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
       result[cat] = items;
     }
     return result;
-  }, [scenes, breakdownElements, edits, scene]);
+  }, [scenes, breakdownElements, castMembers, edits, scene]);
 
   const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
   const focusNext = (key: string) => { /* tab order follows DOM by default */ };
