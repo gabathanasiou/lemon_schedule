@@ -11,58 +11,6 @@ import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/
 import { Pencil } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 
-// Custom pointer-based collision detection
-const customCollisionDetection: CollisionDetection = (args) => {
-  const { active, pointerCoordinates, droppableContainers } = args;
-
-  // Filter droppable containers based on what we are dragging to avoid mismatch/flickering
-  const isDraggingDay = active.data.current?.type === 'DAY';
-  const filteredContainers = droppableContainers.filter((container) => {
-    const isDayWrap = (container.id as string).startsWith('day-wrap-');
-    if (isDraggingDay) {
-      return isDayWrap;
-    } else {
-      return !isDayWrap;
-    }
-  });
-
-  if (pointerCoordinates) {
-    const collisions: { id: string; distance: number; area: number }[] = [];
-
-    for (const container of filteredContainers) {
-      const rect = container.rect.current;
-      if (rect) {
-        // Calculate the shortest distance from pointer to the bounding box
-        const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
-        const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const area = rect.width * rect.height;
-        collisions.push({ id: container.id as string, distance, area });
-      }
-    }
-
-    // Sort by distance first (closest first).
-    // If distances are equal (e.g. pointer is inside multiple containers),
-    // sort by area (smaller area first, so nested items like rows are preferred over day blocks).
-    collisions.sort((a, b) => {
-      if (a.distance !== b.distance) {
-        return a.distance - b.distance;
-      }
-      return a.area - b.area;
-    });
-
-    if (collisions.length > 0) {
-      return collisions.map(c => ({ id: c.id }));
-    }
-  }
-
-  // Fallback to closestCorners with filtered containers if no pointer coordinates
-  return closestCorners({
-    ...args,
-    droppableContainers: filteredContainers,
-  });
-};
-
 export function ScheduleTab() {
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -392,6 +340,41 @@ export function ScheduleTab() {
       }
     };
   }, []);
+
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const { active, pointerCoordinates, droppableContainers } = args;
+    const isDraggingDay = active.data.current?.type === 'DAY';
+    const filteredContainers = droppableContainers.filter((container) => {
+      const id = container.id as string;
+      const isDayWrap = id.startsWith('day-wrap-');
+      if (isDraggingDay) return isDayWrap;
+      if (isDayWrap) return false;
+      if (activeDragIdsRef.current.has(id)) return false;
+      return true;
+    });
+
+    if (pointerCoordinates) {
+      const collisions: { id: string; distance: number; area: number }[] = [];
+      for (const container of filteredContainers) {
+        const rect = container.rect.current;
+        if (rect) {
+          const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
+          const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const area = rect.width * rect.height;
+          collisions.push({ id: container.id as string, distance, area });
+        }
+      }
+      collisions.sort((a, b) => {
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return a.area - b.area;
+      });
+      if (collisions.length > 0) return collisions.map(c => ({ id: c.id }));
+    }
+
+    return closestCorners({ ...args, droppableContainers: filteredContainers });
+  }, []);
+
   const ctrlOrCmdHeld = useAddMode();
 
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
@@ -627,7 +610,7 @@ export function ScheduleTab() {
         if (dayRows.some(r => r.id === overId)) {
           setInsertBeforeId(overId);
         } else {
-          setInsertBeforeId(`day-${day}`);
+          setInsertBeforeId(overId.startsWith('end-') ? overId : `day-${day}`);
         }
       } else {
         const isUnscheduledRow = unscheduledRows.some(r => r.id === overId);
@@ -718,11 +701,17 @@ export function ScheduleTab() {
     if (draggingIds.length === 1) {
       newRows = newRows.filter(r => r.id !== activeId);
       let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      const isDayEnd = lastInsertBeforeId?.startsWith('day-') || lastInsertBeforeId?.startsWith('end-');
-      let targetOverId = lastInsertBeforeId && !isDayEnd && dayRows.some(r => r.id === lastInsertBeforeId)
-        ? lastInsertBeforeId : null;
-      let insertIndex = targetOverId ? dayRows.findIndex(r => r.id === targetOverId) : dayRows.length;
-      if (insertIndex === -1) insertIndex = dayRows.length;
+      let insertIndex: number;
+      if (lastInsertBeforeId?.startsWith('day-')) {
+        insertIndex = 0;
+      } else if (lastInsertBeforeId?.startsWith('end-')) {
+        insertIndex = dayRows.length;
+      } else if (lastInsertBeforeId && dayRows.some(r => r.id === lastInsertBeforeId)) {
+        insertIndex = dayRows.findIndex(r => r.id === lastInsertBeforeId);
+        if (insertIndex === -1) insertIndex = dayRows.length;
+      } else {
+        insertIndex = dayRows.length;
+      }
       const movedRow = { ...activeRow, shootDay: overDay };
       dayRows.splice(insertIndex, 0, movedRow);
       dayRows.forEach((r, i) => r.order = i);
@@ -731,11 +720,18 @@ export function ScheduleTab() {
     } else {
       const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
       const dayRowsBefore = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      const isDayEnd = lastInsertBeforeId?.startsWith('day-') || lastInsertBeforeId?.startsWith('end-');
-      const targetOverId = lastInsertBeforeId && !isDayEnd && dayRowsBefore.some(r => r.id === lastInsertBeforeId)
-        ? lastInsertBeforeId : null;
-      const rawIndex = targetOverId ? dayRowsBefore.findIndex(r => r.id === targetOverId) : dayRowsBefore.length;
-      const insertIndex = rawIndex === -1 ? 0 : rawIndex - draggingIds.filter(id => {
+      let rawIndex: number;
+      if (lastInsertBeforeId?.startsWith('day-')) {
+        rawIndex = 0;
+      } else if (lastInsertBeforeId?.startsWith('end-')) {
+        rawIndex = dayRowsBefore.length;
+      } else if (lastInsertBeforeId && dayRowsBefore.some(r => r.id === lastInsertBeforeId)) {
+        rawIndex = dayRowsBefore.findIndex(r => r.id === lastInsertBeforeId);
+        if (rawIndex === -1) rawIndex = dayRowsBefore.length;
+      } else {
+        rawIndex = dayRowsBefore.length;
+      }
+      const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
         const idx = dayRowsBefore.findIndex(r => r.id === id);
         return idx >= 0 && idx < rawIndex;
       }).length;
@@ -823,7 +819,7 @@ export function ScheduleTab() {
       `}</style>
     <DndContext 
       sensors={sensors}
-      collisionDetection={customCollisionDetection}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}

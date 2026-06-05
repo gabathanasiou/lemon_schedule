@@ -93,7 +93,17 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
 - Actions: `UPDATE_PROJECT`, `NEW_VERSION`, `DELETE_VERSION`, `RENAME_VERSION`, `SET_ACTIVE_VERSION`, `ADD_SCENE`, `UPDATE_SCENE`, `DELETE_SCENE`, `UNDO`, `REDO`, etc.
 
-### Types (`src/types.ts`)
+#### Drag Ghost Rendering (DayBlock.tsx)
+- Ghost rows for `day-{day}` appear **before** the SortableContext (consolidated single location).
+- Ghost rows for `end-{day}` appear **after** the SortableContext, above the footer.
+- In-row insertion ghosts appear inside the `.map()` via `showGhosts && insertBeforeId === r.id`.
+- Always use `showGhosts` (component-level: `activeRowId && activeDragRows.length > 0`) — never declare `isRowGhostTarget` inside `.map()` scope and reference it outside.
+
+### Collision Detection (ScheduleTab.tsx)
+- Custom collision detection is `useCallback` with empty deps, reading `activeDragIds` via `activeDragIdsRef.current` (stable ref) to correctly filter dragging rows from droppable containers.
+- `handleDragOver` sets `insertBeforeId` to distinguish beginning (`day-{day}`), end (`end-{day}`), and row-insertion targets.
+
+## Types (`src/types.ts`)
 - `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
 - `ScheduleRow`: `{ id, type: 'SCENE'|'BREAK'|'NOTE', sceneId?, shootDay?, order, estimatedDuration? }`
 - `ScheduleVersion`: `{ id, name, rows: ScheduleRow[], dayMeta: Record<number, ShootDayMeta> }`

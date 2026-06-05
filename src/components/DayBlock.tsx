@@ -220,12 +220,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       </div>
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
+        {showGhosts && insertBeforeId === `day-${dayInt}` && (
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+        )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-          {computedRows.map((r, i) => {
-            const isRowGhostTarget = activeRowId && activeDragRows.length > 0;
+          {computedRows.map((r) => {
             return (
               <React.Fragment key={r.id}>
-                {isRowGhostTarget && insertBeforeId === r.id && activeDragRow && (
+                {showGhosts && insertBeforeId === r.id && (
                   <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
                 )}
                 <SortableRow 
@@ -239,16 +241,10 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   focusedRowId={focusedRowId}
                   onDoubleClick={onRowDoubleClick}
                 />
-                {isRowGhostTarget && i === computedRows.length - 1 && insertBeforeId === `day-${dayInt}` && activeDragRow && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-                )}
               </React.Fragment>
             );
           })}
         </SortableContext>
-        {computedRows.length === 0 && showGhosts && insertBeforeId === `day-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
-        )}
         {computedRows.length === 0 && !activeRowId && (
           <div
             data-row-id={`empty-${dayInt}`}
