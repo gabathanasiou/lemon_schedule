@@ -88,6 +88,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     rulesTrash: [],
     rules: [],
     castMembers: [],
+    breakdownElements: {},
   };
 }
 
@@ -120,6 +121,9 @@ type Action =
   | { type: 'ADD_CAST_MEMBER'; payload: CastMember }
   | { type: 'UPDATE_CAST_MEMBER'; payload: CastMember }
   | { type: 'DELETE_CAST_MEMBER'; payload: string }
+  | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
+  | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
+  | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
 
 interface State {
   past: Project[];
@@ -441,9 +445,93 @@ function reducer(state: State, action: Action): State {
         castMembers: (state.present.castMembers || []).filter(c => c.id !== action.payload),
       });
 
+    case 'ADD_ELEMENT': {
+      const { category, element } = action.payload;
+      const existing = state.present.breakdownElements[category] || [];
+      return applyChange({
+        ...state.present,
+        breakdownElements: {
+          ...state.present.breakdownElements,
+          [category]: [...existing, element],
+        },
+        castMembers: category === 'cast' ? [...(state.present.castMembers || []), element] : state.present.castMembers,
+      });
+    }
+
+    case 'UPDATE_ELEMENT': {
+      const { category, id, updates } = action.payload;
+      const list = state.present.breakdownElements[category] || [];
+      const old = list.find(e => e.id === id);
+      if (!old) return state;
+      const newElement = { ...old, ...updates };
+      const newList = list.map(e => e.id === id ? newElement : e);
+
+      let newScenes = state.present.scenes;
+      if (updates.id && updates.id !== id) {
+        const sceneKey = category as keyof Scene;
+        newScenes = state.present.scenes.map(scene => {
+          const val = scene[sceneKey] as string;
+          if (!val) return scene;
+          if (category === 'set') {
+            return { ...scene, set: scene.set === id ? updates.id! : scene.set };
+          }
+          const ids = val.split(',').map(x => x.trim());
+          const idx = ids.indexOf(id);
+          if (idx < 0) return scene;
+          ids[idx] = updates.id!;
+          return { ...scene, [sceneKey]: ids.join(', ') };
+        });
+      }
+
+      return applyChange({
+        ...state.present,
+        scenes: newScenes,
+        breakdownElements: { ...state.present.breakdownElements, [category]: newList },
+        castMembers: category === 'cast'
+          ? (state.present.castMembers || []).map(c => c.id === id ? newElement : c)
+          : state.present.castMembers,
+      });
+    }
+
+    case 'DELETE_ELEMENT': {
+      const { category, id } = action.payload;
+      const sceneKey = category as keyof Scene;
+      return applyChange({
+        ...state.present,
+        scenes: state.present.scenes.map(scene => {
+          if (category === 'set') return { ...scene, set: scene.set === id ? '' : scene.set };
+          const val = scene[sceneKey] as string;
+          if (!val) return scene;
+          const ids = val.split(',').map(x => x.trim()).filter(x => x !== id);
+          return { ...scene, [sceneKey]: ids.join(', ') };
+        }),
+        breakdownElements: {
+          ...state.present.breakdownElements,
+          [category]: (state.present.breakdownElements[category] || []).filter(e => e.id !== id),
+        },
+        castMembers: category === 'cast'
+          ? (state.present.castMembers || []).filter(c => c.id !== id)
+          : state.present.castMembers,
+      });
+    }
+
     default:
       return state;
   }
+}
+
+export function getElementsFromScenes(scenes: Scene[], category: string): { id: string; name: string }[] {
+  const set = new Set<string>();
+  if (category === 'set') {
+    for (const s of scenes) if (s.set.trim()) set.add(s.set.trim());
+  } else {
+    for (const s of scenes) {
+      const val = (s as any)[category] as string;
+      if (!val) continue;
+      for (const id of val.split(',').map(x => x.trim()).filter(Boolean)) set.add(id);
+    }
+  }
+  return [...set].sort().map(id => ({ id, name: id }));
 }
 
 interface ProjectContextType {

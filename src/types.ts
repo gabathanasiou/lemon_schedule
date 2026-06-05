@@ -108,6 +108,11 @@ export interface CastMember {
   name: string;
 }
 
+export interface ProjectElement {
+  id: string;
+  name: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -120,4 +125,5 @@ export interface Project {
   rulesTrash: RuleTrashItem[];
   rules: ProjectRule[];
   castMembers: CastMember[];
+  breakdownElements: Record<string, ProjectElement[]>;
 }
