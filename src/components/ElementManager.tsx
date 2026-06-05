@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useProject } from '../store';
 import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
-import { Trash2, Plus, ChevronDown } from 'lucide-react';
+import { Trash2, Plus, ChevronDown, Save, Undo2 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 
@@ -77,6 +77,7 @@ export function ElementManager() {
 
   const rowsByCat = useRef<Record<string, LocalRow[]>>({});
   const snapByCat = useRef<Record<string, LocalRow[]>>({});
+  const inputsRef = useRef<Map<string, HTMLInputElement>>(new Map());
 
   function loadRows(cat: string): LocalRow[] {
     const elems = loadCategoryElements(project, cat);
@@ -143,6 +144,23 @@ export function ElementManager() {
     setRows(prev => [...prev, { key: String(Date.now()), id: '', name: '', occ: 0 }]);
   }, []);
 
+  const focusNext = useCallback((key: string, field: 'id' | 'name') => {
+    const idx = rows.findIndex(r => r.key === key);
+    if (idx < 0) return;
+    const isCastCat = category === 'cast';
+    const fields = isCastCat ? ['id', 'name'] : ['name'];
+    const curFieldIdx = fields.indexOf(field);
+    if (curFieldIdx < fields.length - 1) {
+      const nextKey = rows[idx].key;
+      const nextId = `${nextKey}-${fields[curFieldIdx + 1]}`;
+      inputsRef.current.get(nextId)?.focus();
+    } else if (idx < rows.length - 1) {
+      const nextKey = rows[idx + 1].key;
+      const nextId = `${nextKey}-${fields[0]}`;
+      inputsRef.current.get(nextId)?.focus();
+    }
+  }, [rows, category]);
+
   function findDuplicates(cat: string): boolean {
     const rows = rowsByCat.current[cat] || [];
     if (cat === 'cast') return false;
@@ -167,15 +185,10 @@ export function ElementManager() {
 
   const doSave = useCallback(() => {
     rowsByCat.current[category] = rows;
-
     if (!autoMergeRef.current) {
       const dupCats = Object.keys(rowsByCat.current).filter(cat => findDuplicates(cat));
-      if (dupCats.length > 0) {
-        setDupDialog({ cats: dupCats });
-        return;
-      }
+      if (dupCats.length > 0) { setDupDialog({ cats: dupCats }); return; }
     }
-
     performSave();
   }, [rows, category, dispatch]);
 
@@ -186,7 +199,6 @@ export function ElementManager() {
       const current = rowsByCat.current[cat] || [];
       const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
       const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
-
       for (const row of current) {
         const orig = snapMap.get(row.key);
         if (!orig) {
@@ -204,9 +216,7 @@ export function ElementManager() {
       for (const orig of snap) {
         if (!rowMap.has(orig.key)) {
           const isMerged = !(cat === 'cast') && current.some(r => r.name.toLowerCase() === orig.name.toLowerCase());
-          if (!isMerged) {
-            dispatch({ type: 'DELETE_ELEMENT', payload: { category: cat, id: orig.id } });
-          }
+          if (!isMerged) dispatch({ type: 'DELETE_ELEMENT', payload: { category: cat, id: orig.id } });
         }
       }
     }
@@ -220,77 +230,117 @@ export function ElementManager() {
   }
 
   const doRevert = useCallback(() => {
-    for (const cat of Object.keys(snapByCat.current)) {
-      rowsByCat.current[cat] = snapByCat.current[cat].map(r => ({ ...r }));
-    }
+    for (const cat of Object.keys(snapByCat.current)) rowsByCat.current[cat] = snapByCat.current[cat].map(r => ({ ...r }));
     setRows(rowsByCat.current[category] || []);
     setSaveVersion(v => v + 1);
   }, [category]);
 
+  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean) => {
+    const inputId = `${key}-${field}`;
+    const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        focusNext(key, field);
+      }
+    };
+    return (
+      <input
+        ref={el => { if (el) inputsRef.current.set(inputId, el); else inputsRef.current.delete(inputId); }}
+        type="text"
+        value={val}
+        onChange={e => onChange(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
+        onKeyDown={handleKey}
+        className="w-full border border-zinc-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
+      />
+    );
+  };
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 bg-white">
-        <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Category:</span>
-        <DropdownMenu
-          open={catOpen}
-          onClose={() => setCatOpen(false)}
-          align="left"
-          width="w-56"
-          trigger={
-            <button
-              onClick={() => setCatOpen(p => !p)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-md text-sm font-medium text-zinc-800 transition-colors"
-            >
-              {currentCat?.label || category}
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+    <div className="flex-1 flex flex-col h-full bg-zinc-50 overflow-hidden">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">Category</span>
+          <DropdownMenu
+            open={catOpen}
+            onClose={() => setCatOpen(false)}
+            align="left"
+            width="w-56"
+            trigger={
+              <button
+                onClick={() => setCatOpen(p => !p)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 rounded-lg text-sm font-semibold text-zinc-800 transition-colors"
+              >
+                {currentCat?.label || category}
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+              </button>
+            }
+          >
+            {ELEMENT_CATEGORIES.map(c => (
+              <DropdownItem key={c.key} onClick={() => { switchCategory(c.key); setCatOpen(false); }}>
+                {c.label}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {hasChanges && (
+            <button onClick={doRevert} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
+              <Undo2 className="w-3.5 h-3.5" />
+              Revert
             </button>
-          }
-        >
-          {ELEMENT_CATEGORIES.map(c => (
-            <DropdownItem key={c.key}
-              onClick={() => { switchCategory(c.key); setCatOpen(false); }}
-            >
-              {c.label}
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
+          )}
+          <button onClick={doSave} className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
+            <Save className="w-3.5 h-3.5" />
+            {hasChanges ? 'Save Changes' : 'Saved'}
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-sm">
+      {/* Action bar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-200 bg-white flex-wrap">
+        <span className="text-xs text-zinc-400 font-medium">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
+        <span className="text-zinc-300 mx-1">|</span>
+        <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
+          Sort by ID
+        </button>
+        <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
+          Auto-ID
+        </button>
+        <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
+          Clear Zero
+        </button>
+        {!isCast && (
+          <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = r.name.toLowerCase(); if (!seen.has(key)) seen.set(key, r); } return [...seen.values()]; })} className="text-xs text-zinc-500 hover:text-zinc-800 font-medium transition-colors">
+            Merge Duplicates
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto bg-white">
+        <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-zinc-100 border-b-2 border-zinc-900 sticky top-0">
-              {isCast && <th className="px-3 py-2 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">ID</th>}
-              <th className="px-3 py-2 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Name</th>
-              <th className="px-3 py-2 text-center text-[11px] font-semibold text-zinc-500 uppercase tracking-wider w-16">Occ</th>
-              <th className="px-3 py-2 text-center w-10" />
+            <tr className="bg-zinc-50 border-b border-zinc-200 sticky top-0">
+              {isCast && <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider w-20">ID</th>}
+              <th className="px-3 py-2.5 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold text-zinc-400 uppercase tracking-wider w-16">Occ</th>
+              <th className="px-3 py-2.5 text-center w-12" />
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.key} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
+            {rows.map((r, ri) => (
+              <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50'} hover:bg-blue-50/30`}>
                 {isCast && (
-                  <td className="px-3 py-1.5">
-                    <input
-                      type="text"
-                      value={r.id}
-                      onChange={e => updateRow(r.key, 'id', e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full border border-zinc-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                    />
-                  </td>
+                  <td className="px-3 py-1.5">{renderInput(r.key, 'id', r.id, v => updateRow(r.key, 'id', v), true)}</td>
                 )}
-                <td className="px-3 py-1.5">
-                  <input
-                    type="text"
-                    value={r.name}
-                    onChange={e => updateRow(r.key, 'name', e.target.value)}
-                    className="w-full border border-zinc-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                  />
-                </td>
-                <td className="px-3 py-1.5 text-center text-sm text-zinc-500">{r.occ}</td>
+                <td className="px-3 py-1.5">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v))}</td>
+                <td className="px-3 py-1.5 text-center text-sm text-zinc-400 font-medium">{r.occ}</td>
                 <td className="px-3 py-1.5 text-center">
-                  <button onClick={() => deleteRow(r.key)} className="p-1 rounded hover:bg-red-50 transition-colors">
-                    <Trash2 className="w-4 h-4 text-red-400/60 hover:text-red-600" />
+                  <button onClick={() => deleteRow(r.key)} className="p-1.5 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100">
+                    <Trash2 className="w-4 h-4 text-red-400" />
                   </button>
                 </td>
               </tr>
@@ -298,55 +348,13 @@ export function ElementManager() {
           </tbody>
         </table>
 
-        <button onClick={addNew} className="flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full border-b border-zinc-200">
-          <Plus className="w-3.5 h-3.5" />
-          Add {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || 'element'}
+        <button onClick={addNew} className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full border-b border-zinc-100">
+          <Plus className="w-4 h-4" />
+          <span>Add {currentCat?.label || 'element'}</span>
         </button>
       </div>
 
-      <div className="bg-zinc-100 border-t border-zinc-300 p-3 flex items-center justify-between shadow-inner">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500 uppercase tracking-wider font-mono">
-            {rows.length} {rows.length === 1 ? 'element' : 'elements'}
-          </span>
-          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-            Sort by ID
-          </button>
-          <button onClick={() => setRows(prev => {
-            const maxNum = prev.reduce((max, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
-            let next = maxNum + 1;
-            return prev.map(r => r.id.trim() ? r : { ...r, id: String(next++) });
-          })} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-            Auto-ID
-          </button>
-          <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-            Clear Zero
-          </button>
-          {!isCast && (
-            <button onClick={() => setRows(prev => {
-              const seen = new Map<string, LocalRow>();
-              for (const r of prev) {
-                const key = r.name.toLowerCase();
-                if (!seen.has(key)) seen.set(key, r);
-              }
-              return [...seen.values()];
-            })} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-              Merge Duplicates
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {hasChanges && (
-            <button onClick={doRevert} className="px-4 py-1.5 rounded text-sm font-medium border border-zinc-300 text-zinc-600 hover:bg-zinc-50 transition-colors">
-              Revert
-            </button>
-          )}
-          <button onClick={doSave} className={`px-4 py-1.5 rounded text-sm font-bold transition-colors ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm' : 'bg-zinc-100 text-zinc-400'}`}>
-            {hasChanges ? 'Save Changes' : 'Saved'}
-          </button>
-        </div>
-      </div>
-
+      {/* Duplicate dialog */}
       {dupDialog && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-[420px] p-6 space-y-4">
