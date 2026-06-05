@@ -335,7 +335,7 @@ export const SortableRow: React.FC<{
                     positioning="fixed"
                     placeholder="Cast"
                     displayMode="id"
-                    renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
+                    renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
                   />
                 </td>
                 <td className="col-pgs">

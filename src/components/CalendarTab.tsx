@@ -787,7 +787,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                   renderItem={(item) => (
                     <>
                       <span className="text-zinc-400 shrink-0">{item.id}.</span>
-                      <span className="truncate flex-1">{item.name || '—'}</span>
+                      <span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span>
                     </>
                   )}
                 />

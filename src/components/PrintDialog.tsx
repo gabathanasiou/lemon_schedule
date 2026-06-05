@@ -137,8 +137,8 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               onChange={handleDayChange}
               items={dayItems}
               positioning="fixed"
-              standalone
               mode="multi"
+              displayMode="id"
               placeholder="e.g. 1, 2, 3"
               renderItem={(item) => {
                 const entry = dayEntries.find(d => d.chrono === Number(item.id));

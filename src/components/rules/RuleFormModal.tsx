@@ -204,7 +204,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
               placeholder="e.g. 1, 2, JOHN"
               className="text-xs"
               displayMode="id"
-              renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
+              renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
             />
             {castOptions.length === 0 && (
               <p className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">

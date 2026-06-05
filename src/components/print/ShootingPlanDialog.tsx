@@ -69,8 +69,8 @@ export default function ShootingPlanDialog({ onPrint, onClose }: ShootingPlanDia
               onChange={handleDayChange}
               items={dayItems}
               positioning="fixed"
-              standalone
               mode="multi"
+              displayMode="id"
               placeholder="e.g. 1, 2, 3"
             />
           </div>

@@ -48,8 +48,8 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
               onChange={val => setSelectedSceneIds(val.split(',').map(x => x.trim()).filter(Boolean))}
               items={sceneItems}
               positioning="fixed"
-              standalone
               mode="multi"
+              displayMode="id"
               placeholder="e.g. 1, 2, 3"
               renderItem={(item) => <span className="truncate flex-1 text-xs">{item.name}</span>}
             />

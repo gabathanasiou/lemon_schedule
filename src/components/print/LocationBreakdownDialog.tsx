@@ -47,9 +47,9 @@ export default function LocationBreakdownDialog({ onPrint, onClose }: LocationBr
               onChange={val => setSelectedLocations(val.split(',').map(x => x.trim()).filter(Boolean))}
               items={locationItems}
               positioning="fixed"
-              standalone
               mode="multi"
               placeholder="e.g. SET, LOCATION"
+              className="text-xs"
             />
           </div>
         </div>

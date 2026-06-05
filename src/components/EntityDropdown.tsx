@@ -195,7 +195,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
       {displayMode === 'id' && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
-      <span className="truncate flex-1">{item.name || '—'}</span>
+      <span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span>
       {showSceneCounts && scenes && (
         <span className="text-[10px] text-zinc-400">
           {scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(item.id)).length} scenes

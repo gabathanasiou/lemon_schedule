@@ -114,7 +114,7 @@ export default function DoodDialog({ onPrint, onClose }: DoodDialogProps) {
                 renderItem={(item) => (
                   <>
                     <span className="text-zinc-400 shrink-0">{item.id}.</span>
-                    <span className="truncate flex-1">{item.name || '—'}</span>
+                    <span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span>
                   </>
                 )}
               />
@@ -123,15 +123,15 @@ export default function DoodDialog({ onPrint, onClose }: DoodDialogProps) {
               <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
                 Days to Include
               </label>
-              <EntityDropdown
-                value={dayValue}
-                onChange={handleDayChange}
-                items={dayItems}
-                positioning="fixed"
-                standalone
-                mode="multi"
-                placeholder="e.g. 1, 2, 3"
-                renderItem={(item) => {
+                <EntityDropdown
+                  value={dayValue}
+                  onChange={handleDayChange}
+                  items={dayItems}
+                  positioning="fixed"
+                  mode="multi"
+                  displayMode="id"
+                  placeholder="e.g. 1, 2, 3"
+                  renderItem={(item) => {
                   const entry = dayEntries.find(d => d.chrono === Number(item.id));
                   return (
                     <>
