@@ -69,11 +69,9 @@ export const RulesTab: React.FC = () => {
     dispatch({ type: 'DELETE_RULE', payload: rule.id });
   };
 
-  const handleSave = (rule: ProjectRule) => {
-    if (editingRule) {
-      dispatch({ type: 'UPDATE_RULE', payload: rule });
-    } else {
-      dispatch({ type: 'ADD_RULE', payload: rule });
+  const handleSave = (rules: ProjectRule[]) => {
+    for (const r of rules) {
+      dispatch({ type: editingRule && r.id === editingRule.id ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });
     }
     setShowForm(false);
     setEditingRule(null);

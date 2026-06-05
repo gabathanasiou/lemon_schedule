@@ -131,7 +131,9 @@ export function describeRule(rule: ProjectRule): string {
     return `Flag when ${joinNames(rule.castIds)} appear`;
   }
   const t = describeTimeWindow(rule);
-  return rule.date ? `Only ${t} · ${formatRuleDateShort(rule.date)}` : `Only ${t} · every day`;
+  if (rule.dates.length === 0) return `Only ${t} · every day`;
+  if (rule.dates.length === 1) return `Only ${t} · ${formatRuleDateShort(rule.dates[0])}`;
+  return `Only ${t} · ${rule.dates.length} dates`;
 }
 
 export const RuleTypeIcon: React.FC<{ type: RuleType; className?: string }> = ({ type, className }) => {
@@ -146,8 +148,7 @@ export interface RuleFormState {
   conflictCastIds: string[];
   maxHours: string;
   dates: string[];
-  dateInput: string;
-  date: string;
+  datesMode: 'all' | 'specific';
   windowMode: 'range' | 'after' | 'before' | 'allday';
   windowStart: string;
   windowEnd: string;
@@ -160,8 +161,7 @@ export const blankRuleForm = (): RuleFormState => ({
   conflictCastIds: [],
   maxHours: '8',
   dates: [],
-  dateInput: '',
-  date: '',
+  datesMode: 'all',
   windowMode: 'range',
   windowStart: '09:00',
   windowEnd: '17:00',
@@ -172,12 +172,11 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
     return {
       type: 'MAX_HOURS',
       castId: rule.castId,
-      castIds: [],
+      castIds: [rule.castId],
       conflictCastIds: [],
       maxHours: String(rule.maxHours),
       dates: rule.dates ? [...rule.dates] : [],
-      dateInput: '',
-      date: '',
+      datesMode: rule.dates && rule.dates.length > 0 ? 'specific' : 'all',
       windowMode: 'range',
       windowStart: '09:00',
       windowEnd: '17:00',
@@ -187,12 +186,11 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
     return {
       type: 'DATE_RESTRICTION',
       castId: rule.castId,
-      castIds: [],
+      castIds: [rule.castId],
       conflictCastIds: [],
       maxHours: '8',
       dates: [...rule.dates],
-      dateInput: '',
-      date: '',
+      datesMode: rule.dates.length > 0 ? 'specific' : 'all',
       windowMode: 'range',
       windowStart: '09:00',
       windowEnd: '17:00',
@@ -206,8 +204,7 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
       conflictCastIds: [...rule.conflictCastIds],
       maxHours: '8',
       dates: [],
-      dateInput: '',
-      date: '',
+      datesMode: 'all',
       windowMode: 'range',
       windowStart: '09:00',
       windowEnd: '17:00',
@@ -221,8 +218,7 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
       conflictCastIds: [],
       maxHours: '8',
       dates: [],
-      dateInput: '',
-      date: '',
+      datesMode: 'all',
       windowMode: 'range',
       windowStart: '09:00',
       windowEnd: '17:00',
@@ -237,12 +233,11 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
   return {
     type: 'TIME_WINDOW',
     castId: rule.castId,
-    castIds: [],
+    castIds: [rule.castId],
     conflictCastIds: [],
     maxHours: '8',
-    dates: [],
-    dateInput: '',
-    date: rule.date || '',
+    dates: rule.dates ? [...rule.dates] : [],
+    datesMode: rule.dates && rule.dates.length > 0 ? 'specific' : 'all',
     windowMode,
     windowStart: ws || '09:00',
     windowEnd: we || '17:00',

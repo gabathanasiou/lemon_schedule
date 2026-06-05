@@ -14,7 +14,7 @@ interface RuleFormModalProps {
   scenes: Scene[];
   castMembers: CastMember[];
   onClose: () => void;
-  onSave: (rule: ProjectRule) => void;
+  onSave: (rules: ProjectRule[]) => void;
 }
 
 export const RuleFormModal: React.FC<RuleFormModalProps> = ({
@@ -22,17 +22,13 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
 }) => {
   const [form, setForm] = useState<RuleFormState>(blankRuleForm());
   const [error, setError] = useState('');
-  const [castQuery, setCastQuery] = useState('');
 
   useEffect(() => {
     if (open) {
       if (initial) {
-        const f = formFromRule(initial);
-        setForm(f);
-        setCastQuery(f.castId);
+        setForm(formFromRule(initial));
       } else {
         setForm(blankRuleForm());
-        setCastQuery('');
       }
       setError('');
     }
@@ -63,25 +59,13 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
 
   const setType = (t: RuleType) => setForm(f => ({ ...f, type: t }));
 
-  const addDateChip = () => {
-    if (!form.dateInput) return;
-    if (!form.dates.includes(form.dateInput)) {
-      setForm(f => ({ ...f, dates: [...f.dates, form.dateInput].sort() }));
-    }
-    setForm(f => ({ ...f, dateInput: '' }));
-  };
-
-  const removeDateChip = (d: string) => {
-    setForm(f => ({ ...f, dates: f.dates.filter(x => x !== d) }));
-  };
-
   const handleSave = () => {
-    if (!form.castId.trim()) {
-      setError('Cast ID is required');
+    if (form.castIds.length === 0) {
+      setError('Select at least one cast member');
       return;
     }
-    if (form.type === 'DATE_RESTRICTION' && !form.date) {
-      setError('Date is required');
+    if (form.type === 'DATE_RESTRICTION' && form.dates.length === 0) {
+      setError('At least one date is required');
       return;
     }
     if (form.type === 'CAST_CONFLICT') {
@@ -96,24 +80,17 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
     }
     setError('');
 
-    let rule: ProjectRule;
     const id = initial?.id || generateUUID();
-    if (form.type === 'MAX_HOURS') {
-      const h = parseFloat(form.maxHours);
-      if (isNaN(h) || h <= 0) {
-        setError('Max hours must be a positive number');
-        return;
+    const saveSingle = (castId: string, ruleId: string): ProjectRule => {
+      if (form.type === 'MAX_HOURS') {
+        const h = parseFloat(form.maxHours);
+        return { id: ruleId, type: 'MAX_HOURS', castId, maxHours: h, dates: form.dates.length > 0 ? form.dates : undefined };
       }
-      rule = {
-        id, type: 'MAX_HOURS', castId: form.castId.trim(), maxHours: h,
-        dates: form.dates.length > 0 ? form.dates : undefined,
-      };
-    } else if (form.type === 'TIME_WINDOW') {
-      const base: any = { id, type: 'TIME_WINDOW', castId: form.castId.trim() };
-      if (form.date) base.date = form.date;
-      if (form.windowMode === 'allday') {
-        // omit both
-      } else if (form.windowMode === 'range') {
+      if (form.type === 'DATE_RESTRICTION') {
+        return { id: ruleId, type: 'DATE_RESTRICTION', castId, dates: [...form.dates] };
+      }
+      const base: any = { id: ruleId, type: 'TIME_WINDOW', castId, dates: [...form.dates] };
+      if (form.windowMode === 'range') {
         if (form.windowStart) base.windowStart = form.windowStart;
         if (form.windowEnd) base.windowEnd = form.windowEnd;
       } else if (form.windowMode === 'after') {
@@ -121,21 +98,31 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
       } else if (form.windowMode === 'before') {
         if (form.windowEnd) base.windowEnd = form.windowEnd;
       }
-      rule = base;
-    } else if (form.type === 'CAST_CONFLICT') {
-      rule = {
-        id, type: 'CAST_CONFLICT', castIds: [...form.castIds], conflictCastIds: [...form.conflictCastIds],
-      };
+      return base;
+    };
+
+    let rules: ProjectRule[];
+    if (form.type === 'CAST_CONFLICT') {
+      rules = [{ id, type: 'CAST_CONFLICT', castIds: [...form.castIds], conflictCastIds: [...form.conflictCastIds] }];
     } else if (form.type === 'CAST_SCENE_FLAG') {
-      rule = {
-        id, type: 'CAST_SCENE_FLAG', castIds: [...form.castIds],
-      };
+      rules = [{ id, type: 'CAST_SCENE_FLAG', castIds: [...form.castIds] }];
+    } else if (form.type === 'MAX_HOURS') {
+      const h = parseFloat(form.maxHours);
+      if (isNaN(h) || h <= 0) { setError('Max hours must be a positive number'); return; }
+      rules = buildSingleRules();
     } else {
-      rule = {
-        id, type: 'DATE_RESTRICTION', castId: form.castId.trim(), dates: [...form.dates],
-      };
+      rules = buildSingleRules();
     }
-    onSave(rule);
+    onSave(rules);
+
+    function buildSingleRules(): ProjectRule[] {
+      if (initial) {
+        const result: ProjectRule[] = [saveSingle(form.castIds[0].trim(), initial.id)];
+        for (let i = 1; i < form.castIds.length; i++) result.push(saveSingle(form.castIds[i].trim(), generateUUID()));
+        return result;
+      }
+      return form.castIds.map(cid => saveSingle(cid.trim(), generateUUID()));
+    }
   };
 
   return (
@@ -201,33 +188,33 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
           {form.type !== 'CAST_SCENE_FLAG' && form.type !== 'CAST_CONFLICT' && (
           <div>
             <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-              Cast ID
+              Cast IDs
             </label>
             <CastDropdown
-              value={castQuery}
-              onChange={v => { setCastQuery(v); setForm(f => ({ ...f, castId: v })); }}
+              value={form.castIds.join(', ')}
+              onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
               items={castOptions.map(id => {
                 const m = castMembers.find(m => m.id === id);
                 return { id, name: m?.name || '—' };
               })}
               positioning="fixed"
               standalone
-              mode="single"
+              mode="multi"
               showSceneCounts
               scenes={scenes}
-              placeholder="e.g. 1, JOHN, SARAH"
+              placeholder="e.g. 1, 2, JOHN"
             />
             {castOptions.length === 0 && (
               <p className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
                 <Info className="w-3 h-3" />
-                No cast found in your scenes yet. Type a custom ID.
+                No cast found in your scenes yet. Type custom IDs.
               </p>
             )}
           </div>
           )}
 
           {form.type === 'MAX_HOURS' && (
-            <MaxHoursFields form={form} setForm={setForm} addDateChip={addDateChip} removeDateChip={removeDateChip} />
+            <MaxHoursFields form={form} setForm={setForm} />
           )}
 
           {form.type === 'DATE_RESTRICTION' && (

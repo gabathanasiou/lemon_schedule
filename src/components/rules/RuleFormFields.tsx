@@ -1,16 +1,13 @@
 import React from 'react';
 import { RuleFormState } from './ruleMeta';
-import { cn, formatRuleDateShort } from '../../lib/utils';
-import { Plus, X } from 'lucide-react';
+import { cn } from '../../lib/utils';
 import { CastDropdown } from '../CastDropdown';
 import { DatePicker } from '../DatePicker';
 
 export const MaxHoursFields: React.FC<{
   form: RuleFormState;
   setForm: React.Dispatch<React.SetStateAction<RuleFormState>>;
-  addDateChip: () => void;
-  removeDateChip: (d: string) => void;
-}> = ({ form, setForm, addDateChip, removeDateChip }) => (
+}> = ({ form, setForm }) => (
   <div className="space-y-4">
     <div>
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
@@ -37,8 +34,8 @@ export const MaxHoursFields: React.FC<{
           <input
             type="radio"
             name="applyMode"
-            checked={form.dates.length === 0}
-            onChange={() => setForm(f => ({ ...f, dates: [] }))}
+            checked={form.datesMode === 'all'}
+            onChange={() => setForm(f => ({ ...f, datesMode: 'all', dates: [] }))}
             className="accent-zinc-900"
           />
           All days
@@ -47,41 +44,18 @@ export const MaxHoursFields: React.FC<{
           <input
             type="radio"
             name="applyMode"
-            checked={form.dates.length > 0}
-            onChange={() => {}}
+            checked={form.datesMode === 'specific'}
+            onChange={() => setForm(f => ({ ...f, datesMode: 'specific' }))}
             className="accent-zinc-900"
           />
           Specific dates
         </label>
       </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="date"
-          value={form.dateInput}
-          onChange={e => setForm(f => ({ ...f, dateInput: e.target.value }))}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDateChip(); } }}
-          className="border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+      {form.datesMode === 'specific' && (
+        <DatePicker
+          selected={form.dates}
+          onChange={dates => setForm(f => ({ ...f, dates }))}
         />
-        <button
-          type="button"
-          onClick={addDateChip}
-          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add
-        </button>
-      </div>
-      {form.dates.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2.5">
-          {form.dates.map(d => (
-            <span key={d} className="inline-flex items-center gap-1 bg-sky-50 border border-sky-200 text-sky-800 rounded-md px-2 py-1 text-xs font-medium">
-              {formatRuleDateShort(d)}
-              <button type="button" onClick={() => removeDateChip(d)} className="hover:text-sky-900">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-        </div>
       )}
     </div>
   </div>
@@ -109,15 +83,15 @@ export const TimeWindowFields: React.FC<{
   <div className="space-y-4">
     <div>
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-        Apply To Date
+        Apply To
       </label>
       <div className="flex gap-4 mb-2">
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
             type="radio"
-            name="dateMode"
-            checked={!form.date}
-            onChange={() => setForm(f => ({ ...f, date: '' }))}
+            name="twDateMode"
+            checked={form.datesMode === 'all'}
+            onChange={() => setForm(f => ({ ...f, datesMode: 'all', dates: [] }))}
             className="accent-zinc-900"
           />
           Every day
@@ -125,31 +99,24 @@ export const TimeWindowFields: React.FC<{
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
             type="radio"
-            name="dateMode"
-            checked={!!form.date}
-            onChange={() => {
-              if (!form.date) {
-                const today = new Date().toISOString().slice(0, 10);
-                setForm(f => ({ ...f, date: today }));
-              }
-            }}
+            name="twDateMode"
+            checked={form.datesMode === 'specific'}
+            onChange={() => setForm(f => ({ ...f, datesMode: 'specific' }))}
             className="accent-zinc-900"
           />
-          Specific date
+          Specific dates
         </label>
       </div>
-      {form.date && (
-        <input
-          type="date"
-          value={form.date}
-          onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-          className="w-full border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+      {form.datesMode === 'specific' && (
+        <DatePicker
+          selected={form.dates}
+          onChange={dates => setForm(f => ({ ...f, dates }))}
         />
       )}
     </div>
     <div>
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-        Working Hours
+        Time Restriction
       </label>
       <div className="grid grid-cols-2 gap-2 mb-2">
         {(['range', 'after', 'before', 'allday'] as const).map(mode => (
@@ -172,6 +139,7 @@ export const TimeWindowFields: React.FC<{
         <div className="flex items-center gap-2">
           <input
             type="time"
+            tabIndex={0}
             value={form.windowStart}
             onChange={e => setForm(f => ({ ...f, windowStart: e.target.value }))}
             className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
@@ -179,6 +147,7 @@ export const TimeWindowFields: React.FC<{
           <span className="text-zinc-400 text-sm">to</span>
           <input
             type="time"
+            tabIndex={0}
             value={form.windowEnd}
             onChange={e => setForm(f => ({ ...f, windowEnd: e.target.value }))}
             className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
@@ -190,6 +159,7 @@ export const TimeWindowFields: React.FC<{
           <span className="text-xs text-zinc-500 w-16">From</span>
           <input
             type="time"
+            tabIndex={0}
             value={form.windowStart}
             onChange={e => setForm(f => ({ ...f, windowStart: e.target.value }))}
             className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
@@ -201,6 +171,7 @@ export const TimeWindowFields: React.FC<{
           <span className="text-xs text-zinc-500 w-16">Until</span>
           <input
             type="time"
+            tabIndex={0}
             value={form.windowEnd}
             onChange={e => setForm(f => ({ ...f, windowEnd: e.target.value }))}
             className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
