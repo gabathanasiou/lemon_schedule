@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation } from '../types';
 import { generateUUID } from '../lib/utils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser } from 'lucide-react';
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
@@ -128,7 +128,7 @@ const DayCell: React.FC<{
   });
 
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
-  const statusBg = status === 'hold' ? 'bg-amber-50' : status === 'travel' ? 'bg-blue-50' : status === 'holiday' ? 'bg-zinc-100' : '';
+  const statusBg = status === 'hold' ? 'bg-amber-100' : status === 'travel' ? 'bg-blue-100' : status === 'holiday' ? 'bg-zinc-200' : '';
 
   const headerLabel = status === 'hold' ? 'HOLD' : status === 'travel' ? 'TRAVEL' : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
 
@@ -659,15 +659,15 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           </div>
           <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
             {[
-              { key: null, label: '⚪', title: 'No tool' },
+              { key: null, label: <Pointer className="w-3 h-3" />, title: 'Select' },
               { key: 'work', label: 'W', title: 'Work' },
               { key: 'hold', label: 'H', title: 'Hold' },
               { key: 'travel', label: 'T', title: 'Travel' },
               { key: 'holiday', label: 'HOL', title: 'Holiday' },
-              { key: 'remove', label: '✕', title: 'Remove' },
+              { key: 'remove', label: <Eraser className="w-3 h-3" />, title: 'Erase' },
             ].map(t => (
               <button key={t.key || 'none'} type="button"
-                onClick={() => setActiveTool(t.key)}
+                onClick={() => setActiveTool(prev => prev === t.key ? null : t.key)}
                 title={t.title}
                 className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${activeTool === t.key ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
               >{t.label}</button>
