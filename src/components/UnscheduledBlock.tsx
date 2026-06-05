@@ -281,7 +281,7 @@ export const UnscheduledBlock: React.FC<{
             </div>
           </div>
           
-          <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto flex flex-col min-h-0 bg-white items-stretch relative">
+          <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative">
             <MarqueeOverlay box={marqueeBox} />
             <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
             <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>

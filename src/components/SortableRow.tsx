@@ -411,8 +411,8 @@ export const SortableRow: React.FC<{
     if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
     return (
       <div {...commonProps}>
-        <div className="flex items-stretch">
-          <table className="schedule-table flex-1">
+        <div className="flex items-stretch min-w-0">
+          <table className="schedule-table flex-1 min-w-0">
             <tbody>
               <tr className="row-note" style={noteStyle}>
                 <td className="col-sc" />
@@ -467,8 +467,8 @@ export const SortableRow: React.FC<{
     if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
     return (
       <div {...commonProps}>
-        <div className="flex items-stretch">
-          <table className="schedule-table flex-1">
+        <div className="flex items-stretch min-w-0">
+          <table className="schedule-table flex-1 min-w-0">
             <tbody>
               <tr className="row-break" style={breakStyle}>
                 <td className="col-sc" />
@@ -525,8 +525,8 @@ export const SortableRow: React.FC<{
     if (isCompact) {
       return (
         <div {...commonProps}>
-          <div className="flex items-stretch">
-          <table className="schedule-table flex-1">
+          <div className="flex items-stretch min-w-0">
+          <table className="schedule-table flex-1 min-w-0">
               <tbody>
                 <tr style={rowStyle}>
                   <td className="col-sc relative">
@@ -557,8 +557,8 @@ export const SortableRow: React.FC<{
 
     return (
       <div {...commonProps}>
-        <div className="flex items-stretch">
-          <table className="schedule-table flex-1">
+        <div className="flex items-stretch min-w-0">
+          <table className="schedule-table flex-1 min-w-0">
             <tbody>
               <tr style={rowStyle}>
                 <td className="col-sc relative">
