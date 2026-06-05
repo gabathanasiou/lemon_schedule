@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect } from 'react';
 
 const MARGIN = 8;
 
@@ -10,7 +10,6 @@ export const ContextMenu: React.FC<{
   children: React.ReactNode;
 }> = ({ open, x, y, onClose, children }) => {
   const menuRef = React.useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: y, left: x });
 
   useEffect(() => {
     if (!open) return;
@@ -32,7 +31,8 @@ export const ContextMenu: React.FC<{
     let left = x;
     if (rect.right > vw) left = vw - rect.width - MARGIN;
     if (rect.bottom > vh) top = vh - rect.height - MARGIN;
-    setPos({ top, left });
+    menuRef.current.style.top = `${top}px`;
+    menuRef.current.style.left = `${left}px`;
   }, [open, x, y]);
 
   if (!open) return null;
@@ -41,7 +41,7 @@ export const ContextMenu: React.FC<{
     <div
       ref={menuRef}
       className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px]"
-      style={{ top: pos.top, left: pos.left }}
+      style={{ top: y, left: x }}
     >
       {children}
     </div>
