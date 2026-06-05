@@ -63,15 +63,19 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
       for (const cat of BREAKDOWN_CATS) {
         if (cat === 'notes') continue;
         const v = (e as any)[cat]; if (!v) continue;
-        const existing = (breakdownElements[cat] || []).map((x: any) => x.name.toLowerCase());
+        const elements = breakdownElements[cat] || [];
+        const existing = new Set(elements.flatMap((x: any) => [x.name.toLowerCase(), x.id.toLowerCase()]));
         for (const item of v.split(',').map((x: string) => x.trim()).filter(Boolean)) {
-          if (!existing.includes(item.toLowerCase())) dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name: item } } });
+          if (!existing.has(item.toLowerCase())) {
+            const name = cat === 'cast' ? (castMembers.find(m => m.id === item)?.name || item) : item;
+            dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name } } });
+          }
         }
       }
       dispatch({ type: 'UPDATE_SCENE', payload: { id, ...(e as Record<string, any>) } });
     }
     setEdits({});
-  }, [edits, dispatch, breakdownElements]);
+  }, [edits, dispatch, breakdownElements, castMembers]);
 
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
@@ -80,10 +84,21 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
       const stored: { id: string; name: string }[] = (breakdownElements[cat] || []);
       const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
       const items: { id: string; name: string }[] = [];
-      const addItem = (id: string, name: string) => { const k = id || name; if (!items.some(i => (i.id || i.name) === k)) items.push({ id, name }); };
+      const addItem = (iid: string, iname: string) => {
+        const k = iid || iname;
+        if (items.some(i => (i.id || i.name) === k)) return;
+        if (cat === 'cast') {
+          const nameIdx = items.findIndex(i => i.name.toLowerCase() === iname.toLowerCase());
+          if (nameIdx >= 0) {
+            if (!items[nameIdx].id && iid) items[nameIdx] = { id: iid, name: iname };
+            return;
+          }
+        }
+        items.push({ id: iid, name: iname });
+      };
       for (const e of stored) addItem(e.id || e.name, e.name);
       if (cat === 'cast') {
-        for (const m of castMembers) addItem(m.id, m.name);
+        for (const m of castMembers) { addItem(m.id, m.name); nameMap.set(m.id.toLowerCase(), m); nameMap.set(m.name.toLowerCase(), m); }
       }
       for (const s of scenes) {
         const raw = cat === 'cast' ? s.cast : (s as any)[cat] || '';

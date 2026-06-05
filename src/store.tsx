@@ -459,33 +459,63 @@ function reducer(state: State, action: Action): State {
       });
     }
 
-    case 'ADD_CAST_MEMBER':
+    case 'ADD_CAST_MEMBER': {
+      const cms = [...(state.present.castMembers || []), action.payload];
+      const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
       return applyChange({
         ...state.present,
-        castMembers: [...(state.present.castMembers || []), action.payload],
+        breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
+        castMembers: cms,
       });
+    }
 
-    case 'UPDATE_CAST_MEMBER':
+    case 'UPDATE_CAST_MEMBER': {
+      const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c);
+      const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
       return applyChange({
         ...state.present,
-        castMembers: (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c),
+        breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
+        castMembers: cms,
       });
+    }
 
-    case 'DELETE_CAST_MEMBER':
+    case 'DELETE_CAST_MEMBER': {
+      const id = action.payload;
+      const cms = (state.present.castMembers || []).filter(c => c.id !== id);
+      const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
       return applyChange({
         ...state.present,
-        castMembers: (state.present.castMembers || []).filter(c => c.id !== action.payload),
+        scenes: state.present.scenes.map(scene => {
+          const items = scene.cast.split(',').map(x => x.trim()).filter(x => x !== id);
+          return { ...scene, cast: items.join(', ') };
+        }),
+        breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
+        castMembers: cms,
       });
+    }
 
     case 'ADD_ELEMENT': {
       const { category, element } = action.payload;
       const existing = state.present.breakdownElements[category] || [];
+      if (category === 'cast' && element.id) {
+        const cms = state.present.castMembers || [];
+        const cmIdx = cms.findIndex(c => c.id === element.id);
+        const updatedCMs = cmIdx >= 0
+          ? cms.map(c => c.id === element.id ? { ...c, ...element } : c)
+          : [...cms, element];
+        const existingIdx = existing.findIndex(e => e.id === element.id);
+        const updated = existingIdx >= 0
+          ? existing.map(e => e.id === element.id ? { ...e, ...element } : e)
+          : [...existing, element];
+        return applyChange({
+          ...state.present,
+          breakdownElements: { ...state.present.breakdownElements, [category]: updated },
+          castMembers: updatedCMs,
+        });
+      }
       return applyChange({
         ...state.present,
-        breakdownElements: {
-          ...state.present.breakdownElements,
-          [category]: [...existing, element],
-        },
+        breakdownElements: { ...state.present.breakdownElements, [category]: [...existing, element] },
         castMembers: category === 'cast' ? [...(state.present.castMembers || []), element] : state.present.castMembers,
       });
     }
@@ -508,10 +538,20 @@ function reducer(state: State, action: Action): State {
         }
       }
       let old = list.find(e => e.id === id);
-      if (!old) return state;
+      const isCast = category === 'cast';
+      if (!old) {
+        if (isCast) {
+          const newElement = { id: updates.id || id, name: updates.name || '' };
+          return applyChange({
+            ...state.present,
+            breakdownElements: { ...state.present.breakdownElements, [category]: [...list, newElement] },
+            castMembers: [...(state.present.castMembers || []), newElement],
+          });
+        }
+        return state;
+      }
       const newElement = { ...old, ...updates };
       const newList = list.map(e => e.id === id ? newElement : e);
-      const isCast = category === 'cast';
       const sceneKey = category as keyof Scene;
 
       let newScenes = state.present.scenes;
