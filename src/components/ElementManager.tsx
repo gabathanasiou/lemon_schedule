@@ -102,6 +102,24 @@ export function ElementManager() {
     );
   }, []);
 
+  const isCast = category === 'cast';
+  const occurrences = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (category === 'set') {
+      for (const s of project.scenes) if (s.set.trim()) counts.set(s.set, (counts.get(s.set) || 0) + 1);
+    } else if (isCast) {
+      for (const s of project.scenes) for (const id of s.cast.split(',').map(x => x.trim()).filter(Boolean)) counts.set(id, (counts.get(id) || 0) + 1);
+    } else {
+      const field = category as keyof typeof project.scenes[0];
+      for (const s of project.scenes) {
+        const val = (s as any)[field] as string;
+        if (!val) continue;
+        for (const name of val.split(',').map(x => x.trim()).filter(Boolean)) counts.set(name, (counts.get(name) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [project.scenes, category, isCast]);
+
   const DeleteViewer: DataViewerComponent<CellBase<string>> = useCallback(({ row }) => {
     const r = rows[row];
     if (!r) return null;
@@ -114,18 +132,22 @@ export function ElementManager() {
   }, [rows, deleteRow]);
 
   const data: CellBase[][] = useMemo(() => {
-    const result = rows.map(r => [
-      { value: r.id },
-      { value: r.name, DataEditor: NameEditor },
+    const result = rows.map(r => ({
+      occ: occurrences.get(isCast ? r.id : r.name) || 0
+    })).map(({ occ }, i) => [
+      { value: rows[i].id },
+      { value: rows[i].name, DataEditor: NameEditor },
+      { value: occ, readOnly: true },
       { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
     result.push([
       { value: '' },
       { value: '', DataEditor: NameEditor },
       { value: '', readOnly: true },
+      { value: '', readOnly: true },
     ]);
     return result;
-  }, [rows, NameEditor, DeleteViewer]);
+  }, [rows, NameEditor, DeleteViewer, occurrences, isCast]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantom = newData[rows.length];
@@ -194,7 +216,7 @@ export function ElementManager() {
         <Spreadsheet
           data={data}
           onChange={handleChange}
-          columnLabels={['ID', 'Name', '']}
+          columnLabels={['ID', 'Name', 'Occ', '']}
         />
       </div>
 
@@ -212,6 +234,9 @@ export function ElementManager() {
             return prev.map(r => r.id.trim() ? r : { ...r, id: String(next++) });
           })} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
             Auto-ID
+          </button>
+          <button onClick={() => setRows(prev => prev.filter(r => (occurrences.get(isCast ? r.id : r.name) || 0) > 0))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            Clear Zero
           </button>
         </div>
         <div className="flex items-center gap-2">
