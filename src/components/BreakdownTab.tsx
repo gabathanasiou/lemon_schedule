@@ -170,7 +170,7 @@ export function BreakdownTab() {
     const setOptions = useMemo(() => {
       const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
       return [...sets].sort();
-    }, [scenes]);
+  }, [scenes, project]);
     return (
       <AutocompleteDropdown
         value={cell?.value || ''}
@@ -210,7 +210,23 @@ export function BreakdownTab() {
   const breakdownEditors = useMemo(() => {
     const map = new Map<string, DataEditorComponent<CellBase<string>>>();
     for (const key of BREAKDOWN_CATEGORIES) {
-      const items = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))].sort().map(v => ({ id: v, name: v }));
+      const sceneValues: string[] = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())) as string[])];
+      const storedElements: { id: string; name: string }[] = (project as any).breakdownElements?.[key] || [];
+      const nameMap = new Map<string, { id: string; name: string }>(storedElements.map(e => [e.name.toLowerCase(), e]));
+      const seen = new Set<string>();
+      const items: { id: string; name: string }[] = [];
+      for (const v of sceneValues) {
+        const lc = v.toLowerCase();
+        const matched = nameMap.get(lc);
+        if (matched) {
+          if (!seen.has(matched.id)) { items.push({ id: matched.id, name: matched.name }); seen.add(matched.id); }
+        } else {
+          if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
+        }
+      }
+      for (const e of storedElements) {
+        if (!seen.has(e.id)) { items.push({ id: e.id, name: e.name }); seen.add(e.id); }
+      }
       const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
         const committedRef = useRef(false);
         return (
