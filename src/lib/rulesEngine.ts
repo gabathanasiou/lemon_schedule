@@ -117,6 +117,59 @@ const ws = rule.windowStart || '00:00';
       }
       continue;
     }
+
+    if (rule.type === 'CAST_CONFLICT') {
+      const castSet = new Set<string>();
+      for (const row of dayRows) {
+        if (row.type !== 'SCENE' || !row.sceneId) continue;
+        const scene = scenes.find(s => s.id === row.sceneId);
+        if (!scene) continue;
+        for (const c of scene.cast.split(',').map(c => c.trim())) {
+          if (c) castSet.add(c);
+        }
+      }
+      const groupA = rule.castIds.filter(c => castSet.has(c));
+      const groupB = rule.conflictCastIds.filter(c => castSet.has(c));
+      if (groupA.length > 0 && groupB.length > 0) {
+        const flaggedScenes: string[] = [];
+        for (const row of dayRows) {
+          if (row.type !== 'SCENE' || !row.sceneId) continue;
+          const scene = scenes.find(s => s.id === row.sceneId);
+          if (!scene) continue;
+          const sceneCast = scene.cast.split(',').map(c => c.trim());
+          if (sceneCast.some(c => rule.castIds.includes(c) || rule.conflictCastIds.includes(c))) {
+            flaggedScenes.push(scene.id);
+          }
+        }
+        violations.push({
+          ruleId: rule.id, ruleType: 'CAST_CONFLICT',
+          message: `Cast conflict: ${groupA.join(', ')} and ${groupB.join(', ')} both scheduled this day`,
+          shootDay, sceneIds: flaggedScenes,
+        });
+      }
+      continue;
+    }
+
+    if (rule.type === 'CAST_SCENE_FLAG') {
+      const flaggedScenes: string[] = [];
+      for (const row of dayRows) {
+        if (row.type !== 'SCENE' || !row.sceneId) continue;
+        const scene = scenes.find(s => s.id === row.sceneId);
+        if (!scene) continue;
+        const sceneCast = scene.cast.split(',').map(c => c.trim());
+        if (sceneCast.some(c => rule.castIds.includes(c))) {
+          flaggedScenes.push(scene.id);
+        }
+      }
+      if (flaggedScenes.length > 0) {
+        violations.push({
+          ruleId: rule.id, ruleType: 'CAST_SCENE_FLAG',
+          message: `Scene includes flagged cast: ${rule.castIds.join(', ')}`,
+          shootDay, sceneIds: flaggedScenes,
+        });
+      }
+      continue;
+    }
   }
 
   return violations;

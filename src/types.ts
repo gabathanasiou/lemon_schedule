@@ -76,11 +76,13 @@ export type ProjectRule =
   | { id: string; type: 'MAX_HOURS'; castId: string; maxHours: number; dates?: string[] }
   | { id: string; type: 'DATE_RESTRICTION'; castId: string; date: string }
   | { id: string; type: 'TIME_WINDOW'; castId: string; date: string; windowStart?: string; windowEnd?: string }
+  | { id: string; type: 'CAST_CONFLICT'; castIds: string[]; conflictCastIds: string[] }
+  | { id: string; type: 'CAST_SCENE_FLAG'; castIds: string[] }
 
 export interface RuleViolation {
   ruleId: string;
-  ruleType: 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW';
-  castId: string;
+  ruleType: 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW' | 'CAST_CONFLICT' | 'CAST_SCENE_FLAG';
+  castId?: string;
   message: string;
   shootDay?: number;
   sceneId?: string;

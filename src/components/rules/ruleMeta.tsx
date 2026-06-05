@@ -1,9 +1,9 @@
 import React from 'react';
 import { ProjectRule } from '../../types';
 import { formatRuleDateShort } from '../../lib/utils';
-import { Clock, CalendarX2, Timer } from 'lucide-react';
+import { Clock, CalendarX2, Timer, Ban, Bell } from 'lucide-react';
 
-export type RuleType = 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW';
+export type RuleType = 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW' | 'CAST_CONFLICT' | 'CAST_SCENE_FLAG';
 
 export interface RuleTypeMeta {
   label: string;
@@ -15,6 +15,25 @@ export interface RuleTypeMeta {
   border: string;
   text: string;
   badge: string;
+}
+
+export function getRuleGroupKey(rule: ProjectRule): string {
+  if (rule.type === 'MAX_HOURS' || rule.type === 'DATE_RESTRICTION' || rule.type === 'TIME_WINDOW') return rule.castId;
+  if (rule.type === 'CAST_CONFLICT') {
+    const all = [...rule.castIds, ...rule.conflictCastIds];
+    return all.length > 0 ? all[0] : 'Other';
+  }
+  if (rule.type === 'CAST_SCENE_FLAG') {
+    return rule.castIds.length > 0 ? rule.castIds[0] : 'Other';
+  }
+  return 'Other';
+}
+
+export function getRuleSearchText(rule: ProjectRule): string {
+  if (rule.type === 'MAX_HOURS' || rule.type === 'DATE_RESTRICTION' || rule.type === 'TIME_WINDOW') return rule.castId;
+  if (rule.type === 'CAST_CONFLICT') return [...rule.castIds, ...rule.conflictCastIds].join(' ');
+  if (rule.type === 'CAST_SCENE_FLAG') return rule.castIds.join(' ');
+  return '';
 }
 
 export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
@@ -51,9 +70,31 @@ export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
     text: 'text-amber-700',
     badge: 'bg-amber-100 text-amber-700',
   },
+  CAST_CONFLICT: {
+    label: 'Cast Conflict',
+    short: 'Conflict',
+    description: 'Flag when two groups of cast are scheduled on the same day.',
+    icon: Ban,
+    ring: 'ring-violet-500',
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
+    text: 'text-violet-700',
+    badge: 'bg-violet-100 text-violet-700',
+  },
+  CAST_SCENE_FLAG: {
+    label: 'Cast Scene Flag',
+    short: 'Flag',
+    description: 'Flag scenes that include specific cast members.',
+    icon: Bell,
+    ring: 'ring-emerald-500',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    text: 'text-emerald-700',
+    badge: 'bg-emerald-100 text-emerald-700',
+  },
 };
 
-export const RULE_TYPES: RuleType[] = ['MAX_HOURS', 'DATE_RESTRICTION', 'TIME_WINDOW'];
+export const RULE_TYPES: RuleType[] = ['MAX_HOURS', 'DATE_RESTRICTION', 'TIME_WINDOW', 'CAST_CONFLICT', 'CAST_SCENE_FLAG'];
 
 function describeTimeWindow(r: Extract<ProjectRule, { type: 'TIME_WINDOW' }>): string {
   const ws = r.windowStart || '00:00';
@@ -63,6 +104,11 @@ function describeTimeWindow(r: Extract<ProjectRule, { type: 'TIME_WINDOW' }>): s
   if (r.windowStart && r.windowEnd) return `${r.windowStart} – ${r.windowEnd}`;
   if (r.windowStart) return `after ${r.windowStart}`;
   return `before ${r.windowEnd}`;
+}
+
+function joinNames(names: string[], max = 3): string {
+  if (names.length <= max) return names.join(', ');
+  return `${names.slice(0, max).join(', ')} +${names.length - max} more`;
 }
 
 export function describeRule(rule: ProjectRule): string {
@@ -76,6 +122,12 @@ export function describeRule(rule: ProjectRule): string {
   if (rule.type === 'DATE_RESTRICTION') {
     return `Unavailable · ${formatRuleDateShort(rule.date)}`;
   }
+  if (rule.type === 'CAST_CONFLICT') {
+    return `Conflict: ${joinNames(rule.castIds)} vs ${joinNames(rule.conflictCastIds)}`;
+  }
+  if (rule.type === 'CAST_SCENE_FLAG') {
+    return `Flag when ${joinNames(rule.castIds)} appear`;
+  }
   const t = describeTimeWindow(rule);
   return rule.date ? `Only ${t} · ${formatRuleDateShort(rule.date)}` : `Only ${t} · every day`;
 }
@@ -88,6 +140,8 @@ export const RuleTypeIcon: React.FC<{ type: RuleType; className?: string }> = ({
 export interface RuleFormState {
   type: RuleType;
   castId: string;
+  castIds: string[];
+  conflictCastIds: string[];
   maxHours: string;
   dates: string[];
   dateInput: string;
@@ -100,6 +154,8 @@ export interface RuleFormState {
 export const blankRuleForm = (): RuleFormState => ({
   type: 'MAX_HOURS',
   castId: '',
+  castIds: [],
+  conflictCastIds: [],
   maxHours: '8',
   dates: [],
   dateInput: '',
@@ -114,6 +170,8 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
     return {
       type: 'MAX_HOURS',
       castId: rule.castId,
+      castIds: [],
+      conflictCastIds: [],
       maxHours: String(rule.maxHours),
       dates: rule.dates ? [...rule.dates] : [],
       dateInput: '',
@@ -127,10 +185,42 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
     return {
       type: 'DATE_RESTRICTION',
       castId: rule.castId,
+      castIds: [],
+      conflictCastIds: [],
       maxHours: '8',
       dates: [],
       dateInput: '',
       date: rule.date,
+      windowMode: 'range',
+      windowStart: '09:00',
+      windowEnd: '17:00',
+    };
+  }
+  if (rule.type === 'CAST_CONFLICT') {
+    return {
+      type: 'CAST_CONFLICT',
+      castId: '',
+      castIds: [...rule.castIds],
+      conflictCastIds: [...rule.conflictCastIds],
+      maxHours: '8',
+      dates: [],
+      dateInput: '',
+      date: '',
+      windowMode: 'range',
+      windowStart: '09:00',
+      windowEnd: '17:00',
+    };
+  }
+  if (rule.type === 'CAST_SCENE_FLAG') {
+    return {
+      type: 'CAST_SCENE_FLAG',
+      castId: '',
+      castIds: [...rule.castIds],
+      conflictCastIds: [],
+      maxHours: '8',
+      dates: [],
+      dateInput: '',
+      date: '',
       windowMode: 'range',
       windowStart: '09:00',
       windowEnd: '17:00',
@@ -145,6 +235,8 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
   return {
     type: 'TIME_WINDOW',
     castId: rule.castId,
+    castIds: [],
+    conflictCastIds: [],
     maxHours: '8',
     dates: [],
     dateInput: '',

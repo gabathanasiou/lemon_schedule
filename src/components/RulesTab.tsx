@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useProject } from '../store';
 import { ProjectRule } from '../types';
 import { cn } from '../lib/utils';
-import { RULE_TYPE_META, RuleType, describeRule } from './rules/ruleMeta';
+import { RULE_TYPE_META, RuleType, describeRule, getRuleGroupKey, getRuleSearchText } from './rules/ruleMeta';
 import { RuleCard } from './rules/RuleCard';
 import { RuleFormModal } from './rules/RuleFormModal';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
@@ -26,12 +26,13 @@ export const RulesTab: React.FC = () => {
       if (typeFilter !== 'ALL' && r.type !== typeFilter) continue;
       if (search) {
         const q = search.toLowerCase();
-        const inCast = r.castId.toLowerCase().includes(q);
+        const inCast = getRuleSearchText(r).toLowerCase().includes(q);
         const inDesc = describeRule(r).toLowerCase().includes(q);
         if (!inCast && !inDesc) continue;
       }
-      if (!groups.has(r.castId)) groups.set(r.castId, []);
-      groups.get(r.castId)!.push(r);
+      const key = getRuleGroupKey(r);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(r);
     }
     return Array.from(groups.entries()).sort(([a], [b]) => {
       const na = parseInt(a, 10);

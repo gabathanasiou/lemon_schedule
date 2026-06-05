@@ -64,6 +64,106 @@ import DropdownDivider from './components/DropdownDivider';
 #### `CellInput`
 Inline-editable text input/textarea. Used in schedule view for editing scene/break/note text. Handles auto-focus, Enter to confirm, Escape to cancel.
 
+#### `CastDropdown` (`src/components/CastDropdown.tsx`)
+Multi/single-select dropdown for entities with `{ id, name }`. Used for cast, reusable for props, items, or any entity type.
+
+**Multi mode** (default): Input IS the comma-separated value. Type IDs directly ("1, 2, JOHN") — matching items highlight as checked in the full list. Click to toggle, Enter/Tab/blur to commit.
+
+**Single mode**: Search-then-select. Type to filter, click one item → immediately commits.
+
+```tsx
+import { CastDropdown, EntityItem } from './components/CastDropdown';
+
+// Simple — defaults to store castMembers
+<CastDropdown
+  value="1, 2, 3"
+  onChange={val => updateScene({cast: val})}
+  className="text-right w-full"
+  readOnly={!textEditingEnabled}
+/>
+
+// Cell editor (always open + auto-focused)
+<CastDropdown
+  value="1, 2, 3"
+  onChange={handleChange}
+  positioning="relative"
+  defaultOpen
+  autoFocus
+/>
+
+// Standalone (bordered input, fixed positioning) — for forms
+<CastDropdown
+  value={castIds.join(', ')}
+  onChange={val => setCastIds(val.split(',').map(x => x.trim()).filter(Boolean))}
+  items={entities}         // custom entity list (override store)
+  positioning="fixed"
+  standalone
+  mode="single"            // "single" | "multi" (default)
+  showSceneCounts          // show badge next to each item
+  scenes={scenes}
+  placeholder="Search..."
+  searchFields={['id', 'name']}
+  renderItem={(item, selected) => <div>...</div>}
+  sortItems={(items, selectedIds) => [...]}
+  filterItem={(item, query) => boolean}
+/>
+```
+
+#### `SelectDropdown` (`src/components/SelectDropdown.tsx`)
+Single-select dropdown for picking from a fixed list of options (e.g. INT/EXT, DAY/NIGHT).
+```tsx
+import { SelectDropdown } from './components/SelectDropdown';
+
+<SelectDropdown
+  value={scene.intExt}
+  onChange={val => updateScene({intExt: val})}
+  options={['INT', 'EXT', 'INT/EXT']}
+  className="text-left w-full"
+  readOnly={!textEditingEnabled}
+  positioning="relative"     // "relative" | "fixed"
+  standalone                 // bordered input for forms
+/>
+```
+
+#### `AutocompleteDropdown` (`src/components/AutocompleteDropdown.tsx`)
+Single-select autocomplete with search/filter from a dynamic list (e.g. Set names). Use `showAll` for short predetermined lists (INT/EXT, DAY/NIGHT) — shows full list with matching option auto-highlighted for quick Enter selection.
+```tsx
+import { AutocompleteDropdown } from './components/AutocompleteDropdown';
+
+// Large dynamic list — filters as you type
+<AutocompleteDropdown
+  value={scene.set}
+  onChange={val => updateScene({set: val})}
+  options={setOptions}
+  className="text-left w-full"
+  readOnly={!textEditingEnabled}
+  positioning="relative"
+  standalone
+  normalize={v => v.toUpperCase()}
+/>
+
+// Short predetermined list — show all options, highlight match
+<AutocompleteDropdown
+  value={scene.intExt}
+  onChange={val => updateScene({intExt: val})}
+  options={['INT', 'EXT', 'INT/EXT']}
+  positioning="relative"
+  defaultOpen
+  autoFocus
+  showAll
+/>
+```
+
+#### Creating a new entity dropdown (Props, Items, etc.)
+The `CastDropdown` component accepts an `items` prop — pass any `{ id: string, name: string }[]` to create a dropdown for a new entity type without writing a new component. For custom display/search/sort, use `renderItem`, `filterItem`, `sortItems`, and `searchFields` props. For a fully custom dropdown, copy the pattern from `CastDropdown.tsx` — it uses shared hooks from `src/lib/dropdown.ts` (`useDropdown`, `useOpenHandler`, `sortCastMembers`).
+
+### Shared Dropdown Hooks (`src/lib/dropdown.ts`)
+- `useDropdown(open, ref, onClose?)` — click-outside + global single-open management
+- `useOpenHandler(setOpen)` — closes any other open dropdown, then opens current
+- `sortCastMembers(list, selectedIds)` — selected-first, then numeric id sort
+- `DD_ITEM`, `DD_CONTAINER` — CSS classes for dropdown items/panel
+- `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)` — exported from CastDropdown.tsx for reuse
+
 ### Key Patterns
 - **Click-to-toggle** (NOT hover): All menus use React state + backdrop div for closing.
 - **Lucide icons**: Always `w-3.5 h-3.5` in menus and buttons. Use `className="shrink-0"` to prevent icon squishing.
@@ -88,6 +188,23 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - Two-row scene layout: info row + description row (color-coded, no borders).
 - Inline `<style>` tag for print CSS (since the page is replaced by print component).
 
+### Rules Engine (`src/lib/rulesEngine.ts`)
+- `checkDay()` evaluates rules per shoot day; `checkAllDays()` returns a Map of day→violations.
+- Five `ProjectRule` types:
+  - `MAX_HOURS` – limit cast member's total hours per day
+  - `DATE_RESTRICTION` – block cast on a specific date
+  - `TIME_WINDOW` – restrict cast to specific hours
+  - `CAST_CONFLICT` – flag when groups A and B are both scheduled on the same day
+  - `CAST_SCENE_FLAG` – flag scenes containing specific cast members
+- Violations are displayed as red `<Flag>` icons on day headers and individual scene strips in both Schedule and Calendar views.
+
+### Rules UI (`src/components/rules/`)
+- `ruleMeta.tsx` – `RuleType` union, `RULE_TYPE_META` (icons/colors), `describeRule()`, `getRuleGroupKey()`, `getRuleSearchText()`, `RuleFormState`/`blankRuleForm()`/`formFromRule()`
+- `RuleCard.tsx` – card display with type badge, description, edit/delete buttons
+- `RuleFormFields.tsx` – field components for each rule type: `MaxHoursFields`, `DateRestrictionFields`, `TimeWindowFields`, `CastConflictFields`, `CastSceneFlagFields`
+- `RuleFormModal.tsx` – modal for creating/editing rules with type selector grid, cast autocomplete, and type-specific fields
+- `RulesTab.tsx` – grouped rule list with search, type filter bar, collapse/expand by cast group
+
 ### Store (`src/store.tsx`)
 - `useProject()` hook returns `{ state, dispatch, currentProjectId }`.
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
@@ -107,4 +224,4 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
 - `ScheduleRow`: `{ id, type: 'SCENE'|'BREAK'|'NOTE', sceneId?, shootDay?, order, estimatedDuration? }`
 - `ScheduleVersion`: `{ id, name, rows: ScheduleRow[], dayMeta: Record<number, ShootDayMeta> }`
-- `Project`: `{ id, title, scenes: Scene[], versions: ScheduleVersion[], activeVersionId }`
+- `Project`: `{ id, title, scenes: Scene[], versions: ScheduleVersion[], activeVersionId, rules: ProjectRule[], castMembers: CastMember[] }`

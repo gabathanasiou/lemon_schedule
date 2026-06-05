@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProjectRule, Scene, CastMember } from '../../types';
 import { generateUUID, getUniqueCastIds, cn } from '../../lib/utils';
 import {
   RULE_TYPE_META, RuleFormState, RuleType, blankRuleForm, formFromRule,
 } from './ruleMeta';
-import { MaxHoursFields, DateRestrictionFields, TimeWindowFields } from './RuleFormFields';
+import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFields, CastSceneFlagFields } from './RuleFormFields';
 import { X, AlertCircle, Info } from 'lucide-react';
+import { CastDropdown } from '../CastDropdown';
 
 interface RuleFormModalProps {
   open: boolean;
@@ -22,8 +23,6 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
   const [form, setForm] = useState<RuleFormState>(blankRuleForm());
   const [error, setError] = useState('');
   const [castQuery, setCastQuery] = useState('');
-  const [castOpen, setCastOpen] = useState(false);
-  const castRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -48,15 +47,6 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  useEffect(() => {
-    if (!castOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (castRef.current && !castRef.current.contains(e.target as Node)) setCastOpen(false);
-    };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, [castOpen]);
-
   if (!open) return null;
 
   const castOptions = [...new Set([
@@ -70,9 +60,6 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
     if (!isNaN(nb)) return 1;
     return a.localeCompare(b);
   });
-  const filteredCast = castOptions.filter(c =>
-    c.toLowerCase().includes(castQuery.toLowerCase())
-  );
 
   const setType = (t: RuleType) => setForm(f => ({ ...f, type: t }));
 
@@ -95,6 +82,16 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
     }
     if (form.type === 'DATE_RESTRICTION' && !form.date) {
       setError('Date is required');
+      return;
+    }
+    if (form.type === 'CAST_CONFLICT') {
+      if (form.castIds.length === 0 || form.conflictCastIds.length === 0) {
+        setError('Both groups must have at least one cast member');
+        return;
+      }
+    }
+    if (form.type === 'CAST_SCENE_FLAG' && form.castIds.length === 0) {
+      setError('Select at least one cast member');
       return;
     }
     setError('');
@@ -125,6 +122,14 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
         if (form.windowEnd) base.windowEnd = form.windowEnd;
       }
       rule = base;
+    } else if (form.type === 'CAST_CONFLICT') {
+      rule = {
+        id, type: 'CAST_CONFLICT', castIds: [...form.castIds], conflictCastIds: [...form.conflictCastIds],
+      };
+    } else if (form.type === 'CAST_SCENE_FLAG') {
+      rule = {
+        id, type: 'CAST_SCENE_FLAG', castIds: [...form.castIds],
+      };
     } else {
       rule = {
         id, type: 'DATE_RESTRICTION', castId: form.castId.trim(), date: form.date,
@@ -193,38 +198,25 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
             </div>
           </div>
 
-          <div ref={castRef} className="relative">
+          {form.type !== 'CAST_SCENE_FLAG' && form.type !== 'CAST_CONFLICT' && (
+          <div>
             <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
               Cast ID
             </label>
-            <input
+            <CastDropdown
               value={castQuery}
-              onChange={e => { setCastQuery(e.target.value); setForm(f => ({ ...f, castId: e.target.value })); setCastOpen(true); }}
-              onFocus={() => setCastOpen(true)}
+              onChange={v => { setCastQuery(v); setForm(f => ({ ...f, castId: v })); }}
+              items={castOptions.map(id => {
+                const m = castMembers.find(m => m.id === id);
+                return { id, name: m?.name || '—' };
+              })}
+              positioning="fixed"
+              standalone
+              mode="single"
+              showSceneCounts
+              scenes={scenes}
               placeholder="e.g. 1, JOHN, SARAH"
-              className="w-full border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900"
-              autoFocus
             />
-            {castOpen && filteredCast.length > 0 && (
-              <div className="absolute z-10 top-full mt-1 w-full bg-white border border-zinc-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {filteredCast.map(c => {
-                  const member = castMembers.find(m => m.id === c);
-                  return (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => { setCastQuery(c); setForm(f => ({ ...f, castId: c })); setCastOpen(false); }}
-                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-zinc-50 font-mono flex items-center justify-between"
-                  >
-                    <span>{c}{member?.name ? <span className="text-zinc-400 ml-2 font-sans">. {member.name}</span> : null}</span>
-                    <span className="text-[10px] text-zinc-400">
-                      {scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(c)).length} scenes
-                    </span>
-                  </button>
-                  );
-                })}
-              </div>
-            )}
             {castOptions.length === 0 && (
               <p className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
                 <Info className="w-3 h-3" />
@@ -232,6 +224,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
               </p>
             )}
           </div>
+          )}
 
           {form.type === 'MAX_HOURS' && (
             <MaxHoursFields form={form} setForm={setForm} addDateChip={addDateChip} removeDateChip={removeDateChip} />
@@ -243,6 +236,14 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
 
           {form.type === 'TIME_WINDOW' && (
             <TimeWindowFields form={form} setForm={setForm} />
+          )}
+
+          {form.type === 'CAST_CONFLICT' && (
+            <CastConflictFields form={form} setForm={setForm} castMembers={castMembers} />
+          )}
+
+          {form.type === 'CAST_SCENE_FLAG' && (
+            <CastSceneFlagFields form={form} setForm={setForm} castMembers={castMembers} />
           )}
 
           {error && (

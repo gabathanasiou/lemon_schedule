@@ -17,7 +17,7 @@ import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
 import { StorageStatus, useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
-import { RULE_TYPE_META, describeRule } from './components/rules/ruleMeta';
+import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive } from 'lucide-react';
 
@@ -439,7 +439,10 @@ function AppContent() {
                   } else {
                     const t = item.data as RuleTrashItem;
                     const meta = RULE_TYPE_META[t.rule.type];
-                    title = `${meta.short} · Cast ${t.rule.castId} · ${describeRule(t.rule)}`;
+                    const castLabel = t.rule.type === 'CAST_CONFLICT' || t.rule.type === 'CAST_SCENE_FLAG'
+                      ? getRuleSearchText(t.rule) || 'multiple'
+                      : t.rule.castId;
+                    title = `${meta.short} · Cast ${castLabel} · ${describeRule(t.rule)}`;
                     subtitle = `Rule · ${formatTime(t.deletedAt)}`;
                   }
                   const actionType = item.kind === 'scene' ? 'RESTORE_SCENE'

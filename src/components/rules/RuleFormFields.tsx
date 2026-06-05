@@ -2,6 +2,7 @@ import React from 'react';
 import { RuleFormState } from './ruleMeta';
 import { cn, formatRuleDate, formatRuleDateShort } from '../../lib/utils';
 import { Plus, X } from 'lucide-react';
+import { CastDropdown } from '../CastDropdown';
 
 export const MaxHoursFields: React.FC<{
   form: RuleFormState;
@@ -218,5 +219,65 @@ export const TimeWindowFields: React.FC<{
         </p>
       )}
     </div>
+  </div>
+);
+
+export const CastConflictFields: React.FC<{
+  form: RuleFormState;
+  setForm: React.Dispatch<React.SetStateAction<RuleFormState>>;
+  castMembers: Array<{ id: string; name: string }>;
+}> = ({ form, setForm, castMembers }) => (
+  <div className="space-y-4">
+    <div>
+      <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+        Group A
+      </label>
+      <CastDropdown
+        value={form.castIds.join(', ')}
+        onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
+        items={castMembers}
+        positioning="fixed"
+        standalone
+        placeholder="Search cast members..."
+      />
+    </div>
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-px bg-zinc-200" />
+      <span className="text-xs text-zinc-400 font-medium">VS</span>
+      <div className="flex-1 h-px bg-zinc-200" />
+    </div>
+    <div>
+      <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+        Group B
+      </label>
+      <CastDropdown
+        value={form.conflictCastIds.join(', ')}
+        onChange={val => setForm(f => ({ ...f, conflictCastIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
+        items={castMembers}
+        positioning="fixed"
+        standalone
+        placeholder="Search cast members..."
+      />
+    </div>
+  </div>
+);
+
+export const CastSceneFlagFields: React.FC<{
+  form: RuleFormState;
+  setForm: React.Dispatch<React.SetStateAction<RuleFormState>>;
+  castMembers: Array<{ id: string; name: string }>;
+}> = ({ form, setForm, castMembers }) => (
+  <div>
+    <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+      Flag scenes containing these cast members
+    </label>
+    <CastDropdown
+      value={form.castIds.join(', ')}
+      onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
+      items={castMembers}
+      positioning="fixed"
+      standalone
+      placeholder="Search cast members..."
+    />
   </div>
 );

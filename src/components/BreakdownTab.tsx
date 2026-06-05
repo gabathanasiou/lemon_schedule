@@ -1,13 +1,14 @@
-import React, { useRef, useMemo, useCallback, useState, useEffect, useLayoutEffect } from 'react';
-import { useSmartPosition } from '../lib/useSmartPosition';
+import React, { useRef, useMemo, useCallback, useState } from 'react';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
 import { useProject } from '../store';
-import { Scene, IntExt, DayNight, CastMember } from '../types';
+import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown } from 'lucide-react';
 import Papa from 'papaparse';
 import { CastTab } from './CastTab';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
+import { CastDropdown } from './CastDropdown';
+import { AutocompleteDropdown } from './AutocompleteDropdown';
 
 const COLUMNS = [
   { key: 'sceneNumber', label: 'Scene #' },
@@ -102,84 +103,23 @@ export function BreakdownTab() {
   }, [scenes, deleteScene]);
 
   const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const [val, setVal] = useState(cell?.value || '');
     const committedRef = useRef(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const castMembers = project.castMembers || [];
-    const currentIds = val.split(',').map(x => x.trim()).filter(Boolean);
-
-    const sorted = [...castMembers].sort((a, b) => {
-      const aSel = currentIds.includes(a.id);
-      const bSel = currentIds.includes(b.id);
-      if (aSel !== bSel) return aSel ? -1 : 1;
-      const na = parseInt(a.id, 10);
-      const nb = parseInt(b.id, 10);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      return a.id.localeCompare(b.id, undefined, { numeric: true });
-    });
-
-    const toggle = (id: string) => {
-      setVal(prev => {
-        const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
-        const idx = ids.indexOf(id);
-        if (idx >= 0) ids.splice(idx, 1);
-        else ids.push(id);
-        return ids.join(', ');
-      });
-    };
-
-    const commit = () => {
+    const handleChange = (val: string) => {
       if (committedRef.current) return;
       committedRef.current = true;
-      onChange({ value: val.split(',').map(x => x.trim()).filter(Boolean).join(', ') });
+      onChange({ value: val });
       exitEditMode();
     };
-
-    useEffect(() => {
-      const onClick = (e: MouseEvent) => {
-        if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) commit();
-      };
-      document.addEventListener('mousedown', onClick);
-      return () => document.removeEventListener('mousedown', onClick);
-    }, [val, commit]);
-
-    useSmartPosition(wrapperRef, true);
-
     return (
-      <div ref={wrapperRef} className="relative w-full h-full">
-        <input
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
-            if (e.key === 'Escape') exitEditMode();
-          }}
-          onBlur={() => commit()}
-          autoFocus
-          className="w-full h-full border-0 outline-none px-2 text-[13px] font-mono"
-          placeholder="1, 2, JOHN"
-        />
-        <div className="absolute top-full left-0 min-w-[220px] bg-white border border-zinc-200 shadow-lg z-50 max-h-64 overflow-y-auto">
-          {sorted.map(m => {
-            const checked = currentIds.includes(m.id);
-            return (
-              <div
-                key={m.id}
-                className={`px-2 py-1 text-[13px] cursor-pointer flex items-center gap-2 font-mono hover:bg-zinc-50 ${checked ? 'bg-blue-50' : ''}`}
-                onMouseDown={e => { e.preventDefault(); toggle(m.id); }}
-              >
-                <span className="text-zinc-400 shrink-0 w-12 text-right">{m.id}.</span>
-                <span className={checked ? 'text-blue-700 font-semibold' : 'text-zinc-600'}>{m.name || <span className="italic text-zinc-400">—</span>}</span>
-              </div>
-            );
-          })}
-          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
-            Tab or Enter to confirm
-          </div>
-        </div>
-      </div>
+      <CastDropdown
+        value={cell?.value || ''}
+        onChange={handleChange}
+        positioning="relative"
+        defaultOpen
+        autoFocus
+      />
     );
-  }, [project.castMembers]);
+  }, []);
 
   const PageCountEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
@@ -199,203 +139,45 @@ export function BreakdownTab() {
   }, []);
 
   const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const initialVal = cell?.value || '';
     const setOptions = useMemo(() => {
       const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
       return [...sets].sort();
     }, [scenes]);
-    const initialIdx = setOptions.indexOf(initialVal.toUpperCase());
-    const [val, setVal] = useState(initialVal);
-    const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
-    const committedRef = useRef(false);
-    const filtered = setOptions.filter(opt => opt.includes(val.toUpperCase()));
-
-    const commit = (value: string) => {
-      committedRef.current = true;
-      const match = setOptions.find(opt => opt === value.toUpperCase()) || value.toUpperCase();
-      onChange({ value: match });
-      exitEditMode();
-    };
-
-    const editorRef = useRef<HTMLDivElement>(null);
-    useSmartPosition(editorRef, true);
-
     return (
-      <div ref={editorRef} className="relative w-full h-full">
-        <input
-          type="text"
-          value={val}
-          onChange={e => { setVal(e.target.value.toUpperCase()); setHighlightedIndex(0); }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === 'Tab') {
-              e.preventDefault();
-              commit(filtered[0] ? filtered[highlightedIndex] : val);
-            }
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.min(i + 1, setOptions.length - 1));
-            }
-            if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.max(i - 1, 0));
-            }
-            if (e.key === 'Escape') exitEditMode();
-          }}
-          onBlur={() => {
-            if (!committedRef.current) {
-              commit(filtered[0] ? filtered[highlightedIndex] : val);
-            }
-          }}
-          autoFocus
-          className="w-full h-full border-0 outline-none px-2 text-[13px]"
-        />
-        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
-          {setOptions.map((opt, i) => (
-            <div
-              key={opt}
-              className={`px-2 py-1 text-[13px] cursor-pointer uppercase ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
-              onMouseDown={e => { e.preventDefault(); commit(opt); }}
-            >
-              {opt}
-            </div>
-          ))}
-          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
-            Tab or Enter to confirm
-          </div>
-        </div>
-      </div>
+      <AutocompleteDropdown
+        value={cell?.value || ''}
+        onChange={val => { onChange({ value: val }); exitEditMode(); }}
+        options={setOptions}
+        positioning="relative"
+        defaultOpen
+        autoFocus
+      />
     );
   }, [scenes]);
 
-  const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const initialVal = cell?.value || '';
-    const initialIdx = INT_EXT_OPTIONS.findIndex(opt => opt.toLowerCase() === initialVal.toLowerCase());
-    const [val, setVal] = useState(initialVal);
-    const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
-    const committedRef = useRef(false);
-    const filtered = INT_EXT_OPTIONS.filter(opt => opt.toLowerCase().includes(val.toLowerCase()));
+  const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
+    <AutocompleteDropdown
+      value={cell?.value || ''}
+      onChange={val => { onChange({ value: val }); exitEditMode(); }}
+      options={INT_EXT_OPTIONS}
+      positioning="relative"
+      defaultOpen
+      autoFocus
+      showAll
+    />
+  ), []);
 
-    const commit = (value: string) => {
-      committedRef.current = true;
-      const match = INT_EXT_OPTIONS.find(opt => opt.toLowerCase() === value.toLowerCase());
-      onChange({ value: match || cell?.value || INT_EXT_OPTIONS[0] });
-      exitEditMode();
-    };
-
-    const editorRef = useRef<HTMLDivElement>(null);
-    useSmartPosition(editorRef, true);
-
-    return (
-      <div ref={editorRef} className="relative w-full h-full">
-        <input
-          type="text"
-          value={val}
-          onChange={e => { setVal(e.target.value); setHighlightedIndex(0); }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === 'Tab') {
-              e.preventDefault();
-              commit(filtered[0] ? filtered[highlightedIndex] : val);
-            }
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.min(i + 1, INT_EXT_OPTIONS.length - 1));
-            }
-            if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.max(i - 1, 0));
-            }
-            if (e.key === 'Escape') exitEditMode();
-          }}
-          onBlur={() => {
-            if (!committedRef.current) {
-              commit(filtered[0] ? filtered[highlightedIndex] : val);
-            }
-          }}
-          autoFocus
-          className="w-full h-full border-0 outline-none px-2 text-[13px]"
-        />
-        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
-          {INT_EXT_OPTIONS.map((opt, i) => (
-            <div
-              key={opt}
-              className={`px-2 py-1 text-[13px] cursor-pointer ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
-              onMouseDown={e => { e.preventDefault(); commit(opt); }}
-            >
-              {opt}
-            </div>
-          ))}
-          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
-            Tab or Enter to confirm
-          </div>
-        </div>
-      </div>
-    );
-  }, []);
-
-  const DayNightEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const initialVal = cell?.value || '';
-    const initialIdx = DAY_NIGHT_OPTIONS.findIndex(opt => opt.toLowerCase() === initialVal.toLowerCase());
-    const [val, setVal] = useState(initialVal);
-    const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
-    const committedRef = useRef(false);
-    const filtered = DAY_NIGHT_OPTIONS.filter(opt => opt.toLowerCase().includes(val.toLowerCase()));
-
-    const commit = (value: string) => {
-      committedRef.current = true;
-      const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === value.toLowerCase());
-      onChange({ value: match || cell?.value || DAY_NIGHT_OPTIONS[0] });
-      exitEditMode();
-    };
-
-    const editorRef = useRef<HTMLDivElement>(null);
-    useSmartPosition(editorRef, true);
-
-    return (
-      <div ref={editorRef} className="relative w-full h-full">
-        <input
-          type="text"
-          value={val}
-          onChange={e => { setVal(e.target.value); setHighlightedIndex(0); }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === 'Tab') {
-              e.preventDefault();
-              commit(filtered[0] ? filtered[highlightedIndex] : val);
-            }
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.min(i + 1, DAY_NIGHT_OPTIONS.length - 1));
-            }
-            if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              setHighlightedIndex(i => Math.max(i - 1, 0));
-            }
-            if (e.key === 'Escape') exitEditMode();
-          }}
-          onBlur={() => {
-            if (!committedRef.current) {
-              commit(filtered[0] ? filtered[highlightedIndex] : val);
-            }
-          }}
-          autoFocus
-          className="w-full h-full border-0 outline-none px-2 text-[13px]"
-        />
-        <div className="absolute top-full left-0 w-full bg-white border border-zinc-200 shadow-lg z-50 max-h-48 overflow-y-auto">
-          {DAY_NIGHT_OPTIONS.map((opt, i) => (
-            <div
-              key={opt}
-              className={`px-2 py-1 text-[13px] cursor-pointer ${i === highlightedIndex ? 'bg-blue-100' : 'hover:bg-zinc-50'}`}
-              onMouseDown={e => { e.preventDefault(); commit(opt); }}
-            >
-              {opt}
-            </div>
-          ))}
-          <div className="px-2 py-1 text-[11px] text-zinc-400 text-center border-t border-zinc-100">
-            Tab or Enter to confirm
-          </div>
-        </div>
-      </div>
-    );
-  }, []);
+  const DayNightEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
+    <AutocompleteDropdown
+      value={cell?.value || ''}
+      onChange={val => { onChange({ value: val }); exitEditMode(); }}
+      options={DAY_NIGHT_OPTIONS}
+      positioning="relative"
+      defaultOpen
+      autoFocus
+      showAll
+    />
+  ), []);
 
   const DEFAULT_WIDTHS = [60, 80, 80, 80, 180, 90, 300, 120, 200, 40];
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
