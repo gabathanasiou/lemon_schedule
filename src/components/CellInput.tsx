@@ -10,8 +10,9 @@ export const CellInput: React.FC<{
   readOnly?: boolean,
   onBlur?: () => void,
   autoFocus?: boolean,
-  multiline?: boolean
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline }) => {
+  multiline?: boolean,
+  navigateOnEnter?: boolean,
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const [localVal, setLocalVal] = useState(value?.toString() || '');
   const [isPristine, setIsPristine] = useState(false);
@@ -60,12 +61,18 @@ export const CellInput: React.FC<{
     }
     setIsPristine(false);
 
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.currentTarget.blur();
+      return;
+    }
+
     if (e.key === 'Enter') {
       if (multiline && e.shiftKey) return;
       e.preventDefault();
       const currentTarget = e.currentTarget;
       currentTarget.blur();
-      if (multiline) return;
+      if (multiline || !navigateOnEnter) return;
       setTimeout(() => {
         const query = col ? `input[data-col="${col}"], textarea[data-col="${col}"]` : 'input.cell-input, textarea.cell-input';
         const allInputs = Array.from(document.querySelectorAll(query)).filter(el => !(el as HTMLInputElement).readOnly) as (HTMLInputElement | HTMLTextAreaElement)[];

@@ -212,12 +212,18 @@ export function ScheduleTab() {
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
         const selectedId = [...selectedRowIds][0] as string;
         const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
-        if (selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK')) {
+        if (selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) {
           e.preventDefault();
           setFocusedRowId(selectedId);
-          const input = scheduleScrollRef.current?.querySelector<HTMLElement>(
-            `[data-row-id="${selectedId}"] ${selectedRow.type === 'NOTE' ? 'textarea' : 'input:not([data-col])'}`
-          );
+          let selector: string;
+          if (selectedRow.type === 'NOTE') {
+            selector = `[data-row-id="${selectedId}"] textarea`;
+          } else if (selectedRow.type === 'BREAK') {
+            selector = `[data-row-id="${selectedId}"] input:not([data-col])`;
+          } else {
+            selector = `[data-row-id="${selectedId}"] input[data-col="duration"]`;
+          }
+          const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
           input?.focus();
           input?.select();
         }

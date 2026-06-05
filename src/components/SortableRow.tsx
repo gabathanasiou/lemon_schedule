@@ -589,6 +589,8 @@ export const SortableRow: React.FC<{
                     clearOnType
                     col="duration"
                     className={`${inputClass} text-center`}
+                    navigateOnEnter={false}
+                    autoFocus={focusedRowId === row.id}
                   />
                 </td>}
                 <td className="col-ie">
