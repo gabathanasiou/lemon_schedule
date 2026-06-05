@@ -102,7 +102,7 @@ const DayCell: React.FC<{
   violations: RuleViolation[];
   sceneViolationMap: Map<string, string[]>;
   onToggle: (dateKey: string) => void;
-  onDoubleClick?: (shootDay: number) => void;
+  onDoubleClick?: (dateKey: string) => void;
   status?: string;
   chronoDay?: number;
   selectedIds?: Set<string>;
@@ -139,9 +139,9 @@ const DayCell: React.FC<{
     >
       <div
         ref={setHandleRef} {...listeners} {...attributes}
-        onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
-        title={shootDay != null ? 'Double-click to set status' : ''}
-        style={{ opacity: isDragging ? 0.3 : 1, cursor: shootDay != null ? 'grab' : 'default' }}
+          onDoubleClick={(e) => { e.preventDefault(); if (onDoubleClick) onDoubleClick(dateKey); }}
+          title={'Double-click to set status'}
+          style={{ opacity: isDragging ? 0.3 : 1, cursor: isWorkingDay && shootDay != null ? 'grab' : 'default' }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
@@ -301,11 +301,20 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
-  const [statusModal, setStatusModal] = useState<number | null>(null);
+  const [statusModal, setStatusModal] = useState<{ shootDay: number; dateKey: string } | null>(null);
 
-  const handleStatusDoubleClick = useCallback((shootDay: number) => {
-    setStatusModal(shootDay);
-  }, []);
+  const handleStatusDoubleClick = useCallback((dateKey: string) => {
+    let day: number | null = null;
+    const meta = activeVersion?.dayMeta || {};
+    for (const [k, v] of Object.entries(meta) as [string, ShootDayMeta][]) {
+      if (v.date === dateKey) { day = Number(k); break; }
+    }
+    if (day == null) {
+      const existing = Object.keys(meta).map(Number);
+      day = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+    }
+    setStatusModal({ shootDay: day, dateKey });
+  }, [activeVersion]);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
@@ -697,15 +706,15 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setStatusModal(null)}>
           <div className="bg-white rounded-xl shadow-2xl w-[260px] p-4 space-y-2" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Day {statusModal}</div>
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Day {statusModal.shootDay}</div>
               <button onClick={() => setStatusModal(null)} className="text-zinc-400 hover:text-zinc-700"><X className="w-3.5 h-3.5" /></button>
             </div>
             {(['work', 'hold', 'travel', 'holiday'] as const).map(s => {
-              const cur = activeVersion?.dayMeta?.[statusModal]?.status;
+              const cur = activeVersion?.dayMeta?.[statusModal.shootDay]?.status;
               const sel = (cur || 'work') === s;
               return (
                 <button key={s} type="button"
-                  onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal, status: s }); setStatusModal(null); }}
+                  onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: s }); setStatusModal(null); }}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${sel ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
                 >
                   <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${sel ? 'border-white' : 'border-zinc-300'}`}>
@@ -715,6 +724,14 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                 </button>
               );
             })}
+            <div className="border-t border-zinc-200 pt-2">
+              <button type="button"
+                onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY' as any, date: statusModal.dateKey }); setStatusModal(null); }}
+                className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+              >
+                Remove — clear all properties
+              </button>
+            </div>
           </div>
         </div>
       )}
