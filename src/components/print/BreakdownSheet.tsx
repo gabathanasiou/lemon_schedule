@@ -34,6 +34,7 @@ interface BreakdownSheetProps {
   dayMeta: Record<number, ShootDayMeta>;
   castMembers: CastMember[];
   sortOrder: 'sheet' | 'scene';
+  sceneIds: string[];
 }
 
 interface CategoryDef {
@@ -64,16 +65,17 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'notes', label: 'Notes / Special Requirements', getData: s => s.notes },
 ];
 
-const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, sortOrder }) => {
+const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, sortOrder, sceneIds }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 
   const scenes = useMemo(() => {
+    let filtered = rawScenes.filter(s => sceneIds.length === 0 || sceneIds.includes(s.id));
     if (sortOrder === 'scene') {
-      return [...rawScenes].sort((a, b) => naturalSortSceneStrings(a.sceneNumber, b.sceneNumber));
+      return [...filtered].sort((a, b) => naturalSortSceneStrings(a.sceneNumber, b.sceneNumber));
     }
-    return rawScenes;
-  }, [rawScenes, sortOrder]);
+    return filtered;
+  }, [rawScenes, sortOrder, sceneIds]);
 
   const sceneToDay = useMemo(() => {
     const m = new Map<string, number>();

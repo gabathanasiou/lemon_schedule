@@ -254,6 +254,7 @@ function AppContent() {
           dayMeta={version?.dayMeta || {}}
           castMembers={project.castMembers || []}
           sortOrder={breakdownSheetOptions.sortOrder}
+          sceneIds={breakdownSheetOptions.sceneIds}
         />
       </div>
     );
