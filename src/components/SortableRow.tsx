@@ -354,7 +354,8 @@ export const SortableRow: React.FC<{
   sceneViolations?: string[],
   focusedRowId?: string | null,
   onDoubleClick?: (id: string) => void,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick }) => {
+  onRowNavigate?: (rowId: string) => void,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -435,6 +436,9 @@ export const SortableRow: React.FC<{
                         clearOnType
                         col="duration"
                         className={`${inputClass} text-center`}
+                        navigateOnEnter={false}
+                        autoFocus={focusedRowId === row.id}
+                        onRowNavigate={onRowNavigate}
                       />
                     </td>
                     <td className="col-ie" />
@@ -445,7 +449,6 @@ export const SortableRow: React.FC<{
                         className={`${inputClass} text-center`}
                         placeholder="Enter note here..."
                         multiline
-                        autoFocus={focusedRowId === row.id}
                       />
                     </td>
                     <td className="col-dn" />
@@ -491,6 +494,9 @@ export const SortableRow: React.FC<{
                         clearOnType
                         col="duration"
                         className={`${inputClass} text-center`}
+                        navigateOnEnter={false}
+                        autoFocus={focusedRowId === row.id}
+                        onRowNavigate={onRowNavigate}
                       />
                     </td>
                     <td className="col-ie" />
@@ -500,7 +506,6 @@ export const SortableRow: React.FC<{
                         onChange={val => updateRow({breakLabel: val.toUpperCase()})}
                         className={`${inputClass} text-center`}
                         placeholder="ENTER BREAK TEXT"
-                        autoFocus={focusedRowId === row.id}
                       />
                     </td>
                     <td className="col-dn" />
@@ -591,6 +596,7 @@ export const SortableRow: React.FC<{
                     className={`${inputClass} text-center`}
                     navigateOnEnter={false}
                     autoFocus={focusedRowId === row.id}
+                    onRowNavigate={onRowNavigate}
                   />
                 </td>}
                 <td className="col-ie">

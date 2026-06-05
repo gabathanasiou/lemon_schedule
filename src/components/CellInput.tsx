@@ -12,7 +12,8 @@ export const CellInput: React.FC<{
   autoFocus?: boolean,
   multiline?: boolean,
   navigateOnEnter?: boolean,
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true }) => {
+  onRowNavigate?: (rowId: string) => void,
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const [localVal, setLocalVal] = useState(value?.toString() || '');
   const [isPristine, setIsPristine] = useState(false);
@@ -89,6 +90,7 @@ export const CellInput: React.FC<{
       }, 0);
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
+      e.stopPropagation();
       const currentTarget = e.currentTarget;
       currentTarget.blur();
       setTimeout(() => {
@@ -102,6 +104,10 @@ export const CellInput: React.FC<{
           if (nextIndex >= 0 && nextIndex < allInputs.length) {
             allInputs[nextIndex]?.focus();
             allInputs[nextIndex]?.select();
+            const rowEl = allInputs[nextIndex]?.closest('[data-row-id]');
+            if (rowEl) {
+              onRowNavigate?.(rowEl.getAttribute('data-row-id')!);
+            }
           }
         }
       }, 0);

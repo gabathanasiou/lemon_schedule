@@ -27,7 +27,8 @@ export const UnscheduledBlock: React.FC<{
   activeDragRow?: ScheduleRow | null,
   activeDragRows?: ScheduleRow[],
   activeRowId?: string | null,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+  onRowNavigate?: (rowId: string) => void,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -298,6 +299,7 @@ export const UnscheduledBlock: React.FC<{
                     isFaded={activeDragIds?.has(r.id) ?? false}
                     onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                     textEditingEnabled={textEditingEnabled}
+                    onRowNavigate={onRowNavigate}
                   />
                 </React.Fragment>
               ))}

@@ -215,14 +215,7 @@ export function ScheduleTab() {
         if (selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) {
           e.preventDefault();
           setFocusedRowId(selectedId);
-          let selector: string;
-          if (selectedRow.type === 'NOTE') {
-            selector = `[data-row-id="${selectedId}"] textarea`;
-          } else if (selectedRow.type === 'BREAK') {
-            selector = `[data-row-id="${selectedId}"] input:not([data-col])`;
-          } else {
-            selector = `[data-row-id="${selectedId}"] input[data-col="duration"]`;
-          }
+          const selector = `[data-row-id="${selectedId}"] input[data-col="duration"]`;
           const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
           input?.focus();
           input?.select();
@@ -859,7 +852,7 @@ export function ScheduleTab() {
               }
           }}
       >
-        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} />
+        <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -924,6 +917,7 @@ export function ScheduleTab() {
                   chronoDay={i + 1}
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
+                   onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
                  />
               ))}
           </div>
