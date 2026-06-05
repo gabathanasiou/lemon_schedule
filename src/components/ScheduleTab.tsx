@@ -36,6 +36,11 @@ export function ScheduleTab() {
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (textEditingEnabled) return;
+    if (e.altKey) return;
+    if (marqueeJustEndedRef.current) {
+      marqueeJustEndedRef.current = false;
+      return;
+    }
     if (e.metaKey || e.ctrlKey) {
       e.stopPropagation();
       setSelectedRowIds(prev => {
@@ -899,22 +904,6 @@ export function ScheduleTab() {
             setContextMenu(null);
           }}
         >
-          {marqueeBox && (
-            <div
-              style={{
-                position: 'absolute',
-                left: marqueeBox.left,
-                top: marqueeBox.top,
-                width: marqueeBox.width,
-                height: marqueeBox.height,
-                background: 'transparent',
-                border: '1px dotted #3168D8',
-                pointerEvents: 'none',
-                zIndex: 1000,
-              }}
-            />
-          )}
-          
            <div className="w-full max-w-4xl flex justify-between items-center mb-6">
                <div className="flex items-center gap-4">
                  <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Stripboard</h2>
@@ -958,6 +947,7 @@ export function ScheduleTab() {
                  />
               ))}
           </div>
+          <MarqueeOverlay box={marqueeBox} />
         </div>
       </div>
 

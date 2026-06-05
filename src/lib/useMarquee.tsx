@@ -58,6 +58,8 @@ export function useMarquee(
   isEnabled: boolean = true,
 ) {
   const [marqueeBox, setMarqueeBox] = useState<MarqueeBox | null>(null);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  onSelectionChangeRef.current = onSelectionChange;
 
   useEffect(() => { 
     if (!isEnabled) return;
@@ -73,8 +75,6 @@ export function useMarquee(
     let active = false;
     let hadMovement = false;
 
-    const allowOnRibbons = () => _addMode;
-
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       const target = e.target as HTMLElement;
@@ -83,7 +83,7 @@ export function useMarquee(
       if (onRibbon && e.altKey) {
         e.stopPropagation();
       } else {
-        if (!allowOnRibbons() && onRibbon) return;
+        if (!_addMode && onRibbon) return;
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
       }
 
@@ -109,9 +109,9 @@ export function useMarquee(
       const height = Math.abs(curY - startY);
 
       setMarqueeBox({ left, top, width, height });
+      hadMovement = true;
 
       if (width > 10 || height > 10) {
-        hadMovement = true;
         const rowEls = container.querySelectorAll('[data-row-id]');
         const intersected = new Set<string>();
         rowEls.forEach((el) => {
@@ -126,7 +126,7 @@ export function useMarquee(
             intersected.add(el.getAttribute('data-row-id')!);
           }
         });
-        onSelectionChange(intersected, _addMode || e.shiftKey);
+        onSelectionChangeRef.current(intersected, _addMode || e.shiftKey);
       }
     };
 
@@ -147,7 +147,7 @@ export function useMarquee(
       container.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
     };
-  }, [containerRef, onSelectionChange, isEnabled]);
+  }, [containerRef, isEnabled]);
 
   return { marqueeBox, justEndedRef: _marqueeJustEndedRef };
 }
@@ -162,8 +162,9 @@ export function MarqueeOverlay({ box }: { box: MarqueeBox | null }) {
         top: box.top,
         width: box.width,
         height: box.height,
-        background: 'transparent',
-        border: '1px dotted #3168D8',
+        background: 'rgba(128,128,128,0.15)',
+        border: '1px dotted #000',
+        outline: '1px dotted #fff',
         pointerEvents: 'none',
         zIndex: 1000,
       }}
