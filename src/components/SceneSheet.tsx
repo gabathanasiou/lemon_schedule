@@ -39,7 +39,6 @@ function ChipInput({ value, onChange, items, category, castMembers, label }: {
     const updated = ids.filter(i => i !== id);
     onChange(updated.join(', '));
   };
-  const [addMode, setAddMode] = useState(false);
   return (
     <div className="space-y-1">
       {ids.map(id => (
@@ -48,17 +47,15 @@ function ChipInput({ value, onChange, items, category, castMembers, label }: {
           <button onClick={() => remove(id)} className="text-zinc-300 hover:text-red-500 transition-colors shrink-0 opacity-0 group-hover:opacity-100 text-xs leading-none">×</button>
         </div>
       ))}
-      {addMode ? (
+      <div onClick={e => { const inp = (e.currentTarget as HTMLElement).querySelector('input'); if (inp) inp.focus(); }}>
         <EntityDropdown
-          value=""
-          onChange={v => { onChange(v); setAddMode(false); }}
+          value={value}
+          onChange={onChange}
           items={items}
           positioning="fixed"
           standalone
           mode="multi"
-          defaultOpen
-          autoFocus
-          placeholder={label}
+          placeholder=""
           renderItem={(item) => (
             <>
               {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
@@ -66,9 +63,7 @@ function ChipInput({ value, onChange, items, category, castMembers, label }: {
             </>
           )}
         />
-      ) : (
-        <button onClick={() => setAddMode(true)} className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors">+ Add</button>
-      )}
+      </div>
     </div>
   );
 }
