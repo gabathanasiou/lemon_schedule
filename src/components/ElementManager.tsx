@@ -238,7 +238,7 @@ export function ElementManager() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey) {
-        if (e.key === 'n') { e.preventDefault(); addNew(); }
+        if (e.key === 'n' && e.shiftKey) { e.preventDefault(); addNew(); }
         if (e.key === 's') { e.preventDefault(); doSave(); }
       }
     };

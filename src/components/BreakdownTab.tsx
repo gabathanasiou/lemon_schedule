@@ -6,6 +6,7 @@ import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown } from 'lucide-react';
 import Papa from 'papaparse';
 import { ElementManager } from './ElementManager';
+import { SceneSheet } from './SceneSheet';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -49,7 +50,7 @@ export function BreakdownTab() {
   const project = state.present;
   const scenes = project.scenes;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [subTab, setSubTab] = useState<'scenes' | 'elements'>('scenes');
+  const [subTab, setSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number } | null>(null);
 
@@ -520,8 +521,11 @@ export function BreakdownTab() {
         <button onClick={() => setSubTab('elements')} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'elements' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
           Elements
         </button>
+        <button onClick={() => setSubTab('sheet')} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'sheet' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+          Sheet
+        </button>
       </div>
-      {subTab === 'elements' ? <ElementManager /> : (
+      {subTab === 'elements' ? <ElementManager /> : subTab === 'sheet' ? <SceneSheet /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
