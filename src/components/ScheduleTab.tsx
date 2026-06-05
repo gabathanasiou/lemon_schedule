@@ -8,6 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
+import { Pencil } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 
 // Custom pointer-based collision detection
@@ -78,7 +79,15 @@ export function ScheduleTab() {
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
 
+  const handleRowDoubleClick = useCallback((id: string) => {
+    const row = activeVersion?.rows.find(r => r.id === id);
+    if (row?.type === 'NOTE') {
+      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
+    }
+  }, [activeVersion]);
+
   const handleRowClick = (id: string, e: React.MouseEvent) => {
+    if (textEditingEnabled) return;
     if (e.metaKey || e.ctrlKey) {
       e.stopPropagation();
       setSelectedRowIds(prev => {
@@ -338,6 +347,10 @@ export function ScheduleTab() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch]);
+
+  useEffect(() => {
+    if (textEditingEnabled) setSelectedRowIds(new Set());
+  }, [textEditingEnabled]);
 
   useEffect(() => {
     const onSelectStart = (e: Event) => {
@@ -871,28 +884,25 @@ export function ScheduleTab() {
           )}
           
            <div className="w-full max-w-4xl flex justify-between items-center mb-6">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold">Schedule Breakdown</h2>
-                {selectedRowIds.size > 0 && (
-                  <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                    {selectedRowIds.size} selected
-                    <button onClick={() => setSelectedRowIds(new Set())} className="hover:text-blue-900 font-bold">&times;</button>
-                  </span>
-                )}
-                {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
-                  <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                    {augmentedRows.filter(r => r.shootDay === -1).length} in buffer
-                  </span>
-                )}
-              </div>
-             <button 
-                onClick={() => setTextEditingEnabled(p => !p)}
-                className={`px-4 py-2 rounded text-sm font-bold shadow-sm transition-all focus:outline-none flex items-center gap-2 ${textEditingEnabled ? 'bg-blue-500 text-white shadow-blue-500/30' : 'bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-50'}`}
-             >
-                <div className={`w-2 h-2 rounded-full ${textEditingEnabled ? 'bg-white' : 'bg-transparent border border-zinc-400'}`}></div>
-                TEXT EDITING
-             </button>
-          </div>
+               <div className="flex items-center gap-4">
+                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Stripboard</h2>
+                 <span className="text-xs text-zinc-600 font-medium">{activeVersion?.name}</span>
+                 {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
+                   <span className="bg-zinc-800 text-zinc-200 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-zinc-700">
+                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                     {augmentedRows.filter(r => r.shootDay === -1).length} in buffer
+                   </span>
+                 )}
+               </div>
+              <button 
+                 onClick={() => setTextEditingEnabled(p => !p)}
+                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none ${textEditingEnabled ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                 style={{ fontSize: '13px' }}
+              >
+                 <Pencil className="w-3.5 h-3.5 shrink-0" />
+                 Edit Mode
+              </button>
+           </div>
 
           <div className="w-full max-w-4xl">
               {existingDays.map((dayInt, i) => (
@@ -910,8 +920,9 @@ export function ScheduleTab() {
                   activeDragRow={activeDragRow}
                   activeDragRows={activeDragRows}
                   chronoDay={i + 1}
-                  focusedRowId={focusedRowId}
-                />
+                   focusedRowId={focusedRowId}
+                   onRowDoubleClick={handleRowDoubleClick}
+                 />
               ))}
           </div>
         </div>

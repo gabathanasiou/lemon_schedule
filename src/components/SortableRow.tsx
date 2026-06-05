@@ -130,7 +130,7 @@ const CastCellInput: React.FC<{
         onChange={e => { setQuery(e.target.value); handleOpen(); }}
         onFocus={handleOpen}
         placeholder="Cast"
-        className="text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-left"
+        className="text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-left hover:bg-black/[0.04]"
         onKeyDown={e => {
           if (e.key === 'Escape') { setOpen(false); setQuery(''); }
           if (e.key === 'Enter') { e.preventDefault(); commit(); }
@@ -189,7 +189,7 @@ const IECellInput: React.FC<{
         value={value}
         readOnly
         onClick={() => { setHighlightedIndex(INT_EXT_OPTIONS.indexOf(value)); handleOpen(); }}
-        className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left"
+        className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left hover:bg-black/[0.04]"
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, INT_EXT_OPTIONS.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
@@ -242,7 +242,7 @@ const DNCellInput: React.FC<{
         value={value}
         readOnly
         onClick={() => { setHighlightedIndex(DAY_NIGHT_OPTIONS.indexOf(value)); handleOpen(); }}
-        className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left"
+        className="bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left hover:bg-black/[0.04]"
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, DAY_NIGHT_OPTIONS.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
@@ -308,7 +308,7 @@ const SetCellInput: React.FC<{
         value={open ? val : value}
         onChange={e => { setVal(e.target.value.toUpperCase()); setHighlightedIndex(0); handleOpen(); }}
         onClick={() => { setVal(value); handleOpen(); }}
-        className="bg-transparent outline-none uppercase text-inherit w-full text-left"
+        className="bg-transparent outline-none uppercase text-inherit w-full text-left hover:bg-black/[0.04]"
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
@@ -344,7 +344,8 @@ export const SortableRow: React.FC<{
   textEditingEnabled?: boolean,
   sceneViolations?: string[],
   focusedRowId?: string | null,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId }) => {
+  onDoubleClick?: (id: string) => void,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -388,9 +389,10 @@ export const SortableRow: React.FC<{
     ...(ctrlOrCmdHeld ? {} : listeners),
     ...attributes,
     onClick: onSelectToggle,
+    onDoubleClick: () => onDoubleClick?.(row.id),
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
-    className: `group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[0_0_0_2px_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
+    className: `group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
   };
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
