@@ -442,8 +442,8 @@ export const SortableRow: React.FC<{
                     <td className="col-dn" />
                     <td className="col-cast" />
                   </>
-                ) : (
-                  <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
+                  ) : (
+                  <td colSpan={4} className="col-set" style={{textAlign: 'center'}}>
                     <CellInput
                       value={row.noteText || ''}
                       onChange={val => updateRow({noteText: val.toUpperCase()})}
@@ -454,7 +454,6 @@ export const SortableRow: React.FC<{
                     />
                   </td>
                 )}
-                <td className="col-pgs" />
               </tr>
             </tbody>
           </table>
@@ -498,8 +497,8 @@ export const SortableRow: React.FC<{
                     <td className="col-dn" />
                     <td className="col-cast" />
                   </>
-                ) : (
-                  <td colSpan={3} className="col-set" style={{textAlign: 'center'}}>
+                  ) : (
+                  <td colSpan={4} className="col-set" style={{textAlign: 'center'}}>
                     <CellInput
                       value={row.breakLabel || ''}
                       onChange={val => updateRow({breakLabel: val.toUpperCase()})}
@@ -509,7 +508,6 @@ export const SortableRow: React.FC<{
                     />
                   </td>
                 )}
-                <td className="col-pgs" />
               </tr>
             </tbody>
           </table>
@@ -548,17 +546,6 @@ export const SortableRow: React.FC<{
                   </td>
                   <td className="col-cast">
                     <CastCellInput value={scene.cast} onChange={val => updateScene({cast: val})} className={`${inputClass} text-right`} readOnly />
-                  </td>
-                  <td className="col-pgs">
-                    <CellInput
-                      value={scene.pageCount}
-                      onChange={val => {
-                        const decimal = parsePageCount(val);
-                        updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
-                      }}
-                      className={`${inputClass} text-center`}
-                      readOnly
-                    />
                   </td>
                 </tr>
               </tbody>
