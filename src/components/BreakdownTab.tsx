@@ -3,7 +3,7 @@ import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, Column
 import { useProject } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
-import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown } from 'lucide-react';
+import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye } from 'lucide-react';
 import Papa from 'papaparse';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
@@ -45,13 +45,14 @@ const CAST_COL = 7;
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange }: {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet }: {
   subTab: 'scenes' | 'elements' | 'sheet';
   onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
   savedCat: string;
   onCategoryChange: (c: string) => void;
   savedSheetIdx: number;
   onSheetIdxChange: (i: number) => void;
+  onOpenSheet?: (rowIndex: number) => void;
 }) {
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -357,13 +358,17 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     <td
       className={`Spreadsheet__header text-center cursor-pointer select-none transition-colors ${selected ? 'bg-blue-50' : ''}`}
       style={{ width: 17, minWidth: 17, maxWidth: 17, fontSize: row < 0 ? 7 : 10, fontWeight: 600 }}
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        if (row >= 0 && onOpenSheet) onOpenSheet(row);
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
         if (row >= 0) setContextMenu({ x: e.clientX, y: e.clientY, row });
       }}
     >{row < 0 ? '#' : row + 1}</td>
-  ), []);
+  ), [onOpenSheet, setContextMenu]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantomIndex = scenes.length;
@@ -717,6 +722,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />}>Insert Above</ContextMenuItem>
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
             <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
+            <ContextMenuDivider />
+            <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
             <ContextMenuDivider />
             {selectedRows.size > 1 ? (
               <ContextMenuItem onClick={() => { deleteSelectedRows(); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3 h-3" />}>Delete {selectedRows.size} rows</ContextMenuItem>

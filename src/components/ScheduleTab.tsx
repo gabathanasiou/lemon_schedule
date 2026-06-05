@@ -11,7 +11,7 @@ import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/
 import { Pencil } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 
-export function ScheduleTab() {
+export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -31,8 +31,10 @@ export function ScheduleTab() {
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
+    } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
+      onOpenScene(row.sceneId);
     }
-  }, [activeVersion]);
+  }, [activeVersion, onOpenScene]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (textEditingEnabled) return;
@@ -1184,6 +1186,8 @@ export function ScheduleTab() {
               {row?.type === 'SCENE' && (
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
+                  <ContextMenuDivider />
+                  <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }}>Open Sheet</ContextMenuItem>
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')}>Remove Ribbon</ContextMenuItem>
                 </>
