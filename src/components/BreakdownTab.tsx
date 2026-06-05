@@ -1,4 +1,5 @@
-import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect, useLayoutEffect } from 'react';
+import { useSmartPosition } from '../lib/useSmartPosition';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { Scene, IntExt, DayNight, CastMember } from '../types';
@@ -142,6 +143,8 @@ export function BreakdownTab() {
       return () => document.removeEventListener('mousedown', onClick);
     }, [val, commit]);
 
+    useSmartPosition(wrapperRef, true);
+
     return (
       <div ref={wrapperRef} className="relative w-full h-full">
         <input
@@ -214,8 +217,11 @@ export function BreakdownTab() {
       exitEditMode();
     };
 
+    const editorRef = useRef<HTMLDivElement>(null);
+    useSmartPosition(editorRef, true);
+
     return (
-      <div className="relative w-full h-full">
+      <div ref={editorRef} className="relative w-full h-full">
         <input
           type="text"
           value={val}
@@ -276,8 +282,11 @@ export function BreakdownTab() {
       exitEditMode();
     };
 
+    const editorRef = useRef<HTMLDivElement>(null);
+    useSmartPosition(editorRef, true);
+
     return (
-      <div className="relative w-full h-full">
+      <div ref={editorRef} className="relative w-full h-full">
         <input
           type="text"
           value={val}
@@ -338,8 +347,11 @@ export function BreakdownTab() {
       exitEditMode();
     };
 
+    const editorRef = useRef<HTMLDivElement>(null);
+    useSmartPosition(editorRef, true);
+
     return (
-      <div className="relative w-full h-full">
+      <div ref={editorRef} className="relative w-full h-full">
         <input
           type="text"
           value={val}

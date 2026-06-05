@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback, useLayoutEffect } from 'react';
+import { useSmartPosition } from '../lib/useSmartPosition';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, CastMember } from '../types';
@@ -97,6 +98,8 @@ const CastCellInput: React.FC<{
     setQuery('');
   });
 
+  useSmartPosition(ref, open);
+
   const add = useCallback((id: string) => {
     setLocalIds(prev => {
       const ids = [...prev];
@@ -176,6 +179,8 @@ const IECellInput: React.FC<{
 
   useDropdown(open, ref, () => setOpen(false));
 
+  useSmartPosition(ref, open);
+
   const commit = (val: string) => {
     onChange(val);
     setOpen(false);
@@ -228,6 +233,8 @@ const DNCellInput: React.FC<{
   const handleOpen = useOpenHandler(setOpen);
 
   useDropdown(open, ref, () => setOpen(false));
+
+  useSmartPosition(ref, open);
 
   const commit = (val: string) => {
     onChange(val);
@@ -294,6 +301,8 @@ const SetCellInput: React.FC<{
     setOpen(false);
     setVal(value);
   });
+
+  useSmartPosition(ref, open);
 
   const commit = (opt: string) => {
     onChange(opt);
