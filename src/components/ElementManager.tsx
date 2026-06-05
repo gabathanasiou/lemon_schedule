@@ -1,28 +1,27 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 
 const ELEMENT_CATEGORIES = [
-  { key: 'cast', label: 'Cast', sceneKey: 'cast' },
-  { key: 'set', label: 'Sets', sceneKey: 'set' },
-  { key: 'props', label: 'Props', sceneKey: 'props' },
-  { key: 'extras', label: 'Supporting Artists', sceneKey: 'extras' },
-  { key: 'stunts', label: 'Stunts', sceneKey: 'stunts' },
-  { key: 'vehicles', label: 'Vehicles', sceneKey: 'vehicles' },
-  { key: 'wardrobe', label: 'Wardrobe', sceneKey: 'wardrobe' },
-  { key: 'makeup', label: 'Makeup & Hair', sceneKey: 'makeup' },
-  { key: 'sfx', label: 'SFX', sceneKey: 'sfx' },
-  { key: 'vfx', label: 'VFX', sceneKey: 'vfx' },
-  { key: 'sound', label: 'Sound', sceneKey: 'sound' },
-  { key: 'music', label: 'Music / Playback', sceneKey: 'music' },
-  { key: 'animals', label: 'Animals', sceneKey: 'animals' },
-  { key: 'weapons', label: 'Weapons / Armoury', sceneKey: 'weapons' },
-  { key: 'greenery', label: 'Greenery / Set Dressing', sceneKey: 'greenery' },
-  { key: 'artDept', label: 'Art Department', sceneKey: 'artDept' },
+  { key: 'cast', label: 'Cast' },
+  { key: 'set', label: 'Sets' },
+  { key: 'props', label: 'Props' },
+  { key: 'extras', label: 'Supporting Artists' },
+  { key: 'stunts', label: 'Stunts' },
+  { key: 'vehicles', label: 'Vehicles' },
+  { key: 'wardrobe', label: 'Wardrobe' },
+  { key: 'makeup', label: 'Makeup & Hair' },
+  { key: 'sfx', label: 'SFX' },
+  { key: 'vfx', label: 'VFX' },
+  { key: 'sound', label: 'Sound' },
+  { key: 'music', label: 'Music / Playback' },
+  { key: 'animals', label: 'Animals' },
+  { key: 'weapons', label: 'Weapons / Armoury' },
+  { key: 'greenery', label: 'Greenery / Set Dressing' },
+  { key: 'artDept', label: 'Art Department' },
 ];
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
@@ -50,24 +49,48 @@ interface LocalRow {
   key: string;
   id: string;
   name: string;
+  occ: number;
 }
 
 function elementKey(e: { id: string; name: string }) { return e.id || e.name || '__new__'; }
+
+function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const s of scenes) {
+    const val = isC ? s.cast : cat === 'set' ? s.set : (s as any)[cat] as string;
+    if (!val) continue;
+    for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) {
+      const key = item.toLowerCase();
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  return counts;
+}
 
 export function ElementManager() {
   const { state, dispatch } = useProject();
   const project = state.present;
 
   const [category, setCategory] = useState('cast');
-  const [rows, setRows] = useState<LocalRow[]>(() =>
-    loadCategoryElements(project, category).map(e => ({ key: elementKey(e), id: e.id, name: e.name }))
-  );
+  const isCast = category === 'cast';
+  const [rows, setRows] = useState<LocalRow[]>(() => {
+    const elems = loadCategoryElements(project, category);
+    const counts = countOccurrences(project.scenes, category, category === 'cast');
+    return elems.map(e => ({
+      key: elementKey(e), id: e.id, name: e.name,
+      occ: counts.get((category === 'cast' ? e.id : e.name).toLowerCase()) || 0,
+    }));
+  });
   const snapshotRef = useRef<LocalRow[]>(rows);
 
   const switchCategory = useCallback((newCat: string) => {
     setCategory(newCat);
     const loaded = loadCategoryElements(project, newCat);
-    const localRows = loaded.map(e => ({ key: elementKey(e), id: e.id, name: e.name }));
+    const counts = countOccurrences(project.scenes, newCat, newCat === 'cast');
+    const localRows = loaded.map(e => ({
+      key: elementKey(e), id: e.id, name: e.name,
+      occ: counts.get((newCat === 'cast' ? e.id : e.name).toLowerCase()) || 0,
+    }));
     setRows(localRows);
     snapshotRef.current = localRows;
   }, [project]);
@@ -83,99 +106,20 @@ export function ElementManager() {
 
   const catItems = useMemo(() => ELEMENT_CATEGORIES.map(c => ({ id: c.key, name: c.label })), []);
 
+  const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
+    setRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
+  }, []);
+
   const deleteRow = useCallback((key: string) => {
     setRows(prev => prev.filter(r => r.key !== key));
   }, []);
 
-  const NameEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const [val, setVal] = useState(cell?.value || '');
-    return (
-      <input
-        type="text"
-        value={val}
-        onChange={e => setVal(e.target.value)}
-        onBlur={() => { onChange({ value: val }); exitEditMode(); }}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { onChange({ value: val }); exitEditMode(); }
-          if (e.key === 'Escape') exitEditMode();
-        }}
-        autoFocus
-      />
-    );
-  }, []);
-
-  const isCast = category === 'cast';
-  const occurrences = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const s of project.scenes) {
-      const val = isCast ? s.cast : category === 'set' ? s.set : (s as any)[category] as string;
-      if (!val) continue;
-      for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) counts.set(item, (counts.get(item) || 0) + 1);
-    }
-    return counts;
-  }, [project.scenes, category, isCast]);
-
-  const DeleteViewer: DataViewerComponent<CellBase<string>> = useCallback(({ row }) => {
-    const r = rows[row];
-    if (!r) return null;
-    return (
-      <div className="flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-colors"
-        onMouseDown={e => { e.stopPropagation(); deleteRow(r.key); }}>
-        <Trash2 className="w-4 h-4 text-red-400/60 hover:text-red-600 transition-colors" />
-      </div>
-    );
-  }, [rows, deleteRow]);
-
-  const data: CellBase[][] = useMemo(() => {
-    const result = rows.map(r => ({
-      occ: occurrences.get(isCast ? r.id : r.name) || 0
-    })).map(({ occ }, i) => isCast ? [
-      { value: rows[i].id },
-      { value: rows[i].name, DataEditor: NameEditor },
-      { value: occ, readOnly: true },
-      { value: '', readOnly: true, DataViewer: DeleteViewer },
-    ] : [
-      { value: rows[i].name, DataEditor: NameEditor },
-      { value: occ, readOnly: true },
-      { value: '', readOnly: true, DataViewer: DeleteViewer },
-    ]);
-    result.push(isCast ? [
-      { value: '' },
-      { value: '', DataEditor: NameEditor },
-      { value: '', readOnly: true },
-      { value: '', readOnly: true },
-    ] : [
-      { value: '', DataEditor: NameEditor },
-      { value: '', readOnly: true },
-      { value: '', readOnly: true },
-    ]);
-    return result;
-  }, [rows, NameEditor, DeleteViewer, occurrences, isCast]);
-
-  const handleChange = useCallback((newData: CellBase[][]) => {
-    const phantom = newData[rows.length];
-    if (phantom) {
-      const idVal = isCast ? String(phantom[0]?.value ?? '').trim() : '';
-      const nameVal = String(isCast ? phantom[1]?.value ?? '' : phantom[0]?.value ?? '').trim().toUpperCase();
-      if (idVal || nameVal) {
-        setRows(prev => [...prev, { key: String(Date.now()), id: idVal || nameVal || String(prev.length + 1), name: nameVal || idVal }]);
-        return;
-      }
-    }
+  const addNew = useCallback(() => {
     setRows(prev => {
-      const updated = prev.map((r, i) => {
-        if (i >= newData.length) return r;
-        if (isCast) {
-          const newId = String(newData[i]?.[0]?.value ?? '').trim();
-          const newName = String(newData[i]?.[1]?.value ?? '').trim().toUpperCase();
-          return { ...r, id: newId || r.id, name: newName || r.name };
-        }
-        const newName = String(newData[i]?.[0]?.value ?? '').trim().toUpperCase();
-        return { ...r, id: newName || r.id, name: newName || r.name };
-      });
-      return updated;
+      const maxNum = prev.reduce((max, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
+      return [...prev, { key: String(Date.now()), id: isCast ? String(maxNum + 1) : '', name: '', occ: 0 }];
     });
-  }, [rows.length, isCast]);
+  }, [isCast]);
 
   const doSave = useCallback(() => {
     const snap = snapshotRef.current;
@@ -209,7 +153,7 @@ export function ElementManager() {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 overflow-hidden select-none">
+    <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-200 bg-white">
         <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Category:</span>
         <div className="w-52">
@@ -226,11 +170,51 @@ export function ElementManager() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <Spreadsheet
-          data={data}
-          onChange={handleChange}
-          columnLabels={isCast ? ['ID', 'Name', 'Occ', ''] : ['Name', 'Occ', '']}
-        />
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-zinc-100 border-b-2 border-zinc-900 sticky top-0">
+              {isCast && <th className="px-3 py-2 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">ID</th>}
+              <th className="px-3 py-2 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Name</th>
+              <th className="px-3 py-2 text-center text-[11px] font-semibold text-zinc-500 uppercase tracking-wider w-16">Occ</th>
+              <th className="px-3 py-2 text-center w-10" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.key} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
+                {isCast && (
+                  <td className="px-3 py-1.5">
+                    <input
+                      type="text"
+                      value={r.id}
+                      onChange={e => updateRow(r.key, 'id', e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full border border-zinc-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                    />
+                  </td>
+                )}
+                <td className="px-3 py-1.5">
+                  <input
+                    type="text"
+                    value={r.name}
+                    onChange={e => updateRow(r.key, 'name', e.target.value)}
+                    className="w-full border border-zinc-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                  />
+                </td>
+                <td className="px-3 py-1.5 text-center text-sm text-zinc-500">{r.occ}</td>
+                <td className="px-3 py-1.5 text-center">
+                  <button onClick={() => deleteRow(r.key)} className="p-1 rounded hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-4 h-4 text-red-400/60 hover:text-red-600" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <button onClick={addNew} className="flex items-center gap-1.5 px-4 py-2 text-sm text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full border-b border-zinc-200">
+          <Plus className="w-3.5 h-3.5" />
+          Add {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || 'element'}
+        </button>
       </div>
 
       <div className="bg-zinc-100 border-t border-zinc-300 p-3 flex items-center justify-between shadow-inner">
@@ -248,7 +232,7 @@ export function ElementManager() {
           })} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
             Auto-ID
           </button>
-          <button onClick={() => setRows(prev => prev.filter(r => (occurrences.get(isCast ? r.id : r.name) || 0) > 0))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+          <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
             Clear Zero
           </button>
         </div>
