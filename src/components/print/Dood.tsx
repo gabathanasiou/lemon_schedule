@@ -304,8 +304,8 @@ const Dood: React.FC<DoodProps> = ({
                       return (
                         <>
                           <td className="dood-total-border" />
-                          <td className="dood-total-border">{t.workDays > 0 ? t.workDays : ''}</td>
-                          <td className="dood-total-border">{t.holdDays > 0 ? t.holdDays : ''}</td>
+                          <td className="dood-total-border">{t.workDays}</td>
+                          <td className="dood-total-border">{t.holdDays}</td>
                           <td className="dood-total-border" />
                           <td className="dood-total-border">{startStr || ''}</td>
                           <td className="dood-total-border">{finishStr || ''}</td>
