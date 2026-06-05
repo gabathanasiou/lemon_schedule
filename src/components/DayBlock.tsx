@@ -186,7 +186,9 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       <div className="bg-black text-white">
         <table className="schedule-table">
           <tbody>
-            <tr className="day-header-row">
+            <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
+              onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
+              style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
               <td className="col-sc">
                 <span className="font-bold">DAY #{displayDay}</span>
               </td>
@@ -259,12 +261,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             );
           })}
         </SortableContext>
-        {computedRows.length === 0 && !activeRowId && (
-          <div
-            data-row-id={`empty-${dayInt}`}
-            data-shoot-day={dayInt}
-            onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-            className={`flex items-center px-4 py-3 text-[9pt] cursor-pointer border-b-[2px] border-black italic select-none transition-colors relative ${selectedIds.has(`empty-${dayInt}`) ? 'bg-zinc-100 text-zinc-300 shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : 'text-zinc-300'}`}
+        {computedRows.length === 0 && (
+          <div className="flex items-center px-4 py-3 text-[9pt] border-b-[2px] border-black italic select-none text-zinc-300"
             style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}
           >
             No scenes in this day · right-click for options

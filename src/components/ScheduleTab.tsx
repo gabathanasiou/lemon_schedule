@@ -44,7 +44,9 @@ export function ScheduleTab() {
         return next;
       });
       setLastClickedId(id);
-    } else if (e.shiftKey && lastClickedId) {
+    } else if (e.shiftKey && id.startsWith('empty-')) {
+      return;
+    } else if (e.shiftKey && lastClickedId && !lastClickedId.startsWith('empty-')) {
       e.stopPropagation();
       const allIds = flatRowIdsRef.current;
       const idxA = allIds.indexOf(lastClickedId);
@@ -210,16 +212,16 @@ export function ScheduleTab() {
       if (e.key === 'Enter' && selectedRowIds.size === 1 && !textEditingEnabled) {
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-        const selectedId = [...selectedRowIds][0] as string;
-        const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
-        if (selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) {
-          e.preventDefault();
-          setFocusedRowId(selectedId);
-          const selector = `[data-row-id="${selectedId}"] input[data-col="duration"]`;
-          const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
-          input?.focus();
-          input?.select();
-        }
+    const selectedId = [...selectedRowIds][0] as string;
+    const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
+    if ((selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) || selectedId.startsWith('empty-')) {
+      e.preventDefault();
+      setFocusedRowId(selectedId);
+      const selector = `[data-row-id="${selectedId}"] input[data-col="duration"]`;
+      const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
+      input?.focus();
+      input?.select();
+    }
       }
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !textEditingEnabled) {
         const target = e.target as HTMLElement;
@@ -230,21 +232,23 @@ export function ScheduleTab() {
         if (flat.length === 0) return;
         const isShift = e.shiftKey;
         const isDown = e.key === 'ArrowDown';
-        if (isShift) {
+          if (isShift) {
+          const shiftFlat = flat.filter(id => !id.startsWith('empty-'));
+          if (shiftFlat.length === 0) return;
           const anchor = lastClickedIdRef.current;
-          const anchorIdx = anchor ? flat.indexOf(anchor) : -1;
+          const anchorIdx = (anchor && !anchor.startsWith('empty-')) ? shiftFlat.indexOf(anchor) : -1;
           if (anchorIdx === -1) {
-            setSelectedRowIds(new Set([flat[0]]));
-            setLastClickedId(flat[0]);
-            scrollToRow(flat[0]);
+            setSelectedRowIds(new Set([shiftFlat[0]]));
+            setLastClickedId(shiftFlat[0]);
+            scrollToRow(shiftFlat[0]);
             return;
           }
           const currentIds = Array.from(selectedRowIds);
-          const indices = currentIds.map(id => flat.indexOf(id)).filter(i => i >= 0);
+          const indices = currentIds.map(id => shiftFlat.indexOf(id)).filter(i => i >= 0);
           let from: number, to: number;
           if (indices.length === 0) {
             from = anchorIdx;
-            to = isDown ? Math.min(anchorIdx + 1, flat.length - 1) : Math.max(anchorIdx - 1, 0);
+            to = isDown ? Math.min(anchorIdx + 1, shiftFlat.length - 1) : Math.max(anchorIdx - 1, 0);
           } else {
             const minIdx = Math.min(...indices);
             const maxIdx = Math.max(...indices);
@@ -254,7 +258,7 @@ export function ScheduleTab() {
                 to = maxIdx;
               } else {
                 from = anchorIdx;
-                to = Math.min(maxIdx + 1, flat.length - 1);
+                to = Math.min(maxIdx + 1, shiftFlat.length - 1);
               }
             } else {
               if (maxIdx > anchorIdx) {
@@ -266,9 +270,9 @@ export function ScheduleTab() {
               }
             }
           }
-          setSelectedRowIds(new Set(flat.slice(from, to + 1)));
+          setSelectedRowIds(new Set(shiftFlat.slice(from, to + 1)));
           const scrollTarget = isDown ? to : from;
-          scrollToRow(flat[scrollTarget]);
+          scrollToRow(shiftFlat[scrollTarget]);
         } else {
           const currentIds = Array.from(selectedRowIds);
           if (currentIds.length === 0) {
@@ -379,7 +383,8 @@ export function ScheduleTab() {
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     scheduleScrollRef,
     useCallback((ids, isAddMode) => {
-      setSelectedRowIds(prev => isAddMode ? new Set([...prev, ...ids]) : ids);
+      const filtered = new Set([...ids].filter(id => !id.startsWith('empty-')));
+      setSelectedRowIds(prev => isAddMode ? new Set([...prev, ...filtered]) : filtered);
     }, []),
     !textEditingEnabled,
   );
@@ -456,7 +461,10 @@ export function ScheduleTab() {
         order: 0,
         ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
       };
-      const newRows = [...activeVersion.rows, newRow];
+      const dayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
+      const firstDayRow = dayRows[0];
+      const insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
+      const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
       newRows.forEach((r, i) => r.order = i);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
       setSelectedRowIds(new Set([newId]));
@@ -577,7 +585,7 @@ export function ScheduleTab() {
   flatRowIdsRef.current = existingDays.flatMap(dayInt => {
     const dayRows = scheduledRows[dayInt];
     if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
-    return dayRows.map(r => r.id);
+    return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
   });
 
   const handleDragStart = (e: DragStartEvent) => {
@@ -981,7 +989,7 @@ export function ScheduleTab() {
             <>
               {inClipboard > 0 && (
                 <>
-                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste{row ? ' Below' : ''} ({inClipboard})</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste Below ({inClipboard})</ContextMenuItem>
                   <ContextMenuDivider />
                 </>
               )}
@@ -991,8 +999,8 @@ export function ScheduleTab() {
                   <ContextMenuDivider />
                 </>
               )}
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note{row ? ' Below' : ''}</ContextMenuItem>
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break{row ? ' Below' : ''}</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
               {row && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
