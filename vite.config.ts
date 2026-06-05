@@ -5,6 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: '/lemon_schedule/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
