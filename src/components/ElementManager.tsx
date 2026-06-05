@@ -206,6 +206,13 @@ export function ElementManager() {
           <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
             Sort by ID
           </button>
+          <button onClick={() => setRows(prev => {
+            const maxNum = prev.reduce((max, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
+            let next = maxNum + 1;
+            return prev.map(r => r.id.trim() ? r : { ...r, id: String(next++) });
+          })} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            Auto-ID
+          </button>
         </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
