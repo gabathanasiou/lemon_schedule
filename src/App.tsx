@@ -15,6 +15,16 @@ import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
 import DoodDialog, { DoodOptions } from './components/print/DoodDialog';
 import Dood from './components/print/Dood';
+import ShootingPlanDialog, { ShootingPlanOptions } from './components/print/ShootingPlanDialog';
+import ShootingPlan from './components/print/ShootingPlan';
+import CastBreakdownDialog, { CastBreakdownOptions } from './components/print/CastBreakdownDialog';
+import CastBreakdown from './components/print/CastBreakdown';
+import CharacterAppearancesDialog, { CharacterAppearancesOptions } from './components/print/CharacterAppearancesDialog';
+import CharacterAppearances from './components/print/CharacterAppearances';
+import LocationBreakdownDialog, { LocationBreakdownOptions } from './components/print/LocationBreakdownDialog';
+import LocationBreakdown from './components/print/LocationBreakdown';
+import BreakdownSheetDialog, { BreakdownSheetOptions } from './components/print/BreakdownSheetDialog';
+import BreakdownSheet from './components/print/BreakdownSheet';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
@@ -36,9 +46,19 @@ function AppContent() {
   const [editingName, setEditingName] = useState("");
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showDoodDialog, setShowDoodDialog] = useState(false);
+  const [showShootingPlanDialog, setShowShootingPlanDialog] = useState(false);
+  const [showCastBreakdownDialog, setShowCastBreakdownDialog] = useState(false);
+  const [showCharAppearancesDialog, setShowCharAppearancesDialog] = useState(false);
+  const [showLocationBreakdownDialog, setShowLocationBreakdownDialog] = useState(false);
+  const [showBreakdownSheetDialog, setShowBreakdownSheetDialog] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
+  const [shootingPlanOptions, setShootingPlanOptions] = useState<ShootingPlanOptions | null>(null);
+  const [castBreakdownOptions, setCastBreakdownOptions] = useState<CastBreakdownOptions | null>(null);
+  const [charAppearancesOptions, setCharAppearancesOptions] = useState<CharacterAppearancesOptions | null>(null);
+  const [locationBreakdownOptions, setLocationBreakdownOptions] = useState<LocationBreakdownOptions | null>(null);
+  const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
@@ -109,6 +129,12 @@ function AppContent() {
     return () => window.removeEventListener('afterprint', onAfterPrint);
   }, [doodOptions, project.title]);
 
+  useEffect(() => { if (!shootingPlanOptions) return; const onAP = () => setShootingPlanOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [shootingPlanOptions]);
+  useEffect(() => { if (!castBreakdownOptions) return; const onAP = () => setCastBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [castBreakdownOptions]);
+  useEffect(() => { if (!charAppearancesOptions) return; const onAP = () => setCharAppearancesOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [charAppearancesOptions, project.title]);
+  useEffect(() => { if (!locationBreakdownOptions) return; const onAP = () => setLocationBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [locationBreakdownOptions]);
+  useEffect(() => { if (!breakdownSheetOptions) return; const onAP = () => setBreakdownSheetOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [breakdownSheetOptions]);
+
   useEffect(() => {
     if (!storage.handle || !currentProjectId) return;
     if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
@@ -141,6 +167,78 @@ function AppContent() {
           dayInts={doodOptions.dayInts}
           includeNonShooting={doodOptions.includeNonShooting}
           showTotals={doodOptions.showTotals}
+        />
+      </div>
+    );
+  }
+
+  if (shootingPlanOptions) {
+    return (
+      <div>
+        <ShootingPlan
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          rows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          dayInts={shootingPlanOptions.dayInts}
+        />
+      </div>
+    );
+  }
+
+  if (castBreakdownOptions) {
+    return (
+      <div>
+        <CastBreakdown
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          rows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          castMembers={project.castMembers || []}
+          castIds={castBreakdownOptions.castIds}
+        />
+      </div>
+    );
+  }
+
+  if (charAppearancesOptions) {
+    return (
+      <div>
+        <CharacterAppearances
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          rows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          castMembers={project.castMembers || []}
+          castIds={charAppearancesOptions.castIds}
+        />
+      </div>
+    );
+  }
+
+  if (locationBreakdownOptions) {
+    return (
+      <div>
+        <LocationBreakdown
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          rows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          locationFilters={locationBreakdownOptions.locationFilters}
+        />
+      </div>
+    );
+  }
+
+  if (breakdownSheetOptions) {
+    return (
+      <div>
+        <BreakdownSheet
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          rows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          castMembers={project.castMembers || []}
         />
       </div>
     );
@@ -197,6 +295,11 @@ function AppContent() {
 
       {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} onClose={() => setShowPrintDialog(false)} />}
       {showDoodDialog && <DoodDialog onPrint={(opts) => { setShowDoodDialog(false); setDoodOptions(opts); }} onClose={() => setShowDoodDialog(false)} />}
+      {showShootingPlanDialog && <ShootingPlanDialog onPrint={(opts) => { setShowShootingPlanDialog(false); setShootingPlanOptions(opts); }} onClose={() => setShowShootingPlanDialog(false)} />}
+      {showCastBreakdownDialog && <CastBreakdownDialog onPrint={(opts) => { setShowCastBreakdownDialog(false); setCastBreakdownOptions(opts); }} onClose={() => setShowCastBreakdownDialog(false)} />}
+      {showCharAppearancesDialog && <CharacterAppearancesDialog onPrint={(opts) => { setShowCharAppearancesDialog(false); setCharAppearancesOptions(opts); }} onClose={() => setShowCharAppearancesDialog(false)} />}
+      {showLocationBreakdownDialog && <LocationBreakdownDialog onPrint={(opts) => { setShowLocationBreakdownDialog(false); setLocationBreakdownOptions(opts); }} onClose={() => setShowLocationBreakdownDialog(false)} />}
+      {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
@@ -424,6 +527,22 @@ function AppContent() {
               </DropdownItem>
               <DropdownItem onClick={() => { setShowExportMenu(false); setShowDoodDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
                 Day Out of Days
+              </DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowShootingPlanDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Shooting Plan
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowCastBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Cast Breakdown
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowCharAppearancesDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Character Appearances
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowLocationBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Location Breakdown
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowExportMenu(false); setShowBreakdownSheetDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Script Breakdown Sheet
               </DropdownItem>
             </DropdownMenu>
           <StorageStatus
