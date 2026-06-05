@@ -56,7 +56,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   onChange,
   className,
   readOnly,
-  placeholder = 'Cast',
+  placeholder = 'Type...',
   positioning = 'relative',
   mode = 'multi',
   showSceneCounts = false,
@@ -264,7 +264,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 key={isSynthetic ? '__new__' : m.id}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => { toggle(m.id || m.name); setHighlightedIndex(-1); }}
+                onClick={() => toggle(m.id || m.name)}
+                onMouseEnter={mode === 'single' ? () => setHighlightedIndex(idx) : undefined}
                 className={`${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`}
               >
                 {isSynthetic ? (

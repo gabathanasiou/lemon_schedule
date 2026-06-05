@@ -241,6 +241,7 @@ export function BreakdownTab() {
               exitEditMode();
             }}
             items={items}
+            placeholder={BREAKDOWN_LABELS[key]}
             positioning="relative"
             defaultOpen
             autoFocus
