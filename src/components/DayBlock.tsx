@@ -97,6 +97,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> =
 
 export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate }) => {
   const displayDay = chronoDay ?? dayInt;
+  const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -178,6 +179,35 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     fontSize: '8pt',
     lineHeight: '1.2',
   };
+
+  if (isStatusDay) {
+    return (
+      <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
+        <div className="bg-black text-white">
+          <table className="schedule-table">
+            <tbody>
+              <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
+                onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
+                style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
+                <td className="col-sc">
+                  <span className="font-bold">{meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
+                </td>
+                <td className="col-call" />
+                <td className="col-dur" />
+                <td className="col-ie" />
+                <td className="col-set text-center font-semibold">
+                  {meta?.date ? formatDateLong(meta.date) : ''}
+                </td>
+                <td className="col-dn" />
+                <td className="col-cast" />
+                <td className="col-pgs" />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
@@ -288,7 +318,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
             <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
           </div>
-        </div>
+          </div>
         </>
     </div>
   );

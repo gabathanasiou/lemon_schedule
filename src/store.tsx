@@ -405,11 +405,18 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         versions: state.present.versions.map(v => {
           if (v.id !== activeVerId) return v;
+          const oldStatus = v.dayMeta[shootDay]?.status;
+          const newStatus = status as any;
+          let rows = v.rows;
+          if (newStatus && newStatus !== 'work' && oldStatus !== newStatus) {
+            rows = v.rows.map(r => r.shootDay === shootDay ? { ...r, shootDay: null as any, order: 999999 } : r);
+          }
           return {
             ...v,
+            rows,
             dayMeta: {
               ...v.dayMeta,
-              [shootDay]: { ...(v.dayMeta[shootDay] || { shootDay, unitCall: '08:00', date: '' }), status: status as any },
+              [shootDay]: { ...(v.dayMeta[shootDay] || { shootDay, unitCall: '08:00', date: '' }), status: newStatus },
             },
           };
         }),

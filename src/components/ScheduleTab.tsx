@@ -1087,7 +1087,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
                   activeDragRows={activeDragRows}
-                  chronoDay={i + 1}
+                  chronoDay={activeVersion?.dayMeta[dayInt]?.status && activeVersion.dayMeta[dayInt].status !== 'work' ? undefined : i + 1}
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
                    onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}

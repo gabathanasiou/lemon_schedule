@@ -134,19 +134,18 @@ const DayCell: React.FC<{
     >
       <div className="flex items-center justify-between mb-0.5">
         <div className="flex items-center gap-0.5">
-          <button
+          <div
             onClick={(e) => { e.stopPropagation(); onToggle(dateKey); }}
             onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
-            className={`text-[10px] font-semibold px-0.5 rounded flex items-center justify-center
-              ${isToday ? 'bg-blue-500 text-white w-5 h-5' : !isWorkingDay && isCurrentMonth && !status ? 'text-zinc-300 hover:bg-zinc-200' : isCurrentMonth ? 'text-zinc-600 hover:bg-zinc-200' : 'text-zinc-200'}`}
-            title={isWorkingDay ? 'Double-click to set status' : 'Add working day'}
+            title={shootDay != null ? 'Click to toggle working day · Double-click to set status' : 'Click to add working day · Double-click to set status'}
+            className={`flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer select-none ${isToday ? 'bg-blue-500 text-white' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
           >
-            {date.getDate()}
-          </button>
-          {statusBadge && (
-            <span className={`text-[7px] font-bold px-0.5 rounded ${status === 'hold' ? 'bg-amber-100 text-amber-700' : status === 'travel' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-200 text-zinc-600'}`}>{statusBadge}</span>
-          )}
-        </div>
+            <span className="text-xs font-bold leading-none">{date.getDate()}</span>
+            {statusBadge && (
+              <span className={`text-[8px] font-bold px-1 rounded-full ${status === 'hold' ? 'bg-amber-100 text-amber-700' : status === 'travel' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-300 text-zinc-600'}`}>{statusBadge}</span>
+            )}
+          </div>
+          </div>
         {violations.length > 0 && (
           <Tooltip content={violations.map(v => v.message).join('\n• ')}>
             <Flag className="w-2.5 h-2.5 text-red-400 fill-red-400 shrink-0" />
@@ -680,25 +679,26 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
 
       {statusModal !== null && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setStatusModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-[320px] p-5 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-zinc-900">Day Status</h3>
-              <button onClick={() => setStatusModal(null)} className="text-zinc-400 hover:text-zinc-700 p-1 rounded"><X className="w-4 h-4" /></button>
+          <div className="bg-white rounded-xl shadow-2xl w-[260px] p-4 space-y-2" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Day {statusModal}</div>
+              <button onClick={() => setStatusModal(null)} className="text-zinc-400 hover:text-zinc-700"><X className="w-3.5 h-3.5" /></button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {(['work', 'hold', 'travel', 'holiday'] as const).map(s => {
-                const cur = activeVersion?.dayMeta?.[statusModal]?.status;
-                const sel = (cur || 'work') === s;
-                return (
-                  <button key={s} type="button"
-                    onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal, status: s }); setStatusModal(null); }}
-                    className={`py-2.5 px-3 rounded-lg text-sm font-semibold border-2 transition-colors ${sel ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-200 text-zinc-600 hover:border-zinc-400'}`}
-                  >
-                    {s === 'work' ? 'W Work' : s === 'hold' ? 'H Hold' : s === 'travel' ? 'T Travel' : '0 Holiday'}
-                  </button>
-                );
-              })}
-            </div>
+            {(['work', 'hold', 'travel', 'holiday'] as const).map(s => {
+              const cur = activeVersion?.dayMeta?.[statusModal]?.status;
+              const sel = (cur || 'work') === s;
+              return (
+                <button key={s} type="button"
+                  onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal, status: s }); setStatusModal(null); }}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${sel ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
+                >
+                  <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${sel ? 'border-white' : 'border-zinc-300'}`}>
+                    {sel && <span className="w-2 h-2 bg-white rounded-full" />}
+                  </span>
+                  {s === 'work' ? 'Work' : s === 'hold' ? 'Hold' : s === 'travel' ? 'Travel' : 'Holiday'}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
