@@ -105,6 +105,7 @@ const DayCell: React.FC<{
   onDoubleClick?: (dateKey: string) => void;
   status?: string;
   chronoDay?: number;
+  activeTool?: string | null;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
@@ -112,7 +113,7 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -137,11 +138,12 @@ const DayCell: React.FC<{
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-100 text-zinc-400' : statusBg || 'bg-white'}
         ${isOver ? '!bg-blue-50' : ''}`}
     >
-      <div
-        ref={setHandleRef} {...listeners} {...attributes}
-          onDoubleClick={(e) => { e.preventDefault(); if (onDoubleClick) onDoubleClick(dateKey); }}
-          title={'Double-click to set status'}
-          style={{ opacity: isDragging ? 0.3 : 1, cursor: isWorkingDay && shootDay != null ? 'grab' : 'default' }}
+        <div
+          ref={setHandleRef} {...listeners} {...attributes}
+          onClick={() => activeTool && onToggle(dateKey)}
+          onDoubleClick={(e) => { e.preventDefault(); if (!activeTool && onDoubleClick) onDoubleClick(dateKey); }}
+          title={activeTool ? `Click to set ${activeTool}` : 'Double-click to set status'}
+          style={{ opacity: isDragging ? 0.3 : 1, cursor: activeTool ? 'pointer' : (isWorkingDay && shootDay != null ? 'grab' : 'default') }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none ${isToday ? 'bg-blue-500 text-white' : isNonWorkStatus ? 'bg-zinc-200 text-zinc-600' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
@@ -315,6 +317,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     }
     setStatusModal({ shootDay: day, dateKey });
   }, [activeVersion]);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
@@ -329,7 +332,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: ctrlOrCmdHeld ? 999999 : 3 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld ? 999999 : 3) } })
   );
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
@@ -430,8 +433,25 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
 
   const handleToggle = useCallback((dateKey: string) => {
+    if (activeTool) {
+      if (activeTool === 'remove') {
+        dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
+      } else {
+        const meta = activeVersion?.dayMeta || {};
+        let shootDay: number | null = null;
+        for (const [k, v] of Object.entries(meta) as [string, ShootDayMeta][]) {
+          if (v.date === dateKey) { shootDay = Number(k); break; }
+        }
+        if (shootDay == null) {
+          const existing = Object.keys(meta).map(Number);
+          shootDay = existing.length > 0 ? Math.max(...existing) + 1 : 1;
+        }
+        dispatch({ type: 'UPDATE_DAY_META' as any, shootDay, date: dateKey, status: activeTool });
+      }
+      return;
+    }
     dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
-  }, [dispatch]);
+  }, [dispatch, activeTool, activeVersion]);
 
   const sortUnscheduled = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;
@@ -637,6 +657,22 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
               </span>
             </div>
           </div>
+          <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
+            {[
+              { key: null, label: '⚪', title: 'No tool' },
+              { key: 'work', label: 'W', title: 'Work' },
+              { key: 'hold', label: 'H', title: 'Hold' },
+              { key: 'travel', label: 'T', title: 'Travel' },
+              { key: 'holiday', label: 'HOL', title: 'Holiday' },
+              { key: 'remove', label: '✕', title: 'Remove' },
+            ].map(t => (
+              <button key={t.key || 'none'} type="button"
+                onClick={() => setActiveTool(t.key)}
+                title={t.title}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${activeTool === t.key ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
+              >{t.label}</button>
+            ))}
+          </div>
           <div className="grid grid-cols-7 border-l border-t border-zinc-200">
             {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
           </div>
@@ -652,6 +688,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     isWorkingDay={sd !== null} shootDay={sd}
                     status={sd != null ? statusMap.get(sd) : undefined}
                     chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
+                    activeTool={activeTool}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
