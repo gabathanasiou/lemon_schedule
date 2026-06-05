@@ -101,17 +101,10 @@ export function ElementManager() {
   const isCast = category === 'cast';
   const occurrences = useMemo(() => {
     const counts = new Map<string, number>();
-    if (category === 'set') {
-      for (const s of project.scenes) if (s.set.trim()) counts.set(s.set, (counts.get(s.set) || 0) + 1);
-    } else if (isCast) {
-      for (const s of project.scenes) for (const id of s.cast.split(',').map(x => x.trim()).filter(Boolean)) counts.set(id, (counts.get(id) || 0) + 1);
-    } else {
-      const field = category as keyof typeof project.scenes[0];
-      for (const s of project.scenes) {
-        const val = (s as any)[field] as string;
-        if (!val) continue;
-        for (const name of val.split(',').map(x => x.trim()).filter(Boolean)) counts.set(name, (counts.get(name) || 0) + 1);
-      }
+    for (const s of project.scenes) {
+      const val = isCast ? s.cast : category === 'set' ? s.set : (s as any)[category] as string;
+      if (!val) continue;
+      for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) counts.set(item, (counts.get(item) || 0) + 1);
     }
     return counts;
   }, [project.scenes, category, isCast]);
