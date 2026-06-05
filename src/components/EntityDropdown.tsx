@@ -49,6 +49,8 @@ interface EntityDropdownProps {
   defaultOpen?: boolean;
   /** Auto-focus the input on mount */
   autoFocus?: boolean;
+  /** Display mode: 'id' (cast, default) or 'name' (non-cast). Controls checked matching and default renderer. */
+  displayMode?: 'id' | 'name';
 }
 
 export const EntityDropdown: React.FC<EntityDropdownProps> = ({
@@ -70,6 +72,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   itemBadge,
   defaultOpen = false,
   autoFocus: autoFocusProp = false,
+  displayMode = 'name',
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -98,6 +101,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   useEffect(() => {
     if (open) { committedRef.current = false; setHighlightedIndex(-1); }
   }, [open]);
+
+  const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
 
   const currentIds = mode === 'multi'
     ? val.split(',').map(x => x.trim()).filter(Boolean)
@@ -169,14 +174,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const doSort = sortItems ?? sortCastMembers;
   const sorted = (mode === 'multi' && searchQuery)
     ? [...items].sort((a, b) => {
-        const aLower = a.name.toLowerCase();
-        const bLower = b.name.toLowerCase();
         const q = searchQuery.toLowerCase();
-        const aMatch = aLower.includes(q) || a.id.toLowerCase().includes(q);
-        const bMatch = bLower.includes(q) || b.id.toLowerCase().includes(q);
+        const aMatch = a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q);
+        const bMatch = b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q);
         if (aMatch !== bMatch) return aMatch ? -1 : 1;
-        const aSel = currentIds.includes(a.id);
-        const bSel = currentIds.includes(b.id);
+        const aSel = currentIds.includes(itemKey(a));
+        const bSel = currentIds.includes(itemKey(b));
         if (aSel !== bSel) return aSel ? -1 : 1;
         return a.id.localeCompare(b.id, undefined, { numeric: true });
       })
@@ -191,7 +194,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
-      <span className="text-zinc-400 shrink-0">{item.id}.</span>
+      {displayMode === 'id' && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
       <span className="truncate flex-1">{item.name || '—'}</span>
       {showSceneCounts && scenes && (
         <span className="text-[10px] text-zinc-400">
@@ -242,7 +245,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             e.preventDefault();
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
               const item = dropdownItems[highlightedIndex];
-              toggle(item.id || item.name);
+              toggle(itemKey(item));
               setHighlightedIndex(-1);
             } else {
               commit();
@@ -257,7 +260,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
-            const checked = currentIds.includes(m.id || m.name);
+            const checked = currentIds.includes(itemKey(m));
             const highlighted = highlightedIndex === idx;
             const isSynthetic = lastSegment && !hasExactMatch && idx === 0;
             return (
@@ -265,7 +268,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 key={isSynthetic ? '__new__' : m.id}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => toggle(m.id || m.name)}
+                onClick={() => toggle(itemKey(m))}
                 onMouseEnter={mode === 'single' ? () => setHighlightedIndex(idx) : undefined}
                 className={`${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`}
               >

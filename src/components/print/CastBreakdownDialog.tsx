@@ -57,9 +57,11 @@ export default function CastBreakdownDialog({ onPrint, onClose }: CastBreakdownD
               onChange={val => setSelectedCastIds(val.split(',').map(x => x.trim()).filter(Boolean))}
               items={castItems}
               positioning="fixed"
-              standalone
               mode="multi"
+              displayMode="id"
               placeholder="e.g. 1, 2, 3"
+              className="text-xs"
+              renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
             />
           </div>
         </div>

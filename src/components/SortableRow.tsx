@@ -258,7 +258,7 @@ export const SortableRow: React.FC<{
                     {scene.description && <span className="opacity-60 truncate block">{scene.description}</span>}
                   </td>
                   <td className="col-cast">
-                    <EntityDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly />
+                    <EntityDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly displayMode="id" />
                   </td>
                 </tr>
               </tbody>
@@ -329,8 +329,13 @@ export const SortableRow: React.FC<{
                   <EntityDropdown
                     value={scene.cast}
                     onChange={val => updateScene({cast: val})}
-                    className="text-right w-full"
+                    className="text-right w-full text-xs"
                     readOnly={!textEditingEnabled}
+                    mode="multi"
+                    positioning="fixed"
+                    placeholder="Cast"
+                    displayMode="id"
+                    renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
                   />
                 </td>
                 <td className="col-pgs">

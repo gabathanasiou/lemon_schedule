@@ -179,7 +179,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                       value={val('notes')} onChange={e => update('notes', e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                   ) : cat === 'cast' ? (
-                    <EntityDropdown value={val('cast')} onChange={v => update('cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>} />
+                    <EntityDropdown value={val('cast')} onChange={v => update('cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>} />
                   ) : (
                     <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode="multi" placeholder={BREAKDOWN_LABEL[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
                   )}

@@ -197,13 +197,16 @@ export const CastConflictFields: React.FC<{
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
         Group A
       </label>
-      <EntityDropdown
+        <EntityDropdown
         value={form.castIds.join(', ')}
         onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
         items={castMembers}
         positioning="fixed"
-        standalone
+        mode="multi"
         placeholder="Search cast members..."
+        className="text-xs"
+        displayMode="id"
+        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
       />
     </div>
     <div className="flex items-center gap-2">
@@ -220,8 +223,11 @@ export const CastConflictFields: React.FC<{
         onChange={val => setForm(f => ({ ...f, conflictCastIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
         items={castMembers}
         positioning="fixed"
-        standalone
+        mode="multi"
         placeholder="Search cast members..."
+        className="text-xs"
+        displayMode="id"
+        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
       />
     </div>
   </div>
@@ -241,8 +247,11 @@ export const CastSceneFlagFields: React.FC<{
       onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
       items={castMembers}
       positioning="fixed"
-      standalone
+      mode="multi"
       placeholder="Search cast members..."
+      className="text-xs"
+      displayMode="id"
+      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
     />
   </div>
 );

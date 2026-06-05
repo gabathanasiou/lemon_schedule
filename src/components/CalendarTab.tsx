@@ -780,9 +780,16 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                   onChange={v => setModalCastIds(v)}
                   items={(project.castMembers || []).map(m => ({ id: m.id, name: m.name }))}
                   positioning="fixed"
-                  standalone
                   mode="multi"
+                  displayMode="id"
                   placeholder="e.g. 1, 2, 3"
+                  className="text-xs"
+                  renderItem={(item) => (
+                    <>
+                      <span className="text-zinc-400 shrink-0">{item.id}.</span>
+                      <span className="truncate flex-1">{item.name || '—'}</span>
+                    </>
+                  )}
                 />
               </div>
             )}

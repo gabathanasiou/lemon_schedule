@@ -156,9 +156,14 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       <EntityDropdown
         value={cell?.value || ''}
         onChange={handleChange}
-        positioning="relative"
+        positioning="fixed"
         defaultOpen
         autoFocus
+        mode="multi"
+        placeholder="Cast"
+        className="text-xs"
+        displayMode="id"
+        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>}
       />
     );
   }, []);
