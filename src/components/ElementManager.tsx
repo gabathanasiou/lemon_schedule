@@ -27,13 +27,13 @@ const ELEMENT_CATEGORIES = [
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
   const stored = (project.breakdownElements || {})[category];
-  if (stored && stored.length > 0) return stored.sort(sortElements);
+  if (stored && stored.length > 0) return [...stored];
   if (category === 'cast') {
     const sceneIds = getElementsFromScenes(project.scenes, 'cast');
     const merged = new Map<string, ProjectElement>();
     for (const e of sceneIds) merged.set(e.id, e);
     for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name });
-    return [...merged.values()].sort(sortElements);
+    return [...merged.values()];
   }
   return getElementsFromScenes(project.scenes, category);
 }
@@ -58,10 +58,17 @@ export function ElementManager() {
   const snapshotRef = useRef<LocalRow[]>(rows);
 
   useEffect(() => {
-    const loaded = loadCategoryElements(project, category).map(e => ({ key: nextKey(), id: e.id, name: e.name }));
-    setRows(loaded);
-    snapshotRef.current = loaded;
-  }, [category, project]);
+    const loaded = loadCategoryElements(project, category);
+    const localRows = loaded.map(e => ({ key: nextKey(), id: e.id, name: e.name }));
+    setRows(localRows);
+    snapshotRef.current = localRows;
+
+    const stored = (project.breakdownElements || {})[category];
+    const isEmpty = !stored || stored.length === 0;
+    if (isEmpty && loaded.length > 0) {
+      dispatch({ type: 'AUTO_POPULATE_ELEMENTS', payload: { category, elements: loaded } } as any);
+    }
+  }, [category, project, dispatch]);
 
   const hasChanges = useMemo(() => {
     const snap = snapshotRef.current;
@@ -196,6 +203,9 @@ export function ElementManager() {
           <span className="text-xs text-zinc-500 uppercase tracking-wider font-mono">
             {rows.length} {rows.length === 1 ? 'element' : 'elements'}
           </span>
+          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+            Sort by ID
+          </button>
         </div>
         <div className="flex items-center gap-2">
           {hasChanges && (
@@ -210,10 +220,4 @@ export function ElementManager() {
       </div>
     </div>
   );
-}
-
-function sortElements(a: ProjectElement, b: ProjectElement) {
-  const na = parseInt(a.id, 10), nb = parseInt(b.id, 10);
-  if (!isNaN(na) && !isNaN(nb)) return na - nb;
-  return a.id.localeCompare(b.id, undefined, { numeric: true });
 }
