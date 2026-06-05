@@ -485,21 +485,29 @@ function reducer(state: State, action: Action): State {
       if (!old) return state;
       const newElement = { ...old, ...updates };
       const newList = list.map(e => e.id === id ? newElement : e);
+      const isCast = category === 'cast';
+      const sceneKey = category as keyof Scene;
 
       let newScenes = state.present.scenes;
-      if (updates.id && updates.id !== id) {
-        const sceneKey = category as keyof Scene;
+      if (isCast && updates.id && updates.id !== id) {
         newScenes = state.present.scenes.map(scene => {
           const val = scene[sceneKey] as string;
           if (!val) return scene;
-          if (category === 'set') {
-            return { ...scene, set: scene.set === id ? updates.id! : scene.set };
-          }
-          const ids = val.split(',').map(x => x.trim());
-          const idx = ids.indexOf(id);
+          const items = val.split(',').map(x => x.trim());
+          const idx = items.indexOf(id);
           if (idx < 0) return scene;
-          ids[idx] = updates.id!;
-          return { ...scene, [sceneKey]: ids.join(', ') };
+          items[idx] = updates.id!;
+          return { ...scene, [sceneKey]: items.join(', ') };
+        });
+      } else if (!isCast && updates.name && updates.name !== old.name) {
+        newScenes = state.present.scenes.map(scene => {
+          const val = scene[sceneKey] as string;
+          if (!val) return scene;
+          const items = val.split(',').map(x => x.trim());
+          const idx = items.indexOf(old.name);
+          if (idx < 0) return scene;
+          items[idx] = updates.name!;
+          return { ...scene, [sceneKey]: items.join(', ') };
         });
       }
 
@@ -507,7 +515,7 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         scenes: newScenes,
         breakdownElements: { ...state.present.breakdownElements, [category]: newList },
-        castMembers: category === 'cast'
+        castMembers: isCast
           ? (state.present.castMembers || []).map(c => c.id === id ? newElement : c)
           : state.present.castMembers,
       });
@@ -515,21 +523,24 @@ function reducer(state: State, action: Action): State {
 
     case 'DELETE_ELEMENT': {
       const { category, id } = action.payload;
+      const isCast = category === 'cast';
       const sceneKey = category as keyof Scene;
+      const list = state.present.breakdownElements[category] || [];
+      const el = list.find(e => e.id === id);
+      const matchValue = isCast ? id : (el?.name ?? id);
       return applyChange({
         ...state.present,
         scenes: state.present.scenes.map(scene => {
-          if (category === 'set') return { ...scene, set: scene.set === id ? '' : scene.set };
           const val = scene[sceneKey] as string;
           if (!val) return scene;
-          const ids = val.split(',').map(x => x.trim()).filter(x => x !== id);
-          return { ...scene, [sceneKey]: ids.join(', ') };
+          const items = val.split(',').map(x => x.trim()).filter(x => x !== matchValue);
+          return { ...scene, [sceneKey]: items.join(', ') };
         }),
         breakdownElements: {
           ...state.present.breakdownElements,
-          [category]: (state.present.breakdownElements[category] || []).filter(e => e.id !== id),
+          [category]: list.filter(e => e.id !== id),
         },
-        castMembers: category === 'cast'
+        castMembers: isCast
           ? (state.present.castMembers || []).filter(c => c.id !== id)
           : state.present.castMembers,
       });
