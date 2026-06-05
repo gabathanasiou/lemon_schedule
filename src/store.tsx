@@ -124,7 +124,6 @@ type Action =
   | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
-  | { type: 'AUTO_POPULATE_ELEMENTS'; payload: { category: string; elements: { id: string; name: string }[] } }
 
 interface State {
   past: Project[];
@@ -544,24 +543,6 @@ function reducer(state: State, action: Action): State {
           ? (state.present.castMembers || []).filter(c => c.id !== id)
           : state.present.castMembers,
       });
-    }
-
-    case 'AUTO_POPULATE_ELEMENTS': {
-      const { category, elements } = action.payload;
-      const existing = state.present.breakdownElements[category] || [];
-      if (existing.length > 0) return state;
-      const result: any = {
-        ...state.present,
-        breakdownElements: { ...state.present.breakdownElements, [category]: elements },
-      };
-      if (category === 'cast') {
-        const current = state.present.castMembers || [];
-        result.castMembers = elements.map(e => {
-          const existing = current.find(c => c.id === e.id);
-          return existing || { id: e.id, name: e.name };
-        });
-      }
-      return applyChange(result);
     }
 
     default:

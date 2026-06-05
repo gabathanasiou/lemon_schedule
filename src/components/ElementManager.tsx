@@ -63,12 +63,6 @@ export function ElementManager() {
     const localRows = loaded.map(e => ({ key: elementKey(e), id: e.id, name: e.name }));
     setRows(localRows);
     snapshotRef.current = localRows;
-
-    const stored = (project.breakdownElements || {})[category];
-    const isEmpty = !stored || stored.length === 0;
-    if (isEmpty && loaded.length > 0) {
-      dispatch({ type: 'AUTO_POPULATE_ELEMENTS', payload: { category, elements: loaded } } as any);
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, dispatch]);
 
@@ -249,8 +243,8 @@ export function ElementManager() {
               Revert
             </button>
           )}
-          <button onClick={doSave} className={`px-4 py-1.5 rounded text-sm font-bold transition-colors ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-zinc-200 text-zinc-400 cursor-default'}`}>
-            Save Changes
+          <button onClick={doSave} className={`px-4 py-1.5 rounded text-sm font-bold transition-colors ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm' : 'bg-zinc-100 text-zinc-400'}`}>
+            {hasChanges ? 'Save Changes' : 'Saved'}
           </button>
         </div>
       </div>
