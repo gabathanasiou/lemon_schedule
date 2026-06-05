@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { ProjectElement } from '../types';
@@ -25,30 +25,58 @@ const ELEMENT_CATEGORIES = [
   { key: 'artDept', label: 'Art Department', sceneKey: 'artDept' },
 ];
 
-const ACTIONS_COL = 2;
+function loadCategoryElements(project: any, category: string): ProjectElement[] {
+  const stored = (project.breakdownElements || {})[category];
+  if (stored && stored.length > 0) return stored.sort(sortElements);
+  if (category === 'cast') {
+    const sceneIds = getElementsFromScenes(project.scenes, 'cast');
+    const merged = new Map<string, ProjectElement>();
+    for (const e of sceneIds) merged.set(e.id, e);
+    for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name });
+    return [...merged.values()].sort(sortElements);
+  }
+  return getElementsFromScenes(project.scenes, category);
+}
+
+interface LocalRow {
+  key: string;
+  id: string;
+  name: string;
+}
+
+let keyCounter = 0;
+function nextKey() { return String(++keyCounter); }
 
 export function ElementManager() {
   const { state, dispatch } = useProject();
   const project = state.present;
 
   const [category, setCategory] = useState('cast');
+  const [rows, setRows] = useState<LocalRow[]>(() =>
+    loadCategoryElements(project, category).map(e => ({ key: nextKey(), id: e.id, name: e.name }))
+  );
+  const snapshotRef = useRef<LocalRow[]>(rows);
 
-  const storedElements: ProjectElement[] = (project.breakdownElements || {})[category] || [];
-  const scenes = project.scenes;
+  useEffect(() => {
+    const loaded = loadCategoryElements(project, category).map(e => ({ key: nextKey(), id: e.id, name: e.name }));
+    setRows(loaded);
+    snapshotRef.current = loaded;
+  }, [category, project]);
 
-  const elements = useMemo(() => {
-    if (storedElements.length > 0) return storedElements.sort(sortElements);
-    if (category === 'cast') {
-      const sceneIds = getElementsFromScenes(scenes, 'cast');
-      const merged = new Map<string, ProjectElement>();
-      for (const e of sceneIds) merged.set(e.id, e);
-      for (const m of project.castMembers) merged.set(m.id, { id: m.id, name: m.name });
-      return [...merged.values()].sort(sortElements);
+  const hasChanges = useMemo(() => {
+    const snap = snapshotRef.current;
+    if (rows.length !== snap.length) return true;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].id !== snap[i].id || rows[i].name !== snap[i].name) return true;
     }
-    return getElementsFromScenes(scenes, category);
-  }, [storedElements, scenes, category, project.castMembers]);
+    return false;
+  }, [rows]);
 
   const catItems = useMemo(() => ELEMENT_CATEGORIES.map(c => ({ id: c.key, name: c.label })), []);
+
+  const deleteRow = useCallback((key: string) => {
+    setRows(prev => prev.filter(r => r.key !== key));
+  }, []);
 
   const NameEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
@@ -68,61 +96,75 @@ export function ElementManager() {
   }, []);
 
   const DeleteViewer: DataViewerComponent<CellBase<string>> = useCallback(({ row }) => {
-    const m = elements[row];
-    if (!m) return null;
+    const r = rows[row];
+    if (!r) return null;
     return (
       <div className="flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-colors"
-        onMouseDown={e => { e.stopPropagation(); dispatch({ type: 'DELETE_ELEMENT', payload: { category, id: m.id } }); }}>
+        onMouseDown={e => { e.stopPropagation(); deleteRow(r.key); }}>
         <Trash2 className="w-4 h-4 text-red-400/60 hover:text-red-600 transition-colors" />
       </div>
     );
-  }, [elements, dispatch, category]);
+  }, [rows, deleteRow]);
 
   const data: CellBase[][] = useMemo(() => {
-    const rows = elements.map(m => [
-      { value: m.id },
-      { value: m.name, DataEditor: NameEditor },
+    const result = rows.map(r => [
+      { value: r.id },
+      { value: r.name, DataEditor: NameEditor },
       { value: '', readOnly: true, DataViewer: DeleteViewer },
     ]);
-    rows.push([
+    result.push([
       { value: '' },
       { value: '', DataEditor: NameEditor },
       { value: '', readOnly: true },
     ]);
-    return rows;
-  }, [elements, NameEditor, DeleteViewer]);
+    return result;
+  }, [rows, NameEditor, DeleteViewer]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
-    const phantomRow = newData[elements.length];
-    if (phantomRow) {
-      const hasContent = phantomRow.slice(0, ACTIONS_COL).some(c => {
-        const v = c?.value; return v !== undefined && v !== null && String(v).trim() !== '';
-      });
-      if (hasContent) {
-        const newId = String(phantomRow[0]?.value ?? '').trim();
-        const newName = String(phantomRow[1]?.value ?? '').trim().toUpperCase();
-        if (!newId && !newName) return;
-        const maxId = elements.reduce((max, e) => { const n = parseInt(e.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
-        const id = newId || String(maxId + 1);
-        dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id, name: newName || id } } });
+    const phantom = newData[rows.length];
+    if (phantom) {
+      const idVal = String(phantom[0]?.value ?? '').trim();
+      const nameVal = String(phantom[1]?.value ?? '').trim().toUpperCase();
+      if (idVal || nameVal) {
+        setRows(prev => [...prev, { key: nextKey(), id: idVal || String(prev.length + 1), name: nameVal || idVal }]);
         return;
       }
     }
+    setRows(prev => {
+      const updated = prev.map((r, i) => {
+        if (i >= newData.length) return r;
+        const newId = String(newData[i]?.[0]?.value ?? '').trim();
+        const newName = String(newData[i]?.[1]?.value ?? '').trim().toUpperCase();
+        return { ...r, id: newId || r.id, name: newName || r.name };
+      });
+      return updated;
+    });
+  }, [rows.length]);
 
-    for (let row = 0; row < Math.min(elements.length, newData.length); row++) {
-      const newId = String(newData[row]?.[0]?.value ?? '');
-      const newName = String(newData[row]?.[1]?.value ?? '').toUpperCase();
-      const orig = elements[row];
-      if (newId !== orig.id || newName !== orig.name) {
-        dispatch({ type: 'UPDATE_ELEMENT', payload: { category, id: orig.id, updates: { id: newId || orig.id, name: newName || orig.name } } });
+  const doSave = useCallback(() => {
+    const snap = snapshotRef.current;
+    const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
+    const rowMap = new Map<string, LocalRow>(rows.map(r => [r.key, r]));
+
+    for (const row of rows) {
+      const orig = snapMap.get(row.key);
+      if (!orig) {
+        dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: row.id, name: row.name } } });
+      } else if (orig.id !== row.id || orig.name !== row.name) {
+        dispatch({ type: 'UPDATE_ELEMENT', payload: { category, id: orig.id, updates: { id: row.id, name: row.name } } });
       }
     }
-  }, [elements, dispatch, category]);
+    for (const orig of snap) {
+      if (!rowMap.has(orig.key)) {
+        dispatch({ type: 'DELETE_ELEMENT', payload: { category, id: orig.id } });
+      }
+    }
+    snapshotRef.current = rows.map(r => ({ ...r }));
+  }, [rows, category, dispatch]);
 
-  const add = useCallback(() => {
-    const maxId = elements.reduce((max, e) => { const n = parseInt(e.id, 10); return isNaN(n) ? max : Math.max(max, n); }, 0);
-    dispatch({ type: 'ADD_ELEMENT', payload: { category, element: { id: String(maxId + 1), name: '' } } });
-  }, [elements, dispatch, category]);
+  const doRevert = useCallback(() => {
+    setRows(snapshotRef.current.map(r => ({ ...r, key: nextKey() })));
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 overflow-hidden select-none">
@@ -149,18 +191,22 @@ export function ElementManager() {
         />
       </div>
 
-      <div className="bg-zinc-100 border-t border-zinc-300 p-3 flex items-center shadow-inner">
-        <button onClick={add} className="bg-zinc-900 border-2 border-transparent text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-zinc-800 transition-colors">
-          + Add {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || 'Element'}
-        </button>
-        <span className="ml-4 text-xs text-zinc-500 uppercase tracking-wider font-mono">
-          {elements.length} {elements.length === 1 ? 'element' : 'elements'}
-        </span>
-        {storedElements.length === 0 && elements.length > 0 && (
-          <span className="ml-3 text-xs text-zinc-400 italic">
-            Auto-populated from scenes
+      <div className="bg-zinc-100 border-t border-zinc-300 p-3 flex items-center justify-between shadow-inner">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500 uppercase tracking-wider font-mono">
+            {rows.length} {rows.length === 1 ? 'element' : 'elements'}
           </span>
-        )}
+        </div>
+        <div className="flex items-center gap-2">
+          {hasChanges && (
+            <button onClick={doRevert} className="px-4 py-1.5 rounded text-sm font-medium border border-zinc-300 text-zinc-600 hover:bg-zinc-50 transition-colors">
+              Revert
+            </button>
+          )}
+          <button onClick={doSave} className={`px-4 py-1.5 rounded text-sm font-bold transition-colors ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-zinc-200 text-zinc-400 cursor-default'}`}>
+            Save Changes
+          </button>
+        </div>
       </div>
     </div>
   );

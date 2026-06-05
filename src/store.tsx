@@ -466,18 +466,22 @@ function reducer(state: State, action: Action): State {
     case 'UPDATE_ELEMENT': {
       const { category, id, updates } = action.payload;
       let list = state.present.breakdownElements[category] || [];
-      let old = list.find(e => e.id === id);
-      if (!old) {
+      if (list.length === 0) {
         if (category === 'cast') {
-          const cast = (state.present.castMembers || []).find(c => c.id === id);
-          if (cast) { list = [...list, cast]; old = cast; }
+          list = (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }));
+        } else {
+          const sceneKey = category as keyof Scene;
+          const ids = new Set<string>();
+          for (const s of state.present.scenes) {
+            const val = s[sceneKey] as string;
+            if (!val) continue;
+            for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) ids.add(item);
+          }
+          list = [...ids].sort().map(item => ({ id: item, name: item }));
         }
       }
-      if (!old) {
-        const newEntry: any = { id, name: id };
-        list = [...list, newEntry];
-        old = newEntry;
-      }
+      let old = list.find(e => e.id === id);
+      if (!old) return state;
       const newElement = { ...old, ...updates };
       const newList = list.map(e => e.id === id ? newElement : e);
 
