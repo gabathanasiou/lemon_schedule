@@ -443,11 +443,11 @@ export const SortableRow: React.FC<{
                     <td className="col-cast" />
                   </>
                   ) : (
-                  <td colSpan={4} className="col-set" style={{textAlign: 'center'}}>
+                  <td colSpan={4} className="col-set">
                     <CellInput
                       value={row.noteText || ''}
                       onChange={val => updateRow({noteText: val.toUpperCase()})}
-                      className={`${inputClass} text-center`}
+                      className={inputClass}
                       placeholder="Enter note here..."
                       multiline
                       autoFocus={focusedRowId === row.id}
@@ -498,11 +498,11 @@ export const SortableRow: React.FC<{
                     <td className="col-cast" />
                   </>
                   ) : (
-                  <td colSpan={4} className="col-set" style={{textAlign: 'center'}}>
+                  <td colSpan={4} className="col-set">
                     <CellInput
                       value={row.breakLabel || ''}
                       onChange={val => updateRow({breakLabel: val.toUpperCase()})}
-                      className={`${inputClass} text-center`}
+                      className={inputClass}
                       placeholder="ENTER BREAK TEXT"
                       autoFocus={focusedRowId === row.id}
                     />
