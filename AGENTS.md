@@ -116,6 +116,9 @@ The `EntityDropdown` component accepts an `items` prop — pass any `{ id: strin
 
 Utility classes exported from EntityDropdown.tsx: `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)`.
 
+### Entity Selection
+Whenever a UI needs the user to select items from a list (days, set pieces, props, cast members, etc.), use the `EntityDropdown` component. It handles multi/single-select, search filtering, custom display, and click-to-toggle in one shared component. Do not hand-roll checkboxes, tag inputs, or custom dropdowns — `EntityDropdown` with `items`/`renderItem`/`mode` covers every case cleanly.
+
 ### Key Patterns
 - **Click-to-toggle** (NOT hover): All menus use React state + backdrop div for closing.
 - **Lucide icons**: Always `w-3.5 h-3.5` in menus and buttons. Use `className="shrink-0"` to prevent icon squishing.
