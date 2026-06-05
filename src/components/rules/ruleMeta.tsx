@@ -120,7 +120,9 @@ export function describeRule(rule: ProjectRule): string {
     return `Max ${rule.maxHours}h · every day`;
   }
   if (rule.type === 'DATE_RESTRICTION') {
-    return `Unavailable · ${formatRuleDateShort(rule.date)}`;
+    if (rule.dates.length === 0) return `Unavailable · no dates set`;
+    if (rule.dates.length === 1) return `Unavailable · ${formatRuleDateShort(rule.dates[0])}`;
+    return `Unavailable · ${rule.dates.length} dates`;
   }
   if (rule.type === 'CAST_CONFLICT') {
     return `Conflict: ${joinNames(rule.castIds)} vs ${joinNames(rule.conflictCastIds)}`;
@@ -188,9 +190,9 @@ export const formFromRule = (rule: ProjectRule): RuleFormState => {
       castIds: [],
       conflictCastIds: [],
       maxHours: '8',
-      dates: [],
+      dates: [...rule.dates],
       dateInput: '',
-      date: rule.date,
+      date: '',
       windowMode: 'range',
       windowStart: '09:00',
       windowEnd: '17:00',

@@ -53,7 +53,7 @@ export function checkDay(
     }
 
     if (rule.type === 'DATE_RESTRICTION') {
-      if (!dayDate || dayDate !== rule.date) continue;
+      if (!dayDate || !rule.dates.includes(dayDate)) continue;
       const affectedScenes: string[] = [];
       for (const row of dayRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
@@ -64,7 +64,7 @@ export function checkDay(
       if (affectedScenes.length > 0) {
         violations.push({
           ruleId: rule.id, ruleType: 'DATE_RESTRICTION', castId: rule.castId,
-          message: `${rule.castId} unavailable on ${formatDate(rule.date)}`,
+          message: `${rule.castId} unavailable on this date`,
           shootDay,
           sceneIds: affectedScenes,
         });

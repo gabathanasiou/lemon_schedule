@@ -74,7 +74,7 @@ export interface RuleTrashItem {
 
 export type ProjectRule =
   | { id: string; type: 'MAX_HOURS'; castId: string; maxHours: number; dates?: string[] }
-  | { id: string; type: 'DATE_RESTRICTION'; castId: string; date: string }
+  | { id: string; type: 'DATE_RESTRICTION'; castId: string; dates: string[] }
   | { id: string; type: 'TIME_WINDOW'; castId: string; date: string; windowStart?: string; windowEnd?: string }
   | { id: string; type: 'CAST_CONFLICT'; castIds: string[]; conflictCastIds: string[] }
   | { id: string; type: 'CAST_SCENE_FLAG'; castIds: string[] }

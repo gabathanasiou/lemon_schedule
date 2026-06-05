@@ -1,8 +1,9 @@
 import React from 'react';
 import { RuleFormState } from './ruleMeta';
-import { cn, formatRuleDate, formatRuleDateShort } from '../../lib/utils';
+import { cn, formatRuleDateShort } from '../../lib/utils';
 import { Plus, X } from 'lucide-react';
 import { CastDropdown } from '../CastDropdown';
+import { DatePicker } from '../DatePicker';
 
 export const MaxHoursFields: React.FC<{
   form: RuleFormState;
@@ -94,17 +95,10 @@ export const DateRestrictionFields: React.FC<{
     <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
       Unavailable On
     </label>
-    <input
-      type="date"
-      value={form.date}
-      onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-      className="w-full border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+    <DatePicker
+      selected={form.dates}
+      onChange={dates => setForm(f => ({ ...f, dates }))}
     />
-    {form.date && (
-      <p className="text-[10px] text-zinc-500 mt-1.5">
-        {formatRuleDate(form.date)}
-      </p>
-    )}
   </div>
 );
 

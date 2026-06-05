@@ -132,7 +132,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
       };
     } else {
       rule = {
-        id, type: 'DATE_RESTRICTION', castId: form.castId.trim(), date: form.date,
+        id, type: 'DATE_RESTRICTION', castId: form.castId.trim(), dates: [...form.dates],
       };
     }
     onSave(rule);
