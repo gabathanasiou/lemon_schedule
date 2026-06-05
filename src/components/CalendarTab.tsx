@@ -135,31 +135,23 @@ const DayCell: React.FC<{
         ${isOver ? '!bg-blue-50' : ''}`}
     >
       <div className="flex items-center justify-between mb-0.5">
-        <div className="flex items-center gap-0.5">
-          <div
-            onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
-            title={shootDay != null ? 'Double-click to set status' : ''}
-            className={`flex items-center gap-1 px-1.5 py-0.5 rounded select-none ${isToday ? 'bg-blue-500 text-white' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
-          >
-            <span className="text-xs font-bold leading-none">{date.getDate()}</span>
-            {statusBadge && (
-              <span className={`text-[8px] font-bold px-1 rounded-full ${status === 'hold' ? 'bg-amber-100 text-amber-700' : status === 'travel' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-300 text-zinc-600'}`}>{statusBadge}</span>
-            )}
-          </div>
-          </div>
+        <div
+          ref={setHandleRef} {...listeners} {...attributes}
+          onDoubleClick={(e) => { e.preventDefault(); if (shootDay != null && onDoubleClick) onDoubleClick(shootDay); }}
+          title={shootDay != null ? 'Double-click to set status' : ''}
+          style={{ opacity: isDragging ? 0.3 : 1, cursor: shootDay !== null ? 'grab' : 'default' }}
+          className={`flex items-center gap-1 px-1.5 py-0.5 rounded select-none flex-1 ${isToday ? 'bg-blue-500 text-white' : 'bg-zinc-200 text-zinc-700'} ${isCurrentMonth ? '' : 'opacity-30'}`}
+        >
+          <span className="text-xs font-bold leading-none">{date.getDate()}</span>
+          {statusBadge && (
+            <span className={`text-[8px] font-bold px-1 rounded-full ${status === 'hold' ? 'bg-amber-100 text-amber-700' : status === 'travel' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-300 text-zinc-600'}`}>{statusBadge}</span>
+          )}
+        </div>
+
         {violations.length > 0 && (
           <Tooltip content={violations.map(v => v.message).join('\n• ')}>
             <Flag className="w-2.5 h-2.5 text-red-400 fill-red-400 shrink-0" />
           </Tooltip>
-        )}
-        {isWorkingDay && shootDay !== null && label && (
-          <div ref={setHandleRef} {...listeners} {...attributes}
-            style={{ opacity: isDragging ? 0.3 : 1, cursor: 'grab' }}
-            className="flex items-center gap-1 text-[7px] font-bold text-green-600 select-none hover:text-green-800 group"
-            title={`Day ${shootDay} — drag to move`}>
-            {label}
-            <GripVertical className="w-3 h-3 opacity-40 group-hover:opacity-100" />
-          </div>
         )}
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
