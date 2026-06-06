@@ -535,8 +535,10 @@ function reducer(state: State, action: Action): State {
           list = [...ids].sort().map(item => ({ id: item, name: item }));
         }
       }
-      let old = list.find(e => e.id === id);
       const isCast = category === 'cast';
+      let old = isCast
+        ? list.find(e => e.id === id)
+        : list.find(e => e.id.toLowerCase() === id.toLowerCase());
       if (!old) {
         if (isCast) {
           const newElement = { id: updates.id || id, name: updates.name || '' };
@@ -549,7 +551,7 @@ function reducer(state: State, action: Action): State {
         return state;
       }
       const newElement = { ...old, ...updates };
-      const newList = list.map(e => e.id === id ? newElement : e);
+      const newList = list.map(e => (isCast ? e.id === id : e.id.toLowerCase() === id.toLowerCase()) ? newElement : e);
       const sceneKey = category as keyof Scene;
 
       let newScenes = state.present.scenes;
