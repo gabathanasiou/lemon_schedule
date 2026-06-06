@@ -554,27 +554,30 @@ function reducer(state: State, action: Action): State {
 
       let newScenes = state.present.scenes;
       if (isCast && updates.id && updates.id !== id) {
+        const oldLower = id.toLowerCase();
         newScenes = state.present.scenes.map(scene => {
           const val = scene[sceneKey] as string;
           if (!val) return scene;
           const items = val.split(',').map(x => x.trim());
-          const idx = items.indexOf(id);
+          const idx = items.findIndex(x => x.toLowerCase() === oldLower);
           if (idx < 0) return scene;
           items[idx] = updates.id!;
           return { ...scene, [sceneKey]: items.join(', ') };
         });
       } else if (!isCast && updates.name && updates.name !== old.name) {
         if (category === 'set') {
+          const oldUpper = old.name.toUpperCase();
           newScenes = state.present.scenes.map(scene => {
-            if (scene.set !== old.name) return scene;
+            if (scene.set.toUpperCase() !== oldUpper) return scene;
             return { ...scene, set: updates.name! };
           });
         } else {
+          const oldLower = old.name.toLowerCase();
           newScenes = state.present.scenes.map(scene => {
             const val = scene[sceneKey] as string;
             if (!val) return scene;
             const items = val.split(',').map(x => x.trim());
-            const idx = items.indexOf(old.name);
+            const idx = items.findIndex(x => x.toLowerCase() === oldLower);
             if (idx < 0) return scene;
             items[idx] = updates.name!;
             return { ...scene, [sceneKey]: items.join(', ') };
@@ -599,12 +602,13 @@ function reducer(state: State, action: Action): State {
       const list = state.present.breakdownElements[category] || [];
       const el = list.find(e => e.id === id);
       const matchValue = isCast ? id : (el?.name ?? id);
+      const matchLower = isCast ? id.toLowerCase() : (el?.name ?? id).toLowerCase();
       return applyChange({
         ...state.present,
         scenes: state.present.scenes.map(scene => {
           const val = scene[sceneKey] as string;
           if (!val) return scene;
-          const items = val.split(',').map(x => x.trim()).filter(x => x !== matchValue);
+          const items = val.split(',').map(x => x.trim()).filter(x => x.toLowerCase() !== matchLower);
           return { ...scene, [sceneKey]: items.join(', ') };
         }),
         breakdownElements: {
