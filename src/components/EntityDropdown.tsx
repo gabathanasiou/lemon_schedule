@@ -259,7 +259,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             } else {
               commit();
             }
-            (document.activeElement as HTMLElement)?.blur();
           }
         }}
       />
