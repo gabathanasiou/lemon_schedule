@@ -186,23 +186,25 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, []);
 
   const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const setOptions = useMemo(() => {
-      const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
-      const storedSets = (project.breakdownElements?.['set'] || []).map(e => e.name.toUpperCase()).filter(Boolean);
-      storedSets.forEach(s => sets.add(s));
-      return [...sets].sort();
-  }, [scenes, project.breakdownElements]);
+    const setItems = useMemo(() => {
+      const sets = new Map<string, string>();
+      for (const s of scenes) { const v = s.set.trim().toUpperCase(); if (v) sets.set(v, v); }
+      for (const e of project.breakdownElements?.['set'] || []) { const v = e.name.toUpperCase(); if (v) sets.set(v, v); }
+      return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
+    }, [scenes, project.breakdownElements]);
     return (
-      <AutocompleteDropdown
+      <EntityDropdown
         value={cell?.value || ''}
-        onChange={val => { onChange({ value: val.toUpperCase() }); exitEditMode(); }}
-        options={setOptions}
+        onChange={val => { onChange({ value: val }); exitEditMode(); }}
+        items={setItems}
+        mode="single"
         positioning="relative"
         defaultOpen
         autoFocus
+        className="text-xs"
       />
     );
-  }, [scenes]);
+  }, [scenes, project.breakdownElements]);
 
   const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
     <AutocompleteDropdown
