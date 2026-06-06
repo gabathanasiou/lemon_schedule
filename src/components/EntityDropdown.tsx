@@ -29,7 +29,7 @@ interface EntityDropdownProps {
   readOnly?: boolean;
   placeholder?: string;
   positioning?: 'relative' | 'fixed';
-  mode?: 'single' | 'multi';
+  mode?: 'single' | 'multi' | 'select';
   showSceneCounts?: boolean;
   scenes?: Scene[];
   standalone?: boolean;
@@ -90,7 +90,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   // --- Single mode: query + localIds (search-then-select pattern) ---
   const [val, setVal] = useState(value);
   useEffect(() => {
-    if (mode === 'multi') setVal(value);
+    if (mode === 'multi' || mode === 'select') setVal(value);
   }, [value, mode]);
   const [query, setQuery] = useState('');
   const [localIds, setLocalIds] = useState<string[]>(() =>
@@ -104,14 +104,14 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
 
-  const currentIds = mode === 'multi'
+  const currentIds = mode === 'multi' || mode === 'select'
     ? val.split(',').map(x => x.trim()).filter(Boolean)
     : localIds;
 
   const handleClose = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
-    if (mode === 'multi') {
+    if (mode === 'multi' || mode === 'select') {
       onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
     } else {
       onChange(localIds.length > 0 ? localIds.join(', ') : query);
@@ -139,6 +139,13 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       setOpen(false);
       return;
     }
+    if (mode === 'select') {
+      setVal(id);
+      committedRef.current = true;
+      onChange(id);
+      setOpen(false);
+      return;
+    }
     setVal(prev => {
       const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
       const idx = ids.indexOf(id);
@@ -151,7 +158,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const commit = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
-    if (mode === 'multi') {
+    if (mode === 'multi' || mode === 'select') {
       onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
     } else {
       onChange(localIds.length > 0 ? localIds.join(', ') : query);
@@ -166,13 +173,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }, [searchFields]);
 
   const doFilter = filterItem ?? defaultFilter;
-  const lastSegment = mode === 'multi'
+  const lastSegment = mode === 'select'
+    ? val.trim()
+    : mode === 'multi'
     ? val.split(',').map(x => x.trim()).filter(Boolean).pop() || ''
     : '';
-  const searchQuery = mode === 'multi' ? lastSegment : query;
+  const searchQuery = mode === 'multi' || mode === 'select' ? lastSegment : query;
   const filtered = items.filter(m => !searchQuery || doFilter(m, searchQuery));
   const doSort = sortItems ?? sortCastMembers;
-  const sorted = (mode === 'multi' && searchQuery)
+  const sorted = ((mode === 'multi' || mode === 'select') && searchQuery)
     ? [...items].sort((a, b) => {
         const q = searchQuery.toLowerCase();
         const aMatch = a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q);
@@ -212,7 +221,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }
 
   const displayValue = open
-    ? (mode === 'multi' ? val : (standalone ? query : (query || localIds.join(', '))))
+    ? (mode === 'multi' || mode === 'select' ? val : (standalone ? query : (query || localIds.join(', '))))
     : (value || '');
 
   return (
