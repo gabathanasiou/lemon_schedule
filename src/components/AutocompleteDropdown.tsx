@@ -89,7 +89,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, filtered.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
-          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(filtered[0] ? filtered[highlightedIndex] : normalize(val)); (document.activeElement as HTMLElement)?.blur(); }
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(filtered[0] ? filtered[highlightedIndex] : normalize(val)); }
           if (e.key === 'Escape') { setOpen(false); setVal(value); }
         }}
       />
