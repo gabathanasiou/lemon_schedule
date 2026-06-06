@@ -197,7 +197,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         value={cell?.value || ''}
         onChange={val => { onChange({ value: val }); exitEditMode(); }}
         items={setItems}
-        mode="single"
+        mode="multi"
         positioning="relative"
         defaultOpen
         autoFocus
