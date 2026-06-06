@@ -185,8 +185,9 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     const rows = rowsByCat.current[cat] || [];
     const seen = new Map<string, LocalRow>();
     for (const r of rows) {
-      const key = r.name.toLowerCase();
+      const key = (r.name || r.id).toLowerCase();
       if (!seen.has(key)) seen.set(key, r);
+      else if (!seen.get(key)!.name && r.name) seen.set(key, r);
     }
     rowsByCat.current[cat] = [...seen.values()];
   }
@@ -223,7 +224,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
       }
       for (const orig of snap) {
         if (!rowMap.has(orig.key)) {
-          const isMerged = !(cat === 'cast') && current.some(r => r.name.toLowerCase() === orig.name.toLowerCase());
+          const isMerged = !(cat === 'cast') && current.some(r => r.name && r.name.toLowerCase() === orig.name.toLowerCase());
           if (!isMerged) dispatch({ type: 'DELETE_ELEMENT', payload: { category: cat, id: orig.id } });
         }
       }
@@ -324,22 +325,22 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
         {/* Action bar card */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap">
           <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
-          <span className="text-zinc-300 mx-1">|</span>
-          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-            Sort by ID
-          </button>
-          <span className="text-zinc-300">·</span>
-          <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-            Auto-ID
-          </button>
-          <span className="text-zinc-300">·</span>
-          <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0 || (isCast && r.id)))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-            Clear Zero
-          </button>
+          {isCast && (
+            <>
+              <span className="text-zinc-300 mx-1">|</span>
+              <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+                Sort by ID
+              </button>
+              <span className="text-zinc-300">·</span>
+              <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+                Auto-ID
+              </button>
+            </>
+          )}
           {!isCast && (
             <>
               <span className="text-zinc-300">·</span>
-              <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = r.name.toLowerCase(); if (!seen.has(key)) seen.set(key, r); } return [...seen.values()]; })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+              <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
                 Merge Duplicates
               </button>
             </>
