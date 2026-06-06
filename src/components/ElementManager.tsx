@@ -203,7 +203,6 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
   function performSave() {
     for (const cat of Object.keys(rowsByCat.current)) {
-      if (autoMergeRef.current && cat !== 'cast') mergeCategory(cat);
       const snap = snapByCat.current[cat] || [];
       const current = rowsByCat.current[cat] || [];
       const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
@@ -231,8 +230,8 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     }
     snapByCat.current = {};
     for (const cat of Object.keys(rowsByCat.current)) {
+      if (autoMergeRef.current && cat !== 'cast') mergeCategory(cat);
       snapByCat.current[cat] = (rowsByCat.current[cat] || []).map(r => ({ ...r }));
-      if (autoMergeRef.current && cat !== 'cast') rowsByCat.current[cat] = snapByCat.current[cat];
     }
     if (dupDialog) setDupDialog(null);
     setSaveVersion(v => v + 1);
