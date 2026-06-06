@@ -188,6 +188,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const setOptions = useMemo(() => {
       const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
+      const storedSets = (project.breakdownElements?.['set'] || []).map(e => e.name.toUpperCase()).filter(Boolean);
+      storedSets.forEach(s => sets.add(s));
       return [...sets].sort();
   }, [scenes, project.breakdownElements]);
     return (
@@ -433,7 +435,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
               if (match) updates.dayNight = match;
             }
-            if (colDef.key === 'cast' || BREAKDOWN_CATEGORIES.includes(colDef.key)) {
+            if (colDef.key === 'cast' || colDef.key === 'set' || BREAKDOWN_CATEGORIES.includes(colDef.key)) {
               const isCast = colDef.key === 'cast';
               const existing = (project.breakdownElements || {})[colDef.key] || [];
               const existingSet = new Set(

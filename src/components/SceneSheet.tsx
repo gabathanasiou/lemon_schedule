@@ -75,6 +75,16 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
           }
         }
       }
+      const setVal: string = (e as any)['set'];
+      if (setVal && setVal.trim()) {
+        const sKey = `set:${setVal.toLowerCase()}`;
+        const setElements = breakdownElements['set'] || [];
+        const setExisting = new Set(setElements.flatMap((x: any) => [x.name.toLowerCase(), x.id.toLowerCase()]));
+        if (!setExisting.has(setVal.toLowerCase()) && !added.has(sKey)) {
+          added.add(sKey);
+          dispatch({ type: 'ADD_ELEMENT', payload: { category: 'set', element: { id: setVal.toUpperCase(), name: setVal.toUpperCase() } } });
+        }
+      }
       dispatch({ type: 'UPDATE_SCENE', payload: { id, ...(e as Record<string, any>) } });
     }
     setEdits({});
@@ -117,6 +127,12 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
     }
     return result;
   }, [scenes, breakdownElements, castMembers, edits, scene]);
+
+  const setOptions = useMemo(() => {
+    const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
+    (breakdownElements['set'] || []).forEach(e => sets.add(e.name.toUpperCase()));
+    return [...sets].sort();
+  }, [scenes, breakdownElements]);
 
   const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
   const focusNext = (key: string) => { /* tab order follows DOM by default */ };
@@ -163,7 +179,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><input className={inputCls} value={val('set')} onChange={e => update('set', e.target.value.toUpperCase())} onKeyDown={blurOnEnter} /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><AutocompleteDropdown value={val('set')} onChange={v => update('set', v.toUpperCase())} options={setOptions} /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
                 <td className="px-2.5 py-1.5"><input className={inputCls} onKeyDown={blurOnEnter} /></td>
               </tr>
