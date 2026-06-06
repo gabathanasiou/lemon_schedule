@@ -230,7 +230,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         autoFocus={autoFocusProp}
         value={displayValue}
         onChange={e => {
-          if (mode === 'multi') { setVal(e.target.value); } else { setQuery(e.target.value); }
+          if (mode === 'multi' || mode === 'select') { setVal(e.target.value); } else { setQuery(e.target.value); }
           setHighlightedIndex(-1);
           if (!open) { standalone ? setOpen(true) : handleOpen(); }
         }}
