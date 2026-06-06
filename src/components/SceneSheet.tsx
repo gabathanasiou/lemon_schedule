@@ -70,7 +70,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
           const key = `${cat}:${item.toLowerCase()}`;
           if (!existing.has(item.toLowerCase()) && !added.has(key)) {
             added.add(key);
-            const name = cat === 'cast' ? (castMembers.find(m => m.id === item)?.name || item) : item;
+            const name = cat === 'cast' ? (castMembers.find(m => m.id === item)?.name ?? '') : item;
             dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name } } });
           }
         }

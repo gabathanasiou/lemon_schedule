@@ -277,7 +277,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       map.set(key, Editor);
     }
     return map;
-  }, [scenes]);
+  }, [scenes, project.breakdownElements]);
 
   const DEFAULT_WIDTHS = [28, 60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);

@@ -30,7 +30,7 @@ function loadCategoryElements(project: any, category: string): ProjectElement[] 
     const sceneIds = getElementsFromScenes(project.scenes, 'cast');
     const merged = new Map<string, ProjectElement>();
     for (const e of sceneIds) merged.set(e.id, { id: e.id, name: '' });
-    for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name });
+    for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name.toUpperCase() });
     return [...merged.values()];
   }
   const stored = (project.breakdownElements || {})[category];
@@ -79,6 +79,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   }, [initialCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isCast = category === 'cast';
+  const isSet = category === 'set';
 
   const rowsByCat = useRef<Record<string, LocalRow[]>>({});
   const snapByCat = useRef<Record<string, LocalRow[]>>({});
@@ -253,7 +254,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     return () => document.removeEventListener('keydown', onKey);
   }, [addNew, doSave]);
 
-  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean) => {
+  const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean) => {
     const inputId = `${key}-${field}`;
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
@@ -262,12 +263,13 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
         focusNext(key, field);
       }
     };
+    const transform = (v: string) => numeric ? v.replace(/[^0-9]/g, '') : upper ? v.toUpperCase() : v;
     return (
       <input
         ref={el => { if (el) inputsRef.current.set(inputId, el); else inputsRef.current.delete(inputId); }}
         type="text"
         value={val}
-        onChange={e => onChange(numeric ? e.target.value.replace(/[^0-9]/g, '') : e.target.value)}
+        onChange={e => onChange(transform(e.target.value))}
         onKeyDown={handleKey}
         className="w-full border border-zinc-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
       />
@@ -331,7 +333,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
             Auto-ID
           </button>
           <span className="text-zinc-300">·</span>
-          <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+          <button onClick={() => setRows(prev => prev.filter(r => r.occ > 0 || (isCast && r.id)))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
             Clear Zero
           </button>
           {!isCast && (
@@ -362,7 +364,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                     {isCast && (
                       <td className="px-3 py-1">{renderInput(r.key, 'id', r.id, v => updateRow(r.key, 'id', v), true)}</td>
                     )}
-                    <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v))}</td>
+                    <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
                     <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
                     <td className="px-3 py-1 text-center">
                       <button onClick={() => deleteRow(r.key)} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100">
