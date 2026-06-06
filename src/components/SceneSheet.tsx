@@ -9,11 +9,11 @@ const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
 const BREAKDOWN_CATS = [
-  'cast', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+  'set', 'cast', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
   'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept', 'notes',
 ];
 const BREAKDOWN_LABEL: Record<string, string> = {
-  cast: 'Cast', extras: 'Supporting Artists', stunts: 'Stunts', vehicles: 'Vehicles',
+  set: 'Set', cast: 'Cast', extras: 'Supporting Artists', stunts: 'Stunts', vehicles: 'Vehicles',
   props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
   sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
   animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept', notes: 'Notes',
@@ -73,16 +73,6 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
             const name = cat === 'cast' ? (castMembers.find(m => m.id === item)?.name ?? '') : item;
             dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name } } });
           }
-        }
-      }
-      const setVal: string = (e as any)['set'];
-      if (setVal && setVal.trim()) {
-        const sKey = `set:${setVal.toLowerCase()}`;
-        const setElements = breakdownElements['set'] || [];
-        const setExisting = new Set(setElements.flatMap((x: any) => [x.name.toLowerCase(), x.id.toLowerCase()]));
-        if (!setExisting.has(setVal.toLowerCase()) && !added.has(sKey)) {
-          added.add(sKey);
-          dispatch({ type: 'ADD_ELEMENT', payload: { category: 'set', element: { id: setVal.toUpperCase(), name: setVal.toUpperCase() } } });
         }
       }
       dispatch({ type: 'UPDATE_SCENE', payload: { id, ...(e as Record<string, any>) } });
@@ -204,7 +194,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
         {/* Category grid — 3 columns, each box has header + body, matches print */}
         <div className="flex-1 overflow-auto tab-scroll">
           <div className="grid grid-cols-3 gap-2 pr-0.5">
-            {BREAKDOWN_CATS.map(cat => (
+            {BREAKDOWN_CATS.filter(c => c !== 'set').map(cat => (
               <div key={cat} className="bg-white border border-zinc-300 rounded overflow-hidden">
                 <div className="bg-zinc-100 px-2.5 py-1.5 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase leading-tight">{BREAKDOWN_LABEL[cat]}</div>
                 <div className={cat === 'cast' ? 'p-1 min-h-[80px]' : 'p-1'}>

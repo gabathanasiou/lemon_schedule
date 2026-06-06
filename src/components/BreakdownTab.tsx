@@ -12,11 +12,11 @@ import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 
 const BREAKDOWN_CATEGORIES = [
-  'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+  'set', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
   'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
 ];
 const BREAKDOWN_LABELS: Record<string, string> = {
-  extras: 'Supporting Artists', stunts: 'Stunts', vehicles: 'Vehicles',
+  set: 'Set', extras: 'Supporting Artists', stunts: 'Stunts', vehicles: 'Vehicles',
   props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
   sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
   animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery',
@@ -34,7 +34,7 @@ const COLUMNS = [
   { key: 'description', label: 'Description' },
   { key: 'cast', label: 'Cast' },
   { key: 'notes', label: 'Notes' },
-  ...BREAKDOWN_CATEGORIES.map(key => ({ key, label: BREAKDOWN_LABELS[key] })),
+  ...BREAKDOWN_CATEGORIES.filter(k => k !== 'set').map(key => ({ key, label: BREAKDOWN_LABELS[key] })),
 ];
 
 const ACTIONS_COL = 0;
@@ -346,7 +346,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       { value: scene.description },
       { value: scene.cast, DataEditor: CastEditor },
       { value: scene.notes },
-      ...BREAKDOWN_CATEGORIES.map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
+      ...BREAKDOWN_CATEGORIES.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
     ]);
     rows.push(COLUMNS.map((c, i) => {
       if (i === ACTIONS_COL) return { value: '', readOnly: true };
@@ -435,7 +435,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
               if (match) updates.dayNight = match;
             }
-            if (colDef.key === 'cast' || colDef.key === 'set' || BREAKDOWN_CATEGORIES.includes(colDef.key)) {
+            if (colDef.key === 'cast' || BREAKDOWN_CATEGORIES.includes(colDef.key)) {
               const isCast = colDef.key === 'cast';
               const existing = (project.breakdownElements || {})[colDef.key] || [];
               const existingSet = new Set(
