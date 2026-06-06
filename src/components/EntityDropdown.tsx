@@ -114,11 +114,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (mode === 'multi') {
       onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
     } else {
-      onChange(localIds.join(', '));
+      onChange(localIds.length > 0 ? localIds.join(', ') : query);
     }
     setOpen(false);
     setQuery('');
-  }, [mode, val, localIds, onChange]);
+  }, [mode, val, localIds, query, onChange]);
 
   useDropdown(open, ref, handleClose);
 
@@ -154,11 +154,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (mode === 'multi') {
       onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
     } else {
-      onChange(localIds.join(', '));
+      onChange(localIds.length > 0 ? localIds.join(', ') : query);
     }
     setOpen(false);
     setQuery('');
-  }, [mode, val, localIds, onChange]);
+  }, [mode, val, localIds, query, onChange]);
 
   const defaultFilter = useCallback((item: EntityItem, q: string) => {
     const lower = q.toLowerCase();
@@ -185,12 +185,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       })
     : doSort(filtered, currentIds);
 
-  const hasExactMatch = lastSegment.length > 0 && items.some(m =>
-    m.id.toLowerCase() === lastSegment.toLowerCase() ||
-    m.name.toLowerCase() === lastSegment.toLowerCase()
+  const hasExactMatch = searchQuery.length > 0 && items.some(m =>
+    m.id.toLowerCase() === searchQuery.toLowerCase() ||
+    m.name.toLowerCase() === searchQuery.toLowerCase()
   );
-  const syntheticItem: EntityItem = { id: lastSegment, name: lastSegment };
-  const dropdownItems = (lastSegment && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
+  const syntheticItem: EntityItem = { id: searchQuery, name: searchQuery };
+  const dropdownItems = (searchQuery && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
@@ -262,7 +262,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
             const checked = currentIds.includes(itemKey(m));
             const highlighted = highlightedIndex === idx;
-            const isSynthetic = lastSegment && !hasExactMatch && idx === 0;
+            const isSynthetic = searchQuery && !hasExactMatch && idx === 0;
             return (
               <button
                 key={isSynthetic ? '__new__' : m.id}
