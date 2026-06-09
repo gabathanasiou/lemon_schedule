@@ -182,7 +182,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   if (isStatusDay) {
     return (
-      <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
+      <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black border-b-dashed border-b-zinc-300">
         <div className="bg-black text-white">
           <table className="schedule-table">
             <tbody>
