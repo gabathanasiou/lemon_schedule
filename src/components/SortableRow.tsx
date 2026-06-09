@@ -346,7 +346,7 @@ export const SortableRow: React.FC<{
                       const decimal = parsePageCount(val);
                       updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
                     }}
-                    className={`${inputClass} text-center`}
+                    className={`${inputClass} text-left`}
                     readOnly={!textEditingEnabled}
                   />
                 </td>
