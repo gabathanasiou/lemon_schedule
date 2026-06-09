@@ -243,11 +243,11 @@ export const SortableRow: React.FC<{
               <tbody>
                 <tr style={rowStyle}>
                   <td className="col-sc relative">
-                    <div className="flex items-center justify-center gap-px">
+                    <div className="flex items-center justify-start gap-px">
                       <CellInput
                         value={scene.sceneNumber}
                         onChange={val => updateScene({sceneNumber: val})}
-                        className={`${inputClass} text-center`}
+                        className={`${inputClass} text-left`}
                         readOnly
                       />
                       {violationBadge}
@@ -275,11 +275,11 @@ export const SortableRow: React.FC<{
             <tbody>
               <tr style={rowStyle}>
                 <td className="col-sc relative">
-                  <div className="flex items-center justify-center gap-px">
+                  <div className="flex items-center justify-start gap-px">
                     <CellInput
                       value={scene.sceneNumber}
                       onChange={val => updateScene({sceneNumber: val})}
-                      className={`${inputClass} text-center`}
+                      className={`${inputClass} text-left`}
                       readOnly={!textEditingEnabled}
                     />
                     {violationBadge}
