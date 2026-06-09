@@ -140,7 +140,7 @@ const DayCell: React.FC<{
   const headerLabel = status === 'hold' ? `HOLD${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'travel' ? `TRAVEL${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
 
   return (
-    <div ref={setNodeRef}
+    <div ref={setNodeRef} data-date-key={dateKey}
       className={`min-h-[80px] h-full border-r border-b border-zinc-200 flex flex-col
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${isOver && !(activeDragIds?.size && isNonWorkStatus) ? '!bg-blue-50' : ''}`}
@@ -305,8 +305,12 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const now = new Date();
+  const [months, setMonths] = useState<{year: number, month: number}[]>([
+    { year: now.getFullYear(), month: now.getMonth() },
+  ]);
+  const [scrollMonth, setScrollMonth] = useState(now.getMonth());
+  const [scrollYear, setScrollYear] = useState(now.getFullYear());
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
@@ -345,8 +349,6 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld ? 999999 : 3) } })
   );
-
-  const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
 
   const workingMap = useMemo(() => {
     const m = new Map<string, number>();
@@ -647,10 +649,24 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     setSelectedRowIds(new Set());
   };
 
-  const goPrev = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
-  const goNext = () => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); } else setCurrentMonth(m => m + 1); };
+  const goPrev = () => {
+    const first = months[0];
+    const prevMonth = first.month === 0 ? 11 : first.month - 1;
+    const prevYear = first.month === 0 ? first.year - 1 : first.year;
+    if (!months.some(m => m.year === prevYear && m.month === prevMonth)) {
+      setMonths(prev => [{ year: prevYear, month: prevMonth }, ...prev]);
+    }
+  };
+  const goNext = () => {
+    const last = months[months.length - 1];
+    const nextMonth = last.month === 11 ? 0 : last.month + 1;
+    const nextYear = last.month === 11 ? last.year + 1 : last.year;
+    if (!months.some(m => m.year === nextYear && m.month === nextMonth)) {
+      setMonths(prev => [...prev, { year: nextYear, month: nextMonth }]);
+    }
+  };
 
-  const monthName = new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const monthName = new Date(scrollYear, scrollMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedRowIds(new Set()); };
@@ -701,39 +717,80 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
               >{t.label}</button>
             ))}
           </div>
-          <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative">
+          <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative"
+            onScroll={() => {
+              if (!calendarGridRef.current) return;
+              const containerTop = calendarGridRef.current.getBoundingClientRect().top;
+              const dayHeaders = calendarGridRef.current.querySelectorAll('[data-date-key]');
+              let closestMonth = months[0];
+              let closestDist = Infinity;
+              for (const el of Array.from(dayHeaders) as HTMLElement[]) {
+                const rect = el.getBoundingClientRect();
+                const dist = Math.abs(rect.top - containerTop);
+                if (dist < closestDist) {
+                  closestDist = dist;
+                  const dk = (el as HTMLElement).dataset.dateKey;
+                  if (dk) {
+                    const m = new Date(dk + 'T00:00:00').getMonth();
+                    const y = new Date(dk + 'T00:00:00').getFullYear();
+                    closestMonth = { month: m, year: y };
+                  }
+                }
+              }
+              if (closestMonth.month !== scrollMonth || closestMonth.year !== scrollYear) {
+                setScrollMonth(closestMonth.month);
+                setScrollYear(closestMonth.year);
+              }
+              const { scrollTop, scrollHeight, clientHeight } = calendarGridRef.current;
+              if (scrollTop < 200) goPrev();
+              if (scrollHeight - scrollTop - clientHeight < 200) goNext();
+            }}
+          >
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
             <MarqueeOverlay box={marqueeBox} />
-            <div className="grid grid-cols-7 border-l border-zinc-200">
-              {days.map((day) => {
-                const sd = workingMap.get(day.dateKey) ?? null;
-                  return (
-                  <DayCell key={day.dateKey}
-                    dateKey={day.dateKey} date={day.date}
-                    isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
-                    isWorkingDay={sd !== null} shootDay={sd}
-                    status={sd != null ? statusMap.get(sd) : undefined}
-                    chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
-                    dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
-                    activeTool={activeTool}
-                    onDoubleClick={(day) => handleStatusDoubleClick(day)}
-                    label={workingLabels.get(day.dateKey) ?? null}
-                    rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
-                    showDesc={showDesc}
-                    violations={violationMap.get(day.dateKey) || []}
-                    sceneViolationMap={sceneViolationMap}
-                    onToggle={handleToggle}
-                    selectedIds={selectedRowIds}
-                    activeDragIds={activeDragIds}
-                    onRowClick={handleRowClick}
-                    insertBeforeId={insertBeforeId}
-                    activeDragRow={activeDragRow}
-                    activeDragRows={activeDragRows}
-                    activeRowId={activeId}
-                    activeDragDay={activeDragDay}
-                  />
+            <div className="border-l border-zinc-200">
+              {months.map((m) => {
+                const monthDays = getCalendarDays(m.year, m.month);
+                const monthLabel = new Date(m.year, m.month).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                return (
+                  <React.Fragment key={`${m.year}-${m.month}`}>
+                    <div className="text-center text-[10px] font-bold text-zinc-400 uppercase tracking-wider py-1 border-b border-zinc-200 bg-zinc-50">
+                      {monthLabel}
+                    </div>
+                    <div className="grid grid-cols-7">
+                      {monthDays.map((day) => {
+                        const sd = workingMap.get(day.dateKey) ?? null;
+                        return (
+                          <DayCell key={day.dateKey}
+                            dateKey={day.dateKey} date={day.date}
+                            isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
+                            isWorkingDay={sd !== null} shootDay={sd}
+                            status={sd != null ? statusMap.get(sd) : undefined}
+                            chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
+                            dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
+                            activeTool={activeTool}
+                            onDoubleClick={(day) => handleStatusDoubleClick(day)}
+                            label={workingLabels.get(day.dateKey) ?? null}
+                            rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
+                            showDesc={showDesc}
+                            violations={violationMap.get(day.dateKey) || []}
+                            sceneViolationMap={sceneViolationMap}
+                            onToggle={handleToggle}
+                            selectedIds={selectedRowIds}
+                            activeDragIds={activeDragIds}
+                            onRowClick={handleRowClick}
+                            insertBeforeId={insertBeforeId}
+                            activeDragRow={activeDragRow}
+                            activeDragRows={activeDragRows}
+                            activeRowId={activeId}
+                            activeDragDay={activeDragDay}
+                          />
+                        );
+                      })}
+                    </div>
+                  </React.Fragment>
                 );
               })}
             </div>

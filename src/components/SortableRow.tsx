@@ -340,7 +340,7 @@ export const SortableRow: React.FC<{
                 </td>
                 <td className="col-pgs">
                   <CellInput
-                    value={scene.pageCount}
+                    value={scene.pageCount ? `${scene.pageCount} pgs` : scene.pageCount}
                     onChange={val => {
                       const decimal = parsePageCount(val);
                       updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });

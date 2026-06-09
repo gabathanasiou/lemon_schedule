@@ -707,7 +707,10 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
     if (!data.buffer) return;
     const dayNum = parseInt(data.buffer, 10);
     const meta = dayMetaRef.current;
-    const existing = Object.keys(meta).map(Number).sort((a, b) => {
+    const existing = Object.keys(meta).map(Number).filter(d => {
+      const s = meta[d]?.status;
+      return !s || s === 'work';
+    }).sort((a, b) => {
       const dateA = meta[a]?.date || '';
       const dateB = meta[b]?.date || '';
       return dateA.localeCompare(dateB);
