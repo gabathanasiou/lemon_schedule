@@ -108,7 +108,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     if (!original) return;
     const duplicate: Scene = { ...original, id: generateUUID() };
     const base = original.sceneNumber.replace(/[A-Z]+$/, '');
-    const used = scenes.filter(s => s.id !== original.id && s.sceneNumber.match(new RegExp('^' + base + '[A-Z]$'))).map(s => s.sceneNumber.slice(-1));
+    const used = scenes.filter(s => s.sceneNumber.match(new RegExp('^' + base + '[A-Z]$'))).map(s => s.sceneNumber.slice(-1));
     let letter = 'A';
     for (let c = 65; c <= 90; c++) { if (!used.includes(String.fromCharCode(c))) { letter = String.fromCharCode(c); break; } }
     duplicate.sceneNumber = base + letter;

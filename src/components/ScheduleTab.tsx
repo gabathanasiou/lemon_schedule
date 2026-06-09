@@ -602,7 +602,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
       if (originalScene) {
         const baseNumber = originalScene.sceneNumber.replace(/[A-Z]+$/, '');
         const existingLetters = project.scenes
-          .filter(s => s.id !== originalScene.id && s.sceneNumber.match(new RegExp('^' + baseNumber + '[A-Z]$')))
+          .filter(s => s.sceneNumber.match(new RegExp('^' + baseNumber + '[A-Z]$')))
           .map(s => s.sceneNumber.slice(-1));
         let nextLetter = 'A';
         for (let code = 65; code <= 90; code++) {
@@ -1086,7 +1086,10 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
            </div>
 
           <div className="w-full max-w-4xl">
-              {existingDays.map((dayInt, i) => (
+              {existingDays.map((dayInt, i) => {
+                  const nextMeta = i + 1 < existingDays.length ? activeVersion?.dayMeta?.[existingDays[i + 1]] : undefined;
+                  const nextIsStatus = nextMeta?.status && nextMeta.status !== 'work';
+                  return (
                 <DayBlock 
                   key={dayInt} 
                   dayInt={dayInt} 
@@ -1104,8 +1107,9 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
                    onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
+                   hasNextStatusDay={nextIsStatus}
                  />
-              ))}
+               );})}
           </div>
           <MarqueeOverlay box={marqueeBox} />
         </div>

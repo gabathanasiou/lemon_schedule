@@ -95,7 +95,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> =
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, hasNextStatusDay?: boolean }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, hasNextStatusDay }) => {
   const displayDay = chronoDay ?? dayInt;
   const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;
@@ -182,8 +182,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   if (isStatusDay) {
     return (
-      <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
-        <div className="bg-black text-white">
+      <div style={baseStyle} className="bg-white flex flex-col">
+        <div className={`bg-black text-white ${hasNextStatusDay ? 'border-b border-dotted border-white/50' : ''}`}>
           <table className="schedule-table">
             <tbody>
               <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
