@@ -138,7 +138,11 @@ export const CellInput: React.FC<{
       <span className={`invisible col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} px-[2px] ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
          {displayText || placeholder || ' '}
       </span>
-      {multiline ? (
+      {readOnly ? (
+        <span className={`col-start-1 row-start-1 px-[2px] ${multiline ? '' : 'truncate'} ${className}`}>
+          {displayText || placeholder}
+        </span>
+      ) : multiline ? (
         <textarea
           ref={inputRef as React.RefObject<HTMLTextAreaElement>}
           data-col={col}
