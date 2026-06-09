@@ -119,7 +119,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   if (isStatusDay && rows.length === 0) {
     return (
       <div className="print-day" style={{borderBottom: '1pt dashed #a1a1aa'}}>
-        <div className="print-day-header" style={{background: '#000', color: '#fff', justifyContent: 'center'}}>
+        <div className="print-day-header" style={{background: '#000', color: '#fff', justifyContent: 'space-between', paddingLeft: '10pt'}}>
           <span className="print-day-number" style={{fontSize: '10pt'}}>{meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
           {meta?.date && <span className="print-day-date" style={{fontSize: '8pt'}}>{new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         </div>
