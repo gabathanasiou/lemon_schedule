@@ -329,7 +329,7 @@ export const SortableRow: React.FC<{
                   <EntityDropdown
                     value={scene.cast}
                     onChange={val => updateScene({cast: val})}
-                    className="text-right w-full text-xs"
+                    className="text-left w-full text-xs"
                     readOnly={!textEditingEnabled}
                     mode="multi"
                     positioning="fixed"
