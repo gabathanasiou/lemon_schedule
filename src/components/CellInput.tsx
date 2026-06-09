@@ -13,14 +13,18 @@ export const CellInput: React.FC<{
   multiline?: boolean,
   navigateOnEnter?: boolean,
   onRowNavigate?: (rowId: string) => void,
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate }) => {
+  suffix?: string,
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
-  const [localVal, setLocalVal] = useState(value?.toString() || '');
+  const rawValue = value?.toString() || '';
+  const [localVal, setLocalVal] = useState(rawValue);
   const [isPristine, setIsPristine] = useState(false);
 
   useEffect(() => {
-    setLocalVal(value?.toString() || '');
+    setLocalVal(rawValue);
   }, [value]);
+
+  const displayText = rawValue && suffix ? `${rawValue} ${suffix}` : rawValue;
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -132,7 +136,7 @@ export const CellInput: React.FC<{
   return (
     <div className={`relative inline-grid items-center min-w-0 ${className.includes('w-full') ? 'w-full' : ''} ${className.includes('flex-1') ? 'flex-1' : ''}`} style={{ gridTemplateColumns: gridCol }}>
       <span className={`invisible col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} px-[2px] ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
-         {localVal || placeholder || ' '}
+         {displayText || placeholder || ' '}
       </span>
       {multiline ? (
         <textarea

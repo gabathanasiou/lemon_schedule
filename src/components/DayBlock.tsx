@@ -315,7 +315,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             {meta?.date ? new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''}
           </span>
           <div className="flex shrink-0" style={{gap: '20pt'}}>
-            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+            <span>Total Pages: <strong>{formatPageCount(totalPages)}</strong></span>
             <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
           </div>
           </div>
