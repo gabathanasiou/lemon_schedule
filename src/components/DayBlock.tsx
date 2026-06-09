@@ -189,7 +189,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
                 onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
                 style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
-                <td className="col-sc">
+                <td className="col-sc" style={{textAlign: 'left'}}>
                   <span className="font-bold">{meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
                 </td>
                 <td className="col-call" />
