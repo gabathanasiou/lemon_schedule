@@ -10,18 +10,13 @@ export function cn(...inputs: ClassValue[]) {
 export function parsePageCount(fraction: string): number {
   if (!fraction) return 0;
 
-  // "1.4" with a single digit 0-7 after the dot → eighths notation (1 + 4/8 = 1.5)
-  const parts = fraction.trim().split(' ');
-  if (parts.length === 1) {
-    const decimalMatch = parts[0].match(/^(-?\d+)\.(\d+)$/);
-    if (decimalMatch && decimalMatch[2].length === 1 && /^[0-7]$/.test(decimalMatch[2])) {
-      return parseInt(decimalMatch[1], 10) + parseInt(decimalMatch[2], 10) / 8;
-    }
-  }
+  // e.g. "1.5" or "2.375" → decimal
+  const decimalMatch = fraction.trim().match(/^(-?\d+(?:\.\d+)?)$/);
+  if (decimalMatch) return parseFloat(decimalMatch[1]);
 
   let whole = 0;
   let fracPart = '';
-
+  const parts = fraction.trim().split(' ');
   if (parts.length === 2) {
     whole = parseInt(parts[0], 10);
     fracPart = parts[1];

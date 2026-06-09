@@ -19,10 +19,11 @@ export const CellInput: React.FC<{
   const rawValue = value?.toString() || '';
   const [localVal, setLocalVal] = useState(rawValue);
   const [isPristine, setIsPristine] = useState(false);
+  const [syncKey, setSyncKey] = useState(0);
 
   useEffect(() => {
     setLocalVal(rawValue);
-  }, [value]);
+  }, [value, syncKey]);
 
   const displayText = rawValue && suffix ? `${rawValue} ${suffix}` : rawValue;
 
@@ -154,6 +155,7 @@ export const CellInput: React.FC<{
             if (localVal !== value?.toString()) {
                onChange(localVal);
             }
+            setSyncKey(k => k + 1);
             onBlur?.();
           }}
           onKeyDown={handleKeyDown}
@@ -175,6 +177,7 @@ export const CellInput: React.FC<{
             if (localVal !== value?.toString()) {
                onChange(localVal);
             }
+            setSyncKey(k => k + 1);
             onBlur?.();
           }}
           onKeyDown={handleKeyDown}
