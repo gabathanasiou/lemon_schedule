@@ -133,7 +133,7 @@ const ShootingPlan: React.FC<ShootingPlanProps> = ({ title, scenes, rows, dayMet
                     <td className="sp-dn">{scene.dayNight}</td>
                     <td>{scene.set}</td>
                     <td />
-                    <td className="sp-pages">{scene.pageCount}</td>
+                    <td className="sp-pages">{scene.pageCount ? `${scene.pageCount} pgs` : ''}</td>
                     <td>{scene.cast}</td>
                     <td>{scene.description}</td>
                   </tr>
@@ -141,7 +141,7 @@ const ShootingPlan: React.FC<ShootingPlanProps> = ({ title, scenes, rows, dayMet
               </tbody>
             </table>
             <div className="sp-total">
-              Total pages: {pageCount} &mdash; Total scenes: {scenesInDay.length}
+              Total pages: {pageCount} pgs &mdash; Total scenes: {scenesInDay.length}
             </div>
           </div>
         );

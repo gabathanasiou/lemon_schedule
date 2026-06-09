@@ -104,7 +104,7 @@ const LocationBreakdown: React.FC<LocationBreakdownProps> = ({ title, scenes, ro
                     <td>{s.set}</td>
                     <td className="lb-ie" style={{textAlign:'center'}}>{s.intExt}</td>
                     <td className="lb-dn" style={{textAlign:'center'}}>{s.dayNight}</td>
-                    <td className="lb-pages">{s.pageCount}</td>
+                    <td className="lb-pages">{s.pageCount ? `${s.pageCount} pgs` : ''}</td>
                     <td>{s.cast}</td>
                     <td style={{textAlign:'center'}}>{sceneToDay.get(s.id) ?? '—'}</td>
                     <td>{getDayDate(sceneToDay.get(s.id) ?? null)}</td>
@@ -113,7 +113,7 @@ const LocationBreakdown: React.FC<LocationBreakdownProps> = ({ title, scenes, ro
               </tbody>
             </table>
             <div className="lb-total">
-              Scenes: {locScenes.length} | Pages: {formatPageCount(Math.round(totalPages * 8))} | Shooting Days: {shootingDays.size}
+              Scenes: {locScenes.length} | Pages: {formatPageCount(Math.round(totalPages * 8))} pgs | Shooting Days: {shootingDays.size}
             </div>
             {li < locations.size - 1 && <hr className="lb-sep" />}
           </div>

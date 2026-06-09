@@ -187,7 +187,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                     <td className="print-col-set">{scene.set}</td>
                     <td className="print-col-dn">{scene.dayNight}</td>
                     <td className="print-col-cast">{scene.cast}</td>
-                    <td className="print-col-pgs">{scene.pageCount}</td>
+                    <td className="print-col-pgs">{scene.pageCount ? `${scene.pageCount} pgs` : ''}</td>
                   </tr>
                   <tr className="print-row-desc" style={rowStyle}>
                     <td className="print-col-sc" />
@@ -209,7 +209,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         </span>
         {meta?.date && <span className="print-footer-date">{new Date(meta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
         <span className="print-footer-spacer" />
-        <span>Total Pages: {formatPageCount(totalPages)}</span>
+        <span>Total Pages: {formatPageCount(totalPages)} pgs</span>
         <span>EST. TIME: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}</span>
       </div>
     </div>

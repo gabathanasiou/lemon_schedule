@@ -104,7 +104,7 @@ const CastBreakdown: React.FC<CastBreakdownProps> = ({ title, scenes, rows, dayM
                     <td>{s.set}</td>
                     <td className="cb-ie" style={{textAlign:'center'}}>{s.intExt}</td>
                     <td className="cb-dn" style={{textAlign:'center'}}>{s.dayNight}</td>
-                    <td className="cb-pages">{s.pageCount}</td>
+                    <td className="cb-pages">{s.pageCount ? `${s.pageCount} pgs` : ''}</td>
                     <td style={{textAlign:'center'}}>{sceneToDay.get(s.id) ?? '—'}</td>
                     <td>{getDayDate(sceneToDay.get(s.id) ?? null)}</td>
                   </tr>
@@ -112,7 +112,7 @@ const CastBreakdown: React.FC<CastBreakdownProps> = ({ title, scenes, rows, dayM
               </tbody>
             </table>
             <div className="cb-total">
-              Scenes: {scheduledScenes.length} | Pages: {formatPageCount(Math.round(totalPages * 8))} | Shooting Days: {shootingDays.size}
+              Scenes: {scheduledScenes.length} | Pages: {formatPageCount(Math.round(totalPages * 8))} pgs | Shooting Days: {shootingDays.size}
             </div>
             {ci < castIds.length - 1 && <hr className="cb-sep" />}
           </div>

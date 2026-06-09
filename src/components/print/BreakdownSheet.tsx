@@ -100,7 +100,7 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
               <tr><td className="bs-label">Scene Sheet</td><td>{si + 1}</td><td className="bs-label">Scene No.</td><td>{scene.sceneNumber}</td></tr>
               <tr><td className="bs-label">Int/Ext</td><td>{scene.intExt}</td><td className="bs-label">Day/Night</td><td>{scene.dayNight}</td></tr>
               <tr><td className="bs-label">Set</td><td>{scene.set}</td><td className="bs-label">Location</td><td>&nbsp;</td></tr>
-              <tr><td className="bs-label">Pages</td><td>{scene.pageCount}</td><td className="bs-label">Script Day</td><td>{scene.scriptDay}</td></tr>
+              <tr><td className="bs-label">Pages</td><td>{scene.pageCount ? `${scene.pageCount} pgs` : ''}</td><td className="bs-label">Script Day</td><td>{scene.scriptDay}</td></tr>
               <tr><td className="bs-label">Synopsis</td><td colSpan={3}>{scene.description}</td></tr>
             </tbody>
           </table>

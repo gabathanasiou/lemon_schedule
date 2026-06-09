@@ -87,14 +87,14 @@ const CharacterAppearances: React.FC<CharacterAppearancesProps> = ({ title, scen
                     <td className="ca-ie">{s.intExt}</td>
                     <td className="ca-dn">{s.dayNight}</td>
                     <td style={{width:'80pt'}}>{s.set}</td>
-                    <td className="ca-pages">{s.pageCount}</td>
+                    <td className="ca-pages">{s.pageCount ? `${s.pageCount} pgs` : ''}</td>
                     <td style={{width:'24pt',textAlign:'center'}}>{sceneToDay.get(s.id)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="ca-summary">
-              Scenes: {scheduledScenes.length} &middot; Pages: {formatPageCount(Math.round(totalPages * 8))} &middot; Shooting days: {shootingDays.size}
+              Scenes: {scheduledScenes.length} &middot; Pages: {formatPageCount(Math.round(totalPages * 8))} pgs &middot; Shooting days: {shootingDays.size}
             </div>
           </div>
         );
