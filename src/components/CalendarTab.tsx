@@ -116,7 +116,8 @@ const DayCell: React.FC<{
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay }) => {
+  monthSeparator?: string | null;
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -145,6 +146,11 @@ const DayCell: React.FC<{
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${isOver && !(activeDragIds?.size && isNonWorkStatus) ? '!bg-blue-50' : ''}`}
     >
+        {monthSeparator && (
+          <div className="text-center text-[9px] font-bold text-zinc-400 uppercase tracking-wider py-0.5 bg-zinc-50 border-b border-zinc-200">
+            {monthSeparator}
+          </div>
+        )}
         <div
           ref={setHandleRef} {...listeners} {...attributes}
           onClick={() => activeTool && onToggle(dateKey)}
@@ -707,17 +713,19 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
             </div>
             <MarqueeOverlay box={marqueeBox} />
             <div className="grid grid-cols-7 border-l border-zinc-200">
-              {days.map((day, idx) => {
+               {days.map((day, idx) => {
                 const prev = idx > 0 ? days[idx - 1] : null;
                 const firstOfCurrentMonth = day.isCurrentMonth && (!prev || !prev.isCurrentMonth);
+                const firstOfNextMonth = !day.isCurrentMonth && prev?.isCurrentMonth;
+                const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
+                const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+                const monthSeparator = firstOfCurrentMonth
+                  ? new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })
+                  : firstOfNextMonth
+                  ? new Date(nextYear, nextMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })
+                  : null;
                 const sd = workingMap.get(day.dateKey) ?? null;
                   return (
-                  <React.Fragment key={day.dateKey}>
-                    {firstOfCurrentMonth && (
-                      <div className="col-span-7 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-wider py-1 border-b border-zinc-200 bg-zinc-50">
-                        {new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-                      </div>
-                    )}
                   <DayCell key={day.dateKey}
                     dateKey={day.dateKey} date={day.date}
                     isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
@@ -725,6 +733,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     status={sd != null ? statusMap.get(sd) : undefined}
                     chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
                     dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
+                    monthSeparator={monthSeparator}
                     activeTool={activeTool}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
@@ -742,7 +751,6 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     activeRowId={activeId}
                     activeDragDay={activeDragDay}
                   />
-                  </React.Fragment>
                 );
               })}
             </div>
