@@ -4,6 +4,8 @@ import { Scene, IntExt, DayNight } from '../types';
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
+import { CellInput } from './CellInput';
+import { parsePageCount, formatPageCount } from '../lib/utils';
 
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
@@ -176,7 +178,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Pages</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><input className={inputCls} value={val('pageCount')} onChange={e => update('pageCount', e.target.value)} onKeyDown={blurOnEnter} /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><CellInput value={val('pageCount')} onChange={v => { const d = parsePageCount(v); update('pageCount', formatPageCount(d)); }} onBlur={() => { const d = parsePageCount(val('pageCount')); update('pageCount', formatPageCount(d)); }} className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent" suffix="pgs" /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Script Day</td>
                 <td className="px-2.5 py-1.5"><input className={inputCls} value={val('scriptDay')} onChange={e => update('scriptDay', e.target.value.replace(/[^0-9]/g, ''))} onKeyDown={blurOnEnter} /></td>
               </tr>
