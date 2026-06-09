@@ -1086,10 +1086,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
            </div>
 
           <div className="w-full max-w-4xl">
-              {existingDays.map((dayInt, i) => {
-                  const nextMeta = i + 1 < existingDays.length ? activeVersion?.dayMeta?.[existingDays[i + 1]] : undefined;
-                  const nextIsStatus = nextMeta?.status && nextMeta.status !== 'work';
-                  return (
+              {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 
                   dayInt={dayInt} 
@@ -1107,9 +1104,8 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
                    onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                   hasNextStatusDay={nextIsStatus}
                  />
-               );})}
+              ))}
           </div>
           <MarqueeOverlay box={marqueeBox} />
         </div>

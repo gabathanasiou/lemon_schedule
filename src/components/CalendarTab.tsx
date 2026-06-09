@@ -142,7 +142,8 @@ const DayCell: React.FC<{
 
   return (
     <div ref={setNodeRef}
-      className={`min-h-[80px] h-full border-r border-b border-zinc-200 flex flex-col
+      className={`min-h-[80px] h-full border-r flex flex-col
+        ${!isWorkingDay && !status ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${isOver && !(activeDragIds?.size && isNonWorkStatus) ? '!bg-blue-50' : ''}`}
     >
