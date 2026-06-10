@@ -431,9 +431,9 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
       if (!container) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       const cRect = container.getBoundingClientRect();
       const eRect = el.getBoundingClientRect();
-      if (eRect.top < cRect.top + 20) {
+      if (eRect.top < cRect.top + 60) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (eRect.bottom > cRect.bottom - 20) {
+      } else if (eRect.bottom > cRect.bottom - 60) {
         el.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }
     });

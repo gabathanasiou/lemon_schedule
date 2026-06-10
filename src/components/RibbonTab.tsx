@@ -154,12 +154,12 @@ export default function RibbonTab() {
 
   const openMenu = useCallback((e?: React.MouseEvent) => {
     if (e && e.type === 'contextmenu') {
-      setDropdownPos({ x: e.clientX, y: e.clientY });
+      setDropdownPos({ x: Math.min(e.clientX, window.innerWidth - 176), y: e.clientY });
     } else if (selId) {
       const el = cellRefs.current.get(selId);
       if (el) {
         const r = el.getBoundingClientRect();
-        setDropdownPos({ x: r.left, y: r.bottom + 2 });
+        setDropdownPos({ x: Math.min(r.left, window.innerWidth - 176), y: r.bottom + 2 });
       }
     }
     setChangeOpen(true);
@@ -670,7 +670,7 @@ export default function RibbonTab() {
                     </div>
 
                     <div style={{
-                      fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: '1.1',
+                      fontFamily: 'Helvetica, sans-serif', fontSize: '10pt', lineHeight: '1.3',
                       border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
                       display: 'flex', width: '100%', alignItems: 'stretch',
                     }} data-row={row.id}>
@@ -735,7 +735,7 @@ export default function RibbonTab() {
                                   }}
                                   className="relative cursor-pointer select-none transition-colors"
                                   style={{
-                                    padding: ri === 0 ? '3pt 4pt' : '0 4pt 3pt 4pt',
+                                    padding: ri === 0 ? '6pt 6pt' : '0 6pt 6pt 6pt',
                                     verticalAlign: 'middle',
                                     borderRight: showGrid && ci < row.cells.length - 1 ? '1px solid #000' : 'none',
                                     borderBottom: '1px solid #000',
@@ -743,12 +743,12 @@ export default function RibbonTab() {
                                     outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDrag ? '2px dashed #3b82f6' : 'none',
                                     outlineOffset: -1,
                                     background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDrag ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : 'transparent',
-                                    minHeight: 16,
+                                    minHeight: 24,
                                   }}
                                 >
                                   <div style={{
                                     display: 'flex',
-                                    fontSize: '8pt', lineHeight: 1.1,
+                                    fontSize: '10pt', lineHeight: 1.3,
                                     fontWeight: c.field === 'sceneNumber' ? 700 : 500,
                                     textTransform: c.field === 'set' ? 'uppercase' : 'none',
                                     color: assigned ? undefined : '#71717a',
@@ -829,7 +829,7 @@ export default function RibbonTab() {
               </div>
 
               <div style={{
-                fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: '1.1', border: '2px solid #000',
+                fontFamily: 'Helvetica, sans-serif', fontSize: '10pt', lineHeight: '1.3', border: '2px solid #000',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
                   const rowStyle = pvSceneStyle(sample);
