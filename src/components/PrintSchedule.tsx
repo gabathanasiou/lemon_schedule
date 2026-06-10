@@ -125,22 +125,21 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         <div className="print-day-header">
           <span className="print-day-number">{meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
           {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
-          <span className="print-day-call">{'\u00A0'}</span>
+          <span className="print-day-call" style={{visibility: 'hidden'}}>CALL 08:00</span>
         </div>
       </div>
     );
   }
 
   const cells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
-  const nCells = cells ? cells.length : 8;
 
-  const cellPrintStyle = (cell: import('../types').RibbonCell, bgColor: string, isLast?: boolean): React.CSSProperties => ({
+  const cellPrintStyle = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     textAlign: cell.align || 'left',
-    padding: '4pt 4pt',
-    verticalAlign: 'top',
+    padding: isDesc ? '0 1pt 3pt 1pt' : '4pt 4pt',
     overflow: cell.wrap ? 'visible' : 'hidden',
+    textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
@@ -148,22 +147,22 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     fontSize: '8pt',
     lineHeight: 1.1,
     fontFamily: 'Helvetica, sans-serif',
-    borderRight: isLast ? '1px solid #000' : `1px solid ${bgColor}`,
+    borderRight: '1px solid rgba(0,0,0,0.12)',
   });
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
-  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLast?: boolean, bgColor?: string) => {
+  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast)}>{display || ''}</div>;
+    return <div key={cell.id} style={cellPrintStyle(cell)}>{display || ''}</div>;
   };
 
-  const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene, isLast?: boolean, bgColor?: string) => {
+  const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, scene);
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast)}>{display || ''}</div>;
+    return <div key={cell.id} style={cellPrintStyle(cell, true)}>{display || ''}</div>;
   };
 
   return (
@@ -174,21 +173,47 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
       </div>
 
-      {computedRows.map((r, ri) => {
-            const isLastRow = ri === computedRows.length - 1;
+      {computedRows.map((r) => {
             if (r.type === 'NOTE') {
               const noteBg = (r as any).noteColor || '#591b1b';
               const noteFg = (r as any).noteTextColor || '#ffffff';
+
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: noteBg, color: noteFg }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: noteBg, color: noteFg, padding: '4pt 8pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif' }}>
-                      {r.computedCallTime && <span style={{ marginRight: '8pt', opacity: 0.8 }}>{r.computedCallTime}</span>}
-                      <span>{r.noteText || ''}</span>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', position: 'relative', background: noteBg, color: noteFg }}>
+                    {cells.map((cell) => {
+                      let content = '';
+                      if (cell.field === 'callTime') {
+                        const v = r.computedCallTime || '';
+                        content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+                      } else if (cell.field === 'duration') {
+                        const v = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
+                        content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+                      }
+                      return (
+                        <div key={cell.id} style={{
+                          flex: `0 0 ${cell.width}%`,
+                          textAlign: cell.align || 'left',
+                          padding: '12pt 4pt',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          textOverflow: 'ellipsis',
+                          fontSize: '8pt',
+                          lineHeight: 1.1,
+                          fontFamily: 'Helvetica, sans-serif',
+                          borderRight: '1px solid rgba(0,0,0,0.12)',
+                        }}>
+                          {content}
+                        </div>
+                      );
+                    })}
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', lineHeight: 1.1 }}>
+                      {r.noteText || ''}
                     </div>
                   </div>
                 );
               }
+
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
@@ -211,10 +236,35 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             if (r.type === 'BREAK') {
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: '#591b1b', color: '#ffffff' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#591b1b', color: '#ffffff', padding: '4pt 8pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif' }}>
-                      {r.computedCallTime && <span style={{ marginRight: '8pt', opacity: 0.8 }}>{r.computedCallTime}</span>}
-                      <span>{r.breakLabel || 'BREAK'}</span>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', position: 'relative', background: '#591b1b', color: '#ffffff' }}>
+                    {cells.map((cell) => {
+                      let content = '';
+                      if (cell.field === 'callTime') {
+                        const v = r.computedCallTime || '';
+                        content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+                      } else if (cell.field === 'duration') {
+                        const v = r.breakDuration ? formatDuration(r.breakDuration) : '';
+                        content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+                      }
+                      return (
+                        <div key={cell.id} style={{
+                          flex: `0 0 ${cell.width}%`,
+                          textAlign: cell.align || 'left',
+                          padding: '12pt 4pt',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap',
+                          textOverflow: 'ellipsis',
+                          fontSize: '8pt',
+                          lineHeight: 1.1,
+                          fontFamily: 'Helvetica, sans-serif',
+                          borderRight: '1px solid rgba(0,0,0,0.12)',
+                        }}>
+                          {content}
+                        </div>
+                      );
+                    })}
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', lineHeight: 1.1 }}>
+                      {r.breakLabel || 'BREAK'}
                     </div>
                   </div>
                 );
@@ -245,12 +295,12 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none' }}>
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column' }}>
                   {(ribbon || []).map((row, ri) => (
-                    <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
+                    <div key={row.id || ri} style={{ display: 'flex', ...rowStyle, borderBottom: ri < (ribbon || []).length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none' }}>
                       {ri === 0
-                        ? row.cells.map((c, ci) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration, ci === row.cells.length - 1, bgColor))
-                        : row.cells.map((c, ci) => renderSceneDescCellFlex(c, scene, ci === row.cells.length - 1, bgColor))}
+                        ? row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))
+                        : row.cells.map((c) => renderSceneDescCellFlex(c, scene))}
                     </div>
                   ))}
                 </div>
@@ -289,9 +339,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
           {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
         </span>
         {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
-        <span className="print-footer-spacer" />
-        <span>Total Pages: {formatPageCount(totalPages)} pgs</span>
-        <span>EST. TIME: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}</span>
+        <div className="print-footer-stats">
+          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+          <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+        </div>
       </div>
     </div>
   );
@@ -340,6 +391,8 @@ const PRINT_STYLE = `
   .print-day {
     page-break-inside: auto;
     background: #ffffff;
+    border-left: 2px solid #000;
+    border-right: 2px solid #000;
   }
   .print-day-header {
     display: flex;
@@ -419,22 +472,24 @@ const PRINT_STYLE = `
 
   .print-day-footer {
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
     background: #ffffff;
     color: #18181b;
     padding: 4pt 6pt;
-    gap: 20pt;
-    border-top: 0.5pt solid #d4d4d8;
+    border-top: 1pt solid #d4d4d8;
   }
   .print-footer-end-label {
+    flex: 0 0 auto;
   }
   .print-footer-date {
     flex: 1;
     text-align: center;
   }
-  .print-footer-spacer {
-    flex: 1;
+  .print-footer-stats {
+    display: flex;
+    gap: 20pt;
+    flex: 0 0 auto;
   }
 `;
 

@@ -116,9 +116,48 @@ export const SortableRow: React.FC<{
     </Tooltip>
   ) : null;
 
+  const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
+    `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
+
   if (row.type === 'NOTE') {
     const noteStyle: React.CSSProperties = { background: row.noteColor || '#591b1b', color: row.noteTextColor || '#ffffff' };
     if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
+
+    if (ribbon && ribbon.length > 0 && !isCompact) {
+      return (
+        <div {...commonProps}>
+          <div className="flex items-stretch min-w-0 relative" style={noteStyle}>
+            {ribbon[0].cells.map((cell) => {
+              let content = '';
+              const cellStyle: React.CSSProperties = {
+                flex: `0 0 ${cell.width}%`,
+                textAlign: cell.align || 'left',
+                padding: '12px 4px',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                fontSize: '8pt',
+                lineHeight: 1.1,
+                fontFamily: 'Helvetica, sans-serif',
+                borderRight: '1px solid rgba(0,0,0,0.12)',
+              };
+              if (cell.field === 'callTime') {
+                const v = row.computedCallTime || '';
+                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+              } else if (cell.field === 'duration') {
+                const v = row.estimatedDuration ? formatDuration(row.estimatedDuration) : '';
+                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+              }
+              return <div key={cell.id} style={cellStyle}>{content}</div>;
+            })}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ fontSize: '8pt', lineHeight: 1.1 }}>
+              {row.noteText || ''}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div {...commonProps}>
         <div className="flex items-stretch min-w-0">
@@ -178,6 +217,42 @@ export const SortableRow: React.FC<{
   if (row.type === 'BREAK') {
     const breakStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
     if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
+
+    if (ribbon && ribbon.length > 0 && !isCompact) {
+      return (
+        <div {...commonProps}>
+          <div className="flex items-stretch min-w-0 relative" style={breakStyle}>
+            {ribbon[0].cells.map((cell) => {
+              let content = '';
+              const cellStyle: React.CSSProperties = {
+                flex: `0 0 ${cell.width}%`,
+                textAlign: cell.align || 'left',
+                padding: '12px 4px',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                fontSize: '8pt',
+                lineHeight: 1.1,
+                fontFamily: 'Helvetica, sans-serif',
+                borderRight: '1px solid rgba(0,0,0,0.12)',
+              };
+              if (cell.field === 'callTime') {
+                const v = row.computedCallTime || '';
+                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+              } else if (cell.field === 'duration') {
+                const v = row.breakDuration ? formatDuration(row.breakDuration) : '';
+                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+              }
+              return <div key={cell.id} style={cellStyle}>{content}</div>;
+            })}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ fontSize: '8pt', lineHeight: 1.1 }}>
+              {row.breakLabel || 'BREAK'}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div {...commonProps}>
         <div className="flex items-stretch min-w-0">
@@ -391,9 +466,6 @@ export const SortableRow: React.FC<{
     lineHeight: 1.1,
     fontFamily: 'Helvetica, sans-serif',
   });
-
-  const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
-    `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
   const ENTITY_FIELDS = useMemo(() => new Set(['extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept']), []);
   const entityItemsMap = useMemo(() => {

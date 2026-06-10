@@ -216,7 +216,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <td className="col-sc" style={{textAlign: 'left'}}>
                   <span className="font-bold" style={{paddingLeft: 4}}>{meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
                 </td>
-                <td className="col-call" />
+                <td className="col-call"><span style={{visibility: 'hidden'}}>CALL</span></td>
                 <td className="col-dur" />
                 <td className="col-ie" />
                 <td className="col-set text-center font-semibold">
@@ -330,7 +330,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         {showGhosts && insertBeforeId === `end-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
         )}
-        <div ref={setFooterRef} className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
+        <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
           style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>
           <span className="shrink-0">
             End of Day #{displayDay}
