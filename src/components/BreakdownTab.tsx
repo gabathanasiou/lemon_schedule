@@ -405,6 +405,25 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       newScene.pageCountDecimal = decimal;
       newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
       dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
+      const entityCategories = ['cast', ...BREAKDOWN_CATEGORIES];
+      for (const category of entityCategories) {
+        const val = String(newScene[category] ?? '');
+        if (!val.trim()) continue;
+        const isCast = category === 'cast';
+        const existing = (project.breakdownElements || {})[category] || [];
+        const existingSet = new Set(
+          isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
+        );
+        const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
+        for (const item of items) {
+          if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
+            dispatch({ type: 'ADD_ELEMENT', payload: {
+              category,
+              element: isCast ? { id: item, name: '' } : { id: item, name: item }
+            } });
+          }
+        }
+      }
       createdAny = true;
     }
 
@@ -496,6 +515,27 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         }));
         if (imported.length > 0) {
           dispatch({ type: 'IMPORT_SCENES', payload: imported });
+          const entityCategories = ['cast', ...BREAKDOWN_CATEGORIES];
+          for (const scene of imported) {
+            for (const category of entityCategories) {
+              const val = String((scene as any)[category] ?? '');
+              if (!val.trim()) continue;
+              const isCast = category === 'cast';
+              const existing = (project.breakdownElements || {})[category] || [];
+              const existingSet = new Set(
+                isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
+              );
+              const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
+              for (const item of items) {
+                if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
+                  dispatch({ type: 'ADD_ELEMENT', payload: {
+                    category,
+                    element: isCast ? { id: item, name: '' } : { id: item, name: item }
+                  } });
+                }
+              }
+            }
+          }
         }
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
