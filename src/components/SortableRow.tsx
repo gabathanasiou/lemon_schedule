@@ -11,6 +11,7 @@ import { useAddMode } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import { SelectDropdown } from './SelectDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
+import { SCENE_RIBBON_DEFAULTS } from '../types';
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -259,8 +260,34 @@ export const SortableRow: React.FC<{
                   </td>
                   <td className="col-cast">
                     <EntityDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly displayMode="id" />
-                  </td>
-                </tr>
+                </td>
+              </tr>
+              {!isCompact && (() => {
+                const ribbon = state.present.sceneRibbon || SCENE_RIBBON_DEFAULTS;
+                const breakdownKeys = ['props', 'wardrobe', 'makeup', 'extras', 'stunts', 'vehicles', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept', 'notes'];
+                const ribbonBreakdown = ribbon.filter(c => breakdownKeys.includes(c.key));
+                if (ribbonBreakdown.length === 0) return null;
+                return (
+                  <tr style={rowStyle}>
+                    <td className="col-sc" />
+                    {!isCompact && <td className="col-call" />}
+                    {!isCompact && <td className="col-dur" />}
+                    <td colSpan={3} style={{ padding: '2px 4px', opacity: 0.7 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {ribbonBreakdown.map(c => {
+                          const val = (scene as any)[c.key] as string;
+                          if (!val) return null;
+                          return (
+                            <span key={c.key} style={{ fontSize: '7pt', whiteSpace: 'nowrap' }}>
+                              <strong>{c.key}:</strong> {val}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })()}
               </tbody>
             </table>
           </div>

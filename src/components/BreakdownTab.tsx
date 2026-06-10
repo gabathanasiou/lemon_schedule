@@ -7,6 +7,7 @@ import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye } from 'lu
 import Papa from 'papaparse';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
+import { RibbonEditor } from './RibbonEditor';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -46,8 +47,8 @@ const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet }: {
-  subTab: 'scenes' | 'elements' | 'sheet';
-  onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
+  subTab: 'scenes' | 'elements' | 'sheet' | 'ribbon';
+  onSubTabChange: (t: 'scenes' | 'elements' | 'sheet' | 'ribbon') => void;
   savedCat: string;
   onCategoryChange: (c: string) => void;
   savedSheetIdx: number;
@@ -550,8 +551,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('sheet'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'sheet' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
           Sheet
         </button>
+        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('ribbon'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'ribbon' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+          Ribbon
+        </button>
       </div>
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} /> : (
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} /> : subTab === 'ribbon' ? <RibbonEditor /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">

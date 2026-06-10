@@ -40,7 +40,7 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
-  const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
+  const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet' | 'ribbon'>('scenes');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
 

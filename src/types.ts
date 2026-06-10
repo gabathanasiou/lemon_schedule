@@ -115,6 +115,21 @@ export interface ProjectElement {
   name: string;
 }
 
+export interface SceneRibbonColumn {
+  key: string;
+  width: number;
+}
+
+export const SCENE_RIBBON_DEFAULTS: SceneRibbonColumn[] = [
+  { key: 'sceneNumber', width: 40 },
+  { key: 'duration', width: 40 },
+  { key: 'intExt', width: 40 },
+  { key: 'set', width: 200 },
+  { key: 'dayNight', width: 75 },
+  { key: 'cast', width: 50 },
+  { key: 'pageCount', width: 50 },
+];
+
 export interface Project {
   id: string;
   title: string;
@@ -128,4 +143,5 @@ export interface Project {
   rules: ProjectRule[];
   castMembers: CastMember[];
   breakdownElements: Record<string, ProjectElement[]>;
+  sceneRibbon: SceneRibbonColumn[];
 }

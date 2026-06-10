@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -89,6 +89,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     rules: [],
     castMembers: [],
     breakdownElements: {},
+    sceneRibbon: SCENE_RIBBON_DEFAULTS,
   };
 }
 
@@ -125,6 +126,7 @@ type Action =
   | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
+  | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
 
 interface State {
   past: Project[];
@@ -622,6 +624,12 @@ function reducer(state: State, action: Action): State {
           : state.present.castMembers,
       });
     }
+
+    case 'UPDATE_SCENE_RIBBON':
+      return applyChange({
+        ...state.present,
+        sceneRibbon: action.payload,
+      });
 
     default:
       return state;
