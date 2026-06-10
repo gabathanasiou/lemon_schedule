@@ -513,7 +513,7 @@ export const SortableRow: React.FC<{
           className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
           readOnly={!textEditingEnabled}
           style={{ fontSize: '8pt', lineHeight: 1.1 }}
-          placeholder={FIELD_MAP[field]?.label || field}
+          placeholder={fieldLabels[field] || field}
         />
       </td>
     );
@@ -538,6 +538,14 @@ export const SortableRow: React.FC<{
     'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
     ...(state.present.customCategories || []).map(c => c.key),
   ]), [state.present.customCategories]);
+
+  const fieldLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const [key, def] of Object.entries(FIELD_MAP)) labels[key] = def.label;
+    for (const c of state.present.customCategories || []) labels[c.key] = c.label;
+    return labels;
+  }, [state.present.customCategories]);
+
   const entityItemsMap = useMemo(() => {
     const map: Record<string, { id: string; name: string }[]> = {};
     for (const field of ENTITY_FIELDS) {
@@ -580,7 +588,7 @@ export const SortableRow: React.FC<{
     if (!field) return <div key={cellId} style={style} />;
 
     const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
-    const fieldLabel = FIELD_MAP[field]?.label || field;
+    const fieldLabel = fieldLabels[field] || field;
     const emptyStyle: React.CSSProperties = { fontStyle: 'italic', opacity: 0.5 };
 
     if (field === 'intExt') {
@@ -697,7 +705,7 @@ export const SortableRow: React.FC<{
     return (
       <div key={cellId} style={style}>
         {textEditingEnabled ? (
-          <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={FIELD_MAP[field]?.label || field} multiline={!!wrap} />
+          <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
           <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
         )}
