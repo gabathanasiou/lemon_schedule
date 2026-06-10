@@ -301,7 +301,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
 
   const CustomColIndicator: ColumnIndicatorComponent = useCallback(({ column, label }) => {
-    const width = colWidths.current[column];
+    const width = colWidths.current[column] || DEFAULT_WIDTHS[column] || 100;
     const isResizing = resizeRef.current?.col === column;
     return (
       <th
@@ -345,7 +345,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       return `.Spreadsheet th:nth-child(${i + 1}), .Spreadsheet td:nth-child(${i + 1}) { width: ${w}px; min-width: ${w}px; max-width: ${w}px; }`;
     }).join('\n');
     return cols;
-  }, [widthVersion]);
+  }, [widthVersion, COLUMNS]);
 
   const data = useMemo((): CellBase[][] => {
     const rows = scenes.map(scene => [
