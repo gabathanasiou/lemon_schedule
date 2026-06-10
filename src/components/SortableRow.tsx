@@ -553,6 +553,20 @@ export const SortableRow: React.FC<{
     return map;
   }, [scenes, state.present.breakdownElements]);
 
+  const castItems = useMemo(() => {
+    const sceneValues = [...new Set(scenes.map(s => (s.cast || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim()))))] as string[];
+    const stored = state.present.castMembers ?? [];
+    const seen = new Set<string>();
+    const items: { id: string; name: string }[] = [];
+    for (const e of stored) {
+      if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
+    }
+    for (const v of sceneValues) {
+      if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
+    }
+    return items;
+  }, [scenes, state.present.castMembers]);
+
   const renderCellFlex = (cell: import('../types').RibbonCell, isLast: boolean, forDesc?: boolean) => {
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
@@ -607,7 +621,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <EntityDropdown value={v} onChange={val => updateScene({cast: val})} className="text-left w-full text-xs" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
+            <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full text-xs" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
             <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}

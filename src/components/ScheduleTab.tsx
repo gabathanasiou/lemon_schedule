@@ -29,6 +29,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
 
   const handleRowDoubleClick = useCallback((id: string) => {
+    if (textEditingEnabled) return;
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
