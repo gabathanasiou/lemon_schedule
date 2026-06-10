@@ -148,7 +148,6 @@ export const SortableRow: React.FC<{
                 fontSize: '8pt',
                 lineHeight: 1.1,
                 fontFamily: 'Helvetica, sans-serif',
-                borderRight: '1px solid rgba(0,0,0,0.12)',
               };
               if (wrapCell) {
                 return (
@@ -278,7 +277,6 @@ export const SortableRow: React.FC<{
                 fontSize: '8pt',
                 lineHeight: 1.1,
                 fontFamily: 'Helvetica, sans-serif',
-                borderRight: '1px solid rgba(0,0,0,0.12)',
               };
               if (wrapCell) {
                 return (
@@ -381,14 +379,14 @@ export const SortableRow: React.FC<{
     const { field, width: cellWidth, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     if (!field) {
-      return <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000', borderRight: '1px solid #000' }} />;
+      return <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
     }
     const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
     const displayText = `${prefix || ''}${val}${suffix || ''}`;
 
     if (field === 'intExt') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <SelectDropdown
             value={scene!.intExt}
             onChange={val => updateScene({intExt: val as any})}
@@ -402,7 +400,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'dayNight') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <SelectDropdown
             value={scene!.dayNight}
             onChange={val => updateScene({dayNight: val as any})}
@@ -416,7 +414,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'set') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <AutocompleteDropdown
             value={scene!.set}
             onChange={val => updateScene({set: val})}
@@ -429,7 +427,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'cast') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <EntityDropdown
             value={scene!.cast}
             onChange={val => updateScene({cast: val})}
@@ -446,7 +444,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'pageCount') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           {textEditingEnabled ? (
             <CellInput
               value={scene!.pageCount}
@@ -469,7 +467,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'duration') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <CellInput
             value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
             onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
@@ -485,7 +483,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'sceneNumber') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <div className="flex items-center gap-px">
             <CellInput
               value={scene!.sceneNumber}
@@ -501,14 +499,14 @@ export const SortableRow: React.FC<{
     }
     if (field === 'text') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <span style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
         </td>
       );
     }
     // Generic text field (description, notes, props, etc.)
     return (
-      <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+      <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
         <CellInput
           value={displayText}
           onChange={val => updateScene({[field]: val})}
@@ -525,7 +523,6 @@ export const SortableRow: React.FC<{
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     padding: isDesc ? '0 1pt 3pt 1pt' : '4px 4px',
-    borderRight: '1px solid rgba(0,0,0,0.12)',
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
@@ -561,7 +558,6 @@ export const SortableRow: React.FC<{
     const a = align || 'left';
     const style: React.CSSProperties = {
       ...cellFlexBase(cell, forDesc),
-      borderRight: isLast ? 'none' : '1px solid rgba(0,0,0,0.12)',
       textAlign: a as any,
     };
     if (!field) return <div key={cellId} style={style} />;

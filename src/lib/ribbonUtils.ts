@@ -13,14 +13,14 @@ export interface FieldDef {
 }
 
 export const ALL_FIELDS: FieldDef[] = [
-  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 6, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
+  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 8, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
   { key: 'callTime',    label: 'Call Time',  defaultWidth: 7, align: 'left',   category: 'Shooting' },
   { key: 'duration',    label: 'Duration',   defaultWidth: 9.5, align: 'left',   category: 'Shooting' },
   { key: 'intExt',      label: 'I/E',        defaultWidth: 9.74, align: 'left',   category: 'Shooting' },
   { key: 'set',         label: 'Set',        defaultWidth: 34.38,align: 'left',   category: 'Shooting' },
   { key: 'dayNight',    label: 'D/N',        defaultWidth: 11.46,align: 'left',   category: 'Shooting' },
   { key: 'cast',        label: 'Cast',       defaultWidth: 16.05,align: 'left',   category: 'Cast & Talent', defaultWrap: true },
-  { key: 'pageCount',   label: 'Pages',      defaultWidth: 9.74, align: 'left',   category: 'Scene Info', defaultSuffix: 'pgs' },
+  { key: 'pageCount',   label: 'Pages',      defaultWidth: 11, align: 'left',   category: 'Scene Info', defaultSuffix: 'pgs' },
   { key: 'description', label: 'Synopsis',   defaultWidth: 81.38,align: 'left',   category: 'Scene Info', defaultPrefix: 'Desc' },
   { key: 'scriptDay',   label: 'Script Day', defaultWidth: 11.46,align: 'left',   category: 'Production', defaultPrefix: 'SD' },
   { key: 'notes',       label: 'Notes',      defaultWidth: 22.92,align: 'left',   category: 'Production', defaultPrefix: 'Nt' },
@@ -143,8 +143,8 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: '', width: 18.54 },
-        { id: cid(), field: 'description', width: 81.46, align: 'left' },
+        { id: cid(), field: '', width: 24.5 },
+        { id: cid(), field: 'description', width: 75.5, align: 'left' },
       ],
     },
   ];
