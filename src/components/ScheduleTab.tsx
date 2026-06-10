@@ -8,7 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Palette, Check } from 'lucide-react';
+import { Pencil, Palette, Check, Calendar } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
 import DropdownMenu from './DropdownMenu';
@@ -500,6 +500,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
   if (!activeVersion) return <div>No active version</div>;
 
   const activeRibbon = project.ribbonDesigns.find(d => d.id === (project.activeRibbonId || ''))?.rows;
+  const currentRibbonName = project.activeRibbonId ? (project.ribbonDesigns.find(d => d.id === project.activeRibbonId)?.name || 'Unknown') : 'Default';
 
   const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
   const missingScenesInRows = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
@@ -1078,56 +1079,63 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
             setContextMenu(null);
           }}
         >
-            <div className="w-full max-w-4xl flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-zinc-600 font-medium">{activeVersion?.name}</span>
-                 {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
-                   <span className="bg-zinc-800 text-zinc-200 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-zinc-700">
-                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                     {augmentedRows.filter(r => r.shootDay === -1).length} in buffer
-                   </span>
-                 )}
-               </div>
-              <button 
-                 onClick={() => setTextEditingEnabled(p => !p)}
-                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none ${textEditingEnabled ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
-                 style={{ fontSize: '13px' }}
-              >
-                  <Pencil className="w-3.5 h-3.5 shrink-0" />
-                  Edit Mode
-               </button>
-               <DropdownMenu
-                 open={ribbonMenuOpen}
-                 onClose={() => setRibbonMenuOpen(false)}
-                 width="w-44"
-                 trigger={
-                   <button
-                     onClick={() => setRibbonMenuOpen(p => !p)}
-                     className="flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                     style={{ fontSize: '13px' }}
-                   >
-                     <Palette className="w-3.5 h-3.5 shrink-0" />
-                     Ribbons
-                   </button>
-                 }
-               >
-                 <DropdownItem
-                   onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: '' }); setRibbonMenuOpen(false); }}
-                   icon={!project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-                 >
-                   Default layout
-                 </DropdownItem>
-                 <DropdownDivider />
-                 {project.ribbonDesigns.map(d => (
-                   <DropdownItem
-                     key={d.id}
-                     onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
-                     icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
-                   >
-                     {d.name}
-                   </DropdownItem>
-                 ))}
-               </DropdownMenu>
+            <div className="w-full max-w-4xl mb-6">
+              <div className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors ${textEditingEnabled ? 'bg-zinc-900/80 border-zinc-700' : 'bg-zinc-950/60 border-zinc-800'}`}>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span className="text-sm font-semibold text-zinc-200 truncate">{activeVersion?.name}</span>
+                  <span className="text-zinc-600 select-none">·</span>
+                  <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
+                  {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
+                    <span className="bg-amber-400/10 text-amber-400 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                      {augmentedRows.filter(r => r.shootDay === -1).length} unscheduled
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <DropdownMenu
+                    open={ribbonMenuOpen}
+                    onClose={() => setRibbonMenuOpen(false)}
+                    width="w-44"
+                    trigger={
+                      <button
+                        onClick={() => setRibbonMenuOpen(p => !p)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                        style={{ fontSize: '13px' }}
+                      >
+                        <Palette className="w-3.5 h-3.5 shrink-0" />
+                        {currentRibbonName}
+                      </button>
+                    }
+                  >
+                    <DropdownItem
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: '' }); setRibbonMenuOpen(false); }}
+                      icon={!project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+                    >
+                      Default
+                    </DropdownItem>
+                    <DropdownDivider />
+                    {project.ribbonDesigns.map(d => (
+                      <DropdownItem
+                        key={d.id}
+                        onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
+                        icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
+                      >
+                        {d.name}
+                      </DropdownItem>
+                    ))}
+                  </DropdownMenu>
+                  <button 
+                    onClick={() => setTextEditingEnabled(p => !p)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none ${textEditingEnabled ? 'bg-zinc-900 text-white border border-zinc-700' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                    style={{ fontSize: '13px' }}
+                  >
+                    <Pencil className="w-3.5 h-3.5 shrink-0" />
+                    Edit
+                  </button>
+                </div>
+              </div>
             </div>
 
           <div className="w-full max-w-4xl">
