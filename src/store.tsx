@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import { getDefaultRibbonRows, cid } from './lib/ribbonUtils';
 import Papa from 'papaparse';
@@ -59,6 +59,9 @@ function loadProjectFromStorage(id: string): Project | null {
         parsed.rulesTrash = (parsed.rulesTrash || []).filter((t: RuleTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
+        parsed.ribbonTrash = (parsed.ribbonTrash || []).filter((t: RibbonTrashItem) => {
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
         return parsed;
       }
     }
@@ -95,6 +98,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     trash: [],
     versionTrash: [],
     rulesTrash: [],
+    ribbonTrash: [],
     rules: [],
     castMembers: [],
     breakdownElements: {},
@@ -138,11 +142,12 @@ type Action =
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
-  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string } }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[] } }
   | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[] } }
   | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
   | { type: 'SET_ACTIVE_RIBBON'; payload: string }
+  | { type: 'RESTORE_RIBBON_FROM_TRASH'; payload: string }
 
 interface State {
   past: Project[];
@@ -259,6 +264,7 @@ function reducer(state: State, action: Action): State {
         trash: [],
         versionTrash: [],
         rulesTrash: [],
+        ribbonTrash: [],
       });
     }
 
@@ -658,12 +664,15 @@ function reducer(state: State, action: Action): State {
       });
 
     case 'ADD_RIBBON_DESIGN': {
+      const rows = action.payload.rows
+        ? JSON.parse(JSON.stringify(action.payload.rows))
+        : action.payload.cloneFromId
+          ? JSON.parse(JSON.stringify(state.present.ribbonDesigns.find(d => d.id === action.payload.cloneFromId)?.rows || getDefaultRibbonRows()))
+          : getDefaultRibbonRows();
       const newDesign: RibbonDesign = {
         id: generateUUID(),
         name: action.payload.name,
-        rows: action.payload.cloneFromId
-          ? JSON.parse(JSON.stringify(state.present.ribbonDesigns.find(d => d.id === action.payload.cloneFromId)?.rows || getDefaultRibbonRows()))
-          : getDefaultRibbonRows(),
+        rows,
         createdAt: Date.now(),
       };
       return applyChange({
@@ -682,15 +691,29 @@ function reducer(state: State, action: Action): State {
       });
 
     case 'DELETE_RIBBON_DESIGN': {
+      const target = state.present.ribbonDesigns.find(d => d.id === action.payload);
+      if (!target) return state;
       const remaining = state.present.ribbonDesigns.filter(d => d.id !== action.payload);
       if (remaining.length === 0) return state;
       const newActiveId = state.present.activeRibbonId === action.payload
         ? remaining[0].id
         : state.present.activeRibbonId;
+      const trashItem: RibbonTrashItem = { design: target, deletedAt: Date.now() };
       return applyChange({
         ...state.present,
         ribbonDesigns: remaining,
         activeRibbonId: newActiveId,
+        ribbonTrash: [...state.present.ribbonTrash, trashItem],
+      });
+    }
+
+    case 'RESTORE_RIBBON_FROM_TRASH': {
+      const item = state.present.ribbonTrash.find(t => t.design.id === action.payload);
+      if (!item) return state;
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: [...state.present.ribbonDesigns, item.design],
+        ribbonTrash: state.present.ribbonTrash.filter(t => t.design.id !== action.payload),
       });
     }
 

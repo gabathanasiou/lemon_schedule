@@ -88,6 +88,11 @@ export interface RuleTrashItem {
   deletedAt: number;
 }
 
+export interface RibbonTrashItem {
+  design: RibbonDesign;
+  deletedAt: number;
+}
+
 export type ProjectRule =
   | { id: string; type: 'MAX_HOURS'; castId: string; maxHours: number; dates?: string[] }
   | { id: string; type: 'DATE_RESTRICTION'; castId: string; dates: string[] }
@@ -166,6 +171,7 @@ export interface Project {
   trash: TrashItem[];
   versionTrash: VersionTrashItem[];
   rulesTrash: RuleTrashItem[];
+  ribbonTrash: RibbonTrashItem[];
   rules: ProjectRule[];
   castMembers: CastMember[];
   breakdownElements: Record<string, ProjectElement[]>;

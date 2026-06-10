@@ -11,8 +11,9 @@ import {
   Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket,
   Plus, Trash2, GripHorizontal,
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
-  Undo2, Redo2, LayoutGrid, ChevronDown, ArrowLeft, ArrowRight,
+  LayoutGrid, ChevronDown, ArrowLeft, ArrowRight,
   AlignCenter, AlignRight, WrapText, Grid3X3, Type,
+  Download, Upload, Copy, Check,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -81,22 +82,19 @@ export default function RibbonTab() {
   const [cellDrag, setCellDrag] = useState<{ rowId: string; cellId: string } | null>(null);
   const [cellDropTarget, setCellDropTarget] = useState<string | null>(null);
   const [betweenDrop, setBetweenDrop] = useState<string | null>(null);
-  const [showDesigns, setShowDesigns] = useState(false);
   const [affixEdit, setAffixEdit] = useState<{ type: 'prefix' | 'suffix'; value: string } | null>(null);
   const [textEdit, setTextEdit] = useState<string | null>(null);
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const lastSpacerSync = useRef(0);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
-  const [tick, setTick] = useState(0);
-  const undos = useRef<RibbonRow[][]>([cloneRows(initialRows)]);
-  const redos = useRef<RibbonRow[][]>([]);
-  const rows = undos.current[undos.current.length - 1];
+  const [rows, setRows] = useState<RibbonRow[]>(cloneRows(initialRows));
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const [designMenuOpen, setDesignMenuOpen] = useState(false);
 
   const resetRows = useCallback((newRows: RibbonRow[]) => {
-    undos.current = [cloneRows(newRows)];
-    redos.current = [];
-    setTick(t => t + 1);
+    setRows(cloneRows(newRows));
   }, []);
 
   useEffect(() => {
@@ -111,38 +109,17 @@ export default function RibbonTab() {
   }, [activeDesign, dispatch]);
 
   const commit = useCallback((next: RibbonRow[]) => {
-    undos.current.push(cloneRows(next));
-    if (undos.current.length > 100) undos.current.shift();
-    redos.current = [];
-    setTick(t => t + 1);
+    setRows(cloneRows(next));
     saveToStore(next);
   }, [saveToStore]);
 
   const liveMutate = useCallback((mutator: (r: RibbonRow[]) => void) => {
-    const all = cloneRows(undos.current[undos.current.length - 1]);
-    mutator(all);
-    undos.current[undos.current.length - 1] = all;
-    setTick(t => t + 1);
+    setRows(prev => {
+      const all = cloneRows(prev);
+      mutator(all);
+      return all;
+    });
   }, []);
-
-  const undo = useCallback(() => {
-    if (undos.current.length < 2) return;
-    redos.current.push(undos.current.pop()!);
-    const curr = undos.current[undos.current.length - 1];
-    setTick(t => t + 1);
-    saveToStore(curr);
-  }, [saveToStore]);
-
-  const redo = useCallback(() => {
-    if (redos.current.length === 0) return;
-    undos.current.push(redos.current.pop()!);
-    const curr = undos.current[undos.current.length - 1];
-    setTick(t => t + 1);
-    saveToStore(curr);
-  }, [saveToStore]);
-
-  const canUndo = undos.current.length > 1;
-  const canRedo = redos.current.length > 0;
 
   /* auto-sync Row 2 spacer with Row 1 first 3 cells */
   useEffect(() => {
@@ -352,7 +329,7 @@ export default function RibbonTab() {
     };
     const onUp = () => {
       setResizing(null);
-      saveToStore(undos.current[undos.current.length - 1]);
+      saveToStore(rowsRef.current);
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
@@ -364,13 +341,12 @@ export default function RibbonTab() {
   selIdRef.current = selId;
   const changeOpenRef = useRef(changeOpen);
   changeOpenRef.current = changeOpen;
-  const actRef = useRef({ clearCell, undo, redo });
-  actRef.current = { clearCell, undo, redo };
+  const clearCellRef = useRef(clearCell);
+  clearCellRef.current = clearCell;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const { clearCell: clear, undo: un, redo: rd } = actRef.current;
-      if (e.key === 'Delete' && selIdRef.current && !changeOpenRef.current) { e.preventDefault(); clear(selIdRef.current); return; }
+      if (e.key === 'Delete' && selIdRef.current && !changeOpenRef.current) { e.preventDefault(); clearCellRef.current(selIdRef.current); return; }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!selIdRef.current) return;
         e.preventDefault();
@@ -384,8 +360,6 @@ export default function RibbonTab() {
         }
         return;
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); if (e.shiftKey) rd(); else un(); return; }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'y')) { e.preventDefault(); rd(); return; }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -408,66 +382,90 @@ export default function RibbonTab() {
       {/* ══ Top bar ══ */}
       <header className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
         <LayoutGrid className="w-4 h-4 text-blue-500 shrink-0" />
-        <div className="relative">
-          <button onClick={() => setShowDesigns(o => !o)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-            <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
-          {showDesigns && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowDesigns(false)} />
-              <div className="absolute z-50 left-0 top-full mt-1 bg-zinc-950 border border-zinc-800 rounded-lg shadow-xl py-1 min-w-[220px] max-h-[300px] overflow-y-auto">
-                {project.ribbonDesigns.map(d => (
-                  <button key={d.id} onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setShowDesigns(false); }}
-                    className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 flex items-center gap-2 ${d.id === project.activeRibbonId ? 'bg-zinc-800 text-blue-400 font-medium' : 'text-zinc-400'}`}>
-                    <span className="truncate flex-1">{d.name}</span>
-                    <span className="text-[9px] text-zinc-600 shrink-0">{d.rows.length}r · {d.rows.reduce((s, r) => s + r.cells.length, 0)}c</span>
-                  </button>
-                ))}
-                {project.ribbonDesigns.length === 0 && (
-                  <div className="px-3 py-2 text-[10px] text-zinc-500 text-center">No designs</div>
-                )}
-                <div className="border-t border-zinc-800 mt-1 pt-1">
-                  <button onClick={() => { const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setShowDesigns(false); } }}
-                    className="w-full text-left px-3 py-1.5 text-[10px] text-blue-400 hover:bg-zinc-800 flex items-center gap-2">
-                    <Plus className="w-3 h-3" /> New design
-                  </button>
-                  {activeDesign && (
-                    <>
-                      <button onClick={() => { const n = prompt('Rename', activeDesign.name); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setShowDesigns(false); } }}
-                        className="w-full text-left px-3 py-1.5 text-[10px] text-zinc-400 hover:bg-zinc-800 flex items-center gap-2">
-                        ... Rename
-                      </button>
-                      <button onClick={() => { if (confirm(`Delete "${activeDesign.name}"?`)) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setShowDesigns(false); } }}
-                        className="w-full text-left px-3 py-1.5 text-[10px] text-red-400 hover:bg-red-950/50 flex items-center gap-2">
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <DropdownMenu
+          open={designMenuOpen}
+          onClose={() => setDesignMenuOpen(false)}
+          width="w-52"
+          trigger={
+            <button onClick={() => setDesignMenuOpen(p => !p)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+              <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
+              <ChevronDown className="w-3 h-3 text-zinc-500" />
+            </button>
+          }
+        >
+          {project.ribbonDesigns.map(d => (
+            <DropdownItem
+              key={d.id}
+              onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setDesignMenuOpen(false); }}
+              icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+            >
+              {d.name}
+            </DropdownItem>
+          ))}
+          <DropdownDivider />
+          <DropdownItem onClick={() => { const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setDesignMenuOpen(false); } }}
+            icon={<Plus className="w-3.5 h-3.5" />}>
+            New Design
+          </DropdownItem>
+          <DropdownItem onClick={() => { const n = prompt('Rename', activeDesign.name); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setDesignMenuOpen(false); } }}>
+            Rename
+          </DropdownItem>
+          <DropdownItem onClick={() => {
+            const copy = cloneRows(rows);
+            const n = prompt('Duplicate name', `${activeDesign.name} — Copy`);
+            if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id } }); setDesignMenuOpen(false); }
+          }}
+            icon={<Copy className="w-3.5 h-3.5" />}>
+            Duplicate
+          </DropdownItem>
+          <DropdownDivider />
+          <DropdownItem onClick={() => {
+            const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows }, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.json`;
+            a.click(); URL.revokeObjectURL(url); setDesignMenuOpen(false);
+          }}
+            icon={<Download className="w-3.5 h-3.5" />}>
+            Export
+          </DropdownItem>
+          <DropdownItem onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file'; input.accept = '.json';
+            input.onchange = () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const data = JSON.parse(reader.result as string);
+                  if (data.rows && Array.isArray(data.rows)) {
+                    dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows } });
+                  }
+                } catch { alert('Invalid file'); }
+                setDesignMenuOpen(false);
+              };
+              reader.readAsText(file);
+            };
+            input.click();
+          }}
+            icon={<Upload className="w-3.5 h-3.5" />}>
+            Import
+          </DropdownItem>
+          <DropdownDivider />
+          <DropdownItem
+            onClick={() => { if (confirm(`Delete "${activeDesign.name}"? This can be restored from Trash.`)) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setDesignMenuOpen(false); } }}
+            variant="danger"
+            icon={<Trash2 className="w-3.5 h-3.5" />}>
+            Delete
+          </DropdownItem>
+        </DropdownMenu>
         <span className="text-[11px] text-zinc-500">{placed}/{total} fields used</span>
         <div className="flex-1" />
-        <div className="flex items-center gap-1">
-          <button onClick={undo} disabled={!canUndo}
-            className="h-7 w-7 flex items-center justify-center rounded hover:bg-zinc-800 disabled:opacity-25 transition-colors"
-            title="Undo (⌘Z)">
-            <Undo2 className="w-3.5 h-3.5 text-zinc-400" />
-          </button>
-          <button onClick={redo} disabled={!canRedo}
-            className="h-7 w-7 flex items-center justify-center rounded hover:bg-zinc-800 disabled:opacity-25 transition-colors"
-            title="Redo (⌘⇧Z)">
-            <Redo2 className="w-3.5 h-3.5 text-zinc-400" />
-          </button>
-          <div className="w-px h-4 bg-zinc-800 mx-1" />
-          <button onClick={() => commit(getDefaultRibbonRows())}
-            className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
-            <RotateCcw className="w-3 h-3" /> Reset
-          </button>
-        </div>
+        <button onClick={() => commit(getDefaultRibbonRows())}
+          className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
+          <RotateCcw className="w-3 h-3" /> Reset
+        </button>
       </header>
 
       {/* ══ Body ══ */}
