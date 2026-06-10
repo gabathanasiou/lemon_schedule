@@ -132,15 +132,15 @@ export const CellInput: React.FC<{
     ? 'cursor-default pointer-events-none' 
     : 'cursor-text hover:bg-black/[0.04]';
 
-  const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded px-[2px] min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
+  const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
 
   return (
     <div className={`relative inline-grid items-center min-w-0 ${className.includes('w-full') ? 'w-full' : ''} ${className.includes('flex-1') ? 'flex-1' : ''}`} style={{ gridTemplateColumns: gridCol }}>
-      <span className={`invisible col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} px-[2px] ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
+      <span className={`invisible col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
          {displayText || placeholder || ' '}
       </span>
       {readOnly ? (
-        <span className={`col-start-1 row-start-1 px-[2px] ${multiline ? '' : 'truncate'} ${className}`}>
+        <span className={`col-start-1 row-start-1 ${multiline ? '' : 'truncate'} ${className}`}>
           {displayText || placeholder}
         </span>
       ) : multiline ? (

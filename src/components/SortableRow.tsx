@@ -379,7 +379,7 @@ export const SortableRow: React.FC<{
   const cellFlexBase = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
-    padding: '4px 4px',
+    padding: isDesc ? '0 1pt 3pt 1pt' : '4px 4px',
     borderRight: '1px solid rgba(0,0,0,0.12)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -387,6 +387,9 @@ export const SortableRow: React.FC<{
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+    fontSize: '8pt',
+    lineHeight: 1.1,
+    fontFamily: 'Helvetica, Arial, sans-serif',
   });
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
@@ -430,7 +433,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} positioning="fixed" />
+            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
@@ -442,7 +445,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} positioning="fixed" />
+            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
@@ -454,7 +457,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" />
+            <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} className="text-left w-full uppercase" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
@@ -478,7 +481,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+            <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
           )}
@@ -499,7 +502,7 @@ export const SortableRow: React.FC<{
         <div key={cellId} style={style}>
           <div className="flex items-center gap-px">
             {textEditingEnabled ? (
-              <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+              <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
             ) : (
               <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, ...(!sv ? emptyStyle : {}) }}>{sv ? displayText : fieldLabel}</span>
             )}
@@ -528,7 +531,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} />
+            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
@@ -539,7 +542,7 @@ export const SortableRow: React.FC<{
     return (
       <div key={cellId} style={style}>
         {textEditingEnabled ? (
-          <CellInput value={displayText} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} placeholder={FIELD_MAP[field]?.label || field} />
+          <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={FIELD_MAP[field]?.label || field} multiline={!!wrap} />
         ) : (
           <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
         )}
@@ -555,29 +558,15 @@ export const SortableRow: React.FC<{
 
     // ── Ribbon-based rendering (non-compact) ──
     if (ribbon && ribbon.length > 0 && !isCompact) {
-      const r1 = ribbon[0];
-      const r2 = ribbon[1];
-      const c1 = r1.cells;
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
             <div className="flex-1 min-w-0 flex flex-col" style={rowStyle}>
-              <div className="flex w-full min-h-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-                {r1.cells.map((c, ci) => renderCellFlex(c, ci === c1.length - 1))}
-              </div>
-              <div className="flex w-full min-h-0">
-                {r2 ? r2.cells.map((c, ci) => renderCellFlex(c, ci === r2.cells.length - 1, true)) : (
-                  <div className="flex-1" style={{ padding: '0 1pt 3pt 1pt' }}>
-                    <CellInput
-                      value={scene.description}
-                      onChange={val => updateScene({description: val})}
-                      className={`${inputClass} text-left`}
-                      readOnly={!textEditingEnabled}
-                      placeholder="Scene Description"
-                    />
-                  </div>
-                )}
-              </div>
+              {ribbon.map((row, ri) => (
+                <div key={row.id || ri} className="flex w-full min-h-0" style={ri < ribbon.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
+                  {row.cells.map((c, ci) => renderCellFlex(c, ci === row.cells.length - 1))}
+                </div>
+              ))}
             </div>
           </div>
         </div>

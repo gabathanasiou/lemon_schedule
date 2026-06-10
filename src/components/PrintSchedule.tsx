@@ -253,16 +253,15 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             const bgColor = rowStyle.background || '#ffffff';
 
             if (cells) {
-              const r2 = (ribbon && ribbon.length > 1) ? ribbon[1] : null;
-              const c1 = cells;
               return (
                 <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none' }}>
-                  <div style={{ display: 'flex', ...rowStyle }}>
-                    {c1.map((c, ci) => renderSceneCellFlex(c, scene, r.computedCallTime, ci === c1.length - 1, bgColor))}
-                  </div>
-                  <div style={{ display: 'flex', ...rowStyle }}>
-                    {r2 ? r2.cells.map((c, ci) => renderSceneDescCellFlex(c, scene, ci === r2.cells.length - 1, bgColor)) : c1.map((c, ci) => renderEmptyCellFlex(c, ci === c1.length - 1, true, bgColor))}
-                  </div>
+                  {(ribbon || []).map((row, ri) => (
+                    <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
+                      {ri === 0
+                        ? row.cells.map((c, ci) => renderSceneCellFlex(c, scene, r.computedCallTime, ci === row.cells.length - 1, bgColor))
+                        : row.cells.map((c, ci) => renderSceneDescCellFlex(c, scene, ci === row.cells.length - 1, bgColor))}
+                    </div>
+                  ))}
                 </div>
               );
             }
