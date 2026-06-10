@@ -23,20 +23,6 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   artDept: 'Art Dept',
 };
 
-const COLUMNS = [
-  { key: 'actions', label: '' },
-  { key: 'sceneNumber', label: 'Scene #' },
-  { key: 'pageCount', label: 'Pages' },
-  { key: 'scriptDay', label: 'Script Day' },
-  { key: 'intExt', label: 'I/E' },
-  { key: 'set', label: 'Set' },
-  { key: 'dayNight', label: 'D/N' },
-  { key: 'description', label: 'Description' },
-  { key: 'cast', label: 'Cast' },
-  { key: 'notes', label: 'Notes' },
-  ...BREAKDOWN_CATEGORIES.filter(k => k !== 'set').map(key => ({ key, label: BREAKDOWN_LABELS[key] })),
-];
-
 const ACTIONS_COL = 0;
 const INT_EXT_COL = 3;
 const DAY_NIGHT_COL = 5;
@@ -57,6 +43,31 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const { state, dispatch } = useProject();
   const project = state.present;
   const scenes = project.scenes;
+
+  const allBreakdownCategories = useMemo(() => [
+    ...BREAKDOWN_CATEGORIES,
+    ...project.customCategories.map(c => c.key),
+  ], [project.customCategories]);
+
+  const allBreakdownLabels = useMemo(() => {
+    const labels: Record<string, string> = { ...BREAKDOWN_LABELS };
+    for (const c of project.customCategories) labels[c.key] = c.label;
+    return labels;
+  }, [project.customCategories]);
+
+  const COLUMNS = useMemo(() => [
+    { key: 'actions', label: '' },
+    { key: 'sceneNumber', label: 'Scene #' },
+    { key: 'pageCount', label: 'Pages' },
+    { key: 'scriptDay', label: 'Script Day' },
+    { key: 'intExt', label: 'I/E' },
+    { key: 'set', label: 'Set' },
+    { key: 'dayNight', label: 'D/N' },
+    { key: 'description', label: 'Description' },
+    { key: 'cast', label: 'Cast' },
+    { key: 'notes', label: 'Notes' },
+    ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ key, label: allBreakdownLabels[key] })),
+  ], [allBreakdownCategories, allBreakdownLabels]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const subTab = externalSubTab;
   const scrollTops = useRef<Record<string, number>>({});
@@ -232,7 +243,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   const breakdownEditors = useMemo(() => {
     const map = new Map<string, DataEditorComponent<CellBase<string>>>();
-    for (const key of BREAKDOWN_CATEGORIES) {
+    for (const key of allBreakdownCategories) {
       const sceneValues: string[] = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())) as string[])];
       const storedElements: { id: string; name: string }[] = (project as any).breakdownElements?.[key] || [];
       const nameMap = new Map<string, { id: string; name: string }>(storedElements.map(e => [e.name.toLowerCase(), e]));
@@ -264,7 +275,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               exitEditMode();
             }}
             items={items}
-            placeholder={BREAKDOWN_LABELS[key]}
+            placeholder={allBreakdownLabels[key]}
             positioning="relative"
             defaultOpen
             autoFocus
@@ -348,7 +359,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       { value: scene.description },
       { value: scene.cast, DataEditor: CastEditor },
       { value: scene.notes },
-      ...BREAKDOWN_CATEGORIES.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
+      ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
     ]);
     rows.push(COLUMNS.map((c, i) => {
       if (i === ACTIONS_COL) return { value: '', readOnly: true };
@@ -357,7 +368,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       if (i === 5) return { value: '', DataEditor: SetEditor };
       if (i === 6) return { value: '', DataEditor: DayNightEditor };
       if (i === CAST_COL) return { value: '', DataEditor: CastEditor };
-      if (BREAKDOWN_CATEGORIES.includes(c.key)) return { value: '', DataEditor: breakdownEditors.get(c.key)! };
+      if (allBreakdownCategories.includes(c.key)) return { value: '', DataEditor: breakdownEditors.get(c.key)! };
       return { value: '' };
     }));
     return rows;
@@ -405,7 +416,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       newScene.pageCountDecimal = decimal;
       newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
       dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
-      const entityCategories = ['cast', ...BREAKDOWN_CATEGORIES];
+      const entityCategories = ['cast', ...allBreakdownCategories];
       for (const category of entityCategories) {
         const val = String(newScene[category] ?? '');
         if (!val.trim()) continue;
@@ -456,7 +467,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
               if (match) updates.dayNight = match;
             }
-            if (colDef.key === 'cast' || BREAKDOWN_CATEGORIES.includes(colDef.key)) {
+            if (colDef.key === 'cast' || allBreakdownCategories.includes(colDef.key)) {
               const isCast = colDef.key === 'cast';
               const existing = (project.breakdownElements || {})[colDef.key] || [];
               const existingSet = new Set(
@@ -475,7 +486,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         }
       }
     }
-  }, [scenes, dispatch, project]);
+  }, [scenes, dispatch, project, COLUMNS, allBreakdownCategories]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -515,7 +526,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         }));
         if (imported.length > 0) {
           dispatch({ type: 'IMPORT_SCENES', payload: imported });
-          const entityCategories = ['cast', ...BREAKDOWN_CATEGORIES];
+          const entityCategories = ['cast', ...allBreakdownCategories];
           for (const scene of imported) {
             for (const category of entityCategories) {
               const val = String((scene as any)[category] ?? '');
