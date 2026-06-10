@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useProject } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
-import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
@@ -34,12 +34,18 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   useEffect(() => { persistedIndex = index; }, [index]);
   const [sheetInput, setSheetInput] = useState(String(index + 1));
   const [edits, setEdits] = useState<Record<string, Partial<Scene>>>({});
+  const editsRef = useRef(edits);
+  editsRef.current = edits;
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputsRef = useRef<Map<string, HTMLElement>>(new Map());
 
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
   const goTo = useCallback((n: number) => {
+    if (Object.keys(editsRef.current).length > 0) {
+      saveRef.current();
+    }
     const idx = Math.max(0, Math.min(scenes.length - 1, n));
     setIndex(idx); setSheetInput(String(idx + 1));
     onIndexChange?.(idx);
@@ -81,6 +87,9 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
     }
     setEdits({});
   }, [edits, dispatch, breakdownElements, castMembers]);
+
+  const saveRef = useRef(doSave);
+  saveRef.current = doSave;
 
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
@@ -130,12 +139,34 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
   const focusNext = (key: string) => { /* tab order follows DOM by default */ };
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onFocusOut = (e: FocusEvent) => {
+      if (!el.contains(e.relatedTarget as Node)) {
+        if (Object.keys(editsRef.current).length > 0) {
+          saveRef.current();
+        }
+      }
+    };
+    el.addEventListener('focusout', onFocusOut);
+    return () => el.removeEventListener('focusout', onFocusOut);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (Object.keys(editsRef.current).length > 0) {
+        saveRef.current();
+      }
+    };
+  }, []);
+
   const inputCls = "w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent";
 
   if (scenes.length === 0) return <div className="flex-1 flex items-center justify-center bg-zinc-50"><p className="text-sm text-zinc-500">No scenes defined yet.</p></div>;
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full px-4 py-3 gap-3">
         {/* Nav bar */}
         <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
@@ -147,10 +178,6 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
               <span className="text-zinc-400">of {scenes.length}</span>
             </div>
             <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-400">{Object.keys(edits).length} edited</span>
-            <button onClick={doSave} className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-sm"><Save className="w-3 h-3" /> Save</button>
           </div>
         </div>
 
