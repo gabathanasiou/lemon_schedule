@@ -407,49 +407,49 @@ export const SortableRow: React.FC<{
     const emptyStyle: React.CSSProperties = { fontStyle: 'italic', opacity: 0.5 };
 
     if (field === 'intExt') {
-      const v = scene!.intExt;
+      const v = scene!.intExt || '';
       return (
         <div key={cellId} style={style}>
-          {textEditingEnabled || v ? (
+          {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
         </div>
       );
     }
     if (field === 'dayNight') {
-      const v = scene!.dayNight;
+      const v = scene!.dayNight || '';
       return (
         <div key={cellId} style={style}>
-          {textEditingEnabled || v ? (
+          {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
         </div>
       );
     }
     if (field === 'set') {
-      const v = scene!.set;
+      const v = scene!.set || '';
       return (
         <div key={cellId} style={style}>
-          {textEditingEnabled || v ? (
+          {textEditingEnabled ? (
             <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
         </div>
       );
     }
     if (field === 'cast') {
-      const v = scene!.cast;
+      const v = scene!.cast || '';
       return (
         <div key={cellId} style={style}>
-          {textEditingEnabled || v ? (
+          {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({cast: val})} className="text-left w-full text-xs" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
         </div>
       );
@@ -474,7 +474,7 @@ export const SortableRow: React.FC<{
       );
     }
     if (field === 'sceneNumber') {
-      const sv = scene!.sceneNumber;
+      const sv = scene!.sceneNumber || '';
       const displayText = fmt(prefix, sv, suffix);
       return (
         <div key={cellId} style={style}>
@@ -509,14 +509,14 @@ export const SortableRow: React.FC<{
     }
     const ENTITY_FIELDS = new Set(['extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept']);
     if (scene && ENTITY_FIELDS.has(field)) {
-      const v = (scene as any)[field] as string;
+      const v = ((scene as any)[field] as string) || '';
       const entityItems: { id: string; name: string }[] = state.present.breakdownElements?.[field] || [];
       return (
         <div key={cellId} style={style}>
-          {textEditingEnabled || v ? (
-            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" />
+          {textEditingEnabled ? (
+            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
         </div>
       );
