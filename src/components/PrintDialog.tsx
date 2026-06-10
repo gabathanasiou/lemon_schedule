@@ -5,7 +5,7 @@ import { EntityDropdown } from './EntityDropdown';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
-import { getFieldValueFromSample } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, getDefaultRibbonRows } from '../lib/ribbonUtils';
 
 function formatDayDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -168,10 +168,11 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   </DropdownItem>
                 ))}
               </DropdownMenu>
-              {selectedRibbonId ? (() => {
-                const design = project.ribbonDesigns?.find(d => d.id === selectedRibbonId);
-                if (!design) return null;
-                const rows = design.rows;
+              {(() => {
+                const rows = selectedRibbonId
+                  ? project.ribbonDesigns?.find(d => d.id === selectedRibbonId)?.rows
+                  : getDefaultRibbonRows();
+                if (!rows) return null;
                 const sample = { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' };
                 return (
                   <div className="border border-zinc-300 rounded overflow-hidden" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, background: '#ffffff' }}>
@@ -203,9 +204,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                     </div>
                   </div>
                 );
-              })() : (
-                <div className="text-[9px] text-zinc-500 italic text-center py-2 border border-dashed border-zinc-300 rounded">Default layout</div>
-              )}
+              })()}
             </div>
           )}
 

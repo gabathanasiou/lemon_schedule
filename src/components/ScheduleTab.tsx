@@ -8,9 +8,10 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Palette, Check, Calendar } from 'lucide-react';
+import { Pencil, Check, Calendar, ChevronDown } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
+import { getDefaultRibbonRows } from '../lib/ribbonUtils';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -499,7 +500,9 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
 
   if (!activeVersion) return <div>No active version</div>;
 
-  const activeRibbon = project.ribbonDesigns.find(d => d.id === (project.activeRibbonId || ''))?.rows;
+  const activeRibbon = project.activeRibbonId
+    ? project.ribbonDesigns.find(d => d.id === project.activeRibbonId)?.rows
+    : getDefaultRibbonRows();
   const currentRibbonName = project.activeRibbonId ? (project.ribbonDesigns.find(d => d.id === project.activeRibbonId)?.name || 'Unknown') : 'Default';
 
   const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
@@ -1080,9 +1083,10 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
           }}
         >
             <div className="w-full max-w-4xl mb-6">
-              <div className="flex items-center gap-4 px-5 py-3 rounded-xl bg-zinc-900 border border-zinc-700/50">
+              <div className="flex items-center gap-4 px-5 py-3 bg-zinc-900 border border-zinc-700/50">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <span className="text-xs text-zinc-500 shrink-0">Schedule</span>
                   <span className="text-sm font-semibold text-white truncate">{activeVersion?.name}</span>
                   <span className="text-zinc-600 select-none">·</span>
                   <span className="text-xs text-zinc-400 shrink-0">{existingDays.length} days</span>
@@ -1101,10 +1105,11 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
                     trigger={
                       <button
                         onClick={() => setRibbonMenuOpen(p => !p)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors cursor-pointer select-none bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                       >
-                        <Palette className="w-3.5 h-3.5 shrink-0" />
-                        {currentRibbonName}
+                        <span className="text-xs text-zinc-500 font-normal">Ribbons:</span>
+                        <span className="font-medium">{currentRibbonName}</span>
+                        <ChevronDown className="w-3.5 h-3.5 shrink-0 text-zinc-500" />
                       </button>
                     }
                   >
@@ -1127,7 +1132,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
                   </DropdownMenu>
                   <button 
                     onClick={() => setTextEditingEnabled(p => !p)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
                   >
                     <Pencil className="w-3.5 h-3.5 shrink-0" />
                     Edit
