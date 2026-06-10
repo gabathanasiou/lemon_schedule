@@ -12,7 +12,7 @@ import { Pencil } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
 
-export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) => void }) {
+export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -27,7 +27,6 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
-  const [scheduleSubTab, setScheduleSubTab] = useState<'stripboard' | 'ribbons'>('stripboard');
 
   const handleRowDoubleClick = useCallback((id: string) => {
     const row = activeVersion?.rows.find(r => r.id === id);
@@ -984,7 +983,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
       : [activeDragRow!].filter(Boolean);
   })();
 
-  if (scheduleSubTab === 'ribbons') {
+  if (subTab === 'ribbons') {
     return <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab /></div>;
   }
 
@@ -1072,19 +1071,9 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
             setContextMenu(null);
           }}
         >
-           <div className="w-full max-w-4xl flex justify-between items-center mb-6">
-               <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
-                    <button onClick={() => setScheduleSubTab('stripboard')}
-                      className={`px-2.5 py-1 rounded-sm text-[11px] transition-colors ${scheduleSubTab === 'stripboard' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}>
-                      Stripboard
-                    </button>
-                    <button onClick={() => setScheduleSubTab('ribbons')}
-                      className={`px-2.5 py-1 rounded-sm text-[11px] transition-colors ${scheduleSubTab === 'ribbons' ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}>
-                      Ribbons
-                    </button>
-                  </div>
-                 <span className="text-xs text-zinc-600 font-medium">{activeVersion?.name}</span>
+            <div className="w-full max-w-4xl flex justify-between items-center mb-6">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-zinc-600 font-medium">{activeVersion?.name}</span>
                  {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
                    <span className="bg-zinc-800 text-zinc-200 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 border border-zinc-700">
                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />

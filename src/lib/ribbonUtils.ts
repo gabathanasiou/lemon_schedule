@@ -7,35 +7,36 @@ export interface FieldDef {
   defaultWidth: number;
   align: 'left' | 'center' | 'right';
   category: string;
+  defaultPrefix?: string;
   defaultSuffix?: string;
 }
 
 export const ALL_FIELDS: FieldDef[] = [
-  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 4.30, align: 'center', category: 'Scene Info' },
+  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 4.30, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
   { key: 'callTime',    label: 'Call Time',  defaultWidth: 5.73, align: 'left',   category: 'Shooting' },
-  { key: 'duration',    label: 'Duration',   defaultWidth: 8.60, align: 'left',   category: 'Shooting' },
+  { key: 'duration',    label: 'Duration',   defaultWidth: 8.60, align: 'left',   category: 'Shooting', defaultPrefix: 'Dur' },
   { key: 'intExt',      label: 'I/E',        defaultWidth: 9.74, align: 'left',   category: 'Shooting' },
   { key: 'set',         label: 'Set',        defaultWidth: 34.38,align: 'left',   category: 'Shooting' },
   { key: 'dayNight',    label: 'D/N',        defaultWidth: 11.46,align: 'left',   category: 'Shooting' },
   { key: 'cast',        label: 'Cast',       defaultWidth: 16.05,align: 'left',   category: 'Cast & Talent' },
   { key: 'pageCount',   label: 'Pages',      defaultWidth: 9.74, align: 'left',   category: 'Scene Info', defaultSuffix: 'pgs' },
-  { key: 'description', label: 'Synopsis',   defaultWidth: 81.38,align: 'left',   category: 'Scene Info' },
-  { key: 'scriptDay',   label: 'Script Day', defaultWidth: 11.46,align: 'left',   category: 'Production' },
-  { key: 'notes',       label: 'Notes',      defaultWidth: 22.92,align: 'left',   category: 'Production' },
-  { key: 'extras',      label: 'BG Artists', defaultWidth: 17.19,align: 'left',   category: 'Cast & Talent' },
-  { key: 'stunts',      label: 'Stunts',     defaultWidth: 17.19,align: 'left',   category: 'Cast & Talent' },
-  { key: 'vehicles',    label: 'Vehicles',   defaultWidth: 17.19,align: 'left',   category: 'Breakdown' },
-  { key: 'props',       label: 'Props',      defaultWidth: 17.19,align: 'left',   category: 'Breakdown' },
-  { key: 'wardrobe',    label: 'Wardrobe',   defaultWidth: 17.19,align: 'left',   category: 'Breakdown' },
-  { key: 'makeup',      label: 'Makeup',     defaultWidth: 17.19,align: 'left',   category: 'Breakdown' },
+  { key: 'description', label: 'Synopsis',   defaultWidth: 81.38,align: 'left',   category: 'Scene Info', defaultPrefix: 'Desc' },
+  { key: 'scriptDay',   label: 'Script Day', defaultWidth: 11.46,align: 'left',   category: 'Production', defaultPrefix: 'SD' },
+  { key: 'notes',       label: 'Notes',      defaultWidth: 22.92,align: 'left',   category: 'Production', defaultPrefix: 'Nt' },
+  { key: 'extras',      label: 'BG Artists', defaultWidth: 17.19,align: 'left',   category: 'Cast & Talent', defaultPrefix: 'BG' },
+  { key: 'stunts',      label: 'Stunts',     defaultWidth: 17.19,align: 'left',   category: 'Cast & Talent', defaultPrefix: 'St' },
+  { key: 'vehicles',    label: 'Vehicles',   defaultWidth: 17.19,align: 'left',   category: 'Breakdown', defaultPrefix: 'Veh' },
+  { key: 'props',       label: 'Props',      defaultWidth: 17.19,align: 'left',   category: 'Breakdown', defaultPrefix: 'Pr' },
+  { key: 'wardrobe',    label: 'Wardrobe',   defaultWidth: 17.19,align: 'left',   category: 'Breakdown', defaultPrefix: 'Ward' },
+  { key: 'makeup',      label: 'Makeup',     defaultWidth: 17.19,align: 'left',   category: 'Breakdown', defaultPrefix: 'M/U' },
   { key: 'sfx',         label: 'SFX',        defaultWidth: 17.19,align: 'left',   category: 'VFX & Audio' },
   { key: 'vfx',         label: 'VFX',        defaultWidth: 17.19,align: 'left',   category: 'VFX & Audio' },
-  { key: 'sound',       label: 'Sound',      defaultWidth: 17.19,align: 'left',   category: 'VFX & Audio' },
-  { key: 'music',       label: 'Music',      defaultWidth: 17.19,align: 'left',   category: 'VFX & Audio' },
-  { key: 'animals',     label: 'Animals',    defaultWidth: 17.19,align: 'left',   category: 'Misc' },
-  { key: 'weapons',     label: 'Weapons',    defaultWidth: 17.19,align: 'left',   category: 'Misc' },
-  { key: 'greenery',    label: 'Greenery',   defaultWidth: 17.19,align: 'left',   category: 'Misc' },
-  { key: 'artDept',     label: 'Art Dept',   defaultWidth: 17.19,align: 'left',   category: 'Misc' },
+  { key: 'sound',       label: 'Sound',      defaultWidth: 17.19,align: 'left',   category: 'VFX & Audio', defaultPrefix: 'Snd' },
+  { key: 'music',       label: 'Music',      defaultWidth: 17.19,align: 'left',   category: 'VFX & Audio', defaultPrefix: 'Mus' },
+  { key: 'animals',     label: 'Animals',    defaultWidth: 17.19,align: 'left',   category: 'Misc', defaultPrefix: 'Anim' },
+  { key: 'weapons',     label: 'Weapons',    defaultWidth: 17.19,align: 'left',   category: 'Misc', defaultPrefix: 'Wpn' },
+  { key: 'greenery',    label: 'Greenery',   defaultWidth: 17.19,align: 'left',   category: 'Misc', defaultPrefix: 'Grn' },
+  { key: 'artDept',     label: 'Art Dept',   defaultWidth: 17.19,align: 'left',   category: 'Misc', defaultPrefix: 'Art' },
   { key: 'text',        label: 'Text',        defaultWidth: 28.65,align: 'left',   category: 'Special' },
 ];
 
@@ -129,7 +130,7 @@ function mkRow(name: string, keys: string[]): RibbonRow {
     name,
     cells: keys.map(k => {
       const f = FIELD_MAP[k];
-      return { id: cid(), field: k, width: f?.defaultWidth || 10, suffix: f?.defaultSuffix, align: f?.align };
+      return { id: cid(), field: k, width: f?.defaultWidth || 10, prefix: f?.defaultPrefix, suffix: f?.defaultSuffix, align: f?.align };
     }),
   };
 }

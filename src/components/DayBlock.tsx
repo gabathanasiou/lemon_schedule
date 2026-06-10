@@ -8,7 +8,7 @@ import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow } from '../types';
-import { getFieldValue } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
 
 function formatDateLong(dateStr: string): string {
@@ -69,13 +69,15 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
         style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
         {cells.map(c => {
           const val = c.field === 'text' ? (c.textContent || '') : getFieldValue(c.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
-          const display = `${c.prefix || ''}${val}${c.suffix || ''}`;
+          const label = FIELD_MAP[c.field]?.label || c.field;
+          const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : label;
           return (
             <div key={c.id} style={{
               flex: `0 0 ${c.width}%`, minWidth: 0, padding: compact ? '2pt 1pt' : '3pt 1pt',
               borderRight: '1px solid rgba(0,0,0,0.15)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
               textAlign: c.align || 'left',
               fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+              fontStyle: val ? 'normal' : 'italic',
             }}>
               {display || ''}
             </div>

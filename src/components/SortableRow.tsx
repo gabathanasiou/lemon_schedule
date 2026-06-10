@@ -376,6 +376,163 @@ export const SortableRow: React.FC<{
     );
   };
 
+  const cellFlexBase = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
+    flex: `0 0 ${cell.width}%`,
+    minWidth: 0,
+    padding: '4px 4px',
+    borderRight: '1px solid rgba(0,0,0,0.12)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: cell.wrap ? 'normal' : 'nowrap',
+    wordBreak: cell.wrap ? 'break-word' : undefined,
+    textTransform: cell.field === 'set' ? 'uppercase' : 'none',
+    fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+  });
+
+  const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
+    `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
+
+  const renderCellFlex = (cell: import('../types').RibbonCell, isLast: boolean, forDesc?: boolean) => {
+    const { field, align, prefix, suffix, wrap, id: cellId } = cell;
+    const a = align || 'left';
+    const style: React.CSSProperties = {
+      ...cellFlexBase(cell, forDesc),
+      borderRight: isLast ? 'none' : '1px solid rgba(0,0,0,0.12)',
+      textAlign: a as any,
+    };
+    if (!field) return <div key={cellId} style={style} />;
+
+    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
+    const fieldLabel = FIELD_MAP[field]?.label || field;
+    const emptyStyle: React.CSSProperties = { fontStyle: 'italic', opacity: 0.5 };
+
+    if (field === 'intExt') {
+      const v = scene!.intExt;
+      return (
+        <div key={cellId} style={style}>
+          {textEditingEnabled || v ? (
+            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+          ) : (
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+          )}
+        </div>
+      );
+    }
+    if (field === 'dayNight') {
+      const v = scene!.dayNight;
+      return (
+        <div key={cellId} style={style}>
+          {textEditingEnabled || v ? (
+            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+          ) : (
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+          )}
+        </div>
+      );
+    }
+    if (field === 'set') {
+      const v = scene!.set;
+      return (
+        <div key={cellId} style={style}>
+          {textEditingEnabled || v ? (
+            <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" />
+          ) : (
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+          )}
+        </div>
+      );
+    }
+    if (field === 'cast') {
+      const v = scene!.cast;
+      return (
+        <div key={cellId} style={style}>
+          {textEditingEnabled || v ? (
+            <EntityDropdown value={v} onChange={val => updateScene({cast: val})} className="text-left w-full text-xs" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
+          ) : (
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+          )}
+        </div>
+      );
+    }
+    if (field === 'pageCount') {
+      const displayText = fmt(prefix, val, suffix || 'pgs');
+      return (
+        <div key={cellId} style={style}>
+          {textEditingEnabled ? (
+            <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+          ) : (
+            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+          )}
+        </div>
+      );
+    }
+    if (field === 'duration') {
+      return (
+        <div key={cellId} style={style}>
+          <CellInput value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} onChange={val => updateRow({estimatedDuration: parseDuration(val)})} clearOnType col="duration" className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} navigateOnEnter={false} autoFocus={focusedRowId === row.id} onRowNavigate={onRowNavigate} />
+        </div>
+      );
+    }
+    if (field === 'sceneNumber') {
+      const sv = scene!.sceneNumber;
+      const displayText = fmt(prefix, sv, suffix);
+      return (
+        <div key={cellId} style={style}>
+          <div className="flex items-center gap-px">
+            {textEditingEnabled ? (
+              <>
+                {prefix && <span style={{ fontSize: '8pt', lineHeight: 1.1, opacity: 0.6 }}>{prefix}\u00A0</span>}
+                <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+                {suffix && <span style={{ fontSize: '8pt', lineHeight: 1.1, opacity: 0.6 }}>\u00A0{suffix}</span>}
+              </>
+            ) : (
+              <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, ...(!sv ? emptyStyle : {}) }}>{sv ? displayText : fieldLabel}</span>
+            )}
+            {violationBadge}
+          </div>
+        </div>
+      );
+    }
+    if (field === 'text') {
+      return (
+        <div key={cellId} style={style}>
+          <span style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
+        </div>
+      );
+    }
+    if (field === 'callTime') {
+      return (
+        <div key={cellId} style={style}>
+          <span style={{ fontSize: '8pt', lineHeight: 1.1 }}>{val}</span>
+        </div>
+      );
+    }
+    const ENTITY_FIELDS = new Set(['extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept']);
+    if (scene && ENTITY_FIELDS.has(field)) {
+      const v = (scene as any)[field] as string;
+      const entityItems: { id: string; name: string }[] = state.present.breakdownElements?.[field] || [];
+      return (
+        <div key={cellId} style={style}>
+          {textEditingEnabled || v ? (
+            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" />
+          ) : (
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...emptyStyle }}>{fieldLabel}</span>
+          )}
+        </div>
+      );
+    }
+    const displayText = fmt(prefix, val, suffix);
+    return (
+      <div key={cellId} style={style}>
+        {textEditingEnabled ? (
+          <CellInput value={displayText} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} placeholder={FIELD_MAP[field]?.label || field} />
+        ) : (
+          <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+        )}
+      </div>
+    );
+  };
+
   if (scene) {
     const rowStyle = sceneStyle(scene);
     if (isSelected && !isFaded) {
@@ -386,29 +543,28 @@ export const SortableRow: React.FC<{
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const r1 = ribbon[0];
       const r2 = ribbon[1];
+      const c1 = r1.cells;
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
-            <table className="schedule-table flex-1 min-w-0">
-              <tbody>
-                <tr style={rowStyle}>
-                  {r1.cells.map(c => renderCellContent(c))}
-                </tr>
-                <tr style={rowStyle}>
-                  {r2 ? r2.cells.map(c => renderCellContent(c)) : (
-                    <td colSpan={r1.cells.length} style={{ padding: '0 1pt 3pt 1pt', verticalAlign: 'top' }}>
-                      <CellInput
-                        value={scene.description}
-                        onChange={val => updateScene({description: val})}
-                        className={`${inputClass} text-left`}
-                        readOnly={!textEditingEnabled}
-                        placeholder="Scene Description"
-                      />
-                    </td>
-                  )}
-                </tr>
-              </tbody>
-            </table>
+            <div className="flex-1 min-w-0 flex flex-col" style={rowStyle}>
+              <div className="flex w-full min-h-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
+                {r1.cells.map((c, ci) => renderCellFlex(c, ci === c1.length - 1))}
+              </div>
+              <div className="flex w-full min-h-0">
+                {r2 ? r2.cells.map((c, ci) => renderCellFlex(c, ci === r2.cells.length - 1, true)) : (
+                  <div className="flex-1" style={{ padding: '0 1pt 3pt 1pt' }}>
+                    <CellInput
+                      value={scene.description}
+                      onChange={val => updateScene({description: val})}
+                      className={`${inputClass} text-left`}
+                      readOnly={!textEditingEnabled}
+                      placeholder="Scene Description"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       );

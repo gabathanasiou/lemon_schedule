@@ -40,6 +40,7 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
+  const [scheduleSubTab, setScheduleSubTab] = useState<'stripboard' | 'ribbons'>('stripboard');
   const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet' | 'ribbon'>('scenes');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
@@ -77,6 +78,7 @@ function AppContent() {
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
   const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
+  const [showScheduleMenu, setShowScheduleMenu] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
@@ -342,11 +344,31 @@ function AppContent() {
               Breakdown
             </button>
             <button 
-              onClick={() => setActiveTab('schedule')}
+              onClick={() => { setActiveTab('schedule'); setScheduleSubTab('stripboard'); }}
               className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'schedule' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
             >
               Schedule
             </button>
+            {activeTab === 'schedule' && (
+              <DropdownMenu
+                open={showScheduleMenu}
+                onClose={() => setShowScheduleMenu(false)}
+                width="w-40"
+                trigger={
+                  <button
+                    onClick={() => setShowScheduleMenu(p => !p)}
+                    className="p-1 hover:bg-zinc-800 rounded transition-colors"
+                    title="Schedule view options"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
+                  </button>
+                }
+              >
+                <DropdownItem onClick={() => { setScheduleSubTab('ribbons'); setShowScheduleMenu(false); }} icon={<Settings className="w-3.5 h-3.5" />}>
+                  Ribbon Designer
+                </DropdownItem>
+              </DropdownMenu>
+            )}
             <button 
               onClick={() => setActiveTab('calendar')}
               className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'calendar' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
@@ -574,7 +596,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : <RulesTab />}
       </main>
 
       {showTrash && (

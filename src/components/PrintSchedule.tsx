@@ -133,8 +133,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const cells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
   const nCells = cells ? cells.length : 8;
 
-  const tdStyle = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
-    width: `${cell.width}%`,
+  const cellPrintStyle = (cell: import('../types').RibbonCell, bgColor: string, isLast?: boolean, isDesc?: boolean): React.CSSProperties => ({
+    flex: `0 0 ${cell.width}%`,
+    minWidth: 0,
     textAlign: cell.align || 'left',
     padding: isDesc ? '0 1pt 3pt 1pt' : '3pt 1pt',
     verticalAlign: 'top',
@@ -144,22 +145,26 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+    borderRight: isLast ? '1px solid #000' : `1px solid ${bgColor}`,
   });
 
-  const renderSceneCell = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string) => {
+  const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
+    `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
+
+  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, isLast?: boolean, bgColor?: string) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: 0 });
-    const display = `${cell.prefix || ''}${val}${cell.suffix || ''}`;
-    return <td key={cell.id} style={tdStyle(cell, false)}>{display || ''}</td>;
+    const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
+    return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast)}>{display || ''}</div>;
   };
 
-  const renderSceneDescCell = (cell: import('../types').RibbonCell, scene: Scene) => {
+  const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene, isLast?: boolean, bgColor?: string) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, scene);
-    const display = `${cell.prefix || ''}${val}${cell.suffix || ''}`;
-    return <td key={cell.id} style={tdStyle(cell, true)}>{display || ''}</td>;
+    const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
+    return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast, true)}>{display || ''}</div>;
   };
 
-  const renderEmptyCell = (cell: import('../types').RibbonCell, isDesc?: boolean) => (
-    <td key={cell.id} style={tdStyle(cell, isDesc)} />
+  const renderEmptyCellFlex = (cell: import('../types').RibbonCell, isLast?: boolean, isDesc?: boolean, bgColor?: string) => (
+    <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast, isDesc)} />
   );
 
   return (
@@ -170,56 +175,73 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
       </div>
 
-      {computedRows.map((r) => {
+      {computedRows.map((r, ri) => {
+            const isLastRow = ri === computedRows.length - 1;
             if (r.type === 'NOTE') {
               const noteBg = (r as any).noteColor || '#591b1b';
               const noteFg = (r as any).noteTextColor || '#ffffff';
+              if (cells) {
+                const n = cells.length;
+                return (
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: noteBg, color: noteFg }}>
+                    <div style={{ display: 'flex', background: noteBg, color: noteFg, minHeight: 0 }}>
+                      {cells.map((c, ci) => (
+                        <div key={c.id} style={{ flex: `0 0 ${c.width}%`, minWidth: 0, textAlign: 'center', padding: '9pt 1pt', borderRight: ci === n - 1 ? '1px solid #000' : `1px solid ${noteBg}`, overflow: 'hidden', whiteSpace: c.wrap ? 'normal' : 'nowrap' }}>
+                          {r.noteText || ''}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
                     <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg } as any}>
-                      {cells ? cells.map(c => (
-                        <td key={c.id} style={{ ...tdStyle(c), textAlign: 'center', paddingTop: '9pt', paddingBottom: '9pt', verticalAlign: 'middle' }}>
-                          {r.noteText || ''}
-                        </td>
-                      )) : (
-                        <>
-                          <td className="print-col-sc" />
-                          {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                          {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
-                          <td className="print-col-ie" />
-                          <td className="print-col-set" style={{textAlign: 'center'}}>{r.noteText || ''}</td>
-                          <td className="print-col-dn" />
-                          <td className="print-col-cast" />
-                          <td className="print-col-pgs" />
-                        </>
-                      )}
+                      <>
+                        <td className="print-col-sc" />
+                        {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
+                        {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
+                        <td className="print-col-ie" />
+                        <td className="print-col-set" style={{textAlign: 'center'}}>{r.noteText || ''}</td>
+                        <td className="print-col-dn" />
+                        <td className="print-col-cast" />
+                        <td className="print-col-pgs" />
+                      </>
                     </tr>
                   </tbody>
                 </table>
               );
             }
             if (r.type === 'BREAK') {
+              if (cells) {
+                const n = cells.length;
+                return (
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: '#591b1b', color: '#ffffff' }}>
+                    <div style={{ display: 'flex', background: '#591b1b', color: '#ffffff', minHeight: 0 }}>
+                      {cells.map((c, ci) => (
+                        <div key={c.id} style={{ flex: `0 0 ${c.width}%`, minWidth: 0, textAlign: 'center', padding: '9pt 1pt', borderRight: ci === n - 1 ? '1px solid #000' : `1px solid #591b1b`, overflow: 'hidden', whiteSpace: c.wrap ? 'normal' : 'nowrap' }}>
+                          {r.breakLabel || 'BREAK'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
                     <tr className="print-row-break">
-                      {cells ? cells.map(c => (
-                        <td key={c.id} style={{ ...tdStyle(c), textAlign: 'center', paddingTop: '9pt', paddingBottom: '9pt', verticalAlign: 'middle' }}>
-                          {r.breakLabel || 'BREAK'}
-                        </td>
-                      )) : (
-                        <>
-                          <td className="print-col-sc" />
-                          {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                          {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
-                          <td className="print-col-ie" />
-                          <td className="print-col-set" style={{textAlign: 'center'}}>{r.breakLabel || 'BREAK'}</td>
-                          <td className="print-col-dn" />
-                          <td className="print-col-cast" />
-                          <td className="print-col-pgs" />
-                        </>
-                      )}
+                      <>
+                        <td className="print-col-sc" />
+                        {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
+                        {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
+                        <td className="print-col-ie" />
+                        <td className="print-col-set" style={{textAlign: 'center'}}>{r.breakLabel || 'BREAK'}</td>
+                        <td className="print-col-dn" />
+                        <td className="print-col-cast" />
+                        <td className="print-col-pgs" />
+                      </>
                     </tr>
                   </tbody>
                 </table>
@@ -232,17 +254,16 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               const r2 = (ribbon && ribbon.length > 1) ? ribbon[1] : null;
+              const c1 = cells;
               return (
-                <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', '--td-border-color': bgColor } as any}>
-                  <tbody>
-                    <tr className="print-row-scene" style={rowStyle}>
-                      {cells.map(c => renderSceneCell(c, scene, r.computedCallTime))}
-                    </tr>
-                    <tr className="print-row-desc" style={rowStyle}>
-                      {r2 ? r2.cells.map(c => renderSceneDescCell(c, scene)) : cells.map(c => renderEmptyCell(c, true))}
-                    </tr>
-                  </tbody>
-                </table>
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none' }}>
+                  <div style={{ display: 'flex', ...rowStyle }}>
+                    {c1.map((c, ci) => renderSceneCellFlex(c, scene, r.computedCallTime, ci === c1.length - 1, bgColor))}
+                  </div>
+                  <div style={{ display: 'flex', ...rowStyle }}>
+                    {r2 ? r2.cells.map((c, ci) => renderSceneDescCellFlex(c, scene, ci === r2.cells.length - 1, bgColor)) : c1.map((c, ci) => renderEmptyCellFlex(c, ci === c1.length - 1, true, bgColor))}
+                  </div>
+                </div>
               );
             }
 

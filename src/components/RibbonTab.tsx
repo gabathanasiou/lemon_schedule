@@ -31,6 +31,27 @@ const FIELD_ICONS: Record<string, React.ElementType> = {
 
 const PREVIEW_STYLE = { bg: '#ffffff', fg: '#464646' };
 
+function pvSceneStyle(scene?: { intExt?: string; dayNight?: string } | null): React.CSSProperties {
+  if (!scene) return { background: '#ffffff', color: '#18181b' };
+  const intExt = (scene.intExt || '').toUpperCase();
+  const dayNight = (scene.dayNight || '').toUpperCase();
+  if (intExt.includes('INT') && dayNight.includes('DAY')) return { background: '#ffffff', color: '#464646' };
+  if (intExt.includes('EXT') && dayNight.includes('DAY')) return { background: '#bdd857', color: '#000000' };
+  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return { background: '#67832e', color: '#f2fce3' };
+  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return { background: '#2148a7', color: '#ffffff' };
+  if (intExt.includes('INT') && dayNight.includes('MORNING')) return { background: '#efbea0', color: '#4a3730' };
+  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return { background: '#e88aa5', color: '#ffffff' };
+  if (intExt.includes('INT') && dayNight.includes('EVENING')) return { background: '#e29926', color: '#000000' };
+  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return { background: '#ce7d21', color: '#000000' };
+  return { background: '#ffffff', color: '#18181b' };
+}
+
+const PREVIEW_SAMPLES = [
+  { intExt: 'INT', dayNight: 'DAY' },
+  { intExt: 'EXT', dayNight: 'DAY' },
+  { intExt: 'INT', dayNight: 'NIGHT' },
+];
+
 function cloneRows(rs: RibbonRow[]): RibbonRow[] {
   return JSON.parse(JSON.stringify(rs));
 }
@@ -170,11 +191,12 @@ export default function RibbonTab() {
   const assign = useCallback((cellId: string, key: string) => {
     const f = FIELD_MAP[key];
     const dw = f?.defaultWidth;
+    const dp = f?.defaultPrefix;
     const ds = f?.defaultSuffix;
     commit(rows.map(r => ({
       ...r, cells: normalizeCells(r.cells.map(c => c.id === cellId ? {
         ...c, field: key, ...(dw && dw !== c.width ? { width: dw } : {}),
-        suffix: ds, align: f?.align,
+        prefix: dp, suffix: ds, align: f?.align,
         ...(key !== 'text' ? { textContent: undefined } : {}),
       } : c)),
     })));
@@ -807,52 +829,78 @@ export default function RibbonTab() {
               </div>
             </section>
 
-            {/* ══ Live Preview ══ */}
+            {/* ══ Live Preview (matches schedule stripboard exactly) ══ */}
             <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Eye className="w-3.5 h-3.5 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Live Preview</span>
-                <span className="ml-auto text-[9px] text-zinc-600">Sample data</span>
+                <span className="ml-auto text-[9px] text-zinc-600">Sample data · {rows.length} rows · {rows.reduce((s, r) => s + r.cells.length, 0)} cells</span>
               </div>
 
-              <div className="inline-block" style={{
-                fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', lineHeight: '1.1',
-                border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
+              <div style={{
+                fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', lineHeight: '1.1', border: '2px solid #000',
               }}>
-                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-                  <tbody>
-                    {rows.map((row, ri) => (
-                      <tr key={row.id} style={{ background: ri === 0 ? PREVIEW_STYLE.bg : PREVIEW_STYLE.bg }}>
-                        {row.cells.map((c, ci) => {
-                          const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                          const display = `${c.prefix || ''}${val}${c.suffix || ''}`;
-                          const align = getAlign(c);
-                          return (
-                            <td key={c.id} style={{
-                              padding: ri === 0 ? '3pt 1pt' : '0 1pt 3pt 1pt',
-                              width: `${c.width}%`,
-                              textAlign: align,
-                              verticalAlign: 'top',
-                              textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                              fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-                              borderRight: ci < row.cells.length - 1 ? '1px solid #000' : 'none',
-                              borderBottom: '1px solid #000',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                              wordBreak: c.wrap ? 'break-word' : undefined,
-                              color: c.field ? undefined : '#d4d4d8',
-                            }}>
-                              {display || (c.field ? '' : '—')}
-                            </td>
-                          );
-                        })}
-                        {/* spacer to match + button width */}
-                        <td style={{ width: '48px', borderBottom: '1px solid #000', borderLeft: '1px solid rgba(0,0,0,0.08)' }} />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
+                  const r1 = rows[0];
+                  const r2 = rows.length > 1 ? rows[1] : null;
+                  const rowStyle = pvSceneStyle(sample);
+                  return (
+                    <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
+                      <div className="flex-1 min-w-0 flex flex-col" style={rowStyle}>
+                        <div className="flex w-full min-h-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
+                          {r1.cells.map((c, ci) => {
+                            const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                            const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                            return (
+                              <div key={c.id} style={{
+                                flex: `0 0 ${c.width}%`,
+                                minWidth: 0,
+                                padding: '4px 4px',
+                                borderRight: ci < r1.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                                wordBreak: c.wrap ? 'break-word' : undefined,
+                                textAlign: getAlign(c),
+                                textTransform: c.field === 'set' ? 'uppercase' : 'none',
+                                fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+                              }}>
+                                {display || ''}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex w-full min-h-0">
+                          {r2 ? r2.cells.map((c, ci) => {
+                            const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                            const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                            return (
+                              <div key={c.id} style={{
+                                flex: `0 0 ${c.width}%`,
+                                minWidth: 0,
+                                padding: '4px 4px',
+                                borderRight: ci < r2.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                                wordBreak: c.wrap ? 'break-word' : undefined,
+                                textAlign: getAlign(c),
+                                textTransform: c.field === 'set' ? 'uppercase' : 'none',
+                                fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+                              }}>
+                                {display || ''}
+                              </div>
+                            );
+                          }) : (
+                            <div className="flex-1" style={{ padding: '4px 4px' }}>
+                              {SAMPLE.description || ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
