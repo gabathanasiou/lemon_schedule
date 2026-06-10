@@ -1080,14 +1080,14 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
           }}
         >
             <div className="w-full max-w-4xl mb-6">
-              <div className={`flex items-center gap-4 px-4 py-3 rounded-lg border transition-colors ${textEditingEnabled ? 'bg-zinc-900/80 border-zinc-700' : 'bg-zinc-950/60 border-zinc-800'}`}>
+              <div className="flex items-center gap-4 px-5 py-3 rounded-xl bg-zinc-900 border border-zinc-700/50">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Calendar className="w-4 h-4 text-zinc-500 shrink-0" />
-                  <span className="text-sm font-semibold text-zinc-200 truncate">{activeVersion?.name}</span>
+                  <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <span className="text-sm font-semibold text-white truncate">{activeVersion?.name}</span>
                   <span className="text-zinc-600 select-none">·</span>
-                  <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
+                  <span className="text-xs text-zinc-400 shrink-0">{existingDays.length} days</span>
                   {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
-                    <span className="bg-amber-400/10 text-amber-400 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                    <span className="bg-amber-500/15 text-amber-400 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                       {augmentedRows.filter(r => r.shootDay === -1).length} unscheduled
                     </span>
@@ -1101,8 +1101,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
                     trigger={
                       <button
                         onClick={() => setRibbonMenuOpen(p => !p)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none hover:bg-zinc-800 text-zinc-400 hover:text-white"
-                        style={{ fontSize: '13px' }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                       >
                         <Palette className="w-3.5 h-3.5 shrink-0" />
                         {currentRibbonName}
@@ -1128,8 +1127,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
                   </DropdownMenu>
                   <button 
                     onClick={() => setTextEditingEnabled(p => !p)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none ${textEditingEnabled ? 'bg-zinc-900 text-white border border-zinc-700' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
-                    style={{ fontSize: '13px' }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
                   >
                     <Pencil className="w-3.5 h-3.5 shrink-0" />
                     Edit
