@@ -392,6 +392,25 @@ export const SortableRow: React.FC<{
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
+  const ENTITY_FIELDS = useMemo(() => new Set(['extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept']), []);
+  const entityItemsMap = useMemo(() => {
+    const map: Record<string, { id: string; name: string }[]> = {};
+    for (const field of ENTITY_FIELDS) {
+      const sceneValues = [...new Set(scenes.map(s => ((s as any)[field] as string) || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))] as string[];
+      const stored = state.present.breakdownElements?.[field] || [];
+      const seen = new Set<string>();
+      const items: { id: string; name: string }[] = [];
+      for (const e of stored) {
+        if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
+      }
+      for (const v of sceneValues) {
+        if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
+      }
+      map[field] = items;
+    }
+    return map;
+  }, [scenes, state.present.breakdownElements]);
+
   const renderCellFlex = (cell: import('../types').RibbonCell, isLast: boolean, forDesc?: boolean) => {
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
@@ -411,7 +430,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} positioning="fixed" />
           ) : (
             <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
@@ -423,7 +442,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
+            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} positioning="fixed" />
           ) : (
             <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
           )}
@@ -480,11 +499,7 @@ export const SortableRow: React.FC<{
         <div key={cellId} style={style}>
           <div className="flex items-center gap-px">
             {textEditingEnabled ? (
-              <>
-                {prefix && <span style={{ fontSize: '8pt', lineHeight: 1.1, opacity: 0.6 }}>{prefix}\u00A0</span>}
-                <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
-                {suffix && <span style={{ fontSize: '8pt', lineHeight: 1.1, opacity: 0.6 }}>\u00A0{suffix}</span>}
-              </>
+              <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} style={{ fontSize: '8pt', lineHeight: 1.1 }} />
             ) : (
               <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, ...(!sv ? emptyStyle : {}) }}>{sv ? displayText : fieldLabel}</span>
             )}
@@ -507,10 +522,9 @@ export const SortableRow: React.FC<{
         </div>
       );
     }
-    const ENTITY_FIELDS = new Set(['extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept']);
     if (scene && ENTITY_FIELDS.has(field)) {
       const v = ((scene as any)[field] as string) || '';
-      const entityItems: { id: string; name: string }[] = state.present.breakdownElements?.[field] || [];
+      const entityItems = entityItemsMap[field] || [];
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
