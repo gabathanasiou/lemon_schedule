@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject } from '../store';
-import { ProjectElement } from '../types';
+import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
-import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket } from 'lucide-react';
+import { generateUUID } from '../lib/utils';
+import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot } from 'lucide-react';
 
 const ELEMENT_CATEGORIES = [
   { key: 'cast', label: 'Cast' },
@@ -130,6 +131,9 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   }, [rows, category, saveVersion]);
 
   const [dupDialog, setDupDialog] = useState<{ cats: string[] } | null>(null);
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('Tag');
   const autoMergeRef = useRef(false);
 
   const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
@@ -274,6 +278,32 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     sound: Volume2, music: Music, animals: PawPrint, weapons: Sword, greenery: Leaf, artDept: PaintBucket,
   };
 
+  const CUSTOM_ICON_OPTIONS: { name: string; Icon: React.ElementType }[] = [
+    { name: 'Tag', Icon: Tag },
+    { name: 'Package', Icon: Package },
+    { name: 'Car', Icon: Car },
+    { name: 'Shirt', Icon: Shirt },
+    { name: 'Sword', Icon: Sword },
+    { name: 'Sparkles', Icon: Sparkles },
+    { name: 'Volume1', Icon: Volume1 },
+    { name: 'Music', Icon: Music },
+    { name: 'PawPrint', Icon: PawPrint },
+    { name: 'Leaf', Icon: Leaf },
+    { name: 'PaintBucket', Icon: PaintBucket },
+    { name: 'UserPlus', Icon: UserPlus },
+    { name: 'Video', Icon: Video },
+    { name: 'Scissors', Icon: Scissors },
+    { name: 'Users', Icon: Users },
+    { name: 'Building2', Icon: Building2 },
+    { name: 'Volume2', Icon: Volume2 },
+    { name: 'CircleDot', Icon: CircleDot },
+  ];
+
+  function getCustomIcon(name: string): React.ElementType {
+    const opt = CUSTOM_ICON_OPTIONS.find(o => o.name === name);
+    return opt ? opt.Icon : Tag;
+  }
+
   function countTotal(cat: string): number {
     const r = rowsByCat.current[cat];
     if (r) return r.length;
@@ -308,7 +338,54 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                 </button>
               );
             })}
+            {project.customCategories.length > 0 && (
+              <>
+                <div className="border-b border-zinc-200 my-1.5" />
+                {project.customCategories.map(c => {
+                  const Icon = getCustomIcon(c.icon);
+                  const isActive = c.key === category;
+                  return (
+                    <div key={c.key} className="group relative">
+                      <button
+                        onClick={() => switchCategory(c.key)}
+                        className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
+                          isActive
+                            ? 'bg-zinc-900 text-white font-semibold'
+                            : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
+                        }`}
+                      >
+                        {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />}
+                        <span className="truncate flex-1 italic">{c.label}</span>
+                        <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : 'text-zinc-400'}`}>
+                          {countTotal(c.key)}
+                        </span>
+                      </button>
+                      {!isActive && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete "${c.label}" category? Elements will be moved to Trash.`)) {
+                              dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
+                              if (category === c.key) switchCategory('cast');
+                            }
+                          }}
+                          className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-400" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
+          <button
+            onClick={() => { setShowAddCustom(true); setNewCatName(''); setNewCatIcon('Tag'); }}
+            className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 transition-colors flex items-center gap-2 font-medium"
+          >
+            <Plus className="w-3 h-3 shrink-0" />
+            <span>Add Custom</span>
+          </button>
         </div>
       </aside>
 
@@ -318,7 +395,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
           {/* Top bar card */}
           <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
             <span className="text-xs font-semibold text-zinc-800">
-              {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category}
+              {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || project.customCategories.find(c => c.key === category)?.label || category}
             </span>
             <div className="flex items-center gap-1.5">
               {hasChanges && (
@@ -415,7 +492,64 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
             </div>
           </div>
         )}
+
+        {/* Add Custom Category modal */}
+        {showAddCustom && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowAddCustom(false)}>
+            <div className="bg-white rounded-xl shadow-2xl w-[380px] p-6 space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-zinc-900">Create Custom Category</h3>
+                <button onClick={() => setShowAddCustom(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) createCustomCategory(); }}
+                  autoFocus
+                  className="w-full mt-1 px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  placeholder="e.g. Firearms, Period Vehicles..."
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Icon</label>
+                <div className="mt-1 grid grid-cols-6 gap-1.5">
+                  {CUSTOM_ICON_OPTIONS.map(opt => {
+                    const Icon = opt.Icon;
+                    const selected = newCatIcon === opt.name;
+                    return (
+                      <button
+                        key={opt.name}
+                        onClick={() => setNewCatIcon(opt.name)}
+                        className={`p-2 rounded-md transition-colors flex items-center justify-center ${
+                          selected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button onClick={() => setShowAddCustom(false)} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Cancel</button>
+                <button onClick={createCustomCategory} disabled={!newCatName.trim()} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-40 transition-colors">Create</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
+
+  function createCustomCategory() {
+    if (!newCatName.trim()) return;
+    const slug = newCatName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const key = `_cat_${slug}`;
+    dispatch({ type: 'ADD_CUSTOM_CATEGORY', payload: { key, label: newCatName.trim(), icon: newCatIcon } });
+    setShowAddCustom(false);
+    switchCategory(key);
+  }
 }
