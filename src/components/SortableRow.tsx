@@ -554,7 +554,7 @@ export const SortableRow: React.FC<{
   }, [scenes, state.present.breakdownElements]);
 
   const castItems = useMemo(() => {
-    const sceneValues = [...new Set(scenes.map(s => (s.cast || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim()))))] as string[];
+    const sceneValues = [...new Set(scenes.map(s => s.cast || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))] as string[];
     const stored = state.present.castMembers ?? [];
     const seen = new Set<string>();
     const items: { id: string; name: string }[] = [];

@@ -669,6 +669,7 @@ function reducer(state: State, action: Action): State {
       return applyChange({
         ...state.present,
         ribbonDesigns: [...state.present.ribbonDesigns, newDesign],
+        activeRibbonId: newDesign.id,
       });
     }
 

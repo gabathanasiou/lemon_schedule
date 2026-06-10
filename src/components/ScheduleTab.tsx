@@ -8,9 +8,12 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil } from 'lucide-react';
+import { Pencil, Palette, Check } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
+import DropdownDivider from './DropdownDivider';
 
 export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void }) {
   const { state, dispatch } = useProject();
@@ -27,6 +30,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
+  const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
 
   const handleRowDoubleClick = useCallback((id: string) => {
     if (textEditingEnabled) return;
@@ -1089,10 +1093,42 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none ${textEditingEnabled ? 'bg-zinc-900 text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-white'}`}
                  style={{ fontSize: '13px' }}
               >
-                 <Pencil className="w-3.5 h-3.5 shrink-0" />
-                 Edit Mode
-              </button>
-           </div>
+                  <Pencil className="w-3.5 h-3.5 shrink-0" />
+                  Edit Mode
+               </button>
+               <DropdownMenu
+                 open={ribbonMenuOpen}
+                 onClose={() => setRibbonMenuOpen(false)}
+                 width="w-44"
+                 trigger={
+                   <button
+                     onClick={() => setRibbonMenuOpen(p => !p)}
+                     className="flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors font-sans cursor-pointer select-none hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                     style={{ fontSize: '13px' }}
+                   >
+                     <Palette className="w-3.5 h-3.5 shrink-0" />
+                     Ribbons
+                   </button>
+                 }
+               >
+                 <DropdownItem
+                   onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: '' }); setRibbonMenuOpen(false); }}
+                   icon={!project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+                 >
+                   Default layout
+                 </DropdownItem>
+                 <DropdownDivider />
+                 {project.ribbonDesigns.map(d => (
+                   <DropdownItem
+                     key={d.id}
+                     onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
+                     icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
+                   >
+                     {d.name}
+                   </DropdownItem>
+                 ))}
+               </DropdownMenu>
+            </div>
 
           <div className="w-full max-w-4xl">
                {existingDays.map((dayInt, i) => (
