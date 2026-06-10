@@ -71,7 +71,8 @@ function getAlign(cell?: RibbonCell) {
 export default function RibbonTab() {
   const { state, dispatch } = useProject();
   const project = state.present;
-  const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId);
+  const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
+    || { id: '', name: 'Default', rows: getDefaultRibbonRows(), createdAt: 0 };
 
   const [selId, setSelId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ rowId: string; ci: number; sx: number; a: number; b: number; leftSum: number; rightSum: number; n: number } | null>(null);
@@ -104,7 +105,7 @@ export default function RibbonTab() {
   }, [project.activeRibbonId]);
 
   const saveToStore = useCallback((rows: RibbonRow[]) => {
-    if (!activeDesign) return;
+    if (!activeDesign || !activeDesign.id) return;
     dispatch({ type: 'UPDATE_RIBBON_DESIGN', payload: { id: activeDesign.id, rows: cloneRows(rows) } });
   }, [activeDesign, dispatch]);
 
@@ -368,14 +369,6 @@ export default function RibbonTab() {
   const used = new Set(rows.flatMap(r => r.cells.map(c => c.field)).filter(f => f && f !== 'text'));
   const placed = used.size;
   const total = ALL_FIELDS.length;
-
-  if (!activeDesign) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-500 text-sm">
-        No ribbon design selected.
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>

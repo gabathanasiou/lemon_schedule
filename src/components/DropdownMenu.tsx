@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface DropdownMenuProps {
   open: boolean;
@@ -18,6 +18,7 @@ export default function DropdownMenu({
   children,
 }: DropdownMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [flip, setFlip] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -28,6 +29,16 @@ export default function DropdownMenu({
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open || !menuRef.current) { setFlip(false); return; }
+    const raf = requestAnimationFrame(() => {
+      const rect = menuRef.current?.getBoundingClientRect();
+      if (rect && rect.right > window.innerWidth) setFlip(true);
+      else setFlip(false);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
   return (
     <div className="relative">
       {trigger}
@@ -37,7 +48,8 @@ export default function DropdownMenu({
           <div className="fixed inset-0 z-40" onClick={onClose} />
           <div
             ref={menuRef}
-            className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} top-full mt-2 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''}`}
+            className={`absolute top-full mt-2 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''} ${flip ? 'right-0' : align === 'right' ? 'right-0' : 'left-0'}`}
+            style={flip ? { left: 0, right: 'auto' } : undefined}
           >
             {children}
           </div>

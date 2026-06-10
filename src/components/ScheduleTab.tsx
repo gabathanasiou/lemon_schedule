@@ -426,7 +426,16 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
     requestAnimationFrame(() => {
       const el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`)
         ?? document.querySelector(`#unscheduled_rows_container [data-row-id="${rowId}"]`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!el) return;
+      const container = scheduleScrollRef.current;
+      if (!container) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      const cRect = container.getBoundingClientRect();
+      const eRect = el.getBoundingClientRect();
+      if (eRect.top < cRect.top + 20) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (eRect.bottom > cRect.bottom - 20) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
     });
   };
   const activeDragIdsRef = useRef(activeDragIds);
@@ -1083,7 +1092,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
           }}
         >
             <div className="w-full max-w-4xl mb-6">
-              <div className="flex items-center gap-4 px-5 py-3 bg-black border border-zinc-800">
+              <div className="sticky top-0 z-10 flex items-center gap-4 px-5 py-3 bg-black border-b border-zinc-800">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
                   <span className="text-xs text-zinc-500 shrink-0">Schedule</span>
