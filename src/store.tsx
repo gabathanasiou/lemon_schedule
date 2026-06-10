@@ -197,7 +197,13 @@ function reducer(state: State, action: Action): State {
     }
     return {
       past: [],
-      present: { ...p, breakdownElements: p.breakdownElements || {} },
+      present: {
+        ...p,
+        breakdownElements: p.breakdownElements || {},
+        customCategories: p.customCategories || [],
+        elementsTrash: p.elementsTrash || [],
+        categoryTrash: p.categoryTrash || [],
+      },
       future: [],
     };
   }

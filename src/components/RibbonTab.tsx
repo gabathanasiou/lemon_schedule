@@ -360,7 +360,7 @@ export default function RibbonTab() {
   }, []);
 
   const used = new Set(rows.flatMap(r => r.cells.map(c => c.field)).filter(f => f && f !== 'text'));
-  const customFieldDefs = useMemo(() => getCustomFieldDefs(project.customCategories), [project.customCategories]);
+  const customFieldDefs = useMemo(() => getCustomFieldDefs(project.customCategories || []), [project.customCategories]);
   const allFields = useMemo(() => [...ALL_FIELDS, ...customFieldDefs], [customFieldDefs]);
   const allCategories = useMemo(() => {
     const cats = [...CATEGORIES];

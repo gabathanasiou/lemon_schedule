@@ -32,12 +32,12 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
 
   const allBreakdownCats = useMemo(() => [
     ...BREAKDOWN_CATS,
-    ...project.customCategories.map(c => c.key),
+    ...(project.customCategories || []).map(c => c.key),
   ], [project.customCategories]);
 
   const allBreakdownLabel = useMemo(() => {
     const labels: Record<string, string> = { ...BREAKDOWN_LABEL };
-    for (const c of project.customCategories) labels[c.key] = c.label;
+    for (const c of project.customCategories || []) labels[c.key] = c.label;
     return labels;
   }, [project.customCategories]);
 

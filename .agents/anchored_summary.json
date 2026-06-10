@@ -1,0 +1,48 @@
+{
+  "goal": "Build a polished ribbon editor POC matching PrintSchedule layout — click-driven UX, percentage-based widths, A4 portrait target.",
+  "constraints": [
+    "React + TypeScript + Vite + Tailwind + lucide-react",
+    "100% container-fill percentages; row cells auto-normalize to 100%",
+    "Prefix inline with value, suffix inline with value (same text node — truncates together)",
+    "localStorage persistence with export/import, undo/redo",
+    "Click-to-toggle menus, no hover menus"
+  ],
+  "progress": {
+    "done": [
+      "Percentage-based widths (proportional to 349pt Row 1 → 100%)",
+      "Adjacent-cell resize + Shift-drag push-all-cells resize (Movie Magic style)",
+      "Auto-normalize on add/remove/move/assign",
+      "Cross-row cell drag-and-drop",
+      "Flex layout + spacer-based alignment (left/center/right = spacer-after / both / spacer-before)",
+      "Suffix inline with value (same text node, truncates as one)",
+      "Static Text field with textarea editing",
+      "Floating Change dropdown near selected cell with viewport clamping",
+      "Undo/redo (past/future stacks, 100 limit)",
+      "Design persistence (create/switch/rename/delete/export/import)",
+      "Per-cell wrap, grid toggle (on by default), per-cell alignment",
+      "Insertion drop zones between cells for field/cell drops",
+      "Row 2 spacer auto-syncs with Row 1 first 3 cells",
+      "4pt horizontal cell padding (comfort vs 1pt print)",
+      "All fields left-aligned except Scene # (center)",
+      "Toolbar outside white card; cards for designer & preview",
+      "+ button absolute at right edge; flex has paddingRight:48 for + zone"
+    ],
+    "in_progress": [],
+    "blocked": []
+  },
+  "key_decisions": [
+    "Percentages over fixed pt — row fills container, resize adjusts adjacent (normal) or all-right (Shift)",
+    "Flex layout over inline-block — enables percentage widths",
+    "Alignment via spacer repositioning not justifyContent",
+    "Suffix inline with value (not separate flex item) — prevents overlap",
+    "NormalizeCells keeps rows at 100% after mutations"
+  ],
+  "next_steps": ["Ready for main app integration"],
+  "critical_context": [
+    "../ribbon_editor/src/App.tsx — single-file POC",
+    "Row 1: Scene#4.30 Call5.73 Dur8.60 I/E9.74 Set34.38 D/N11.46 Cast16.05 Pages9.74 = 100%",
+    "Row 2: spacer18.54 + desc81.46 (auto-syncs)",
+    "26 built-in fields + ALL_FIELDS.push() extensible",
+    "formatDuration() matches main app (minutes → '2h 30m')"
+  ]
+}

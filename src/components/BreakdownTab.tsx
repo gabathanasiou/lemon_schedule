@@ -46,12 +46,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   const allBreakdownCategories = useMemo(() => [
     ...BREAKDOWN_CATEGORIES,
-    ...project.customCategories.map(c => c.key),
+    ...(project.customCategories || []).map(c => c.key),
   ], [project.customCategories]);
 
   const allBreakdownLabels = useMemo(() => {
     const labels: Record<string, string> = { ...BREAKDOWN_LABELS };
-    for (const c of project.customCategories) labels[c.key] = c.label;
+    for (const c of project.customCategories || []) labels[c.key] = c.label;
     return labels;
   }, [project.customCategories]);
 
