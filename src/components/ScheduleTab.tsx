@@ -225,7 +225,9 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
     if ((selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) || selectedId.startsWith('empty-')) {
       e.preventDefault();
       setFocusedRowId(selectedId);
-      const selector = `[data-row-id="${selectedId}"] input[data-col="duration"]`;
+      const rowType = selectedRow?.type;
+      const colSelector = (rowType === 'NOTE' || rowType === 'BREAK') ? 'text' : 'duration';
+      const selector = `[data-row-id="${selectedId}"] [data-col="${colSelector}"]`;
       const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
       input?.focus();
       input?.select();

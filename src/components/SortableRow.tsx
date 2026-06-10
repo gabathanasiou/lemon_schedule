@@ -124,35 +124,68 @@ export const SortableRow: React.FC<{
     if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
+      const cells = ribbon[0].cells;
+      const nonSpecial = cells
+        .map((c, i) => ({i, w: c.width, f: c.field}))
+        .filter(x => x.f !== 'duration' && x.f !== 'callTime');
+      const mainCellIdx = nonSpecial.length > 0
+        ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
+        : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+
       return (
         <div {...commonProps}>
-          <div className="flex items-stretch min-w-0 relative" style={noteStyle}>
-            {ribbon[0].cells.map((cell) => {
-              let content = '';
+          <div className="flex items-stretch min-w-0" style={noteStyle}>
+            {cells.map((cell, ci) => {
+              const wrapCell = ci === mainCellIdx;
               const cellStyle: React.CSSProperties = {
                 flex: `0 0 ${cell.width}%`,
-                textAlign: cell.align || 'left',
+                textAlign: wrapCell ? 'center' : cell.align || 'left',
                 padding: '12px 4px',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
+                overflow: wrapCell ? 'visible' : 'hidden',
+                whiteSpace: wrapCell ? 'normal' : 'nowrap',
+                textOverflow: wrapCell ? undefined : 'ellipsis',
+                wordBreak: wrapCell ? 'break-word' : undefined,
                 fontSize: '8pt',
                 lineHeight: 1.1,
                 fontFamily: 'Helvetica, sans-serif',
                 borderRight: '1px solid rgba(0,0,0,0.12)',
               };
+              if (wrapCell) {
+                return (
+                  <div key={cell.id} style={cellStyle}>
+                    <CellInput
+                      value={row.noteText || ''}
+                      onChange={val => updateRow({noteText: val.toUpperCase()})}
+                      className={`${inputClass} text-center`}
+                      placeholder="Enter note here..."
+                      multiline
+                      autoFocus={focusedRowId === row.id}
+                      col="text"
+                    />
+                  </div>
+                );
+              }
+              if (cell.field === 'duration') {
+                return (
+                  <div key={cell.id} style={cellStyle}>
+                    <CellInput
+                      value={row.estimatedDuration === 0 || !row.estimatedDuration ? '' : formatDuration(row.estimatedDuration || 0)}
+                      onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+                      clearOnType
+                      col="duration"
+                      className={`${inputClass} ${cell.align === 'center' ? 'text-center' : cell.align === 'right' ? 'text-right' : 'text-left'}`}
+                      navigateOnEnter={false}
+                      onRowNavigate={onRowNavigate}
+                    />
+                  </div>
+                );
+              }
               if (cell.field === 'callTime') {
                 const v = row.computedCallTime || '';
-                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
-              } else if (cell.field === 'duration') {
-                const v = row.estimatedDuration ? formatDuration(row.estimatedDuration) : '';
-                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+                return <div key={cell.id} style={cellStyle}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
-              return <div key={cell.id} style={cellStyle}>{content}</div>;
+              return <div key={cell.id} style={cellStyle} />;
             })}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ fontSize: '8pt', lineHeight: 1.1 }}>
-              {row.noteText || ''}
-            </div>
           </div>
         </div>
       );
@@ -188,6 +221,7 @@ export const SortableRow: React.FC<{
                         className={`${inputClass} text-center`}
                         placeholder="Enter note here..."
                         multiline
+                        col="text"
                       />
                     </td>
                     <td className="col-dn" />
@@ -203,6 +237,7 @@ export const SortableRow: React.FC<{
                       placeholder="Enter note here..."
                       multiline
                       autoFocus={focusedRowId === row.id}
+                      col="text"
                     />
                   </td>
                 )}
@@ -219,35 +254,68 @@ export const SortableRow: React.FC<{
     if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
+      const cells = ribbon[0].cells;
+      const nonSpecial = cells
+        .map((c, i) => ({i, w: c.width, f: c.field}))
+        .filter(x => x.f !== 'duration' && x.f !== 'callTime');
+      const mainCellIdx = nonSpecial.length > 0
+        ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
+        : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+
       return (
         <div {...commonProps}>
-          <div className="flex items-stretch min-w-0 relative" style={breakStyle}>
-            {ribbon[0].cells.map((cell) => {
-              let content = '';
+          <div className="flex items-stretch min-w-0" style={breakStyle}>
+            {cells.map((cell, ci) => {
+              const wrapCell = ci === mainCellIdx;
               const cellStyle: React.CSSProperties = {
                 flex: `0 0 ${cell.width}%`,
-                textAlign: cell.align || 'left',
+                textAlign: wrapCell ? 'center' : cell.align || 'left',
                 padding: '12px 4px',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
+                overflow: wrapCell ? 'visible' : 'hidden',
+                whiteSpace: wrapCell ? 'normal' : 'nowrap',
+                textOverflow: wrapCell ? undefined : 'ellipsis',
+                wordBreak: wrapCell ? 'break-word' : undefined,
                 fontSize: '8pt',
                 lineHeight: 1.1,
                 fontFamily: 'Helvetica, sans-serif',
                 borderRight: '1px solid rgba(0,0,0,0.12)',
               };
+              if (wrapCell) {
+                return (
+                  <div key={cell.id} style={cellStyle}>
+                    <CellInput
+                      value={row.breakLabel || ''}
+                      onChange={val => updateRow({breakLabel: val.toUpperCase()})}
+                      className={`${inputClass} text-center`}
+                      placeholder="ENTER BREAK TEXT"
+                      multiline
+                      autoFocus={focusedRowId === row.id}
+                      col="text"
+                    />
+                  </div>
+                );
+              }
+              if (cell.field === 'duration') {
+                return (
+                  <div key={cell.id} style={cellStyle}>
+                    <CellInput
+                      value={formatDuration(row.breakDuration || 0)}
+                      onChange={val => updateRow({breakDuration: parseDuration(val)})}
+                      clearOnType
+                      col="duration"
+                      className={`${inputClass} ${cell.align === 'center' ? 'text-center' : cell.align === 'right' ? 'text-right' : 'text-left'}`}
+                      navigateOnEnter={false}
+                      onRowNavigate={onRowNavigate}
+                    />
+                  </div>
+                );
+              }
               if (cell.field === 'callTime') {
                 const v = row.computedCallTime || '';
-                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
-              } else if (cell.field === 'duration') {
-                const v = row.breakDuration ? formatDuration(row.breakDuration) : '';
-                content = v ? fmt(cell.prefix, v, cell.suffix) : '';
+                return <div key={cell.id} style={cellStyle}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
-              return <div key={cell.id} style={cellStyle}>{content}</div>;
+              return <div key={cell.id} style={cellStyle} />;
             })}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ fontSize: '8pt', lineHeight: 1.1 }}>
-              {row.breakLabel || 'BREAK'}
-            </div>
           </div>
         </div>
       );
@@ -282,6 +350,7 @@ export const SortableRow: React.FC<{
                         onChange={val => updateRow({breakLabel: val.toUpperCase()})}
                         className={`${inputClass} text-center`}
                         placeholder="ENTER BREAK TEXT"
+                        col="text"
                       />
                     </td>
                     <td className="col-dn" />
@@ -296,6 +365,7 @@ export const SortableRow: React.FC<{
                       className={inputClass}
                       placeholder="ENTER BREAK TEXT"
                       autoFocus={focusedRowId === row.id}
+                      col="text"
                     />
                   </td>
                 )}

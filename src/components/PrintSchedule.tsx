@@ -132,6 +132,14 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   }
 
   const cells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
+  const mainCellIdx = cells ? (() => {
+    const nonSpecial = cells
+      .map((c, i) => ({i, w: c.width, f: c.field}))
+      .filter(x => x.f !== 'duration' && x.f !== 'callTime');
+    return nonSpecial.length > 0
+      ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
+      : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+  })() : null;
 
   const cellPrintStyle = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
@@ -180,8 +188,30 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', position: 'relative', background: noteBg, color: noteFg }}>
-                    {cells.map((cell) => {
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', background: noteBg, color: noteFg }}>
+                    {cells.map((cell, ci) => {
+                      const wrapCell = ci === mainCellIdx;
+                      if (wrapCell) {
+                        return (
+                          <div key={cell.id} style={{
+                            flex: `0 0 ${cell.width}%`,
+                            textAlign: 'center',
+                            padding: '12pt 4pt',
+                            overflow: 'visible',
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            fontSize: '8pt',
+                            lineHeight: 1.1,
+                            fontFamily: 'Helvetica, sans-serif',
+                            borderRight: '1px solid rgba(0,0,0,0.12)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                            {r.noteText || ''}
+                          </div>
+                        );
+                      }
                       let content = '';
                       if (cell.field === 'callTime') {
                         const v = r.computedCallTime || '';
@@ -207,9 +237,6 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         </div>
                       );
                     })}
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', lineHeight: 1.1 }}>
-                      {r.noteText || ''}
-                    </div>
                   </div>
                 );
               }
@@ -236,8 +263,30 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             if (r.type === 'BREAK') {
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', position: 'relative', background: '#591b1b', color: '#ffffff' }}>
-                    {cells.map((cell) => {
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', background: '#591b1b', color: '#ffffff' }}>
+                    {cells.map((cell, ci) => {
+                      const wrapCell = ci === mainCellIdx;
+                      if (wrapCell) {
+                        return (
+                          <div key={cell.id} style={{
+                            flex: `0 0 ${cell.width}%`,
+                            textAlign: 'center',
+                            padding: '12pt 4pt',
+                            overflow: 'visible',
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            fontSize: '8pt',
+                            lineHeight: 1.1,
+                            fontFamily: 'Helvetica, sans-serif',
+                            borderRight: '1px solid rgba(0,0,0,0.12)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                            {r.breakLabel || 'BREAK'}
+                          </div>
+                        );
+                      }
                       let content = '';
                       if (cell.field === 'callTime') {
                         const v = r.computedCallTime || '';
@@ -263,9 +312,6 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         </div>
                       );
                     })}
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8pt', lineHeight: 1.1 }}>
-                      {r.breakLabel || 'BREAK'}
-                    </div>
                   </div>
                 );
               }
