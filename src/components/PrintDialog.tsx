@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useProject } from '../store';
 import { X } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
+import { getFieldValueFromSample } from '../lib/ribbonUtils';
 
 function formatDayDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -124,8 +125,53 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                 <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
                 <span className="text-sm text-zinc-700 font-medium">Include hold / travel / holiday days</span>
               </label>
+              </div>
+              {selectedRibbonId ? (() => {
+                const design = project.ribbonDesigns?.find(d => d.id === selectedRibbonId);
+                if (!design) return null;
+                const rows = design.rows;
+                const previewSamples = [
+                  { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' },
+                  { sceneNumber: '12', intExt: 'EXT', set: 'PARK', dayNight: 'NIGHT', cast: '3, 5', pageCount: '1 1/4', description: 'Mary walks alone.' },
+                ];
+                return (
+                  <div className="mt-3 border border-zinc-300 rounded overflow-hidden" style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', lineHeight: 1.1 }}>
+                    {previewSamples.map((sample, si) => (
+                      <div key={si} className="flex" style={{ borderBottom: si < previewSamples.length - 1 ? '1px solid #000' : 'none', background: '#ffffff' }}>
+                        <div className="flex-1 flex flex-col min-w-0">
+                          {rows.map((row, ri) => (
+                            <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
+                              {row.cells.map((c, ci) => {
+                                const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                                const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                                return (
+                                  <div key={c.id} style={{
+                                    flex: `0 0 ${c.width}%`,
+                                    minWidth: 0,
+                                    padding: '3px 3px',
+                                    borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                                    textAlign: c.align || 'left',
+                                    textTransform: c.field === 'set' ? 'uppercase' : 'none',
+                                    fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+                                  }}>
+                                    {display || ''}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })() : (
+                <div className="mt-3 text-[9px] text-zinc-500 italic text-center py-2 border border-dashed border-zinc-300 rounded">Default layout — standard stripboard columns</div>
+              )}
             </div>
-          </div>
 
           {project.ribbonDesigns && project.ribbonDesigns.length > 0 && (
             <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">

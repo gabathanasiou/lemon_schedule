@@ -435,7 +435,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -447,7 +447,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -459,7 +459,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} className="text-left w-full uppercase" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -471,7 +471,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({cast: val})} className="text-left w-full text-xs" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -521,7 +521,7 @@ export const SortableRow: React.FC<{
     if (field === 'callTime') {
       return (
         <div key={cellId} style={style}>
-          <span style={{ fontSize: '8pt', lineHeight: 1.1 }}>{val}</span>
+          <span style={{ fontSize: '8pt', lineHeight: 1.1 }}>{fmt(prefix, val, suffix)}</span>
         </div>
       );
     }
@@ -533,7 +533,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v || fieldLabel}</span>
+            <span style={{ fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );

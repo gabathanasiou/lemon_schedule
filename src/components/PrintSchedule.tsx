@@ -133,11 +133,11 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const cells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
   const nCells = cells ? cells.length : 8;
 
-  const cellPrintStyle = (cell: import('../types').RibbonCell, bgColor: string, isLast?: boolean, isDesc?: boolean): React.CSSProperties => ({
+  const cellPrintStyle = (cell: import('../types').RibbonCell, bgColor: string, isLast?: boolean): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     textAlign: cell.align || 'left',
-    padding: isDesc ? '0 1pt 3pt 1pt' : '3pt 1pt',
+    padding: '4pt 4pt',
     verticalAlign: 'top',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -145,14 +145,17 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+    fontSize: '8pt',
+    lineHeight: 1.1,
+    fontFamily: 'Helvetica, Arial, sans-serif',
     borderRight: isLast ? '1px solid #000' : `1px solid ${bgColor}`,
   });
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
-  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, isLast?: boolean, bgColor?: string) => {
-    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: 0 });
+  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLast?: boolean, bgColor?: string) => {
+    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
     return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast)}>{display || ''}</div>;
   };
@@ -160,12 +163,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene, isLast?: boolean, bgColor?: string) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, scene);
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast, true)}>{display || ''}</div>;
+    return <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast)}>{display || ''}</div>;
   };
-
-  const renderEmptyCellFlex = (cell: import('../types').RibbonCell, isLast?: boolean, isDesc?: boolean, bgColor?: string) => (
-    <div key={cell.id} style={cellPrintStyle(cell, bgColor || '#ffffff', isLast, isDesc)} />
-  );
 
   return (
     <div className="print-day">
@@ -181,15 +180,11 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               const noteBg = (r as any).noteColor || '#591b1b';
               const noteFg = (r as any).noteTextColor || '#ffffff';
               if (cells) {
-                const n = cells.length;
                 return (
                   <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: noteBg, color: noteFg }}>
-                    <div style={{ display: 'flex', background: noteBg, color: noteFg, minHeight: 0 }}>
-                      {cells.map((c, ci) => (
-                        <div key={c.id} style={{ flex: `0 0 ${c.width}%`, minWidth: 0, textAlign: 'center', padding: '9pt 1pt', borderRight: ci === n - 1 ? '1px solid #000' : `1px solid ${noteBg}`, overflow: 'hidden', whiteSpace: c.wrap ? 'normal' : 'nowrap' }}>
-                          {r.noteText || ''}
-                        </div>
-                      ))}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: noteBg, color: noteFg, padding: '14pt 4pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, Arial, sans-serif' }}>
+                      {r.computedCallTime && <span style={{ marginRight: '8pt', opacity: 0.8 }}>{r.computedCallTime}</span>}
+                      <span>{r.noteText || ''}</span>
                     </div>
                   </div>
                 );
@@ -215,15 +210,11 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             }
             if (r.type === 'BREAK') {
               if (cells) {
-                const n = cells.length;
                 return (
                   <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: '#591b1b', color: '#ffffff' }}>
-                    <div style={{ display: 'flex', background: '#591b1b', color: '#ffffff', minHeight: 0 }}>
-                      {cells.map((c, ci) => (
-                        <div key={c.id} style={{ flex: `0 0 ${c.width}%`, minWidth: 0, textAlign: 'center', padding: '9pt 1pt', borderRight: ci === n - 1 ? '1px solid #000' : `1px solid #591b1b`, overflow: 'hidden', whiteSpace: c.wrap ? 'normal' : 'nowrap' }}>
-                          {r.breakLabel || 'BREAK'}
-                        </div>
-                      ))}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#591b1b', color: '#ffffff', padding: '14pt 4pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, Arial, sans-serif' }}>
+                      {r.computedCallTime && <span style={{ marginRight: '8pt', opacity: 0.8 }}>{r.computedCallTime}</span>}
+                      <span style={{ fontWeight: 700 }}>{r.breakLabel || 'BREAK'}</span>
                     </div>
                   </div>
                 );
@@ -258,7 +249,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                   {(ribbon || []).map((row, ri) => (
                     <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
                       {ri === 0
-                        ? row.cells.map((c, ci) => renderSceneCellFlex(c, scene, r.computedCallTime, ci === row.cells.length - 1, bgColor))
+                        ? row.cells.map((c, ci) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration, ci === row.cells.length - 1, bgColor))
                         : row.cells.map((c, ci) => renderSceneDescCellFlex(c, scene, ci === row.cells.length - 1, bgColor))}
                     </div>
                   ))}

@@ -370,7 +370,7 @@ export default function RibbonTab() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const { clearCell: clear, undo: un, redo: rd } = actRef.current;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selIdRef.current && !changeOpenRef.current) { e.preventDefault(); clear(selIdRef.current); return; }
+      if (e.key === 'Delete' && selIdRef.current && !changeOpenRef.current) { e.preventDefault(); clear(selIdRef.current); return; }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!selIdRef.current) return;
         e.preventDefault();
@@ -841,62 +841,35 @@ export default function RibbonTab() {
                 fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', lineHeight: '1.1', border: '2px solid #000',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
-                  const r1 = rows[0];
-                  const r2 = rows.length > 1 ? rows[1] : null;
                   const rowStyle = pvSceneStyle(sample);
                   return (
                     <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                       <div className="flex-1 min-w-0 flex flex-col" style={rowStyle}>
-                        <div className="flex w-full min-h-0" style={{ borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-                          {r1.cells.map((c, ci) => {
-                            const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                            const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
-                            return (
-                              <div key={c.id} style={{
-                                flex: `0 0 ${c.width}%`,
-                                minWidth: 0,
-                                padding: '4px 4px',
-                                borderRight: ci < r1.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                                wordBreak: c.wrap ? 'break-word' : undefined,
-                                textAlign: getAlign(c),
-                                textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                                fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-                              }}>
-                                {display || ''}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="flex w-full min-h-0">
-                          {r2 ? r2.cells.map((c, ci) => {
-                            const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                            const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
-                            return (
-                              <div key={c.id} style={{
-                                flex: `0 0 ${c.width}%`,
-                                minWidth: 0,
-                                padding: '4px 4px',
-                                borderRight: ci < r2.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                                wordBreak: c.wrap ? 'break-word' : undefined,
-                                textAlign: getAlign(c),
-                                textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                                fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-                              }}>
-                                {display || ''}
-                              </div>
-                            );
-                          }) : (
-                            <div className="flex-1" style={{ padding: '4px 4px' }}>
-                              {SAMPLE.description || ''}
-                            </div>
-                          )}
-                        </div>
+                        {rows.map((row, ri) => (
+                          <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
+                            {row.cells.map((c, ci) => {
+                              const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                              const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                              return (
+                                <div key={c.id} style={{
+                                  flex: `0 0 ${c.width}%`,
+                                  minWidth: 0,
+                                  padding: '4px 4px',
+                                  borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                                  wordBreak: c.wrap ? 'break-word' : undefined,
+                                  textAlign: getAlign(c),
+                                  textTransform: c.field === 'set' ? 'uppercase' : 'none',
+                                  fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+                                }}>
+                                  {display || ''}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );

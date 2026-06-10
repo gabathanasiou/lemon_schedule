@@ -12,9 +12,9 @@ export interface FieldDef {
 }
 
 export const ALL_FIELDS: FieldDef[] = [
-  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 4.30, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
-  { key: 'callTime',    label: 'Call Time',  defaultWidth: 5.73, align: 'left',   category: 'Shooting' },
-  { key: 'duration',    label: 'Duration',   defaultWidth: 8.60, align: 'left',   category: 'Shooting', defaultPrefix: 'Dur' },
+  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 6, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
+  { key: 'callTime',    label: 'Call Time',  defaultWidth: 7, align: 'left',   category: 'Shooting' },
+  { key: 'duration',    label: 'Duration',   defaultWidth: 9.5, align: 'left',   category: 'Shooting' },
   { key: 'intExt',      label: 'I/E',        defaultWidth: 9.74, align: 'left',   category: 'Shooting' },
   { key: 'set',         label: 'Set',        defaultWidth: 34.38,align: 'left',   category: 'Shooting' },
   { key: 'dayNight',    label: 'D/N',        defaultWidth: 11.46,align: 'left',   category: 'Shooting' },
@@ -92,7 +92,7 @@ export function getFieldValue(field: string, scene: Record<string, any>): string
   if (!field || !scene) return '';
   if (field === 'duration') {
     const v = scene.estimatedDuration;
-    return v ? formatDuration(v) : '';
+    return v === 0 ? '↑' : v ? formatDuration(v) : '';
   }
   if (field === 'callTime') {
     return scene.computedCallTime || '';
