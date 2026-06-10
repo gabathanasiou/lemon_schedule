@@ -493,6 +493,8 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
 
   if (!activeVersion) return <div>No active version</div>;
 
+  const activeRibbon = project.ribbonDesigns.find(d => d.id === (project.activeRibbonId || ''))?.rows;
+
   const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
   const missingScenesInRows = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
   
@@ -1060,7 +1062,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
               }
           }}
       >
-         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onCollapseChange={handleCollapseChange} />
+         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -1101,7 +1103,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
            </div>
 
           <div className="w-full max-w-4xl">
-              {existingDays.map((dayInt, i) => (
+               {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 
                   dayInt={dayInt} 
@@ -1119,6 +1121,7 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
                    onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
+                   ribbon={activeRibbon}
                  />
               ))}
           </div>
@@ -1137,12 +1140,12 @@ export function ScheduleTab({ onOpenScene }: { onOpenScene?: (sceneId: string) =
               const opacity = isTop ? 1 : 1 - (arr.length - 1 - i) * 0.2;
               return (
                 <div key={id} style={{ position: isTop ? 'relative' : 'absolute', top: offset, left: 0, right: 0, opacity, zIndex: isTop ? 10 : 5 - i }}>
-                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} />
+                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} />
                 </div>
               );
             })}
             {activeDragIds.size === 1 && activeDragIds.has(activeId as string) && (
-              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} />
+              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} />
             )}
             {activeDragIds.size > 1 && (
                <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white z-20">

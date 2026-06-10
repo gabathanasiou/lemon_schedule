@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Scene, ScheduleRow } from '../types';
+import { Scene, ScheduleRow, RibbonRow } from '../types';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableRow } from './SortableRow';
@@ -29,7 +29,8 @@ export const UnscheduledBlock: React.FC<{
   activeRowId?: string | null,
   onRowNavigate?: (rowId: string) => void,
   onCollapseChange?: (collapsed: boolean) => void,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange }) => {
+  ribbon?: RibbonRow[],
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -290,7 +291,7 @@ export const UnscheduledBlock: React.FC<{
               {rows.map((r, i, arr) => (
                 <React.Fragment key={r.id}>
                   {showGhosts && insertBeforeId === r.id && (
-                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} ribbon={ribbon} />
                   )}
                   <SortableRow 
                     row={r}
@@ -301,6 +302,7 @@ export const UnscheduledBlock: React.FC<{
                     onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                     textEditingEnabled={textEditingEnabled}
                     onRowNavigate={onRowNavigate}
+                    ribbon={ribbon}
                   />
                 </React.Fragment>
               ))}

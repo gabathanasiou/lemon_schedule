@@ -7,7 +7,8 @@ import { SortableRow } from './SortableRow';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { Trash2, Flag } from 'lucide-react';
-import { ScheduleRow, ShootDayMeta, Scene } from '../types';
+import { ScheduleRow, ShootDayMeta, Scene, RibbonRow } from '../types';
+import { getFieldValue } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
 
 function formatDateLong(dateStr: string): string {
@@ -37,7 +38,7 @@ const sceneCardClass = (scene?: Scene | null): string => {
   return 'bg-white text-zinc-900';
 };
 
-const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean }> = ({ row, scenes, compact }) => {
+const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[] }> = ({ row, scenes, compact, ribbon }) => {
   const h = compact ? 'min-h-[30px]' : 'min-h-[44px]';
   const sz = compact ? 'text-[7pt]' : '';
   if (row.type === 'NOTE') {
@@ -59,32 +60,53 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   }
 
   const scene = scenes.find(s => s.id === row.sceneId);
+  if (!scene) return null;
+
+  if (ribbon && ribbon.length > 0 && ribbon[0].cells.length > 0) {
+    const cells = ribbon[0].cells;
+    return (
+      <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz} ${sceneCardClass(scene)}`}
+        style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
+        {cells.map(c => {
+          const val = c.field === 'text' ? (c.textContent || '') : getFieldValue(c.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
+          const display = `${c.prefix || ''}${val}${c.suffix || ''}`;
+          return (
+            <div key={c.id} style={{
+              flex: `0 0 ${c.width}%`, minWidth: 0, padding: compact ? '2pt 1pt' : '3pt 1pt',
+              borderRight: '1px solid rgba(0,0,0,0.15)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+              textAlign: c.align || 'left',
+              fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+            }}>
+              {display || ''}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz} ${sceneCardClass(scene)}`}>
-      {scene && (
-        <>
-          <div className={`flex items-center justify-center shrink-0 px-1 border-r border-black/10 ${compact ? 'w-[30px]' : 'w-[50px]'}`}>{scene.sceneNumber}</div>
-          <div className="flex-1 flex items-center px-3 gap-1 min-w-0">
-            <span className="uppercase shrink-0">{scene.intExt}.</span>
-            <span className="uppercase truncate">{scene.set}</span>
-            <span className="opacity-50 shrink-0">-</span>
-            <span className="uppercase shrink-0">{scene.dayNight}</span>
-          </div>
-        </>
-      )}
+      <div className={`flex items-center justify-center shrink-0 px-1 border-r border-black/10 ${compact ? 'w-[30px]' : 'w-[50px]'}`}>{scene.sceneNumber}</div>
+      <div className="flex-1 flex items-center px-3 gap-1 min-w-0">
+        <span className="uppercase shrink-0">{scene.intExt}.</span>
+        <span className="uppercase truncate">{scene.set}</span>
+        <span className="opacity-50 shrink-0">-</span>
+        <span className="uppercase shrink-0">{scene.dayNight}</span>
+      </div>
     </div>
   );
 };
 
-export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> = ({ rows, scenes }) => {
+export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; ribbon?: RibbonRow[] }> = ({ rows, scenes, ribbon }) => {
   if (rows.length === 0) return null;
-  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} />;
+  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} ribbon={ribbon} />;
   const maxShow = Math.min(rows.length, 5);
   const rest = rows.length - maxShow;
   return (
     <div className="flex flex-col shrink-0">
       {rows.slice(0, maxShow).map((r, i) => (
-        <GhostCard key={r.id} row={r} scenes={scenes} compact />
+        <GhostCard key={r.id} row={r} scenes={scenes} compact ribbon={ribbon} />
       ))}
       {rest > 0 && (
         <div className="opacity-30 flex items-center justify-center min-h-[30px] bg-zinc-100 text-zinc-500 text-[10px] font-bold border-b shrink-0">
@@ -95,7 +117,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[] }> =
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[] }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon }) => {
   const displayDay = chronoDay ?? dayInt;
   const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;
@@ -266,14 +288,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
         )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {computedRows.map((r) => {
             return (
               <React.Fragment key={r.id}>
                 {showGhosts && insertBeforeId === r.id && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
                 )}
                 <SortableRow 
                   row={r} 
@@ -286,6 +308,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   focusedRowId={focusedRowId}
                   onDoubleClick={onRowDoubleClick}
                   onRowNavigate={onRowNavigate}
+                  ribbon={ribbon}
                 />
               </React.Fragment>
             );
@@ -303,7 +326,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       {/* Day Footer */}
       <>
         {showGhosts && insertBeforeId === `end-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} />
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
         )}
         <div ref={setFooterRef} className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
           style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>

@@ -23,6 +23,7 @@ export interface PrintOptions {
   showPageNumbers: boolean;
   selectedDays: number[];
   includeStatusDays: boolean;
+  selectedRibbonId?: string;
 }
 
 export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: PrintOptions) => void; onClose: () => void }) {
@@ -35,6 +36,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const [showExportDate, setShowExportDate] = useState(true);
   const [showPageNumbers, setShowPageNumbers] = useState(true);
   const [includeStatusDays, setIncludeStatusDays] = useState(true);
+  const [selectedRibbonId, setSelectedRibbonId] = useState<string>(project.activeRibbonId || '');
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
@@ -125,6 +127,24 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             </div>
           </div>
 
+          {project.ribbonDesigns && project.ribbonDesigns.length > 0 && (
+            <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">
+              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-2">Ribbon Layout</h3>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setSelectedRibbonId('')}
+                  className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${selectedRibbonId === '' ? 'bg-blue-100 border-blue-400 text-blue-700 font-medium' : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100'}`}>
+                  Default
+                </button>
+                {project.ribbonDesigns.map(d => (
+                  <button key={d.id} onClick={() => setSelectedRibbonId(d.id)}
+                    className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${selectedRibbonId === d.id ? 'bg-blue-100 border-blue-400 text-blue-700 font-medium' : 'bg-white border-zinc-300 text-zinc-600 hover:bg-zinc-100'}`}>
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">Days to Print</h3>
@@ -166,6 +186,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               showPageNumbers,
               includeStatusDays,
               selectedDays: [...selectedDays].sort((a: number, b: number) => a - b),
+              selectedRibbonId,
             })}
             disabled={selectedDays.size === 0}
             className="px-6 py-2 bg-zinc-900 text-white text-sm font-bold rounded-lg hover:bg-zinc-800 transition-colors shadow-lg shadow-black/10 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"

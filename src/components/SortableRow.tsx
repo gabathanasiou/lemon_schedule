@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow } from '../types';
+import { Scene, ScheduleRow, RibbonRow } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP } from '../lib/ribbonUtils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
@@ -48,7 +49,8 @@ export const SortableRow: React.FC<{
   focusedRowId?: string | null,
   onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate }) => {
+  ribbon?: RibbonRow[],
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -230,10 +232,186 @@ export const SortableRow: React.FC<{
     );
   }
 
+  const renderCellContent = (cell: import('../types').RibbonCell) => {
+    const { field, width: cellWidth, align, prefix, suffix, wrap, id: cellId } = cell;
+    const a = align || 'left';
+    if (!field) {
+      return <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000', borderRight: '1px solid #000' }} />;
+    }
+    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
+    const displayText = `${prefix || ''}${val}${suffix || ''}`;
+
+    if (field === 'intExt') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <SelectDropdown
+            value={scene!.intExt}
+            onChange={val => updateScene({intExt: val as any})}
+            options={['INT', 'EXT', 'INT/EXT']}
+            className="text-left w-full"
+            readOnly={!textEditingEnabled}
+            style={{ fontSize: '8pt', lineHeight: 1.1 }}
+          />
+        </td>
+      );
+    }
+    if (field === 'dayNight') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <SelectDropdown
+            value={scene!.dayNight}
+            onChange={val => updateScene({dayNight: val as any})}
+            options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']}
+            className="text-left w-full"
+            readOnly={!textEditingEnabled}
+            style={{ fontSize: '8pt', lineHeight: 1.1 }}
+          />
+        </td>
+      );
+    }
+    if (field === 'set') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <AutocompleteDropdown
+            value={scene!.set}
+            onChange={val => updateScene({set: val})}
+            options={setOptions}
+            className="text-left w-full"
+            readOnly={!textEditingEnabled}
+          />
+        </td>
+      );
+    }
+    if (field === 'cast') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <EntityDropdown
+            value={scene!.cast}
+            onChange={val => updateScene({cast: val})}
+            className="text-left w-full text-xs"
+            readOnly={!textEditingEnabled}
+            mode="multi"
+            positioning="fixed"
+            placeholder="Cast"
+            displayMode="id"
+            renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
+          />
+        </td>
+      );
+    }
+    if (field === 'pageCount') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          {textEditingEnabled ? (
+            <CellInput
+              value={scene!.pageCount}
+              suffix="pgs"
+              onChange={val => {
+                const decimal = parsePageCount(val);
+                updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
+              }}
+              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+              readOnly={!textEditingEnabled}
+              style={{ fontSize: '8pt', lineHeight: 1.1 }}
+            />
+          ) : (
+            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+              {prefix}{val}{suffix || ' pgs'}
+            </span>
+          )}
+        </td>
+      );
+    }
+    if (field === 'duration') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <CellInput
+            value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
+            onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+            clearOnType
+            col="duration"
+            className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+            navigateOnEnter={false}
+            autoFocus={focusedRowId === row.id}
+            onRowNavigate={onRowNavigate}
+          />
+        </td>
+      );
+    }
+    if (field === 'sceneNumber') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, fontWeight: 700, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <div className="flex items-center gap-px">
+            <CellInput
+              value={scene!.sceneNumber}
+              onChange={val => updateScene({sceneNumber: val})}
+              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+              readOnly={!textEditingEnabled}
+              style={{ fontSize: '8pt', lineHeight: 1.1 }}
+            />
+            {violationBadge}
+          </div>
+        </td>
+      );
+    }
+    if (field === 'text') {
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+          <span style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
+        </td>
+      );
+    }
+    // Generic text field (description, notes, props, etc.)
+    return (
+      <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <CellInput
+          value={displayText}
+          onChange={val => updateScene({[field]: val})}
+          className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+          readOnly={!textEditingEnabled}
+          style={{ fontSize: '8pt', lineHeight: 1.1 }}
+          placeholder={FIELD_MAP[field]?.label || field}
+        />
+      </td>
+    );
+  };
+
   if (scene) {
     const rowStyle = sceneStyle(scene);
     if (isSelected && !isFaded) {
       rowStyle.background = darkenHex(rowStyle.background as string);
+    }
+
+    // ── Ribbon-based rendering (non-compact) ──
+    if (ribbon && ribbon.length > 0 && !isCompact) {
+      const r1 = ribbon[0];
+      const r2 = ribbon[1];
+      return (
+        <div {...commonProps}>
+          <div className="flex items-stretch min-w-0">
+            <table className="schedule-table flex-1 min-w-0">
+              <tbody>
+                <tr style={rowStyle}>
+                  {r1.cells.map(c => renderCellContent(c))}
+                </tr>
+                <tr style={rowStyle}>
+                  {r2 ? r2.cells.map(c => renderCellContent(c)) : (
+                    <td colSpan={r1.cells.length} style={{ padding: '0 1pt 3pt 1pt', verticalAlign: 'top' }}>
+                      <CellInput
+                        value={scene.description}
+                        onChange={val => updateScene({description: val})}
+                        className={`${inputClass} text-left`}
+                        readOnly={!textEditingEnabled}
+                        placeholder="Scene Description"
+                      />
+                    </td>
+                  )}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
     }
 
     if (isCompact) {
