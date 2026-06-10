@@ -30,6 +30,17 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   const breakdownElements = project.breakdownElements || {};
   const castMembers = project.castMembers || [];
 
+  const allBreakdownCats = useMemo(() => [
+    ...BREAKDOWN_CATS,
+    ...project.customCategories.map(c => c.key),
+  ], [project.customCategories]);
+
+  const allBreakdownLabel = useMemo(() => {
+    const labels: Record<string, string> = { ...BREAKDOWN_LABEL };
+    for (const c of project.customCategories) labels[c.key] = c.label;
+    return labels;
+  }, [project.customCategories]);
+
   const [index, setIndex] = useState(() => Math.min(initialIndex ?? persistedIndex, Math.max(scenes.length - 1, 0)));
   useEffect(() => { persistedIndex = index; }, [index]);
   const [sheetInput, setSheetInput] = useState(String(index + 1));
@@ -69,7 +80,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
     const added = new Set<string>();
     for (const [id, e] of Object.entries(edits)) {
       if (!e) continue;
-      for (const cat of BREAKDOWN_CATS) {
+      for (const cat of allBreakdownCats) {
         if (cat === 'notes') continue;
         const v = (e as any)[cat]; if (!v) continue;
         const elements = breakdownElements[cat] || [];
@@ -93,7 +104,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
 
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
-    for (const cat of BREAKDOWN_CATS) {
+    for (const cat of allBreakdownCats) {
       if (cat === 'notes') continue;
       const stored: { id: string; name: string }[] = (breakdownElements[cat] || []);
       const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
@@ -224,9 +235,9 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
         {/* Category grid — 3 columns, each box has header + body, matches print */}
         <div className="flex-1 overflow-auto tab-scroll">
           <div className="grid grid-cols-3 gap-2 pr-0.5">
-            {BREAKDOWN_CATS.filter(c => c !== 'set').map(cat => (
+            {allBreakdownCats.filter(c => c !== 'set').map(cat => (
               <div key={cat} className="bg-white border border-zinc-300 rounded overflow-hidden">
-                <div className="bg-zinc-100 px-2.5 py-1.5 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase leading-tight">{BREAKDOWN_LABEL[cat]}</div>
+                <div className="bg-zinc-100 px-2.5 py-1.5 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase leading-tight">{allBreakdownLabel[cat]}</div>
                 <div className={cat === 'cast' ? 'p-1 min-h-[80px]' : 'p-1'}>
                   {cat === 'notes' ? (
                     <textarea className="w-full border-0 p-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
@@ -235,7 +246,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
                   ) : cat === 'cast' ? (
                     <EntityDropdown value={val('cast')} onChange={v => update('cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>} />
                   ) : (
-                    <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode="multi" placeholder={BREAKDOWN_LABEL[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
+                    <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode="multi" placeholder={allBreakdownLabel[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
                   )}
                 </div>
               </div>
