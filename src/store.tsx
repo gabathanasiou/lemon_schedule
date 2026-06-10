@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
 import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
+import { getDefaultRibbonRows, cid } from './lib/ribbonUtils';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -67,34 +68,7 @@ function loadProjectFromStorage(id: string): Project | null {
   return null;
 }
 
-function cid() { return `c${Math.random().toString(36).slice(2, 7)}`; }
-
-function getDefaultRibbonRows(): RibbonRow[] {
-  return [
-    {
-      id: `row-${cid()}`,
-      name: 'Row 1',
-      cells: [
-        { id: cid(), field: 'sceneNumber', width: 4.30, align: 'center' },
-        { id: cid(), field: 'callTime', width: 5.73, align: 'left' },
-        { id: cid(), field: 'duration', width: 8.60, align: 'left' },
-        { id: cid(), field: 'intExt', width: 9.74, align: 'left' },
-        { id: cid(), field: 'set', width: 34.38, align: 'left' },
-        { id: cid(), field: 'dayNight', width: 11.46, align: 'left' },
-        { id: cid(), field: 'cast', width: 16.05, align: 'left' },
-        { id: cid(), field: 'pageCount', width: 9.74, align: 'left', suffix: 'pgs' },
-      ]
-    },
-    {
-      id: `row-${cid()}`,
-      name: 'Row 2',
-      cells: [
-        { id: cid(), field: '', width: 18.54 },
-        { id: cid(), field: 'description', width: 81.46, align: 'left' },
-      ]
-    },
-  ];
-}
+// getDefaultRibbonRows and cid imported from ribbonUtils
 
 function makeBlankProject(title = 'Untitled Project'): Project {
   const id = generateUUID();
