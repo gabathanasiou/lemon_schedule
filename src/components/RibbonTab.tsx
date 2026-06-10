@@ -767,8 +767,8 @@ export default function RibbonTab() {
                                     {c.prefix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
                                     <span style={{
                                       flexShrink: 1, minWidth: 0,
-                                      overflow: c.wrap ? 'visible' : (ci < row.cells.length - 1 ? 'hidden' : 'visible'),
-                                      textOverflow: c.wrap ? 'clip' : (ci < row.cells.length - 1 ? 'ellipsis' : 'clip'),
+                                      overflow: c.wrap ? 'visible' : 'hidden',
+                                      textOverflow: c.wrap ? 'clip' : 'ellipsis',
                                       whiteSpace: c.wrap ? 'normal' : 'nowrap',
                                       wordBreak: c.wrap ? 'break-word' : undefined,
                                     }}>{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
