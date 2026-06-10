@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import Papa from 'papaparse';
 
@@ -67,8 +67,43 @@ function loadProjectFromStorage(id: string): Project | null {
   return null;
 }
 
+function cid() { return `c${Math.random().toString(36).slice(2, 7)}`; }
+
+function getDefaultRibbonRows(): RibbonRow[] {
+  return [
+    {
+      id: `row-${cid()}`,
+      name: 'Row 1',
+      cells: [
+        { id: cid(), field: 'sceneNumber', width: 4.30, align: 'center' },
+        { id: cid(), field: 'callTime', width: 5.73, align: 'left' },
+        { id: cid(), field: 'duration', width: 8.60, align: 'left' },
+        { id: cid(), field: 'intExt', width: 9.74, align: 'left' },
+        { id: cid(), field: 'set', width: 34.38, align: 'left' },
+        { id: cid(), field: 'dayNight', width: 11.46, align: 'left' },
+        { id: cid(), field: 'cast', width: 16.05, align: 'left' },
+        { id: cid(), field: 'pageCount', width: 9.74, align: 'left', suffix: 'pgs' },
+      ]
+    },
+    {
+      id: `row-${cid()}`,
+      name: 'Row 2',
+      cells: [
+        { id: cid(), field: '', width: 18.54 },
+        { id: cid(), field: 'description', width: 81.46, align: 'left' },
+      ]
+    },
+  ];
+}
+
 function makeBlankProject(title = 'Untitled Project'): Project {
   const id = generateUUID();
+  const defaultDesign: RibbonDesign = {
+    id: generateUUID(),
+    name: 'Default',
+    rows: getDefaultRibbonRows(),
+    createdAt: Date.now(),
+  };
   return {
     id,
     title,
@@ -90,6 +125,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     castMembers: [],
     breakdownElements: {},
     sceneRibbon: SCENE_RIBBON_DEFAULTS,
+    ribbonDesigns: [defaultDesign],
+    activeRibbonId: defaultDesign.id,
   };
 }
 
@@ -127,6 +164,11 @@ type Action =
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string } }
+  | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[] } }
+  | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
+  | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
+  | { type: 'SET_ACTIVE_RIBBON'; payload: string }
 
 interface State {
   past: Project[];
@@ -137,6 +179,16 @@ interface State {
 function reducer(state: State, action: Action): State {
   if (action.type === 'LOAD') {
     const p = action.payload;
+    if (!p.ribbonDesigns || p.ribbonDesigns.length === 0) {
+      const defaultDesign: RibbonDesign = {
+        id: generateUUID(),
+        name: 'Default',
+        rows: getDefaultRibbonRows(),
+        createdAt: Date.now(),
+      };
+      p.ribbonDesigns = [defaultDesign];
+      p.activeRibbonId = p.activeRibbonId || defaultDesign.id;
+    }
     return {
       past: [],
       present: { ...p, breakdownElements: p.breakdownElements || {} },
@@ -631,6 +683,56 @@ function reducer(state: State, action: Action): State {
         sceneRibbon: action.payload,
       });
 
+    case 'ADD_RIBBON_DESIGN': {
+      const newDesign: RibbonDesign = {
+        id: generateUUID(),
+        name: action.payload.name,
+        rows: action.payload.cloneFromId
+          ? JSON.parse(JSON.stringify(state.present.ribbonDesigns.find(d => d.id === action.payload.cloneFromId)?.rows || getDefaultRibbonRows()))
+          : getDefaultRibbonRows(),
+        createdAt: Date.now(),
+      };
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: [...state.present.ribbonDesigns, newDesign],
+      });
+    }
+
+    case 'UPDATE_RIBBON_DESIGN':
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: state.present.ribbonDesigns.map(d =>
+          d.id === action.payload.id ? { ...d, rows: action.payload.rows } : d
+        ),
+      });
+
+    case 'DELETE_RIBBON_DESIGN': {
+      const remaining = state.present.ribbonDesigns.filter(d => d.id !== action.payload);
+      if (remaining.length === 0) return state;
+      const newActiveId = state.present.activeRibbonId === action.payload
+        ? remaining[0].id
+        : state.present.activeRibbonId;
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: remaining,
+        activeRibbonId: newActiveId,
+      });
+    }
+
+    case 'RENAME_RIBBON_DESIGN':
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: state.present.ribbonDesigns.map(d =>
+          d.id === action.payload.id ? { ...d, name: action.payload.name } : d
+        ),
+      });
+
+    case 'SET_ACTIVE_RIBBON':
+      return applyChange({
+        ...state.present,
+        activeRibbonId: action.payload,
+      });
+
     default:
       return state;
   }
@@ -853,7 +955,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         ...v,
         id: generateUUID(),
         rows: v.rows.map(r => ({ ...r, id: generateUUID() }))
-      }))
+      })),
+      ribbonDesigns: original.ribbonDesigns || [],
+      activeRibbonId: original.activeRibbonId || '',
     };
 
     localStorage.setItem(getProjectStorageKey(newId), JSON.stringify(newProject));

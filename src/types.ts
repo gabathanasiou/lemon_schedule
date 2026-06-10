@@ -115,6 +115,7 @@ export interface ProjectElement {
   name: string;
 }
 
+// Legacy single-row ribbon column (kept for migration)
 export interface SceneRibbonColumn {
   key: string;
   width: number;
@@ -130,6 +131,31 @@ export const SCENE_RIBBON_DEFAULTS: SceneRibbonColumn[] = [
   { key: 'pageCount', width: 50 },
 ];
 
+// Multi-row ribbon design (new)
+export interface RibbonCell {
+  id: string;
+  field: string;          // 'sceneNumber' | 'set' | 'cast' | '' for spacer | 'text'
+  width: number;          // percentage of row
+  align?: 'left' | 'center' | 'right';
+  wrap?: boolean;
+  prefix?: string;
+  suffix?: string;
+  textContent?: string;   // for 'text' type static cells
+}
+
+export interface RibbonRow {
+  id: string;
+  name: string;
+  cells: RibbonCell[];
+}
+
+export interface RibbonDesign {
+  id: string;
+  name: string;
+  rows: RibbonRow[];
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -144,4 +170,6 @@ export interface Project {
   castMembers: CastMember[];
   breakdownElements: Record<string, ProjectElement[]>;
   sceneRibbon: SceneRibbonColumn[];
+  ribbonDesigns: RibbonDesign[];
+  activeRibbonId: string;
 }
