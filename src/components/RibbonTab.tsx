@@ -11,9 +11,9 @@ import {
   Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket,
   Plus, Trash2, GripHorizontal,
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
-  LayoutGrid, ChevronDown, ArrowLeft, ArrowRight,
+  Columns3, ChevronDown, ArrowLeft, ArrowRight,
   AlignCenter, AlignRight, WrapText, Grid3X3, Type,
-  Download, Upload, Copy, Check,
+  Download, Upload, Copy, Check, Pencil,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -77,7 +77,6 @@ export default function RibbonTab() {
   const [selId, setSelId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ rowId: string; ci: number; sx: number; a: number; b: number; leftSum: number; rightSum: number; n: number } | null>(null);
   const [changeOpen, setChangeOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [showGrid, setShowGrid] = useState(true);
   const [dropHover, setDropHover] = useState<string | null>(null);
   const [cellDrag, setCellDrag] = useState<{ rowId: string; cellId: string } | null>(null);
@@ -93,16 +92,18 @@ export default function RibbonTab() {
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const [designMenuOpen, setDesignMenuOpen] = useState(false);
+  const [fileMenuOpen, setFileMenuOpen] = useState(false);
 
   const resetRows = useCallback((newRows: RibbonRow[]) => {
     setRows(cloneRows(newRows));
   }, []);
 
   useEffect(() => {
-    if (activeDesign) {
-      resetRows(activeDesign.rows);
+    const design = project.ribbonDesigns.find(d => d.id === project.activeRibbonId);
+    if (design) {
+      resetRows(design.rows);
     }
-  }, [project.activeRibbonId]);
+  }, [project.ribbonDesigns, project.activeRibbonId, resetRows]);
 
   const saveToStore = useCallback((rows: RibbonRow[]) => {
     if (!activeDesign || !activeDesign.id) return;
@@ -138,6 +139,10 @@ export default function RibbonTab() {
         const w = Math.round(a.slice(0, 3).reduce((s, c) => s + c.width, 0) * 100) / 100;
         b[0].width = w;
         b[1].width = Math.max(MIN_PCT, Math.round((100 - w) * 100) / 100);
+        if (b.length > 2) {
+          const normal = normalizeCells(b);
+          b.splice(0, b.length, ...normal);
+        }
       }
     });
   }, [rows, liveMutate]);
@@ -151,19 +156,6 @@ export default function RibbonTab() {
   }, [rows]);
 
   const selCell = selId ? findCell(selId) : null;
-
-  const openMenu = useCallback((e?: React.MouseEvent) => {
-    if (e && e.type === 'contextmenu') {
-      setDropdownPos({ x: Math.min(e.clientX, window.innerWidth - 176), y: e.clientY });
-    } else if (selId) {
-      const el = cellRefs.current.get(selId);
-      if (el) {
-        const r = el.getBoundingClientRect();
-        setDropdownPos({ x: Math.min(r.left, window.innerWidth - 176), y: r.bottom + 2 });
-      }
-    }
-    setChangeOpen(true);
-  }, [selId]);
 
   /* actions */
   const assign = useCallback((cellId: string, key: string) => {
@@ -373,40 +365,30 @@ export default function RibbonTab() {
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
       {/* ══ Top bar ══ */}
-      <header className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
-        <LayoutGrid className="w-4 h-4 text-blue-500 shrink-0" />
+      <header className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
+        <Columns3 className="w-4 h-4 text-blue-500 shrink-0" />
         <DropdownMenu
-          open={designMenuOpen}
-          onClose={() => setDesignMenuOpen(false)}
-          width="w-52"
+          open={fileMenuOpen}
+          onClose={() => setFileMenuOpen(false)}
+          width="w-44"
           trigger={
-            <button onClick={() => setDesignMenuOpen(p => !p)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-              <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
+            <button onClick={() => setFileMenuOpen(p => !p)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+              <span className="text-xs font-semibold text-zinc-400">Edit</span>
               <ChevronDown className="w-3 h-3 text-zinc-500" />
             </button>
           }
         >
-          {project.ribbonDesigns.map(d => (
-            <DropdownItem
-              key={d.id}
-              onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setDesignMenuOpen(false); }}
-              icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              {d.name}
-            </DropdownItem>
-          ))}
-          <DropdownDivider />
-          <DropdownItem onClick={() => { const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setDesignMenuOpen(false); } }}
+          <DropdownItem onClick={() => { const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
             icon={<Plus className="w-3.5 h-3.5" />}>
             New Design
           </DropdownItem>
-          <DropdownItem onClick={() => { const n = prompt('Rename', activeDesign.name); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setDesignMenuOpen(false); } }}>
+          <DropdownItem onClick={() => { const n = prompt('Rename', activeDesign.name); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
+            icon={<Pencil className="w-3.5 h-3.5" />}>
             Rename
           </DropdownItem>
           <DropdownItem onClick={() => {
-            const copy = cloneRows(rows);
             const n = prompt('Duplicate name', `${activeDesign.name} — Copy`);
-            if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id } }); setDesignMenuOpen(false); }
+            if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id } }); setFileMenuOpen(false); }
           }}
             icon={<Copy className="w-3.5 h-3.5" />}>
             Duplicate
@@ -417,7 +399,7 @@ export default function RibbonTab() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.json`;
-            a.click(); URL.revokeObjectURL(url); setDesignMenuOpen(false);
+            a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
           }}
             icon={<Download className="w-3.5 h-3.5" />}>
             Export
@@ -436,7 +418,7 @@ export default function RibbonTab() {
                     dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows } });
                   }
                 } catch { alert('Invalid file'); }
-                setDesignMenuOpen(false);
+                setFileMenuOpen(false);
               };
               reader.readAsText(file);
             };
@@ -447,13 +429,35 @@ export default function RibbonTab() {
           </DropdownItem>
           <DropdownDivider />
           <DropdownItem
-            onClick={() => { if (confirm(`Delete "${activeDesign.name}"? This can be restored from Trash.`)) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setDesignMenuOpen(false); } }}
+            onClick={() => { if (confirm(`Delete "${activeDesign.name}"? This can be restored from Trash.`)) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
             variant="danger"
             icon={<Trash2 className="w-3.5 h-3.5" />}>
-            Delete
+            Delete Design
           </DropdownItem>
         </DropdownMenu>
-        <span className="text-[11px] text-zinc-500">{placed}/{total} fields used</span>
+        <DropdownMenu
+          open={designMenuOpen}
+          onClose={() => setDesignMenuOpen(false)}
+          width="w-52"
+          trigger={
+            <button onClick={() => setDesignMenuOpen(p => !p)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+              <span className="text-xs font-semibold text-zinc-500">Ribbon:</span>
+              <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
+              <ChevronDown className="w-3 h-3 text-zinc-500" />
+            </button>
+          }
+        >
+          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Designs</div>
+          {project.ribbonDesigns.map(d => (
+            <DropdownItem
+              key={d.id}
+              onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setDesignMenuOpen(false); }}
+              icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+            >
+              {d.name}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
         <div className="flex-1" />
         <button onClick={() => commit(getDefaultRibbonRows())}
           className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
@@ -532,42 +536,35 @@ export default function RibbonTab() {
               </div>
 
               {/* Action bar */}
-              <div className="flex items-center gap-1.5 mb-2 flex-wrap min-h-[28px]">
-                {selCell ? (
-                  <span className="text-[10px] text-zinc-500 font-mono mr-1">{selCell.row.name} · col {selCell.ci + 1} · {selCell.cell.width.toFixed(1)}%</span>
-                ) : (
-                  <span className="text-[10px] text-zinc-600 mr-1">Select a cell to edit</span>
-                )}
-                <div className="relative">
-                  <button onClick={(e) => { if (selCell) { openMenu(e); } }} disabled={!selCell}
-                    className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-                    <ArrowRightLeft className="w-3 h-3" /> Change
-                    <ChevronDown className="w-3 h-3 text-zinc-500" />
-                  </button>
-                  {changeOpen && selCell && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setChangeOpen(false)} />
-                      <div className="fixed z-50" style={{ left: dropdownPos.x, top: dropdownPos.y }}>
-                        <div className="bg-zinc-950 border border-zinc-800 rounded-lg shadow-xl py-1 max-h-[260px] overflow-y-auto min-w-[160px]">
-                          {ALL_FIELDS.map(f => (
-                            <button key={f.key}
-                              onClick={() => { assign(selCell.cell.id, f.key); setChangeOpen(false); }}
-                              className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 flex items-center gap-2 ${used.has(f.key) ? 'text-blue-400' : 'text-zinc-400'}`}
-                            >
-                              {FIELD_ICONS[f.key] && React.createElement(FIELD_ICONS[f.key], { className: 'w-3 h-3 shrink-0' })}
-                              <span className="truncate">{f.label}</span>
-                            </button>
-                          ))}
-                          <DropdownDivider />
-                          <button onClick={() => { clearCell(selCell.cell.id); setChangeOpen(false); }}
-                            className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 text-zinc-500">
-                            Clear field
-                          </button>
-                        </div>
-                      </div>
-                    </>
+                <div className="flex items-center gap-1.5 mb-2 flex-wrap min-h-[28px]">
+                <DropdownMenu
+                  open={changeOpen && !!selCell}
+                  onClose={() => setChangeOpen(false)}
+                  width="w-44"
+                  trigger={
+                    <button onClick={() => { if (selCell) { setChangeOpen(p => !p); } }} disabled={!selCell}
+                      className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+                      <ArrowRightLeft className="w-3 h-3" /> Change
+                      <ChevronDown className="w-3 h-3 text-zinc-500" />
+                    </button>
+                  }
+                >
+                  {selCell && ALL_FIELDS.map(f => (
+                    <DropdownItem
+                      key={f.key}
+                      onClick={() => { assign(selCell.cell.id, f.key); setChangeOpen(false); }}
+                      icon={FIELD_ICONS[f.key] ? React.createElement(FIELD_ICONS[f.key], { className: 'w-3.5 h-3.5' }) : undefined}
+                    >
+                      {f.label}
+                    </DropdownItem>
+                  ))}
+                  <DropdownDivider />
+                  {selCell && (
+                    <DropdownItem onClick={() => { clearCell(selCell.cell.id); setChangeOpen(false); }}>
+                      Clear field
+                    </DropdownItem>
                   )}
-                </div>
+                </DropdownMenu>
                 <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
                   className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
                   <Trash2 className="w-3 h-3" /> Delete Cell
@@ -615,37 +612,33 @@ export default function RibbonTab() {
                   <Grid3X3 className="w-3 h-3" />
                 </button>
                 {/* Affix / Text editing */}
-                {selCell && selCell.cell.field === 'text' && (
-                  <>
-                    <div className="w-px h-4 bg-zinc-800 mx-1" />
+                <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
+                {selCell && selCell.cell.field === 'text' ? (
+                  <input
+                    value={selCell.cell.textContent || ''}
+                    onChange={e => setTextContent(selCell.cell.id, e.target.value)}
+                    placeholder="Text content..."
+                    className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32 shrink-0"
+                  />
+                ) : selCell && selCell.cell.field ? (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[9px] text-zinc-600">Pfx</span>
                     <input
-                      value={selCell.cell.textContent || ''}
-                      onChange={e => setTextContent(selCell.cell.id, e.target.value)}
-                      placeholder="Text content..."
-                      className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32"
+                      value={selCell.cell.prefix || ''}
+                      onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
+                      placeholder=""
+                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                     />
-                  </>
-                )}
-                {selCell && selCell.cell.field && selCell.cell.field !== 'text' && (
-                  <>
-                    <div className="w-px h-4 bg-zinc-800 mx-1" />
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] text-zinc-600">Pfx</span>
-                      <input
-                        value={selCell.cell.prefix || ''}
-                        onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
-                        placeholder=""
-                        className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                      />
-                      <span className="text-[9px] text-zinc-600">Sfx</span>
-                      <input
-                        value={selCell.cell.suffix || ''}
-                        onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
-                        placeholder=""
-                        className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                      />
-                    </div>
-                  </>
+                    <span className="text-[9px] text-zinc-600">Sfx</span>
+                    <input
+                      value={selCell.cell.suffix || ''}
+                      onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
+                      placeholder=""
+                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                    />
+                  </div>
+                ) : (
+                  <div className="shrink-0" style={{ width: 170 }} />
                 )}
               </div>
 
@@ -670,7 +663,7 @@ export default function RibbonTab() {
                     </div>
 
                     <div style={{
-                      fontFamily: 'Helvetica, sans-serif', fontSize: '10pt', lineHeight: '1.3',
+                      fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1,
                       border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
                       display: 'flex', width: '100%', alignItems: 'stretch',
                     }} data-row={row.id}>
@@ -684,6 +677,7 @@ export default function RibbonTab() {
                           const isSel = selId === c.id;
                           const align = getAlign(c);
                           const label = c.field === 'text' ? (c.textContent || 'Text') : getLabel(c.field);
+                          const shortLabel = !c.wrap && label.length <= 4;
 
                           return (
                             <React.Fragment key={c.id}>
@@ -710,8 +704,8 @@ export default function RibbonTab() {
                                 ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}>
                                 <div
                                   onClick={() => setSelId(c.id)}
-                                  onDoubleClick={(e) => { setSelId(c.id); openMenu(e); }}
-                                  onContextMenu={e => { e.preventDefault(); setSelId(c.id); openMenu(e); }}
+                                  onDoubleClick={() => { setSelId(c.id); setChangeOpen(true); }}
+                                  onContextMenu={e => { e.preventDefault(); setSelId(c.id); setChangeOpen(true); }}
                                   draggable
                                   onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); setCellDrag({ rowId: row.id, cellId: c.id }); }}
                                   onDragEnd={() => { setCellDrag(null); setCellDropTarget(null); }}
@@ -735,7 +729,7 @@ export default function RibbonTab() {
                                   }}
                                   className="relative cursor-pointer select-none transition-colors"
                                   style={{
-                                    padding: ri === 0 ? '6pt 6pt' : '0 6pt 6pt 6pt',
+                                    padding: '12px 4px',
                                     verticalAlign: 'middle',
                                     borderRight: showGrid && ci < row.cells.length - 1 ? '1px solid #000' : 'none',
                                     borderBottom: '1px solid #000',
@@ -743,23 +737,22 @@ export default function RibbonTab() {
                                     outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDrag ? '2px dashed #3b82f6' : 'none',
                                     outlineOffset: -1,
                                     background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDrag ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : 'transparent',
-                                    minHeight: 24,
                                   }}
                                 >
                                   <div style={{
                                     display: 'flex',
-                                    fontSize: '10pt', lineHeight: 1.3,
+                                    fontSize: '8pt', lineHeight: 1.1,
                                     fontWeight: c.field === 'sceneNumber' ? 700 : 500,
                                     textTransform: c.field === 'set' ? 'uppercase' : 'none',
                                     color: assigned ? undefined : '#71717a',
                                     overflow: c.wrap ? 'visible' : 'hidden',
                                   }}>
                                     {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
-                                    {c.prefix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
+                                    <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix || ''}{c.prefix ? '\u00A0' : ''}</span>
                                     <span style={{
                                       flexShrink: 1, minWidth: 0,
                                       overflow: c.wrap ? 'visible' : 'hidden',
-                                      textOverflow: c.wrap ? 'clip' : 'ellipsis',
+                                      textOverflow: c.wrap ? 'clip' : shortLabel ? 'clip' : 'ellipsis',
                                       whiteSpace: c.wrap ? 'normal' : 'nowrap',
                                       wordBreak: c.wrap ? 'break-word' : undefined,
                                     }}>{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
@@ -802,7 +795,7 @@ export default function RibbonTab() {
                           if (k) setSelId(insertCellAt(row.id, row.cells.length, k));
                           else setSelId(addCell(row.id, row.cells.length - 1));
                         }}
-                        className={`flex items-center justify-center cursor-pointer transition-colors ${dropHover === row.id ? 'bg-blue-900/50 ring-2 ring-blue-500 ring-inset' : cellDropTarget === 'end-' + row.id ? 'bg-blue-900/50 ring-2 ring-blue-500 ring-inset' : 'hover:bg-zinc-800'}`}
+                        className={`flex items-center justify-center cursor-pointer transition-colors bg-zinc-200 ${dropHover === row.id ? 'bg-blue-900/50 ring-2 ring-blue-500 ring-inset' : cellDropTarget === 'end-' + row.id ? 'bg-blue-900/50 ring-2 ring-blue-500 ring-inset' : 'hover:bg-zinc-300'}`}
                         style={{
                           flexShrink: 0, width: '48px',
                           borderBottom: '1px solid #000',
@@ -829,7 +822,7 @@ export default function RibbonTab() {
               </div>
 
               <div style={{
-                fontFamily: 'Helvetica, sans-serif', fontSize: '10pt', lineHeight: '1.3', border: '2px solid #000',
+                fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
                   const rowStyle = pvSceneStyle(sample);
@@ -841,6 +834,7 @@ export default function RibbonTab() {
                             {row.cells.map((c, ci) => {
                               const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
                               const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                              const shortDisplay = !c.wrap && display.length <= 4;
                               return (
                                 <div key={c.id} style={{
                                   flex: `0 0 ${c.width}%`,
@@ -848,7 +842,7 @@ export default function RibbonTab() {
                                   padding: '4px 4px',
                                   borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
                                   overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
+                                  textOverflow: shortDisplay ? 'clip' : 'ellipsis',
                                   whiteSpace: c.wrap ? 'normal' : 'nowrap',
                                   wordBreak: c.wrap ? 'break-word' : undefined,
                                   textAlign: getAlign(c),

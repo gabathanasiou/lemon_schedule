@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ProjectProvider, useProject } from './store';
-import { TrashItem, VersionTrashItem, RuleTrashItem, Project } from './types';
+import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
@@ -534,7 +534,7 @@ function AppContent() {
                 </DropdownItem>
                 <DropdownDivider />
                 <DropdownItem onClick={() => { setShowVersionsMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0)})
+                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0)})
                 </DropdownItem>
               </div>
             </DropdownMenu>
@@ -603,7 +603,7 @@ function AppContent() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setShowTrash(false)}>
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-      <div style={{ background: '#ffffff', width: '100%' }}>
+              <div>
                 <h2 className="text-white font-bold text-sm">Trash</h2>
                 <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
               </div>
@@ -615,10 +615,12 @@ function AppContent() {
               {(() => {
                 const items: Array<{ kind: 'scene'; id: string; data: TrashItem }
                   | { kind: 'version'; id: string; data: VersionTrashItem }
-                  | { kind: 'rule'; id: string; data: RuleTrashItem }> = [
+                  | { kind: 'rule'; id: string; data: RuleTrashItem }
+                  | { kind: 'ribbon'; id: string; data: RibbonTrashItem }> = [
                     ...(project.trash || []).map(t => ({ kind: 'scene' as const, id: t.scene.id, data: t })),
                     ...(project.versionTrash || []).map(t => ({ kind: 'version' as const, id: t.version.id, data: t })),
                     ...(project.rulesTrash || []).map(t => ({ kind: 'rule' as const, id: t.rule.id, data: t })),
+                    ...(project.ribbonTrash || []).map(t => ({ kind: 'ribbon' as const, id: t.design.id, data: t })),
                   ].sort((a, b) => b.data.deletedAt - a.data.deletedAt);
                 if (items.length === 0) {
                   return <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>;
@@ -634,7 +636,7 @@ function AppContent() {
                     const t = item.data as VersionTrashItem;
                     title = t.version.name;
                     subtitle = `Version · ${formatTime(t.deletedAt)}`;
-                  } else {
+                  } else if (item.kind === 'rule') {
                     const t = item.data as RuleTrashItem;
                     const meta = RULE_TYPE_META[t.rule.type];
                     const castLabel = t.rule.type === 'CAST_CONFLICT' || t.rule.type === 'CAST_SCENE_FLAG'
@@ -642,14 +644,24 @@ function AppContent() {
                       : t.rule.castId;
                     title = `${meta.short} · Cast ${castLabel} · ${describeRule(t.rule)}`;
                     subtitle = `Rule · ${formatTime(t.deletedAt)}`;
+                  } else {
+                    const t = item.data as RibbonTrashItem;
+                    title = t.design.name;
+                    subtitle = `Ribbon Design · ${formatTime(t.deletedAt)}`;
                   }
                   const actionType = item.kind === 'scene' ? 'RESTORE_SCENE'
                     : item.kind === 'version' ? 'RESTORE_VERSION_FROM_TRASH'
-                    : 'RESTORE_RULE_FROM_TRASH';
+                    : item.kind === 'rule' ? 'RESTORE_RULE_FROM_TRASH'
+                    : 'RESTORE_RIBBON_FROM_TRASH';
+                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'rule' ? 'Rule' : 'Ribbon';
+                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'rule' ? 'text-amber-400' : 'text-violet-400';
                   return (
                     <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
                       <div className="min-w-0">
-                        <div className="text-white text-sm font-semibold truncate">{title}</div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-medium ${kindColor} shrink-0`}>{kindLabel}</span>
+                          <span className="text-white text-sm font-semibold truncate">{title}</span>
+                        </div>
                         <div className="text-zinc-500 text-[11px] mt-0.5">{subtitle}</div>
                       </div>
                       <button
@@ -664,7 +676,7 @@ function AppContent() {
                 });
               })()}
             </div>
-            {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0)) > 0 && (
+            {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0)) > 0 && (
               <div className="border-t border-zinc-800 px-5 py-3">
                 <button
                   onClick={() => { if (confirm('Permanently delete all trash items?')) dispatch({ type: 'EMPTY_TRASH' }); }}
