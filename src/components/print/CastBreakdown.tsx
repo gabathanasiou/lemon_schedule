@@ -7,7 +7,7 @@ const CSS = `
 ${BASE_PRINT_RESET}
 @page { size: portrait; margin: 10mm 12mm; }
 .cb-root {
-  font-family: Helvetica, Arial, sans-serif;
+  font-family: Helvetica, sans-serif;
   font-size: 8pt; line-height: 1.3; color: #000; width: 100%; background: #fff;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }

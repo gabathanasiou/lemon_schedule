@@ -9,6 +9,7 @@ export interface FieldDef {
   category: string;
   defaultPrefix?: string;
   defaultSuffix?: string;
+  defaultWrap?: boolean;
 }
 
 export const ALL_FIELDS: FieldDef[] = [
@@ -18,7 +19,7 @@ export const ALL_FIELDS: FieldDef[] = [
   { key: 'intExt',      label: 'I/E',        defaultWidth: 9.74, align: 'left',   category: 'Shooting' },
   { key: 'set',         label: 'Set',        defaultWidth: 34.38,align: 'left',   category: 'Shooting' },
   { key: 'dayNight',    label: 'D/N',        defaultWidth: 11.46,align: 'left',   category: 'Shooting' },
-  { key: 'cast',        label: 'Cast',       defaultWidth: 16.05,align: 'left',   category: 'Cast & Talent' },
+  { key: 'cast',        label: 'Cast',       defaultWidth: 16.05,align: 'left',   category: 'Cast & Talent', defaultWrap: true },
   { key: 'pageCount',   label: 'Pages',      defaultWidth: 9.74, align: 'left',   category: 'Scene Info', defaultSuffix: 'pgs' },
   { key: 'description', label: 'Synopsis',   defaultWidth: 81.38,align: 'left',   category: 'Scene Info', defaultPrefix: 'Desc' },
   { key: 'scriptDay',   label: 'Script Day', defaultWidth: 11.46,align: 'left',   category: 'Production', defaultPrefix: 'SD' },
@@ -72,7 +73,7 @@ export const SAMPLE: Record<string, string> = {
 };
 
 export const INT_EXT: Record<string, string> = { INT: 'INT', EXT: 'EXT', 'INT/EXT': 'INT/EXT' };
-export const DAY_NIGHT: Record<string, string> = { DAY: 'DAY', NIGHT: 'NIGHT', MORNING: 'MORN', EVENING: 'EVE', DAWN: 'DAWN', DUSK: 'DUSK' };
+export const DAY_NIGHT: Record<string, string> = { DAY: 'DAY', NIGHT: 'NIGHT', MORNING: 'MORNING', EVENING: 'EVENING', DAWN: 'DAWN', DUSK: 'DUSK' };
 
 export const MIN_PCT = 2.5;
 
@@ -130,7 +131,7 @@ function mkRow(name: string, keys: string[]): RibbonRow {
     name,
     cells: keys.map(k => {
       const f = FIELD_MAP[k];
-      return { id: cid(), field: k, width: f?.defaultWidth || 10, prefix: f?.defaultPrefix, suffix: f?.defaultSuffix, align: f?.align };
+      return { id: cid(), field: k, width: f?.defaultWidth || 10, prefix: f?.defaultPrefix, suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap };
     }),
   };
 }

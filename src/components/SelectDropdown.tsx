@@ -3,7 +3,7 @@ import { useDropdown, useOpenHandler } from '../lib/dropdown';
 import { useSmartPosition } from '../lib/useSmartPosition';
 
 const DD_ITEM = (active: boolean) =>
-  `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,Arial,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
 
 interface SelectDropdownProps {
   value: string;

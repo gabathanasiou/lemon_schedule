@@ -18,7 +18,7 @@ const DOOD_CSS = `
 ${BASE_PRINT_RESET}
 @page { size: portrait; margin: 10mm 12mm; }
 .dood-root {
-  font-family: Helvetica, Arial, sans-serif;
+  font-family: Helvetica, sans-serif;
   font-size: 7pt;
   line-height: 1.3;
   color: #000000;

@@ -315,7 +315,7 @@ export const SortableRow: React.FC<{
               style={{ fontSize: '8pt', lineHeight: 1.1 }}
             />
           ) : (
-            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: wrap ? 'visible' : 'hidden', textOverflow: wrap ? undefined : 'ellipsis', display: 'block' }}>
               {prefix}{val}{suffix || ' pgs'}
             </span>
           )}
@@ -340,7 +340,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'sceneNumber') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, fontWeight: 700, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', borderRight: '1px solid #000', overflow: 'hidden' }}>
           <div className="flex items-center gap-px">
             <CellInput
               value={scene!.sceneNumber}
@@ -381,15 +381,15 @@ export const SortableRow: React.FC<{
     minWidth: 0,
     padding: isDesc ? '0 1pt 3pt 1pt' : '4px 4px',
     borderRight: '1px solid rgba(0,0,0,0.12)',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    overflow: cell.wrap ? 'visible' : 'hidden',
+    textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
-    fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+    fontWeight: 500,
     fontSize: '8pt',
     lineHeight: 1.1,
-    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontFamily: 'Helvetica, sans-serif',
   });
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
@@ -483,7 +483,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: wrap ? 'visible' : 'hidden', textOverflow: wrap ? undefined : 'ellipsis', display: 'block', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
           )}
         </div>
       );

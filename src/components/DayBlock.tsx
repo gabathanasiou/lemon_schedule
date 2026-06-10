@@ -66,7 +66,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
     const cells = ribbon[0].cells;
     return (
       <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz} ${sceneCardClass(scene)}`}
-        style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
+        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
         {cells.map(c => {
           const val = c.field === 'text' ? (c.textContent || '') : getFieldValue(c.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
           const label = FIELD_MAP[c.field]?.label || c.field;
@@ -199,7 +199,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const totalShootTime = runningElapsed - totalBreakTime;
 
   const baseStyle = {
-    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontFamily: 'Helvetica, sans-serif',
     fontSize: '8pt',
     lineHeight: '1.2',
   };
@@ -318,7 +318,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         </SortableContext>
         {computedRows.length === 0 && (
           <div className="flex items-center px-4 py-3 text-[9pt] border-b-[2px] border-black italic select-none text-zinc-300"
-            style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}
+            style={{ fontFamily: 'Helvetica, sans-serif' }}
           >
             No scenes in this day · right-click for options
           </div>
@@ -331,13 +331,13 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
         )}
         <div ref={setFooterRef} className="flex justify-between items-center px-3 py-2 border-t border-zinc-300"
-          style={{fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', color: '#18181b'}}>
+          style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>
           <span className="shrink-0">
             End of Day #{displayDay}
             {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
           </span>
           <span className="flex-1 text-center">
-            {meta?.date ? new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''}
+            {meta?.date ? formatDateLong(meta.date) : ''}
           </span>
           <div className="flex shrink-0" style={{gap: '20pt'}}>
             <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>

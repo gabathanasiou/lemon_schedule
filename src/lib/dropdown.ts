@@ -2,7 +2,7 @@ import { useEffect, useCallback, type RefObject } from 'react';
 import { CastMember } from '../types';
 
 export const DD_ITEM = (active: boolean) =>
-  `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,Arial,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
 
 export const DD_CONTAINER =
   "absolute top-full z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1";

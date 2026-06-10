@@ -230,7 +230,7 @@ export default function RibbonTab() {
     commit(rows.map(r => {
       if (r.id !== rowId) return r;
       const nc = [...r.cells];
-      nc.splice(ci, 0, { id: newId, field: fieldKey || '', width: f?.defaultWidth || 10, suffix: f?.defaultSuffix, align: f?.align });
+      nc.splice(ci, 0, { id: newId, field: fieldKey || '', width: f?.defaultWidth || 10, suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap });
       return { ...r, cells: normalizeCells(nc) };
     }));
     return newId;
@@ -404,7 +404,7 @@ export default function RibbonTab() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' }}>
+    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
       {/* ══ Top bar ══ */}
       <header className="flex items-center gap-3 px-4 py-2 bg-zinc-900 border-b border-zinc-800 shrink-0 select-none">
         <LayoutGrid className="w-4 h-4 text-blue-500 shrink-0" />
@@ -679,7 +679,7 @@ export default function RibbonTab() {
                     </div>
 
                     <div style={{
-                      fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', lineHeight: '1.1',
+                      fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: '1.1',
                       border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
                       display: 'flex', width: '100%', alignItems: 'stretch',
                     }} data-row={row.id}>
@@ -838,7 +838,7 @@ export default function RibbonTab() {
               </div>
 
               <div style={{
-                fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '8pt', lineHeight: '1.1', border: '2px solid #000',
+                fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: '1.1', border: '2px solid #000',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
                   const rowStyle = pvSceneStyle(sample);

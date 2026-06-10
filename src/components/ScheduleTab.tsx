@@ -994,7 +994,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
           width: 100%;
           table-layout: fixed;
           border-collapse: collapse;
-          font-family: Helvetica, Arial, sans-serif;
+          font-family: Helvetica, sans-serif;
           font-size: 8pt;
           line-height: 1.2;
         }

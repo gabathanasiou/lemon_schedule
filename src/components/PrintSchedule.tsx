@@ -122,9 +122,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   if (isStatusDay && rows.length === 0) {
     return (
       <div className="print-day" style={{borderBottom: '1pt dashed #a1a1aa'}}>
-        <div className="print-day-header" style={{background: '#000', color: '#fff', justifyContent: 'space-between', paddingLeft: '10pt'}}>
-          <span className="print-day-number" style={{fontSize: '10pt'}}>{meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
-          {meta?.date && <span className="print-day-date" style={{fontSize: '8pt'}}>{new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
+        <div className="print-day-header">
+          <span className="print-day-number">{meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
+          {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
+          <span className="print-day-call">{'\u00A0'}</span>
         </div>
       </div>
     );
@@ -139,15 +140,14 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     textAlign: cell.align || 'left',
     padding: '4pt 4pt',
     verticalAlign: 'top',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    overflow: cell.wrap ? 'visible' : 'hidden',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
-    fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+    fontWeight: 500,
     fontSize: '8pt',
     lineHeight: 1.1,
-    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontFamily: 'Helvetica, sans-serif',
     borderRight: isLast ? '1px solid #000' : `1px solid ${bgColor}`,
   });
 
@@ -170,7 +170,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     <div className="print-day">
       <div className="print-day-header">
         <span className="print-day-number">DAY #{chronoDay}</span>
-        {meta?.date && <span className="print-day-date">{new Date(meta.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
+        {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
         <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
       </div>
 
@@ -182,7 +182,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               if (cells) {
                 return (
                   <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: noteBg, color: noteFg }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: noteBg, color: noteFg, padding: '14pt 4pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, Arial, sans-serif' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: noteBg, color: noteFg, padding: '4pt 8pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif' }}>
                       {r.computedCallTime && <span style={{ marginRight: '8pt', opacity: 0.8 }}>{r.computedCallTime}</span>}
                       <span>{r.noteText || ''}</span>
                     </div>
@@ -212,9 +212,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               if (cells) {
                 return (
                   <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #000', borderRight: '1px solid #000', borderTop: '1px solid #000', borderBottom: isLastRow ? '1px solid #000' : 'none', background: '#591b1b', color: '#ffffff' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#591b1b', color: '#ffffff', padding: '14pt 4pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, Arial, sans-serif' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#591b1b', color: '#ffffff', padding: '4pt 8pt', fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif' }}>
                       {r.computedCallTime && <span style={{ marginRight: '8pt', opacity: 0.8 }}>{r.computedCallTime}</span>}
-                      <span style={{ fontWeight: 700 }}>{r.breakLabel || 'BREAK'}</span>
+                      <span>{r.breakLabel || 'BREAK'}</span>
                     </div>
                   </div>
                 );
@@ -288,7 +288,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
           End of Day #{chronoDay}
           {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
         </span>
-        {meta?.date && <span className="print-footer-date">{new Date(meta.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>}
+        {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
         <span className="print-footer-spacer" />
         <span>Total Pages: {formatPageCount(totalPages)} pgs</span>
         <span>EST. TIME: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}</span>
@@ -312,7 +312,7 @@ const PRINT_STYLE = `
     margin: 10mm 8mm;
   }
   .print-root {
-    font-family: Helvetica, Arial, sans-serif;
+    font-family: Helvetica, sans-serif;
     font-size: 8pt;
     line-height: 1.1;
     color: #18181b;
@@ -446,7 +446,7 @@ const CAST_LIST_STYLE = `
   }
   .cast-list-title {
     text-align: left;
-    font-family: Helvetica, Arial, sans-serif;
+    font-family: Helvetica, sans-serif;
     font-size: 8pt;
     font-weight: 700;
     margin: 0 0 8pt 0;
@@ -456,7 +456,7 @@ const CAST_LIST_STYLE = `
   .cast-list-table {
     width: 100%;
     border-collapse: collapse;
-    font-family: Helvetica, Arial, sans-serif;
+    font-family: Helvetica, sans-serif;
     font-size: 8pt;
     table-layout: fixed;
   }
@@ -543,7 +543,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
     <div>
       <style>{PRINT_STYLE}</style>
       {showPageNumbers && (
-        <style>{`@page { @bottom-right { content: counter(page); font-family: Helvetica, Arial, sans-serif; font-size: 8pt; } }`}</style>
+        <style>{`@page { @bottom-right { content: counter(page); font-family: Helvetica, sans-serif; font-size: 8pt; } }`}</style>
       )}
       <div className="print-root">
         {showCastList && <CastListPrint castMembers={project.castMembers || []} relevantCastIds={printedCastIds} />}
