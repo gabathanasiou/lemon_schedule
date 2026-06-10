@@ -701,7 +701,7 @@ export const SortableRow: React.FC<{
           <div className="flex items-stretch min-w-0">
             <div className="flex-1 min-w-0 flex flex-col" style={rowStyle}>
               {ribbon.map((row, ri) => (
-                <div key={row.id || ri} className="flex w-full min-h-0" style={ri < ribbon.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
+                <div key={row.id || ri} className="flex w-full min-h-0">
                   {row.cells.map((c, ci) => renderCellFlex(c, ci === row.cells.length - 1))}
                 </div>
               ))}

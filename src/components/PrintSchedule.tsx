@@ -141,7 +141,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = (cell: import('../types').RibbonCell, bgColor?: string, isDesc?: boolean): React.CSSProperties => ({
+  const cellPrintStyle = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     textAlign: cell.align || 'left',
@@ -155,22 +155,21 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     fontSize: '8pt',
     lineHeight: 1.1,
     fontFamily: 'Helvetica, sans-serif',
-    borderRight: `1px solid ${bgColor || 'rgba(0,0,0,0.12)'}`,
   });
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
-  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, bgColor: string, computedCallTime?: string, estimatedDuration?: number) => {
+  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell, bgColor)}>{display || ''}</div>;
+    return <div key={cell.id} style={cellPrintStyle(cell)}>{display || ''}</div>;
   };
 
-  const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene, bgColor: string) => {
+  const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, scene);
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell, bgColor, true)}>{display || ''}</div>;
+    return <div key={cell.id} style={cellPrintStyle(cell, true)}>{display || ''}</div>;
   };
 
   return (
@@ -203,7 +202,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                             fontSize: '8pt',
                             lineHeight: 1.1,
                             fontFamily: 'Helvetica, sans-serif',
-                          borderRight: '1px solid #591b1b',
+
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -231,7 +230,6 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           fontSize: '8pt',
                           lineHeight: 1.1,
                           fontFamily: 'Helvetica, sans-serif',
-                          borderRight: '1px solid rgba(0,0,0,0.12)',
                         }}>
                           {content}
                         </div>
@@ -278,7 +276,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                             fontSize: '8pt',
                             lineHeight: 1.1,
                             fontFamily: 'Helvetica, sans-serif',
-                          borderRight: '1px solid #591b1b',
+
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -306,7 +304,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           fontSize: '8pt',
                           lineHeight: 1.1,
                           fontFamily: 'Helvetica, sans-serif',
-                          borderRight: '1px solid #591b1b',
+
                         }}>
                           {content}
                         </div>
@@ -343,10 +341,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column' }}>
                   {(ribbon || []).map((row, ri) => (
-                    <div key={row.id || ri} style={{ display: 'flex', ...rowStyle, borderBottom: ri < (ribbon || []).length - 1 ? `1px solid ${bgColor}` : 'none' }}>
+                    <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
                       {ri === 0
-                        ? row.cells.map((c) => renderSceneCellFlex(c, scene, bgColor, r.computedCallTime, r.estimatedDuration))
-                        : row.cells.map((c) => renderSceneDescCellFlex(c, scene, bgColor))}
+                        ? row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))
+                        : row.cells.map((c) => renderSceneDescCellFlex(c, scene))}
                     </div>
                   ))}
                 </div>

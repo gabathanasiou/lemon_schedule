@@ -15,10 +15,10 @@ export interface FieldDef {
 export const ALL_FIELDS: FieldDef[] = [
   { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 8, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
   { key: 'callTime',    label: 'Call Time',  defaultWidth: 7, align: 'left',   category: 'Shooting' },
-  { key: 'duration',    label: 'Duration',   defaultWidth: 9.5, align: 'left',   category: 'Shooting' },
+  { key: 'duration',    label: 'Duration',   defaultWidth: 8, align: 'left',   category: 'Shooting' },
   { key: 'intExt',      label: 'I/E',        defaultWidth: 9.74, align: 'left',   category: 'Shooting' },
-  { key: 'set',         label: 'Set',        defaultWidth: 34.38,align: 'left',   category: 'Shooting' },
-  { key: 'dayNight',    label: 'D/N',        defaultWidth: 11.46,align: 'left',   category: 'Shooting' },
+  { key: 'set',         label: 'Set',        defaultWidth: 28, align: 'left',   category: 'Shooting' },
+  { key: 'dayNight',    label: 'D/N',        defaultWidth: 9, align: 'left',   category: 'Shooting' },
   { key: 'cast',        label: 'Cast',       defaultWidth: 16.05,align: 'left',   category: 'Cast & Talent', defaultWrap: true },
   { key: 'pageCount',   label: 'Pages',      defaultWidth: 11, align: 'left',   category: 'Scene Info', defaultSuffix: 'pgs' },
   { key: 'description', label: 'Synopsis',   defaultWidth: 81.38,align: 'left',   category: 'Scene Info', defaultPrefix: 'Desc' },
@@ -143,8 +143,8 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: '', width: 24.5 },
-        { id: cid(), field: 'description', width: 75.5, align: 'left' },
+        { id: cid(), field: '', width: 23 },
+        { id: cid(), field: 'description', width: 77, align: 'left' },
       ],
     },
   ];
