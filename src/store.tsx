@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem } from './types';
 import { generateUUID, parsePageCount } from './lib/utils';
 import { getDefaultRibbonRows, cid } from './lib/ribbonUtils';
 import Papa from 'papaparse';
@@ -62,6 +62,12 @@ function loadProjectFromStorage(id: string): Project | null {
         parsed.ribbonTrash = (parsed.ribbonTrash || []).filter((t: RibbonTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
+        parsed.elementsTrash = (parsed.elementsTrash || []).filter((t: ElementTrashItem) => {
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
+        parsed.categoryTrash = (parsed.categoryTrash || []).filter((t: CategoryTrashItem) => {
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
         return parsed;
       }
     }
@@ -72,6 +78,19 @@ function loadProjectFromStorage(id: string): Project | null {
 }
 
 // getDefaultRibbonRows and cid imported from ribbonUtils
+
+const BUILTIN_SCENE_KEYS = new Set([
+  'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
+  'description', 'cast', 'notes', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe',
+  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept', 'shootDay',
+]);
+
+function getSceneFieldValue(scene: Scene, category: string): string {
+  if (BUILTIN_SCENE_KEYS.has(category)) {
+    return String((scene as any)[category] ?? '');
+  }
+  return String((scene as any)[category] ?? '');
+}
 
 function makeBlankProject(title = 'Untitled Project'): Project {
   const id = generateUUID();
@@ -101,6 +120,9 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     ribbonTrash: [],
     rules: [],
     castMembers: [],
+    customCategories: [],
+    elementsTrash: [],
+    categoryTrash: [],
     breakdownElements: {},
     sceneRibbon: SCENE_RIBBON_DEFAULTS,
     ribbonDesigns: [defaultDesign],
@@ -138,9 +160,14 @@ type Action =
   | { type: 'ADD_CAST_MEMBER'; payload: CastMember }
   | { type: 'UPDATE_CAST_MEMBER'; payload: CastMember }
   | { type: 'DELETE_CAST_MEMBER'; payload: string }
+  | { type: 'ADD_CUSTOM_CATEGORY'; payload: CustomCategoryDef }
+  | { type: 'RENAME_CUSTOM_CATEGORY'; payload: { key: string; label: string } }
+  | { type: 'DELETE_CUSTOM_CATEGORY'; payload: string }
+  | { type: 'RESTORE_CATEGORY_FROM_TRASH'; payload: string }
   | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
+  | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
   | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[] } }
   | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[] } }
@@ -265,6 +292,8 @@ function reducer(state: State, action: Action): State {
         versionTrash: [],
         rulesTrash: [],
         ribbonTrash: [],
+        elementsTrash: [],
+        categoryTrash: [],
       });
     }
 
@@ -559,10 +588,9 @@ function reducer(state: State, action: Action): State {
         if (category === 'cast') {
           list = (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }));
         } else {
-          const sceneKey = category as keyof Scene;
           const ids = new Set<string>();
           for (const s of state.present.scenes) {
-            const val = s[sceneKey] as string;
+            const val = getSceneFieldValue(s, category);
             if (!val) continue;
             for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) ids.add(item);
           }
@@ -586,19 +614,18 @@ function reducer(state: State, action: Action): State {
       }
       const newElement = { ...old, ...updates };
       const newList = list.map(e => (isCast ? e.id === id : e.id.toLowerCase() === id.toLowerCase()) ? newElement : e);
-      const sceneKey = category as keyof Scene;
 
       let newScenes = state.present.scenes;
       if (isCast && updates.id && updates.id !== id) {
         const oldLower = id.toLowerCase();
         newScenes = state.present.scenes.map(scene => {
-          const val = scene[sceneKey] as string;
+          const val = getSceneFieldValue(scene, category);
           if (!val) return scene;
           const items = val.split(',').map(x => x.trim());
           const idx = items.findIndex(x => x.toLowerCase() === oldLower);
           if (idx < 0) return scene;
           items[idx] = updates.id!;
-          return { ...scene, [sceneKey]: items.join(', ') };
+          return { ...scene, [category]: items.join(', ') };
         });
       } else if (!isCast && updates.name && updates.name !== old.name) {
         if (category === 'set') {
@@ -610,13 +637,13 @@ function reducer(state: State, action: Action): State {
         } else {
           const oldLower = old.name.toLowerCase();
           newScenes = state.present.scenes.map(scene => {
-            const val = scene[sceneKey] as string;
+            const val = getSceneFieldValue(scene, category);
             if (!val) return scene;
             const items = val.split(',').map(x => x.trim());
             const idx = items.findIndex(x => x.toLowerCase() === oldLower);
             if (idx < 0) return scene;
             items[idx] = updates.name!;
-            return { ...scene, [sceneKey]: items.join(', ') };
+            return { ...scene, [category]: items.join(', ') };
           });
         }
       }
@@ -634,18 +661,22 @@ function reducer(state: State, action: Action): State {
     case 'DELETE_ELEMENT': {
       const { category, id } = action.payload;
       const isCast = category === 'cast';
-      const sceneKey = category as keyof Scene;
       const list = state.present.breakdownElements[category] || [];
       const el = list.find(e => e.id === id);
       const matchValue = isCast ? id : (el?.name ?? id);
       const matchLower = isCast ? id.toLowerCase() : (el?.name ?? id).toLowerCase();
+      const trashItem: ElementTrashItem = {
+        category,
+        element: el ? { id: el.id, name: el.name } : { id, name: '' },
+        deletedAt: Date.now(),
+      };
       return applyChange({
         ...state.present,
         scenes: state.present.scenes.map(scene => {
-          const val = scene[sceneKey] as string;
+          const val = getSceneFieldValue(scene, category);
           if (!val) return scene;
           const items = val.split(',').map(x => x.trim()).filter(x => x.toLowerCase() !== matchLower);
-          return { ...scene, [sceneKey]: items.join(', ') };
+          return { ...scene, [category]: items.join(', ') };
         }),
         breakdownElements: {
           ...state.present.breakdownElements,
@@ -654,6 +685,89 @@ function reducer(state: State, action: Action): State {
         castMembers: isCast
           ? (state.present.castMembers || []).filter(c => c.id !== id)
           : state.present.castMembers,
+        elementsTrash: [...state.present.elementsTrash, trashItem],
+      });
+    }
+
+    case 'RESTORE_ELEMENT_FROM_TRASH': {
+      const item = state.present.elementsTrash.find(t => t.element.id === action.payload);
+      if (!item) return state;
+      const { category, element } = item;
+      const existing = state.present.breakdownElements[category] || [];
+      return applyChange({
+        ...state.present,
+        breakdownElements: {
+          ...state.present.breakdownElements,
+          [category]: [...existing, element],
+        },
+        castMembers: category === 'cast'
+          ? [...(state.present.castMembers || []), element]
+          : state.present.castMembers,
+        elementsTrash: state.present.elementsTrash.filter(t => t.element.id !== action.payload),
+      });
+    }
+
+    case 'ADD_CUSTOM_CATEGORY': {
+      return applyChange({
+        ...state.present,
+        customCategories: [...state.present.customCategories, action.payload],
+      });
+    }
+
+    case 'RENAME_CUSTOM_CATEGORY': {
+      const { key, label } = action.payload;
+      return applyChange({
+        ...state.present,
+        customCategories: state.present.customCategories.map(c =>
+          c.key === key ? { ...c, label } : c
+        ),
+      });
+    }
+
+    case 'DELETE_CUSTOM_CATEGORY': {
+      const key = action.payload;
+      const def = state.present.customCategories.find(c => c.key === key);
+      if (!def) return state;
+      const elements = state.present.breakdownElements[key] || [];
+      const sceneValues: Record<string, string> = {};
+      for (const scene of state.present.scenes) {
+        const val = getSceneFieldValue(scene, key);
+        if (val) sceneValues[scene.id] = val;
+      }
+      const trashItem: CategoryTrashItem = {
+        category: { ...def },
+        elements: elements.map(e => ({ id: e.id, name: e.name })),
+        sceneValues,
+        deletedAt: Date.now(),
+      };
+      return applyChange({
+        ...state.present,
+        customCategories: state.present.customCategories.filter(c => c.key !== key),
+        scenes: state.present.scenes.map(s => ({ ...s, [key]: undefined })),
+        breakdownElements: (() => {
+          const next = { ...state.present.breakdownElements };
+          delete next[key];
+          return next;
+        })(),
+        categoryTrash: [...state.present.categoryTrash, trashItem],
+      });
+    }
+
+    case 'RESTORE_CATEGORY_FROM_TRASH': {
+      const item = state.present.categoryTrash.find(t => t.category.key === action.payload);
+      if (!item) return state;
+      return applyChange({
+        ...state.present,
+        customCategories: [...state.present.customCategories, item.category],
+        scenes: state.present.scenes.map(s => {
+          const val = item.sceneValues[s.id];
+          return val ? { ...s, [item.category.key]: val } : s;
+        }),
+        breakdownElements: {
+          ...state.present.breakdownElements,
+          [item.category.key]: item.elements,
+        },
+        categoryTrash: state.present.categoryTrash.filter(t => t.category.key !== action.payload),
       });
     }
 

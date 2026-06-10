@@ -120,6 +120,25 @@ export interface ProjectElement {
   name: string;
 }
 
+export interface CustomCategoryDef {
+  key: string;
+  label: string;
+  icon: string;
+}
+
+export interface ElementTrashItem {
+  category: string;
+  element: ProjectElement;
+  deletedAt: number;
+}
+
+export interface CategoryTrashItem {
+  category: CustomCategoryDef;
+  elements: ProjectElement[];
+  sceneValues: Record<string, string>;
+  deletedAt: number;
+}
+
 // Legacy single-row ribbon column (kept for migration)
 export interface SceneRibbonColumn {
   key: string;
@@ -174,6 +193,9 @@ export interface Project {
   ribbonTrash: RibbonTrashItem[];
   rules: ProjectRule[];
   castMembers: CastMember[];
+  customCategories: CustomCategoryDef[];
+  elementsTrash: ElementTrashItem[];
+  categoryTrash: CategoryTrashItem[];
   breakdownElements: Record<string, ProjectElement[]>;
   sceneRibbon: SceneRibbonColumn[];
   ribbonDesigns: RibbonDesign[];
