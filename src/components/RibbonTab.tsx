@@ -1,9 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useProject } from '../store';
 import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   normalizeCells, getFieldValueFromSample, getDefaultRibbonRows, cid, MIN_PCT,
+  getCustomFieldDefs,
 } from '../lib/ribbonUtils';
 import {
   Hash, Clock, Timer, MapPin, Building2, Sun, Users, FileText, AlignLeft,
@@ -12,7 +13,7 @@ import {
   Plus, Trash2, GripHorizontal,
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
   Columns3, ChevronDown, ArrowLeft, ArrowRight,
-  AlignCenter, AlignRight, WrapText, Grid3X3, Type,
+  AlignCenter, AlignRight, WrapText, Grid3X3, Type, Tag,
   Download, Upload, Copy, Check, Pencil,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
@@ -359,8 +360,15 @@ export default function RibbonTab() {
   }, []);
 
   const used = new Set(rows.flatMap(r => r.cells.map(c => c.field)).filter(f => f && f !== 'text'));
+  const customFieldDefs = useMemo(() => getCustomFieldDefs(project.customCategories), [project.customCategories]);
+  const allFields = useMemo(() => [...ALL_FIELDS, ...customFieldDefs], [customFieldDefs]);
+  const allCategories = useMemo(() => {
+    const cats = [...CATEGORIES];
+    if (customFieldDefs.length > 0) cats.push('Custom');
+    return cats;
+  }, [customFieldDefs]);
   const placed = used.size;
-  const total = ALL_FIELDS.length;
+  const total = allFields.length;
 
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
@@ -476,14 +484,14 @@ export default function RibbonTab() {
               <span className="ml-auto text-[10px] tabular-nums text-zinc-600">{placed}/{total}</span>
             </div>
 
-            {CATEGORIES.map(cat => {
-              const items = ALL_FIELDS.filter(f => f.category === cat);
+            {allCategories.map(cat => {
+              const items = allFields.filter(f => f.category === cat);
               const catUsed = items.filter(f => used.has(f.key)).length;
               const catColors: Record<string, string> = {
                 'Scene Info': 'text-blue-400', 'Shooting': 'text-emerald-400',
                 'Cast & Talent': 'text-amber-400', 'Production': 'text-violet-400',
                 'Breakdown': 'text-rose-400', 'VFX & Audio': 'text-cyan-400',
-                'Misc': 'text-zinc-400', 'Special': 'text-pink-400',
+                'Misc': 'text-zinc-400', 'Special': 'text-pink-400', 'Custom': 'text-fuchsia-400',
               };
               const cc = catColors[cat] || 'text-zinc-400';
               return (
@@ -495,7 +503,7 @@ export default function RibbonTab() {
                   <div className="space-y-0.5">
                     {items.map(f => {
                       const inUse = used.has(f.key);
-                      const Icon = FIELD_ICONS[f.key];
+                      const Icon = FIELD_ICONS[f.key] || Tag;
                       return (
                         <button
                           key={f.key}

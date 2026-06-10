@@ -534,7 +534,10 @@ export const SortableRow: React.FC<{
     fontFamily: 'Helvetica, sans-serif',
   });
 
-  const ENTITY_FIELDS = useMemo(() => new Set(['extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept']), []);
+  const ENTITY_FIELDS = useMemo(() => new Set([
+    'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
+    ...(state.present.customCategories || []).map(c => c.key),
+  ]), [state.present.customCategories]);
   const entityItemsMap = useMemo(() => {
     const map: Record<string, { id: string; name: string }[]> = {};
     for (const field of ENTITY_FIELDS) {

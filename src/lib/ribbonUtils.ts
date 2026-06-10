@@ -1,4 +1,4 @@
-import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
+import { RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef } from '../types';
 import { formatDuration } from './utils';
 
 export interface FieldDef {
@@ -157,4 +157,14 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
   };
+}
+
+export function getCustomFieldDefs(customCategories: CustomCategoryDef[]): FieldDef[] {
+  return customCategories.map(c => ({
+    key: c.key,
+    label: c.label,
+    defaultWidth: 17.19,
+    align: 'left' as const,
+    category: 'Custom',
+  }));
 }
