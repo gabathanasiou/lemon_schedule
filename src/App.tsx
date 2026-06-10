@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ProjectProvider, useProject } from './store';
-import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, Project } from './types';
+import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
@@ -534,7 +534,7 @@ function AppContent() {
                 </DropdownItem>
                 <DropdownDivider />
                 <DropdownItem onClick={() => { setShowVersionsMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0)})
+                  Trash ({(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0)})
                 </DropdownItem>
               </div>
             </DropdownMenu>
@@ -616,11 +616,15 @@ function AppContent() {
                 const items: Array<{ kind: 'scene'; id: string; data: TrashItem }
                   | { kind: 'version'; id: string; data: VersionTrashItem }
                   | { kind: 'rule'; id: string; data: RuleTrashItem }
-                  | { kind: 'ribbon'; id: string; data: RibbonTrashItem }> = [
+                  | { kind: 'ribbon'; id: string; data: RibbonTrashItem }
+                  | { kind: 'element'; id: string; data: ElementTrashItem }
+                  | { kind: 'category'; id: string; data: CategoryTrashItem }> = [
                     ...(project.trash || []).map(t => ({ kind: 'scene' as const, id: t.scene.id, data: t })),
                     ...(project.versionTrash || []).map(t => ({ kind: 'version' as const, id: t.version.id, data: t })),
                     ...(project.rulesTrash || []).map(t => ({ kind: 'rule' as const, id: t.rule.id, data: t })),
                     ...(project.ribbonTrash || []).map(t => ({ kind: 'ribbon' as const, id: t.design.id, data: t })),
+                    ...(project.elementsTrash || []).map(t => ({ kind: 'element' as const, id: t.element.id, data: t })),
+                    ...(project.categoryTrash || []).map(t => ({ kind: 'category' as const, id: t.category.key, data: t })),
                   ].sort((a, b) => b.data.deletedAt - a.data.deletedAt);
                 if (items.length === 0) {
                   return <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>;
@@ -644,6 +648,22 @@ function AppContent() {
                       : t.rule.castId;
                     title = `${meta.short} · Cast ${castLabel} · ${describeRule(t.rule)}`;
                     subtitle = `Rule · ${formatTime(t.deletedAt)}`;
+                  } else if (item.kind === 'element') {
+                    const t = item.data as ElementTrashItem;
+                    const builtinLabels: Record<string, string> = {
+                      cast: 'Cast', set: 'Sets', props: 'Props', extras: 'Supporting Artists',
+                      stunts: 'Stunts', vehicles: 'Vehicles', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
+                      sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
+                      animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
+                    };
+                    const custom = project.customCategories.find(c => c.key === t.category);
+                    const catLabel = builtinLabels[t.category] || custom?.label || t.category;
+                    title = `${catLabel} · ${t.element.name || t.element.id}`;
+                    subtitle = `Element · ${formatTime(t.deletedAt)}`;
+                  } else if (item.kind === 'category') {
+                    const t = item.data as CategoryTrashItem;
+                    title = t.category.label;
+                    subtitle = `Custom Category · ${t.elements.length} elements · ${formatTime(t.deletedAt)}`;
                   } else {
                     const t = item.data as RibbonTrashItem;
                     title = t.design.name;
@@ -652,9 +672,11 @@ function AppContent() {
                   const actionType = item.kind === 'scene' ? 'RESTORE_SCENE'
                     : item.kind === 'version' ? 'RESTORE_VERSION_FROM_TRASH'
                     : item.kind === 'rule' ? 'RESTORE_RULE_FROM_TRASH'
+                    : item.kind === 'element' ? 'RESTORE_ELEMENT_FROM_TRASH'
+                    : item.kind === 'category' ? 'RESTORE_CATEGORY_FROM_TRASH'
                     : 'RESTORE_RIBBON_FROM_TRASH';
-                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'rule' ? 'Rule' : 'Ribbon';
-                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'rule' ? 'text-amber-400' : 'text-violet-400';
+                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'rule' ? 'Rule' : item.kind === 'element' ? 'Element' : item.kind === 'category' ? 'Category' : 'Ribbon';
+                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'rule' ? 'text-amber-400' : item.kind === 'element' ? 'text-orange-400' : item.kind === 'category' ? 'text-pink-400' : 'text-violet-400';
                   return (
                     <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
                       <div className="min-w-0">
@@ -676,7 +698,7 @@ function AppContent() {
                 });
               })()}
             </div>
-            {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0)) > 0 && (
+            {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0)) > 0 && (
               <div className="border-t border-zinc-800 px-5 py-3">
                 <button
                   onClick={() => { if (confirm('Permanently delete all trash items?')) dispatch({ type: 'EMPTY_TRASH' }); }}
