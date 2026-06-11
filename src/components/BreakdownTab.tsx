@@ -80,6 +80,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [subTab]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number } | null>(null);
+  const portalTargetRef = useRef<HTMLDivElement>(null);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -388,6 +389,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       onMouseDown={(e) => {
         if (row < 0) return;
         onSelect(row, e.shiftKey);
+        setContextMenu({ x: e.clientX, y: e.clientY, row });
       }}
       onDoubleClick={(e) => {
         e.preventDefault();
@@ -603,49 +605,52 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 shadow-xl overflow-hidden relative select-none">
-      <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
-        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('scenes'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'scenes' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
-          Scene Breakdown
-        </button>
-        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('elements'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'elements' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
-          Elements
-        </button>
-        <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('sheet'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'sheet' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
-          Sheet
-        </button>
-      </div>
-      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 shrink-0 bg-white">
-        <span className="text-sm font-semibold text-zinc-800">Scene Breakdown</span>
-        <div className="flex items-center gap-2">
-          <button onClick={addScene} className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors">
-            + Add Scene
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
+        <div className="flex items-center gap-1">
+          <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('scenes'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'scenes' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+            Scene Breakdown
           </button>
-          <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
-            Sort by #
+          <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('elements'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'elements' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+            Elements
           </button>
-          <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors">
-            Clean Empty
+          <button onClick={() => { scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0; onSubTabChange('sheet'); }} className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'sheet' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}>
+            Sheet
           </button>
-          <div className="relative">
-            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] hover:bg-zinc-50 transition-colors">
-              Import CSV
-            </button>
-          </div>
-          <div className="w-px h-5 bg-zinc-200" />
-          <div className="flex items-center gap-3 text-[11px]">
-            <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Scenes</span>
-              <span className="text-zinc-800 font-semibold">{scenes.length}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Pages</span>
-              <span className="text-zinc-800 font-semibold">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
-            </div>
-          </div>
         </div>
+        {subTab === 'scenes' ? (
+          <div className="flex items-center gap-2">
+            <button onClick={addScene} className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors">
+              + Add Scene
+            </button>
+            <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+              Sort by #
+            </button>
+            <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+              Clean Empty
+            </button>
+            <div className="relative">
+              <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+                Import CSV
+              </button>
+            </div>
+            <div className="w-px h-5 bg-zinc-200" />
+            <div className="flex items-center gap-3 text-[11px]">
+              <div className="flex items-center gap-1.5">
+                <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Scenes</span>
+                <span className="text-zinc-800 font-semibold">{scenes.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Pages</span>
+                <span className="text-zinc-800 font-semibold">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div ref={portalTargetRef} className="flex items-center gap-2" />
+        )}
       </div>
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} /> : (
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTargetRef.current} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTargetRef.current} /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
@@ -681,7 +686,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                background: #fafafa;
              }
              .Spreadsheet__header-label {
-               padding: 8px 10px;
+               padding: 3px 8px;
                overflow: hidden;
                text-overflow: ellipsis;
              }

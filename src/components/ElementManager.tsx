@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
@@ -56,7 +57,7 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
   return counts;
 }
 
-export function ElementManager({ initialCategory, onCategoryChange }: { initialCategory?: string; onCategoryChange?: (cat: string) => void }) {
+export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
   const { state, dispatch } = useProject();
   const dialog = useDialog();
   const project = state.present;
@@ -327,8 +328,86 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     return keys;
   }, [project.customCategories, hiddenSet]);
 
+  const label = getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category, project.categoryLabels);
+
+  const topBar = (
+    <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
+      <span className="text-xs font-semibold text-zinc-800">{label}</span>
+      <div className="flex items-center gap-1.5">
+        {hasChanges && (
+          <button onClick={doRevert} className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-500 hover:bg-zinc-100 transition-colors">
+              <Undo2 className="w-3 h-3" />
+              Revert
+            </button>
+        )}
+        <button onClick={doSave} className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
+          <Save className="w-3 h-3" />
+          {hasChanges ? 'Save Changes' : 'Saved'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const actionBar = (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
+      <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
+      {isCast && (
+        <>
+          <span className="text-zinc-300 mx-1">|</span>
+          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+            Sort by ID
+          </button>
+          <span className="text-zinc-300">·</span>
+          <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+            Auto-ID
+          </button>
+        </>
+      )}
+      {!isCast && (
+        <>
+          <span className="text-zinc-300">·</span>
+          <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
+            Merge Duplicates
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  const headerContent = (
+    <>
+      <span className="text-xs font-semibold text-zinc-700 mr-2">{label}</span>
+      {hasChanges && (
+        <button onClick={doRevert} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors flex items-center gap-1">
+          <Undo2 className="w-3 h-3" /> Revert
+        </button>
+      )}
+      <button onClick={doSave} className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-zinc-100 text-zinc-400'}`}>
+        <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
+      </button>
+      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <span className="text-[11px] text-zinc-500 font-medium">{rows.length} {rows.length === 1 ? 'elem' : 'elems'}</span>
+      {isCast && (
+        <>
+          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+            Sort by ID
+          </button>
+          <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+            Auto-ID
+          </button>
+        </>
+      )}
+      {!isCast && (
+        <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+          Merge Duplicates
+        </button>
+      )}
+    </>
+  );
+
   return (
     <div className="flex-1 flex overflow-hidden">
+      {headerTarget ? createPortal(headerContent, headerTarget) : null}
       <aside className="w-[188px] shrink-0 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
         <div className="p-3">
           <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-1">Categories</span>
@@ -435,51 +514,9 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
       </aside>
 
       <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+        {!headerTarget && topBar}
+        {!headerTarget && actionBar}
         <div className="flex flex-col h-full px-4 py-4 gap-3">
-
-          {/* Top bar card */}
-          <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
-            <span className="text-xs font-semibold text-zinc-800">
-              {getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category, project.categoryLabels)}
-            </span>
-            <div className="flex items-center gap-1.5">
-              {hasChanges && (
-                <button onClick={doRevert} className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-500 hover:bg-zinc-100 transition-colors">
-                  <Undo2 className="w-3 h-3" />
-                  Revert
-                </button>
-              )}
-              <button onClick={doSave} className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
-                <Save className="w-3 h-3" />
-                {hasChanges ? 'Save Changes' : 'Saved'}
-              </button>
-            </div>
-          </div>
-
-          {/* Action bar card */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
-            <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
-            {isCast && (
-              <>
-                <span className="text-zinc-300 mx-1">|</span>
-                <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-                  Sort by ID
-                </button>
-                <span className="text-zinc-300">·</span>
-                <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-                  Auto-ID
-                </button>
-              </>
-            )}
-            {!isCast && (
-              <>
-                <span className="text-zinc-300">·</span>
-                <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-                  Merge Duplicates
-                </button>
-              </>
-            )}
-          </div>
 
           {/* Table card */}
           <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">

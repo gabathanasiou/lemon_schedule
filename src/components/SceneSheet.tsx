@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
@@ -23,7 +24,7 @@ const BREAKDOWN_LABEL: Record<string, string> = {
 
 let persistedIndex = 0;
 
-export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: number; onIndexChange?: (idx: number) => void }) {
+export function SceneSheet({ initialIndex, onIndexChange, headerTarget }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const scenes = project.scenes;
@@ -245,30 +246,51 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
     </div>
   );
 
+  const navBar = scenes.length > 0 ? (
+    <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
+      <div className="flex items-center gap-2.5">
+        <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-600" /></button>
+        <div className="flex items-center gap-1 text-sm">
+          <span className="text-zinc-400">Sheet</span>
+          <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+          <span className="text-zinc-400">of {scenes.length}</span>
+        </div>
+        <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
+        <div className="w-px h-5 bg-zinc-200 mx-1" />
+        <button onClick={createNewScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors" title="New Scene Sheet">
+          <Plus className="w-3.5 h-3.5" />
+          New
+        </button>
+      </div>
+      <button onClick={deleteCurrentScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors" title="Delete Scene Sheet">
+        <Trash2 className="w-3.5 h-3.5" />
+        Delete
+      </button>
+    </div>
+  ) : null;
+
+  const headerContent = scenes.length > 0 ? (
+    <>
+      <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-500" /></button>
+      <span className="text-[11px] text-zinc-500">Sheet</span>
+      <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-10 text-center border border-zinc-200 rounded px-1 py-0.5 text-[11px] font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
+      <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
+      <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
+      <div className="w-px h-4 bg-zinc-300 mx-1.5" />
+      <button onClick={createNewScene} className="bg-zinc-900 text-white px-2.5 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors flex items-center gap-1">
+        <Plus className="w-3 h-3" /> New
+      </button>
+      <button onClick={deleteCurrentScene} className="bg-white border border-zinc-300 px-2.5 py-1 text-rose-600 rounded text-[11px] font-medium hover:bg-rose-50 transition-colors flex items-center gap-1">
+        <Trash2 className="w-3 h-3" /> Delete
+      </button>
+    </>
+  ) : null;
+
   return (
     <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+      {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full px-4 py-3 gap-3">
-        {/* Nav bar */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <button onClick={() => goTo(index - 1)} disabled={index === 0} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronLeft className="w-4 h-4 text-zinc-600" /></button>
-            <div className="flex items-center gap-1 text-sm">
-              <span className="text-zinc-400">Sheet</span>
-              <input type="text" value={sheetInput} onChange={e => setSheetInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { const n = parseInt(sheetInput, 10); if (n >= 1 && n <= scenes.length) goTo(n - 1); } }} className="w-12 text-center border border-zinc-200 rounded-md px-1 py-0.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900" />
-              <span className="text-zinc-400">of {scenes.length}</span>
-            </div>
-            <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
-            <div className="w-px h-5 bg-zinc-200 mx-1" />
-            <button onClick={createNewScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors" title="New Scene Sheet">
-              <Plus className="w-3.5 h-3.5" />
-              New
-            </button>
-          </div>
-          <button onClick={deleteCurrentScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors" title="Delete Scene Sheet">
-            <Trash2 className="w-3.5 h-3.5" />
-            Delete
-          </button>
-        </div>
+        {!headerTarget && navBar}
 
         {/* Header table — matches print layout */}
         <div className="bg-white border border-zinc-300">
