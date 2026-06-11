@@ -190,7 +190,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: '12pt 4pt',
+                            padding: '6pt 6pt',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -264,7 +264,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: '12pt 4pt',
+                            padding: '6pt 6pt',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -480,8 +480,8 @@ const PRINT_STYLE = `
     background: var(--note-bg, #591b1b);
     color: var(--note-fg, #ffffff);
     vertical-align: middle;
-    padding-top: 9pt !important;
-    padding-bottom: 9pt !important;
+    padding-top: 6pt !important;
+    padding-bottom: 6pt !important;
     border-right: 1px solid var(--td-border-color, #591b1b);
     border-bottom: 1px solid var(--td-border-color, #591b1b);
   }
