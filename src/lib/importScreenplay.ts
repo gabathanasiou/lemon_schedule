@@ -20,6 +20,7 @@ export interface ImportCharacter {
 }
 
 export interface ImportResult {
+  title?: string;
   scenes: ParsedScene[];
   characters: ImportCharacter[];
   unknownCategories: string[];
@@ -55,14 +56,18 @@ export const FDX_CATEGORY_MAP: Record<string, string | null> = {
   'Special Equipment': null,
   'Miscellaneous': null,
   'Comments': null,
-  'Script Day': null,
+  'Script Day': 'scriptDay',
   'Sequence': null,
   'Unit': null,
-  'Synopsis': null,
-  'Location': null,
+  'Synopsis': 'description',
+  'Location': 'location',
   'Cast Members': null,
-  'Notes': null,
+  'Notes': 'notes',
 };
+
+export function categoryNameToKey(name: string): string {
+  return name.replace(/\s+/g, '').replace(/^[A-Z]/, l => l.toLowerCase()).replace(/\/[a-z]/g, m => m.charAt(1).toUpperCase());
+}
 
 function normalizeCharacterName(name: string): string {
   return name.trim().toUpperCase().replace(/\s*\([^)]*\)\s*$/g, '').trim().replace(/\s*\([^)]*\)\s*$/g, '').trim();
@@ -159,7 +164,10 @@ function resolveTagElement(
   const mappedKey = FDX_CATEGORY_MAP[catName];
   if (mappedKey === undefined) {
     unknownCategories.add(catName);
-    return null;
+    const provisionalKey = categoryNameToKey(catName);
+    const label = maps.tagDefLabel.get(defId) || '';
+    const elementName = elementText.trim() || label;
+    return { categoryKey: provisionalKey, elementName };
   }
   if (mappedKey === null) {
     unknownCategories.add(catName);
@@ -190,7 +198,6 @@ export async function parseFDX(file: File): Promise<ImportResult> {
   let currentHeading = '';
   let currentPageCount: string | undefined;
   let currentPageCountDecimal: number | undefined;
-  let descriptionLines: string[] = [];
   const sceneCharacters = new Set<string>();
   const sceneTaggedElements = new Map<string, Set<string>>();
   let lastDayNight: DayNight = 'DAY';
@@ -213,7 +220,7 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       intExt: heading?.intExt || 'INT',
       set: heading?.set || currentHeading || 'UNKNOWN',
       dayNight: dn,
-      description: descriptionLines.length > 0 ? descriptionLines.join('\n') : currentDescription,
+      description: '',
       characters: [...sceneCharacters],
       taggedElements: tagged,
     });
@@ -222,7 +229,6 @@ export async function parseFDX(file: File): Promise<ImportResult> {
     currentDescription = '';
     currentPageCount = undefined;
     currentPageCountDecimal = undefined;
-    descriptionLines = [];
     sceneCharacters.clear();
     sceneTaggedElements.clear();
   }
@@ -265,8 +271,6 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       if (scenes.length === 0 && !currentSceneNumber) {
         currentSceneNumber = pNum || String(scenes.length + 1);
         currentHeading = textContent;
-      } else {
-        descriptionLines.push(textContent.trim());
       }
     }
 
@@ -286,7 +290,10 @@ export async function parseFDX(file: File): Promise<ImportResult> {
     characters.push({ name, scenes: [...sceneNums] });
   }
 
-  return { scenes, characters, unknownCategories: [...unknownCategories] };
+  const titleEl = doc.querySelector('Content > Title');
+  const title = titleEl?.textContent?.trim() || undefined;
+
+  return { title, scenes, characters, unknownCategories: [...unknownCategories] };
 }
 
 export async function parseFountain(file: File): Promise<ImportResult> {
@@ -347,7 +354,7 @@ export async function parseFountain(file: File): Promise<ImportResult> {
     characters.push({ name, scenes: [...sceneNums] });
   }
 
-  return { scenes, characters, unknownCategories: [] };
+  return { title: result.title || undefined, scenes, characters, unknownCategories: [] };
 }
 
 export interface CommitImportParams {
@@ -356,6 +363,8 @@ export interface CommitImportParams {
   castIdMap: Map<string, string>;
   newCustomCategories: string[];
   existingCastMembers: CastMember[];
+  projectTitle?: string;
+  reEnableCategories?: string[];
 }
 
 export function commitImport({
@@ -364,9 +373,17 @@ export function commitImport({
   castIdMap,
   newCustomCategories,
   existingCastMembers,
+  projectTitle,
+  reEnableCategories = [],
 }: CommitImportParams): void {
+  if (projectTitle) {
+    dispatch({ type: 'UPDATE_PROJECT', payload: { title: projectTitle } });
+  }
+  for (const key of reEnableCategories) {
+    dispatch({ type: 'SHOW_CATEGORY', payload: key });
+  }
   for (const catName of newCustomCategories) {
-    const key = catName.replace(/\s+/g, '').replace(/^[A-Z]/, l => l.toLowerCase()).replace(/\/[a-z]/g, m => m.charAt(1).toUpperCase());
+    const key = categoryNameToKey(catName);
     dispatch({ type: 'ADD_CUSTOM_CATEGORY', payload: { key, label: catName, icon: 'Tag' } });
   }
 
@@ -382,9 +399,18 @@ export function commitImport({
     dispatch({ type: 'ADD_ELEMENT', payload: { category: 'cast', element: { id, name: upperName } } });
   }
 
+  const SCENE_FIELD_KEYS = new Set(['notes', 'scriptDay', 'set', 'description']);
+
+  const BUILTIN_BREAKDOWN_KEYS = new Set(
+    Object.values(FDX_CATEGORY_MAP).filter((v): v is string => v !== null && !SCENE_FIELD_KEYS.has(v))
+  );
+  const selectedCustomKeys = new Set(newCustomCategories.map(categoryNameToKey));
+
   const allElements = new Map<string, Set<string>>();
   for (const ps of result.scenes) {
     for (const [cat, items] of Object.entries(ps.taggedElements)) {
+      if (SCENE_FIELD_KEYS.has(cat)) continue;
+      if (!BUILTIN_BREAKDOWN_KEYS.has(cat) && !selectedCustomKeys.has(cat)) continue;
       if (!allElements.has(cat)) allElements.set(cat, new Set());
       const set = allElements.get(cat)!;
       for (const item of items) set.add(item);
@@ -392,7 +418,7 @@ export function commitImport({
   }
   for (const [cat, items] of allElements) {
     for (const item of items) {
-      dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: generateUUID(), name: item } } });
+      dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name: item } } });
     }
   }
 
@@ -418,13 +444,14 @@ export function commitImport({
       sceneNumber: ps.sceneNumber,
       pageCount: ps.pageCount || '1',
       pageCountDecimal: ps.pageCountDecimal || 1,
-      scriptDay: '',
+      scriptDay: breakdownFields.scriptDay || '',
       intExt: ps.intExt,
-      set: ps.set.toUpperCase(),
+      set: breakdownFields.set || ps.set.toUpperCase(),
       dayNight: ps.dayNight,
-      description: ps.description,
+      description: breakdownFields.description || '',
       cast: castIds,
-      notes: '',
+      notes: breakdownFields.notes || '',
+      location: breakdownFields.location || '',
       backgroundActors: breakdownFields.backgroundActors || '',
       stunts: breakdownFields.stunts || '',
       vehicles: breakdownFields.vehicles || '',
@@ -443,7 +470,7 @@ export function commitImport({
     };
 
     for (const catName of newCustomCategories) {
-      const key = catName.replace(/\s+/g, '').replace(/^[A-Z]/, l => l.toLowerCase()).replace(/\/[a-z]/g, m => m.charAt(1).toUpperCase());
+      const key = categoryNameToKey(catName);
       if (breakdownFields[key]) sceneBase[key] = breakdownFields[key];
     }
 

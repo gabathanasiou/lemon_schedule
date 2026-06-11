@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { useProject } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { parseFDX, parseFountain, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
-import { X, Upload, Loader2, Wand2, GripVertical } from 'lucide-react';
+import { X, Upload, Loader2, GripVertical } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -67,7 +67,10 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [castOrder, setCastOrder] = useState<ImportCharacter[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [selectedHidden, setSelectedHidden] = useState<Set<string>>(new Set());
+  const [hiddenWithData, setHiddenWithData] = useState<{ key: string; label: string }[]>([]);
   const [fileLabel, setFileLabel] = useState('');
+  const [projectTitle, setProjectTitle] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -112,6 +115,20 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
       }
 
       setResult(parsed);
+      setProjectTitle(parsed.title || '');
+
+      const taggedKeys = new Set<string>();
+      for (const s of parsed.scenes) {
+        for (const k of Object.keys(s.taggedElements)) taggedKeys.add(k);
+      }
+      const hiddenItems: { key: string; label: string }[] = [];
+      for (const hk of project.hiddenCategories || []) {
+        if (taggedKeys.has(hk)) {
+          hiddenItems.push({ key: hk, label: DEFAULT_CATEGORY_LABELS[hk] || hk });
+        }
+      }
+      setHiddenWithData(hiddenItems);
+      setSelectedHidden(new Set());
 
       const sorted = [...parsed.characters].sort((a, b) => b.scenes.length - a.scenes.length);
       setCastOrder(sorted);
@@ -143,11 +160,6 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
     e.preventDefault();
   }, []);
 
-  const autoAssign = useCallback(() => {
-    const sorted = [...(result?.characters || [])].sort((a, b) => b.scenes.length - a.scenes.length);
-    setCastOrder(sorted);
-  }, [result]);
-
   const handleImport = useCallback(() => {
     if (!result) return;
     setStage('importing');
@@ -163,10 +175,12 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
       castIdMap,
       newCustomCategories: [...selectedCategories],
       existingCastMembers: project.castMembers || [],
+      projectTitle: projectTitle.trim() || undefined,
+      reEnableCategories: [...selectedHidden],
     });
 
     onClose();
-  }, [result, castOrder, startId, selectedCategories, dispatch, project.castMembers, onClose]);
+  }, [result, castOrder, startId, selectedCategories, selectedHidden, dispatch, project.castMembers, projectTitle, onClose]);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -213,14 +227,52 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
               <p className="text-zinc-400 text-sm">Parsing {fileLabel}...</p>
-            </div>
-          )}
+                </div>
+              )}
+
+              {hiddenWithData.length > 0 && (
+                <div>
+                  <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                    Hidden Categories
+                  </h3>
+                  <p className="text-zinc-500 text-[10px] mb-2">These categories were previously hidden but contain data in this file.</p>
+                  <div className="space-y-1.5">
+                    {hiddenWithData.map(({ key, label }) => (
+                      <label key={key} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selectedHidden.has(key)}
+                          onChange={() => {
+                            const next = new Set(selectedHidden);
+                            if (next.has(key)) next.delete(key);
+                            else next.add(key);
+                            setSelectedHidden(next);
+                          }}
+                          className="w-3.5 h-3.5 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="text-zinc-300 text-xs">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
           {stage === 'review' && result && (
             <>
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
                 <span className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider">File</span>
                 <span className="text-zinc-300 text-xs">{fileLabel}</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-zinc-500 text-[11px] font-medium uppercase tracking-wider shrink-0">Rename Project</span>
+                <input
+                  type="text"
+                  value={projectTitle}
+                  onChange={e => setProjectTitle(e.target.value)}
+                  placeholder="Leave blank to keep current title"
+                  className="flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-zinc-600"
+                />
               </div>
 
               <div className="flex items-center gap-3">
@@ -266,13 +318,6 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
                   <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                     Cast ID Assignment
                   </h3>
-                  <button
-                    onClick={autoAssign}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors"
-                  >
-                    <Wand2 className="w-3 h-3" />
-                    Auto-Assign
-                  </button>
                 </div>
                 <p className="text-zinc-500 text-[10px] mb-2">Drag rows to reorder. IDs are assigned by row position (starting from {startId}).</p>
                 <div className="rounded-lg border border-zinc-800 overflow-hidden">

@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useProject } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
-import { parsePageCount, formatPageCount } from '../lib/utils';
+import { parsePageCount, formatPageCount, generateUUID } from '../lib/utils';
 
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
@@ -30,16 +30,19 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
   const breakdownElements = project.breakdownElements || {};
   const castMembers = project.castMembers || [];
 
+  const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
+
   const allBreakdownCats = useMemo(() => [
-    ...BREAKDOWN_CATS,
+    ...BREAKDOWN_CATS.filter(k => !hiddenSet.has(k)),
     ...(project.customCategories || []).map(c => c.key),
-  ], [project.customCategories]);
+  ], [project.customCategories, hiddenSet]);
 
   const allBreakdownLabel = useMemo(() => {
-    const labels: Record<string, string> = { ...BREAKDOWN_LABEL };
+    const labels: Record<string, string> = {};
+    for (const k of BREAKDOWN_CATS) labels[k] = project.categoryLabels?.[k] || DEFAULT_CATEGORY_LABELS[k] || BREAKDOWN_LABEL[k] || k;
     for (const c of project.customCategories || []) labels[c.key] = c.label;
     return labels;
-  }, [project.customCategories]);
+  }, [project.customCategories, project.categoryLabels]);
 
   const [index, setIndex] = useState(() => Math.min(initialIndex ?? persistedIndex, Math.max(scenes.length - 1, 0)));
   useEffect(() => { persistedIndex = index; }, [index]);
@@ -75,6 +78,61 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
     const cur = (currentEdits as any)[field];
     return cur !== undefined ? cur : (scene as any)[field] || '';
   }, [scene, currentEdits]);
+
+  const createNewScene = useCallback(() => {
+    if (Object.keys(editsRef.current).length > 0) {
+      saveRef.current();
+    }
+    const newId = generateUUID();
+    dispatch({
+      type: 'ADD_SCENE',
+      payload: {
+        id: newId,
+        sceneNumber: '',
+        pageCount: '',
+        pageCountDecimal: 0,
+        scriptDay: '',
+        intExt: '' as any,
+        set: '',
+        dayNight: '' as any,
+        description: '',
+        cast: '',
+        notes: '',
+        backgroundActors: '',
+        stunts: '',
+        vehicles: '',
+        props: '',
+        wardrobe: '',
+        makeup: '',
+        sfx: '',
+        vfx: '',
+        sound: '',
+        music: '',
+        animalsAndWranglers: '',
+        weapons: '',
+        greenery: '',
+        artDept: '',
+        shootDay: null,
+      }
+    });
+    const newIdx = scenes.length;
+    setIndex(newIdx);
+    setSheetInput(String(newIdx + 1));
+    onIndexChange?.(newIdx);
+  }, [dispatch, scenes.length, onIndexChange]);
+
+  const deleteCurrentScene = useCallback(() => {
+    if (!scene) return;
+    if (Object.keys(editsRef.current).length > 0) {
+      setEdits({});
+    }
+    dispatch({ type: 'DELETE_SCENE', payload: scene.id });
+    const newLen = scenes.length - 1;
+    const newIdx = Math.min(index, Math.max(0, newLen - 1));
+    setIndex(newIdx);
+    setSheetInput(String(newIdx + 1));
+    onIndexChange?.(newIdx);
+  }, [scene, index, dispatch, scenes.length, onIndexChange]);
 
   const doSave = useCallback(() => {
     const added = new Set<string>();
@@ -174,7 +232,18 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
 
   const inputCls = "w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent";
 
-  if (scenes.length === 0) return <div className="flex-1 flex items-center justify-center bg-zinc-50"><p className="text-sm text-zinc-500">No scenes defined yet.</p></div>;
+  if (scenes.length === 0) return (
+    <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 gap-4">
+      <p className="text-sm text-zinc-500">No scenes defined yet.</p>
+      <button
+        onClick={createNewScene}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors shadow-sm"
+      >
+        <Plus className="w-4 h-4" />
+        Create First Scene
+      </button>
+    </div>
+  );
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
@@ -189,7 +258,16 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
               <span className="text-zinc-400">of {scenes.length}</span>
             </div>
             <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded-md hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-600" /></button>
+            <div className="w-px h-5 bg-zinc-200 mx-1" />
+            <button onClick={createNewScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors" title="New Scene Sheet">
+              <Plus className="w-3.5 h-3.5" />
+              New
+            </button>
           </div>
+          <button onClick={deleteCurrentScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors" title="Delete Scene Sheet">
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
         </div>
 
         {/* Header table — matches print layout */}

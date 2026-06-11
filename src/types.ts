@@ -1,5 +1,5 @@
-export type IntExt = 'INT' | 'EXT' | 'INT/EXT';
-export type DayNight = 'DAY' | 'NIGHT' | 'MORNING' | 'EVENING' | 'DAWN' | 'DUSK';
+export type IntExt = '' | 'INT' | 'EXT' | 'INT/EXT';
+export type DayNight = '' | 'DAY' | 'NIGHT' | 'MORNING' | 'EVENING' | 'DAWN' | 'DUSK';
 export type RowType = 'SCENE' | 'BREAK' | 'NOTE';
 
 export interface Scene {
@@ -194,6 +194,8 @@ export interface Project {
   rules: ProjectRule[];
   castMembers: CastMember[];
   customCategories: CustomCategoryDef[];
+  hiddenCategories: string[];
+  categoryLabels: Record<string, string>;
   elementsTrash: ElementTrashItem[];
   categoryTrash: CategoryTrashItem[];
   breakdownElements: Record<string, ProjectElement[]>;

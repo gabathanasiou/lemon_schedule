@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { useProject } from '../store';
+import { useProject, PROTECTED_CATEGORIES, DEFAULT_CATEGORY_LABELS } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
-import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot, Pencil } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot, Pencil, Eye, EyeOff } from 'lucide-react';
 
 const ELEMENT_CATEGORIES = [
   { key: 'cast', label: 'Cast' },
@@ -135,6 +135,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   const [dupDialog, setDupDialog] = useState<{ cats: string[] } | null>(null);
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [showEditCustom, setShowEditCustom] = useState(false);
+  const [showEditBuiltin, setShowEditBuiltin] = useState(false);
   const [editCatKey, setEditCatKey] = useState('');
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('Tag');
@@ -331,81 +332,119 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     return elems.length;
   }
 
+  function getLabel(key: string, fallback: string): string {
+    return project.categoryLabels?.[key] || DEFAULT_CATEGORY_LABELS[key] || fallback;
+  }
+
+  const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
+
+  const allCategoryKeys = useMemo(() => {
+    const keys: { key: string; isCustom: boolean; isHidden: boolean }[] = [];
+    for (const c of ELEMENT_CATEGORIES) {
+      keys.push({ key: c.key, isCustom: false, isHidden: hiddenSet.has(c.key) });
+    }
+    for (const c of project.customCategories) {
+      if (!hiddenSet.has(c.key)) keys.push({ key: c.key, isCustom: true, isHidden: false });
+    }
+    return keys;
+  }, [project.customCategories, hiddenSet]);
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <aside className="w-[188px] shrink-0 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
         <div className="p-3">
           <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-1">Categories</span>
           <div className="mt-2 space-y-0.5">
-            {ELEMENT_CATEGORIES.map(c => {
-              const Icon = CAT_ICONS[c.key];
-              const isActive = c.key === category;
+            {allCategoryKeys.map(({ key, isCustom, isHidden }) => {
+              const Icon = isCustom ? getCustomIcon(project.customCategories.find(c => c.key === key)?.icon || 'Tag') : CAT_ICONS[key];
+              const isActive = key === category;
+              const hasLabelOverride = !isCustom && !!project.categoryLabels?.[key];
+              const label = isCustom
+                ? project.customCategories.find(c => c.key === key)?.label || key
+                : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key);
+              const isProtected = PROTECTED_CATEGORIES.has(key);
+              const showHideToggle = !isCustom && !isProtected;
+              const showDelete = isCustom;
               return (
-                <button
-                  key={c.key}
-                  onClick={() => switchCategory(c.key)}
-                  className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
-                    isActive
-                      ? 'bg-zinc-900 text-white font-semibold'
-                      : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
-                  }`}
-                >
-                  {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />}
-                  <span className="truncate flex-1">{c.label}</span>
-                  <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : 'text-zinc-400'}`}>
-                    {countTotal(c.key)}
-                  </span>
-                </button>
+                <div key={key} className="group">
+                  <button
+                    onClick={() => switchCategory(key)}
+                    className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
+                      isHidden
+                        ? 'text-zinc-400 hover:bg-zinc-100 font-medium opacity-60'
+                        : isActive
+                        ? 'bg-zinc-900 text-white font-semibold'
+                        : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
+                    }`}
+                  >
+                    {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : isHidden ? 'text-zinc-300' : 'text-zinc-400'}`} />}
+                    <span className={`truncate flex-1 ${hasLabelOverride ? 'italic' : ''}`}>{label}</span>
+                    <span className={`flex items-center gap-0.5 shrink-0 ${isHidden ? '' : 'opacity-0 group-hover:opacity-100'}`} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isCustom) {
+                            const cat = project.customCategories.find(c => c.key === key);
+                            setEditCatKey(key); setNewCatName(cat?.label || label); setNewCatIcon(cat?.icon || 'Tag'); setShowEditCustom(true);
+                          } else {
+                            setEditCatKey(key); setNewCatName(label); setNewCatIcon('');
+                            setShowEditBuiltin(true);
+                          }
+                        }}
+                        className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
+                      >
+                        <Pencil className="w-3 h-3 text-zinc-400" />
+                      </button>
+                      {showHideToggle && !isHidden && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const ok = await dialog.confirm({ title: `Hide "${label}"?`, message: 'Category will be hidden from all views.', danger: true });
+                            if (ok) {
+                              dispatch({ type: 'HIDE_CATEGORY', payload: key });
+                              if (category === key) switchCategory('cast');
+                            }
+                          }}
+                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
+                        >
+                          <EyeOff className="w-3 h-3 text-zinc-400" />
+                        </button>
+                      )}
+                      {showHideToggle && isHidden && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch({ type: 'SHOW_CATEGORY', payload: key });
+                          }}
+                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
+                          title="Unhide category"
+                        >
+                          <Eye className="w-3 h-3 text-zinc-400" />
+                        </button>
+                      )}
+                      {showDelete && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const ok = await dialog.confirm({ title: `Delete "${label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true });
+                            if (ok) {
+                              dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: key });
+                              if (category === key) switchCategory('cast');
+                            }
+                          }}
+                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-red-900/50' : 'hover:bg-red-100'}`}
+                        >
+                          <Trash2 className="w-3 h-3 text-red-400" />
+                        </button>
+                      )}
+                    </span>
+                    <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : isHidden ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                      {countTotal(key)}
+                    </span>
+                  </button>
+                </div>
               );
             })}
-            {project.customCategories.length > 0 && (
-              <>
-                <div className="border-b border-zinc-200 my-1.5" />
-                {project.customCategories.map(c => {
-                  const Icon = getCustomIcon(c.icon);
-                  const isActive = c.key === category;
-                  return (
-                    <div key={c.key} className="group">
-                      <button
-                        onClick={() => switchCategory(c.key)}
-                        className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
-                          isActive
-                            ? 'bg-zinc-900 text-white font-semibold'
-                            : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
-                        }`}
-                      >
-                        {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />}
-                        <span className="truncate flex-1 italic">{c.label}</span>
-                        <span className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setEditCatKey(c.key); setNewCatName(c.label); setNewCatIcon(c.icon); setShowEditCustom(true); }}
-                              className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
-                            >
-                              <Pencil className="w-3 h-3 text-zinc-400" />
-                            </button>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                const ok = await dialog.confirm({ title: `Delete "${c.label}"?`, message: 'Elements will be moved to Trash.', danger: true });
-                                if (ok) {
-                                  dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
-                                  if (category === c.key) switchCategory('cast');
-                                }
-                              }}
-                              className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-red-900/50' : 'hover:bg-red-100'}`}
-                            >
-                              <Trash2 className="w-3 h-3 text-red-400" />
-                            </button>
-                          </span>
-                        <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : 'text-zinc-400'}`}>
-                          {countTotal(c.key)}
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </>
-            )}
           </div>
           <button
             onClick={() => { setShowAddCustom(true); setNewCatName(''); setNewCatIcon('Tag'); }}
@@ -423,7 +462,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
           {/* Top bar card */}
           <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
             <span className="text-xs font-semibold text-zinc-800">
-              {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || project.customCategories.find(c => c.key === category)?.label || category}
+              {getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category)}
             </span>
             <div className="flex items-center gap-1.5">
               {hasChanges && (
@@ -496,7 +535,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
               <button onClick={addNew} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full">
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add {ELEMENT_CATEGORIES.find(c => c.key === category)?.label || 'element'}</span>
+                <span>Add {getLabel(category, 'element')}</span>
               </button>
             </div>
           </div>
@@ -509,7 +548,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
               <h3 className="text-base font-bold text-zinc-900">Duplicate Elements Found</h3>
               <p className="text-sm text-zinc-600">
                 The following categories have elements with the same name:{' '}
-                {dupDialog.cats.map(c => ELEMENT_CATEGORIES.find(ec => ec.key === c)?.label || c).join(', ')}.
+                {dupDialog.cats.map(c => getLabel(c, c)).join(', ')}.
                 Merge duplicates into single entries?
               </p>
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -615,9 +654,42 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
             </div>
           </div>
         )}
+
+        {/* Edit Built-in Category Label modal */}
+        {showEditBuiltin && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowEditBuiltin(false)}>
+            <div className="bg-white rounded-xl shadow-2xl w-[380px] p-6 space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-zinc-900">Rename Category</h3>
+                <button onClick={() => setShowEditBuiltin(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) updateBuiltinLabel(); }}
+                  autoFocus
+                  className="w-full mt-1 px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button onClick={() => setShowEditBuiltin(false)} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Cancel</button>
+                <button onClick={updateBuiltinLabel} disabled={!newCatName.trim()} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
+
+  function updateBuiltinLabel() {
+    if (!newCatName.trim()) return;
+    dispatch({ type: 'SET_CATEGORY_LABEL', payload: { key: editCatKey, label: newCatName.trim() } });
+    setShowEditBuiltin(false);
+  }
 
   function createCustomCategory() {
     if (!newCatName.trim()) return;

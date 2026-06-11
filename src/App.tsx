@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ProjectProvider, useProject } from './store';
+import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
@@ -40,7 +40,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId } = useProject();
+  const { state, dispatch, currentProjectId, createProject } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
   const [scheduleSubTab, setScheduleSubTab] = useState<'stripboard' | 'ribbons'>('stripboard');
@@ -344,7 +344,7 @@ function AppContent() {
                 </button>
               }
             >
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<Plus className="w-3.5 h-3.5" />}>
+              <DropdownItem onClick={() => { setShowFileMenu(false); createProject(); }} icon={<Plus className="w-3.5 h-3.5" />}>
                 New Project
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
@@ -668,14 +668,8 @@ function AppContent() {
                     subtitle = `Rule · ${formatTime(t.deletedAt)}`;
                   } else if (item.kind === 'element') {
                     const t = item.data as ElementTrashItem;
-                    const builtinLabels: Record<string, string> = {
-                      cast: 'Cast', set: 'Sets', props: 'Props', backgroundActors: 'Background Actors',
-                      stunts: 'Stunts', vehicles: 'Vehicles', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
-                      sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
-                      animalsAndWranglers: 'Animals & Wranglers', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
-                    };
-                    const custom = project.customCategories.find(c => c.key === t.category);
-                    const catLabel = builtinLabels[t.category] || custom?.label || t.category;
+                    const builtinLabels: Record<string, string> = DEFAULT_CATEGORY_LABELS;
+                    const catLabel = project.categoryLabels?.[t.category] || builtinLabels[t.category] || t.category;
                     title = `${catLabel} · ${t.element.name || t.element.id}`;
                     subtitle = `Element · ${formatTime(t.deletedAt)}`;
                   } else if (item.kind === 'category') {
@@ -716,6 +710,7 @@ function AppContent() {
                 });
               })()}
             </div>
+
             {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0)) > 0 && (
               <div className="border-t border-zinc-800 px-5 py-3">
                 <button

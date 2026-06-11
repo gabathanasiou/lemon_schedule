@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
-import { useProject } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye } from 'lucide-react';
@@ -44,16 +44,19 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const project = state.present;
   const scenes = project.scenes;
 
+  const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
+
   const allBreakdownCategories = useMemo(() => [
-    ...BREAKDOWN_CATEGORIES,
+    ...BREAKDOWN_CATEGORIES.filter(k => !hiddenSet.has(k)),
     ...(project.customCategories || []).map(c => c.key),
-  ], [project.customCategories]);
+  ], [project.customCategories, hiddenSet]);
 
   const allBreakdownLabels = useMemo(() => {
-    const labels: Record<string, string> = { ...BREAKDOWN_LABELS };
+    const labels: Record<string, string> = {};
+    for (const k of BREAKDOWN_CATEGORIES) labels[k] = project.categoryLabels?.[k] || DEFAULT_CATEGORY_LABELS[k] || BREAKDOWN_LABELS[k] || k;
     for (const c of project.customCategories || []) labels[c.key] = c.label;
     return labels;
-  }, [project.customCategories]);
+  }, [project.customCategories, project.categoryLabels]);
 
   const COLUMNS = useMemo(() => [
     { key: 'actions', label: '' },
@@ -136,7 +139,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const cleanEmptyRows = () => {
     const toDelete: string[] = [];
     for (const s of scenes) {
-      const isEmpty = !s.sceneNumber && !s.set && !s.description && !s.cast && !s.notes && s.pageCount === '1' && s.intExt === 'INT' && s.dayNight === 'DAY';
+      const isEmpty = !s.sceneNumber && !s.set && !s.description && !s.cast && !s.notes && !s.pageCount && !s.intExt && !s.dayNight;
       if (isEmpty) toDelete.push(s.id);
     }
     for (const id of toDelete) dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -560,13 +563,13 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       payload: {
         id: generateUUID(),
         sceneNumber: '',
-        pageCount: '1',
-        pageCountDecimal: 1.0,
-        scriptDay: '1',
-        intExt: 'INT',
-        set: 'NEW SET',
-        dayNight: 'DAY',
-        description: 'New scene',
+        pageCount: '',
+        pageCountDecimal: 0,
+        scriptDay: '',
+        intExt: '' as any,
+        set: '',
+        dayNight: '' as any,
+        description: '',
         cast: '',
         notes: '',
         backgroundActors: '',

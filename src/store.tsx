@@ -93,6 +93,9 @@ function loadProjectFromStorage(id: string): Project | null {
           }
         }
 
+        parsed.hiddenCategories = parsed.hiddenCategories || [];
+        parsed.categoryLabels = parsed.categoryLabels || {};
+
         return parsed;
       }
     }
@@ -109,6 +112,28 @@ const BUILTIN_SCENE_KEYS = new Set([
   'description', 'cast', 'notes', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe',
   'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'shootDay',
 ]);
+
+export const PROTECTED_CATEGORIES = new Set(['cast', 'set', 'notes']);
+
+export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
+  cast: 'Cast',
+  set: 'Sets',
+  props: 'Props',
+  backgroundActors: 'Background Actors',
+  stunts: 'Stunts',
+  vehicles: 'Vehicles',
+  wardrobe: 'Wardrobe',
+  makeup: 'Makeup & Hair',
+  sfx: 'SFX',
+  vfx: 'VFX',
+  sound: 'Sound',
+  music: 'Music / Playback',
+  animalsAndWranglers: 'Animals & Wranglers',
+  weapons: 'Weapons / Armoury',
+  greenery: 'Greenery',
+  artDept: 'Art Department',
+  location: 'Location',
+};
 
 function getSceneFieldValue(scene: Scene, category: string): string {
   if (BUILTIN_SCENE_KEYS.has(category)) {
@@ -146,6 +171,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     rules: [],
     castMembers: [],
     customCategories: [],
+    hiddenCategories: [],
+    categoryLabels: {},
     elementsTrash: [],
     categoryTrash: [],
     breakdownElements: {},
@@ -190,6 +217,10 @@ type Action =
   | { type: 'RENAME_CUSTOM_CATEGORY'; payload: { key: string; label: string } }
   | { type: 'DELETE_CUSTOM_CATEGORY'; payload: string }
   | { type: 'RESTORE_CATEGORY_FROM_TRASH'; payload: string }
+  | { type: 'HIDE_CATEGORY'; payload: string }
+  | { type: 'SHOW_CATEGORY'; payload: string }
+  | { type: 'RESTORE_HIDDEN_CATEGORY'; payload: string }
+  | { type: 'SET_CATEGORY_LABEL'; payload: { key: string; label: string } }
   | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
@@ -811,6 +842,30 @@ function reducer(state: State, action: Action): State {
         categoryTrash: state.present.categoryTrash.filter(t => t.category.key !== action.payload),
       });
     }
+
+    case 'HIDE_CATEGORY':
+      return applyChange({
+        ...state.present,
+        hiddenCategories: [...state.present.hiddenCategories.filter(k => k !== action.payload), action.payload],
+      });
+
+    case 'SHOW_CATEGORY':
+      return applyChange({
+        ...state.present,
+        hiddenCategories: state.present.hiddenCategories.filter(k => k !== action.payload),
+      });
+
+    case 'RESTORE_HIDDEN_CATEGORY':
+      return applyChange({
+        ...state.present,
+        hiddenCategories: state.present.hiddenCategories.filter(k => k !== action.payload),
+      });
+
+    case 'SET_CATEGORY_LABEL':
+      return applyChange({
+        ...state.present,
+        categoryLabels: { ...state.present.categoryLabels, [action.payload.key]: action.payload.label },
+      });
 
     case 'UPDATE_SCENE_RIBBON':
       return applyChange({
