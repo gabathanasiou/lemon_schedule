@@ -350,7 +350,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                     <div key={c.key} className="group relative">
                       <button
                         onClick={() => switchCategory(c.key)}
-                        className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
+                        className={`w-full text-left px-2 py-1.5 ${!isActive ? 'pr-10' : ''} rounded-md transition-colors flex items-center gap-2 text-xs ${
                           isActive
                             ? 'bg-zinc-900 text-white font-semibold'
                             : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
@@ -371,7 +371,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                               setNewCatIcon(c.icon);
                               setShowEditCustom(true);
                             }}
-                            className="absolute right-5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-zinc-200 transition-all"
+                            className="absolute right-6 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-zinc-200 transition-all"
                           >
                             <Pencil className="w-3 h-3 text-zinc-400" />
                           </button>
