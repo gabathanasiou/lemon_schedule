@@ -4,8 +4,10 @@ import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
-import { Trash2, Plus, Save, Undo2, X, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, CUSTOM_ICON_OPTIONS, getCustomIcon, getLabel } from '../lib/categories';
+import Modal from './Modal';
+import { ModalFooter } from './Modal';
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
   if (category === 'cast') {
@@ -519,45 +521,49 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
         {/* Duplicate dialog */}
         {dupDialog && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-[420px] p-6 space-y-4">
-              <h3 className="text-base font-bold text-zinc-900">Duplicate Elements Found</h3>
-              <p className="text-sm text-zinc-600">
+          <Modal open onClose={() => setDupDialog(null)} title="Duplicate Elements Found" width="max-w-md"
+            footer={
+              <ModalFooter>
+                <button onClick={() => { setDupDialog(null); performSave(); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Save as-is</button>
+                <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">Merge & Save</button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6">
+              <p className="text-xs text-zinc-400">
                 The following categories have elements with the same name:{' '}
                 {dupDialog.cats.map(c => getLabel(c, c, project.categoryLabels)).join(', ')}.
                 Merge duplicates into single entries?
               </p>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button onClick={() => { setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Save as-is</button>
-                <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">Merge & Save</button>
-                <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">Always Merge</button>
-              </div>
             </div>
-          </div>
+          </Modal>
         )}
 
         {/* Add Custom Category modal */}
         {showAddCustom && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowAddCustom(false)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[380px] p-6 space-y-4" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-zinc-900">Create Custom Category</h3>
-                <button onClick={() => setShowAddCustom(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
-              </div>
+          <Modal open onClose={() => setShowAddCustom(false)} title="Add Category" icon={<Plus className="w-4 h-4" />} width="max-w-sm"
+            footer={
+              <ModalFooter>
+                <button onClick={() => setShowAddCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button onClick={createCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors">Create</button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6 space-y-4">
               <div>
-                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</label>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Name</label>
                 <input
                   type="text"
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) createCustomCategory(); }}
                   autoFocus
-                  className="w-full mt-1 px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                   placeholder="e.g. Firearms, Period Vehicles..."
                 />
               </div>
               <div>
-                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Icon</label>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
                 <div className="mt-1 grid grid-cols-6 gap-1.5">
                   {CUSTOM_ICON_OPTIONS.map(opt => {
                     const Icon = opt.Icon;
@@ -567,7 +573,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                         key={opt.name}
                         onClick={() => setNewCatIcon(opt.name)}
                         className={`p-2 rounded-md transition-colors flex items-center justify-center ${
-                          selected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                          selected ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
                         }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -576,35 +582,34 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                   })}
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button onClick={() => setShowAddCustom(false)} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Cancel</button>
-                <button onClick={createCustomCategory} disabled={!newCatName.trim()} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-40 transition-colors">Create</button>
-              </div>
             </div>
-          </div>
+          </Modal>
         )}
 
         {/* Edit Custom Category modal */}
         {showEditCustom && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowEditCustom(false)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[380px] p-6 space-y-4" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-zinc-900">Edit Custom Category</h3>
-                <button onClick={() => setShowEditCustom(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
-              </div>
+          <Modal open onClose={() => setShowEditCustom(false)} title="Edit Category" icon={<Pencil className="w-4 h-4" />} width="max-w-sm"
+            footer={
+              <ModalFooter>
+                <button onClick={() => setShowEditCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button onClick={updateCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6 space-y-4">
               <div>
-                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</label>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Name</label>
                 <input
                   type="text"
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) updateCustomCategory(); }}
                   autoFocus
-                  className="w-full mt-1 px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Icon</label>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
                 <div className="mt-1 grid grid-cols-6 gap-1.5">
                   {CUSTOM_ICON_OPTIONS.map(opt => {
                     const Icon = opt.Icon;
@@ -614,7 +619,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                         key={opt.name}
                         onClick={() => setNewCatIcon(opt.name)}
                         className={`p-2 rounded-md transition-colors flex items-center justify-center ${
-                          selected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                          selected ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
                         }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -623,39 +628,34 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                   })}
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button onClick={() => setShowEditCustom(false)} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Cancel</button>
-                <button onClick={updateCustomCategory} disabled={!newCatName.trim()} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
-              </div>
             </div>
-          </div>
+          </Modal>
         )}
 
         {/* Edit Built-in Category Label modal */}
         {showEditBuiltin && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowEditBuiltin(false)}>
-            <div className="bg-white rounded-xl shadow-2xl w-[380px] p-6 space-y-4" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-zinc-900">Rename Category</h3>
-                <button onClick={() => setShowEditBuiltin(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
-              </div>
+          <Modal open onClose={() => setShowEditBuiltin(false)} title="Rename Category" icon={<Pencil className="w-4 h-4" />} width="max-w-sm"
+            footer={
+              <ModalFooter>
+                <button onClick={() => setShowEditBuiltin(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button onClick={updateBuiltinLabel} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6 space-y-4">
               <div>
-                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</label>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">New label</label>
                 <input
                   type="text"
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) updateBuiltinLabel(); }}
                   autoFocus
-                  className="w-full mt-1 px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                 />
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button onClick={() => setShowEditBuiltin(false)} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Cancel</button>
-                <button onClick={updateBuiltinLabel} disabled={!newCatName.trim()} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
-              </div>
             </div>
-          </div>
+          </Modal>
         )}
       </div>
     </div>
