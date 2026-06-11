@@ -190,7 +190,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: '12pt 6pt',
+                            padding: '18pt 6pt',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -218,7 +218,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           flex: `0 0 ${cell.width}%`,
                           textAlign: cell.align || 'left',
-                          padding: '12pt 6pt',
+                          padding: '18pt 6pt',
                           overflow: 'hidden',
                           whiteSpace: 'nowrap',
                           textOverflow: 'ellipsis',
@@ -264,7 +264,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: '12pt 6pt',
+                            padding: '18pt 6pt',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -292,7 +292,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           flex: `0 0 ${cell.width}%`,
                           textAlign: cell.align || 'left',
-                          padding: '12pt 6pt',
+                          padding: '18pt 6pt',
                           overflow: 'hidden',
                           whiteSpace: 'nowrap',
                           textOverflow: 'ellipsis',
@@ -479,8 +479,8 @@ const PRINT_STYLE = `
     background: var(--note-bg, #591b1b);
     color: var(--note-fg, #ffffff);
     vertical-align: middle;
-    padding-top: 12pt !important;
-    padding-bottom: 12pt !important;
+    padding-top: 18pt !important;
+    padding-bottom: 18pt !important;
     border-right: 1px solid var(--td-border-color, #591b1b);
     border-bottom: 1px solid var(--td-border-color, #591b1b);
   }
