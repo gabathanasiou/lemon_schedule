@@ -770,7 +770,7 @@ export default function RibbonTab() {
                                   }}
                                   className="relative cursor-pointer select-none transition-colors"
                                   style={{
-                                    padding: '12px 4px',
+                                    padding: '6px 6px',
                                     verticalAlign: 'middle',
                                     borderRight: showGrid && ci < row.cells.length - 1 ? '1px solid #000' : 'none',
                                     borderBottom: '1px solid #000',
@@ -881,7 +881,7 @@ export default function RibbonTab() {
                                 <div key={c.id} style={{
                                   flex: `0 0 ${c.width}%`,
                                   minWidth: 0,
-                                  padding: '4px 4px',
+                                  padding: '6px 6px',
                                   borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
                                   overflow: 'hidden',
                                   textOverflow: shortDisplay ? 'clip' : 'ellipsis',
