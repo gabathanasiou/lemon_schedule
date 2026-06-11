@@ -17,8 +17,9 @@ export default function DropdownMenu({
   width,
   children,
 }: DropdownMenuProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [flip, setFlip] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; flip: boolean }>({ top: 0, left: 0, flip: false });
 
   useEffect(() => {
     if (!open) return;
@@ -30,20 +31,25 @@ export default function DropdownMenu({
   }, [open, onClose]);
 
   useLayoutEffect(() => {
-    if (!open || !menuRef.current) { setFlip(false); return; }
-    const rect = menuRef.current.getBoundingClientRect();
-    setFlip(rect.left < 0 || rect.right > window.innerWidth);
-  }, [open]);
-
-  const style: React.CSSProperties = (() => {
-    if (align === 'right') {
-      return flip ? { left: 0, right: 'auto' } : { right: 0, left: 'auto' };
-    }
-    return flip ? { right: 0, left: 'auto' } : { left: 0, right: 'auto' };
-  })();
+    if (!open || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const panelW = menuRef.current?.offsetWidth || 200;
+    const rightEdge = align === 'right'
+      ? rect.right
+      : rect.left + panelW;
+    const overflow = rightEdge > window.innerWidth;
+    const left = align === 'right'
+      ? rect.right - panelW
+      : rect.left;
+    setPos({
+      top: rect.bottom + 8,
+      left: overflow ? rect.left : left,
+      flip: overflow,
+    });
+  }, [open, align]);
 
   return (
-    <div className="relative">
+    <div ref={wrapperRef} className="relative">
       {trigger}
 
       {open && (
@@ -51,8 +57,8 @@ export default function DropdownMenu({
           <div className="fixed inset-0 z-[190]" onClick={onClose} />
           <div
             ref={menuRef}
-            className={`absolute top-full mt-2 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''}`}
-            style={style}
+            className={`fixed bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''}`}
+            style={{ top: pos.top, left: pos.left, position: 'fixed' }}
           >
             {children}
           </div>
