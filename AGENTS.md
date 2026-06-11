@@ -11,6 +11,44 @@
 - State management: Zustand store with undo/redo (past/future stacks)
 - Tab-based UI: Breakdown (spreadsheet) + Schedule (drag-and-drop)
 
+## Tab System
+
+### Top-Level App Tabs
+In `App.tsx`, the main header (`bg-zinc-950`) contains top-level navigation tabs: Breakdown, Schedule, Calendar, Rules, Reports. These use a bottom-anchored pattern:
+- Container: `flex items-end gap-1 self-end -mb-2` — breaks through the header's `py-2` padding to sit at the bottom edge
+- Active tab: `bg-white text-zinc-900 rounded-t-md` — white background touching DOWN into the content below
+- Inactive tab: `text-zinc-400 hover:text-zinc-200`
+
+### MiniTab Component (`src/components/MiniTab.tsx`)
+A reusable sub-tab bar used in Breakdown, Schedule, and Reports tabs. It's the **inverse** of the top-level tabs — tabs touch UP toward the dark app header above:
+
+| Prop | Type | Description |
+|---|---|---|
+| `tabs` | `{ id, label }[]` | Tab items |
+| `activeTab` | `string` | Currently active tab id |
+| `onChange` | `(id: string) => void` | Tab switch handler |
+| `rightContent` | `ReactNode` | Controls rendered on the right side of the bar |
+| `theme` | `'light' \| 'dark'` | `light` (default): white bar with `bg-zinc-950` active tab. `dark`: `bg-zinc-900` bar for dark content areas |
+
+**Inverted padding pattern** (mirrors top-level tabs):
+- Bar: `pt-2 pb-2` — breathing room for right-side controls
+- Tab container: `self-start items-start -mt-2` — negates top padding so tabs touch the top edge
+- Active tab: `bg-zinc-950 text-white rounded-b-md` — dark, merges with app header above
+- Inactive tab: theme-dependent hover highlight
+- Right controls: centered vertically via parent's `items-center`
+
+**Usages:**
+- `BreakdownTab` — `theme="light"` (default), tabs: Scene Breakdown / Elements / Sheet. Controls sent via `rightContent` or portaled into the bar
+- `ScheduleTab` — `theme="light"` when on Stripboard, `theme="dark"` when in Ribbon Designer
+- `ReportsTab` — `theme="dark"`, tabs: Day Out of Days / Element Breakdown
+
+### Tab Design Philosophy
+Two complementary tab patterns that fit together seamlessly:
+- **Top-level tabs** → touch DOWN (white → white content)
+- **MiniTabs** → touch UP (dark → dark header)
+
+Both use padding-ignoring container margins to let tabs reach edges while keeping controls comfortably spaced.
+
 ## UI Component Library (`src/components/`)
 
 ### Shared Primitives (use these instead of raw HTML)

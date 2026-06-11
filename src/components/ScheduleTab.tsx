@@ -8,13 +8,14 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Settings, Printer } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
 import { getDefaultRibbonRows } from '../lib/ribbonUtils';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
+import MiniTab from './MiniTab';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 
@@ -1081,11 +1082,94 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   })();
 
   if (subTab === 'ribbons') {
-    return <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab /></div>;
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <MiniTab
+          theme="dark"
+          tabs={[
+            { id: 'stripboard', label: 'Schedule' },
+            { id: 'ribbons', label: 'Ribbon Designer' },
+          ]}
+          activeTab={subTab}
+          onChange={onSubTabChange}
+        />
+        <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab /></div>
+      </div>
+    );
   }
 
   return (
-    <>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <MiniTab
+        theme="light"
+        tabs={[
+          { id: 'stripboard', label: 'Schedule' },
+          { id: 'ribbons', label: 'Ribbon Designer' },
+        ]}
+        activeTab={subTab}
+        onChange={onSubTabChange}
+        rightContent={
+          <>
+            <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
+            <span className="text-zinc-300 select-none">·</span>
+            <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
+            {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
+              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                {augmentedRows.filter(r => r.shootDay === -1).length} unscheduled
+              </span>
+            )}
+            <div className="w-px h-4 bg-zinc-200" />
+            <DropdownMenu
+              open={ribbonMenuOpen}
+              onOpenChange={setRibbonMenuOpen}
+              width="w-44"
+              trigger={
+                <button
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
+                >
+                  <span className="text-zinc-400 font-normal">Ribbons:</span>
+                  <span className="font-medium">{currentRibbonName}</span>
+                  <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
+                </button>
+              }
+            >
+              <DropdownItem
+                onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: '' }); setRibbonMenuOpen(false); }}
+                icon={!project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+              >
+                Default
+              </DropdownItem>
+              <DropdownDivider />
+              {project.ribbonDesigns.map(d => (
+              <DropdownItem
+                  key={d.id}
+                  onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
+                  icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
+                >
+                  {d.name}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+            <button
+              onClick={() => setTextEditingEnabled(p => !p)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 text-white' : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'}`}
+            >
+              <Pencil className="w-3.5 h-3.5 shrink-0" />
+              Edit
+            </button>
+            {onPrint && (
+              <button
+                onClick={onPrint}
+                className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5 shrink-0" />
+                Print
+              </button>
+            )}
+          </>
+        }
+      />
       <style>{`
         .schedule-table {
           width: 100%;
@@ -1122,75 +1206,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
           padding-bottom: 18px !important;
         }
       `}</style>
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-zinc-200 shrink-0 bg-white">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <span className="text-sm font-semibold text-zinc-800 truncate">Version {activeVersion?.name}</span>
-          <span className="text-zinc-300 select-none">·</span>
-          <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
-          {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
-            <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              {augmentedRows.filter(r => r.shootDay === -1).length} unscheduled
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <DropdownMenu
-            open={ribbonMenuOpen}
-            onOpenChange={setRibbonMenuOpen}
-            width="w-44"
-            trigger={
-              <button
-                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-              >
-                <span className="text-zinc-400 font-normal">Ribbons:</span>
-                <span className="font-medium">{currentRibbonName}</span>
-                <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
-              </button>
-            }
-          >
-            <DropdownItem
-              onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: '' }); setRibbonMenuOpen(false); }}
-              icon={!project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              Default
-            </DropdownItem>
-            <DropdownDivider />
-            {project.ribbonDesigns.map(d => (
-              <DropdownItem
-                key={d.id}
-                onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
-                icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
-              >
-                {d.name}
-              </DropdownItem>
-            ))}
-            <DropdownDivider />
-            <DropdownItem
-              onClick={() => { onSubTabChange('ribbons'); setRibbonMenuOpen(false); }}
-              icon={<Settings className="w-3.5 h-3.5" />}
-            >
-              Edit Ribbons...
-            </DropdownItem>
-          </DropdownMenu>
-          <button
-            onClick={() => setTextEditingEnabled(p => !p)}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 text-white' : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'}`}
-          >
-            <Pencil className="w-3.5 h-3.5 shrink-0" />
-            Edit
-          </button>
-          {onPrint && (
-            <button
-              onClick={onPrint}
-              className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white transition-colors"
-            >
-              <Printer className="w-3.5 h-3.5 shrink-0" />
-              Print
-            </button>
-          )}
-        </div>
-      </div>
     <DndContext 
       sensors={sensors}
       collisionDetection={collisionDetection}
@@ -1411,6 +1426,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
         </Modal>
       )}
     </DndContext>
-    </>
-  );
+  </div>
+);
 }

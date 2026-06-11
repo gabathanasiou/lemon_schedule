@@ -5,6 +5,7 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/c
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
 import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
+import MiniTab from './MiniTab';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
   const builtin: Record<string, string> = {};
@@ -41,7 +42,28 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
   }, [project.customCategories, hiddenSet]);
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <MiniTab
+        theme="dark"
+        tabs={[
+          { id: 'doods', label: 'Day Out of Days' },
+          { id: 'elementBreakdown', label: 'Element Breakdown' },
+        ]}
+        activeTab={subTab}
+        onChange={onSubTabChange}
+        rightContent={
+          onPrint ? (
+            <button
+              onClick={onPrint}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print
+            </button>
+          ) : undefined
+        }
+      />
+      <div className="flex-1 flex overflow-hidden min-h-0">
       {sidebarCollapsed ? (
         <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
           <button
@@ -105,36 +127,12 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
       )}
 
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
-        <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800 shrink-0 bg-zinc-900">
-          <button
-            onClick={() => onSubTabChange('doods')}
-            className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'doods' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'}`}
-          >
-            Day Out of Days
-          </button>
-          <button
-            onClick={() => onSubTabChange('elementBreakdown')}
-            className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'elementBreakdown' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'}`}
-          >
-            Element Breakdown
-          </button>
-          <div className="flex-1" />
-          {onPrint && (
-            <button
-              onClick={onPrint}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 rounded transition-colors"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print
-            </button>
-          )}
-        </div>
-
         {subTab === 'doods' ? (
           <DoodsTab selectedCategory={selectedCategory} />
         ) : (
           <ElementBreakdownView selectedCategory={selectedCategory} />
         )}
+      </div>
       </div>
     </div>
   );

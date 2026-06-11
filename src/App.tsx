@@ -90,7 +90,6 @@ function AppContent() {
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
   const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
-  const [showScheduleMenu, setShowScheduleMenu] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
@@ -290,7 +289,7 @@ function AppContent() {
       <input ref={importFileRef} type="file" accept=".fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
       {/* HEADER */}
-      <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
+      <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden">
         <div className="flex items-center space-x-6">
           <div className="flex items-center gap-2">
             <DropdownMenu
@@ -355,41 +354,22 @@ function AppContent() {
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
           </div>
-          <div className="flex items-center space-x-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
+          <div className="flex items-end gap-1 self-end -mb-2">
             <button 
               onClick={() => setActiveTab('breakdown')} 
-              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'breakdown' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Breakdown
             </button>
             <button 
               onClick={() => { setActiveTab('schedule'); setScheduleSubTab('stripboard'); }}
-              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'schedule' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Schedule
             </button>
-            {activeTab === 'schedule' && (
-              <DropdownMenu
-                open={showScheduleMenu}
-                onOpenChange={setShowScheduleMenu}
-                width="w-40"
-                trigger={
-                  <button
-                    className="p-1 hover:bg-zinc-800 rounded transition-colors"
-                    title="Schedule view options"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
-                  </button>
-                }
-              >
-                <DropdownItem onClick={() => { setScheduleSubTab('ribbons'); setShowScheduleMenu(false); }} icon={<Settings className="w-3.5 h-3.5" />}>
-                  Ribbon Designer
-                </DropdownItem>
-              </DropdownMenu>
-            )}
             <button 
               onClick={() => setActiveTab('calendar')}
-              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'calendar' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Calendar
             </button>
@@ -427,13 +407,13 @@ function AppContent() {
             )}
             <button 
               onClick={() => setActiveTab('rules')}
-              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'rules' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Rules
             </button>
             <button 
               onClick={() => setActiveTab('reports')}
-              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'reports' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Reports
             </button>
