@@ -54,16 +54,17 @@ export function useFixedPosition(
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const panelWidth = 200;
-    const panelHeight = 300;
+    const panelHeight = 200;
     const gap = 4;
 
-    let left = rect.left;
+    let left = Math.max(0, rect.left);
     let top = rect.bottom + gap;
 
     if (left + panelWidth > vw) left = Math.max(0, vw - panelWidth - 8);
-    if (top + panelHeight > vh && rect.top - panelHeight - gap > 0) {
+    if (top + panelHeight > vh && rect.top - panelHeight - gap >= 0) {
       top = rect.top - panelHeight - gap;
     }
+    top = Math.max(0, top);
 
     setPos({ top, left, width: rect.width });
   }, [open, wrapperRef]);
