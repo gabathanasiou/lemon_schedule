@@ -93,7 +93,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         <RadixDialog.Portal>
           <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/50" />
           <RadixDialog.Content
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[10000] bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm p-5 space-y-4 focus:outline-none"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[10000] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm p-5 space-y-4 focus:outline-none"
             onEscapeKeyDown={(e) => {
               close();
               e.preventDefault();
@@ -161,7 +161,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                 className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                   dialog?.kind === 'confirm' && dialog.options.danger
                     ? 'bg-red-600 text-white hover:bg-red-500'
-                    : 'bg-white text-zinc-900 hover:bg-zinc-200'
+                    : 'bg-zinc-800 text-white hover:bg-zinc-700'
                 }`}
               >
                 {dialog?.kind === 'alert' ? 'OK' : dialog?.kind === 'confirm' ? 'Confirm' : 'Save'}

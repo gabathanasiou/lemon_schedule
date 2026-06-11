@@ -32,6 +32,7 @@ import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/ru
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
+import { generateUUID } from './lib/utils';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive, FileUp } from 'lucide-react';
 
 function formatTime(ts: number): string {
@@ -537,7 +538,7 @@ function AppContent() {
                           <button onClick={() => { setEditingVersionId(v.id); setEditingName(v.name); }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Rename version">
                             <Pencil className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
-                          <button onClick={async () => { const newName = await dialog.prompt({ title: 'Duplicate Version', defaultValue: `${v.name} Copy` }); if (newName) { dispatch({ type: 'NEW_VERSION', payload: { name: newName, cloneFromId: v.id } }); } }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Duplicate version">
+                          <button onClick={() => { const name = `${v.name} Copy`; const newId = generateUUID(); dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: v.id, id: newId } }); setEditingVersionId(newId); setEditingName(name); }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Duplicate version">
                             <Copy className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
                           <button onClick={async () => { if (project.versions.length <= 1) return; const ok = await dialog.confirm({ title: `Delete "${v.name}"?`, message: 'This cannot be undone.', danger: true }); if (ok) { dispatch({ type: 'DELETE_VERSION', payload: v.id }); } }} disabled={project.versions.length <= 1} className={`p-1 rounded transition-colors ${project.versions.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-rose-950/40 hover:text-rose-400'}`} title="Delete version">
@@ -551,10 +552,10 @@ function AppContent() {
               </div>
 
               <div className="border-t border-zinc-800 mt-1 pt-1.5 flex flex-col space-y-1">
-                <DropdownItem onClick={async () => { const name = await dialog.prompt({ title: 'Duplicate Version', defaultValue: `${version?.name || 'Version'} Copy` }); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId } }); setShowVersionsMenu(false); } }} icon={<Copy className="w-3.5 h-3.5" />}>
+                <DropdownItem onClick={() => { const name = `${version?.name || 'Version'} Copy`; const newId = generateUUID(); dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId, id: newId } }); setEditingVersionId(newId); setEditingName(name); setShowVersionsMenu(false); }} icon={<Copy className="w-3.5 h-3.5" />}>
                   Duplicate Current
                 </DropdownItem>
-                <DropdownItem onClick={async () => { const name = await dialog.prompt({ title: 'New Version', defaultValue: `V${String(project.versions.length + 1).padStart(2, '0')}` }); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } }); setShowVersionsMenu(false); } }} icon={<Plus className="w-3.5 h-3.5" />}>
+                <DropdownItem onClick={() => { const name = `V${String(project.versions.length + 1).padStart(2, '0')}`; const newId = generateUUID(); dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null, id: newId } }); setEditingVersionId(newId); setEditingName(name); setShowVersionsMenu(false); }} icon={<Plus className="w-3.5 h-3.5" />}>
                   Create Blank Version
                 </DropdownItem>
                 <DropdownDivider />

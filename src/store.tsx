@@ -198,7 +198,7 @@ type Action =
   | { type: 'SORT_SCENES' }
   | { type: 'INSERT_SCENE_AT', payload: { index: number; scene: Scene } }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
-  | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null } }
+  | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null, id?: string } }
   | { type: 'DELETE_VERSION', payload: string }
   | { type: 'RENAME_VERSION', payload: { id: string, name: string } }
   | { type: 'SET_ACTIVE_VERSION', payload: string }
@@ -384,6 +384,7 @@ function reducer(state: State, action: Action): State {
 
     case 'NEW_VERSION': {
       let newVersion: ScheduleVersion;
+      const newId = action.payload.id || generateUUID();
       const parent = action.payload.cloneFromId 
         ? state.present.versions.find(v => v.id === action.payload.cloneFromId)
         : null;
@@ -391,7 +392,7 @@ function reducer(state: State, action: Action): State {
       if (parent) {
         newVersion = {
           ...parent,
-          id: generateUUID(),
+          id: newId,
           name: action.payload.name,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -399,7 +400,7 @@ function reducer(state: State, action: Action): State {
         };
       } else {
         newVersion = {
-          id: generateUUID(),
+          id: newId,
           name: action.payload.name,
           createdAt: Date.now(),
           updatedAt: Date.now(),
