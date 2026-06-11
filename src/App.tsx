@@ -666,10 +666,10 @@ function AppContent() {
                   } else if (item.kind === 'element') {
                     const t = item.data as ElementTrashItem;
                     const builtinLabels: Record<string, string> = {
-                      cast: 'Cast', set: 'Sets', props: 'Props', extras: 'Supporting Artists',
+                      cast: 'Cast', set: 'Sets', props: 'Props', backgroundActors: 'Background Actors',
                       stunts: 'Stunts', vehicles: 'Vehicles', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
                       sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
-                      animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
+                      animalsAndWranglers: 'Animals & Wranglers', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept',
                     };
                     const custom = project.customCategories.find(c => c.key === t.category);
                     const catLabel = builtinLabels[t.category] || custom?.label || t.category;

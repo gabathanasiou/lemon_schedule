@@ -15,7 +15,7 @@ export interface Scene {
   description: string;
   cast: string;
   notes: string;
-  extras: string;
+  backgroundActors: string;
   stunts: string;
   vehicles: string;
   props: string;
@@ -25,7 +25,7 @@ export interface Scene {
   vfx: string;
   sound: string;
   music: string;
-  animals: string;
+  animalsAndWranglers: string;
   weapons: string;
   greenery: string;
   artDept: string;

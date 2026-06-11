@@ -68,6 +68,31 @@ function loadProjectFromStorage(id: string): Project | null {
         parsed.categoryTrash = (parsed.categoryTrash || []).filter((t: CategoryTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
+
+        // Migrate renamed keys: extras→backgroundActors, animals→animalsAndWranglers
+        for (const s of parsed.scenes || []) {
+          if ('extras' in s) { s.backgroundActors = s.extras; delete s.extras; }
+          if ('animals' in s) { s.animalsAndWranglers = s.animals; delete s.animals; }
+        }
+        if (parsed.breakdownElements) {
+          if (parsed.breakdownElements.extras) {
+            parsed.breakdownElements.backgroundActors = parsed.breakdownElements.extras;
+            delete parsed.breakdownElements.extras;
+          }
+          if (parsed.breakdownElements.animals) {
+            parsed.breakdownElements.animalsAndWranglers = parsed.breakdownElements.animals;
+            delete parsed.breakdownElements.animals;
+          }
+        }
+        for (const d of parsed.ribbonDesigns || []) {
+          for (const row of d.rows || []) {
+            for (const cell of row.cells || []) {
+              if (cell.field === 'extras') cell.field = 'backgroundActors';
+              if (cell.field === 'animals') cell.field = 'animalsAndWranglers';
+            }
+          }
+        }
+
         return parsed;
       }
     }
@@ -81,8 +106,8 @@ function loadProjectFromStorage(id: string): Project | null {
 
 const BUILTIN_SCENE_KEYS = new Set([
   'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
-  'description', 'cast', 'notes', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe',
-  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept', 'shootDay',
+  'description', 'cast', 'notes', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe',
+  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'shootDay',
 ]);
 
 function getSceneFieldValue(scene: Scene, category: string): string {

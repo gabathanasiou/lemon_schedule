@@ -49,7 +49,7 @@ const CATEGORIES: CategoryDef[] = [
     const m = cm.find(m => m.id === id);
     return m ? `${id}. ${m.name}` : id;
   }).join('\n') },
-  { key: 'extras', label: 'Supporting Artistes / Extras', getData: s => s.extras },
+  { key: 'backgroundActors', label: 'Background Actors', getData: s => s.backgroundActors },
   { key: 'stunts', label: 'Stunts', getData: s => s.stunts },
   { key: 'vehicles', label: 'Vehicles', getData: s => s.vehicles },
   { key: 'props', label: 'Props', getData: s => s.props },
@@ -59,9 +59,9 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'vfx', label: 'Visual Effects (VFX)', getData: s => s.vfx },
   { key: 'sound', label: 'Sound', getData: s => s.sound },
   { key: 'music', label: 'Music / Playback', getData: s => s.music },
-  { key: 'animals', label: 'Animals', getData: s => s.animals },
+  { key: 'animalsAndWranglers', label: 'Animals & Wranglers', getData: s => s.animalsAndWranglers },
   { key: 'weapons', label: 'Weapons / Armoury', getData: s => s.weapons },
-  { key: 'greenery', label: 'Greenery / Set Dressing', getData: s => s.greenery },
+  { key: 'greenery', label: 'Greenery', getData: s => s.greenery },
   { key: 'art', label: 'Art Department', getData: (s, _cm) => s.artDept },
   { key: 'notes', label: 'Notes / Special Requirements', getData: s => s.notes },
 ];

@@ -14,8 +14,8 @@ import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 
 const ENTITY_KEYS = new Set([
-  'cast', 'set', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
-  'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
+  'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+  'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
 ]);
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
@@ -565,7 +565,7 @@ export const SortableRow: React.FC<{
   });
 
   const ENTITY_FIELDS = useMemo(() => new Set([
-    'set', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
+    'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
     ...(state.present.customCategories || []).map(c => c.key),
   ]), [state.present.customCategories]);
 
@@ -784,7 +784,7 @@ export const SortableRow: React.FC<{
               </tr>
               {!isCompact && (() => {
                 const ribbon = state.present.sceneRibbon || SCENE_RIBBON_DEFAULTS;
-                const breakdownKeys = ['props', 'wardrobe', 'makeup', 'extras', 'stunts', 'vehicles', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept', 'notes'];
+                const breakdownKeys = ['props', 'wardrobe', 'makeup', 'backgroundActors', 'stunts', 'vehicles', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'notes'];
                 const ribbonBreakdown = ribbon.filter(c => breakdownKeys.includes(c.key));
                 if (ribbonBreakdown.length === 0) return null;
                 return (

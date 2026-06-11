@@ -26,9 +26,9 @@ const FIELD_ICONS: Record<string, React.ElementType> = {
   sceneNumber: Hash, callTime: Clock, duration: Timer, intExt: MapPin,
   set: Building2, dayNight: Sun, cast: Users, pageCount: FileText,
   description: AlignLeft, scriptDay: Calendar, notes: StickyNote,
-  extras: UserPlus, stunts: Sparkles, vehicles: Car, props: Package,
+  backgroundActors: UserPlus, stunts: Sparkles, vehicles: Car, props: Package,
   wardrobe: Shirt, makeup: Scissors, sfx: Volume1, vfx: Video,
-  sound: Volume2, music: Music, animals: PawPrint, weapons: Sword,
+  sound: Volume2, music: Music, animalsAndWranglers: PawPrint, weapons: Sword,
   greenery: Leaf, artDept: PaintBucket, text: Type,
 };
 

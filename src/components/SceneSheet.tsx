@@ -11,14 +11,14 @@ const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
 const BREAKDOWN_CATS = [
-  'set', 'cast', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
-  'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept', 'notes',
+  'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+  'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'notes',
 ];
 const BREAKDOWN_LABEL: Record<string, string> = {
-  set: 'Set', cast: 'Cast', extras: 'Supporting Artists', stunts: 'Stunts', vehicles: 'Vehicles',
+  set: 'Set', cast: 'Cast', backgroundActors: 'Background Actors', stunts: 'Stunts', vehicles: 'Vehicles',
   props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
   sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
-  animals: 'Animals', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept', notes: 'Notes',
+  animalsAndWranglers: 'Animals & Wranglers', weapons: 'Weapons', greenery: 'Greenery', artDept: 'Art Dept', notes: 'Notes',
 };
 
 let persistedIndex = 0;

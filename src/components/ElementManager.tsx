@@ -10,7 +10,7 @@ const ELEMENT_CATEGORIES = [
   { key: 'cast', label: 'Cast' },
   { key: 'set', label: 'Sets' },
   { key: 'props', label: 'Props' },
-  { key: 'extras', label: 'Supporting Artists' },
+  { key: 'backgroundActors', label: 'Background Actors' },
   { key: 'stunts', label: 'Stunts' },
   { key: 'vehicles', label: 'Vehicles' },
   { key: 'wardrobe', label: 'Wardrobe' },
@@ -19,9 +19,9 @@ const ELEMENT_CATEGORIES = [
   { key: 'vfx', label: 'VFX' },
   { key: 'sound', label: 'Sound' },
   { key: 'music', label: 'Music / Playback' },
-  { key: 'animals', label: 'Animals' },
+  { key: 'animalsAndWranglers', label: 'Animals & Wranglers' },
   { key: 'weapons', label: 'Weapons / Armoury' },
-  { key: 'greenery', label: 'Greenery / Set Dressing' },
+  { key: 'greenery', label: 'Greenery' },
   { key: 'artDept', label: 'Art Department' },
 ];
 
@@ -293,9 +293,9 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   };
 
   const CAT_ICONS: Record<string, React.ElementType> = {
-    cast: Users, set: Building2, props: Package, extras: UserPlus, stunts: Sparkles,
+    cast: Users, set: Building2, props: Package, backgroundActors: UserPlus, stunts: Sparkles,
     vehicles: Car, wardrobe: Shirt, makeup: Scissors, sfx: Volume1, vfx: Video,
-    sound: Volume2, music: Music, animals: PawPrint, weapons: Sword, greenery: Leaf, artDept: PaintBucket,
+    sound: Volume2, music: Music, animalsAndWranglers: PawPrint, weapons: Sword, greenery: Leaf, artDept: PaintBucket,
   };
 
   const CUSTOM_ICON_OPTIONS: { name: string; Icon: React.ElementType }[] = [
