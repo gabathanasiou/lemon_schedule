@@ -164,6 +164,8 @@ function AppContent() {
   }, [state.present, storage.handle, currentProjectId]);
 
   if (doodOptions) {
+    const elementIds = doodOptions.elementIds || doodOptions.castIds;
+    const category = doodOptions.selectedCategory || 'cast';
     return (
       <div>
         <Dood
@@ -171,11 +173,11 @@ function AppContent() {
           scenes={project.scenes}
           scheduleRows={version?.rows || []}
           dayMeta={version?.dayMeta || {}}
-          castMembers={project.castMembers || []}
-          castIds={doodOptions.castIds}
+          elementIds={elementIds}
           dayInts={doodOptions.dayInts}
           includeNonShooting={doodOptions.includeNonShooting}
           showTotals={doodOptions.showTotals}
+          category={category}
         />
       </div>
     );

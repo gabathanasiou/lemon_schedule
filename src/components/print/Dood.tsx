@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta, CastMember } from '../../types';
+import { Scene, ScheduleRow, ShootDayMeta } from '../../types';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
+import { DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -74,8 +75,8 @@ interface DoodDay {
 }
 
 interface DoodRow {
-  castId: string;
-  castName: string;
+  elementId: string;
+  elementName: string;
   cells: string[];
 }
 
@@ -87,15 +88,35 @@ interface DoodTotals {
   finishDate: string | null;
 }
 
+function getSceneElements(scene: Scene, category: string): string[] {
+  if (category === 'cast') {
+    if (!scene.cast) return [];
+    return scene.cast.split(',').map(x => x.trim()).filter(Boolean);
+  }
+  const raw = String((scene as any)[category] ?? '');
+  if (!raw) return [];
+  return raw.split(',').map(x => x.trim()).filter(Boolean);
+}
+
+function getElementDisplayName(elementId: string, isCast: boolean, castMemberNames?: Map<string, string>): string {
+  if (isCast) {
+    const name = castMemberNames?.get(elementId) || '—';
+    return `${elementId.padStart(3, ' ')}.  ${name}`;
+  }
+  return elementId;
+}
+
 function deriveDood(
   scenes: Scene[],
   scheduleRows: ScheduleRow[],
   dayMeta: Record<number, ShootDayMeta>,
-  castIds: string[],
+  elementIds: string[],
   dayInts: number[],
   includeNonShooting: boolean,
-  castMembers: CastMember[],
+  category: string,
+  castMemberNames?: Map<string, string>,
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
+  const isCast = category === 'cast';
   const scenesByDay = new Map<number, Scene[]>();
   for (const row of scheduleRows) {
     if (row.type !== 'SCENE' || !row.sceneId) continue;
@@ -133,14 +154,14 @@ function deriveDood(
   const doodRows: DoodRow[] = [];
   const totals = new Map<string, DoodTotals>();
 
-  for (const castId of castIds) {
+  for (const elementId of elementIds) {
     const appearSet = new Set<number>();
     let firstDate: string | null = null;
     let lastDate: string | null = null;
     for (const d of sortedDayInts) {
       const dayScenes = scenesByDay.get(d);
       if (!dayScenes) continue;
-      if (dayScenes.some(s => s.cast.split(',').map(c => c.trim()).includes(castId))) {
+      if (dayScenes.some(s => getSceneElements(s, category).includes(elementId))) {
         appearSet.add(d);
         const date = dayMeta[d]?.date || '';
         if (!firstDate || date < firstDate) firstDate = date;
@@ -150,9 +171,9 @@ function deriveDood(
 
     const cells: string[] = days.map(d => {
       const meta = dayMeta[d.dayInt];
-      if (meta?.status === 'travel' && meta?.castIds) {
+      if (isCast && meta?.status === 'travel' && meta?.castIds) {
         const tIds = meta.castIds.split(',').map(x => x.trim());
-        if (tIds.includes(castId)) return 'T';
+        if (tIds.includes(elementId)) return 'T';
       }
       if (!appearSet.has(d.dayInt)) {
         return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
@@ -168,12 +189,12 @@ function deriveDood(
     const holdCount = cells.filter(c => c === 'H').length;
     const travelCount = cells.filter(c => c === 'T').length;
     const totalDays = workDays + holdCount + travelCount;
-    const castName = castMembers.find(m => m.id === castId)?.name || '—';
+    const elementName = getElementDisplayName(elementId, isCast, castMemberNames);
     const startDate = firstDate;
     const finishDate = lastDate;
 
-    doodRows.push({ castId, castName, cells } as DoodRow);
-    totals.set(castId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate, finishDate });
+    doodRows.push({ elementId, elementName, cells } as DoodRow);
+    totals.set(elementId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate, finishDate });
   }
 
   return { days, rows: doodRows, totals };
@@ -184,11 +205,11 @@ interface DoodProps {
   scenes: Scene[];
   scheduleRows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>;
-  castMembers: CastMember[];
-  castIds: string[];
+  elementIds: string[];
   dayInts: number[];
   includeNonShooting: boolean;
   showTotals: boolean;
+  category?: string;
 }
 
 const Dood: React.FC<DoodProps> = ({
@@ -196,15 +217,25 @@ const Dood: React.FC<DoodProps> = ({
   scenes,
   scheduleRows,
   dayMeta,
-  castMembers,
-  castIds,
+  elementIds,
   dayInts,
   includeNonShooting,
   showTotals,
+  category = 'cast',
 }) => {
+  const castMemberNames = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of scenes) {
+      for (const id of s.cast.split(',').map(c => c.trim()).filter(Boolean)) {
+        if (!m.has(id)) m.set(id, id);
+      }
+    }
+    return m;
+  }, [scenes]);
+
   const data = useMemo(() => deriveDood(
-    scenes, scheduleRows, dayMeta, castIds, dayInts, includeNonShooting, castMembers,
-  ), [scenes, scheduleRows, dayMeta, castIds, dayInts, includeNonShooting, castMembers]);
+    scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames,
+  ), [scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -303,8 +334,8 @@ const Dood: React.FC<DoodProps> = ({
               </thead>
               <tbody>
                 {data.rows.map(row => (
-                  <tr key={row.castId}>
-                    <td className="dood-col-cast">{String(row.castId).padStart(3, ' ')}.{'  '}{row.castName}</td>
+                  <tr key={row.elementId}>
+                    <td className="dood-col-cast">{row.elementName}</td>
                     {group.days.map((d, ci) => {
                       const code = row.cells[group.startIdx + ci];
                       return (
@@ -314,7 +345,7 @@ const Dood: React.FC<DoodProps> = ({
                       );
                     })}
                     {isLast && showTotals && (() => {
-                      const t = data.totals.get(row.castId);
+                      const t = data.totals.get(row.elementId);
                       if (!t) return null;
                       const startStr = t.startDate ? formatDateShort(t.startDate) : '';
                       const finishStr = t.finishDate ? formatDateShort(t.finishDate) : '';
