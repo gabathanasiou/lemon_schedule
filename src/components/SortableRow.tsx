@@ -136,6 +136,11 @@ export const SortableRow: React.FC<{
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
 
+  const ribbonRowCount = ribbon?.length || 2;
+  const noteBreakPad = Math.max(6, ribbonRowCount * 12 - 6);
+  const noteBreakPadPx = `${noteBreakPad}px 6px`;
+  const noteBreakPadPt = `${noteBreakPad}pt 6pt`;
+
   const hasViolations = sceneViolations && sceneViolations.length > 0;
   const violationBadge = hasViolations ? (
     <Tooltip content={sceneViolations.join('\n• ')}>
@@ -169,7 +174,7 @@ export const SortableRow: React.FC<{
               const cellStyle: React.CSSProperties = {
                 flex: `0 0 ${cell.width}%`,
                 textAlign: wrapCell ? 'center' : cell.align || 'left',
-                padding: '18px 6px',
+                padding: noteBreakPadPx,
                 overflow: wrapCell ? 'visible' : 'hidden',
                 whiteSpace: wrapCell ? 'normal' : 'nowrap',
                 textOverflow: wrapCell ? undefined : 'ellipsis',
@@ -298,7 +303,7 @@ export const SortableRow: React.FC<{
               const cellStyle: React.CSSProperties = {
                 flex: `0 0 ${cell.width}%`,
                 textAlign: wrapCell ? 'center' : cell.align || 'left',
-                padding: '18px 6px',
+                padding: noteBreakPadPx,
                 overflow: wrapCell ? 'visible' : 'hidden',
                 whiteSpace: wrapCell ? 'normal' : 'nowrap',
                 textOverflow: wrapCell ? undefined : 'ellipsis',

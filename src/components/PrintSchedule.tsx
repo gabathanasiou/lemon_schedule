@@ -132,6 +132,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   }
 
   const cells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
+  const noteBreakPad = Math.max(6, (ribbon?.length || 2) * 12 - 6);
+  const noteBreakPadPt = `${noteBreakPad}pt 6pt`;
   const mainCellIdx = cells ? (() => {
     const nonSpecial = cells
       .map((c, i) => ({i, w: c.width, f: c.field}))
@@ -190,7 +192,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: '18pt 6pt',
+                            padding: noteBreakPadPt,
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -218,39 +220,38 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           flex: `0 0 ${cell.width}%`,
                           textAlign: cell.align || 'left',
-                          padding: '18pt 6pt',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          textOverflow: 'ellipsis',
-                          fontSize: '8pt',
-                          lineHeight: 1.1,
-                          fontFamily: 'Helvetica, sans-serif',
-                        }}>
-                          {content}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              }
-
-              return (
-                <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
-                  <tbody>
-                    <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg } as any}>
-                      <>
-                        <td className="print-col-sc" />
-                        {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                        {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
-                        <td className="print-col-ie" />
-                        <td className="print-col-set" style={{textAlign: 'center'}}>{r.noteText || ''}</td>
-                        <td className="print-col-dn" />
-                        <td className="print-col-cast" />
-                        <td className="print-col-pgs" />
-                      </>
-                    </tr>
-                  </tbody>
-                </table>
+                           padding: noteBreakPadPt,
+                           overflow: 'hidden',
+                           whiteSpace: 'nowrap',
+                           textOverflow: 'ellipsis',
+                           fontSize: '8pt',
+                           lineHeight: 1.1,
+                           fontFamily: 'Helvetica, sans-serif',
+                         }}>
+                           {content}
+                         </div>
+                       );
+                     })}
+                   </div>
+                 );
+               }
+               return (
+                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
+                   <tbody>
+                     <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg } as any}>
+                       <>
+                         <td className="print-col-sc" />
+                         {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
+                         {showDurations && <td className="print-col-dur">{r.estimatedDuration ? formatDuration(r.estimatedDuration) : ''}</td>}
+                         <td className="print-col-ie" />
+                         <td className="print-col-set" style={{textAlign: 'center'}}>{r.noteText || ''}</td>
+                         <td className="print-col-dn" />
+                         <td className="print-col-cast" />
+                         <td className="print-col-pgs" />
+                       </>
+                     </tr>
+                   </tbody>
+                 </table>
               );
             }
             if (r.type === 'BREAK') {
@@ -264,7 +265,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: '18pt 6pt',
+                            padding: noteBreakPadPt,
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -292,13 +293,13 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           flex: `0 0 ${cell.width}%`,
                           textAlign: cell.align || 'left',
-                          padding: '18pt 6pt',
-                          overflow: 'hidden',
-                          whiteSpace: 'nowrap',
-                          textOverflow: 'ellipsis',
-                          fontSize: '8pt',
-                          lineHeight: 1.1,
-                          fontFamily: 'Helvetica, sans-serif',
+                           padding: noteBreakPadPt,
+                           overflow: 'hidden',
+                           whiteSpace: 'nowrap',
+                           textOverflow: 'ellipsis',
+                           fontSize: '8pt',
+                           lineHeight: 1.1,
+                           fontFamily: 'Helvetica, sans-serif',
 
                         }}>
                           {content}
