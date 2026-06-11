@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import { Scene } from '../types';
 import { useProject } from '../store';
 import { useDropdown, useOpenHandler, sortCastMembers } from '../lib/dropdown';
-import { useSmartPosition } from '../lib/useSmartPosition';
+import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 
 export const DD_ITEM_CLASS = (active: boolean) =>
   `w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
@@ -122,13 +122,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   useDropdown(open, ref, handleClose);
 
-  useLayoutEffect(() => {
-    if (!open || positioning === 'relative') return;
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-  }, [open, positioning]);
+  useFixedPosition(ref, positioning === 'fixed' && open, setPos);
 
   const toggle = useCallback((id: string) => {
     if (mode === 'single') {

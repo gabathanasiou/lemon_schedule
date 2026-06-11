@@ -913,7 +913,7 @@ export default function RibbonTab() {
           <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} />
           <div
             className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-96 w-52"
-            style={{ left: Math.min(contextPos.x, window.innerWidth - 220), top: Math.min(contextPos.y, window.innerHeight - 420) }}
+            style={{ left: Math.max(0, Math.min(contextPos.x, window.innerWidth - 220)), top: Math.max(0, Math.min(contextPos.y, window.innerHeight - 420)) }}
           >
             {/* Scrollable field list */}
             <div

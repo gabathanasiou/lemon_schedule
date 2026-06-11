@@ -27,10 +27,10 @@ export const ContextMenu: React.FC<{
     const rect = menuRef.current.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    let top = y;
-    let left = x;
+    let top = Math.max(MARGIN, y);
+    let left = Math.max(MARGIN, x);
     if (rect.right > vw) left = vw - rect.width - MARGIN;
-    if (rect.bottom > vh) top = vh - rect.height - MARGIN;
+    if (rect.bottom > vh) top = Math.max(MARGIN, vh - rect.height - MARGIN);
     menuRef.current.style.top = `${top}px`;
     menuRef.current.style.left = `${left}px`;
   }, [open, x, y]);
@@ -40,7 +40,7 @@ export const ContextMenu: React.FC<{
   return (
     <div
       ref={menuRef}
-      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px]"
+      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto"
       style={{ top: y, left: x }}
     >
       {children}

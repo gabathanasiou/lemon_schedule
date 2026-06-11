@@ -26,6 +26,10 @@ export function useSmartPosition(
       dropdown.style.left = `${ddRect.left - wrapperRect.left - shift}px`;
     }
 
+    if (ddRect.left < 0) {
+      dropdown.style.left = `${-wrapperRect.left + 4}px`;
+    }
+
     if (ddRect.bottom > vh + 4) {
       dropdown.style.top = 'auto';
       dropdown.style.bottom = '100%';
@@ -36,5 +40,31 @@ export function useSmartPosition(
         dropdown.style.maxHeight = `${vh - 8}px`;
       }
     }
+  }, [open, wrapperRef]);
+}
+
+export function useFixedPosition(
+  wrapperRef: RefObject<HTMLElement>,
+  open: boolean,
+  setPos: (p: { top: number; left: number; width: number }) => void,
+) {
+  useLayoutEffect(() => {
+    if (!open || !wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const panelWidth = 200;
+    const panelHeight = 300;
+    const gap = 4;
+
+    let left = rect.left;
+    let top = rect.bottom + gap;
+
+    if (left + panelWidth > vw) left = Math.max(0, vw - panelWidth - 8);
+    if (top + panelHeight > vh && rect.top - panelHeight - gap > 0) {
+      top = rect.top - panelHeight - gap;
+    }
+
+    setPos({ top, left, width: rect.width });
   }, [open, wrapperRef]);
 }

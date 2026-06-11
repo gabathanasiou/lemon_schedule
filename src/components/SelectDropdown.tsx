@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useDropdown, useOpenHandler } from '../lib/dropdown';
-import { useSmartPosition } from '../lib/useSmartPosition';
+import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 
 const DD_ITEM = (active: boolean) =>
   `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
@@ -38,13 +38,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
 
   useDropdown(open, ref, () => setOpen(false));
 
-  useEffect(() => {
-    if (!open || positioning === 'relative') return;
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-  }, [open, positioning]);
+  useFixedPosition(ref, positioning === 'fixed' && open, setPos);
 
   const commit = (val: string) => {
     onChange(val);
