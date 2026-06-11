@@ -846,7 +846,8 @@ export default function RibbonTab() {
                           <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                             {row.cells.map((c, ci) => {
                               const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                              const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                              const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
+                              const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
                               const shortDisplay = !c.wrap && display.length <= 4;
                               return (
                                 <div key={c.id} style={{

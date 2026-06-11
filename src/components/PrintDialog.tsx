@@ -5,7 +5,7 @@ import { EntityDropdown } from './EntityDropdown';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
-import { getFieldValueFromSample, getDefaultRibbonRows } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP } from '../lib/ribbonUtils';
 
 function formatDayDateLong(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -181,7 +181,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                         <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                           {row.cells.map((c, ci) => {
                             const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                            const display = `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}`;
+                            const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
+                            const fieldLabel = FIELD_MAP[c.field]?.label || catLabel || '';
+                            const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
                             return (
                               <div key={c.id} style={{
                                 flex: `0 0 ${c.width}%`,
