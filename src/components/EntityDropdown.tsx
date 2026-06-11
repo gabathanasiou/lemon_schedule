@@ -91,11 +91,13 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const [val, setVal] = useState(value);
   useEffect(() => {
     if (mode === 'multi' || mode === 'select') setVal(value);
+    if (mode === 'single') setLocalIds(value.trim() ? [value.trim()] : []);
   }, [value, mode]);
   const [query, setQuery] = useState('');
-  const [localIds, setLocalIds] = useState<string[]>(() =>
-    (value || '').split(',').map(x => x.trim()).filter(Boolean)
-  );
+  const [localIds, setLocalIds] = useState<string[]>(() => {
+    if (mode === 'single') return value.trim() ? [value.trim()] : [];
+    return (value || '').split(',').map(x => x.trim()).filter(Boolean);
+  });
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -121,7 +123,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (mode === 'multi' || mode === 'select') {
       onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
     } else {
-      onChange(localIds.length > 0 ? localIds.join(', ') : query);
+      onChange(query || (localIds.length > 0 ? localIds[0] : ''));
     }
     setOpen(false);
     setQuery('');
@@ -162,7 +164,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (mode === 'multi' || mode === 'select') {
       onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
     } else {
-      onChange(localIds.length > 0 ? localIds.join(', ') : query);
+      onChange(query || (localIds.length > 0 ? localIds[0] : ''));
     }
     setOpen(false);
     setQuery('');

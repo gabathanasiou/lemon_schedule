@@ -288,7 +288,7 @@ export function SceneSheet({ initialIndex, onIndexChange }: { initialIndex?: num
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} onChange={v => update('set', v.toUpperCase())} items={setItems} mode="select" placeholder="Set" className="text-xs" /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} onChange={v => update('set', v.toUpperCase())} items={setItems} mode="single" placeholder="Set" className="text-xs" /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
                 <td className="px-2.5 py-1.5"><input className={inputCls} onKeyDown={blurOnEnter} /></td>
               </tr>
