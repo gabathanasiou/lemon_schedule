@@ -5,10 +5,8 @@ import {
   RULE_TYPE_META, RuleFormState, RuleType, blankRuleForm, formFromRule,
 } from './ruleMeta';
 import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFields, CastSceneFlagFields } from './RuleFormFields';
-import { AlertCircle, Info } from 'lucide-react';
+import { X, AlertCircle, Info } from 'lucide-react';
 import { EntityDropdown } from '../EntityDropdown';
-import Modal from '../Modal';
-import { ModalFooter } from '../Modal';
 
 interface RuleFormModalProps {
   open: boolean;
@@ -35,6 +33,15 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
       setError('');
     }
   }, [open, initial]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -119,115 +126,138 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
   };
 
   return (
-    <Modal open onClose={onClose} title={initial ? 'Edit Rule' : 'Add Rule'} icon={<AlertCircle className="w-4 h-4" />} width="max-w-3xl"
-      footer={
-        <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+          <div>
+            <h2 className="text-zinc-900 font-bold text-base">
+              {initial ? 'Edit Rule' : 'New Rule'}
+            </h2>
+            <p className="text-zinc-500 text-xs mt-0.5">
+              {initial ? 'Update this rule\'s parameters.' : 'Add a rule to flag cast violations.'}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 p-1 rounded">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+              Rule Type
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.keys(RULE_TYPE_META) as RuleType[]).map(t => {
+                const m = RULE_TYPE_META[t];
+                const Icon = m.icon;
+                const selected = form.type === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setType(t)}
+                    className={cn(
+                      'text-left p-3 rounded-lg border-2 transition-all',
+                      selected
+                        ? `${m.border} ${m.bg} ring-1 ${m.ring}`
+                        : 'border-zinc-200 hover:border-zinc-300 bg-white'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className={cn('w-4 h-4', selected ? m.text : 'text-zinc-400')} />
+                      <span className={cn(
+                        'text-xs font-bold',
+                        selected ? m.text : 'text-zinc-700'
+                      )}>
+                        {m.label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 leading-snug">
+                      {m.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {form.type !== 'CAST_SCENE_FLAG' && form.type !== 'CAST_CONFLICT' && (
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+              Cast IDs
+            </label>
+            <EntityDropdown
+              value={form.castIds.join(', ')}
+              onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
+              items={castOptions.map(id => {
+                const m = castMembers.find(m => m.id === id);
+                return { id, name: m?.name || '—' };
+              })}
+              positioning="fixed"
+              mode="multi"
+              showSceneCounts
+              scenes={scenes}
+              placeholder="e.g. 1, 2, JOHN"
+              className="text-xs"
+              displayMode="id"
+              renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
+            />
+            {castOptions.length === 0 && (
+              <p className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
+                <Info className="w-3 h-3" />
+                No cast found in your scenes yet. Type custom IDs.
+              </p>
+            )}
+          </div>
+          )}
+
+          {form.type === 'MAX_HOURS' && (
+            <MaxHoursFields form={form} setForm={setForm} />
+          )}
+
+          {form.type === 'DATE_RESTRICTION' && (
+            <DateRestrictionFields form={form} setForm={setForm} />
+          )}
+
+          {form.type === 'TIME_WINDOW' && (
+            <TimeWindowFields form={form} setForm={setForm} />
+          )}
+
+          {form.type === 'CAST_CONFLICT' && (
+            <CastConflictFields form={form} setForm={setForm} castMembers={castMembers} />
+          )}
+
+          {form.type === 'CAST_SCENE_FLAG' && (
+            <CastSceneFlagFields form={form} setForm={setForm} castMembers={castMembers} />
+          )}
+
+          {error && (
+            <div className="flex items-center gap-2 text-rose-600 text-xs bg-rose-50 border border-rose-200 rounded-md px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-200 bg-zinc-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-200 transition-colors"
+          >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
           >
             {initial ? 'Save Changes' : 'Add Rule'}
           </button>
-        </ModalFooter>
-      }
-    >
-      <div className="px-6 py-4 space-y-5">
-        <div>
-          <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-            Rule Type
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            {(Object.keys(RULE_TYPE_META) as RuleType[]).map(t => {
-              const m = RULE_TYPE_META[t];
-              const Icon = m.icon;
-              const selected = form.type === t;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setType(t)}
-                  className={cn(
-                    'text-left p-3 rounded-lg border-2 transition-all',
-                    selected
-                      ? `${m.border} ${m.bg} ring-1 ${m.ring}`
-                      : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900'
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon className={cn('w-4 h-4', selected ? m.text : 'text-zinc-400')} />
-                    <span className={cn('text-xs font-bold', selected ? m.text : 'text-zinc-300')}>
-                      {m.label}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-zinc-500 leading-snug">
-                    {m.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
         </div>
-
-        {form.type !== 'CAST_SCENE_FLAG' && form.type !== 'CAST_CONFLICT' && (
-        <div>
-          <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-            Cast IDs
-          </label>
-          <EntityDropdown
-            value={form.castIds.join(', ')}
-            onChange={val => setForm(f => ({ ...f, castIds: val.split(',').map(x => x.trim()).filter(Boolean) }))}
-            items={castOptions.map(id => {
-              const m = castMembers.find(m => m.id === id);
-              return { id, name: m?.name || '—' };
-            })}
-            positioning="fixed"
-            mode="multi"
-            showSceneCounts
-            scenes={scenes}
-            placeholder="e.g. 1, 2, JOHN"
-            className="text-xs"
-            displayMode="id"
-            renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
-          />
-          {castOptions.length === 0 && (
-            <p className="text-[10px] text-amber-500 mt-1.5 flex items-center gap-1">
-              <Info className="w-3 h-3" />
-              No cast found in your scenes yet. Type custom IDs.
-            </p>
-          )}
-        </div>
-        )}
-
-        {form.type === 'MAX_HOURS' && (
-          <MaxHoursFields form={form} setForm={setForm} />
-        )}
-
-        {form.type === 'DATE_RESTRICTION' && (
-          <DateRestrictionFields form={form} setForm={setForm} />
-        )}
-
-        {form.type === 'TIME_WINDOW' && (
-          <TimeWindowFields form={form} setForm={setForm} />
-        )}
-
-        {form.type === 'CAST_CONFLICT' && (
-          <CastConflictFields form={form} setForm={setForm} castMembers={castMembers} />
-        )}
-
-        {form.type === 'CAST_SCENE_FLAG' && (
-          <CastSceneFlagFields form={form} setForm={setForm} castMembers={castMembers} />
-        )}
-
-        {error && (
-          <div className="flex items-center gap-2 text-rose-400 text-xs bg-rose-950/40 border border-rose-800 rounded-md px-3 py-2">
-            <AlertCircle className="w-3.5 h-3.5" />
-            {error}
-          </div>
-        )}
       </div>
-    </Modal>
+    </div>
   );
 };
