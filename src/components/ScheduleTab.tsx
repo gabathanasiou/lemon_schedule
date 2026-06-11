@@ -417,6 +417,47 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
   }, [activeVersion]);
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
+  const mousePosRef = useRef({ y: 0 });
+  const autoScrollRafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!activeId) return;
+    const onMouseMove = (e: MouseEvent) => { mousePosRef.current = { y: e.clientY }; };
+    document.addEventListener('mousemove', onMouseMove);
+
+    const container = scheduleScrollRef.current;
+    if (!container) return;
+
+    let step = 0;
+    const loop = () => {
+      const rect = container.getBoundingClientRect();
+      const buffer = 200;
+      const y = mousePosRef.current.y;
+
+      if (y < rect.top + buffer) {
+        const speed = Math.max(2, (rect.top + buffer - y) / 8);
+        step = Math.min(step + speed * 0.3, 20);
+        container.scrollTop = Math.max(0, container.scrollTop - step);
+      } else if (y > rect.bottom - buffer) {
+        const speed = Math.max(2, (y - (rect.bottom - buffer)) / 8);
+        step = Math.min(step + speed * 0.3, 20);
+        container.scrollTop = container.scrollTop + step;
+      } else {
+        step = 0;
+      }
+      autoScrollRafRef.current = requestAnimationFrame(loop);
+    };
+    autoScrollRafRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      if (autoScrollRafRef.current !== null) {
+        cancelAnimationFrame(autoScrollRafRef.current);
+        autoScrollRafRef.current = null;
+      }
+    };
+  }, [activeId]);
+
   useEffect(() => {
     if (!focusedRowId) return;
     const id = setTimeout(() => setFocusedRowId(null), 3000);
