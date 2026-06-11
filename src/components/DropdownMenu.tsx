@@ -19,7 +19,7 @@ export default function DropdownMenu({
 }: DropdownMenuProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; flip: boolean }>({ top: 0, left: 0, flip: false });
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -35,19 +35,20 @@ export default function DropdownMenu({
     const rect = wrapperRef.current.getBoundingClientRect();
     const panelW = menuRef.current?.offsetWidth || 200;
     const panelH = menuRef.current?.scrollHeight || 300;
-    const rightEdge = align === 'right'
-      ? rect.right
-      : rect.left + panelW;
-    const overflowX = rightEdge > window.innerWidth;
-    const overflowY = rect.bottom + 8 + panelH > window.innerHeight && rect.top - panelH - 8 > 0;
-    const left = align === 'right'
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    let left = align === 'right'
       ? rect.right - panelW
       : rect.left;
-    setPos({
-      top: overflowY ? rect.top - panelH - 8 : rect.bottom + 8,
-      left: overflowX ? rect.left : left,
-      flip: overflowX,
-    });
+    left = Math.max(0, Math.min(left, vw - panelW));
+
+    let top = rect.bottom + 8;
+    if (top + panelH > vh && rect.top - panelH - 8 > 0) {
+      top = rect.top - panelH - 8;
+    }
+
+    setPos({ top, left });
   }, [open, align]);
 
   return (
