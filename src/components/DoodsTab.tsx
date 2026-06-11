@@ -251,7 +251,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         <table className="border-separate border-spacing-0 text-[11px] w-full">
           <thead>
             <tr className="sticky top-0 z-20">
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1.5 text-left text-zinc-400 font-medium border-r border-zinc-800 whitespace-nowrap z-30 overflow-hidden text-ellipsis" style={{ minWidth: 160, maxWidth: 200, boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>{categoryLabel}</th>
+              <th className="sticky left-0 bg-zinc-900 px-3 py-1.5 text-left text-zinc-400 font-medium border-r border-zinc-800 whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>{categoryLabel}</th>
               {data.days.map((d, ci) => (
                 <th key={d.dayInt} className={`px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`} style={{ minWidth: 42 }}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
@@ -293,7 +293,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
           <tbody>
             {data.rows.map(row => (
               <tr key={row.elementId} className="group hover:bg-zinc-800/40">
-                <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-3 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ maxWidth: 200, boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+                <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-3 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ maxWidth: 400, boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                   {row.elementName}
                 </td>
                 {data.days.map((d, ci) => {

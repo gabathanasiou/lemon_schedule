@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, RangeSelection } from 'react-spreadsheet';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection } from 'react-spreadsheet';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
@@ -303,13 +303,17 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
 
-  const CustomColIndicator: ColumnIndicatorComponent = useCallback(({ column, label }) => {
+  const CustomColIndicator: ColumnIndicatorComponent = useCallback(({ column, label, selected, onSelect }) => {
     const width = colWidths.current[column] || DEFAULT_WIDTHS[column] || 100;
     const isResizing = resizeRef.current?.col === column;
     return (
       <th
         className="Spreadsheet__header"
         style={{ width, maxWidth: width, minWidth: width, position: 'relative', overflow: 'visible' }}
+        onMouseDown={(e) => {
+          if ((e.target as HTMLElement).closest('.column-resize-handle')) return;
+          onSelect(column, e.shiftKey);
+        }}
       >
         <div className="Spreadsheet__header-label">{label !== null ? label : ''}</div>
         <div
@@ -377,10 +381,14 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     return rows;
   }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors]);
 
-  const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected }) => (
+  const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => (
     <td
       className={`Spreadsheet__header text-center cursor-pointer select-none transition-colors ${selected ? 'bg-blue-50' : ''}`}
-      style={{ width: 17, minWidth: 17, maxWidth: 17, fontSize: row < 0 ? 7 : 10, fontWeight: 600 }}
+      style={{ width: 17, minWidth: 17, maxWidth: 17, fontSize: row < 0 ? 7 : 10, fontWeight: 500 }}
+      onMouseDown={(e) => {
+        if (row < 0) return;
+        onSelect(row, e.shiftKey);
+      }}
       onDoubleClick={(e) => {
         e.preventDefault();
         if (row >= 0 && onOpenSheet) onOpenSheet(row);
@@ -606,115 +614,147 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           Sheet
         </button>
       </div>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 shrink-0 bg-white">
+        <span className="text-sm font-semibold text-zinc-800">Scene Breakdown</span>
+        <div className="flex items-center gap-2">
+          <button onClick={addScene} className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors">
+            + Add Scene
+          </button>
+          <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+            Sort by #
+          </button>
+          <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+            Clean Empty
+          </button>
+          <div className="relative">
+            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+              Import CSV
+            </button>
+          </div>
+          <div className="w-px h-5 bg-zinc-200" />
+          <div className="flex items-center gap-3 text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Scenes</span>
+              <span className="text-zinc-800 font-semibold">{scenes.length}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Pages</span>
+              <span className="text-zinc-800 font-semibold">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
       {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
-           <style>{`
-            .Spreadsheet {
-              border-collapse: collapse;
-              width: 100%;
-              font-family: inherit;
-              font-size: 13px;
-            }
-            .Spreadsheet__table {
-              border-collapse: collapse;
-              width: 100%;
-              table-layout: fixed;
-            }
-            .Spreadsheet__header-row {
-              background: white;
-              border-bottom: 2px solid #0a0a0a;
-              position: sticky;
-              top: 0;
-              z-index: 10;
-            }
-            .Spreadsheet__header-row th {
-              padding: 0;
-              font-family: ui-monospace, monospace;
-              font-size: 12px;
-              font-weight: 600;
-              text-align: left;
-              border-right: 1px solid #e4e4e7;
-              color: #18181b;
-              white-space: nowrap;
-              position: relative;
-              user-select: none;
-            }
-            .Spreadsheet__header-label {
-              padding: 8px 6px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-            .Spreadsheet__cell {
-              border: none;
-              border-right: 1px solid #e4e4e7;
-              border-bottom: 1px solid #e4e4e7;
-              padding: 0;
-              height: 34px;
-              overflow: hidden;
-            }
-            .Spreadsheet__cell--selected {
-              outline: 2px solid #2563eb;
-              outline-offset: -2px;
-              z-index: 2;
-              position: relative;
-            }
-            .Spreadsheet__cell--active {
-              outline: 2px solid #2563eb;
-              outline-offset: -2px;
-              z-index: 2;
-              position: relative;
-            }
-            .Spreadsheet__cell input {
-              width: 100%;
-              height: 100%;
-              border: none;
-              outline: none;
-              padding: 6px 8px;
-              font-size: 13px;
-              font-family: inherit;
-              background: transparent;
-            }
-            .Spreadsheet__cell .Spreadsheet__data-viewer {
-              padding: 6px 8px;
-              min-height: 34px;
-              display: flex;
-              align-items: center;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
-            .Spreadsheet__data-editor {
-              width: 100%;
-              height: 100%;
-            }
-            tr:hover .Spreadsheet__cell {
-              background: #fafafa;
-            }
-            tr:hover .Spreadsheet__cell--selected,
-            tr:hover .Spreadsheet__cell--active {
-              background: transparent;
-            }
-            .Spreadsheet__cell--readonly {
-              background: white;
-            }
-            .column-resize-handle {
-              position: absolute;
-              top: 0;
-              right: -3px;
-              width: 6px;
-              height: 100%;
-              cursor: col-resize;
-              z-index: 20;
-              background: transparent;
-            }
-            .column-resize-handle:hover,
-            .column-resize-handle:active {
-              background: rgba(37, 99, 235, 0.3);
-            }
-            ${widthStyle}
-          `}</style>
+            <style>{`
+             .Spreadsheet {
+               border-collapse: separate;
+               border-spacing: 0;
+               width: 100%;
+               font-family: inherit;
+               font-size: 11px;
+             }
+             .Spreadsheet__table {
+               border-collapse: separate;
+               border-spacing: 0;
+               width: 100%;
+             }
+             .Spreadsheet__header-row {
+               position: sticky;
+               top: 0;
+               z-index: 10;
+             }
+             .Spreadsheet__header-row th {
+               padding: 0;
+               font-size: 11px;
+               font-weight: 500;
+               text-align: left;
+               border-right: 1px solid #e4e4e7;
+               border-bottom: 1px solid #d4d4d8;
+               color: #71717a;
+               white-space: nowrap;
+               position: relative;
+               user-select: none;
+               background: #fafafa;
+             }
+             .Spreadsheet__header-label {
+               padding: 8px 10px;
+               overflow: hidden;
+               text-overflow: ellipsis;
+             }
+             .Spreadsheet__cell {
+               border: none;
+               border-right: 1px solid #f4f4f5;
+               border-bottom: 1px solid #f4f4f5;
+               padding: 0;
+               height: 28px;
+               overflow: hidden;
+             }
+             .Spreadsheet__cell--selected {
+               outline: 2px solid #2563eb;
+               outline-offset: -2px;
+               z-index: 2;
+               position: relative;
+             }
+             .Spreadsheet__cell--active {
+               outline: 2px solid #2563eb;
+               outline-offset: -2px;
+               z-index: 2;
+               position: relative;
+             }
+             .Spreadsheet__cell input {
+               width: 100%;
+               height: 100%;
+               border: none;
+               outline: none;
+               padding: 4px 8px;
+               font-size: 11px;
+               font-family: inherit;
+               background: transparent;
+             }
+             .Spreadsheet__cell .Spreadsheet__data-viewer {
+               padding: 4px 8px;
+               min-height: 28px;
+               display: flex;
+               align-items: center;
+               overflow: hidden;
+               text-overflow: ellipsis;
+               white-space: nowrap;
+               font-size: 11px;
+             }
+             .Spreadsheet__data-editor {
+               width: 100%;
+               height: 100%;
+             }
+             tr:hover .Spreadsheet__cell {
+               background: #fafafa;
+             }
+             tr:hover .Spreadsheet__cell--selected,
+             tr:hover .Spreadsheet__cell--active {
+               background: transparent;
+             }
+             .Spreadsheet__cell--readonly {
+               background: white;
+             }
+             .column-resize-handle {
+               position: absolute;
+               top: 0;
+               right: -3px;
+               width: 6px;
+               height: 100%;
+               cursor: col-resize;
+               z-index: 20;
+               background: transparent;
+             }
+             .column-resize-handle:hover,
+             .column-resize-handle:active {
+               background: rgba(37, 99, 235, 0.3);
+             }
+             ${widthStyle}
+           `}</style>
           <Spreadsheet
             data={data}
             onChange={handleChange}
@@ -723,6 +763,13 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             ColumnIndicator={CustomColIndicator}
             onSelect={(sel) => {
               if (sel instanceof EntireRowsSelection) {
+                const range = sel.toRange(data);
+                if (range) {
+                  const rows = new Set<number>();
+                  for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
+                  setSelectedRows(rows);
+                }
+              } else if (sel instanceof EntireColumnsSelection) {
                 const range = sel.toRange(data);
                 if (range) {
                   const rows = new Set<number>();
@@ -744,36 +791,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               }
             }}
           />
-        </div>
-      </div>
-
-      <div className="bg-zinc-100 border-t border-zinc-300 p-3 flex items-center justify-between shadow-inner">
-        <div className="flex items-center space-x-4">
-          <button onClick={addScene} className="bg-zinc-900 border-2 border-transparent text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-zinc-800 transition-colors">
-            + Add Scene
-          </button>
-          <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-4 py-1.5 text-zinc-700 rounded text-sm hover:bg-zinc-50 transition-colors">
-            Sort by Scene #
-          </button>
-          <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-3 py-1.5 text-zinc-500 rounded text-sm hover:bg-zinc-50 transition-colors">
-            Clean Empty Rows
-          </button>
-          <div className="relative">
-            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-3 py-1.5 text-zinc-700 rounded text-sm hover:bg-zinc-50 transition-colors">
-              Import CSV
-            </button>
-          </div>
-        </div>
-        <div className="flex font-mono text-xs items-center space-x-8 text-zinc-600">
-          <div className="flex flex-col">
-            <span className="uppercase text-[10px] text-zinc-400 font-semibold tracking-widest">Scenes</span>
-            <span className="text-zinc-900 font-medium text-sm">{scenes.length}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="uppercase text-[10px] text-zinc-400 font-semibold tracking-widest">Total Pages</span>
-            <span className="text-zinc-900 font-medium text-sm">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
-          </div>
         </div>
       </div>
         </>
