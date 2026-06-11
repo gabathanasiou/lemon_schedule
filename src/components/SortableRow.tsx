@@ -70,11 +70,9 @@ export const SortableRow: React.FC<{
   const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
 
   const setOptions = useMemo(() => {
-    const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
     const stored = state.present.breakdownElements?.['set'] || [];
-    for (const e of stored) if (e.name) sets.add(e.name.toUpperCase());
-    return [...sets].sort();
-  }, [scenes, state.present.breakdownElements]);
+    return [...new Set(stored.map(e => e.name.toUpperCase()).filter(Boolean))].sort();
+  }, [state.present.breakdownElements]);
 
   const updateRow = (updates: Partial<ScheduleRow>) => {
     if (!activeVersionId) return;
