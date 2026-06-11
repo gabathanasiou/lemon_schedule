@@ -478,14 +478,15 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
   }, [focusedRowId]);
   const scrollToRow = (rowId: string) => {
     requestAnimationFrame(() => {
-      const el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`)
-        ?? document.querySelector(`#unscheduled_rows_container [data-row-id="${rowId}"]`);
-      if (!el) return;
-      let container = scheduleScrollRef.current;
-      if (!container) {
-        container = el.closest('.overflow-y-auto') as HTMLElement;
+      let el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`) ?? null;
+      let container: HTMLElement | null = el ? scheduleScrollRef.current : null;
+
+      if (!el) {
+        el = document.querySelector(`#unscheduled_rows_container [data-row-id="${rowId}"]`);
+        if (el) container = el.closest('.overflow-y-auto') as HTMLElement | null;
       }
-      if (!container) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+
+      if (!el || !container) return;
       const cRect = container.getBoundingClientRect();
       const eRect = el.getBoundingClientRect();
       const buffer = 200;
