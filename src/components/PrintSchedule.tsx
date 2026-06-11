@@ -472,7 +472,6 @@ const PRINT_STYLE = `
   .print-table .print-row-scene td,
   .print-table .print-row-desc td {
     border-right: 1px solid var(--td-border-color, #ffffff);
-    border-bottom: 1px solid var(--td-border-color, #ffffff);
   }
 
   .print-table .print-row-note td,
