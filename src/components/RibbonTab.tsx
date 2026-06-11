@@ -86,7 +86,6 @@ export default function RibbonTab() {
 
   const [selId, setSelId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ rowId: string; ci: number; sx: number; a: number; b: number; leftSum: number; rightSum: number; n: number } | null>(null);
-  const [changeOpen, setChangeOpen] = useState(false);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [dropHover, setDropHover] = useState<string | null>(null);
@@ -343,8 +342,6 @@ export default function RibbonTab() {
   /* keyboard */
   const selIdRef = useRef(selId);
   selIdRef.current = selId;
-  const changeOpenRef = useRef(changeOpen);
-  changeOpenRef.current = changeOpen;
   const clearCellRef = useRef(clearCell);
   clearCellRef.current = clearCell;
 
@@ -354,7 +351,7 @@ export default function RibbonTab() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && contextPosRef.current) { setContextPos(null); return; }
-      if (e.key === 'Delete' && selIdRef.current && !changeOpenRef.current) { e.preventDefault(); clearCellRef.current(selIdRef.current); return; }
+      if (e.key === 'Delete' && selIdRef.current && !contextPosRef.current) { e.preventDefault(); clearCellRef.current(selIdRef.current); return; }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!selIdRef.current) return;
         e.preventDefault();
@@ -565,42 +562,17 @@ export default function RibbonTab() {
 
               {/* Action bar */}
                 <div className="flex items-center gap-1.5 mb-2 flex-wrap min-h-[28px]">
-                <DropdownMenu
-                  open={changeOpen && !!selCell}
-                  onClose={() => setChangeOpen(false)}
-                  width="w-44"
-                  trigger={
-                    <button onClick={() => { if (selCell) { setChangeOpen(p => !p); } }} disabled={!selCell}
-                      className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-                      <ArrowRightLeft className="w-3 h-3" /> Change
-                      <ChevronDown className="w-3 h-3 text-zinc-500" />
-                    </button>
-                  }
-                >
-                  {selCell && (
-                    <div className="max-h-64 overflow-y-auto">
-                      {allFields.map(f => {
-                        const catDef = (project.customCategories || []).find(c => c.key === f.key);
-                        const icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
-                        return (
-                          <DropdownItem
-                            key={f.key}
-                            onClick={() => { assign(selCell.cell.id, f.key); setChangeOpen(false); }}
-                            icon={icon ? React.createElement(icon, { className: 'w-3.5 h-3.5' }) : undefined}
-                          >
-                            {f.label}
-                          </DropdownItem>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <DropdownDivider />
-                  {selCell && (
-                    <DropdownItem onClick={() => { clearCell(selCell.cell.id); setChangeOpen(false); }}>
-                      Clear field
-                    </DropdownItem>
-                  )}
-                </DropdownMenu>
+                <button
+                  onClick={e => {
+                    if (!selCell) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setContextPos({ x: rect.left, y: rect.bottom });
+                  }}
+                  disabled={!selCell}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+                  <ArrowRightLeft className="w-3 h-3" /> Change
+                  <ChevronDown className="w-3 h-3 text-zinc-500" />
+                </button>
                 <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
                   className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
                   <Trash2 className="w-3 h-3" /> Delete Cell
