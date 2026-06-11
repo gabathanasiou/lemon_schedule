@@ -29,7 +29,7 @@ import BreakdownSheet from './components/print/BreakdownSheet';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
-import { StorageStatus, useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
+import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
@@ -602,14 +602,6 @@ function AppContent() {
               </div>
             </DropdownMenu>
 
-          <StorageStatus
-            handle={storage.handle}
-            status={storage.status}
-            errorMessage={storage.errorMessage}
-            onHandleChange={storage.setHandle}
-            onStatusChange={storage.setStatus}
-            onRestoreClick={(entries, projects) => setShowRestoreModal({ entries, projects })}
-          />
         </div>
       </header>
 

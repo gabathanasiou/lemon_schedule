@@ -157,11 +157,13 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     scenes: [],
     versions: [{
       id,
-      name: 'v1 - Initial Schedule',
+      name: 'v01',
       createdAt: Date.now(),
       updatedAt: Date.now(),
       rows: [],
-      dayMeta: {}
+      dayMeta: {
+        1: { shootDay: 1, unitCall: '08:00', date: new Date().toISOString().slice(0, 10) }
+      }
     }],
     activeVersionId: id,
     trash: [],

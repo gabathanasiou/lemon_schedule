@@ -337,7 +337,7 @@ export async function parseFountain(file: File): Promise<ImportResult> {
       currentSceneNumber = (token as any).scene_number || '';
     } else if (token.type === 'character') {
       const name = normalizeCharacterName(token.text || '');
-      if (name) sceneCharacters.add(name);
+      if (name && !/^(INT|EXT|EST|I\/E|INT\.?\/EXT|INT[-–—]EXT)[.\s]/i.test(name)) sceneCharacters.add(name);
     } else if (token.type === 'action') {
       descriptionLines.push((token.text || '').trim());
     }

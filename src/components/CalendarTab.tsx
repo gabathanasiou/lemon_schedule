@@ -5,10 +5,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation } from '../types';
 import { generateUUID } from '../lib/utils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Pencil, Trash2, EllipsisVertical } from 'lucide-react';
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
 import { EntityDropdown } from './EntityDropdown';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
@@ -104,6 +106,7 @@ const DayCell: React.FC<{
   sceneViolationMap: Map<string, string[]>;
   onToggle: (dateKey: string) => void;
   onDoubleClick?: (dateKey: string) => void;
+  onContextMenu?: (e: React.MouseEvent, dateKey: string, shootDay: number | null) => void;
   status?: string;
   chronoDay?: number;
   dayCastIds?: string;
@@ -117,7 +120,7 @@ const DayCell: React.FC<{
   activeRowId?: string | null;
   activeDragDay?: number | null;
   monthSeparator?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, onContextMenu, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -156,6 +159,7 @@ const DayCell: React.FC<{
           ref={setHandleRef} {...listeners} {...attributes}
           onClick={() => activeTool && onToggle(dateKey)}
           onDoubleClick={(e) => { e.preventDefault(); if (!activeTool && onDoubleClick) onDoubleClick(dateKey); }}
+          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, dateKey, shootDay); }}
           title={activeTool ? `Click to set ${activeTool}` : 'Double-click to set status'}
           style={{ opacity: isDragging ? 0.3 : 1, cursor: activeTool ? 'pointer' : (isWorkingDay && shootDay != null ? 'grab' : 'default') }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
@@ -340,7 +344,12 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  const [dayContextMenu, setDayContextMenu] = useState<{ x: number; y: number; dateKey: string; shootDay: number | null } | null>(null);
   const ctrlOrCmdHeld = useAddMode();
+
+  const handleDayContextMenu = useCallback((e: React.MouseEvent, dateKey: string, shootDay: number | null) => {
+    setDayContextMenu({ x: e.clientX, y: e.clientY, dateKey, shootDay });
+  }, []);
 
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
@@ -737,6 +746,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     monthSeparator={monthSeparator}
                     activeTool={activeTool}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
+                    onContextMenu={handleDayContextMenu}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
                     showDesc={showDesc}
@@ -844,6 +854,34 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
             </div>
           </div>
         </div>
+      )}
+      {dayContextMenu && (
+        <DropdownMenu
+          open={!!dayContextMenu}
+          onClose={() => setDayContextMenu(null)}
+          width="w-48"
+          align="left"
+          trigger={<div style={{ position: 'fixed', left: dayContextMenu.x, top: dayContextMenu.y, width: 1, height: 1 }} />}
+        >
+          {dayContextMenu.shootDay != null ? (
+            <>
+              <DropdownItem
+                onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
+                icon={<Trash2 className="w-3.5 h-3.5" />}
+                variant="danger"
+              >Remove Working Day</DropdownItem>
+              <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pt-1 pb-0.5">Set Status</div>
+              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }}>Work</DropdownItem>
+              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }}>Hold</DropdownItem>
+              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }}>Travel</DropdownItem>
+              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }}>Holiday</DropdownItem>
+            </>
+          ) : (
+            <DropdownItem
+              onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
+            >Make Working Day</DropdownItem>
+          )}
+        </DropdownMenu>
       )}
     </DndContext>
   );
