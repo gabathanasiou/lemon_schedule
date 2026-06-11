@@ -161,6 +161,7 @@ type Action =
   | { type: 'UPDATE_CAST_MEMBER'; payload: CastMember }
   | { type: 'DELETE_CAST_MEMBER'; payload: string }
   | { type: 'ADD_CUSTOM_CATEGORY'; payload: CustomCategoryDef }
+  | { type: 'UPDATE_CUSTOM_CATEGORY'; payload: { key: string; label?: string; icon?: string } }
   | { type: 'RENAME_CUSTOM_CATEGORY'; payload: { key: string; label: string } }
   | { type: 'DELETE_CUSTOM_CATEGORY'; payload: string }
   | { type: 'RESTORE_CATEGORY_FROM_TRASH'; payload: string }
@@ -726,6 +727,16 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         customCategories: state.present.customCategories.map(c =>
           c.key === key ? { ...c, label } : c
+        ),
+      });
+    }
+
+    case 'UPDATE_CUSTOM_CATEGORY': {
+      const { key, ...updates } = action.payload;
+      return applyChange({
+        ...state.present,
+        customCategories: state.present.customCategories.map(c =>
+          c.key === key ? { ...c, ...updates } : c
         ),
       });
     }

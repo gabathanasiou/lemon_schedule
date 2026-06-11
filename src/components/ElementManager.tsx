@@ -3,7 +3,7 @@ import { useProject } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
 import { generateUUID } from '../lib/utils';
-import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot, Pencil } from 'lucide-react';
 
 const ELEMENT_CATEGORIES = [
   { key: 'cast', label: 'Cast' },
@@ -132,6 +132,8 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
   const [dupDialog, setDupDialog] = useState<{ cats: string[] } | null>(null);
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [showEditCustom, setShowEditCustom] = useState(false);
+  const [editCatKey, setEditCatKey] = useState('');
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('Tag');
   const autoMergeRef = useRef(false);
@@ -361,17 +363,30 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                         </span>
                       </button>
                       {!isActive && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete "${c.label}" category? Elements will be moved to Trash.`)) {
-                              dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
-                              if (category === c.key) switchCategory('cast');
-                            }
-                          }}
-                          className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
-                        >
-                          <Trash2 className="w-3 h-3 text-red-400" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditCatKey(c.key);
+                              setNewCatName(c.label);
+                              setNewCatIcon(c.icon);
+                              setShowEditCustom(true);
+                            }}
+                            className="absolute right-5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-zinc-200 transition-all"
+                          >
+                            <Pencil className="w-3 h-3 text-zinc-400" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete "${c.label}" category? Elements will be moved to Trash.`)) {
+                                dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
+                                if (category === c.key) switchCategory('cast');
+                              }
+                            }}
+                            className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-400" />
+                          </button>
+                        </>
                       )}
                     </div>
                   );
@@ -540,6 +555,53 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
             </div>
           </div>
         )}
+
+        {/* Edit Custom Category modal */}
+        {showEditCustom && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowEditCustom(false)}>
+            <div className="bg-white rounded-xl shadow-2xl w-[380px] p-6 space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-zinc-900">Edit Custom Category</h3>
+                <button onClick={() => setShowEditCustom(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) updateCustomCategory(); }}
+                  autoFocus
+                  className="w-full mt-1 px-3 py-2 border border-zinc-200 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Icon</label>
+                <div className="mt-1 grid grid-cols-6 gap-1.5">
+                  {CUSTOM_ICON_OPTIONS.map(opt => {
+                    const Icon = opt.Icon;
+                    const selected = newCatIcon === opt.name;
+                    return (
+                      <button
+                        key={opt.name}
+                        onClick={() => setNewCatIcon(opt.name)}
+                        className={`p-2 rounded-md transition-colors flex items-center justify-center ${
+                          selected ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button onClick={() => setShowEditCustom(false)} className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors">Cancel</button>
+                <button onClick={updateCustomCategory} disabled={!newCatName.trim()} className="px-4 py-2 rounded-md text-sm font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -551,5 +613,11 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     dispatch({ type: 'ADD_CUSTOM_CATEGORY', payload: { key, label: newCatName.trim(), icon: newCatIcon } });
     setShowAddCustom(false);
     switchCategory(key);
+  }
+
+  function updateCustomCategory() {
+    if (!newCatName.trim()) return;
+    dispatch({ type: 'UPDATE_CUSTOM_CATEGORY', payload: { key: editCatKey, label: newCatName.trim(), icon: newCatIcon } });
+    setShowEditCustom(false);
   }
 }
