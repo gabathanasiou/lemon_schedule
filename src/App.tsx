@@ -25,6 +25,8 @@ import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
 import DropdownSubmenu from './components/DropdownSubmenu';
+import Modal from './components/Modal';
+import { ModalFooter } from './components/Modal';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
@@ -558,18 +560,21 @@ function AppContent() {
       </main>
 
       {showTrash && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setShowTrash(false)}>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-              <div>
-                <h2 className="text-white font-bold text-sm">Trash</h2>
-                <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
-              </div>
-              <button onClick={() => setShowTrash(false)} className="text-zinc-500 hover:text-white">
-                <X className="w-4 h-4" />
+        <Modal open onClose={() => setShowTrash(false)} title="Trash" width="max-w-md"
+          footer={(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) > 0 ? (
+            <ModalFooter>
+              <button
+                onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
+                className="w-full text-center text-red-500 hover:text-red-400 text-xs font-semibold py-1.5 rounded hover:bg-red-500/10 transition-colors"
+              >
+                Empty Trash
               </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
+            </ModalFooter>
+          ) : undefined}
+        >
+          <div className="p-5">
+            <p className="text-zinc-500 text-xs mb-3">Items expire after 30 days</p>
+            <div className="space-y-1">
               {(() => {
                 const items: Array<{ kind: 'scene'; id: string; data: TrashItem }
                   | { kind: 'version'; id: string; data: VersionTrashItem }
@@ -650,46 +655,45 @@ function AppContent() {
                 });
               })()}
             </div>
-
-            {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0)) > 0 && (
-              <div className="border-t border-zinc-800 px-5 py-3">
-                <button
-                  onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
-                  className="w-full text-center text-red-500 hover:text-red-400 text-xs font-semibold py-1.5 rounded hover:bg-red-500/10 transition-colors"
-                >
-                  Empty Trash
-                </button>
-              </div>
-            )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {showRestoreModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowRestoreModal(null)}>
-          <div
-            className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-sky-400" />
-                <h2 className="text-white font-bold text-sm">Restore from folder</h2>
-              </div>
-              <button onClick={() => setShowRestoreModal(null)} className="text-zinc-500 hover:text-white">
-                <X className="w-4 h-4" />
+        <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-md"
+          footer={
+            <ModalFooter>
+              <button onClick={() => setShowRestoreModal(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+                Cancel
               </button>
-            </div>
-            <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
-              {showRestoreModal.entries.length} {showRestoreModal.entries.length === 1 ? 'project' : 'projects'} found in your save folder.
-              Restoring will merge them with your current projects.
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              {showRestoreModal.entries.length === 0 ? (
-                <div className="text-zinc-500 text-center py-12 text-sm">No projects in folder.</div>
-              ) : (
-                showRestoreModal.entries.map(entry => (
-                  <div key={entry.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900">
+              <button
+                disabled={showRestoreModal.projects.length === 0}
+                onClick={async () => {
+                  try {
+                    const projectsToImport: Project[] = showRestoreModal.projects.map(p => JSON.parse(p.data));
+                    for (const proj of projectsToImport) {
+                      try { importProjectFromData(proj); } catch (e) { console.error('Failed to import', proj.id, e); }
+                    }
+                    setShowRestoreModal(null);
+                  } catch (e) { console.error(e); }
+                }}
+                className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+              >
+                Restore {showRestoreModal.projects.length > 0 ? `(${showRestoreModal.projects.length})` : ''}
+              </button>
+            </ModalFooter>
+          }
+        >
+          <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
+            {showRestoreModal.entries.length} {showRestoreModal.entries.length === 1 ? 'project' : 'projects'} found in your save folder.
+            Restoring will merge them with your current projects.
+          </div>
+          <div className="p-2">
+            {showRestoreModal.entries.length === 0 ? (
+              <div className="text-zinc-500 text-center py-12 text-xs">No projects in folder.</div>
+            ) : (
+              showRestoreModal.entries.map(entry => (
+                <div key={entry.id} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900">
                     <div className="min-w-0">
                       <div className="text-white text-sm font-semibold truncate">{entry.title || 'Untitled'}</div>
                       <div className="text-zinc-500 text-[11px] mt-0.5">
@@ -700,37 +704,7 @@ function AppContent() {
                 ))
               )}
             </div>
-            <div className="border-t border-zinc-800 px-5 py-3 flex items-center gap-2">
-              <button
-                onClick={() => setShowRestoreModal(null)}
-                className="flex-1 px-4 py-2 rounded text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={showRestoreModal.projects.length === 0}
-                onClick={async () => {
-                  try {
-                    const projectsToImport: Project[] = showRestoreModal.projects.map(p => JSON.parse(p.data));
-                    for (const proj of projectsToImport) {
-                      try {
-                        importProjectFromData(proj);
-                      } catch (e) {
-                        console.error('Failed to import', proj.id, e);
-                      }
-                    }
-                    setShowRestoreModal(null);
-                  } catch (e) {
-                    console.error(e);
-                  }
-                }}
-                className="flex-1 px-4 py-2 rounded text-sm font-semibold bg-sky-600 hover:bg-sky-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Restore {showRestoreModal.projects.length} {showRestoreModal.projects.length === 1 ? 'project' : 'projects'}
-              </button>
-            </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
     </div>
