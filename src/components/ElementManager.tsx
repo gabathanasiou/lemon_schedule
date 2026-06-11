@@ -347,10 +347,10 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                   const Icon = getCustomIcon(c.icon);
                   const isActive = c.key === category;
                   return (
-                    <div key={c.key} className="group relative">
+                    <div key={c.key} className="group">
                       <button
                         onClick={() => switchCategory(c.key)}
-                        className={`w-full text-left px-2 py-1.5 ${!isActive ? 'pr-10' : ''} rounded-md transition-colors flex items-center gap-2 text-xs ${
+                        className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
                           isActive
                             ? 'bg-zinc-900 text-white font-semibold'
                             : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
@@ -358,36 +358,32 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                       >
                         {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />}
                         <span className="truncate flex-1 italic">{c.label}</span>
+                        {!isActive && (
+                          <span className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditCatKey(c.key); setNewCatName(c.label); setNewCatIcon(c.icon); setShowEditCustom(true); }}
+                              className="p-0.5 rounded hover:bg-zinc-300 transition-colors"
+                            >
+                              <Pencil className="w-3 h-3 text-zinc-400" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete "${c.label}" category? Elements will be moved to Trash.`)) {
+                                  dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
+                                  if (category === c.key) switchCategory('cast');
+                                }
+                              }}
+                              className="p-0.5 rounded hover:bg-red-100 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3 text-red-400" />
+                            </button>
+                          </span>
+                        )}
                         <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : 'text-zinc-400'}`}>
                           {countTotal(c.key)}
                         </span>
                       </button>
-                      {!isActive && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setEditCatKey(c.key);
-                              setNewCatName(c.label);
-                              setNewCatIcon(c.icon);
-                              setShowEditCustom(true);
-                            }}
-                            className="absolute right-6 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-zinc-200 transition-all"
-                          >
-                            <Pencil className="w-3 h-3 text-zinc-400" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete "${c.label}" category? Elements will be moved to Trash.`)) {
-                                dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
-                                if (category === c.key) switchCategory('cast');
-                              }
-                            }}
-                            className="absolute right-0.5 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all"
-                          >
-                            <Trash2 className="w-3 h-3 text-red-400" />
-                          </button>
-                        </>
-                      )}
                     </div>
                   );
                 })}
