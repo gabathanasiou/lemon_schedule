@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { parseFDX, parseFountain, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
-import { X, Upload, Loader2, GripVertical } from 'lucide-react';
+import { Upload, Loader2, GripVertical } from 'lucide-react';
+import Modal from './Modal';
+import { ModalFooter } from './Modal';
 import {
   DndContext,
   closestCenter,
@@ -182,20 +184,26 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
     onClose();
   }, [result, castOrder, startId, selectedCategories, selectedHidden, dispatch, project.castMembers, projectTitle, onClose]);
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-[600px] max-h-[85vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
-          <h2 className="text-white font-bold text-sm">Import Screenplay</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+  const footer = (stage === 'select' || stage === 'review') ? (
+    <ModalFooter>
+      <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+        Cancel
+      </button>
+      {stage === 'review' && (
+        <button
+          onClick={handleImport}
+          className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          Import {result?.scenes.length || 0} Scenes
+        </button>
+      )}
+    </ModalFooter>
+  ) : undefined;
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+  return (
+    <Modal open onClose={onClose} title="Import Screenplay" icon={<Upload className="w-4 h-4" />} width="max-w-xl" footer={footer}>
+      <div className="px-5 py-4 space-y-4">
           {stage === 'select' && (
             <>
               <div
@@ -352,26 +360,6 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
           )}
         </div>
 
-        {(stage === 'select' || stage === 'review') && (
-          <div className="border-t border-zinc-800 px-5 py-3 flex items-center justify-end gap-2 shrink-0">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 rounded text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            >
-              Cancel
-            </button>
-            {stage === 'review' && (
-              <button
-                onClick={handleImport}
-                disabled={stage !== 'review'}
-                className="px-4 py-2 rounded text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Import {result?.scenes.length || 0} Scenes
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    </Modal>
   );
 }
