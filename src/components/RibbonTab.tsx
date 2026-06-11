@@ -426,7 +426,7 @@ export default function RibbonTab() {
             </button>
           }
         >
-          <DropdownItem onClick={() => { promptSaveDefault(); const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
+          <DropdownItem onClick={() => { promptSaveDefault(); const n = prompt('Design name', `Design ${project.ribbonDesigns.length + 1}`); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
             icon={<Plus className="w-3.5 h-3.5" />}>
             New Design
           </DropdownItem>

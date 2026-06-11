@@ -252,6 +252,21 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     return () => document.removeEventListener('keydown', onKey);
   }, [addNew, doSave]);
 
+  const hasChangesRef = useRef(hasChanges);
+  hasChangesRef.current = hasChanges;
+  const doSaveRef = useRef(doSave);
+  doSaveRef.current = doSave;
+
+  useEffect(() => {
+    return () => {
+      if (hasChangesRef.current) {
+        if (confirm('You have unsaved changes. Save before leaving?\n\nEnter = Save | Cancel = Discard')) {
+          doSaveRef.current();
+        }
+      }
+    };
+  }, []);
+
   const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean) => {
     const inputId = `${key}-${field}`;
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
