@@ -425,7 +425,8 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
     const onMouseMove = (e: MouseEvent) => { mousePosRef.current = { y: e.clientY }; };
     document.addEventListener('mousemove', onMouseMove);
 
-    let step = 0;
+    let stepSchedule = 0;
+    let stepUnscheduled = 0;
     const buffer = 200;
     const loop = () => {
       const y = mousePosRef.current.y;
@@ -436,6 +437,8 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
       for (const container of targets) {
         const rect = container.getBoundingClientRect();
         if (y < rect.top || y > rect.bottom) continue;
+
+        let step = container === scheduleContainer ? stepSchedule : stepUnscheduled;
 
         if (y < rect.top + buffer) {
           const t = 1 - (y - rect.top) / buffer;
@@ -450,6 +453,9 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
         } else {
           step *= 0.6;
         }
+
+        if (container === scheduleContainer) stepSchedule = step;
+        else stepUnscheduled = step;
         break;
       }
       autoScrollRafRef.current = requestAnimationFrame(loop);
