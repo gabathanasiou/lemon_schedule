@@ -1,4 +1,4 @@
-import React, { useRef, useState, useLayoutEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 
 interface MiniTabItem {
   id: string;
@@ -34,16 +34,18 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const [hoverStyle, setHoverStyle] = useState<React.CSSProperties>({});
 
-  useLayoutEffect(() => {
-    const el = tabRefs.current.get(activeTab);
-    const container = containerRef.current;
-    if (!el || !container) return;
-    const cr = container.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    setOverlayStyle({
-      left: er.left - cr.left,
-      width: er.width,
-      opacity: 1,
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const el = tabRefs.current.get(activeTab);
+      const container = containerRef.current;
+      if (!el || !container) return;
+      const cr = container.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      setOverlayStyle({
+        left: er.left - cr.left,
+        width: er.width,
+        opacity: 1,
+      });
     });
   }, [activeTab]);
 

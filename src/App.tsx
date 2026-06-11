@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, Project } from './types';
@@ -101,19 +101,21 @@ function AppContent() {
 
   const noProject = currentProjectId === null;
 
-  useLayoutEffect(() => {
-    const el = topTabRefs.current.get(activeTab);
-    const container = topTabContainerRef.current;
-    if (!el || !container) return;
-    const cr = container.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
-    setTopTabOverlayStyle({
-      left: er.left - cr.left,
-      width: er.width,
-      opacity: 1,
-      background: isDark ? '#18181b' : '#ffffff',
-      ...(isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {}),
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const el = topTabRefs.current.get(activeTab);
+      const container = topTabContainerRef.current;
+      if (!el || !container) return;
+      const cr = container.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
+      setTopTabOverlayStyle({
+        left: er.left - cr.left,
+        width: er.width,
+        opacity: 1,
+        background: isDark ? '#18181b' : '#ffffff',
+        ...(isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {}),
+      });
     });
   }, [activeTab, scheduleSubTab]);
 
