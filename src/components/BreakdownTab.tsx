@@ -415,6 +415,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       newScene.pageCount = formatPageCount(decimal);
       newScene.pageCountDecimal = decimal;
       newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
+      newScene.set = String(newScene.set || '').toUpperCase();
       dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
       const entityCategories = ['cast', ...allBreakdownCategories];
       for (const category of entityCategories) {
@@ -503,7 +504,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           pageCountDecimal: parsePageCount(row['Pages'] || '1'),
           scriptDay: row['Script Day'] || '',
           intExt: (row['I/E'] || 'INT') as any,
-          set: row['Set'] || '',
+          set: (row['Set'] || '').toUpperCase(),
           dayNight: (row['D/N'] || 'DAY') as any,
           description: row['Description'] || '',
           cast: row['Cast'] || '',
