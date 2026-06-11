@@ -6,16 +6,28 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP } from '../lib/ribbonUtils';
 
-function formatDayDateLong(dateStr: string): string {
+function sceneStyle(intExt?: string, dayNight?: string): { bg: string; fg: string } {
+  const ie = (intExt || '').toUpperCase();
+  const dn = (dayNight || '').toUpperCase();
+  if (ie.includes('INT') && dn.includes('DAY')) return { bg: '#ffffff', fg: '#464646' };
+  if (ie.includes('EXT') && dn.includes('DAY')) return { bg: '#bdd857', fg: '#000000' };
+  if (ie.includes('INT') && dn.includes('NIGHT')) return { bg: '#67832e', fg: '#f2fce3' };
+  if (ie.includes('EXT') && dn.includes('NIGHT')) return { bg: '#2148a7', fg: '#ffffff' };
+  if (ie.includes('INT') && dn.includes('MORNING')) return { bg: '#efbea0', fg: '#4a3730' };
+  if (ie.includes('EXT') && dn.includes('MORNING')) return { bg: '#e88aa5', fg: '#ffffff' };
+  if (ie.includes('INT') && dn.includes('EVENING')) return { bg: '#e29926', fg: '#000000' };
+  if (ie.includes('EXT') && dn.includes('EVENING')) return { bg: '#ce7d21', fg: '#000000' };
+  return { bg: '#ffffff', fg: '#18181b' };
+}
+
+function formatDayDateShort(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   if (isNaN(d.getTime())) return dateStr;
   const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
   const day = d.getDate();
-  const month = d.toLocaleDateString('en-US', { month: 'long' });
-  const year = d.getFullYear();
   const suffixes = ['th', 'st', 'nd', 'rd'];
   const suffix = (day >= 11 && day <= 13) ? 'th' : suffixes[day % 10] || 'th';
-  return `${weekday} ${day}${suffix} ${month} ${year}`;
+  return `${weekday}, ${day}${suffix}`;
 }
 
 export interface PrintOptions {
@@ -73,7 +85,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const ribbonDesigns = project.ribbonDesigns || [];
 
   return (
-    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
+    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-7xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -90,46 +102,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
         </ModalFooter>
       }
     >
-      <div className="px-6 py-4 space-y-5">
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Schedule</h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={showCastList} onChange={e => setShowCastList(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                <span className="text-xs text-zinc-300">Cast List</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                <span className="text-xs text-zinc-300">Call Times</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                <span className="text-xs text-zinc-300">Durations</span>
-              </label>
-            </div>
-          </div>
-          <div>
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Page Style</h3>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={showExportDate} onChange={e => setShowExportDate(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                <span className="text-xs text-zinc-300">Export Date</span>
-              </label>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={showPageNumbers} onChange={e => setShowPageNumbers(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                <span className="text-xs text-zinc-300">Page Numbers</span>
-              </label>
-            </div>
-          </div>
-          <div>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-              <span className="text-xs text-zinc-300">Include hold / travel / holiday days</span>
-            </label>
-          </div>
-        </div>
-
+      <div className="px-6 py-4 space-y-4">
         {ribbonDesigns.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Ribbon Layout</h3>
@@ -173,11 +146,12 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                 : getDefaultRibbonRows();
               if (!rows) return null;
               const sample = { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' };
+              const sc = sceneStyle(sample.intExt, sample.dayNight);
               return (
-                <div className="border border-zinc-700 rounded overflow-hidden bg-black text-white" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1 }}>
+                <div className="border border-zinc-700 rounded overflow-hidden" style={{ background: sc.bg, color: sc.fg, fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1 }}>
                   <div className="flex flex-col min-w-0">
                     {rows.map((row, ri) => (
-                      <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.1)' } : {}}>
+                      <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: `1px solid ${sc.fg}20` } : {}}>
                         {row.cells.map((c, ci) => {
                           const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
                           const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
@@ -188,7 +162,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                               flex: `0 0 ${c.width}%`,
                               minWidth: 0,
                               padding: '3px 3px',
-                              borderRight: ci < row.cells.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                              borderRight: ci < row.cells.length - 1 ? `1px solid ${sc.fg}20` : 'none',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: c.wrap ? 'normal' : 'nowrap',
@@ -209,33 +183,73 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
           </div>
         )}
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5">
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Days to Print</h3>
-            <button onClick={toggleAll} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
-              {selectedDays.size === dayEntries.length ? 'Deselect all' : 'Select all'}
-            </button>
+        <div className="grid grid-cols-2 gap-x-8">
+          <div className="space-y-4 min-w-0">
+            <div>
+              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Stripboard</h3>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <span className="text-xs text-zinc-300">Call Times</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <span className="text-xs text-zinc-300">Durations</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <span className="text-xs text-zinc-300">Hold / Travel / Holiday days</span>
+                </label>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Page Style</h3>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showCastList} onChange={e => setShowCastList(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <span className="text-xs text-zinc-300">Cast List</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showExportDate} onChange={e => setShowExportDate(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <span className="text-xs text-zinc-300">Export date on title</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={showPageNumbers} onChange={e => setShowPageNumbers(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <span className="text-xs text-zinc-300">Page numbers</span>
+                </label>
+              </div>
+            </div>
+
           </div>
-          <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-48">
-            {dayEntries.map(d => {
-              const checked = selectedDays.has(d.dayInt);
-              return (
-                <button
-                  key={d.dayInt}
-                  onClick={() => toggleDayInt(d.dayInt)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
-                >
-                  <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-                    {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                  </span>
-                  <span className="font-medium">Day {d.chrono}</span>
-                  {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateLong(d.date)}</span>}
-                </button>
-              );
-            })}
-            {dayEntries.length === 0 && (
-              <div className="px-3 py-4 text-xs text-zinc-600 text-center">No days with dates configured yet.</div>
-            )}
+
+          <div className="space-y-2 min-w-0">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5">
+              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Days to Print</h3>
+              <button onClick={toggleAll} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
+                {selectedDays.size === dayEntries.length ? 'Deselect all' : 'Select all'}
+              </button>
+            </div>
+            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-96">
+              {dayEntries.map(d => {
+                const checked = selectedDays.has(d.dayInt);
+                return (
+                  <button
+                    key={d.dayInt}
+                    onClick={() => toggleDayInt(d.dayInt)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
+                  >
+                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
+                      {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    </span>
+                    <span className="font-medium">Day {d.chrono}</span>
+                    {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateShort(d.date)}</span>}
+                  </button>
+                );
+              })}
+              {dayEntries.length === 0 && (
+                <div className="px-3 py-4 text-xs text-zinc-600 text-center">No days with dates configured yet.</div>
+              )}
+            </div>
           </div>
         </div>
       </div>

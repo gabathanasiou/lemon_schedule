@@ -295,12 +295,11 @@ function AppContent() {
           <div className="flex items-center gap-2">
             <DropdownMenu
               open={showFileMenu}
-              onClose={() => setShowFileMenu(false)}
+              onOpenChange={setShowFileMenu}
               width="w-56"
               align="left"
               trigger={
                 <button
-                  onClick={() => setShowFileMenu(p => !p)}
                   className="flex items-center space-x-1.5 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white px-3 py-1.5 font-sans cursor-pointer select-none"
                 >
                   <span>File</span>
@@ -372,11 +371,10 @@ function AppContent() {
             {activeTab === 'schedule' && (
               <DropdownMenu
                 open={showScheduleMenu}
-                onClose={() => setShowScheduleMenu(false)}
+                onOpenChange={setShowScheduleMenu}
                 width="w-40"
                 trigger={
                   <button
-                    onClick={() => setShowScheduleMenu(p => !p)}
                     className="p-1 hover:bg-zinc-800 rounded transition-colors"
                     title="Schedule view options"
                   >
@@ -398,11 +396,10 @@ function AppContent() {
             {activeTab === 'calendar' && (
               <DropdownMenu
                 open={showCalendarViewMenu}
-                onClose={() => setShowCalendarViewMenu(false)}
+                onOpenChange={setShowCalendarViewMenu}
                 width="w-36"
                 trigger={
                   <button
-                    onClick={() => setShowCalendarViewMenu(p => !p)}
                     className="p-1 hover:bg-zinc-800 rounded transition-colors"
                     title="Calendar view options"
                   >
@@ -465,11 +462,10 @@ function AppContent() {
 
           <DropdownMenu
               open={showVersionsMenu}
-              onClose={() => { setShowVersionsMenu(false); setEditingVersionId(null); }}
+              onOpenChange={(o) => { if (!o) setEditingVersionId(null); setShowVersionsMenu(o); }}
               width="w-80"
               trigger={
                 <button 
-                  onClick={() => setShowVersionsMenu(prev => !prev)}
                   className="flex items-center space-x-1.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium"
                 >
                   <span>Version: <strong className="text-zinc-300 font-semibold">{version?.name || 'Select Version'}</strong></span>
@@ -570,25 +566,32 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} onPrint={() => setShowPrintDialog(true)} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
       </main>
 
       {showTrash && (
-        <Modal open onClose={() => setShowTrash(false)} title="Trash" width="max-w-xl"
-          footer={(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) > 0 ? (
-            <ModalFooter>
-              <button
-                onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
-                className="w-full text-center text-red-500 hover:text-red-400 text-xs font-semibold py-1.5 rounded hover:bg-red-500/10 transition-colors"
-              >
-                Empty Trash
-              </button>
-            </ModalFooter>
-          ) : undefined}
-        >
-          <div className="p-5">
-            <p className="text-zinc-500 text-xs mb-3">Items expire after 30 days</p>
-            <div className="space-y-1">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => setShowTrash(false)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
+              <div className="min-w-0">
+                <h2 className="text-white font-bold text-sm">Trash</h2>
+                <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-3">
+                {(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) > 0 && (
+                  <button
+                    onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
+                    className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-1.5 py-0.5 rounded hover:bg-red-500/10 transition-colors"
+                  >
+                    Empty
+                  </button>
+                )}
+                <button onClick={() => setShowTrash(false)} className="text-zinc-500 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
               {(() => {
                 const items: Array<{ kind: 'scene'; id: string; data: TrashItem }
                   | { kind: 'version'; id: string; data: VersionTrashItem }
@@ -670,7 +673,7 @@ function AppContent() {
               })()}
             </div>
           </div>
-        </Modal>
+        </div>
       )}
 
       {showRestoreModal && (

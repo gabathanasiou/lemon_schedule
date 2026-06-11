@@ -133,15 +133,14 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
     : `Saved to ${getFolderDisplayName(handle)}`;
 
   return (
-    <DropdownMenu
-      open={menuOpen}
-      onClose={() => setMenuOpen(false)}
-      width="w-64"
-      align="right"
-      trigger={
-        <button
-          onClick={() => setMenuOpen(p => !p)}
-          className={`flex items-center gap-1.5 ${colorClass} text-xs px-2.5 py-1 rounded hover:bg-zinc-800 transition-colors`}
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        width="w-64"
+        align="right"
+        trigger={
+          <button
+            className={`flex items-center gap-1.5 ${colorClass} text-xs px-2.5 py-1 rounded hover:bg-zinc-800 transition-colors`}
           title={errorMessage || label}
         >
           {icon}

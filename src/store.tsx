@@ -405,7 +405,7 @@ function reducer(state: State, action: Action): State {
           createdAt: Date.now(),
           updatedAt: Date.now(),
           rows: [],
-          dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: '' } }
+          dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: new Date().toISOString().slice(0, 10) } }
         };
       }
       return applyChange({

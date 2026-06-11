@@ -422,10 +422,10 @@ export default function RibbonTab() {
         <Columns3 className="w-4 h-4 text-blue-500 shrink-0" />
         <DropdownMenu
           open={fileMenuOpen}
-          onClose={() => setFileMenuOpen(false)}
+          onOpenChange={setFileMenuOpen}
           width="w-44"
           trigger={
-            <button onClick={() => setFileMenuOpen(p => !p)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
               <span className="text-xs font-semibold text-zinc-400">Edit</span>
               <ChevronDown className="w-3 h-3 text-zinc-500" />
             </button>
@@ -494,10 +494,10 @@ export default function RibbonTab() {
         </DropdownMenu>
         <DropdownMenu
           open={designMenuOpen}
-          onClose={() => setDesignMenuOpen(false)}
+          onOpenChange={setDesignMenuOpen}
           width="w-52"
           trigger={
-            <button onClick={() => setDesignMenuOpen(p => !p)} className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
               <span className="text-xs font-semibold text-zinc-500">Ribbon:</span>
               <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
               <ChevronDown className="w-3 h-3 text-zinc-500" />

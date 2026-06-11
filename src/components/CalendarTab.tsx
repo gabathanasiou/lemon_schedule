@@ -6,6 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation } from '../types';
 import { generateUUID } from '../lib/utils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2 } from 'lucide-react';
+import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
 import { EntityDropdown } from './EntityDropdown';
@@ -854,39 +855,30 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           </div>
         </Modal>
       )}
-      {dayContextMenu && (
-        <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }}>
-          <div
-            className="absolute bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none w-48"
-            style={{ left: Math.min(dayContextMenu.x, window.innerWidth - 200), top: Math.min(dayContextMenu.y, window.innerHeight - 220) }}
-          >
-            {dayContextMenu.shootDay != null ? (
-              <>
-                <button
-                  onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
-                  className="w-full text-left px-2 py-1 text-xs rounded hover:bg-red-500/20 text-red-400 flex items-center gap-2"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Remove Working Day
-                </button>
-                <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pt-1 pb-0.5">Set Status</div>
-                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Work</button>
-                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Hold</button>
-                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Travel</button>
-                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Holiday</button>
-              </>
-            ) : (
-              <>
-                <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pt-1 pb-0.5">Set</div>
-                <button onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Make Working Day</button>
-                <button onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Hold</button>
-                <button onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Travel</button>
-                <button onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Holiday</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {dayContextMenu && <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }} />}
+      <ContextMenu open={!!dayContextMenu} x={dayContextMenu?.x ?? 0} y={dayContextMenu?.y ?? 0} onClose={() => setDayContextMenu(null)}>
+        {dayContextMenu?.shootDay != null ? (
+          <>
+            <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-4 pt-1 pb-0.5">Set Status</div>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }}>Work</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }}>Hold</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }}>Travel</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }}>Holiday</ContextMenuItem>
+            <ContextMenuDivider />
+            <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>
+              Remove Working Day
+            </ContextMenuItem>
+          </>
+        ) : (
+          <>
+            <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-4 pt-1 pb-0.5">Set</div>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}>Make Working Day</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }}>Hold</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }}>Travel</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }}>Holiday</ContextMenuItem>
+          </>
+        )}
+      </ContextMenu>
     </DndContext>
   );
 };

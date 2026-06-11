@@ -120,28 +120,28 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
   const selectedLabel = getCategoryLabel(selectedCategory, project.customCategories || []);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-zinc-950">
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-zinc-950 text-zinc-300">
       <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
         <span className="text-sm font-bold text-white">Element Breakdown — {selectedLabel}</span>
       </div>
 
-      <div className="flex-1 overflow-auto min-h-0">
-        <table className="w-max min-w-full border-collapse text-xs">
+      <div className="flex-1 overflow-auto">
+        <table className="border-separate border-spacing-0 text-[11px] w-full">
           <thead>
-            <tr className="sticky top-0 bg-zinc-900 z-10">
-              <th className="text-left px-4 py-2 border-b border-zinc-800 font-semibold text-zinc-400 whitespace-nowrap">{selectedLabel}</th>
-              <th className="text-left px-4 py-2 border-b border-zinc-800 font-semibold text-zinc-400 max-w-[240px]">Scenes</th>
-              <th className="text-right px-4 py-2 border-b border-zinc-800 font-semibold text-zinc-400 whitespace-nowrap">Total Pages</th>
-              <th className="text-left px-4 py-2 border-b border-zinc-800 font-semibold text-zinc-400 max-w-[300px]">Shoot Days</th>
+            <tr className="sticky top-0 z-20">
+              <th className="sticky left-0 bg-zinc-900 px-2 py-1.5 text-left text-zinc-400 font-medium border-b border-r border-zinc-800 whitespace-nowrap z-30 overflow-hidden text-ellipsis cursor-default" style={{ minWidth: 160, maxWidth: 200, boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>{selectedLabel}</th>
+              <th className="text-left px-2 py-1.5 border-b border-r border-zinc-800 font-medium text-zinc-400 cursor-default">Scenes</th>
+              <th className="text-left px-2 py-1.5 border-b border-r border-zinc-800 font-medium text-zinc-400 whitespace-nowrap cursor-default">Total Pages</th>
+              <th className="text-left px-2 py-1.5 border-b border-zinc-800 font-medium text-zinc-400 cursor-default">Shoot Days</th>
             </tr>
           </thead>
           <tbody>
             {elements.map(el => (
-              <tr key={el.key} className="border-b border-zinc-800/50 hover:bg-zinc-900/50">
-                <td className="px-4 py-2 text-zinc-200 font-medium whitespace-nowrap">{el.name}</td>
-                <td className="px-4 py-2 text-zinc-500 max-w-[240px] align-top break-words">{el.scenes || '—'}</td>
-                <td className="px-4 py-2 text-zinc-500 text-right whitespace-nowrap align-top">{el.totalPages} pgs</td>
-                <td className="px-4 py-2 text-zinc-500 max-w-[300px] align-top break-words">{el.shootDays || '—'}</td>
+              <tr key={el.key} className="group hover:bg-zinc-800/40">
+                <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-2 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ maxWidth: 200, boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>{el.name}</td>
+                <td className="px-2 py-1.5 text-zinc-400 border-b border-r border-zinc-800 cursor-default">{el.scenes || '—'}</td>
+                <td className="px-2 py-1.5 text-zinc-400 border-b border-r border-zinc-800 whitespace-nowrap cursor-default">{el.totalPages} pgs</td>
+                <td className="px-2 py-1.5 text-zinc-400 border-b border-zinc-800 cursor-default">{el.shootDays || '—'}</td>
               </tr>
             ))}
             {elements.length === 0 && (

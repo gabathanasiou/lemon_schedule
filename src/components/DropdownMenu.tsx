@@ -3,7 +3,8 @@ import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface DropdownMenuProps {
   open: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
   trigger: React.ReactNode;
   align?: 'left' | 'right';
   width?: string;
@@ -13,13 +14,14 @@ interface DropdownMenuProps {
 export default function DropdownMenu({
   open,
   onClose,
+  onOpenChange,
   trigger,
   align = 'right',
   width,
   children,
 }: DropdownMenuProps) {
   return (
-    <RadixDropdownMenu.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }} modal={false}>
+    <RadixDropdownMenu.Root open={open} onOpenChange={(o) => { if (onOpenChange) onOpenChange(o); else if (!o) onClose(); }} modal={false}>
       <RadixDropdownMenu.Trigger asChild>
         {trigger}
       </RadixDropdownMenu.Trigger>
