@@ -36,6 +36,7 @@ interface BreakdownSheetProps {
   customCategories: CustomCategoryDef[];
   sortOrder: 'sheet' | 'scene';
   sceneIds: string[];
+  hiddenCategories: string[];
 }
 
 interface CategoryDef {
@@ -66,9 +67,11 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'notes', label: 'Notes / Special Requirements', getData: s => s.notes },
 ];
 
-const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, customCategories, sortOrder, sceneIds }) => {
+const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, customCategories, sortOrder, sceneIds, hiddenCategories }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const hiddenSet = useMemo(() => new Set(hiddenCategories || []), [hiddenCategories]);
 
   const scenes = useMemo(() => {
     let filtered = rawScenes.filter(s => sceneIds.length === 0 || sceneIds.includes(s.id));
@@ -90,8 +93,8 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
       label: c.label,
       getData: (s: Scene) => (s as any)[c.key] as string || '',
     }));
-    return [...CATEGORIES, ...custom];
-  }, [customCategories]);
+    return [...CATEGORIES, ...custom].filter(c => !hiddenSet.has(c.key));
+  }, [customCategories, hiddenSet]);
 
   return (
     <div className="bs-root">

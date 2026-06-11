@@ -262,6 +262,7 @@ function AppContent() {
           customCategories={project.customCategories || []}
           sortOrder={breakdownSheetOptions.sortOrder}
           sceneIds={breakdownSheetOptions.sceneIds}
+          hiddenCategories={project.hiddenCategories || []}
         />
       </div>
     );

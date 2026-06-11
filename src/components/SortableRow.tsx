@@ -564,10 +564,15 @@ export const SortableRow: React.FC<{
     fontFamily: 'Helvetica, sans-serif',
   });
 
-  const ENTITY_FIELDS = useMemo(() => new Set([
-    'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
-    ...(state.present.customCategories || []).map(c => c.key),
-  ]), [state.present.customCategories]);
+  const ENTITY_FIELDS = useMemo(() => {
+    const hiddenSet = new Set(state.present.hiddenCategories || []);
+    const fields = new Set([
+      'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
+      ...(state.present.customCategories || []).map(c => c.key),
+    ]);
+    for (const h of hiddenSet) fields.delete(h);
+    return fields;
+  }, [state.present.customCategories, state.present.hiddenCategories]);
 
   const fieldLabels = useMemo(() => {
     const labels: Record<string, string> = {};

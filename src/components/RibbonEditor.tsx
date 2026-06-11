@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
 import { SceneRibbonColumn, SCENE_RIBBON_DEFAULTS } from '../types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
@@ -63,7 +63,10 @@ export function RibbonEditor() {
 
   const reset = () => updateRibbon(SCENE_RIBBON_DEFAULTS);
 
-  const unused = AVAILABLE_KEYS.filter(a => !ribbon.some(c => c.key === a.key));
+  const unused = useMemo(() => {
+    const hiddenSet = new Set(project.hiddenCategories || []);
+    return AVAILABLE_KEYS.filter(a => !ribbon.some(c => c.key === a.key) && !hiddenSet.has(a.key));
+  }, [ribbon, project.hiddenCategories]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
