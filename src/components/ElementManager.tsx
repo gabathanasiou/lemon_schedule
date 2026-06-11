@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { useProject } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
+import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot, Pencil } from 'lucide-react';
 
@@ -69,6 +70,7 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
 
 export function ElementManager({ initialCategory, onCategoryChange }: { initialCategory?: string; onCategoryChange?: (cat: string) => void }) {
   const { state, dispatch } = useProject();
+  const dialog = useDialog();
   const project = state.present;
 
   const [category, setCategory] = useState(initialCategory || 'cast');
@@ -260,9 +262,10 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   useEffect(() => {
     return () => {
       if (hasChangesRef.current) {
-        if (confirm('You have unsaved changes. Save before leaving?\n\nEnter = Save | Cancel = Discard')) {
-          doSaveRef.current();
-        }
+        const doSave = doSaveRef.current;
+        dialog.confirm({ title: 'Unsaved Changes', message: 'You have unsaved changes. Save before leaving?' }).then(ok => {
+          if (ok) doSave();
+        });
       }
     };
   }, []);
@@ -381,9 +384,10 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                               <Pencil className="w-3 h-3 text-zinc-400" />
                             </button>
                             <button
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm(`Delete "${c.label}" category? Elements will be moved to Trash.`)) {
+                                const ok = await dialog.confirm({ title: `Delete "${c.label}"?`, message: 'Elements will be moved to Trash.', danger: true });
+                                if (ok) {
                                   dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: c.key });
                                   if (category === c.key) switchCategory('cast');
                                 }

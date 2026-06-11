@@ -7,6 +7,7 @@ import {
   isFileSystemAccessSupported, getFolderDisplayName, verifyFolder, readIndexFromFolder,
 } from '../lib/persistentStorage';
 import type { ProjectIndexEntry } from '../lib/persistentStorage';
+import { useDialog } from './Dialog';
 export type { ProjectIndexEntry };
 import { HardDrive, FolderOpen, Check, AlertTriangle, Loader2, X, RefreshCw } from 'lucide-react';
 
@@ -24,6 +25,7 @@ interface StorageStatusProps {
 export const StorageStatus: React.FC<StorageStatusProps> = ({
   handle, status, errorMessage, onHandleChange, onStatusChange, onRestoreClick,
 }) => {
+  const dialog = useDialog();
   const [menuOpen, setMenuOpen] = useState(false);
   const supported = isFileSystemAccessSupported();
 
@@ -49,7 +51,8 @@ export const StorageStatus: React.FC<StorageStatusProps> = ({
 
   const handleClear = async () => {
     setMenuOpen(false);
-    if (!confirm('Stop saving to this folder? Files in the folder will remain on disk, but new changes won\'t be mirrored there until you pick a folder again.')) return;
+    const ok = await dialog.confirm({ title: 'Stop saving to this folder?', message: 'Files in the folder will remain on disk, but new changes won\'t be mirrored there until you pick a folder again.' });
+    if (!ok) return;
     await clearSavedHandle();
     onHandleChange(null);
     onStatusChange('idle');

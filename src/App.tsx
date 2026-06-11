@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ProjectProvider, useProject } from './store';
+import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
@@ -39,6 +40,7 @@ function formatTime(ts: number): string {
 
 function AppContent() {
   const { state, dispatch, currentProjectId } = useProject();
+  const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
   const [scheduleSubTab, setScheduleSubTab] = useState<'stripboard' | 'ribbons'>('stripboard');
   const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
@@ -512,10 +514,10 @@ function AppContent() {
                           <button onClick={() => { setEditingVersionId(v.id); setEditingName(v.name); }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Rename version">
                             <Pencil className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
-                          <button onClick={() => { const newName = prompt("Name for duplicated version?", `${v.name} Copy`); if (newName) { dispatch({ type: 'NEW_VERSION', payload: { name: newName, cloneFromId: v.id } }); } }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Duplicate version">
+                          <button onClick={async () => { const newName = await dialog.prompt({ title: 'Duplicate Version', defaultValue: `${v.name} Copy` }); if (newName) { dispatch({ type: 'NEW_VERSION', payload: { name: newName, cloneFromId: v.id } }); } }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Duplicate version">
                             <Copy className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
-                          <button onClick={() => { if (project.versions.length <= 1) return; if (confirm(`Are you sure you want to delete "${v.name}"? This cannot be undone.`)) { dispatch({ type: 'DELETE_VERSION', payload: v.id }); } }} disabled={project.versions.length <= 1} className={`p-1 rounded transition-colors ${project.versions.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-rose-950/40 hover:text-rose-400'}`} title="Delete version">
+                          <button onClick={async () => { if (project.versions.length <= 1) return; const ok = await dialog.confirm({ title: `Delete "${v.name}"?`, message: 'This cannot be undone.', danger: true }); if (ok) { dispatch({ type: 'DELETE_VERSION', payload: v.id }); } }} disabled={project.versions.length <= 1} className={`p-1 rounded transition-colors ${project.versions.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-rose-950/40 hover:text-rose-400'}`} title="Delete version">
                             <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
                         </div>
@@ -526,10 +528,10 @@ function AppContent() {
               </div>
 
               <div className="border-t border-zinc-800 mt-1 pt-1.5 flex flex-col space-y-1">
-                <DropdownItem onClick={() => { const name = prompt("Name for duplicated version?", `${version?.name || 'Version'} Copy`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId } }); setShowVersionsMenu(false); } }} icon={<Copy className="w-3.5 h-3.5" />}>
-                  Duplicate Active Version
+                <DropdownItem onClick={async () => { const name = await dialog.prompt({ title: 'Duplicate Version', defaultValue: `${version?.name || 'Version'} Copy` }); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId } }); setShowVersionsMenu(false); } }} icon={<Copy className="w-3.5 h-3.5" />}>
+                  Duplicate Current
                 </DropdownItem>
-                <DropdownItem onClick={() => { const name = prompt("Name for new version?", `V${String(project.versions.length + 1).padStart(2, '0')}`); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } }); setShowVersionsMenu(false); } }} icon={<Plus className="w-3.5 h-3.5" />}>
+                <DropdownItem onClick={async () => { const name = await dialog.prompt({ title: 'New Version', defaultValue: `V${String(project.versions.length + 1).padStart(2, '0')}` }); if (name) { dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null } }); setShowVersionsMenu(false); } }} icon={<Plus className="w-3.5 h-3.5" />}>
                   Create Blank Version
                 </DropdownItem>
                 <DropdownDivider />
@@ -701,7 +703,7 @@ function AppContent() {
             {((project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0)) > 0 && (
               <div className="border-t border-zinc-800 px-5 py-3">
                 <button
-                  onClick={() => { if (confirm('Permanently delete all trash items?')) dispatch({ type: 'EMPTY_TRASH' }); }}
+                  onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
                   className="w-full text-center text-red-500 hover:text-red-400 text-xs font-semibold py-1.5 rounded hover:bg-red-500/10 transition-colors"
                 >
                   Empty Trash

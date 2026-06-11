@@ -19,6 +19,7 @@ import {
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
+import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 
 const FIELD_ICONS: Record<string, React.ElementType> = {
@@ -80,6 +81,7 @@ function getAlign(cell?: RibbonCell) {
 
 export default function RibbonTab() {
   const { state, dispatch } = useProject();
+  const dialog = useDialog();
   const project = state.present;
   const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
     || { id: '', name: 'Default', rows: getDefaultRibbonRows(), createdAt: 0 };
@@ -120,29 +122,32 @@ export default function RibbonTab() {
     dispatch({ type: 'UPDATE_RIBBON_DESIGN', payload: { id: activeDesign.id, rows: cloneRows(rows) } });
   }, [activeDesign, dispatch]);
 
-  const promptSaveDefault = useCallback(() => {
+  const promptSaveDefault = useCallback(async () => {
     if (activeDesign.id) return;
     const defaults = getDefaultRibbonRows();
     if (JSON.stringify(rowsRef.current) === JSON.stringify(defaults)) return;
-    const name = prompt('You have unsaved changes to the Default ribbon. Save as new design?', 'My Design');
+    const name = await dialog.prompt({ title: 'Save Default Design?', defaultValue: 'My Design', placeholder: 'Enter a name for your design' });
     if (name) {
       const newId = generateUUID();
       dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: name.trim(), rows: cloneRows(rowsRef.current) } });
       dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
     }
-  }, [activeDesign, dispatch]);
+  }, [activeDesign, dispatch, dialog]);
 
-  const switchDesign = useCallback((newId: string) => {
-    promptSaveDefault();
+  const switchDesign = useCallback(async (newId: string) => {
+    await promptSaveDefault();
     dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
     setDesignMenuOpen(false);
   }, [promptSaveDefault, dispatch]);
 
+  const promptSaveDefaultRef = useRef(promptSaveDefault);
+  promptSaveDefaultRef.current = promptSaveDefault;
+
   useEffect(() => {
     return () => {
-      promptSaveDefault();
+      promptSaveDefaultRef.current();
     };
-  }, [promptSaveDefault]);
+  }, []);
 
   const commit = useCallback((next: RibbonRow[]) => {
     setRows(cloneRows(next));
@@ -426,16 +431,16 @@ export default function RibbonTab() {
             </button>
           }
         >
-          <DropdownItem onClick={() => { promptSaveDefault(); const n = prompt('Design name', `Design ${project.ribbonDesigns.length + 1}`); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
+          <DropdownItem onClick={async () => { await promptSaveDefault(); const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' }); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
             icon={<Plus className="w-3.5 h-3.5" />}>
             New Design
           </DropdownItem>
-          <DropdownItem onClick={() => { const n = prompt('Rename', activeDesign.name); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
+          <DropdownItem onClick={async () => { const n = await dialog.prompt({ title: 'Rename Design', defaultValue: activeDesign.name, placeholder: 'New name' }); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
             icon={<Pencil className="w-3.5 h-3.5" />}>
             Rename
           </DropdownItem>
-          <DropdownItem onClick={() => {
-            const n = prompt('Duplicate name', `${activeDesign.name} — Copy`);
+          <DropdownItem onClick={async () => {
+            const n = await dialog.prompt({ title: 'Duplicate Design', defaultValue: `${activeDesign.name} — Copy`, placeholder: 'Name for the copy' });
             if (n) {
               const rows = activeDesign.id ? undefined : cloneRows(rowsRef.current);
               dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id, ...(rows ? { rows } : {}) } });
@@ -469,7 +474,7 @@ export default function RibbonTab() {
                   if (data.rows && Array.isArray(data.rows)) {
                     dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows } });
                   }
-                } catch { alert('Invalid file'); }
+                } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
                 setFileMenuOpen(false);
               };
               reader.readAsText(file);
@@ -481,7 +486,7 @@ export default function RibbonTab() {
           </DropdownItem>
           <DropdownDivider />
           <DropdownItem
-            onClick={() => { if (confirm(`Delete "${activeDesign.name}"? This can be restored from Trash.`)) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
+            onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${activeDesign.name}"?`, message: 'This can be restored from Trash.', danger: true }); if (ok) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
             variant="danger"
             icon={<Trash2 className="w-3.5 h-3.5" />}>
             Delete Design

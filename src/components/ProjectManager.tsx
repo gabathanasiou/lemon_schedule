@@ -2,6 +2,7 @@ import React, { useRef, useState, useMemo } from 'react';
 import { useProject, ProjectMeta } from '../store';
 import { Project } from '../types';
 import { X, Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown } from 'lucide-react';
+import { useDialog } from './Dialog';
 
 interface ProjectManagerProps {
   onClose?: () => void;
@@ -35,6 +36,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     duplicateProject,
     importProjectFromData,
   } = useProject();
+  const dialog = useDialog();
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
@@ -67,10 +69,10 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           importProjectFromData(data as Project);
           onClose?.();
         } else {
-          alert('Invalid project file: missing scenes or versions.');
+          dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
         }
       } catch {
-        alert('Invalid project file: could not parse JSON.');
+        dialog.alert({ title: 'Invalid File', message: 'Could not parse JSON.' });
       }
       setImporting(false);
     };
@@ -252,7 +254,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                             <Download className="w-4 h-4 text-zinc-400" />
                           </button>
                           <button
-                            onClick={() => { if (confirm(`Delete "${p.title}"? This cannot be undone.`)) deleteProject(p.id); }}
+                            onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true }); if (ok) deleteProject(p.id); }}
                             className={`p-1.5 rounded-lg transition-colors ${isActive ? 'hover:bg-rose-900/40' : 'hover:bg-rose-50'}`}
                             title="Delete"
                           >
