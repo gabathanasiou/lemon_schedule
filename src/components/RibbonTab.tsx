@@ -883,7 +883,14 @@ export default function RibbonTab() {
             style={{ left: Math.min(contextPos.x, window.innerWidth - 220), top: Math.min(contextPos.y, window.innerHeight - 420) }}
           >
             {/* Scrollable field list */}
-            <div className="overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' } as React.CSSProperties}>
+            <div
+              ref={el => {
+                if (el && selCell) {
+                  const active = el.querySelector(`[data-field-key="${(selCell.cell as any).field}"]`) as HTMLElement;
+                  if (active) active.scrollIntoView({ block: 'nearest' });
+                }
+              }}
+              className="overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' } as React.CSSProperties}>
               {allFields.map(f => {
                 const catDef = (project.customCategories || []).find(c => c.key === f.key);
                 const Icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
@@ -891,6 +898,7 @@ export default function RibbonTab() {
                 return (
                   <button
                     key={f.key}
+                    data-field-key={f.key}
                     onClick={() => { assign(selCell.cell.id, f.key); setContextPos(null); }}
                     className={`w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${isActive ? 'bg-blue-600/30 text-blue-300' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
                   >
