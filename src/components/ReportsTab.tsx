@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useProject } from '../store';
+import { useProject, getElementsFromScenes } from '../store';
 import { CustomCategoryDef } from '../types';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
 import DoodsTab from './DoodsTab';
@@ -80,7 +80,11 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
                 count = project.castMembers?.length || 0;
               } else {
                 const stored = (project.breakdownElements || {})[key] || [];
-                count = stored.length;
+                const sceneElems = getElementsFromScenes(project.scenes, key);
+                const merged = new Map<string, boolean>();
+                for (const e of stored) merged.set((e.id || e.name).toLowerCase(), true);
+                for (const e of sceneElems) merged.set((e.id || e.name).toLowerCase(), true);
+                count = merged.size;
               }
 
               return (

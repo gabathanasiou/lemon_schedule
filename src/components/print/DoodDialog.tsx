@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject } from '../../store';
+import { getElementsFromScenes } from '../../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
@@ -85,19 +86,6 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const isCast = category === 'cast';
 
-  const allElementIds: string[] = useMemo(() => {
-    if (isCast) {
-      return allCastIds;
-    }
-    const stored = (project.breakdownElements || {})[category] || [];
-    return stored.map(el => el.id.toString());
-  }, [isCast, allCastIds, project.breakdownElements, category]);
-
-  const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set(allElementIds));
-  const [selectedDayInts, setSelectedDayInts] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
-  const [includeNonShooting, setIncludeNonShooting] = useState(true);
-  const [showTotals, setShowTotals] = useState(true);
-
   const elementItems: { id: string; name: string }[] = useMemo(() => {
     if (isCast) {
       return allCastIds.map(id => ({
@@ -105,9 +93,29 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
         name: castMembers.find(m => m.id === id)?.name || '—',
       }));
     }
-    const stored = (project.breakdownElements || {})[category] || [];
-    return stored.map(el => ({ id: el.id.toString(), name: el.name }));
-  }, [isCast, allCastIds, castMembers, project.breakdownElements, category]);
+    const stored: { id: string; name: string }[] = (project.breakdownElements || {})[category] || [];
+    const sceneElems = getElementsFromScenes(project.scenes, category);
+    const merged = new Map<string, string>();
+    for (const e of stored) {
+      const key = (e.id || e.name).toLowerCase();
+      if (!merged.has(key)) merged.set(key, e.name);
+    }
+    for (const e of sceneElems) {
+      const key = (e.id || e.name).toLowerCase();
+      if (!merged.has(key)) merged.set(key, e.name);
+    }
+    return Array.from(merged.entries()).map(([id, name]) => ({ id, name }));
+  }, [isCast, allCastIds, castMembers, project.breakdownElements, project.scenes, category]);
+
+  const allElementIds: string[] = useMemo(() => {
+    if (isCast) return allCastIds;
+    return elementItems.map(e => e.id);
+  }, [isCast, allCastIds, elementItems]);
+
+  const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set(allElementIds));
+  const [selectedDayInts, setSelectedDayInts] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
+  const [includeNonShooting, setIncludeNonShooting] = useState(true);
+  const [showTotals, setShowTotals] = useState(true);
 
   const categoryLabel = categoryLabelLookup[category] || category;
 
