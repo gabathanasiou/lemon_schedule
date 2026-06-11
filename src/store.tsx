@@ -609,15 +609,14 @@ function reducer(state: State, action: Action): State {
         ? list.find(e => e.id === id)
         : list.find(e => e.id.toLowerCase() === id.toLowerCase());
       if (!old) {
-        if (isCast) {
-          const newElement = { id: updates.id || id, name: updates.name || '' };
-          return applyChange({
-            ...state.present,
-            breakdownElements: { ...state.present.breakdownElements, [category]: [...list, newElement] },
-            castMembers: [...(state.present.castMembers || []), newElement],
-          });
-        }
-        return state;
+        const newElement = { id: updates.id || id, name: updates.name || '' };
+        return applyChange({
+          ...state.present,
+          breakdownElements: { ...state.present.breakdownElements, [category]: [...list, newElement] },
+          castMembers: isCast
+            ? [...(state.present.castMembers || []), newElement]
+            : state.present.castMembers || [],
+        });
       }
       const newElement = { ...old, ...updates };
       const newList = list.map(e => (isCast ? e.id === id : e.id.toLowerCase() === id.toLowerCase()) ? newElement : e);

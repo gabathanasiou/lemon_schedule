@@ -94,20 +94,20 @@ export const SortableRow: React.FC<{
     for (const [key, val] of Object.entries(processed)) {
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
+        if (key === 'set') continue;
         const existing = state.present.breakdownElements?.[key] || [];
         const existingNames = new Set(existing.map(e => (e.name || e.id).toUpperCase()));
         const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
         for (const item of items) {
-          const name = key === 'set' ? item.toUpperCase() : item;
-          if (!existingNames.has(name.toUpperCase())) {
-            dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: { id: name, name } } });
+          if (!existingNames.has(item.toUpperCase())) {
+            dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: { id: item, name: item } } });
           }
         }
       }
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...processed } });
     if (setCapitalized && oldSet && oldSet.toUpperCase() === processed.set) {
-      dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'set', id: processed.set, updates: { id: processed.set, name: processed.set } } });
+      dispatch({ type: 'UPDATE_ELEMENT', payload: { category: 'set', id: oldSet, updates: { id: processed.set, name: processed.set } } });
     }
   };
 
