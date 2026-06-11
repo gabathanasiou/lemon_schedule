@@ -892,7 +892,7 @@ export default function RibbonTab() {
                   <button
                     key={f.key}
                     onClick={() => { assign(selCell.cell.id, f.key); setContextPos(null); }}
-                    className={`w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${isActive ? 'bg-blue-600/30 text-blue-300' : 'text-zinc-300 hover:bg-zinc-800'}`}
+                    className={`w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${isActive ? 'bg-blue-600/30 text-blue-300' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
                   >
                     {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-zinc-400'}`} />}
                     <span className="truncate flex-1">{f.label}</span>
@@ -940,14 +940,14 @@ export default function RibbonTab() {
 
               <button
                 onClick={() => { clearCell(selCell.cell.id); setContextPos(null); }}
-                className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-500 hover:bg-zinc-800"
+                className="w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-500 hover:bg-zinc-800 hover:text-white"
               >
                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate flex-1">Clear field</span>
               </button>
               <button
                 onClick={() => { removeCell(selCell.row.id, selCell.ci); setContextPos(null); }}
-                className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-red-400 hover:bg-red-500/10"
+                className="w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-red-400 hover:bg-rose-950/40 hover:text-red-400"
               >
                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
                 <span className="truncate flex-1">Delete Cell</span>
