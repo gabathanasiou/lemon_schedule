@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, Project } from './types';
@@ -91,10 +91,45 @@ function AppContent() {
   const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
   const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
+  const topTabContainerRef = useRef<HTMLDivElement>(null);
+  const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  const [hoveredTopTab, setHoveredTopTab] = useState<string | null>(null);
+  const [hoverTopTabStyle, setHoverTopTabStyle] = useState<React.CSSProperties>({});
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
   const noProject = currentProjectId === null;
+
+  useLayoutEffect(() => {
+    const el = topTabRefs.current.get(activeTab);
+    const container = topTabContainerRef.current;
+    if (!el || !container) return;
+    const cr = container.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
+    setTopTabOverlayStyle({
+      left: er.left - cr.left,
+      width: er.width,
+      opacity: 1,
+      background: isDark ? '#18181b' : '#ffffff',
+      ...(isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {}),
+    });
+  }, [activeTab, scheduleSubTab]);
+
+  const topTabIsDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
+
+  const updateTopHover = (tabId: string | null) => {
+    setHoveredTopTab(tabId);
+    if (tabId && tabId !== activeTab) {
+      const el = topTabRefs.current.get(tabId);
+      const container = topTabContainerRef.current;
+      if (!el || !container) return;
+      const cr = container.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      setHoverTopTabStyle({ left: er.left - cr.left, width: er.width });
+    }
+  };
 
   const storage = useStorage();
   const autosaveTimerRef = useRef<number | null>(null);
@@ -354,26 +389,42 @@ function AppContent() {
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
           </div>
-          <div className="flex items-center gap-1">
+          <div ref={topTabContainerRef} className="relative flex items-center gap-1">
+            <span
+              className="absolute top-0 -bottom-4 bg-white rounded-t-md pointer-events-none"
+              style={{ ...topTabOverlayStyle, transition: 'left 200ms, width 200ms' }}
+            />
+            {hoveredTopTab && hoveredTopTab !== activeTab && (
+              <span
+                className="absolute top-0 -bottom-4 bg-zinc-700/70 rounded-t-md pointer-events-none"
+                style={{ ...hoverTopTabStyle, transition: 'left 200ms, width 200ms' }}
+              />
+            )}
             <button 
+              ref={el => { if (el) topTabRefs.current.set('breakdown', el); }}
               onClick={() => setActiveTab('breakdown')} 
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+              onMouseEnter={() => updateTopHover('breakdown')}
+              onMouseLeave={() => updateTopHover(null)}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
             >
-              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-white rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'breakdown' ? 'opacity-100' : 'opacity-0'}`} />
               <span className="relative">Breakdown</span>
             </button>
             <button 
+              ref={el => { if (el) topTabRefs.current.set('schedule', el); }}
+              onMouseEnter={() => updateTopHover('schedule')}
+              onMouseLeave={() => updateTopHover(null)}
               onClick={() => { setActiveTab('schedule'); setScheduleSubTab('stripboard'); }}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
             >
-              <span className={`absolute top-0 left-0 right-0 -bottom-4 rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'schedule' ? 'opacity-100' : 'opacity-0'} ${scheduleSubTab === 'ribbons' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600' : 'bg-white'}`} />
               <span className="relative">Schedule</span>
             </button>
             <button 
+              ref={el => { if (el) topTabRefs.current.set('calendar', el); }}
+              onMouseEnter={() => updateTopHover('calendar')}
+              onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('calendar')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
             >
-              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-white rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'calendar' ? 'opacity-100' : 'opacity-0'}`} />
               <span className="relative">Calendar</span>
             </button>
             {activeTab === 'calendar' && (
@@ -409,17 +460,21 @@ function AppContent() {
               </DropdownMenu>
             )}
             <button 
+              ref={el => { if (el) topTabRefs.current.set('rules', el); }}
+              onMouseEnter={() => updateTopHover('rules')}
+              onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('rules')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
             >
-              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-white rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'rules' ? 'opacity-100' : 'opacity-0'}`} />
               <span className="relative">Rules</span>
             </button>
             <button 
+              ref={el => { if (el) topTabRefs.current.set('reports', el); }}
+              onMouseEnter={() => updateTopHover('reports')}
+              onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('reports')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
             >
-              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-zinc-900 rounded-t-md pointer-events-none border-l border-r border-t border-zinc-600 transition-opacity duration-200 ${activeTab === 'reports' ? 'opacity-100' : 'opacity-0'}`} />
               <span className="relative">Reports</span>
             </button>
           </div>
