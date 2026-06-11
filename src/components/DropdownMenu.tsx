@@ -34,17 +34,19 @@ export default function DropdownMenu({
     if (!open || !wrapperRef.current) return;
     const rect = wrapperRef.current.getBoundingClientRect();
     const panelW = menuRef.current?.offsetWidth || 200;
+    const panelH = menuRef.current?.scrollHeight || 300;
     const rightEdge = align === 'right'
       ? rect.right
       : rect.left + panelW;
-    const overflow = rightEdge > window.innerWidth;
+    const overflowX = rightEdge > window.innerWidth;
+    const overflowY = rect.bottom + 8 + panelH > window.innerHeight && rect.top - panelH - 8 > 0;
     const left = align === 'right'
       ? rect.right - panelW
       : rect.left;
     setPos({
-      top: rect.bottom + 8,
-      left: overflow ? rect.left : left,
-      flip: overflow,
+      top: overflowY ? rect.top - panelH - 8 : rect.bottom + 8,
+      left: overflowX ? rect.left : left,
+      flip: overflowX,
     });
   }, [open, align]);
 
@@ -57,7 +59,7 @@ export default function DropdownMenu({
           <div className="fixed inset-0 z-[190]" onClick={onClose} />
           <div
             ref={menuRef}
-            className={`fixed bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''}`}
+            className={`fixed bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none max-h-80 overflow-y-auto ${width || ''}`}
             style={{ top: pos.top, left: pos.left, position: 'fixed' }}
           >
             {children}
