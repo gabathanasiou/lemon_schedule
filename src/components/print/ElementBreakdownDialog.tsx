@@ -78,10 +78,15 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
               <span>{categoryLabel}</span>
               <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
             </button>
-            {showCategories && createPortal(
-              <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto" style={{ top: catPos.top, left: catPos.left, width: catPos.width }}>
-                <div className="fixed inset-0 z-[-1]" onClick={() => setShowCategories(false)} />
-                {allCategoryKeys.map(({ key, isCustom }) => {
+            {showCategories && (
+              <>
+                {createPortal(
+                  <div className="fixed inset-0 z-[10000]" onClick={() => setShowCategories(false)} />,
+                  document.body
+                )}
+                {createPortal(
+                  <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catPos.top, left: catPos.left, width: catPos.width }}>
+                    {allCategoryKeys.map(({ key, isCustom }) => {
                   const Icon = isCustom
                     ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
                     : CAT_ICONS[key] || null;
@@ -96,9 +101,11 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
                       <span>{categoryLabelLookup[key] || key}</span>
                     </button>
                   );
-                })}
-              </div>,
-              document.body
+                    })}
+                  </div>,
+                  document.body
+                )}
+              </>
             )}
           </div>
         </div>
