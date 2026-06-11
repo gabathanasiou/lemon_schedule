@@ -34,7 +34,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`px-3 py-1.5 mb-0.5 text-xs font-semibold rounded-b-md transition-colors ${
+            className={`px-3 pt-2 pb-1 mb-0.5 text-xs font-semibold rounded-b-md transition-colors ${
               activeTab === tab.id ? 'bg-zinc-950 text-white' : t.inactive
             }`}
           >

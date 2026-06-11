@@ -96,6 +96,12 @@ function AppContent() {
 
   const noProject = currentProjectId === null;
 
+  const activeTabBg = (() => {
+    if (activeTab === 'reports') return 'bg-zinc-900 text-white border-l border-r border-t border-zinc-600';
+    if (activeTab === 'schedule' && scheduleSubTab === 'ribbons') return 'bg-zinc-900 text-white border-l border-r border-t border-zinc-600';
+    return 'bg-white text-zinc-900';
+  })();
+
   const storage = useStorage();
   const autosaveTimerRef = useRef<number | null>(null);
   const ctx = useProject();
@@ -357,19 +363,19 @@ function AppContent() {
           <div className="flex items-end gap-1 self-end -mb-2">
             <button 
               onClick={() => setActiveTab('breakdown')} 
-              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Breakdown
             </button>
             <button 
               onClick={() => { setActiveTab('schedule'); setScheduleSubTab('stripboard'); }}
-              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? activeTabBg : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Schedule
             </button>
             <button 
               onClick={() => setActiveTab('calendar')}
-              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Calendar
             </button>
@@ -407,13 +413,13 @@ function AppContent() {
             )}
             <button 
               onClick={() => setActiveTab('rules')}
-              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? activeTabBg : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Rules
             </button>
             <button 
               onClick={() => setActiveTab('reports')}
-              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-white text-zinc-900 rounded-t-md' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? activeTabBg : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               Reports
             </button>

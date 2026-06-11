@@ -82,6 +82,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number } | null>(null);
   const portalTargetRef = useRef<HTMLDivElement>(null);
+  const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -618,41 +619,42 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           onSubTabChange(id as 'scenes' | 'elements' | 'sheet');
         }}
         rightContent={
-          subTab === 'scenes' ? (
-            <>
-              <button onClick={addScene} className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors">
-                + Add Scene
-              </button>
-              <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
-                Sort by #
-              </button>
-              <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors">
-                Clean Empty
-              </button>
-              <div className="relative">
-                <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] hover:bg-zinc-50 transition-colors">
-                  Import CSV
+          <>
+            {subTab === 'scenes' && (
+              <>
+                <button onClick={addScene} className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors">
+                  + Add Scene
                 </button>
-              </div>
-              <div className="w-px h-5 bg-zinc-200" />
-              <div className="flex items-center gap-3 text-[11px]">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Scenes</span>
-                  <span className="text-zinc-800 font-semibold">{scenes.length}</span>
+                <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+                  Sort by #
+                </button>
+                <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+                  Clean Empty
+                </button>
+                <div className="relative">
+                  <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+                    Import CSV
+                  </button>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Pages</span>
-                  <span className="text-zinc-800 font-semibold">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
+                <div className="w-px h-5 bg-zinc-200" />
+                <div className="flex items-center gap-3 text-[11px]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Scenes</span>
+                    <span className="text-zinc-800 font-semibold">{scenes.length}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Pages</span>
+                    <span className="text-zinc-800 font-semibold">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
+                  </div>
                 </div>
-              </div>
-            </>
-          ) : (
-            <div ref={portalTargetRef} className="flex items-center gap-2" />
-          )
+              </>
+            )}
+            <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className={subTab === 'scenes' ? 'hidden' : 'flex items-center gap-2'} />
+          </>
         }
       />
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTargetRef.current} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTargetRef.current} /> : (
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
