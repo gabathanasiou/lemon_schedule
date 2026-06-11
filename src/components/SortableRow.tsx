@@ -11,7 +11,6 @@ import { Flag } from 'lucide-react';
 import { useAddMode } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import { SelectDropdown } from './SelectDropdown';
-import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
@@ -68,11 +67,6 @@ export const SortableRow: React.FC<{
   });
 
   const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
-
-  const setOptions = useMemo(() => {
-    const stored = state.present.breakdownElements?.['set'] || [];
-    return [...new Set(stored.map(e => e.name.toUpperCase()).filter(Boolean))].sort();
-  }, [state.present.breakdownElements]);
 
   const updateRow = (updates: Partial<ScheduleRow>) => {
     if (!activeVersionId) return;
@@ -412,20 +406,6 @@ export const SortableRow: React.FC<{
         </td>
       );
     }
-    if (field === 'set') {
-      return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <AutocompleteDropdown
-            value={scene!.set}
-            onChange={val => updateScene({set: val})}
-            options={setOptions}
-            showAll
-            className="text-left w-full"
-            readOnly={!textEditingEnabled}
-          />
-        </td>
-      );
-    }
     if (field === 'cast') {
       return (
         <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
@@ -505,6 +485,15 @@ export const SortableRow: React.FC<{
         </td>
       );
     }
+    if (scene && ENTITY_FIELDS.has(field)) {
+      const v = ((scene as any)[field] as string) || '';
+      const entityItems = entityItemsMap[field] || [];
+      return (
+        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+          <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
+        </td>
+      );
+    }
     // Generic text field (description, notes, props, etc.)
     return (
       <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
@@ -536,7 +525,7 @@ export const SortableRow: React.FC<{
   });
 
   const ENTITY_FIELDS = useMemo(() => new Set([
-    'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
+    'set', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
     ...(state.present.customCategories || []).map(c => c.key),
   ]), [state.present.customCategories]);
 
@@ -610,18 +599,6 @@ export const SortableRow: React.FC<{
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
-          ) : (
-            <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
-          )}
-        </div>
-      );
-    }
-    if (field === 'set') {
-      const v = scene!.set || '';
-      return (
-        <div key={cellId} style={style}>
-          {textEditingEnabled ? (
-            <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} showAll className="text-left w-full uppercase" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
@@ -836,13 +813,15 @@ export const SortableRow: React.FC<{
                   />
                 </td>
                 <td className="col-set">
-                  <AutocompleteDropdown
+                  <EntityDropdown
                     value={scene.set}
                     onChange={val => updateScene({set: val})}
-                    options={setOptions}
-                    showAll
-                    className="text-left w-full"
+                    items={entityItemsMap['set'] || []}
+                    mode="select"
+                    positioning="fixed"
+                    className="text-left w-full uppercase text-xs"
                     readOnly={!textEditingEnabled}
+                    placeholder={fieldLabels['set'] || 'Set'}
                   />
                 </td>
                 <td className="col-dn">
