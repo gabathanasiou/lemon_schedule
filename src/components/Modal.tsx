@@ -8,6 +8,7 @@ interface ModalProps {
   title: string;
   icon?: React.ReactNode;
   width?: string;
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -17,6 +18,7 @@ export default function Modal({
   title,
   icon,
   width,
+  footer,
   children,
 }: ModalProps) {
   return (
@@ -24,7 +26,7 @@ export default function Modal({
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/50" />
         <RadixDialog.Content
-          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none ${width || 'max-w-lg w-full'}`}
+          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none ${width || 'max-w-xl w-full'}`}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
@@ -41,8 +43,22 @@ export default function Modal({
           <div className="overflow-y-auto flex-1">
             {children}
           </div>
+
+          {footer && (
+            <div className="shrink-0">
+              {footer}
+            </div>
+          )}
         </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>
+  );
+}
+
+export function ModalFooter({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 bg-zinc-950">
+      {children}
+    </div>
   );
 }

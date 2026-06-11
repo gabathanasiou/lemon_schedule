@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useProject } from '../store';
 import { Printer } from 'lucide-react';
 import Modal from './Modal';
+import { ModalFooter } from './Modal';
 import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP } from '../lib/ribbonUtils';
 
 function formatDayDateLong(dateStr: string): string {
@@ -71,7 +72,23 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const ribbonDesigns = project.ribbonDesigns || [];
 
   return (
-    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-2xl">
+    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
+      footer={
+        <ModalFooter>
+          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={() => onPrint({ showTimes, showDurations, showCastList, showExportDate, showPageNumbers, includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId })}
+            disabled={selectedDays.size === 0}
+            className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print / Save PDF
+          </button>
+        </ModalFooter>
+      }
+    >
       <div className="px-6 py-4 space-y-5">
         <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 space-y-4">
           <div>
@@ -203,20 +220,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             )}
           </div>
         </div>
-      </div>
-
-      <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 shrink-0">
-        <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
-          Cancel
-        </button>
-        <button
-          onClick={() => onPrint({ showTimes, showDurations, showCastList, showExportDate, showPageNumbers, includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId })}
-          disabled={selectedDays.size === 0}
-          className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          Print / Save PDF
-        </button>
       </div>
     </Modal>
   );
