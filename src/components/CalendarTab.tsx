@@ -5,12 +5,10 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation } from '../types';
 import { generateUUID } from '../lib/utils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Pencil, Trash2, EllipsisVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2 } from 'lucide-react';
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
 import { EntityDropdown } from './EntityDropdown';
-import DropdownMenu from './DropdownMenu';
-import DropdownItem from './DropdownItem';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
@@ -856,32 +854,35 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
         </div>
       )}
       {dayContextMenu && (
-        <DropdownMenu
-          open={!!dayContextMenu}
-          onClose={() => setDayContextMenu(null)}
-          width="w-48"
-          align="left"
-          trigger={<div style={{ position: 'fixed', left: dayContextMenu.x, top: dayContextMenu.y, width: 1, height: 1 }} />}
-        >
-          {dayContextMenu.shootDay != null ? (
-            <>
-              <DropdownItem
+        <>
+          <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }} />
+          <div
+            className="fixed bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none w-48"
+            style={{ left: Math.min(dayContextMenu.x, window.innerWidth - 200), top: Math.min(dayContextMenu.y, window.innerHeight - 220) }}
+          >
+            {dayContextMenu.shootDay != null ? (
+              <>
+                <button
+                  onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
+                  className="w-full text-left px-2 py-1 text-xs rounded hover:bg-red-500/20 text-red-400 flex items-center gap-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remove Working Day
+                </button>
+                <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pt-1 pb-0.5">Set Status</div>
+                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Work</button>
+                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Hold</button>
+                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Travel</button>
+                <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Holiday</button>
+              </>
+            ) : (
+              <button
                 onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
-                icon={<Trash2 className="w-3.5 h-3.5" />}
-                variant="danger"
-              >Remove Working Day</DropdownItem>
-              <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pt-1 pb-0.5">Set Status</div>
-              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }}>Work</DropdownItem>
-              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }}>Hold</DropdownItem>
-              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }}>Travel</DropdownItem>
-              <DropdownItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }}>Holiday</DropdownItem>
-            </>
-          ) : (
-            <DropdownItem
-              onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
-            >Make Working Day</DropdownItem>
-          )}
-        </DropdownMenu>
+                className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10"
+              >Make Working Day</button>
+            )}
+          </div>
+        </>
       )}
     </DndContext>
   );
