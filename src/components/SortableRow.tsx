@@ -419,6 +419,7 @@ export const SortableRow: React.FC<{
             value={scene!.set}
             onChange={val => updateScene({set: val})}
             options={setOptions}
+            showAll
             className="text-left w-full"
             readOnly={!textEditingEnabled}
           />
@@ -620,7 +621,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} className="text-left w-full uppercase" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
+            <AutocompleteDropdown value={v} onChange={val => updateScene({set: val})} options={setOptions} showAll className="text-left w-full uppercase" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
@@ -839,6 +840,7 @@ export const SortableRow: React.FC<{
                     value={scene.set}
                     onChange={val => updateScene({set: val})}
                     options={setOptions}
+                    showAll
                     className="text-left w-full"
                     readOnly={!textEditingEnabled}
                   />
