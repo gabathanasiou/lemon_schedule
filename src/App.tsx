@@ -101,27 +101,34 @@ function AppContent() {
 
   const noProject = currentProjectId === null;
 
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      const el = topTabRefs.current.get(activeTab);
-      const container = topTabContainerRef.current;
-      if (!el || !container) return;
-      const cr = container.getBoundingClientRect();
-      const er = el.getBoundingClientRect();
-      const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
-      const style = {
-        left: er.left - cr.left,
-        width: er.width,
-        opacity: 1,
-        transform: 'translateY(-8px)',
-        background: isDark ? '#18181b' : '#ffffff',
-        ...(isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {}),
-      };
-      setTopTabOverlayStyle(style);
+  const measureTopOverlay = () => {
+    const el = topTabRefs.current.get(activeTab);
+    const container = topTabContainerRef.current;
+    if (!el || !container) return;
+    const cr = container.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
+    const left = er.left - cr.left;
+    const width = er.width;
+    const bg = isDark ? '#18181b' : '#ffffff';
+    const borders = isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {};
+    setTopTabOverlayStyle(prev => {
+      if (prev.left === left && prev.width === width && prev.opacity === 1 && prev.background === bg && prev.transform === 'translateY(0)') return prev;
+      const style: React.CSSProperties = { left, width, opacity: 1, transform: 'translateY(-8px)', background: bg, ...borders };
       requestAnimationFrame(() => {
-        setTopTabOverlayStyle({ ...style, transform: 'translateY(0)' });
+        setTopTabOverlayStyle(s => ({ ...s, transform: 'translateY(0)' }));
       });
+      return style;
     });
+  };
+
+  useEffect(() => {
+    const el = topTabRefs.current.get(activeTab);
+    if (!el) return;
+    const ro = new ResizeObserver(() => measureTopOverlay());
+    ro.observe(el);
+    measureTopOverlay();
+    return () => ro.disconnect();
   }, [activeTab, scheduleSubTab]);
 
   const topTabIsDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');

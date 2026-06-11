@@ -35,6 +35,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
+  const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const handleRowDoubleClick = useCallback((id: string) => {
     if (textEditingEnabled) return;
@@ -1087,13 +1088,14 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
         <MiniTab
           theme="dark"
           tabs={[
-            { id: 'stripboard', label: 'Schedule' },
+            { id: 'stripboard', label: 'Stripboard' },
             { id: 'ribbons', label: 'Ribbon Designer' },
           ]}
           activeTab={subTab}
           onChange={onSubTabChange}
+          rightContent={<div ref={setRibbonPortalTarget} className="flex items-center gap-2" />}
         />
-        <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab /></div>
+        <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab headerTarget={ribbonPortalTarget} /></div>
       </div>
     );
   }
@@ -1103,7 +1105,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
       <MiniTab
         theme="light"
         tabs={[
-          { id: 'stripboard', label: 'Schedule' },
+          { id: 'stripboard', label: 'Stripboard' },
           { id: 'ribbons', label: 'Ribbon Designer' },
         ]}
         activeTab={subTab}

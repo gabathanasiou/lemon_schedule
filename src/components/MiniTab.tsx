@@ -34,24 +34,31 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const [hoverStyle, setHoverStyle] = useState<React.CSSProperties>({});
 
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      const el = tabRefs.current.get(activeTab);
-      const container = containerRef.current;
-      if (!el || !container) return;
-      const cr = container.getBoundingClientRect();
-      const er = el.getBoundingClientRect();
-      const style = {
-        left: er.left - cr.left,
-        width: er.width,
-        opacity: 1,
-        transform: 'translateY(-8px)',
-      };
-      setOverlayStyle(style);
+  const measureOverlay = () => {
+    const el = tabRefs.current.get(activeTab);
+    const container = containerRef.current;
+    if (!el || !container) return;
+    const cr = container.getBoundingClientRect();
+    const er = el.getBoundingClientRect();
+    const left = er.left - cr.left;
+    const width = er.width;
+    setOverlayStyle(prev => {
+      if (prev.left === left && prev.width === width && prev.opacity === 1 && prev.transform === 'translateY(0)') return prev;
+      const style = { left, width, opacity: 1, transform: 'translateY(-8px)' as const };
       requestAnimationFrame(() => {
-        setOverlayStyle({ ...style, transform: 'translateY(0)' });
+        setOverlayStyle(s => ({ ...s, transform: 'translateY(0)' }));
       });
+      return style;
     });
+  };
+
+  useEffect(() => {
+    const el = tabRefs.current.get(activeTab);
+    if (!el) return;
+    const ro = new ResizeObserver(() => measureOverlay());
+    ro.observe(el);
+    measureOverlay();
+    return () => ro.disconnect();
   }, [activeTab]);
 
   const updateHover = (tabId: string | null) => {
