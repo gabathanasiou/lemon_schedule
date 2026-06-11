@@ -1041,8 +1041,8 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
         }
         .schedule-table .row-note td,
         .schedule-table .row-break td {
-          padding-top: 6px !important;
-          padding-bottom: 6px !important;
+          padding-top: 12px !important;
+          padding-bottom: 12px !important;
         }
       `}</style>
     <DndContext 

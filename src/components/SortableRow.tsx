@@ -169,7 +169,7 @@ export const SortableRow: React.FC<{
               const cellStyle: React.CSSProperties = {
                 flex: `0 0 ${cell.width}%`,
                 textAlign: wrapCell ? 'center' : cell.align || 'left',
-                padding: '6px 6px',
+                padding: '12px 6px',
                 overflow: wrapCell ? 'visible' : 'hidden',
                 whiteSpace: wrapCell ? 'normal' : 'nowrap',
                 textOverflow: wrapCell ? undefined : 'ellipsis',
@@ -298,7 +298,7 @@ export const SortableRow: React.FC<{
               const cellStyle: React.CSSProperties = {
                 flex: `0 0 ${cell.width}%`,
                 textAlign: wrapCell ? 'center' : cell.align || 'left',
-                padding: '6px 6px',
+                padding: '12px 6px',
                 overflow: wrapCell ? 'visible' : 'hidden',
                 whiteSpace: wrapCell ? 'normal' : 'nowrap',
                 textOverflow: wrapCell ? undefined : 'ellipsis',
