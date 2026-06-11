@@ -102,6 +102,16 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               close();
               e.preventDefault();
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (dialog?.kind === 'prompt' && e.target instanceof HTMLInputElement) return;
+                e.preventDefault();
+                if (!dialog) return;
+                if (dialog.kind === 'confirm') { dialog.resolve(true); setDialog(null); }
+                else if (dialog.kind === 'prompt') resolvePrompt();
+                else { dialog.resolve(); setDialog(null); }
+              }
+            }}
           >
             <div className="flex items-center justify-between">
               <RadixDialog.Title className="text-sm font-bold text-white">

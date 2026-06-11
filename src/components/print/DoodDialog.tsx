@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
 import { getElementsFromScenes } from '../../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
@@ -81,8 +81,6 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const [category, setCategory] = useState(initialCategory || 'cast');
   const [showCategories, setShowCategories] = useState(false);
-  const categoryBtnRef = useRef<HTMLButtonElement>(null);
-  const [catDropdownPos, setCatDropdownPos] = useState({ top: 0, left: 0, width: 0 });
 
   const isCast = category === 'cast';
 
@@ -116,6 +114,10 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   const [selectedDayInts, setSelectedDayInts] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
   const [includeNonShooting, setIncludeNonShooting] = useState(true);
   const [showTotals, setShowTotals] = useState(true);
+
+  useEffect(() => {
+    setSelectedElementIds(new Set(allElementIds));
+  }, [category]);
 
   const categoryLabel = categoryLabelLookup[category] || category;
 
@@ -189,51 +191,44 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
               Category
             </label>
-            <div className="relative">
-              <button
-                ref={categoryBtnRef}
-                onClick={() => {
-                  if (!showCategories && categoryBtnRef.current) {
-                    const r = categoryBtnRef.current.getBoundingClientRect();
-                    setCatDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
-                  }
-                  setShowCategories(p => !p);
-                }}
-                className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
-              >
-                <span>{categoryLabel}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
-              </button>
-              {showCategories && (
-                <>
-                  {createPortal(
-                    <div className="fixed inset-0 z-[10000]" onClick={() => setShowCategories(false)} />,
-                    document.body
-                  )}
-                  {createPortal(
-                    <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catDropdownPos.top, left: catDropdownPos.left, width: catDropdownPos.width }} onWheel={(e) => e.stopPropagation()}>
-                      {allCategoryKeys.map(({ key, isCustom }) => {
+            <RadixDropdownMenu.Root open={showCategories} onOpenChange={(o) => setShowCategories(o)} modal={true}>
+              <RadixDropdownMenu.Trigger asChild>
+                <button
+                  className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
+                >
+                  <span>{categoryLabel}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                </button>
+              </RadixDropdownMenu.Trigger>
+              <RadixDropdownMenu.Portal>
+                <RadixDropdownMenu.Content
+                  className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-0 scrollbar-custom"
+                  align="start"
+                  sideOffset={4}
+                  collisionPadding={8}
+                >
+                  {allCategoryKeys.map(({ key, isCustom }) => {
                     const Icon = isCustom
                       ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
                       : CAT_ICONS[key] || null;
                     const active = key === category;
                     return (
-                      <button
+                      <RadixDropdownMenu.Item
                         key={key}
-                        onClick={() => { setCategory(key); setShowCategories(false); }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
+                        onSelect={() => setCategory(key)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
+                          active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white'
+                        }`}
                       >
                         {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-                        <span>{categoryLabelLookup[key] || key}</span>
-                      </button>
+                        <span className="flex-1">{categoryLabelLookup[key] || key}</span>
+                        {active && <Check className="w-3 h-3 shrink-0" />}
+                      </RadixDropdownMenu.Item>
                     );
-                      })}
-                    </div>,
-                    document.body
-                  )}
-                </>
-              )}
-            </div>
+                  })}
+                </RadixDropdownMenu.Content>
+              </RadixDropdownMenu.Portal>
+            </RadixDropdownMenu.Root>
           </div>
 
           <div>
@@ -245,7 +240,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                 {selectedElementIds.size === elementItems.length && elementItems.length > 0 ? 'Deselect all' : 'Select all'}
               </button>
             </div>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-64">
+            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-64 scrollbar-custom">
               {elementItems.map(item => {
                 const selected = selectedElementIds.has(item.id);
                 return (
@@ -283,7 +278,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                 {selectedDayInts.size === dayEntries.length && dayEntries.length > 0 ? 'Deselect all' : 'Select all'}
               </button>
             </div>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-64">
+            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-64 scrollbar-custom">
               {dayEntries.map(d => {
                 const checked = selectedDayInts.has(d.dayInt);
                 return (

@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useMemo } from 'react';
+import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
-import { Printer, ChevronDown } from 'lucide-react';
+import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
@@ -22,8 +22,6 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'cast');
   const [showCategories, setShowCategories] = useState(false);
-  const catBtnRef = useRef<HTMLButtonElement>(null);
-  const [catPos, setCatPos] = useState({ top: 0, left: 0, width: 0 });
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -63,51 +61,44 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
           <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider block">
             Category
           </label>
-          <div className="relative">
-            <button
-              ref={catBtnRef}
-              onClick={() => {
-                if (!showCategories && catBtnRef.current) {
-                  const r = catBtnRef.current.getBoundingClientRect();
-                  setCatPos({ top: r.bottom + 4, left: r.left, width: r.width });
-                }
-                setShowCategories(p => !p);
-              }}
-              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
-            >
-              <span>{categoryLabel}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
-            </button>
-            {showCategories && (
-              <>
-                {createPortal(
-                  <div className="fixed inset-0 z-[10000]" onClick={() => setShowCategories(false)} />,
-                  document.body
-                )}
-                {createPortal(
-                  <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catPos.top, left: catPos.left, width: catPos.width }} onWheel={(e) => e.stopPropagation()}>
-                    {allCategoryKeys.map(({ key, isCustom }) => {
+          <RadixDropdownMenu.Root open={showCategories} onOpenChange={(o) => setShowCategories(o)} modal={true}>
+            <RadixDropdownMenu.Trigger asChild>
+              <button
+                className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
+              >
+                <span>{categoryLabel}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+              </button>
+            </RadixDropdownMenu.Trigger>
+            <RadixDropdownMenu.Portal>
+              <RadixDropdownMenu.Content
+                className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-0 scrollbar-custom"
+                align="start"
+                sideOffset={4}
+                collisionPadding={8}
+              >
+                {allCategoryKeys.map(({ key, isCustom }) => {
                   const Icon = isCustom
                     ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
                     : CAT_ICONS[key] || null;
                   const active = key === selectedCategory;
                   return (
-                    <button
+                    <RadixDropdownMenu.Item
                       key={key}
-                      onClick={() => { setSelectedCategory(key); setShowCategories(false); }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
+                      onSelect={() => setSelectedCategory(key)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
+                        active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white'
+                      }`}
                     >
                       {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-                      <span>{categoryLabelLookup[key] || key}</span>
-                    </button>
+                      <span className="flex-1">{categoryLabelLookup[key] || key}</span>
+                      {active && <Check className="w-3 h-3 shrink-0" />}
+                    </RadixDropdownMenu.Item>
                   );
-                    })}
-                  </div>,
-                  document.body
-                )}
-              </>
-            )}
-          </div>
+                })}
+              </RadixDropdownMenu.Content>
+            </RadixDropdownMenu.Portal>
+          </RadixDropdownMenu.Root>
         </div>
       </div>
     </Modal>
