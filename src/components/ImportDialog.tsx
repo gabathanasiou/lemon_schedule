@@ -1,10 +1,60 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useProject } from '../store';
-import { parseFDX, parseFountain, ImportResult, commitImport } from '../lib/importScreenplay';
-import { X, Upload, Loader2, Wand2 } from 'lucide-react';
+import { parseFDX, parseFountain, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
+import { X, Upload, Loader2, Wand2, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ImportDialogProps {
   onClose: () => void;
+}
+
+function SortableCastRow({ character, index, startId }: { character: ImportCharacter; index: number; startId: number; key?: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: character.name,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className={`border-b border-zinc-800/50 ${index % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'}`}>
+      <td className="px-3 py-2 text-zinc-300 text-xs font-mono font-medium w-10">
+        {startId + index}
+      </td>
+      <td className="px-3 py-2 text-zinc-200 text-xs font-medium">
+        {character.name}
+      </td>
+      <td className="px-3 py-2 text-zinc-500 text-[10px] font-mono">
+        {character.scenes.slice(0, 5).join(', ')}{character.scenes.length > 5 ? '...' : ''}
+      </td>
+      <td className="px-3 py-2 w-8">
+        <button
+          {...attributes}
+          {...listeners}
+          className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing transition-colors"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+      </td>
+    </tr>
+  );
 }
 
 export default function ImportDialog({ onClose }: ImportDialogProps) {
@@ -15,9 +65,13 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
   const [stage, setStage] = useState<'select' | 'parsing' | 'review' | 'importing'>('select');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const [castIds, setCastIds] = useState<Record<string, string>>({});
+  const [castOrder, setCastOrder] = useState<ImportCharacter[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [fileLabel, setFileLabel] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   const existingIds = useMemo(() => {
     const ids = new Set<string>();
@@ -25,32 +79,42 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
     return ids;
   }, [project.castMembers]);
 
+  const startId = useMemo(() => {
+    let n = 1;
+    while (existingIds.has(String(n))) n++;
+    return n;
+  }, [existingIds]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setCastOrder(prev => {
+      const oldIndex = prev.findIndex(c => c.name === active.id);
+      const newIndex = prev.findIndex(c => c.name === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
+
   const handleFile = useCallback(async (file: File) => {
     setError(null);
     setFileLabel(file.name);
     setStage('parsing');
 
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase();
       let parsed: ImportResult;
+      const ext = file.name.split('.').pop()?.toLowerCase();
 
-      if (ext === 'fdx' || (file.type === 'application/xml' && file.name.endsWith('.fdx'))) {
+      if (ext === 'fdx') {
         parsed = await parseFDX(file);
-      } else if (ext === 'fountain' || ext === 'fdx' || file.type === 'text/plain' || file.type === '') {
-        parsed = await parseFountain(file);
       } else {
         parsed = await parseFountain(file);
       }
 
       setResult(parsed);
 
-      const ids: Record<string, string> = {};
-      let nextId = 1;
-      for (const ch of parsed.characters) {
-        while (existingIds.has(String(nextId))) nextId++;
-        ids[ch.name] = String(nextId++);
-      }
-      setCastIds(ids);
+      const sorted = [...parsed.characters].sort((a, b) => b.scenes.length - a.scenes.length);
+      setCastOrder(sorted);
 
       const cats = new Set<string>();
       for (const c of parsed.unknownCategories) cats.add(c);
@@ -61,7 +125,7 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
       setError(e.message || 'Failed to parse file');
       setStage('select');
     }
-  }, [existingIds]);
+  }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,23 +144,18 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
   }, []);
 
   const autoAssign = useCallback(() => {
-    const ids: Record<string, string> = {};
-    let nextId = 1;
-    for (const ch of result?.characters || []) {
-      while (existingIds.has(String(nextId))) nextId++;
-      ids[ch.name] = String(nextId++);
-    }
-    setCastIds(ids);
-  }, [result, existingIds]);
+    const sorted = [...(result?.characters || [])].sort((a, b) => b.scenes.length - a.scenes.length);
+    setCastOrder(sorted);
+  }, [result]);
 
   const handleImport = useCallback(() => {
     if (!result) return;
     setStage('importing');
 
     const castIdMap = new Map<string, string>();
-    for (const [name, id] of Object.entries(castIds) as [string, string][]) {
-      castIdMap.set(name.toUpperCase(), id);
-    }
+    castOrder.forEach((ch, i) => {
+      castIdMap.set(ch.name, String(startId + i));
+    });
 
     commitImport({
       dispatch,
@@ -107,7 +166,7 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
     });
 
     onClose();
-  }, [result, castIds, selectedCategories, dispatch, project.castMembers, onClose]);
+  }, [result, castOrder, startId, selectedCategories, dispatch, project.castMembers, onClose]);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
@@ -215,44 +274,33 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
                     Auto-Assign
                   </button>
                 </div>
+                <p className="text-zinc-500 text-[10px] mb-2">Drag rows to reorder. IDs are assigned by row position (starting from {startId}).</p>
                 <div className="rounded-lg border border-zinc-800 overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-zinc-900 border-b border-zinc-800">
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-                          Name
-                        </th>
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-20">
-                          ID
-                        </th>
-                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24">
-                          In Scenes
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.characters.map((ch, i) => (
-                        <tr key={ch.name} className={`border-b border-zinc-800/50 ${i % 2 === 0 ? 'bg-zinc-950' : 'bg-zinc-900/50'}`}>
-                          <td className="px-3 py-2 text-zinc-200 text-xs font-medium">
-                            {ch.name}
-                          </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="text"
-                              value={castIds[ch.name] || ''}
-                              onChange={e => {
-                                setCastIds(prev => ({ ...prev, [ch.name]: e.target.value }));
-                              }}
-                              className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 focus:border-zinc-500 outline-none font-mono"
-                            />
-                          </td>
-                          <td className="px-3 py-2 text-zinc-500 text-[10px] font-mono">
-                            {ch.scenes.slice(0, 5).join(', ')}{ch.scenes.length > 5 ? '...' : ''}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={castOrder.map(c => c.name)} strategy={verticalListSortingStrategy}>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-zinc-900 border-b border-zinc-800">
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-10">
+                              #
+                            </th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+                              Name
+                            </th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-24">
+                              In Scenes
+                            </th>
+                            <th className="px-3 py-2 w-8" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {castOrder.map((ch, i) => (
+                            <SortableCastRow key={ch.name} character={ch} index={i} startId={startId} />
+                          ))}
+                        </tbody>
+                      </table>
+                    </SortableContext>
+                  </DndContext>
                 </div>
               </div>
             </>

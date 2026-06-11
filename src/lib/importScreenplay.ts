@@ -52,6 +52,10 @@ export const FDX_CATEGORY_MAP: Record<string, string | null> = {
   'Armoury': 'weapons',
 };
 
+function normalizeCharacterName(name: string): string {
+  return name.trim().toUpperCase().replace(/\s*\([^)]*\)\s*$/g, '').trim().replace(/\s*\([^)]*\)\s*$/g, '').trim();
+}
+
 function parseSceneHeading(text: string): { intExt: IntExt; set: string; dayNight: DayNight } | null {
   const clean = text.replace(/\n/g, ' ').trim();
   const match = clean.match(/^(INT\.?|EXT\.?|INT\/EXT\.?|I\/E\.?)\s*\.?\s+(.+?)\s*[-–—–]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK)\s*$/i);
@@ -200,7 +204,7 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       currentSceneNumber = pNum || textContent.replace(/\D/g, '') || String(scenes.length + 1);
       currentHeading = textContent;
     } else if (pType === 'Character') {
-      const name = textContent.trim().toUpperCase();
+      const name = normalizeCharacterName(textContent);
       if (name) sceneCharacters.add(name);
     } else if (pType === 'Action') {
       if (scenes.length === 0 && !currentSceneNumber) {
@@ -271,7 +275,7 @@ export async function parseFountain(file: File): Promise<ImportResult> {
       currentHeading = token.text || '';
       currentSceneNumber = (token as any).scene_number || '';
     } else if (token.type === 'character') {
-      const name = (token.text || '').trim().toUpperCase();
+      const name = normalizeCharacterName(token.text || '');
       if (name) sceneCharacters.add(name);
     } else if (token.type === 'action') {
       descriptionLines.push((token.text || '').trim());
