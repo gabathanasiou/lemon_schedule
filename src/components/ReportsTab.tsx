@@ -43,7 +43,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
   return (
     <div className="flex-1 flex overflow-hidden">
       {sidebarCollapsed ? (
-        <div className="w-9 shrink-0 bg-zinc-950 border-r border-zinc-800 flex flex-col items-center pt-3">
+        <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
           <button
             onClick={() => setSidebarCollapsed(false)}
             className="text-zinc-500 hover:text-zinc-300 transition-colors"
@@ -53,7 +53,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
           </button>
         </div>
       ) : (
-        <aside className="w-[188px] shrink-0 bg-zinc-950 border-r border-zinc-800 overflow-y-auto">
+        <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
           <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
@@ -105,7 +105,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
       )}
 
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
-        <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800 shrink-0 bg-zinc-950">
+        <div className="flex items-center gap-1 px-4 py-2 border-b border-zinc-800 shrink-0 bg-zinc-900">
           <button
             onClick={() => onSubTabChange('doods')}
             className={`px-3 py-1 rounded-sm text-xs font-semibold ${subTab === 'doods' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/50'}`}
