@@ -79,6 +79,17 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     if (initialCategory && initialCategory !== category) setCategory(initialCategory);
   }, [initialCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    rowsByCat.current = {};
+    snapByCat.current = {};
+    const cat = initialCategory || 'cast';
+    const r = loadRows(cat);
+    snapByCat.current[cat] = [...r];
+    rowsByCat.current[cat] = r;
+    setRows(r);
+    setCategory(cat);
+  }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isCast = category === 'cast';
   const isSet = category === 'set';
 
