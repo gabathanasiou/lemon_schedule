@@ -38,7 +38,10 @@ export const FDX_CATEGORY_MAP: Record<string, string | null> = {
   'Sound': 'sound',
   'Set Dressing': null,
   'VFX': 'vfx',
+  'Visual Effects': 'vfx',
   'SFX': 'sfx',
+  'Special Effects': 'sfx',
+  'Mechanical Effects': 'sfx',
   'Animals': 'animalsAndWranglers',
   'Animal Wrangler': 'animalsAndWranglers',
   'Greenery': 'greenery',
@@ -48,25 +51,59 @@ export const FDX_CATEGORY_MAP: Record<string, string | null> = {
   'Background Actors': 'backgroundActors',
   'Extras': 'backgroundActors',
   'Weapons': 'weapons',
-  'Special Effects': 'sfx',
   'Armoury': 'weapons',
+  'Special Equipment': null,
+  'Miscellaneous': null,
+  'Comments': null,
+  'Script Day': null,
+  'Sequence': null,
+  'Unit': null,
+  'Synopsis': null,
+  'Location': null,
+  'Cast Members': null,
+  'Notes': null,
 };
 
 function normalizeCharacterName(name: string): string {
   return name.trim().toUpperCase().replace(/\s*\([^)]*\)\s*$/g, '').trim().replace(/\s*\([^)]*\)\s*$/g, '').trim();
 }
 
-function parseSceneHeading(text: string): { intExt: IntExt; set: string; dayNight: DayNight } | null {
+function parseSceneHeading(text: string, previousDayNight?: DayNight | 'DAY'): { intExt: IntExt; set: string; dayNight: DayNight } | null {
   const clean = text.replace(/\n/g, ' ').trim();
-  const match = clean.match(/^(INT\.?|EXT\.?|INT\/EXT\.?|I\/E\.?)\s*\.?\s+(.+?)\s*[-–—–]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK)\s*$/i);
-  if (!match) return null;
-  const prefix = match[1].replace(/\./g, '').toUpperCase().trim();
-  const intExt: IntExt = prefix === 'EXT' ? 'EXT' : prefix === 'INT/EXT' || prefix === 'I/E' ? 'INT/EXT' : 'INT';
-  return {
-    intExt,
-    set: match[2].trim(),
-    dayNight: match[3].toUpperCase() as DayNight,
-  };
+  const dotIdx = clean.indexOf('.');
+  if (dotIdx === -1) return null;
+
+  const prefix = clean.slice(0, dotIdx).trim();
+  let rest = clean.slice(dotIdx + 1).trim();
+  if (!rest) return null;
+
+  const upperPrefix = prefix.toUpperCase();
+  let intExt: IntExt = 'INT';
+  if (upperPrefix === 'EXT' || upperPrefix.startsWith('EXT') || upperPrefix === 'ΕΞΩΤ') intExt = 'EXT';
+  else if (upperPrefix === 'INT/EXT' || upperPrefix === 'INT-EXT' || upperPrefix === 'I/E' || upperPrefix.includes('/') || upperPrefix.includes('-')) intExt = 'INT/EXT';
+
+  const TIME_WORDS = /\s*[–—\-]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|CONTINUOUS|LATER|SAME\s*TIME)\s*$/i;
+
+  let set = rest;
+  let dayNight: DayNight = 'DAY';
+
+  const match = rest.match(TIME_WORDS);
+  if (match) {
+    const timeWord = match[1].toUpperCase();
+    if (timeWord === 'CONTINUOUS' || timeWord === 'LATER' || /^SAME\s*TIME$/.test(match[1])) {
+      dayNight = (previousDayNight as DayNight) || 'DAY';
+    } else {
+      dayNight = timeWord as DayNight;
+    }
+    set = rest.slice(0, rest.length - match[0].length);
+  } else {
+    dayNight = (previousDayNight as DayNight) || 'DAY';
+  }
+
+  set = set.trim().toUpperCase().replace(/\s*\([^)]*\)\s*$/g, '').trim().replace(/\s*\([^)]*\)\s*$/g, '').trim();
+  if (!set) set = rest.replace(/\s*\([^)]*\)\s*$/g, '').trim().toUpperCase();
+
+  return { intExt, set, dayNight };
 }
 
 function buildFDXTagResolution(doc: Document): {
@@ -87,7 +124,7 @@ function buildFDXTagResolution(doc: Document): {
 
   const definitions = doc.querySelectorAll('TagData > TagDefinitions > TagDefinition');
   for (const def of definitions) {
-    const defId = def.getAttribute('DefId');
+    const defId = def.getAttribute('Id') || def.getAttribute('DefId') || '';
     const catId = def.getAttribute('CatId');
     const label = def.getAttribute('Label');
     if (defId) {
@@ -99,7 +136,7 @@ function buildFDXTagResolution(doc: Document): {
   const tags = doc.querySelectorAll('TagData > Tags > Tag');
   for (const tag of tags) {
     const number = tag.getAttribute('Number');
-    const defId = tag.getAttribute('DefId');
+    const defId = tag.getAttribute('DefId') || tag.querySelector('DefId')?.textContent?.trim() || '';
     if (number && defId) tagToDef.set(number, defId);
   }
 
@@ -151,9 +188,12 @@ export async function parseFDX(file: File): Promise<ImportResult> {
   let currentSceneNumber = '';
   let currentDescription = '';
   let currentHeading = '';
+  let currentPageCount: string | undefined;
+  let currentPageCountDecimal: number | undefined;
   let descriptionLines: string[] = [];
   const sceneCharacters = new Set<string>();
   const sceneTaggedElements = new Map<string, Set<string>>();
+  let lastDayNight: DayNight = 'DAY';
 
   function flushScene() {
     if (!currentSceneNumber) return;
@@ -161,14 +201,18 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       if (!characterMap.has(ch)) characterMap.set(ch, new Set());
       characterMap.get(ch)!.add(scenes.length);
     }
-    const heading = parseSceneHeading(currentHeading);
+    const heading = parseSceneHeading(currentHeading, lastDayNight);
     const tagged: Record<string, string[]> = {};
     for (const [key, items] of sceneTaggedElements) tagged[key] = [...items];
+    const dn = heading?.dayNight || lastDayNight;
+    lastDayNight = dn;
     scenes.push({
       sceneNumber: currentSceneNumber,
+      pageCount: currentPageCount,
+      pageCountDecimal: currentPageCountDecimal,
       intExt: heading?.intExt || 'INT',
       set: heading?.set || currentHeading || 'UNKNOWN',
-      dayNight: heading?.dayNight || 'DAY',
+      dayNight: dn,
       description: descriptionLines.length > 0 ? descriptionLines.join('\n') : currentDescription,
       characters: [...sceneCharacters],
       taggedElements: tagged,
@@ -176,6 +220,8 @@ export async function parseFDX(file: File): Promise<ImportResult> {
     currentSceneNumber = '';
     currentHeading = '';
     currentDescription = '';
+    currentPageCount = undefined;
+    currentPageCountDecimal = undefined;
     descriptionLines = [];
     sceneCharacters.clear();
     sceneTaggedElements.clear();
@@ -203,6 +249,15 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       flushScene();
       currentSceneNumber = pNum || textContent.replace(/\D/g, '') || String(scenes.length + 1);
       currentHeading = textContent;
+
+      const spEl = p.querySelector('SceneProperties');
+      if (spEl) {
+        const length = spEl.getAttribute('Length');
+        if (length) {
+          currentPageCount = length;
+          currentPageCountDecimal = parsePageCount(length);
+        }
+      }
     } else if (pType === 'Character') {
       const name = normalizeCharacterName(textContent);
       if (name) sceneCharacters.add(name);
@@ -246,15 +301,18 @@ export async function parseFountain(file: File): Promise<ImportResult> {
   let currentSceneNumber = '';
   const descriptionLines: string[] = [];
   const sceneCharacters = new Set<string>();
+  let lastDayNight: DayNight = 'DAY';
 
   function flushFountainScene() {
     if (!currentHeading && descriptionLines.length === 0 && sceneCharacters.size === 0) return;
-    const heading = parseSceneHeading(currentHeading);
+    const heading = parseSceneHeading(currentHeading, lastDayNight);
+    const dn = heading?.dayNight || lastDayNight;
+    lastDayNight = dn;
     scenes.push({
       sceneNumber: currentSceneNumber || String(scenes.length + 1),
       intExt: heading?.intExt || 'INT',
       set: heading?.set || currentHeading || 'UNKNOWN',
-      dayNight: heading?.dayNight || 'DAY',
+      dayNight: dn,
       description: descriptionLines.join('\n'),
       characters: [...sceneCharacters],
       taggedElements: {},
