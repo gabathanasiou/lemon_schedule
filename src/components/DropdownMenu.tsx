@@ -1,4 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React from 'react';
+import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface DropdownMenuProps {
   open: boolean;
@@ -17,56 +18,21 @@ export default function DropdownMenu({
   width,
   children,
 }: DropdownMenuProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
-
-  useLayoutEffect(() => {
-    if (!open || !wrapperRef.current) return;
-    const rect = wrapperRef.current.getBoundingClientRect();
-    const panelW = menuRef.current?.offsetWidth || 200;
-    const panelH = menuRef.current?.scrollHeight || 300;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    let left = align === 'right'
-      ? rect.right - panelW
-      : rect.left;
-    left = Math.max(0, Math.min(left, vw - panelW));
-
-    let top = rect.bottom + 8;
-    if (top + panelH > vh && rect.top - panelH - 8 > 0) {
-      top = rect.top - panelH - 8;
-    }
-
-    setPos({ top, left });
-  }, [open, align]);
-
   return (
-    <div ref={wrapperRef} className="relative">
-      {trigger}
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[190]" onClick={onClose} />
-          <div
-            ref={menuRef}
-            className={`fixed bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none max-h-80 overflow-y-auto ${width || ''}`}
-            style={{ top: pos.top, left: pos.left, position: 'fixed' }}
-          >
-            {children}
-          </div>
-        </>
-      )}
-    </div>
+    <RadixDropdownMenu.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }} modal={false}>
+      <RadixDropdownMenu.Trigger asChild>
+        {trigger}
+      </RadixDropdownMenu.Trigger>
+      <RadixDropdownMenu.Portal>
+        <RadixDropdownMenu.Content
+          className={`bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none max-h-80 overflow-y-auto min-w-0 ${width || ''}`}
+          align={align === 'left' ? 'start' : 'end'}
+          sideOffset={8}
+          collisionPadding={8}
+        >
+          {children}
+        </RadixDropdownMenu.Content>
+      </RadixDropdownMenu.Portal>
+    </RadixDropdownMenu.Root>
   );
 }

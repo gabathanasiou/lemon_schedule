@@ -1,4 +1,5 @@
 import React from 'react';
+import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 
 interface DropdownItemProps {
   onClick: () => void;
@@ -19,17 +20,17 @@ export default function DropdownItem({
   children,
 }: DropdownItemProps) {
   const variantStyles = variant === 'danger'
-    ? 'hover:bg-rose-950/40 hover:text-rose-400'
-    : 'hover:bg-zinc-800 hover:text-white';
+    ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300 focus-visible:bg-red-900/30 focus-visible:text-red-300'
+    : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white';
 
   return (
-    <button
-      onClick={disabled ? undefined : onClick}
+    <RadixDropdownMenu.Item
+      className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
+      onSelect={(e) => { onClick(); }}
       disabled={disabled}
-      className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 text-xs transition-colors ${variantStyles} ${disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'} ${className}`}
     >
       {icon && <span className="text-zinc-400 shrink-0">{icon}</span>}
       {children}
-    </button>
+    </RadixDropdownMenu.Item>
   );
 }
