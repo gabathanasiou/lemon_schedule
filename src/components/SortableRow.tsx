@@ -13,6 +13,11 @@ import { EntityDropdown } from './EntityDropdown';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 
+const ENTITY_KEYS = new Set([
+  'cast', 'set', 'extras', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+  'sfx', 'vfx', 'sound', 'music', 'animals', 'weapons', 'greenery', 'artDept',
+]);
+
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
   const intExt = (scene.intExt || '').toUpperCase();
@@ -78,21 +83,25 @@ export const SortableRow: React.FC<{
 
   const updateScene = (updates: Partial<Scene>) => {
     if (!scene) return;
+    for (const [key, val] of Object.entries(updates)) {
+      if (key === 'id') continue;
+      if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
+        const existing = state.present.breakdownElements?.[key] || [];
+        const existingNames = new Set(existing.map(e => (e.name || e.id).toUpperCase()));
+        const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
+        for (const item of items) {
+          if (!existingNames.has(item.toUpperCase())) {
+            dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: { id: item, name: item } } });
+          }
+        }
+      }
+    }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...updates } });
   };
 
   const updateEntityField = (field: string, val: string) => {
     if (!scene) return;
-    const existing = state.present.breakdownElements?.[field] || [];
-    const existingNames = new Set(existing.map(e => (e.name || e.id).toUpperCase()));
-    const items = val.split(',').map(x => x.trim()).filter(Boolean);
-    for (const item of items) {
-      const key = item.toUpperCase();
-      if (!existingNames.has(key) && key) {
-        dispatch({ type: 'ADD_ELEMENT', payload: { category: field, element: { id: item, name: item } } });
-      }
-    }
-    dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, [field]: val } });
+    updateScene({ [field]: val });
   };
 
   const style = {
