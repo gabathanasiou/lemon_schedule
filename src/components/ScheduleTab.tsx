@@ -15,6 +15,8 @@ import { getDefaultRibbonRows } from '../lib/ribbonUtils';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
+import Modal from './Modal';
+import { ModalFooter } from './Modal';
 
 export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void }) {
   const { state, dispatch } = useProject();
@@ -1376,32 +1378,34 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
 
       {/* Color Picker Modal */}
       {colorPicker && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50" onClick={() => setColorPicker(null)}>
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-[300px] flex flex-col gap-4" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') applyNoteColor(); if (e.key === 'Escape') setColorPicker(null); }}>
-            <h3 className="text-sm font-bold text-zinc-800">Note Color</h3>
+        <Modal open onClose={() => setColorPicker(null)} title="Note Color" width="max-w-sm"
+          footer={
+            <ModalFooter>
+              <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">Apply</button>
+            </ModalFooter>
+          }
+        >
+          <div className="p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-600">Background</span>
+              <span className="text-xs text-zinc-400">Background</span>
               <div className="flex items-center gap-2">
-                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-300 cursor-pointer p-0" />
-                <span className="text-[10px] text-zinc-400 font-mono">{colorPicker.bg}</span>
+                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
+                <span className="text-[10px] text-zinc-500 font-mono">{colorPicker.bg}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-600">Text</span>
+              <span className="text-xs text-zinc-400">Text</span>
               <div className="flex items-center gap-2">
-                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-300 cursor-pointer p-0" />
-                <span className="text-[10px] text-zinc-400 font-mono">{colorPicker.text}</span>
+                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
+                <span className="text-[10px] text-zinc-500 font-mono">{colorPicker.text}</span>
               </div>
             </div>
-            <div className="text-xs text-zinc-500 px-3 py-2 rounded border border-zinc-200" style={{ background: colorPicker.bg, color: colorPicker.text }}>
+            <div className="text-xs text-zinc-300 px-3 py-2 rounded border border-zinc-800" style={{ background: colorPicker.bg, color: colorPicker.text }}>
               Preview text
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setColorPicker(null)} className="px-3 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 rounded">Cancel</button>
-              <button onClick={applyNoteColor} className="px-4 py-1.5 text-xs bg-zinc-900 text-white rounded font-semibold">Apply</button>
-            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </DndContext>
     </>

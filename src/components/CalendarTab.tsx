@@ -9,6 +9,8 @@ import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Tras
 import { checkDay } from '../lib/rulesEngine';
 import { Tooltip } from './Tooltip';
 import { EntityDropdown } from './EntityDropdown';
+import Modal from './Modal';
+import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
@@ -802,18 +804,27 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       </DragOverlay>
 
       {statusModal !== null && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setStatusModal(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-[300px] p-4 space-y-2" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Day {statusModal.shootDay}</div>
-              <button onClick={() => setStatusModal(null)} className="text-zinc-400 hover:text-zinc-700"><X className="w-3.5 h-3.5" /></button>
+        <Modal open onClose={() => setStatusModal(null)} title={`Day ${statusModal.shootDay}`} width="max-w-sm"
+          footer={
+            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800">
+              <button type="button"
+                onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY' as any, date: statusModal.dateKey }); setStatusModal(null); }}
+                className="text-xs font-medium text-rose-400 hover:bg-rose-950/40 px-2 py-1 rounded transition-colors"
+              >Remove</button>
+              <button type="button"
+                onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: modalStatus, castIds: modalCastIds || '' }); setStatusModal(null); }}
+                className="px-4 py-1.5 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
+              >Apply</button>
             </div>
+          }
+        >
+          <div className="p-4 space-y-2">
             {(['work', 'hold', 'travel', 'holiday'] as const).map(s => (
               <button key={s} type="button"
                 onClick={() => setModalStatus(s)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${modalStatus === s ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
+                className={`w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center gap-2 ${modalStatus === s ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:bg-zinc-900 border border-zinc-800'}`}
               >
-                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${modalStatus === s ? 'border-white' : 'border-zinc-300'}`}>
+                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${modalStatus === s ? 'border-white' : 'border-zinc-600'}`}>
                   {modalStatus === s && <span className="w-2 h-2 bg-white rounded-full" />}
                 </span>
                 {s === 'work' ? 'Work' : s === 'hold' ? 'Hold' : s === 'travel' ? 'Travel' : 'Holiday'}
@@ -840,18 +851,8 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                 />
               </div>
             )}
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-200">
-              <button type="button"
-                onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY' as any, date: statusModal.dateKey }); setStatusModal(null); }}
-                className="text-xs font-medium text-rose-600 hover:bg-rose-50 px-2 py-1 rounded transition-colors"
-              >Remove</button>
-              <button type="button"
-                onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: modalStatus, castIds: modalCastIds || '' }); setStatusModal(null); }}
-                className="px-4 py-1.5 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
-              >Apply</button>
-            </div>
           </div>
-        </div>
+        </Modal>
       )}
       {dayContextMenu && (
         <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }}>
