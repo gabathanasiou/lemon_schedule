@@ -13,7 +13,7 @@ import {
   Plus, Trash2, GripHorizontal,
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
   Columns3, ChevronDown, ArrowLeft, ArrowRight,
-  AlignCenter, AlignRight, WrapText, Grid3X3, Type, Tag,
+  AlignCenter, AlignRight, WrapText, Grid3X3, Type, Tag, CircleDot,
   Download, Upload, Copy, Check, Pencil,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
@@ -30,6 +30,15 @@ const FIELD_ICONS: Record<string, React.ElementType> = {
   sound: Volume2, music: Music, animals: PawPrint, weapons: Sword,
   greenery: Leaf, artDept: PaintBucket, text: Type,
 };
+
+const CUSTOM_ICON_MAP: Record<string, React.ElementType> = {
+  Tag, Package, Car, Shirt, Sword, Sparkles, Volume1, Music,
+  PawPrint, Leaf, PaintBucket, UserPlus, Video, Scissors, Users, Building2, Volume2, CircleDot,
+};
+
+function getCustomIcon(name: string): React.ElementType {
+  return CUSTOM_ICON_MAP[name] || Tag;
+}
 
 const PREVIEW_STYLE = { bg: '#ffffff', fg: '#464646' };
 
@@ -78,6 +87,7 @@ export default function RibbonTab() {
   const [selId, setSelId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ rowId: string; ci: number; sx: number; a: number; b: number; leftSum: number; rightSum: number; n: number } | null>(null);
   const [changeOpen, setChangeOpen] = useState(false);
+  const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [dropHover, setDropHover] = useState<string | null>(null);
   const [cellDrag, setCellDrag] = useState<{ rowId: string; cellId: string } | null>(null);
@@ -338,8 +348,12 @@ export default function RibbonTab() {
   const clearCellRef = useRef(clearCell);
   clearCellRef.current = clearCell;
 
+  const contextPosRef = useRef(contextPos);
+  contextPosRef.current = contextPos;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && contextPosRef.current) { setContextPos(null); return; }
       if (e.key === 'Delete' && selIdRef.current && !changeOpenRef.current) { e.preventDefault(); clearCellRef.current(selIdRef.current); return; }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!selIdRef.current) return;
@@ -508,7 +522,8 @@ export default function RibbonTab() {
                   <div className="space-y-0.5">
                     {items.map(f => {
                       const inUse = used.has(f.key);
-                      const Icon = FIELD_ICONS[f.key] || Tag;
+                      const customCat = (project.customCategories || []).find(c => c.key === f.key);
+                      const Icon = FIELD_ICONS[f.key] || (customCat ? getCustomIcon(customCat.icon) : Tag);
                       return (
                         <button
                           key={f.key}
@@ -562,15 +577,23 @@ export default function RibbonTab() {
                     </button>
                   }
                 >
-                  {selCell && ALL_FIELDS.map(f => (
-                    <DropdownItem
-                      key={f.key}
-                      onClick={() => { assign(selCell.cell.id, f.key); setChangeOpen(false); }}
-                      icon={FIELD_ICONS[f.key] ? React.createElement(FIELD_ICONS[f.key], { className: 'w-3.5 h-3.5' }) : undefined}
-                    >
-                      {f.label}
-                    </DropdownItem>
-                  ))}
+                  {selCell && (
+                    <div className="max-h-64 overflow-y-auto">
+                      {allFields.map(f => {
+                        const catDef = (project.customCategories || []).find(c => c.key === f.key);
+                        const icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
+                        return (
+                          <DropdownItem
+                            key={f.key}
+                            onClick={() => { assign(selCell.cell.id, f.key); setChangeOpen(false); }}
+                            icon={icon ? React.createElement(icon, { className: 'w-3.5 h-3.5' }) : undefined}
+                          >
+                            {f.label}
+                          </DropdownItem>
+                        );
+                      })}
+                    </div>
+                  )}
                   <DropdownDivider />
                   {selCell && (
                     <DropdownItem onClick={() => { clearCell(selCell.cell.id); setChangeOpen(false); }}>
@@ -718,7 +741,7 @@ export default function RibbonTab() {
                                 <div
                                   onClick={() => setSelId(c.id)}
                                   onDoubleClick={() => { setSelId(c.id); setChangeOpen(true); }}
-                                  onContextMenu={e => { e.preventDefault(); setSelId(c.id); setChangeOpen(true); }}
+                                  onContextMenu={e => { e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
                                   draggable
                                   onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); setCellDrag({ rowId: row.id, cellId: c.id }); }}
                                   onDragEnd={() => { setCellDrag(null); setCellDropTarget(null); }}
@@ -879,6 +902,39 @@ export default function RibbonTab() {
           </div>
         </div>
       </div>
+
+      {contextPos && selCell && (
+        <>
+          <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} />
+          <div
+            className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 max-h-64 overflow-y-auto w-44"
+            style={{ left: Math.min(contextPos.x, window.innerWidth - 200), top: Math.min(contextPos.y, window.innerHeight - 256) }}
+          >
+            {allFields.map(f => {
+              const catDef = (project.customCategories || []).find(c => c.key === f.key);
+              const Icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => { assign(selCell.cell.id, f.key); setContextPos(null); }}
+                  className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-300 hover:bg-zinc-800"
+                >
+                  {Icon && <Icon className="w-3.5 h-3.5 shrink-0 text-zinc-400" />}
+                  <span className="truncate flex-1">{f.label}</span>
+                </button>
+              );
+            })}
+            <div className="border-t border-zinc-800 my-1" />
+            <button
+              onClick={() => { clearCell(selCell.cell.id); setContextPos(null); }}
+              className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-500 hover:bg-zinc-800"
+            >
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate flex-1">Clear field</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
