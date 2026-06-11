@@ -162,16 +162,12 @@ function resolveTagElement(
   if (!catName) return null;
 
   const mappedKey = FDX_CATEGORY_MAP[catName];
-  if (mappedKey === undefined) {
+  if (mappedKey === undefined || mappedKey === null) {
     unknownCategories.add(catName);
     const provisionalKey = categoryNameToKey(catName);
     const label = maps.tagDefLabel.get(defId) || '';
     const elementName = elementText.trim() || label;
     return { categoryKey: provisionalKey, elementName };
-  }
-  if (mappedKey === null) {
-    unknownCategories.add(catName);
-    return null;
   }
 
   const label = maps.tagDefLabel.get(defId) || '';

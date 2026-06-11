@@ -94,6 +94,19 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     setCategory(cat);
   }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const prevElementsRef = useRef(project.breakdownElements);
+  useEffect(() => {
+    if (project.breakdownElements !== prevElementsRef.current) {
+      for (const key of Object.keys(rowsByCat.current)) {
+        if (key !== category) {
+          delete rowsByCat.current[key];
+          delete snapByCat.current[key];
+        }
+      }
+      prevElementsRef.current = project.breakdownElements;
+    }
+  }, [project.breakdownElements, category]);
+
   const isCast = category === 'cast';
   const isSet = category === 'set';
 
