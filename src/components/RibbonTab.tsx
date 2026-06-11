@@ -120,6 +120,30 @@ export default function RibbonTab() {
     dispatch({ type: 'UPDATE_RIBBON_DESIGN', payload: { id: activeDesign.id, rows: cloneRows(rows) } });
   }, [activeDesign, dispatch]);
 
+  const promptSaveDefault = useCallback(() => {
+    if (activeDesign.id) return;
+    const defaults = getDefaultRibbonRows();
+    if (JSON.stringify(rowsRef.current) === JSON.stringify(defaults)) return;
+    const name = prompt('You have unsaved changes to the Default ribbon. Save as new design?', 'My Design');
+    if (name) {
+      const newId = generateUUID();
+      dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: name.trim(), rows: cloneRows(rowsRef.current) } });
+      dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
+    }
+  }, [activeDesign, dispatch]);
+
+  const switchDesign = useCallback((newId: string) => {
+    promptSaveDefault();
+    dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
+    setDesignMenuOpen(false);
+  }, [promptSaveDefault, dispatch]);
+
+  useEffect(() => {
+    return () => {
+      promptSaveDefault();
+    };
+  }, [promptSaveDefault]);
+
   const commit = useCallback((next: RibbonRow[]) => {
     setRows(cloneRows(next));
     saveToStore(next);
@@ -402,7 +426,7 @@ export default function RibbonTab() {
             </button>
           }
         >
-          <DropdownItem onClick={() => { const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
+          <DropdownItem onClick={() => { promptSaveDefault(); const n = prompt('Design name'); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
             icon={<Plus className="w-3.5 h-3.5" />}>
             New Design
           </DropdownItem>
@@ -412,7 +436,11 @@ export default function RibbonTab() {
           </DropdownItem>
           <DropdownItem onClick={() => {
             const n = prompt('Duplicate name', `${activeDesign.name} — Copy`);
-            if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id } }); setFileMenuOpen(false); }
+            if (n) {
+              const rows = activeDesign.id ? undefined : cloneRows(rowsRef.current);
+              dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id, ...(rows ? { rows } : {}) } });
+              setFileMenuOpen(false);
+            }
           }}
             icon={<Copy className="w-3.5 h-3.5" />}>
             Duplicate
@@ -475,7 +503,7 @@ export default function RibbonTab() {
           {project.ribbonDesigns.map(d => (
             <DropdownItem
               key={d.id}
-              onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setDesignMenuOpen(false); }}
+              onClick={() => switchDesign(d.id)}
               icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
             >
               {d.name}
