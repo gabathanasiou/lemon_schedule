@@ -879,8 +879,8 @@ export default function RibbonTab() {
         <>
           <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} />
           <div
-            className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-80 w-52"
-            style={{ left: Math.min(contextPos.x, window.innerWidth - 220), top: Math.min(contextPos.y, window.innerHeight - 320) }}
+            className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-96 w-52"
+            style={{ left: Math.min(contextPos.x, window.innerWidth - 220), top: Math.min(contextPos.y, window.innerHeight - 420) }}
           >
             {/* Scrollable field list */}
             <div className="overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' } as React.CSSProperties}>
