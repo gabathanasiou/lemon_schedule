@@ -81,6 +81,20 @@ export const SortableRow: React.FC<{
     dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...updates } });
   };
 
+  const updateEntityField = (field: string, val: string) => {
+    if (!scene) return;
+    const existing = state.present.breakdownElements?.[field] || [];
+    const existingNames = new Set(existing.map(e => (e.name || e.id).toUpperCase()));
+    const items = val.split(',').map(x => x.trim()).filter(Boolean);
+    for (const item of items) {
+      const key = item.toUpperCase();
+      if (!existingNames.has(key) && key) {
+        dispatch({ type: 'ADD_ELEMENT', payload: { category: field, element: { id: item, name: item } } });
+      }
+    }
+    dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, [field]: val } });
+  };
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -490,7 +504,7 @@ export const SortableRow: React.FC<{
       const entityItems = entityItemsMap[field] || [];
       return (
         <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
+          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode="select" positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
         </td>
       );
     }
@@ -544,10 +558,12 @@ export const SortableRow: React.FC<{
       const seen = new Set<string>();
       const items: { id: string; name: string }[] = [];
       for (const e of stored) {
-        if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
+        const key = (e.name || e.id).toUpperCase();
+        if (key && !seen.has(key)) { items.push(e); seen.add(key); }
       }
       for (const v of sceneValues) {
-        if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
+        const key = v.toUpperCase();
+        if (!seen.has(key)) { items.push({ id: v, name: v }); seen.add(key); }
       }
       map[field] = items;
     }
@@ -815,7 +831,7 @@ export const SortableRow: React.FC<{
                 <td className="col-set">
                   <EntityDropdown
                     value={scene.set}
-                    onChange={val => updateScene({set: val})}
+                    onChange={val => updateEntityField('set', val)}
                     items={entityItemsMap['set'] || []}
                     mode="select"
                     positioning="fixed"
