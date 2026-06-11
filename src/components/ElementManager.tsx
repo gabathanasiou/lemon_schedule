@@ -95,17 +95,19 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
   }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prevElementsRef = useRef(project.breakdownElements);
+  const prevScenesRef = useRef(project.scenes);
   useEffect(() => {
-    if (project.breakdownElements !== prevElementsRef.current) {
-      for (const key of Object.keys(rowsByCat.current)) {
-        if (key !== category) {
-          delete rowsByCat.current[key];
-          delete snapByCat.current[key];
-        }
-      }
+    if (project.breakdownElements !== prevElementsRef.current || project.scenes !== prevScenesRef.current) {
+      rowsByCat.current = {};
+      snapByCat.current = {};
+      const r = loadRows(category);
+      snapByCat.current[category] = [...r];
+      rowsByCat.current[category] = r;
+      setRows(r);
       prevElementsRef.current = project.breakdownElements;
+      prevScenesRef.current = project.scenes;
     }
-  }, [project.breakdownElements, category]);
+  }, [project.breakdownElements, project.scenes, category]);
 
   const isCast = category === 'cast';
   const isSet = category === 'set';
