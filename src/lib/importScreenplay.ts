@@ -1,6 +1,6 @@
 import { Scene, IntExt, DayNight, CastMember } from '../types';
 import { Fountain } from 'fountain-js';
-import { generateUUID, parsePageCount } from './utils';
+import { generateUUID, parsePageCount, normalizePunctuation } from './utils';
 
 export interface ParsedScene {
   sceneNumber: string;
@@ -87,7 +87,7 @@ function parseSceneHeading(text: string, previousDayNight?: DayNight | 'DAY'): {
   if (upperPrefix === 'EXT' || upperPrefix.startsWith('EXT') || upperPrefix === 'ΕΞΩΤ') intExt = 'EXT';
   else if (upperPrefix === 'INT/EXT' || upperPrefix === 'INT-EXT' || upperPrefix === 'I/E' || upperPrefix.includes('/') || upperPrefix.includes('-')) intExt = 'INT/EXT';
 
-  const TIME_WORDS = /\s*[–—\-]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|CONTINUOUS|LATER|SAME\s*TIME)\s*$/i;
+  const TIME_WORDS = /\s*[–—\-]+\s*(?:LATE\s+|EARLY\s+|NEXT\s+)?(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|CONTINUOUS|LATER|SAME\s+TIME)\s*[-–—]*\s*$/i;
 
   let set = rest;
   let dayNight: DayNight = 'DAY';
@@ -105,7 +105,7 @@ function parseSceneHeading(text: string, previousDayNight?: DayNight | 'DAY'): {
     dayNight = (previousDayNight as DayNight) || 'DAY';
   }
 
-  set = set.trim().toUpperCase().replace(/\s*\([^)]*\)\s*$/g, '').trim().replace(/\s*\([^)]*\)\s*$/g, '').trim();
+  set = normalizePunctuation(set).trim().toUpperCase().replace(/\s*\([^)]*\)\s*$/g, '').trim().replace(/\s*\([^)]*\)\s*$/g, '').trim();
   if (!set) set = rest.replace(/\s*\([^)]*\)\s*$/g, '').trim().toUpperCase();
 
   return { intExt, set, dayNight };

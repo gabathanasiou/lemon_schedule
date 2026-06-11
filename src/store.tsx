@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
 import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem } from './types';
-import { generateUUID, parsePageCount } from './lib/utils';
+import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, cid } from './lib/ribbonUtils';
 import Papa from 'papaparse';
 
@@ -950,7 +950,7 @@ export function getElementsFromScenes(scenes: Scene[], category: string): { id: 
   if (category === 'set') {
     const map = new Map<string, string>();
     for (const s of scenes) {
-      const val = s.set.trim().toUpperCase();
+      const val = normalizePunctuation(s.set).trim().toUpperCase();
       if (!val) continue;
       if (!map.has(val)) map.set(val, val);
     }

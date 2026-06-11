@@ -170,3 +170,11 @@ export function formatRuleDateShort(dateStr: string): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
+
+export function normalizePunctuation(s: string): string {
+  return s
+    .replace(/[\u2018\u2019\u02BC\u201B]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/\u2026/g, '...');
+}
