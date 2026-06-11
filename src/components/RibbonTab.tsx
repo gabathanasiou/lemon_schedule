@@ -740,7 +740,7 @@ export default function RibbonTab() {
                                 ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}>
                                 <div
                                   onClick={() => setSelId(c.id)}
-                                  onDoubleClick={() => { setSelId(c.id); setChangeOpen(true); }}
+                                  onDoubleClick={e => { setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
                                   onContextMenu={e => { e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
                                   draggable
                                   onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); setCellDrag({ rowId: row.id, cellId: c.id }); }}
