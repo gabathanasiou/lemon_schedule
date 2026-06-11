@@ -854,10 +854,9 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
         </div>
       )}
       {dayContextMenu && (
-        <>
-          <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }} />
+        <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }}>
           <div
-            className="fixed bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none w-48"
+            className="absolute bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none w-48"
             style={{ left: Math.min(dayContextMenu.x, window.innerWidth - 200), top: Math.min(dayContextMenu.y, window.innerHeight - 220) }}
           >
             {dayContextMenu.shootDay != null ? (
@@ -876,13 +875,16 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                 <button onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Holiday</button>
               </>
             ) : (
-              <button
-                onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}
-                className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10"
-              >Make Working Day</button>
+              <>
+                <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-2 pt-1 pb-0.5">Set</div>
+                <button onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Make Working Day</button>
+                <button onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Hold</button>
+                <button onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Travel</button>
+                <button onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} className="w-full text-left px-2 py-1 text-xs rounded hover:bg-white/10">Holiday</button>
+              </>
             )}
           </div>
-        </>
+        </div>
       )}
     </DndContext>
   );
