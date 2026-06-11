@@ -71,8 +71,10 @@ export const SortableRow: React.FC<{
 
   const setOptions = useMemo(() => {
     const sets = new Set(scenes.map(s => s.set.toUpperCase()).filter(Boolean));
+    const stored = state.present.breakdownElements?.['set'] || [];
+    for (const e of stored) if (e.name) sets.add(e.name.toUpperCase());
     return [...sets].sort();
-  }, [scenes]);
+  }, [scenes, state.present.breakdownElements]);
 
   const updateRow = (updates: Partial<ScheduleRow>) => {
     if (!activeVersionId) return;
