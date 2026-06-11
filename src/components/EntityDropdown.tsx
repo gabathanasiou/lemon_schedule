@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Scene } from '../types';
 import { useProject } from '../store';
 import { useDropdown, useOpenHandler, sortCastMembers } from '../lib/dropdown';
@@ -122,7 +122,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   useDropdown(open, ref, handleClose);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || positioning === 'relative') return;
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect();

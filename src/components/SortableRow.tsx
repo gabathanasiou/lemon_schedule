@@ -83,7 +83,9 @@ export const SortableRow: React.FC<{
 
   const updateScene = (updates: Partial<Scene>) => {
     if (!scene) return;
-    for (const [key, val] of Object.entries(updates)) {
+    const processed = { ...updates } as Record<string, any>;
+    if (typeof processed.set === 'string') processed.set = processed.set.toUpperCase();
+    for (const [key, val] of Object.entries(processed)) {
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
         const existing = state.present.breakdownElements?.[key] || [];
@@ -96,7 +98,7 @@ export const SortableRow: React.FC<{
         }
       }
     }
-    dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...updates } });
+    dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, ...processed } });
   };
 
   const updateEntityField = (field: string, val: string) => {
