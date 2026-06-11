@@ -544,10 +544,10 @@ export const SortableRow: React.FC<{
     );
   };
 
-  const cellFlexBase = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
+  const cellFlexBase = (cell: import('../types').RibbonCell): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
-    padding: isDesc ? '0 1pt 3pt 1pt' : '4px 4px',
+    padding: '6px 4px',
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
@@ -605,11 +605,11 @@ export const SortableRow: React.FC<{
     return items;
   }, [scenes, state.present.castMembers]);
 
-  const renderCellFlex = (cell: import('../types').RibbonCell, isLast: boolean, forDesc?: boolean) => {
+  const renderCellFlex = (cell: import('../types').RibbonCell, isLast: boolean) => {
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     const style: React.CSSProperties = {
-      ...cellFlexBase(cell, forDesc),
+      ...cellFlexBase(cell),
       textAlign: a as any,
     };
     if (!field) return <div key={cellId} style={style} />;

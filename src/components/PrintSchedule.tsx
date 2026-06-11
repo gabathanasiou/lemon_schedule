@@ -145,7 +145,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     textAlign: cell.align || 'left',
-    padding: '4pt 4pt',
+    padding: '6pt 4pt',
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',

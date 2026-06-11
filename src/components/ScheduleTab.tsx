@@ -1019,7 +1019,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
           line-height: 1.2;
         }
         .schedule-table td {
-          padding: 4px 4px;
+          padding: 6px 4px;
           vertical-align: middle;
           overflow: hidden;
         }
