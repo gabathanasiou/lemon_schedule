@@ -141,11 +141,11 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = (cell: import('../types').RibbonCell, isDesc?: boolean): React.CSSProperties => ({
+  const cellPrintStyle = (cell: import('../types').RibbonCell): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     textAlign: cell.align || 'left',
-    padding: isDesc ? '0 1pt 3pt 1pt' : '4pt 4pt',
+    padding: '4pt 4pt',
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
@@ -166,11 +166,6 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     return <div key={cell.id} style={cellPrintStyle(cell)}>{display || ''}</div>;
   };
 
-  const renderSceneDescCellFlex = (cell: import('../types').RibbonCell, scene: Scene) => {
-    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, scene);
-    const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell, true)}>{display || ''}</div>;
-  };
 
   return (
     <div className="print-day">
@@ -340,11 +335,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             if (cells) {
               return (
                 <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column' }}>
-                  {(ribbon || []).map((row, ri) => (
+                  {ribbon && ribbon.length > 0 && ribbon.map((row, ri) => (
                     <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
-                      {ri === 0
-                        ? row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))
-                        : row.cells.map((c) => renderSceneDescCellFlex(c, scene))}
+                      {row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))}
                     </div>
                   ))}
                 </div>
