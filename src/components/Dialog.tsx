@@ -89,7 +89,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     <DialogContext.Provider value={{ confirm, prompt, alert }}>
       {children}
 
-      <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) close(); }} modal={false}>
+      <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) close(); }} modal={true}>
         <RadixDialog.Portal>
           <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/50" />
           <RadixDialog.Content

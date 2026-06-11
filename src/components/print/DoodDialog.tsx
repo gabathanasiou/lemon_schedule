@@ -211,7 +211,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                     document.body
                   )}
                   {createPortal(
-                    <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catDropdownPos.top, left: catDropdownPos.left, width: catDropdownPos.width }}>
+                    <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catDropdownPos.top, left: catDropdownPos.left, width: catDropdownPos.width }} onWheel={(e) => e.stopPropagation()}>
                       {allCategoryKeys.map(({ key, isCustom }) => {
                     const Icon = isCustom
                       ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')

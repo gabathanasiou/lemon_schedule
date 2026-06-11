@@ -85,7 +85,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
                   document.body
                 )}
                 {createPortal(
-                  <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catPos.top, left: catPos.left, width: catPos.width }}>
+                  <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto overscroll-contain" style={{ top: catPos.top, left: catPos.left, width: catPos.width }} onWheel={(e) => e.stopPropagation()}>
                     {allCategoryKeys.map(({ key, isCustom }) => {
                   const Icon = isCustom
                     ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
