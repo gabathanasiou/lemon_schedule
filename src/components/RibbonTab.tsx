@@ -907,30 +907,34 @@ export default function RibbonTab() {
         <>
           <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} />
           <div
-            className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 max-h-80 overflow-y-auto w-52"
+            className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-80 w-52"
             style={{ left: Math.min(contextPos.x, window.innerWidth - 220), top: Math.min(contextPos.y, window.innerHeight - 320) }}
           >
-            {allFields.map(f => {
-              const catDef = (project.customCategories || []).find(c => c.key === f.key);
-              const Icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
-              const isActive = f.key === (selCell.cell as any).field;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => { assign(selCell.cell.id, f.key); setContextPos(null); }}
-                  className={`w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${isActive ? 'bg-blue-600/30 text-blue-300' : 'text-zinc-300 hover:bg-zinc-800'}`}
-                >
-                  {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-zinc-400'}`} />}
-                  <span className="truncate flex-1">{f.label}</span>
-                  {isActive && <Check className="w-3 h-3 text-blue-400 shrink-0" />}
-                </button>
-              );
-            })}
+            {/* Scrollable field list */}
+            <div className="overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' } as React.CSSProperties}>
+              {allFields.map(f => {
+                const catDef = (project.customCategories || []).find(c => c.key === f.key);
+                const Icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
+                const isActive = f.key === (selCell.cell as any).field;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => { assign(selCell.cell.id, f.key); setContextPos(null); }}
+                    className={`w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${isActive ? 'bg-blue-600/30 text-blue-300' : 'text-zinc-300 hover:bg-zinc-800'}`}
+                  >
+                    {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-zinc-400'}`} />}
+                    <span className="truncate flex-1">{f.label}</span>
+                    {isActive && <Check className="w-3 h-3 text-blue-400 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
 
-            {selCell.cell.field && selCell.cell.field !== 'text' && (
-              <>
-                <div className="border-t border-zinc-800 my-1" />
-                <div className="flex items-center gap-1 px-1">
+            {/* Sticky bottom actions */}
+            <div className="shrink-0 border-t border-zinc-800 pt-1">
+
+              {selCell.cell.field && selCell.cell.field !== 'text' && (
+                <div className="flex items-center gap-1 px-1 mb-1">
                   <span className="text-[9px] text-zinc-600 shrink-0">Pfx</span>
                   <input
                     value={(selCell.cell as any).prefix || ''}
@@ -946,13 +950,10 @@ export default function RibbonTab() {
                     className="flex-1 min-w-0 px-1.5 py-1 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                   />
                 </div>
-              </>
-            )}
+              )}
 
-            {selCell.cell.field === 'text' && (
-              <>
-                <div className="border-t border-zinc-800 my-1" />
-                <div className="px-1">
+              {selCell.cell.field === 'text' && (
+                <div className="px-1 mb-1">
                   <input
                     value={(selCell.cell as any).textContent || ''}
                     onChange={e => setTextContent(selCell.cell.id, e.target.value)}
@@ -960,24 +961,23 @@ export default function RibbonTab() {
                     className="w-full px-1.5 py-1 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                   />
                 </div>
-              </>
-            )}
+              )}
 
-            <div className="border-t border-zinc-800 my-1" />
-            <button
-              onClick={() => { clearCell(selCell.cell.id); setContextPos(null); }}
-              className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-500 hover:bg-zinc-800"
-            >
-              <Trash2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate flex-1">Clear field</span>
-            </button>
-            <button
-              onClick={() => { removeCell(selCell.row.id, selCell.ci); setContextPos(null); }}
-              className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-red-400 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate flex-1">Delete Cell</span>
-            </button>
+              <button
+                onClick={() => { clearCell(selCell.cell.id); setContextPos(null); }}
+                className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-500 hover:bg-zinc-800"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate flex-1">Clear field</span>
+              </button>
+              <button
+                onClick={() => { removeCell(selCell.row.id, selCell.ci); setContextPos(null); }}
+                className="w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-red-400 hover:bg-red-500/10"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate flex-1">Delete Cell</span>
+              </button>
+            </div>
           </div>
         </>
       )}
