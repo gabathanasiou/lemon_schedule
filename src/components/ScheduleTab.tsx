@@ -433,17 +433,21 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
       const rect = container.getBoundingClientRect();
       const buffer = 200;
       const y = mousePosRef.current.y;
+      const topEdge = rect.top + buffer;
+      const bottomEdge = rect.bottom - buffer;
 
-      if (y < rect.top + buffer) {
-        const speed = Math.max(2, (rect.top + buffer - y) / 8);
-        step = Math.min(step + speed * 0.3, 20);
+      if (y < topEdge) {
+        const t = 1 - (y - rect.top) / buffer;
+        const speed = 2 + t * t * 20;
+        step = step * 0.85 + speed * 0.15;
         container.scrollTop = Math.max(0, container.scrollTop - step);
-      } else if (y > rect.bottom - buffer) {
-        const speed = Math.max(2, (y - (rect.bottom - buffer)) / 8);
-        step = Math.min(step + speed * 0.3, 20);
+      } else if (y > bottomEdge) {
+        const t = (y - bottomEdge) / buffer;
+        const speed = 2 + t * t * 20;
+        step = step * 0.85 + speed * 0.15;
         container.scrollTop = container.scrollTop + step;
       } else {
-        step = 0;
+        step *= 0.6;
       }
       autoScrollRafRef.current = requestAnimationFrame(loop);
     };
@@ -472,11 +476,28 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
       if (!container) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       const cRect = container.getBoundingClientRect();
       const eRect = el.getBoundingClientRect();
-      if (eRect.top < cRect.top + 60) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (eRect.bottom > cRect.bottom - 60) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      const buffer = 200;
+
+      let targetScroll = container.scrollTop;
+      if (eRect.top < cRect.top + buffer) {
+        targetScroll = container.scrollTop + eRect.top - (cRect.top + buffer);
+      } else if (eRect.bottom > cRect.bottom - buffer) {
+        targetScroll = container.scrollTop + eRect.bottom - (cRect.bottom - buffer);
+      } else {
+        return;
       }
+
+      const start = container.scrollTop;
+      const distance = targetScroll - start;
+      const duration = 250;
+      const startTime = performance.now();
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        container.scrollTop = start + distance * (1 - Math.pow(1 - t, 3));
+        if (t < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
     });
   };
   const activeDragIdsRef = useRef(activeDragIds);
