@@ -4,7 +4,7 @@ import { CustomCategoryDef } from '../types';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
-import { PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
   const builtin: Record<string, string> = {};
@@ -19,9 +19,10 @@ interface ReportsTabProps {
   onSubTabChange: (t: 'doods' | 'elementBreakdown') => void;
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
+  onPrint?: () => void;
 }
 
-export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange }: ReportsTabProps) {
+export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint }: ReportsTabProps) {
   const { state } = useProject();
   const project = state.present;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -113,6 +114,16 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
           >
             Element Breakdown
           </button>
+          <div className="flex-1" />
+          {onPrint && (
+            <button
+              onClick={onPrint}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 rounded transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print
+            </button>
+          )}
         </div>
 
         {subTab === 'doods' ? (
