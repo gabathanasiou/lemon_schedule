@@ -358,11 +358,10 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                       >
                         {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400'}`} />}
                         <span className="truncate flex-1 italic">{c.label}</span>
-                        {!isActive && (
-                          <span className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
+                        <span className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
                             <button
                               onClick={(e) => { e.stopPropagation(); setEditCatKey(c.key); setNewCatName(c.label); setNewCatIcon(c.icon); setShowEditCustom(true); }}
-                              className="p-0.5 rounded hover:bg-zinc-300 transition-colors"
+                              className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
                             >
                               <Pencil className="w-3 h-3 text-zinc-400" />
                             </button>
@@ -374,12 +373,11 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
                                   if (category === c.key) switchCategory('cast');
                                 }
                               }}
-                              className="p-0.5 rounded hover:bg-red-100 transition-colors"
+                              className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-red-900/50' : 'hover:bg-red-100'}`}
                             >
                               <Trash2 className="w-3 h-3 text-red-400" />
                             </button>
                           </span>
-                        )}
                         <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : 'text-zinc-400'}`}>
                           {countTotal(c.key)}
                         </span>
