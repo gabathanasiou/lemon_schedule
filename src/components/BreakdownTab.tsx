@@ -282,7 +282,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             positioning="relative"
             defaultOpen
             autoFocus
-        mode="select"
+        mode="multi"
             renderItem={(item) => (
               <>
                 {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
