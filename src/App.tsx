@@ -93,7 +93,7 @@ function AppContent() {
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 0, transform: 'translateY(-8px)', left: 0, width: 0 });
+  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const [hoveredTopTab, setHoveredTopTab] = useState<string | null>(null);
   const [hoverTopTabStyle, setHoverTopTabStyle] = useState<React.CSSProperties>({});
   const project = state.present;
@@ -112,14 +112,7 @@ function AppContent() {
     const width = er.width;
     const bg = isDark ? '#18181b' : '#ffffff';
     const borders = isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {};
-    setTopTabOverlayStyle(prev => {
-      if (prev.left === left && prev.width === width && prev.opacity === 1 && prev.background === bg && prev.transform === 'translateY(0)') return prev;
-      const style: React.CSSProperties = { left, width, opacity: 1, transform: 'translateY(-8px)', background: bg, ...borders };
-      requestAnimationFrame(() => {
-        setTopTabOverlayStyle(s => ({ ...s, transform: 'translateY(0)' }));
-      });
-      return style;
-    });
+    setTopTabOverlayStyle({ left, width, opacity: 1, transform: 'translateY(0)', background: bg, ...borders });
   };
 
   useEffect(() => {
@@ -405,13 +398,13 @@ function AppContent() {
           </div>
           <div ref={topTabContainerRef} className="relative flex items-center gap-1">
             <span
-              className="absolute top-0 -bottom-4 bg-white rounded-t-md pointer-events-none"
-              style={{ ...topTabOverlayStyle, transition: 'left 200ms, width 200ms, opacity 200ms, transform 200ms' }}
+              className="absolute top-0.5 -bottom-4 bg-white rounded-t-md pointer-events-none"
+              style={{ ...topTabOverlayStyle, transition: 'none' }}
             />
             {hoveredTopTab && hoveredTopTab !== activeTab && (
               <span
-                className="absolute top-0 -bottom-4 bg-zinc-700/70 rounded-t-md pointer-events-none"
-                style={{ ...hoverTopTabStyle, transition: 'left 200ms, width 200ms, opacity 200ms, transform 200ms' }}
+                className="absolute top-0.5 -bottom-4 bg-zinc-700/70 rounded-t-md pointer-events-none"
+                style={{ ...hoverTopTabStyle, transition: 'none' }}
               />
             )}
             <button 

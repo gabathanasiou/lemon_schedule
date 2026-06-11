@@ -30,7 +30,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
   const t = THEME[theme];
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({ opacity: 0, transform: 'translateY(-8px)', left: 0, width: 0 });
+  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const [hoverStyle, setHoverStyle] = useState<React.CSSProperties>({});
 
@@ -42,14 +42,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
     const er = el.getBoundingClientRect();
     const left = er.left - cr.left;
     const width = er.width;
-    setOverlayStyle(prev => {
-      if (prev.left === left && prev.width === width && prev.opacity === 1 && prev.transform === 'translateY(0)') return prev;
-      const style = { left, width, opacity: 1, transform: 'translateY(-8px)' as const };
-      requestAnimationFrame(() => {
-        setOverlayStyle(s => ({ ...s, transform: 'translateY(0)' }));
-      });
-      return style;
-    });
+      setOverlayStyle({ left, width, opacity: 1, transform: 'translateY(0)' });
   };
 
   useEffect(() => {
@@ -79,14 +72,14 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
         {/* Hover overlay (rendered behind active overlay) */}
         {hoveredTab && hoveredTab !== activeTab && (
           <span
-            className={`absolute -top-2 -bottom-0.5 rounded-b-md pointer-events-none ${t.hoverBg}`}
-            style={{ ...hoverStyle, transition: 'left 200ms, width 200ms, opacity 200ms, transform 200ms' }}
+              className={`absolute -top-2 -bottom-0 rounded-b-md pointer-events-none ${t.hoverBg}`}
+            style={{ ...hoverStyle, transition: 'none' }}
           />
         )}
         {/* Active overlay */}
         <span
-          className={`absolute -top-2 -bottom-0.5 bg-zinc-950 rounded-b-md pointer-events-none ${theme === 'dark' ? 'border-l border-r border-zinc-600' : ''}`}
-          style={{ ...overlayStyle, transition: 'left 200ms, width 200ms, opacity 200ms, transform 200ms' }}
+          className={`absolute -top-2 -bottom-0 bg-zinc-950 rounded-b-md pointer-events-none ${theme === 'dark' ? 'border-l border-r border-zinc-600' : ''}`}
+          style={{ ...overlayStyle, transition: 'none' }}
         />
         {tabs.map(tab => {
           const active = activeTab === tab.id;
