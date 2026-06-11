@@ -57,6 +57,7 @@ td.dood-col-cast { text-align: left; }
 .dood-table thead tr:last-child th { border-bottom-width: 2px; }
 .dood-day-cell { white-space: nowrap; }
 .dood-grey { background: #d0d0d0; }
+.dood-gap-cell { border-left: 1px dotted #666; }
 .dood-total-border { border-left: 1px solid #999; white-space: nowrap; }
 .dood-footer { font-size: 7pt; color: #52525b; margin-top: 4pt; }
 .dood-page-break { page-break-before: always; break-before: page; }
@@ -69,6 +70,7 @@ interface DoodDay {
   isoDate: string;
   isShooting: boolean;
   status?: string;
+  hasGap?: boolean;
 }
 
 interface DoodRow {
@@ -120,29 +122,29 @@ function deriveDood(
     status: dayMeta[d].status || undefined,
   }));
 
+  for (let i = 1; i < days.length; i++) {
+    const prev = new Date(days[i - 1].isoDate + 'T00:00:00');
+    const cur = new Date(days[i].isoDate + 'T00:00:00');
+    if (cur.getTime() - prev.getTime() > 86400000) {
+      days[i].hasGap = true;
+    }
+  }
+
   const doodRows: DoodRow[] = [];
   const totals = new Map<string, DoodTotals>();
 
   for (const castId of castIds) {
-    const appearanceDays: number[] = [];
+    const appearSet = new Set<number>();
+    let firstDate: string | null = null;
+    let lastDate: string | null = null;
     for (const d of sortedDayInts) {
       const dayScenes = scenesByDay.get(d);
       if (!dayScenes) continue;
       if (dayScenes.some(s => s.cast.split(',').map(c => c.trim()).includes(castId))) {
-        appearanceDays.push(d);
-      }
-    }
-
-    const appearSet = new Set(appearanceDays);
-    const first = appearanceDays.length > 0 ? Math.min(...appearanceDays) : null;
-    const last = appearanceDays.length > 0 ? Math.max(...appearanceDays) : null;
-
-    const holdDays = new Set<number>();
-    if (first != null && last != null && first !== last) {
-      for (const d of sortedDayInts) {
-        if (d > first && d < last && !appearSet.has(d)) {
-          holdDays.add(d);
-        }
+        appearSet.add(d);
+        const date = dayMeta[d]?.date || '';
+        if (!firstDate || date < firstDate) firstDate = date;
+        if (!lastDate || date > lastDate) lastDate = date;
       }
     }
 
@@ -153,28 +155,22 @@ function deriveDood(
         if (tIds.includes(castId)) return 'T';
       }
       if (!appearSet.has(d.dayInt)) {
-        return holdDays.has(d.dayInt) ? 'H' : '';
+        return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
       }
-      if (d.dayInt === first && d.dayInt === last) return 'SWF';
-      if (d.dayInt === first) return 'SW';
-      if (d.dayInt === last) return 'WF';
+      if (d.isoDate === firstDate && d.isoDate === lastDate) return 'SWF';
+      if (d.isoDate === firstDate) return 'SW';
+      if (d.isoDate === lastDate) return 'WF';
       return 'W';
     });
 
-    const swDays = appearanceDays.length > 0 ? 1 : 0;
-    const workDays = appearanceDays.length;
-    const holdCount = holdDays.size;
-    let travelCount = 0;
-    for (const d of sortedDayInts) {
-      if (dayMeta[d]?.status === 'travel' && dayMeta[d]?.castIds) {
-        const ids = dayMeta[d].castIds!.split(',').map(x => x.trim());
-        if (ids.includes(castId)) travelCount++;
-      }
-    }
+    const swDays = appearSet.size > 0 ? 1 : 0;
+    const workDays = appearSet.size;
+    const holdCount = cells.filter(c => c === 'H').length;
+    const travelCount = cells.filter(c => c === 'T').length;
     const totalDays = workDays + holdCount + travelCount;
     const castName = castMembers.find(m => m.id === castId)?.name || '—';
-    const startDate = first != null ? (dayMeta[first]?.date || null) : null;
-    const finishDate = last != null ? (dayMeta[last]?.date || null) : null;
+    const startDate = firstDate;
+    const finishDate = lastDate;
 
     doodRows.push({ castId, castName, cells } as DoodRow);
     totals.set(castId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate, finishDate });
@@ -256,7 +252,7 @@ const Dood: React.FC<DoodProps> = ({
                 <tr>
                   <th className="dood-col-cast">Day/Month</th>
                   {group.days.map(d => (
-                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'}`}>
+                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
                       {formatDateShort(d.isoDate)}
                     </th>
                   ))}
@@ -273,15 +269,15 @@ const Dood: React.FC<DoodProps> = ({
                 <tr>
                   <th className="dood-col-cast">Day of Week</th>
                   {group.days.map(d => (
-                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'}`}>
+                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
                       {formatDow(d.isoDate)}
                     </th>
                   ))}
                   {isLast && showTotals && (
                     <>
-                      <th className="dood-total-border">Travel</th>
                       <th className="dood-total-border">Work</th>
                       <th className="dood-total-border">Hold</th>
+                      <th className="dood-total-border">Travel</th>
                       <th className="dood-total-border">Start</th>
                       <th className="dood-total-border">Finish</th>
                     </>
@@ -290,7 +286,7 @@ const Dood: React.FC<DoodProps> = ({
                 <tr>
                   <th className="dood-col-cast">Shooting Day</th>
                   {group.days.map((d, ci) => (
-                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'}`}>
+                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
                       {d.isShooting ? chronoDayMap.get(d.dayInt) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
                     </th>
                   ))}
@@ -312,7 +308,7 @@ const Dood: React.FC<DoodProps> = ({
                     {group.days.map((d, ci) => {
                       const code = row.cells[group.startIdx + ci];
                       return (
-                        <td key={ci} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'}`}>
+                        <td key={ci} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
                           {code}
                         </td>
                       );
@@ -324,9 +320,9 @@ const Dood: React.FC<DoodProps> = ({
                       const finishStr = t.finishDate ? formatDateShort(t.finishDate) : '';
                       return (
                         <>
-                          <td className="dood-total-border">{t.travelDays > 0 ? t.travelDays : ''}</td>
                           <td className="dood-total-border">{t.workDays > 0 ? t.workDays : ''}</td>
                           <td className="dood-total-border">{t.holdDays > 0 ? t.holdDays : ''}</td>
+                          <td className="dood-total-border">{t.travelDays > 0 ? t.travelDays : ''}</td>
                           <td className="dood-total-border">{startStr || ''}</td>
                           <td className="dood-total-border">{finishStr || ''}</td>
                         </>

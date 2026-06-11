@@ -32,8 +32,8 @@ const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet }: {
-  subTab: 'scenes' | 'elements' | 'sheet';
-  onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
+ subTab: 'scenes' | 'elements' | 'sheet';
+ onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
   savedCat: string;
   onCategoryChange: (c: string) => void;
   savedSheetIdx: number;

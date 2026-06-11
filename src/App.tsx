@@ -16,19 +16,15 @@ import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
 import DoodDialog, { DoodOptions } from './components/print/DoodDialog';
 import Dood from './components/print/Dood';
-import ShootingPlanDialog, { ShootingPlanOptions } from './components/print/ShootingPlanDialog';
-import ShootingPlan from './components/print/ShootingPlan';
-import CastBreakdownDialog, { CastBreakdownOptions } from './components/print/CastBreakdownDialog';
-import CastBreakdown from './components/print/CastBreakdown';
-import CharacterAppearancesDialog, { CharacterAppearancesOptions } from './components/print/CharacterAppearancesDialog';
-import CharacterAppearances from './components/print/CharacterAppearances';
-import LocationBreakdownDialog, { LocationBreakdownOptions } from './components/print/LocationBreakdownDialog';
-import LocationBreakdown from './components/print/LocationBreakdown';
 import BreakdownSheetDialog, { BreakdownSheetOptions } from './components/print/BreakdownSheetDialog';
 import BreakdownSheet from './components/print/BreakdownSheet';
+import ElementBreakdownDialog, { ElementBreakdownOptions } from './components/print/ElementBreakdownDialog';
+import ElementBreakdown from './components/print/ElementBreakdown';
+import ReportsTab from './components/ReportsTab';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
+import DropdownSubmenu from './components/DropdownSubmenu';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
@@ -42,11 +38,13 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject } = useProject();
   const dialog = useDialog();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules'>('breakdown');
+  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules' | 'reports'>('breakdown');
   const [scheduleSubTab, setScheduleSubTab] = useState<'stripboard' | 'ribbons'>('stripboard');
   const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
+  const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
+  const [reportsCategory, setReportsCategory] = useState('cast');
 
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setActiveTab('breakdown');
@@ -64,20 +62,14 @@ function AppContent() {
   const [editingName, setEditingName] = useState("");
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [showDoodDialog, setShowDoodDialog] = useState(false);
-  const [showShootingPlanDialog, setShowShootingPlanDialog] = useState(false);
-  const [showCastBreakdownDialog, setShowCastBreakdownDialog] = useState(false);
-  const [showCharAppearancesDialog, setShowCharAppearancesDialog] = useState(false);
-  const [showLocationBreakdownDialog, setShowLocationBreakdownDialog] = useState(false);
   const [showBreakdownSheetDialog, setShowBreakdownSheetDialog] = useState(false);
+  const [showElementBreakdownDialog, setShowElementBreakdownDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
-  const [shootingPlanOptions, setShootingPlanOptions] = useState<ShootingPlanOptions | null>(null);
-  const [castBreakdownOptions, setCastBreakdownOptions] = useState<CastBreakdownOptions | null>(null);
-  const [charAppearancesOptions, setCharAppearancesOptions] = useState<CharacterAppearancesOptions | null>(null);
-  const [locationBreakdownOptions, setLocationBreakdownOptions] = useState<LocationBreakdownOptions | null>(null);
   const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
+  const [elementBreakdownOptions, setElementBreakdownOptions] = useState<ElementBreakdownOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showCalendarDesc, setShowCalendarDesc] = useState(false);
   const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
@@ -149,11 +141,8 @@ function AppContent() {
     return () => window.removeEventListener('afterprint', onAfterPrint);
   }, [doodOptions, project.title]);
 
-  useEffect(() => { if (!shootingPlanOptions) return; const onAP = () => setShootingPlanOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [shootingPlanOptions]);
-  useEffect(() => { if (!castBreakdownOptions) return; const onAP = () => setCastBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [castBreakdownOptions]);
-  useEffect(() => { if (!charAppearancesOptions) return; const onAP = () => setCharAppearancesOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [charAppearancesOptions, project.title]);
-  useEffect(() => { if (!locationBreakdownOptions) return; const onAP = () => setLocationBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [locationBreakdownOptions]);
   useEffect(() => { if (!breakdownSheetOptions) return; const onAP = () => setBreakdownSheetOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [breakdownSheetOptions]);
+  useEffect(() => { if (!elementBreakdownOptions) return; const onAP = () => setElementBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [elementBreakdownOptions]);
 
   useEffect(() => {
     if (!storage.handle || !currentProjectId) return;
@@ -192,64 +181,6 @@ function AppContent() {
     );
   }
 
-  if (shootingPlanOptions) {
-    return (
-      <div>
-        <ShootingPlan
-          title={project.title || 'Production Schedule'}
-          scenes={project.scenes}
-          rows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
-          dayInts={shootingPlanOptions.dayInts}
-        />
-      </div>
-    );
-  }
-
-  if (castBreakdownOptions) {
-    return (
-      <div>
-        <CastBreakdown
-          title={project.title || 'Production Schedule'}
-          scenes={project.scenes}
-          rows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
-          castMembers={project.castMembers || []}
-          castIds={castBreakdownOptions.castIds}
-        />
-      </div>
-    );
-  }
-
-  if (charAppearancesOptions) {
-    return (
-      <div>
-        <CharacterAppearances
-          title={project.title || 'Production Schedule'}
-          scenes={project.scenes}
-          rows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
-          castMembers={project.castMembers || []}
-          castIds={charAppearancesOptions.castIds}
-        />
-      </div>
-    );
-  }
-
-  if (locationBreakdownOptions) {
-    return (
-      <div>
-        <LocationBreakdown
-          title={project.title || 'Production Schedule'}
-          scenes={project.scenes}
-          rows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
-          locationFilters={locationBreakdownOptions.locationFilters}
-        />
-      </div>
-    );
-  }
-
   if (breakdownSheetOptions) {
     return (
       <div>
@@ -263,6 +194,22 @@ function AppContent() {
           sortOrder={breakdownSheetOptions.sortOrder}
           sceneIds={breakdownSheetOptions.sceneIds}
           hiddenCategories={project.hiddenCategories || []}
+        />
+      </div>
+    );
+  }
+
+  if (elementBreakdownOptions) {
+    return (
+      <div>
+        <ElementBreakdown
+          title={project.title || 'Production Schedule'}
+          scenes={project.scenes}
+          rows={version?.rows || []}
+          dayMeta={version?.dayMeta || {}}
+          castMembers={project.castMembers || []}
+          customCategories={project.customCategories || []}
+          category={elementBreakdownOptions.category}
         />
       </div>
     );
@@ -319,11 +266,8 @@ function AppContent() {
 
       {showPrintDialog && <PrintDialog onPrint={(opts) => { setShowPrintDialog(false); setPrintOptions(opts); }} onClose={() => setShowPrintDialog(false)} />}
       {showDoodDialog && <DoodDialog onPrint={(opts) => { setShowDoodDialog(false); setDoodOptions(opts); }} onClose={() => setShowDoodDialog(false)} />}
-      {showShootingPlanDialog && <ShootingPlanDialog onPrint={(opts) => { setShowShootingPlanDialog(false); setShootingPlanOptions(opts); }} onClose={() => setShowShootingPlanDialog(false)} />}
-      {showCastBreakdownDialog && <CastBreakdownDialog onPrint={(opts) => { setShowCastBreakdownDialog(false); setCastBreakdownOptions(opts); }} onClose={() => setShowCastBreakdownDialog(false)} />}
-      {showCharAppearancesDialog && <CharacterAppearancesDialog onPrint={(opts) => { setShowCharAppearancesDialog(false); setCharAppearancesOptions(opts); }} onClose={() => setShowCharAppearancesDialog(false)} />}
-      {showLocationBreakdownDialog && <LocationBreakdownDialog onPrint={(opts) => { setShowLocationBreakdownDialog(false); setLocationBreakdownOptions(opts); }} onClose={() => setShowLocationBreakdownDialog(false)} />}
       {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
+      {showElementBreakdownDialog && <ElementBreakdownDialog onPrint={(opts) => { setShowElementBreakdownDialog(false); setElementBreakdownOptions(opts); }} onClose={() => setShowElementBreakdownDialog(false)} />}
       {showImportDialog && <ImportDialog onClose={() => setShowImportDialog(false)} />}
 
       {/* HEADER */}
@@ -356,34 +300,28 @@ function AppContent() {
                 Import Screenplay...
               </DropdownItem>
               <DropdownDivider />
-              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Export</div>
-              <DropdownItem onClick={() => { setShowFileMenu(false); handleExportCSV(); }} icon={<Download className="w-3.5 h-3.5" />}>
-                Breakdown to CSV
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); handleExportJSON(); }} icon={<Download className="w-3.5 h-3.5" />}>
-                Save Project as JSON
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowPrintDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Print Schedule...
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowDoodDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Day Out of Days...
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowShootingPlanDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Shooting Plan...
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowCastBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Cast Breakdown...
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowCharAppearancesDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Character Appearances...
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowLocationBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Location Breakdown...
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowBreakdownSheetDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Scene Breakdown...
-              </DropdownItem>
+              <DropdownSubmenu label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
+                <DropdownItem onClick={() => { setShowFileMenu(false); handleExportCSV(); }}>
+                  Breakdown to CSV
+                </DropdownItem>
+                <DropdownItem onClick={() => { setShowFileMenu(false); handleExportJSON(); }}>
+                  Save Project as JSON
+                </DropdownItem>
+              </DropdownSubmenu>
+              <DropdownSubmenu label="Print" icon={<Printer className="w-3.5 h-3.5" />} width="w-48">
+                <DropdownItem onClick={() => { setShowFileMenu(false); setShowPrintDialog(true); }}>
+                  Schedule...
+                </DropdownItem>
+                <DropdownItem onClick={() => { setShowFileMenu(false); setShowDoodDialog(true); }}>
+                  Day Out of Days...
+                </DropdownItem>
+                <DropdownItem onClick={() => { setShowFileMenu(false); setShowBreakdownSheetDialog(true); }}>
+                  Scene Breakdown...
+                </DropdownItem>
+                <DropdownItem onClick={() => { setShowFileMenu(false); setShowElementBreakdownDialog(true); }}>
+                  Element Breakdown...
+                </DropdownItem>
+              </DropdownSubmenu>
               <DropdownDivider />
               <DropdownItem onClick={() => { setShowFileMenu(false); storage.handle ? storage.setStatus('saving') : null; }} icon={<HardDrive className="w-3.5 h-3.5" />}>
                 Save Folder...
@@ -476,6 +414,12 @@ function AppContent() {
               className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'rules' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
             >
               Rules
+            </button>
+            <button 
+              onClick={() => setActiveTab('reports')}
+              className={`px-3 py-1 rounded-sm transition-colors ${activeTab === 'reports' ? 'bg-zinc-700 text-white shadow-sm' : 'hover:text-white'}`}
+            >
+              Reports
             </button>
           </div>
         </div>
@@ -607,7 +551,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0">
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} /> : <RulesTab />}
       </main>
 
       {showTrash && (

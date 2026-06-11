@@ -1,29 +1,11 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { useProject, PROTECTED_CATEGORIES, DEFAULT_CATEGORY_LABELS } from '../store';
+import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
-import { Trash2, Plus, Save, Undo2, Users, Building2, Package, UserPlus, Sparkles, Car, Shirt, Scissors, Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket, X, Tag, CircleDot, Pencil, Eye, EyeOff } from 'lucide-react';
-
-const ELEMENT_CATEGORIES = [
-  { key: 'cast', label: 'Cast' },
-  { key: 'set', label: 'Sets' },
-  { key: 'props', label: 'Props' },
-  { key: 'backgroundActors', label: 'Background Actors' },
-  { key: 'stunts', label: 'Stunts' },
-  { key: 'vehicles', label: 'Vehicles' },
-  { key: 'wardrobe', label: 'Wardrobe' },
-  { key: 'makeup', label: 'Makeup & Hair' },
-  { key: 'sfx', label: 'SFX' },
-  { key: 'vfx', label: 'VFX' },
-  { key: 'sound', label: 'Sound' },
-  { key: 'music', label: 'Music / Playback' },
-  { key: 'animalsAndWranglers', label: 'Animals & Wranglers' },
-  { key: 'weapons', label: 'Weapons / Armoury' },
-  { key: 'greenery', label: 'Greenery' },
-  { key: 'artDept', label: 'Art Department' },
-];
+import { Trash2, Plus, Save, Undo2, X, Pencil, Eye, EyeOff } from 'lucide-react';
+import { ELEMENT_CATEGORIES, CAT_ICONS, CUSTOM_ICON_OPTIONS, getCustomIcon, getLabel } from '../lib/categories';
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
   if (category === 'cast') {
@@ -323,47 +305,11 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
     );
   };
 
-  const CAT_ICONS: Record<string, React.ElementType> = {
-    cast: Users, set: Building2, props: Package, backgroundActors: UserPlus, stunts: Sparkles,
-    vehicles: Car, wardrobe: Shirt, makeup: Scissors, sfx: Volume1, vfx: Video,
-    sound: Volume2, music: Music, animalsAndWranglers: PawPrint, weapons: Sword, greenery: Leaf, artDept: PaintBucket,
-  };
-
-  const CUSTOM_ICON_OPTIONS: { name: string; Icon: React.ElementType }[] = [
-    { name: 'Tag', Icon: Tag },
-    { name: 'Package', Icon: Package },
-    { name: 'Car', Icon: Car },
-    { name: 'Shirt', Icon: Shirt },
-    { name: 'Sword', Icon: Sword },
-    { name: 'Sparkles', Icon: Sparkles },
-    { name: 'Volume1', Icon: Volume1 },
-    { name: 'Music', Icon: Music },
-    { name: 'PawPrint', Icon: PawPrint },
-    { name: 'Leaf', Icon: Leaf },
-    { name: 'PaintBucket', Icon: PaintBucket },
-    { name: 'UserPlus', Icon: UserPlus },
-    { name: 'Video', Icon: Video },
-    { name: 'Scissors', Icon: Scissors },
-    { name: 'Users', Icon: Users },
-    { name: 'Building2', Icon: Building2 },
-    { name: 'Volume2', Icon: Volume2 },
-    { name: 'CircleDot', Icon: CircleDot },
-  ];
-
-  function getCustomIcon(name: string): React.ElementType {
-    const opt = CUSTOM_ICON_OPTIONS.find(o => o.name === name);
-    return opt ? opt.Icon : Tag;
-  }
-
   function countTotal(cat: string): number {
     const r = rowsByCat.current[cat];
     if (r) return r.length;
     const elems = loadCategoryElements(project, cat);
     return elems.length;
-  }
-
-  function getLabel(key: string, fallback: string): string {
-    return project.categoryLabels?.[key] || DEFAULT_CATEGORY_LABELS[key] || fallback;
   }
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
@@ -391,7 +337,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
               const hasLabelOverride = !isCustom && !!project.categoryLabels?.[key];
               const label = isCustom
                 ? project.customCategories.find(c => c.key === key)?.label || key
-                : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key);
+                : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key, project.categoryLabels);
               const isProtected = PROTECTED_CATEGORIES.has(key);
               const showHideToggle = !isCustom && !isProtected;
               const showDelete = isCustom;
@@ -492,7 +438,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
           {/* Top bar card */}
           <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
             <span className="text-xs font-semibold text-zinc-800">
-              {getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category)}
+              {getLabel(category, ELEMENT_CATEGORIES.find(c => c.key === category)?.label || category, project.categoryLabels)}
             </span>
             <div className="flex items-center gap-1.5">
               {hasChanges && (
@@ -565,7 +511,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
               <button onClick={addNew} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full">
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add {getLabel(category, 'element')}</span>
+                <span>Add {getLabel(category, 'element', project.categoryLabels)}</span>
               </button>
             </div>
           </div>
@@ -578,7 +524,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
               <h3 className="text-base font-bold text-zinc-900">Duplicate Elements Found</h3>
               <p className="text-sm text-zinc-600">
                 The following categories have elements with the same name:{' '}
-                {dupDialog.cats.map(c => getLabel(c, c)).join(', ')}.
+                {dupDialog.cats.map(c => getLabel(c, c, project.categoryLabels)).join(', ')}.
                 Merge duplicates into single entries?
               </p>
               <div className="flex items-center justify-end gap-2 pt-2">
