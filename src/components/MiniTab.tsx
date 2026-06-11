@@ -30,7 +30,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
   const t = THEME[theme];
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({ opacity: 1, left: 0, width: 0 });
+  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({ opacity: 1, left: 0, right: 0 });
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
   const [hoverStyle, setHoverStyle] = useState<React.CSSProperties>({});
 
