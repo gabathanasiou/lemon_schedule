@@ -32,7 +32,7 @@ import DropdownDivider from './components/DropdownDivider';
 import { StorageStatus, useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive, FileUp } from 'lucide-react';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -68,7 +68,7 @@ function AppContent() {
   const [showCharAppearancesDialog, setShowCharAppearancesDialog] = useState(false);
   const [showLocationBreakdownDialog, setShowLocationBreakdownDialog] = useState(false);
   const [showBreakdownSheetDialog, setShowBreakdownSheetDialog] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showFileMenu, setShowFileMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
   const [shootingPlanOptions, setShootingPlanOptions] = useState<ShootingPlanOptions | null>(null);
@@ -326,13 +326,69 @@ function AppContent() {
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
         <div className="flex items-center space-x-6">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowProjectManager(true)}
-              className="p-1.5 hover:bg-zinc-800 rounded-lg transition-colors text-zinc-400 hover:text-white"
-              title="Project Manager"
+            <DropdownMenu
+              open={showFileMenu}
+              onClose={() => setShowFileMenu(false)}
+              width="w-56"
+              align="left"
+              trigger={
+                <button
+                  onClick={() => setShowFileMenu(p => !p)}
+                  className="flex items-center space-x-1.5 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white px-3 py-1.5 font-sans cursor-pointer select-none"
+                >
+                  <span>File</span>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              }
             >
-              <FolderOpen className="w-4 h-4" />
-            </button>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<Plus className="w-3.5 h-3.5" />}>
+                New Project
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
+                Open Project...
+              </DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setShowFileMenu(false); /* placeholder — wired in phase 5 */ }} icon={<FileUp className="w-3.5 h-3.5" />}>
+                Import Screenplay...
+              </DropdownItem>
+              <DropdownDivider />
+              <div className="px-3 py-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Export</div>
+              <DropdownItem onClick={() => { setShowFileMenu(false); handleExportCSV(); }} icon={<Download className="w-3.5 h-3.5" />}>
+                Breakdown to CSV
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); handleExportJSON(); }} icon={<Download className="w-3.5 h-3.5" />}>
+                Save Project as JSON
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowPrintDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Print Schedule...
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowDoodDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Day Out of Days...
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowShootingPlanDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Shooting Plan...
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowCastBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Cast Breakdown...
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowCharAppearancesDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Character Appearances...
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowLocationBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Location Breakdown...
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowBreakdownSheetDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
+                Scene Breakdown...
+              </DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setShowFileMenu(false); storage.handle ? storage.setStatus('saving') : null; }} icon={<HardDrive className="w-3.5 h-3.5" />}>
+                Save Folder...
+              </DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
+                Trash...
+              </DropdownItem>
+            </DropdownMenu>
             <input 
               value={project.title} 
               onChange={e => dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}})}
@@ -542,50 +598,6 @@ function AppContent() {
               </div>
             </DropdownMenu>
 
-          <DropdownMenu
-              open={showExportMenu}
-              onClose={() => setShowExportMenu(false)}
-              width="w-48"
-              trigger={
-                <button
-                  onClick={() => setShowExportMenu(prev => !prev)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 hover:bg-zinc-800 rounded transition-colors font-sans cursor-pointer select-none"
-                >
-                  <span>Export</span>
-                  <ChevronDown className="w-3 h-3 text-zinc-400" />
-                </button>
-              }
-            >
-              <DropdownItem onClick={handleExportCSV} icon={<Download className="w-3.5 h-3.5" />}>
-                Breakdown to CSV
-              </DropdownItem>
-              <DropdownItem onClick={handleExportJSON} icon={<Download className="w-3.5 h-3.5" />}>
-                Save Project as JSON
-              </DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowPrintDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Print Schedule
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowDoodDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Day Out of Days
-              </DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowShootingPlanDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Shooting Plan
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowCastBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Cast Breakdown
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowCharAppearancesDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Character Appearances
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowLocationBreakdownDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Location Breakdown
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowExportMenu(false); setShowBreakdownSheetDialog(true); }} icon={<Printer className="w-3.5 h-3.5" />}>
-                Scene Breakdown
-              </DropdownItem>
-            </DropdownMenu>
           <StorageStatus
             handle={storage.handle}
             status={storage.status}
