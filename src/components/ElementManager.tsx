@@ -33,17 +33,20 @@ function loadCategoryElements(project: any, category: string): ProjectElement[] 
     for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name.toUpperCase() });
     return [...merged.values()];
   }
-  const stored = (project.breakdownElements || {})[category];
-  if (stored && stored.length > 0) {
-    const seen = new Map<string, ProjectElement>();
-    for (const e of stored) {
-      const normalized = category === 'set' ? { ...e, name: e.name.toUpperCase(), id: e.id.toUpperCase() } : e;
-      const key = normalized.id || normalized.name.toLowerCase();
-      if (!seen.has(key)) seen.set(key, normalized);
-    }
-    return [...seen.values()];
+  const stored: ProjectElement[] = (project.breakdownElements || {})[category] || [];
+  const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
+  const seen = new Set<string>();
+  const items: ProjectElement[] = [];
+  for (const e of stored) {
+    const key = (e.id || e.name).toLowerCase();
+    if (!seen.has(key)) { items.push(e); seen.add(key); }
   }
-  return getElementsFromScenes(project.scenes, category).map(e => ({ id: e.name, name: e.name }));
+  const sceneElems = getElementsFromScenes(project.scenes, category);
+  for (const e of sceneElems) {
+    const key = (e.id || e.name).toLowerCase();
+    if (!seen.has(key) && !nameMap.has(e.name.toLowerCase())) { items.push(e); seen.add(key); }
+  }
+  return items;
 }
 
 interface LocalRow {
@@ -60,7 +63,8 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
   for (const s of scenes) {
     const val = isC ? s.cast : cat === 'set' ? s.set : (s as any)[cat] as string;
     if (!val) continue;
-    for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) {
+    const items = cat === 'set' ? [val.trim()] : val.split(',').map(x => x.trim()).filter(Boolean);
+    for (const item of items) {
       const key = item.toLowerCase();
       counts.set(key, (counts.get(key) || 0) + 1);
     }

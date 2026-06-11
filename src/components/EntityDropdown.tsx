@@ -53,6 +53,106 @@ interface EntityDropdownProps {
   displayMode?: 'id' | 'name';
 }
 
+/**
+ * EntityDropdown — shared multi/single-select dropdown for cast, props, sets, shoot days, etc.
+ *
+ * ## Modes (prop: `mode`)
+ *
+ * ### `multi` (default) — comma-separated input, click-to-toggle
+ * The input IS the comma-separated value. Users type IDs/names separated by commas.
+ * The last comma-separated segment acts as the search query.
+ * Clicking an item toggles it in/out of the comma-separated list.
+ * Commit normalises the list (trims, dedupes, joins with `', '`).
+ *
+ * **Where to use:** cast (everywhere), non-set breakdown categories (props, wardrobe,
+ * stunts, etc.), shoot day selections, location filters, any multi-value field.
+ *
+ * **Used in:**
+ * - SceneSheet cast field
+ * - BreakdownTab cast editors
+ * - BreakdownTab generic element editors (following the fix to use multi)
+ * - SortableRow cast fields
+ * - PrintDialog shoot day picker
+ * - CalendarTab hold/travel cast picker
+ * - Various dialog cast pickers (RuleFormFields, DoodDialog, etc.)
+ *
+ * ### `single` — search-then-select, commas allowed in value
+ * The input is a free-text query that filters items. Clicking an item immediately
+ * commits `onChange(id)` and closes the dropdown. **Commas in the value are not
+ * treated as delimiters** — the entire value is kept as one unit. On Enter/Tab/blur
+ * without clicking, the query text is committed as-is.
+ *
+ * **Where to use:** set fields (scene set names can contain commas like
+ * "KITCHEN, FIRST FLOOR"), any single-value field where the value may contain
+ * special characters.
+ *
+ * **Used in:**
+ * - SceneSheet set field
+ * - BreakdownTab SetEditor
+ * - SortableRow set fields (dynamic ENTITY_FIELDS and explicit set column)
+ *
+ * ### `select` — single selection, immediate commit
+ * Like multi but single-value. Entire `val` is the search query (not the last segment).
+ * Clicking an item immediately commits `onChange(id)` and closes. On commit,
+ * the value is normalised (split on commas, trimmed). Commas ARE treated as
+ * delimiters in `select` mode.
+ *
+ * **Where to use:** legacy single-select fields that don't accept commas.
+ * **Prefer `single` mode for new code** — it handles commas safely.
+ *
+ * **Used in:** SortableRow dynamic ENTITY_FIELDS for non-set fields (fallback
+ * when text editing is disabled).
+ *
+ * ## Display Modes (prop: `displayMode`)
+ *
+ * - `'id'` — item keys are matched by `itemKey()` returning `m.id`. Used for cast
+ *   where cast members have numeric IDs.
+ * - `'name'` (default) — item keys are matched by `itemKey()` returning `m.name`.
+ *   Used for props, wardrobe, sets, and all non-cast categories.
+ *
+ * ## Items (prop: `items`)
+ *
+ * When `items` is omitted, the dropdown uses `state.present.castMembers` from the
+ * Zustand store. Pass a custom `EntityItem[]` for non-cast categories (sets,
+ * props, wardrobe, etc.).
+ *
+ * ## Positioning (prop: `positioning`)
+ *
+ * - `'relative'` (default) — panel positioned below the input via absolute + top-full.
+ *   Use for inline form fields, spreadsheet cells.
+ * - `'fixed'` — panel positioned with fixed coordinates (avoids overflow clipping).
+ *   Use in compact layouts where the parent has overflow:hidden.
+ *
+ * ## Editor vs Form Usage
+ *
+ * **Spreadsheet cell editors** (defaultOpen + autoFocus):
+ * ```tsx
+ * <EntityDropdown
+ *   value={cell?.value || ''}
+ *   onChange={val => { committedRef.current = true; onChange({ value: val }); exitEditMode(); }}
+ *   defaultOpen autoFocus
+ * />
+ * ```
+ * The `committedRef` pattern prevents double-commit from `toggle()` firing both
+ * `onChange` and `handleClose()`.
+ *
+ * **Form fields** (interactive, no defaultOpen):
+ * ```tsx
+ * <EntityDropdown
+ *   value={val('props')}
+ *   onChange={v => update('props', v)}
+ *   items={breakdownItems.props}
+ *   mode="multi"
+ * />
+ * ```
+ *
+ * ## Synthetic Items ("Add" new items)
+ * When the search query doesn't match any existing item by id or name, a
+ * synthetic "Add" item appears at the top of the dropdown. Clicking it calls
+ * `toggle(itemKey(m))` with the search query as the item key. The parent's
+ * `onChange` receives the raw text value and is responsible for dispatching
+ * `ADD_ELEMENT` if needed.
+ */
 export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   value,
   onChange,
