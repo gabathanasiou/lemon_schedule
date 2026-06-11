@@ -122,7 +122,6 @@ export const SortableRow: React.FC<{
     opacity: isDragging && !isOverlay ? 0.3 : undefined,
   };
 
-  const isFocused = focusedRowId === row.id;
   const commonProps = {
     ref: setNodeRef,
     style,
@@ -132,7 +131,7 @@ export const SortableRow: React.FC<{
     onDoubleClick: () => onDoubleClick?.(row.id),
     'data-row-id': row.id,
     'data-shoot-day': row.shootDay,
-    className: `group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isFocused ? 'border-l-[4px] border-l-blue-500' : ''} ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
+    className: `group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
   };
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
