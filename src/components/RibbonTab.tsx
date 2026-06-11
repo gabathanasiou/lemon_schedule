@@ -939,6 +939,7 @@ export default function RibbonTab() {
                   <input
                     value={(selCell.cell as any).prefix || ''}
                     onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') setContextPos(null); }}
                     placeholder=""
                     className="flex-1 min-w-0 px-1.5 py-1 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                   />
@@ -946,6 +947,7 @@ export default function RibbonTab() {
                   <input
                     value={(selCell.cell as any).suffix || ''}
                     onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') setContextPos(null); }}
                     placeholder=""
                     className="flex-1 min-w-0 px-1.5 py-1 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                   />
@@ -957,6 +959,7 @@ export default function RibbonTab() {
                   <input
                     value={(selCell.cell as any).textContent || ''}
                     onChange={e => setTextContent(selCell.cell.id, e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') setContextPos(null); }}
                     placeholder="Text content..."
                     className="w-full px-1.5 py-1 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
                   />

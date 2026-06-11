@@ -48,10 +48,10 @@ export default function DropdownMenu({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div className="fixed inset-0 z-[190]" onClick={onClose} />
           <div
             ref={menuRef}
-            className={`absolute top-full mt-2 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''}`}
+            className={`absolute top-full mt-2 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none ${width || ''}`}
             style={style}
           >
             {children}
