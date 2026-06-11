@@ -425,29 +425,32 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
     const onMouseMove = (e: MouseEvent) => { mousePosRef.current = { y: e.clientY }; };
     document.addEventListener('mousemove', onMouseMove);
 
-    const container = scheduleScrollRef.current;
-    if (!container) return;
-
     let step = 0;
+    const buffer = 200;
     const loop = () => {
-      const rect = container.getBoundingClientRect();
-      const buffer = 200;
       const y = mousePosRef.current.y;
-      const topEdge = rect.top + buffer;
-      const bottomEdge = rect.bottom - buffer;
+      const scheduleContainer = scheduleScrollRef.current;
+      const unscheduledContainer = document.querySelector('#unscheduled_rows_container')?.closest('.overflow-y-auto') as HTMLElement | null;
 
-      if (y < topEdge) {
-        const t = 1 - (y - rect.top) / buffer;
-        const speed = 2 + t * t * 20;
-        step = step * 0.85 + speed * 0.15;
-        container.scrollTop = Math.max(0, container.scrollTop - step);
-      } else if (y > bottomEdge) {
-        const t = (y - bottomEdge) / buffer;
-        const speed = 2 + t * t * 20;
-        step = step * 0.85 + speed * 0.15;
-        container.scrollTop = container.scrollTop + step;
-      } else {
-        step *= 0.6;
+      const targets = [scheduleContainer, unscheduledContainer].filter(Boolean) as HTMLElement[];
+      for (const container of targets) {
+        const rect = container.getBoundingClientRect();
+        if (y < rect.top || y > rect.bottom) continue;
+
+        if (y < rect.top + buffer) {
+          const t = 1 - (y - rect.top) / buffer;
+          const speed = 2 + t * t * 20;
+          step = step * 0.85 + speed * 0.15;
+          container.scrollTop = Math.max(0, container.scrollTop - step);
+        } else if (y > rect.bottom - buffer) {
+          const t = (y - (rect.bottom - buffer)) / buffer;
+          const speed = 2 + t * t * 20;
+          step = step * 0.85 + speed * 0.15;
+          container.scrollTop = container.scrollTop + step;
+        } else {
+          step *= 0.6;
+        }
+        break;
       }
       autoScrollRafRef.current = requestAnimationFrame(loop);
     };
@@ -472,7 +475,10 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange }: { onOpenSce
       const el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`)
         ?? document.querySelector(`#unscheduled_rows_container [data-row-id="${rowId}"]`);
       if (!el) return;
-      const container = scheduleScrollRef.current;
+      let container = scheduleScrollRef.current;
+      if (!container) {
+        container = el.closest('.overflow-y-auto') as HTMLElement;
+      }
       if (!container) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       const cRect = container.getBoundingClientRect();
       const eRect = el.getBoundingClientRect();
