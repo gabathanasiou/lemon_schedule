@@ -96,12 +96,6 @@ function AppContent() {
 
   const noProject = currentProjectId === null;
 
-  const activeTabBg = (() => {
-    if (activeTab === 'reports') return 'bg-zinc-900 text-white border-l border-r border-t border-zinc-600';
-    if (activeTab === 'schedule' && scheduleSubTab === 'ribbons') return 'bg-zinc-900 text-white border-l border-r border-t border-zinc-600';
-    return 'bg-white text-zinc-900';
-  })();
-
   const storage = useStorage();
   const autosaveTimerRef = useRef<number | null>(null);
   const ctx = useProject();
@@ -360,24 +354,27 @@ function AppContent() {
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
           </div>
-          <div className="flex items-end gap-1 self-end -mb-2">
+          <div className="flex items-center gap-1">
             <button 
               onClick={() => setActiveTab('breakdown')} 
-              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
             >
-              Breakdown
+              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-white rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'breakdown' ? 'opacity-100' : 'opacity-0'}`} />
+              <span className="relative">Breakdown</span>
             </button>
             <button 
               onClick={() => { setActiveTab('schedule'); setScheduleSubTab('stripboard'); }}
-              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? activeTabBg : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
             >
-              Schedule
+              <span className={`absolute top-0 left-0 right-0 -bottom-4 rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'schedule' ? 'opacity-100' : 'opacity-0'} ${scheduleSubTab === 'ribbons' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600' : 'bg-white'}`} />
+              <span className="relative">Schedule</span>
             </button>
             <button 
               onClick={() => setActiveTab('calendar')}
-              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
             >
-              Calendar
+              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-white rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'calendar' ? 'opacity-100' : 'opacity-0'}`} />
+              <span className="relative">Calendar</span>
             </button>
             {activeTab === 'calendar' && (
               <DropdownMenu
@@ -413,15 +410,17 @@ function AppContent() {
             )}
             <button 
               onClick={() => setActiveTab('rules')}
-              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? activeTabBg : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
             >
-              Rules
+              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-white rounded-t-md pointer-events-none transition-opacity duration-200 ${activeTab === 'rules' ? 'opacity-100' : 'opacity-0'}`} />
+              <span className="relative">Rules</span>
             </button>
             <button 
               onClick={() => setActiveTab('reports')}
-              className={`px-3 pt-1 pb-2 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? activeTabBg : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
             >
-              Reports
+              <span className={`absolute top-0 left-0 right-0 -bottom-4 bg-zinc-900 rounded-t-md pointer-events-none border-l border-r border-t border-zinc-600 transition-opacity duration-200 ${activeTab === 'reports' ? 'opacity-100' : 'opacity-0'}`} />
+              <span className="relative">Reports</span>
             </button>
           </div>
         </div>
@@ -551,7 +550,7 @@ function AppContent() {
       </header>
 
       {/* CONTENT */}
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-white min-h-0 -mt-px">
+      <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px">
         {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} onPrint={() => setShowPrintDialog(true)} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
       </main>
 

@@ -29,18 +29,22 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
 
   return (
     <div className={`flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 ${t.bar}`}>
-      <div className="flex self-start items-start gap-1 -mt-2">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => onChange(tab.id)}
-            className={`px-3 pt-2 pb-1 mb-0.5 text-xs font-semibold rounded-b-md transition-colors ${
-              activeTab === tab.id ? 'bg-zinc-950 text-white' : t.inactive
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-1">
+        {tabs.map(tab => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onChange(tab.id)}
+              className={`relative px-3 py-1.5 text-xs font-semibold rounded-b-md transition-colors ${
+                active ? 'text-white' : t.inactive
+              }`}
+            >
+              <span className={`absolute -top-2 left-0 right-0 bottom-0 bg-zinc-950 rounded-b-md pointer-events-none transition-opacity duration-200 ${active ? 'opacity-100' : 'opacity-0'}`} />
+              <span className="relative">{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
       {rightContent && <div className="flex items-center gap-2">{rightContent}</div>}
     </div>
