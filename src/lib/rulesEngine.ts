@@ -137,7 +137,7 @@ const ws = rule.windowStart || '00:00';
           const scene = scenes.find(s => s.id === row.sceneId);
           if (!scene) continue;
           const sceneCast = scene.cast.split(',').map(c => c.trim());
-          if (sceneCast.some(c => rule.castIds.includes(c)) && sceneCast.some(c => rule.conflictCastIds.includes(c))) {
+          if (sceneCast.some(c => rule.castIds.includes(c) || rule.conflictCastIds.includes(c))) {
             flaggedScenes.push(scene.id);
           }
         }
