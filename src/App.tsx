@@ -93,7 +93,7 @@ function AppContent() {
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 1, left: 0, right: 0 });
+  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 0, transform: 'translateY(-8px)', left: 0, width: 0 });
   const [hoveredTopTab, setHoveredTopTab] = useState<string | null>(null);
   const [hoverTopTabStyle, setHoverTopTabStyle] = useState<React.CSSProperties>({});
   const project = state.present;
@@ -113,6 +113,7 @@ function AppContent() {
         left: er.left - cr.left,
         width: er.width,
         opacity: 1,
+        transform: 'translateY(0)',
         background: isDark ? '#18181b' : '#ffffff',
         ...(isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {}),
       });
@@ -394,12 +395,12 @@ function AppContent() {
           <div ref={topTabContainerRef} className="relative flex items-center gap-1">
             <span
               className="absolute top-0 -bottom-4 bg-white rounded-t-md pointer-events-none"
-              style={{ ...topTabOverlayStyle, transition: 'left 200ms, width 200ms' }}
+              style={{ ...topTabOverlayStyle, transition: 'left 200ms, width 200ms, opacity 200ms, transform 200ms' }}
             />
             {hoveredTopTab && hoveredTopTab !== activeTab && (
               <span
                 className="absolute top-0 -bottom-4 bg-zinc-700/70 rounded-t-md pointer-events-none"
-                style={{ ...hoverTopTabStyle, transition: 'left 200ms, width 200ms' }}
+                style={{ ...hoverTopTabStyle, transition: 'left 200ms, width 200ms, opacity 200ms, transform 200ms' }}
               />
             )}
             <button 
@@ -415,7 +416,7 @@ function AppContent() {
               ref={el => { if (el) topTabRefs.current.set('schedule', el); }}
               onMouseEnter={() => updateTopHover('schedule')}
               onMouseLeave={() => updateTopHover(null)}
-              onClick={() => { setActiveTab('schedule'); setScheduleSubTab('stripboard'); }}
+              onClick={() => setActiveTab('schedule')}
               className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
             >
               <span className="relative">Schedule</span>
