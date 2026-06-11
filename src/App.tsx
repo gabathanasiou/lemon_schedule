@@ -109,13 +109,17 @@ function AppContent() {
       const cr = container.getBoundingClientRect();
       const er = el.getBoundingClientRect();
       const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
-      setTopTabOverlayStyle({
+      const style = {
         left: er.left - cr.left,
         width: er.width,
         opacity: 1,
-        transform: 'translateY(0)',
+        transform: 'translateY(-8px)',
         background: isDark ? '#18181b' : '#ffffff',
         ...(isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {}),
+      };
+      setTopTabOverlayStyle(style);
+      requestAnimationFrame(() => {
+        setTopTabOverlayStyle({ ...style, transform: 'translateY(0)' });
       });
     });
   }, [activeTab, scheduleSubTab]);
