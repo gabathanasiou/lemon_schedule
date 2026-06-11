@@ -32,6 +32,7 @@ import DropdownDivider from './components/DropdownDivider';
 import { StorageStatus, useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
+import ImportDialog from './components/ImportDialog';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive, FileUp } from 'lucide-react';
 
 function formatTime(ts: number): string {
@@ -68,6 +69,7 @@ function AppContent() {
   const [showCharAppearancesDialog, setShowCharAppearancesDialog] = useState(false);
   const [showLocationBreakdownDialog, setShowLocationBreakdownDialog] = useState(false);
   const [showBreakdownSheetDialog, setShowBreakdownSheetDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
@@ -321,6 +323,7 @@ function AppContent() {
       {showCharAppearancesDialog && <CharacterAppearancesDialog onPrint={(opts) => { setShowCharAppearancesDialog(false); setCharAppearancesOptions(opts); }} onClose={() => setShowCharAppearancesDialog(false)} />}
       {showLocationBreakdownDialog && <LocationBreakdownDialog onPrint={(opts) => { setShowLocationBreakdownDialog(false); setLocationBreakdownOptions(opts); }} onClose={() => setShowLocationBreakdownDialog(false)} />}
       {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
+      {showImportDialog && <ImportDialog onClose={() => setShowImportDialog(false)} />}
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
@@ -348,7 +351,7 @@ function AppContent() {
                 Open Project...
               </DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => { setShowFileMenu(false); /* placeholder — wired in phase 5 */ }} icon={<FileUp className="w-3.5 h-3.5" />}>
+              <DropdownItem onClick={() => { setShowFileMenu(false); setShowImportDialog(true); }} icon={<FileUp className="w-3.5 h-3.5" />}>
                 Import Screenplay...
               </DropdownItem>
               <DropdownDivider />
