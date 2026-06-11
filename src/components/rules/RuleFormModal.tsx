@@ -119,7 +119,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
   };
 
   return (
-    <Modal open onClose={onClose} title={initial ? 'Edit Rule' : 'Add Rule'} icon={<AlertCircle className="w-4 h-4" />} width="max-w-2xl"
+    <Modal open onClose={onClose} title={initial ? 'Edit Rule' : 'Add Rule'} icon={<AlertCircle className="w-4 h-4" />} width="max-w-3xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -134,12 +134,12 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
         </ModalFooter>
       }
     >
-      <div className="p-6 space-y-5">
+      <div className="px-6 py-4 space-y-5">
         <div>
           <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
             Rule Type
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {(Object.keys(RULE_TYPE_META) as RuleType[]).map(t => {
               const m = RULE_TYPE_META[t];
               const Icon = m.icon;

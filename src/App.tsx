@@ -31,6 +31,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
+import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive, FileUp } from 'lucide-react';
 
 function formatTime(ts: number): string {
@@ -67,7 +68,18 @@ function AppContent() {
   const [showBreakdownSheetDialog, setShowBreakdownSheetDialog] = useState(false);
   const [showElementBreakdownDialog, setShowElementBreakdownDialog] = useState(false);
   const [printDialogCategory, setPrintDialogCategory] = useState<string | undefined>(undefined);
-  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [pendingImport, setPendingImport] = useState<{ result: ImportResult; fileName: string } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = useCallback(async (file: File) => {
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const result = ext === 'fdx' ? await parseFDX(file) : await parseFountain(file);
+      setPendingImport({ result, fileName: file.name });
+    } catch (e: any) {
+      dialog.alert({ title: 'Import Error', message: e.message || 'Failed to parse file' });
+    }
+  }, [dialog]);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
@@ -273,7 +285,8 @@ function AppContent() {
       {showDoodDialog && <DoodDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowDoodDialog(false); setPrintDialogCategory(undefined); setDoodOptions(opts); }} onClose={() => { setShowDoodDialog(false); setPrintDialogCategory(undefined); }} />}
       {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
       {showElementBreakdownDialog && <ElementBreakdownDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); setElementBreakdownOptions(opts); }} onClose={() => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); }} />}
-      {showImportDialog && <ImportDialog onClose={() => setShowImportDialog(false)} />}
+      {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
+      <input ref={importFileRef} type="file" accept=".fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden border-b border-zinc-900 border-t-zinc-700/50">
@@ -301,8 +314,8 @@ function AppContent() {
                 Open Project...
               </DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowImportDialog(true); }} icon={<FileUp className="w-3.5 h-3.5" />}>
-                Import Screenplay...
+              <DropdownItem onClick={() => { setShowFileMenu(false); importFileRef.current?.click(); }} icon={<FileUp className="w-3.5 h-3.5" />}>
+                Import Screenplay (FDX, Fountain, TXT)...
               </DropdownItem>
               <DropdownDivider />
               <DropdownSubmenu label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
@@ -560,7 +573,7 @@ function AppContent() {
       </main>
 
       {showTrash && (
-        <Modal open onClose={() => setShowTrash(false)} title="Trash" width="max-w-md"
+        <Modal open onClose={() => setShowTrash(false)} title="Trash" width="max-w-xl"
           footer={(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) > 0 ? (
             <ModalFooter>
               <button
@@ -660,7 +673,7 @@ function AppContent() {
       )}
 
       {showRestoreModal && (
-        <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-md"
+        <Modal open onClose={() => setShowRestoreModal(null)} title="Restore from Folder" icon={<HardDrive className="w-4 h-4" />} width="max-w-xl"
           footer={
             <ModalFooter>
               <button onClick={() => setShowRestoreModal(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">

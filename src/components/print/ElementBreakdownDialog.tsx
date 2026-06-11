@@ -57,8 +57,8 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
       }
     >
       <div className="px-6 py-4 space-y-5">
-        <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 space-y-3">
-          <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider block">
+        <div>
+          <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">
             Category
           </label>
           <RadixDropdownMenu.Root open={showCategories} onOpenChange={(o) => setShowCategories(o)} modal={true}>

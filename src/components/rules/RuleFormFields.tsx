@@ -20,9 +20,9 @@ export const MaxHoursFields: React.FC<{
           step="0.5"
           value={form.maxHours}
           onChange={e => setForm(f => ({ ...f, maxHours: e.target.value }))}
-          className="w-24 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          className="w-24 border border-zinc-700 bg-zinc-950 text-zinc-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-600"
         />
-        <span className="text-sm text-zinc-500">hours</span>
+        <span className="text-sm text-zinc-400">hours</span>
       </div>
     </div>
     <div>
@@ -30,23 +30,23 @@ export const MaxHoursFields: React.FC<{
         Apply To
       </label>
       <div className="flex gap-4 mb-2">
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-sm cursor-pointer text-zinc-300">
           <input
             type="radio"
             name="applyMode"
             checked={form.datesMode === 'all'}
             onChange={() => setForm(f => ({ ...f, datesMode: 'all', dates: [] }))}
-            className="accent-zinc-900"
+            className="accent-zinc-500"
           />
           All days
         </label>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-sm cursor-pointer text-zinc-300">
           <input
             type="radio"
             name="applyMode"
             checked={form.datesMode === 'specific'}
             onChange={() => setForm(f => ({ ...f, datesMode: 'specific' }))}
-            className="accent-zinc-900"
+            className="accent-zinc-500"
           />
           Specific dates
         </label>
@@ -86,23 +86,23 @@ export const TimeWindowFields: React.FC<{
         Apply To
       </label>
       <div className="flex gap-4 mb-2">
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-sm cursor-pointer text-zinc-300">
           <input
             type="radio"
             name="twDateMode"
             checked={form.datesMode === 'all'}
             onChange={() => setForm(f => ({ ...f, datesMode: 'all', dates: [] }))}
-            className="accent-zinc-900"
+            className="accent-zinc-500"
           />
           Every day
         </label>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <label className="flex items-center gap-2 text-sm cursor-pointer text-zinc-300">
           <input
             type="radio"
             name="twDateMode"
             checked={form.datesMode === 'specific'}
             onChange={() => setForm(f => ({ ...f, datesMode: 'specific' }))}
-            className="accent-zinc-900"
+            className="accent-zinc-500"
           />
           Specific dates
         </label>
@@ -127,8 +127,8 @@ export const TimeWindowFields: React.FC<{
             className={cn(
               'px-3 py-2 rounded-md text-xs font-medium border-2',
               form.windowMode === mode
-                ? 'border-amber-400 bg-amber-50 text-amber-800'
-                : 'border-zinc-200 text-zinc-600 hover:border-zinc-300'
+                ? 'border-amber-500 bg-amber-950/50 text-amber-300'
+                : 'border-zinc-700 text-zinc-400 hover:border-zinc-600'
             )}
           >
             {mode === 'range' ? 'Between A and B' : mode === 'after' ? 'After A' : mode === 'before' ? 'Before B' : 'All Day'}
@@ -142,44 +142,44 @@ export const TimeWindowFields: React.FC<{
             tabIndex={0}
             value={form.windowStart}
             onChange={e => setForm(f => ({ ...f, windowStart: e.target.value }))}
-            className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="flex-1 border border-zinc-700 bg-zinc-950 text-zinc-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-600"
           />
-          <span className="text-zinc-400 text-sm">to</span>
+          <span className="text-zinc-500 text-sm">to</span>
           <input
             type="time"
             tabIndex={0}
             value={form.windowEnd}
             onChange={e => setForm(f => ({ ...f, windowEnd: e.target.value }))}
-            className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="flex-1 border border-zinc-700 bg-zinc-950 text-zinc-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-600"
           />
         </div>
       )}
       {form.windowMode === 'after' && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500 w-16">From</span>
+          <span className="text-xs text-zinc-400 w-16">From</span>
           <input
             type="time"
             tabIndex={0}
             value={form.windowStart}
             onChange={e => setForm(f => ({ ...f, windowStart: e.target.value }))}
-            className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="flex-1 border border-zinc-700 bg-zinc-950 text-zinc-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-600"
           />
         </div>
       )}
       {form.windowMode === 'before' && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500 w-16">Until</span>
+          <span className="text-xs text-zinc-400 w-16">Until</span>
           <input
             type="time"
             tabIndex={0}
             value={form.windowEnd}
             onChange={e => setForm(f => ({ ...f, windowEnd: e.target.value }))}
-            className="flex-1 border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            className="flex-1 border border-zinc-700 bg-zinc-950 text-zinc-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-600"
           />
         </div>
       )}
       {form.windowMode === 'allday' && (
-        <p className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-md px-3 py-2">
+        <p className="text-xs text-zinc-400 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2">
           Cast member is available the entire day. No time restrictions.
         </p>
       )}
@@ -209,10 +209,10 @@ export const CastConflictFields: React.FC<{
         renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
       />
     </div>
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-px bg-zinc-200" />
-      <span className="text-xs text-zinc-400 font-medium">VS</span>
-      <div className="flex-1 h-px bg-zinc-200" />
+      <div className="flex items-center gap-2">
+      <div className="flex-1 h-px bg-zinc-700" />
+      <span className="text-xs text-zinc-500 font-medium">VS</span>
+      <div className="flex-1 h-px bg-zinc-700" />
     </div>
     <div>
       <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">

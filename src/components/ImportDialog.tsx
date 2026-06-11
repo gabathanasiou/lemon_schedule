@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { parseFDX, parseFountain, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
 import { Upload, Loader2, GripVertical } from 'lucide-react';
@@ -21,6 +21,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 interface ImportDialogProps {
+  initialResult?: ImportResult;
+  initialFileName?: string;
   onClose: () => void;
 }
 
@@ -59,19 +61,21 @@ function SortableCastRow({ character, index, startId }: { character: ImportChara
   );
 }
 
-export default function ImportDialog({ onClose }: ImportDialogProps) {
+export default function ImportDialog({ initialResult, initialFileName, onClose }: ImportDialogProps) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [stage, setStage] = useState<'select' | 'parsing' | 'review' | 'importing'>('select');
+  const [stage, setStage] = useState<'select' | 'parsing' | 'review' | 'importing'>(
+    initialResult ? 'review' : 'select'
+  );
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(initialResult || null);
   const [castOrder, setCastOrder] = useState<ImportCharacter[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [selectedHidden, setSelectedHidden] = useState<Set<string>>(new Set());
   const [hiddenWithData, setHiddenWithData] = useState<{ key: string; label: string }[]>([]);
-  const [fileLabel, setFileLabel] = useState('');
+  const [fileLabel, setFileLabel] = useState(initialFileName || '');
   const [projectTitle, setProjectTitle] = useState('');
 
   const sensors = useSensors(
@@ -89,6 +93,36 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
     while (existingIds.has(String(n))) n++;
     return n;
   }, [existingIds]);
+
+  useEffect(() => {
+    if (stage === 'select') {
+      const t = setTimeout(() => fileInputRef.current?.click(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [stage]);
+
+  useEffect(() => {
+    if (initialResult) {
+      setProjectTitle(initialResult.title || '');
+      const taggedKeys = new Set<string>();
+      for (const s of initialResult.scenes) {
+        for (const k of Object.keys(s.taggedElements)) taggedKeys.add(k);
+      }
+      const hiddenItems: { key: string; label: string }[] = [];
+      for (const hk of project.hiddenCategories || []) {
+        if (taggedKeys.has(hk)) {
+          hiddenItems.push({ key: hk, label: DEFAULT_CATEGORY_LABELS[hk] || hk });
+        }
+      }
+      setHiddenWithData(hiddenItems);
+      setSelectedHidden(new Set());
+      const sorted = [...initialResult.characters].sort((a, b) => b.scenes.length - a.scenes.length);
+      setCastOrder(sorted);
+      const cats = new Set<string>();
+      for (const c of initialResult.unknownCategories) cats.add(c);
+      setSelectedCategories(cats);
+    }
+  }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -202,7 +236,7 @@ export default function ImportDialog({ onClose }: ImportDialogProps) {
   ) : undefined;
 
   return (
-    <Modal open onClose={onClose} title="Import Screenplay" icon={<Upload className="w-4 h-4" />} width="max-w-xl" footer={footer}>
+    <Modal open onClose={onClose} title="Import Screenplay" icon={<Upload className="w-4 h-4" />} width="max-w-2xl" footer={footer}>
       <div className="px-5 py-4 space-y-4">
           {stage === 'select' && (
             <>

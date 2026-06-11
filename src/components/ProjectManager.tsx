@@ -1,7 +1,8 @@
 import React, { useRef, useState, useMemo } from 'react';
+import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject, ProjectMeta } from '../store';
 import { Project } from '../types';
-import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown } from 'lucide-react';
+import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -121,7 +122,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const hasProjects = projectList.length > 0;
 
   return (
-    <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-2xl"
+    <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-3xl"
       footer={
         <ModalFooter>
           <button
@@ -153,29 +154,34 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{projectList.length} project{projectList.length !== 1 ? 's' : ''}</span>
               <div className="relative">
-                <button
-                  onClick={() => setShowSortMenu(p => !p)}
-                  className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 bg-zinc-900 hover:bg-zinc-800 px-2.5 py-1 rounded-md transition-colors"
-                >
-                  <ArrowUpDown className="w-3 h-3" />
-                  {sortOptions.find(o => o.key === sortKey)?.label}
-                </button>
-                {showSortMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 bg-zinc-950 border border-zinc-800 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
+                <RadixDropdownMenu.Root open={showSortMenu} onOpenChange={(o) => setShowSortMenu(o)} modal={true}>
+                  <RadixDropdownMenu.Trigger asChild>
+                    <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 bg-zinc-900 hover:bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
+                      <ArrowUpDown className="w-3 h-3" />
+                      {sortOptions.find(o => o.key === sortKey)?.label}
+                    </button>
+                  </RadixDropdownMenu.Trigger>
+                  <RadixDropdownMenu.Portal>
+                    <RadixDropdownMenu.Content
+                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 min-w-[140px]"
+                      align="end"
+                      sideOffset={4}
+                      collisionPadding={8}
+                    >
                       {sortOptions.map(opt => (
-                        <button
+                        <RadixDropdownMenu.Item
                           key={opt.key}
-                          onClick={() => { setSortKey(opt.key); setShowSortMenu(false); }}
-                          className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${sortKey === opt.key ? 'text-white bg-zinc-800' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
+                          onSelect={() => setSortKey(opt.key)}
+                          className={`text-left px-3 py-1.5 text-xs transition-colors outline-none cursor-pointer ${
+                            sortKey === opt.key ? 'text-white bg-zinc-800' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 focus-visible:bg-zinc-900 focus-visible:text-zinc-200'
+                          }`}
                         >
                           {opt.label}
-                        </button>
+                        </RadixDropdownMenu.Item>
                       ))}
-                    </div>
-                  </>
-                )}
+                    </RadixDropdownMenu.Content>
+                  </RadixDropdownMenu.Portal>
+                </RadixDropdownMenu.Root>
               </div>
             </div>
 

@@ -521,7 +521,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
         {/* Duplicate dialog */}
         {dupDialog && (
-          <Modal open onClose={() => setDupDialog(null)} title="Duplicate Elements Found" width="max-w-md"
+          <Modal open onClose={() => setDupDialog(null)} title="Duplicate Elements Found" width="max-w-lg"
             footer={
               <ModalFooter>
                 <button onClick={() => { setDupDialog(null); performSave(); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Save as-is</button>
@@ -541,7 +541,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
         {/* Add Custom Category modal */}
         {showAddCustom && (
-          <Modal open onClose={() => setShowAddCustom(false)} title="Add Category" icon={<Plus className="w-4 h-4" />} width="max-w-sm"
+          <Modal open onClose={() => setShowAddCustom(false)} title="Add Category" icon={<Plus className="w-4 h-4" />} width="max-w-md"
             footer={
               <ModalFooter>
                 <button onClick={() => setShowAddCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
@@ -564,7 +564,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
               </div>
               <div>
                 <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
-                <div className="mt-1 grid grid-cols-6 gap-1.5">
+                <div className="mt-1 grid grid-cols-4 gap-1.5">
                   {CUSTOM_ICON_OPTIONS.map(opt => {
                     const Icon = opt.Icon;
                     const selected = newCatIcon === opt.name;
@@ -588,7 +588,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
         {/* Edit Custom Category modal */}
         {showEditCustom && (
-          <Modal open onClose={() => setShowEditCustom(false)} title="Edit Category" icon={<Pencil className="w-4 h-4" />} width="max-w-sm"
+          <Modal open onClose={() => setShowEditCustom(false)} title="Edit Category" icon={<Pencil className="w-4 h-4" />} width="max-w-md"
             footer={
               <ModalFooter>
                 <button onClick={() => setShowEditCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
@@ -610,7 +610,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
               </div>
               <div>
                 <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
-                <div className="mt-1 grid grid-cols-6 gap-1.5">
+                <div className="mt-1 grid grid-cols-4 gap-1.5">
                   {CUSTOM_ICON_OPTIONS.map(opt => {
                     const Icon = opt.Icon;
                     const selected = newCatIcon === opt.name;
@@ -634,7 +634,7 @@ export function ElementManager({ initialCategory, onCategoryChange }: { initialC
 
         {/* Edit Built-in Category Label modal */}
         {showEditBuiltin && (
-          <Modal open onClose={() => setShowEditBuiltin(false)} title="Rename Category" icon={<Pencil className="w-4 h-4" />} width="max-w-sm"
+          <Modal open onClose={() => setShowEditBuiltin(false)} title="Rename Category" icon={<Pencil className="w-4 h-4" />} width="max-w-md"
             footer={
               <ModalFooter>
                 <button onClick={() => setShowEditBuiltin(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
