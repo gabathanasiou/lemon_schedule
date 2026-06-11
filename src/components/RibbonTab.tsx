@@ -367,6 +367,11 @@ export default function RibbonTab() {
     if (customFieldDefs.length > 0) cats.push('Custom');
     return cats;
   }, [customFieldDefs]);
+  const customFieldLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const c of project.customCategories || []) labels[c.key] = c.label;
+    return labels;
+  }, [project.customCategories]);
   const placed = used.size;
   const total = allFields.length;
 
@@ -684,7 +689,7 @@ export default function RibbonTab() {
                           const assigned = Boolean(c.field);
                           const isSel = selId === c.id;
                           const align = getAlign(c);
-                          const label = c.field === 'text' ? (c.textContent || 'Text') : getLabel(c.field);
+                          const label = c.field === 'text' ? (c.textContent || 'Text') : FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || c.field || 'Empty';
                           const shortLabel = !c.wrap && label.length <= 4;
 
                           return (
