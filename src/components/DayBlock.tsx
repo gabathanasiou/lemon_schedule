@@ -73,7 +73,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
           const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : label;
           return (
             <div key={c.id} style={{
-              flex: `0 0 ${c.width}%`, minWidth: 0, padding: compact ? '3pt 1pt' : '4pt 1pt',
+              flex: `0 0 ${c.width}%`, minWidth: 0, padding: compact ? '3pt 3pt' : '4pt 4pt',
               borderRight: '1px solid rgba(0,0,0,0.15)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
               textAlign: c.align || 'left',
               fontWeight: c.field === 'sceneNumber' ? 700 : 500,

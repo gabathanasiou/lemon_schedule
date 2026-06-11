@@ -547,7 +547,7 @@ export const SortableRow: React.FC<{
   const cellFlexBase = (cell: import('../types').RibbonCell): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
-    padding: '6px 4px',
+    padding: '6px 6px',
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
