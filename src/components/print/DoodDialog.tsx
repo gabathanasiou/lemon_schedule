@@ -1,11 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useProject } from '../../store';
-import { Printer, ChevronDown, Check } from 'lucide-react';
+import { Printer, Check, ChevronDown } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
-import DropdownMenu from '../DropdownMenu';
-import DropdownItem from '../DropdownItem';
 
 export interface DoodOptions {
   castIds: string[];
@@ -80,13 +78,22 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   const castMembers = project.castMembers || [];
 
   const [category, setCategory] = useState(initialCategory || 'cast');
-  const [showCategoryMenu, setShowCategoryMenu] = useState(false);
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+  const [showCategories, setShowCategories] = useState(false);
+
+  const isCast = category === 'cast';
+
+  const allElementIds: string[] = useMemo(() => {
+    if (isCast) {
+      return allCastIds;
+    }
+    const stored = (project.breakdownElements || {})[category] || [];
+    return stored.map(el => el.id.toString());
+  }, [isCast, allCastIds, project.breakdownElements, category]);
+
+  const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set(allElementIds));
   const [selectedDayInts, setSelectedDayInts] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
   const [includeNonShooting, setIncludeNonShooting] = useState(true);
   const [showTotals, setShowTotals] = useState(true);
-
-  const isCast = category === 'cast';
 
   const elementItems: { id: string; name: string }[] = useMemo(() => {
     if (isCast) {
@@ -101,6 +108,22 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const categoryLabel = categoryLabelLookup[category] || category;
 
+  const toggleElement = (id: string) => {
+    setSelectedElementIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllElements = () => {
+    if (selectedElementIds.size === elementItems.length) {
+      setSelectedElementIds(new Set());
+    } else {
+      setSelectedElementIds(new Set(elementItems.map(e => e.id)));
+    }
+  };
+
   const toggleDayInt = (d: number) => {
     setSelectedDayInts(prev => {
       const next = new Set(prev);
@@ -109,10 +132,18 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
     });
   };
 
+  const toggleAllDays = () => {
+    if (selectedDayInts.size === dayEntries.length) {
+      setSelectedDayInts(new Set());
+    } else {
+      setSelectedDayInts(new Set(dayEntries.map(d => d.dayInt)));
+    }
+  };
+
   const handlePrint = () => {
     const opts: DoodOptions = {
-      castIds: isCast && selectedElementId ? [selectedElementId] : [],
-      elementIds: !isCast && selectedElementId ? [selectedElementId] : undefined,
+      castIds: isCast ? [...selectedElementIds] : [],
+      elementIds: !isCast ? [...selectedElementIds] : undefined,
       selectedCategory: isCast ? undefined : category,
       dayInts: [...selectedDayInts].sort((a, b) => a - b),
       includeNonShooting,
@@ -121,10 +152,10 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
     onPrint(opts);
   };
 
-  const canPrint = selectedElementId !== null && selectedDayInts.size > 0;
+  const canPrint = selectedElementIds.size > 0 && selectedDayInts.size > 0;
 
   return (
-    <Modal open onClose={onClose} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
+    <Modal open onClose={onClose} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-4xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -147,52 +178,57 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
               Category
             </label>
-            <DropdownMenu
-              open={showCategoryMenu}
-              onClose={() => setShowCategoryMenu(false)}
-              width="w-48"
-              trigger={
-                <button
-                  onClick={() => setShowCategoryMenu(p => !p)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
-                >
-                  <span>{categoryLabel}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
-                </button>
-              }
-            >
-              {allCategoryKeys.map(({ key, isCustom }) => {
-                const Icon = isCustom
-                  ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
-                  : CAT_ICONS[key] || null;
-                return (
-                  <DropdownItem
-                    key={key}
-                    onClick={() => { setCategory(key); setShowCategoryMenu(false); setSelectedElementId(null); }}
-                    icon={Icon ? <Icon className="w-3.5 h-3.5" /> : undefined}
-                  >
-                    {categoryLabelLookup[key] || key}
-                  </DropdownItem>
-                );
-              })}
-            </DropdownMenu>
+            <div className="relative">
+              <button
+                onClick={() => setShowCategories(p => !p)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
+              >
+                <span>{categoryLabel}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+              </button>
+              {showCategories && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10000] py-1 max-h-64 overflow-y-auto">
+                  {allCategoryKeys.map(({ key, isCustom }) => {
+                    const Icon = isCustom
+                      ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
+                      : CAT_ICONS[key] || null;
+                    const active = key === category;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => { setCategory(key); setShowCategories(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
+                      >
+                        {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                        <span>{categoryLabelLookup[key] || key}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-              {isCast ? 'Cast Member' : 'Element'}
-            </label>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-48">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">
+                {isCast ? 'Cast Members' : 'Elements'}
+              </label>
+              <button onClick={toggleAllElements} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
+                {selectedElementIds.size === elementItems.length && elementItems.length > 0 ? 'Deselect all' : 'Select all'}
+              </button>
+            </div>
+            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-64">
               {elementItems.map(item => {
-                const selected = selectedElementId === item.id;
+                const selected = selectedElementIds.has(item.id);
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setSelectedElementId(selected ? null : item.id)}
+                    onClick={() => toggleElement(item.id)}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${selected ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
                   >
-                    <span className="w-4 h-4 flex items-center justify-center shrink-0">
-                      {selected && <Check className="w-3.5 h-3.5 text-zinc-200" />}
+                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${selected ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
+                      {selected && <Check className="w-3 h-3 text-zinc-200" />}
                     </span>
                     {isCast ? (
                       <>
@@ -212,10 +248,15 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
           </div>
 
           <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
-              Days to Include
-            </label>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-48">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">
+                Days to Include
+              </label>
+              <button onClick={toggleAllDays} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
+                {selectedDayInts.size === dayEntries.length && dayEntries.length > 0 ? 'Deselect all' : 'Select all'}
+              </button>
+            </div>
+            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-64">
               {dayEntries.map(d => {
                 const checked = selectedDayInts.has(d.dayInt);
                 return (
