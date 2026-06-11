@@ -100,7 +100,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {dialog && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50" onClick={() => {
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50" onClick={() => {
           if (dialog.kind === 'confirm') { dialog.resolve(false); setDialog(null); }
           else if (dialog.kind === 'prompt') { dialog.resolve(null); setDialog(null); }
           else { dialog.resolve(); setDialog(null); }

@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useProject } from '../../store';
-import { Printer, Check, ChevronDown } from 'lucide-react';
+import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
@@ -79,6 +80,8 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const [category, setCategory] = useState(initialCategory || 'cast');
   const [showCategories, setShowCategories] = useState(false);
+  const categoryBtnRef = useRef<HTMLButtonElement>(null);
+  const [catDropdownPos, setCatDropdownPos] = useState({ top: 0, left: 0, width: 0 });
 
   const isCast = category === 'cast';
 
@@ -180,14 +183,22 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             </label>
             <div className="relative">
               <button
-                onClick={() => setShowCategories(p => !p)}
+                ref={categoryBtnRef}
+                onClick={() => {
+                  if (!showCategories && categoryBtnRef.current) {
+                    const r = categoryBtnRef.current.getBoundingClientRect();
+                    setCatDropdownPos({ top: r.bottom + 4, left: r.left, width: r.width });
+                  }
+                  setShowCategories(p => !p);
+                }}
                 className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors"
               >
                 <span>{categoryLabel}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
               </button>
-              {showCategories && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10000] py-1 max-h-64 overflow-y-auto">
+              {showCategories && createPortal(
+                <div className="fixed bg-zinc-950 border border-zinc-800 rounded-lg shadow-2xl z-[10001] py-1 max-h-64 overflow-y-auto" style={{ top: catDropdownPos.top, left: catDropdownPos.left, width: catDropdownPos.width }}>
+                  <div className="fixed inset-0 z-[-1]" onClick={() => setShowCategories(false)} />
                   {allCategoryKeys.map(({ key, isCustom }) => {
                     const Icon = isCustom
                       ? getCustomIcon(project.customCategories?.find(c => c.key === key)?.icon || 'Tag')
@@ -204,7 +215,8 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                       </button>
                     );
                   })}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           </div>
