@@ -252,12 +252,14 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       currentSceneNumber = pNum || textContent.replace(/\D/g, '') || String(scenes.length + 1);
       currentHeading = textContent;
 
-      const spEl = p.querySelector('SceneProperties');
-      if (spEl) {
-        const length = spEl.getAttribute('Length');
-        if (length) {
-          currentPageCount = length;
-          currentPageCountDecimal = parsePageCount(length);
+      for (const child of Array.from(p.children)) {
+        if (child.tagName === 'SceneProperties') {
+          const length = child.getAttribute('Length');
+          if (length) {
+            currentPageCount = length;
+            currentPageCountDecimal = parsePageCount(length);
+          }
+          break;
         }
       }
     } else if (pType === 'Character') {
@@ -438,8 +440,8 @@ export function commitImport({
     const sceneBase: any = {
       id: generateUUID(),
       sceneNumber: ps.sceneNumber,
-      pageCount: ps.pageCount || '1',
-      pageCountDecimal: ps.pageCountDecimal || 1,
+      pageCount: ps.pageCount ?? '1',
+      pageCountDecimal: ps.pageCountDecimal ?? 1,
       scriptDay: breakdownFields.scriptDay || '',
       intExt: ps.intExt,
       set: breakdownFields.set || ps.set.toUpperCase(),
