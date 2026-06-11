@@ -257,6 +257,7 @@ function AppContent() {
           rows={version?.rows || []}
           dayMeta={version?.dayMeta || {}}
           castMembers={project.castMembers || []}
+          customCategories={project.customCategories || []}
           sortOrder={breakdownSheetOptions.sortOrder}
           sceneIds={breakdownSheetOptions.sceneIds}
         />

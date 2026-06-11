@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta, CastMember } from '../../types';
+import { Scene, ScheduleRow, ShootDayMeta, CastMember, CustomCategoryDef } from '../../types';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { naturalSortSceneStrings } from '../../lib/utils';
 
@@ -33,6 +33,7 @@ interface BreakdownSheetProps {
   rows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>;
   castMembers: CastMember[];
+  customCategories: CustomCategoryDef[];
   sortOrder: 'sheet' | 'scene';
   sceneIds: string[];
 }
@@ -65,7 +66,7 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'notes', label: 'Notes / Special Requirements', getData: s => s.notes },
 ];
 
-const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, sortOrder, sceneIds }) => {
+const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScenes, rows, dayMeta, castMembers, customCategories, sortOrder, sceneIds }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -82,6 +83,15 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
     for (const r of rows) if (r.type === 'SCENE' && r.sceneId) m.set(r.sceneId, r.shootDay);
     return m;
   }, [rows]);
+
+  const allCategories = useMemo(() => {
+    const custom: CategoryDef[] = (customCategories || []).map(c => ({
+      key: c.key,
+      label: c.label,
+      getData: (s: Scene) => (s as any)[c.key] as string || '',
+    }));
+    return [...CATEGORIES, ...custom];
+  }, [customCategories]);
 
   return (
     <div className="bs-root">
@@ -106,7 +116,7 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
           </table>
 
           <div className="bs-cat-grid">
-            {CATEGORIES.map(cat => {
+            {allCategories.map(cat => {
               const data = cat.getData(scene, castMembers);
               return (
                 <div key={cat.key} className="bs-cat-box">
