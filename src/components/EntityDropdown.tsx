@@ -9,8 +9,8 @@ export const DD_ITEM_CLASS = (active: boolean) =>
 
 export const DD_PANEL_CLASS = (positioning: string) =>
   positioning === 'fixed'
-    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[200px]'
-    : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-56 overflow-y-auto mt-1 min-w-[180px]';
+    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-scroll min-w-[200px]'
+    : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-56 overflow-y-scroll mt-1 min-w-[180px]';
 
 export const DD_INPUT_CLASS = (standalone: boolean) =>
   standalone
@@ -97,10 +97,17 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     (value || '').split(',').map(x => x.trim()).filter(Boolean)
   );
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) { committedRef.current = false; setHighlightedIndex(-1); }
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (highlightedIndex < 0 || !panelRef.current) return;
+    const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;
+    if (btn) btn.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
 
   const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
 
@@ -258,6 +265,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       />
       {open && (
         <div
+          ref={panelRef}
           className={DD_PANEL_CLASS(positioning)}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
@@ -268,6 +276,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             return (
               <button
                 key={isSynthetic ? '__new__' : m.id}
+                data-ei={idx}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => toggle(itemKey(m))}
