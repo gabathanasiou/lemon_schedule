@@ -1,10 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useProject } from '../store';
-import { X, Check } from 'lucide-react';
-import { EntityDropdown } from './EntityDropdown';
-import DropdownMenu from './DropdownMenu';
-import DropdownItem from './DropdownItem';
-import DropdownDivider from './DropdownDivider';
+import { Printer } from 'lucide-react';
+import Modal from './Modal';
 import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP } from '../lib/ribbonUtils';
 
 function formatDayDateLong(dateStr: string): string {
@@ -41,7 +38,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const [showPageNumbers, setShowPageNumbers] = useState(true);
   const [includeStatusDays, setIncludeStatusDays] = useState(true);
   const [selectedRibbonId, setSelectedRibbonId] = useState<string>(project.activeRibbonId || '');
-  const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
@@ -64,202 +60,164 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     }
   };
 
-  const dayItems = useMemo(() => dayEntries.map(d => ({
-    id: String(d.chrono),
-    name: `Day ${d.chrono}`,
-  })), [dayEntries]);
-
-  const dayValue = useMemo(() =>
-    [...selectedDays]
-      .map(d => dayEntries.find(e => e.dayInt === d)?.chrono)
-      .filter((c): c is number => c != null)
-      .sort((a, b) => a - b)
-      .join(', ')
-  , [selectedDays, dayEntries]);
-
-  const handleDayChange = (val: string) => {
-    const chronos = val.split(',').map(x => Number(x.trim())).filter(n => !isNaN(n) && chronoToDayInt[n]);
-    setSelectedDays(new Set(chronos.map(c => chronoToDayInt[c])));
+  const toggleDayInt = (d: number) => {
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d); else next.add(d);
+      return next;
+    });
   };
 
+  const ribbonDesigns = project.ribbonDesigns || [];
+
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-[600px] max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-          <h2 className="text-lg font-bold text-zinc-900">Print Schedule</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 p-1 rounded">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-3">Schedule</h3>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showCastList} onChange={e => setShowCastList(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-                  <span className="text-sm text-zinc-700 font-medium">Cast List</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-                  <span className="text-sm text-zinc-700 font-medium">Call Times</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-                  <span className="text-sm text-zinc-700 font-medium">Durations</span>
-                </label>
-              </div>
-            </div>
-            <div className="border-t border-zinc-200 pt-4">
-              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-3">Page Style</h3>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showExportDate} onChange={e => setShowExportDate(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-                  <span className="text-sm text-zinc-700 font-medium">Export Date</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showPageNumbers} onChange={e => setShowPageNumbers(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-                  <span className="text-sm text-zinc-700 font-medium">Page Numbers</span>
-                </label>
-              </div>
-            </div>
-            <div className="pt-1">
+    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-2xl">
+      <div className="px-6 py-4 space-y-5">
+        <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 space-y-4">
+          <div>
+            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-3">Schedule</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
               <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" />
-                <span className="text-sm text-zinc-700 font-medium">Include hold / travel / holiday days</span>
+                <input type="checkbox" checked={showCastList} onChange={e => setShowCastList(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                <span className="text-xs text-zinc-300">Cast List</span>
               </label>
-              </div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                <span className="text-xs text-zinc-300">Call Times</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                <span className="text-xs text-zinc-300">Durations</span>
+              </label>
             </div>
-
-          {project.ribbonDesigns && project.ribbonDesigns.length > 0 && (
-            <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-3">
-              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">Ribbon Layout</h3>
-              <DropdownMenu
-                open={ribbonMenuOpen}
-                onClose={() => setRibbonMenuOpen(false)}
-                width="w-56"
-                trigger={
-                  <button
-                    onClick={() => setRibbonMenuOpen(p => !p)}
-                    className="flex items-center justify-between w-full px-3 py-2 bg-white border border-zinc-300 rounded-lg text-sm text-left hover:border-zinc-400 transition-colors cursor-pointer select-none"
-                  >
-                    <span className={selectedRibbonId ? 'text-zinc-800' : 'text-zinc-400'}>
-                      {selectedRibbonId ? (project.ribbonDesigns?.find(d => d.id === selectedRibbonId)?.name || 'Unknown') : 'Default layout'}
-                    </span>
-                    <svg className="w-3 h-3 text-zinc-400 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                  </button>
-                }
-              >
-                <DropdownItem
-                  onClick={() => { setSelectedRibbonId(''); setRibbonMenuOpen(false); }}
-                  icon={selectedRibbonId === '' ? <Check className="w-3.5 h-3.5" /> : undefined}
-                >
-                  Default layout
-                </DropdownItem>
-                <DropdownDivider />
-                {project.ribbonDesigns.map(d => (
-                  <DropdownItem
-                    key={d.id}
-                    onClick={() => { setSelectedRibbonId(d.id); setRibbonMenuOpen(false); }}
-                    icon={selectedRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
-                  >
-                    {d.name}
-                  </DropdownItem>
-                ))}
-              </DropdownMenu>
-              {(() => {
-                const rows = selectedRibbonId
-                  ? project.ribbonDesigns?.find(d => d.id === selectedRibbonId)?.rows
-                  : getDefaultRibbonRows();
-                if (!rows) return null;
-                const sample = { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' };
-                return (
-                  <div className="border border-zinc-300 rounded overflow-hidden" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, background: '#ffffff' }}>
-                    <div className="flex flex-col min-w-0">
-                      {rows.map((row, ri) => (
-                        <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
-                          {row.cells.map((c, ci) => {
-                            const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                            const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
-                            const fieldLabel = FIELD_MAP[c.field]?.label || catLabel || '';
-                            const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
-                            return (
-                              <div key={c.id} style={{
-                                flex: `0 0 ${c.width}%`,
-                                minWidth: 0,
-                                padding: '3px 3px',
-                                borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                                textAlign: c.align || 'left',
-                                textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                                fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-                              }}>
-                                {display || ''}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
+          </div>
+          <div className="border-t border-zinc-800 pt-4">
+            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-3">Page Style</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={showExportDate} onChange={e => setShowExportDate(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                <span className="text-xs text-zinc-300">Export Date</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={showPageNumbers} onChange={e => setShowPageNumbers(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                <span className="text-xs text-zinc-300">Page Numbers</span>
+              </label>
             </div>
-          )}
-
-          <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">Days to Print</h3>
-              <button onClick={toggleAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
-                {selectedDays.size === dayEntries.length ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>
-            <EntityDropdown
-              value={dayValue}
-              onChange={handleDayChange}
-              items={dayItems}
-              positioning="fixed"
-              mode="multi"
-              displayMode="id"
-              placeholder="e.g. 1, 2, 3"
-              renderItem={(item) => {
-                const entry = dayEntries.find(d => d.chrono === Number(item.id));
-                return (
-                  <>
-                    <span className="truncate flex-1 font-medium">{item.name}</span>
-                    {entry?.date && <span className="text-xs text-zinc-500 shrink-0">{formatDayDateLong(entry.date)}</span>}
-                  </>
-                );
-              }}
-            />
-            {dayEntries.length === 0 && (
-              <p className="text-xs text-zinc-500 py-4 text-center">No days with dates configured yet.</p>
-            )}
+          </div>
+          <div className="pt-1">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+              <span className="text-xs text-zinc-300">Include hold / travel / holiday days</span>
+            </label>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-200 bg-zinc-50">
-          <button
-            onClick={() => onPrint({
-              showTimes,
-              showDurations,
-              showCastList,
-              showExportDate,
-              showPageNumbers,
-              includeStatusDays,
-              selectedDays: [...selectedDays].sort((a: number, b: number) => a - b),
-              selectedRibbonId,
+        {ribbonDesigns.length > 0 && (
+          <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 space-y-3">
+            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</h3>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setSelectedRibbonId('')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedRibbonId === '' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'}`}
+              >
+                Default layout
+              </button>
+              {ribbonDesigns.map(d => (
+                <button
+                  key={d.id}
+                  onClick={() => setSelectedRibbonId(d.id)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'}`}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const rows = selectedRibbonId
+                ? ribbonDesigns.find(d => d.id === selectedRibbonId)?.rows
+                : getDefaultRibbonRows();
+              if (!rows) return null;
+              const sample = { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' };
+              return (
+                <div className="border border-zinc-700 rounded overflow-hidden bg-black text-white" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1 }}>
+                  <div className="flex flex-col min-w-0">
+                    {rows.map((row, ri) => (
+                      <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.1)' } : {}}>
+                        {row.cells.map((c, ci) => {
+                          const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                          const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
+                          const fieldLabel = FIELD_MAP[c.field]?.label || catLabel || '';
+                          const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
+                          return (
+                            <div key={c.id} style={{
+                              flex: `0 0 ${c.width}%`,
+                              minWidth: 0,
+                              padding: '3px 3px',
+                              borderRight: ci < row.cells.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                              textAlign: c.align || 'left',
+                              textTransform: c.field === 'set' ? 'uppercase' : 'none',
+                              fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+                            }}>
+                              {display || ''}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <div className="bg-zinc-900 rounded-lg p-4 border border-zinc-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Days to Print</h3>
+            <button onClick={toggleAll} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
+              {selectedDays.size === dayEntries.length ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-48">
+            {dayEntries.map(d => {
+              const checked = selectedDays.has(d.dayInt);
+              return (
+                <button
+                  key={d.dayInt}
+                  onClick={() => toggleDayInt(d.dayInt)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
+                >
+                  <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
+                    {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  </span>
+                  <span className="font-medium">Day {d.chrono}</span>
+                  {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateLong(d.date)}</span>}
+                </button>
+              );
             })}
-            disabled={selectedDays.size === 0}
-            className="px-6 py-2 bg-zinc-900 text-white text-sm font-bold rounded-lg hover:bg-zinc-800 transition-colors shadow-lg shadow-black/10 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Print / Save PDF
-          </button>
+            {dayEntries.length === 0 && (
+              <div className="px-3 py-4 text-xs text-zinc-600 text-center">No days with dates configured yet.</div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 shrink-0">
+        <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+          Cancel
+        </button>
+        <button
+          onClick={() => onPrint({ showTimes, showDurations, showCastList, showExportDate, showPageNumbers, includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId })}
+          disabled={selectedDays.size === 0}
+          className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Printer className="w-3.5 h-3.5" />
+          Print / Save PDF
+        </button>
+      </div>
+    </Modal>
   );
 }
