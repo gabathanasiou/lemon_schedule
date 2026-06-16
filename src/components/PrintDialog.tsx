@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
@@ -51,37 +51,78 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const { state } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const [showTimes, setShowTimes] = useState(true);
-  const [showDurations, setShowDurations] = useState(true);
-  const [showCastList, setShowCastList] = useState(true);
-  const [showExportDate, setShowExportDate] = useState(true);
-  const [showPageNumbers, setShowPageNumbers] = useState(true);
-  const [includeStatusDays, setIncludeStatusDays] = useState(true);
-  const [selectedRibbonId, setSelectedRibbonId] = useState<string>(project.activeRibbonId || '');
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
     .sort((a, b) => (a.date).localeCompare(b.date))
     .map((d, i) => ({ ...d, chrono: i + 1 }));
 
-  const chronoToDayInt = useMemo(() => {
-    const m: Record<number, number> = {};
-    dayEntries.forEach(d => { m[d.chrono] = d.dayInt; });
-    return m;
-  }, [dayEntries]);
+  const allDayInts = dayEntries.map(d => d.dayInt);
 
-  const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
+  const storageKey = `lemon_schedule_print_${project.id}`;
+  const defaultSettings = {
+    showTimes: true,
+    showDurations: true,
+    showCastList: true,
+    showExportDate: true,
+    showPageNumbers: true,
+    includeStatusDays: true,
+    selectedRibbonId: '',
+  };
+
+  const [settings, setSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+    } catch { return defaultSettings; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch {}
+  }, [storageKey, settings]);
+
+  const persistDays = useCallback((days: number[]) => {
+    try { localStorage.setItem(`${storageKey}_days`, JSON.stringify(days)); } catch {}
+  }, [storageKey]);
+
+  const [selectedDays, setSelectedDays] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem(`${storageKey}_days`);
+      if (stored) {
+        const arr: number[] = JSON.parse(stored);
+        const valid = arr.filter(d => allDayInts.includes(d));
+        return valid.length > 0 ? new Set(valid) : new Set(allDayInts);
+      }
+    } catch {}
+    return new Set(allDayInts);
+  });
+
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    setSelectedDays(new Set(allDayInts));
+    try { localStorage.removeItem(storageKey); localStorage.removeItem(`${storageKey}_days`); } catch {}
+  }, [allDayInts, defaultSettings, storageKey]);
+
+  const updateSelectedDays = useCallback((fn: (prev: Set<number>) => Set<number>) => {
+    setSelectedDays(prev => {
+      const next = fn(prev);
+      persistDays([...next]);
+      return next;
+    });
+  }, [persistDays]);
+
+  const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
 
   const toggleAll = () => {
     if (selectedDays.size === dayEntries.length) {
-      setSelectedDays(new Set());
+      updateSelectedDays(() => new Set());
     } else {
-      setSelectedDays(new Set(dayEntries.map(d => d.dayInt)));
+      updateSelectedDays(() => new Set(allDayInts));
     }
   };
 
   const toggleDayInt = (d: number) => {
-    setSelectedDays(prev => {
+    updateSelectedDays(prev => {
       const next = new Set(prev);
       if (next.has(d)) next.delete(d); else next.add(d);
       return next;
@@ -91,14 +132,14 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const ribbonDesigns = project.ribbonDesigns || [];
 
   return (
-    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-3xl"
+    <Modal open onClose={onClose} onReset={resetSettings} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-3xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
             Cancel
           </button>
           <button
-            onClick={() => onPrint({ showTimes, showDurations, showCastList, showExportDate, showPageNumbers, includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId })}
+            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId })}
             disabled={selectedDays.size === 0}
             className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -115,7 +156,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             <RadixDropdownMenu.Root>
               <RadixDropdownMenu.Trigger asChild>
                 <button className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors">
-                  <span>{selectedRibbonId ? (ribbonDesigns.find(d => d.id === selectedRibbonId)?.name || 'Unknown') : 'Default layout'}</span>
+                  <span>{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : 'Default layout'}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
                 </button>
               </RadixDropdownMenu.Trigger>
@@ -127,27 +168,27 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   collisionPadding={8}
                 >
                   <RadixDropdownMenu.Item
-                    onSelect={() => setSelectedRibbonId('')}
-                    className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${selectedRibbonId === '' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                    onSelect={() => update({ selectedRibbonId: '' })}
+                    className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${settings.selectedRibbonId === '' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
                   >
                     <span className="flex-1">Default layout</span>
-                    {selectedRibbonId === '' && <Check className="w-3 h-3 shrink-0" />}
+                    {settings.selectedRibbonId === '' && <Check className="w-3 h-3 shrink-0" />}
                   </RadixDropdownMenu.Item>
                   {ribbonDesigns.map(d => (
                     <RadixDropdownMenu.Item
                       key={d.id}
-                      onSelect={() => setSelectedRibbonId(d.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                      onSelect={() => update({ selectedRibbonId: d.id })}
+                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
                     >
                       <span className="flex-1">{d.name}</span>
-                      {selectedRibbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
+                      {settings.selectedRibbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
                     </RadixDropdownMenu.Item>
                   ))}
                 </RadixDropdownMenu.Content>
               </RadixDropdownMenu.Portal>
             </RadixDropdownMenu.Root>
             {(() => {
-              const design = selectedRibbonId ? ribbonDesigns.find(d => d.id === selectedRibbonId) : undefined;
+              const design = settings.selectedRibbonId ? ribbonDesigns.find(d => d.id === settings.selectedRibbonId) : undefined;
               const rows = design?.rows ?? getDefaultRibbonRows();
               const cellPadding = design?.cellPadding;
               if (!rows) return null;
@@ -196,15 +237,15 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Stripboard</h3>
               <div className="space-y-2">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showTimes} onChange={e => setShowTimes(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <input type="checkbox" checked={settings.showTimes} onChange={e => update({ showTimes: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
                   <span className="text-xs text-zinc-300">Call Times</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showDurations} onChange={e => setShowDurations(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <input type="checkbox" checked={settings.showDurations} onChange={e => update({ showDurations: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
                   <span className="text-xs text-zinc-300">Durations</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={includeStatusDays} onChange={e => setIncludeStatusDays(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <input type="checkbox" checked={settings.includeStatusDays} onChange={e => update({ includeStatusDays: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
                   <span className="text-xs text-zinc-300">Hold / Travel / Holiday days</span>
                 </label>
               </div>
@@ -213,15 +254,15 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Page Style</h3>
               <div className="space-y-2">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showCastList} onChange={e => setShowCastList(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <input type="checkbox" checked={settings.showCastList} onChange={e => update({ showCastList: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
                   <span className="text-xs text-zinc-300">Cast List</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showExportDate} onChange={e => setShowExportDate(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <input type="checkbox" checked={settings.showExportDate} onChange={e => update({ showExportDate: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
                   <span className="text-xs text-zinc-300">Export date on title</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={showPageNumbers} onChange={e => setShowPageNumbers(e.target.checked)} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
+                  <input type="checkbox" checked={settings.showPageNumbers} onChange={e => update({ showPageNumbers: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
                   <span className="text-xs text-zinc-300">Page numbers</span>
                 </label>
               </div>

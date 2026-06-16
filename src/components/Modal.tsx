@@ -1,6 +1,6 @@
 import React from 'react';
 import * as RadixDialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, RotateCcw } from 'lucide-react';
 
 interface ModalProps {
   open: boolean;
@@ -10,6 +10,7 @@ interface ModalProps {
   width?: string;
   footer?: React.ReactNode;
   children: React.ReactNode;
+  onReset?: () => void;
 }
 
 export default function Modal({
@@ -20,6 +21,7 @@ export default function Modal({
   width,
   footer,
   children,
+  onReset,
 }: ModalProps) {
   return (
     <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -35,9 +37,17 @@ export default function Modal({
                 {title}
               </RadixDialog.Title>
             </div>
-            <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0 ml-2">
-              <X className="w-3.5 h-3.5" />
-            </RadixDialog.Close>
+            <div className="flex items-center gap-2">
+              {onReset && (
+                <button onClick={onReset} className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors bg-zinc-800 hover:bg-zinc-700 rounded px-2 py-1 shrink-0">
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
+              )}
+              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0">
+                <X className="w-3.5 h-3.5" />
+              </RadixDialog.Close>
+            </div>
           </div>
 
           <div className="overflow-y-auto flex-1">
