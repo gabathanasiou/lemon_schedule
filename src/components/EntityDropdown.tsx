@@ -1,3 +1,28 @@
+/**
+ * ## Entity Reference Rules (cast vs non-cast)
+ *
+ * Cast members are referenced by **numeric IDs** (e.g. `"1, 2, 3"`).
+ * All other breakdown elements (props, wardrobe, vehicles, etc.) are referenced by **names** (e.g. `"Prop Gun, Mug"`).
+ *
+ * ### How to use this component correctly:
+ *
+ * | Rule | Cast | Non-cast |
+ * |---|---|---|
+ * | `displayMode` | `"id"` | `"id"` (default) or `"name"` |
+ * | `value` | comma-separated IDs: `"1, 2, 3"` | comma-separated names: `"Prop Gun, Mug"` |
+ * | `onChange` output | comma-separated IDs | comma-separated names |
+ * | Item matching key | `e.id` | `e.id \|\| e.name` |
+ * | Existence check | compare by `e.id` | compare by `e.name \|\| e.id` |
+ *
+ * ### Calling code MUST:
+ * - Pass `displayMode="id"` when rendering cast fields (stores IDs in `scene.cast`)
+ * - Use `e.id` for cast deduplication/existence checks in `SortableRow.updateScene`
+ * - Use `e.name` for non-cast deduplication/existence checks everywhere
+ * - In `store.tsx:ADD_ELEMENT`: cast uses `element.id`, non-cast uses `element.name`
+ *
+ * **Never mix ID-based matching with name-based matching for the same category.**
+ */
+
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Scene } from '../types';
 import { useProject } from '../store';
