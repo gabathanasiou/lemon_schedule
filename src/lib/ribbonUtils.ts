@@ -166,13 +166,26 @@ function mkRow(name: string, keys: string[]): RibbonRow {
 
 export function getDefaultRibbonRows(): RibbonRow[] {
   return [
-    mkRow('Row 1', ['sceneNumber', 'callTime', 'duration', 'intExt', 'set', 'dayNight', 'cast', 'pageCount']),
+    {
+      id: `row-${cid()}`,
+      name: 'Row 1',
+      cells: [
+        { id: cid(), field: 'sceneNumber', width: 7.56, prefix: 'Sc', align: 'left' },
+        { id: cid(), field: 'callTime', width: 6.46, align: 'center' },
+        { id: cid(), field: 'duration', width: 7.68, align: 'center' },
+        { id: cid(), field: 'intExt', width: 6.33, align: 'left' },
+        { id: cid(), field: 'set', width: 39.29, align: 'left' },
+        { id: cid(), field: 'cast', width: 23.02, prefix: 'Cast', align: 'left', wrap: true },
+        { id: cid(), field: 'pageCount', width: 9.65, suffix: 'pgs', align: 'right' },
+      ],
+    },
     {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: '', width: 22 },
-        { id: cid(), field: 'description', width: 78, align: 'left' },
+        { id: cid(), field: '', width: 21.72 },
+        { id: cid(), field: 'dayNight', width: 6.26, align: 'left' },
+        { id: cid(), field: 'description', width: 72.02, align: 'left' },
       ],
     },
   ];
@@ -184,8 +197,8 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     name: 'Default',
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
-    cellPadding: 6,
-    edgePadding: 2,
+    cellPadding: 3,
+    edgePadding: 3,
   };
 }
 

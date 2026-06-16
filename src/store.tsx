@@ -149,8 +149,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     name: 'Default',
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
-    cellPadding: 6,
-    edgePadding: 2,
+    cellPadding: 3,
+    edgePadding: 3,
   };
   return {
     id,
@@ -896,8 +896,8 @@ function reducer(state: State, action: Action): State {
         name: action.payload.name,
         rows,
         createdAt: Date.now(),
-        cellPadding: action.payload.cellPadding ?? source?.cellPadding ?? 6,
-        edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 2,
+        cellPadding: action.payload.cellPadding ?? source?.cellPadding ?? 3,
+        edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 3,
       };
       return applyChange({
         ...state.present,
