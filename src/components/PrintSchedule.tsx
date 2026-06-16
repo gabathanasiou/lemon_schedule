@@ -1,7 +1,21 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow } from '../types';
+import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell } from '../types';
 import { getFieldValue } from '../lib/ribbonUtils';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
+
+function filterColumns(cells: RibbonCell[], showTimes: boolean, showDurations: boolean): RibbonCell[] {
+  const filtered = cells.filter(c => {
+    if (c.field === 'callTime' && !showTimes) return false;
+    if (c.field === 'duration' && !showDurations) return false;
+    return true;
+  });
+  if (filtered.length === cells.length) return cells;
+  if (filtered.length === 0) return filtered;
+  const total = filtered.reduce((s, c) => s + c.width, 0);
+  if (total <= 0) return filtered;
+  const scale = 100 / total;
+  return filtered.map(c => ({ ...c, width: Math.round(c.width * scale * 100) / 100 }));
+}
 
 interface PrintScheduleProps {
   project: Project;
@@ -131,7 +145,16 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     );
   }
 
-  const cells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
+  const rawCells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
+  const cells = useMemo(() => rawCells ? filterColumns(rawCells, showTimes, showDurations) : null, [rawCells, showTimes, showDurations]);
+  const filteredRibbon = useMemo(() => {
+    if (!ribbon) return undefined;
+    return ribbon.map(row => {
+      const filtered = filterColumns(row.cells, showTimes, showDurations);
+      if (filtered === row.cells) return row;
+      return { ...row, cells: filtered };
+    });
+  }, [ribbon, showTimes, showDurations]);
   const noteBreakPad = Math.max(6, (ribbon?.length || 2) * 12 - 6);
   const noteBreakPadPt = `${noteBreakPad}pt 6pt`;
   const mainCellIdx = cells ? (() => {
@@ -143,7 +166,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = (cell: import('../types').RibbonCell): React.CSSProperties => ({
+  const cellPrintStyle = (cell: RibbonCell): React.CSSProperties => ({
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     textAlign: cell.align || 'left',
@@ -162,7 +185,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
-  const renderSceneCellFlex = (cell: import('../types').RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number) => {
+  const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
     return <div key={cell.id} style={cellPrintStyle(cell)}>{display || ''}</div>;
@@ -184,7 +207,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', background: noteBg, color: noteFg }}>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', border: '2px solid #000', background: noteBg, color: noteFg }}>
                     {cells.map((cell, ci) => {
                       const wrapCell = ci === mainCellIdx;
                       if (wrapCell) {
@@ -257,7 +280,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             if (r.type === 'BREAK') {
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', background: '#591b1b', color: '#ffffff' }}>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', border: '2px solid #000', background: '#591b1b', color: '#ffffff' }}>
                     {cells.map((cell, ci) => {
                       const wrapCell = ci === mainCellIdx;
                       if (wrapCell) {
@@ -335,8 +358,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column' }}>
-                  {ribbon && ribbon.length > 0 && ribbon.map((row, ri) => (
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', border: '2px solid #000' }}>
+                  {filteredRibbon && filteredRibbon.length > 0 && filteredRibbon.map((row, ri) => (
                     <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
                       {row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))}
                     </div>
