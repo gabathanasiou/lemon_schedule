@@ -1268,7 +1268,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
             setContextMenu(null);
           }}
         >
-          <div style={{ maxWidth: viewWidth || undefined, width: '100%', margin: '0 auto' }}>
+          <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
                {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 

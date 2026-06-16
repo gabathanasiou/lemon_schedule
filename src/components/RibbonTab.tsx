@@ -597,7 +597,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
         {/* ── Canvas ── */}
         <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
-          <div className="mx-auto space-y-6" style={{ maxWidth: viewWidth || undefined, width: '100%' }}>
+          <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             {/* ══ Designer ══ */}
             <section>
