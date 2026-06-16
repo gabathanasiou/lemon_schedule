@@ -237,7 +237,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                return (
                  <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                    <tbody>
-                     <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg } as any}>
+                      <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg, '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
                        <>
                          <td className="print-col-sc" />
                          {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
@@ -299,7 +299,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
-                    <tr className="print-row-break">
+                    <tr className="print-row-break" style={{ '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
                       <>
                         <td className="print-col-sc" />
                         {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
@@ -467,8 +467,8 @@ const PRINT_STYLE = `
     background: var(--note-bg, #591b1b);
     color: var(--note-fg, #ffffff);
     vertical-align: middle;
-    padding-top: 18pt !important;
-    padding-bottom: 18pt !important;
+    padding-top: var(--note-row-py, 12px) !important;
+    padding-bottom: var(--note-row-py, 12px) !important;
     border-right: 1px solid var(--td-border-color, #591b1b);
     border-bottom: 1px solid var(--td-border-color, #591b1b);
   }

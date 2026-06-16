@@ -224,7 +224,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-note" style={noteStyle}>
+              <tr className="row-note" style={{ ...noteStyle, '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
                 <td className="col-sc" />
                 {!isCompact ? (
                   <>
@@ -350,7 +350,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-break" style={breakStyle}>
+              <tr className="row-break" style={{ ...breakStyle, '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
                 <td className="col-sc" />
                 {!isCompact ? (
                   <>
