@@ -36,7 +36,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
-  const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const handleRowDoubleClick = useCallback((id: string) => {
@@ -1125,20 +1124,23 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               </span>
             )}
             <div className="w-px h-4 bg-zinc-200" />
-              <DropdownMenu
+            <DropdownMenu
               open={ribbonMenuOpen}
               onOpenChange={setRibbonMenuOpen}
-              width="w-44"
+              width="w-48"
               trigger={
                 <button
                   className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
                 >
                   <span className="text-zinc-400 font-normal">Layout:</span>
                   <span className="font-medium">{currentRibbonName}</span>
+                  <span className="text-zinc-300 select-none">·</span>
+                  <span className="font-medium">{viewMode === 'portrait' ? 'A4' : viewMode === 'landscape' ? 'A4L' : 'Full'}</span>
                   <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
                 </button>
               }
             >
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Layout</div>
               {project.ribbonDesigns.map(d => (
               <DropdownItem
                   key={d.id}
@@ -1148,23 +1150,12 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                   {d.name}
                 </DropdownItem>
               ))}
-            </DropdownMenu>
-            <DropdownMenu
-              open={viewMenuOpen}
-              onOpenChange={setViewMenuOpen}
-              width="w-40"
-              trigger={
-                <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900">
-                  <span className="text-zinc-400 font-normal">View:</span>
-                  <span className="font-medium">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
-                  <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
-                </button>
-              }
-            >
+              <DropdownDivider />
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">View</div>
               {(['portrait', 'landscape', 'full'] as const).map(m => (
                 <DropdownItem
                   key={m}
-                  onClick={() => { setViewMode(m); setViewMenuOpen(false); }}
+                  onClick={() => { setViewMode(m); setRibbonMenuOpen(false); }}
                   icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
                 >
                   {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
