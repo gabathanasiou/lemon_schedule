@@ -199,16 +199,12 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       if (wrapCell) {
                         return (
                           <div key={cell.id} style={{
-                            flex: `0 0 ${cell.width}%`,
-                            textAlign: 'center',
+                            ...getRibbonCellBaseStyle(cell),
                             padding: noteBreakPadPx,
+                            textAlign: 'center',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
-                            fontSize: '8pt',
-                            lineHeight: 1.1,
-                            fontFamily: 'Helvetica, sans-serif',
-
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -227,20 +223,13 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       }
                       return (
                         <div key={cell.id} style={{
-                          flex: `0 0 ${cell.width}%`,
-                          textAlign: cell.align || 'left',
-                           padding: noteBreakPadPx,
-                           overflow: 'hidden',
-                           whiteSpace: 'nowrap',
-                           textOverflow: 'ellipsis',
-                           fontSize: '8pt',
-                           lineHeight: 1.1,
-                           fontFamily: 'Helvetica, sans-serif',
-                         }}>
-                           {content}
-                         </div>
-                       );
-                     })}
+                          ...getRibbonCellBaseStyle(cell),
+                          padding: noteBreakPadPx,
+                        }}>
+                          {content}
+                        </div>
+                      );
+                    })}
                    </div>
                  );
                }
@@ -272,16 +261,12 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       if (wrapCell) {
                         return (
                           <div key={cell.id} style={{
-                            flex: `0 0 ${cell.width}%`,
-                            textAlign: 'center',
+                            ...getRibbonCellBaseStyle(cell),
                             padding: noteBreakPadPx,
+                            textAlign: 'center',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
-                            fontSize: '8pt',
-                            lineHeight: 1.1,
-                            fontFamily: 'Helvetica, sans-serif',
-
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -300,16 +285,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       }
                       return (
                         <div key={cell.id} style={{
-                          flex: `0 0 ${cell.width}%`,
-                          textAlign: cell.align || 'left',
-                           padding: noteBreakPadPx,
-                           overflow: 'hidden',
-                           whiteSpace: 'nowrap',
-                           textOverflow: 'ellipsis',
-                           fontSize: '8pt',
-                           lineHeight: 1.1,
-                           fontFamily: 'Helvetica, sans-serif',
-
+                          ...getRibbonCellBaseStyle(cell),
+                          padding: noteBreakPadPx,
                         }}>
                           {content}
                         </div>
