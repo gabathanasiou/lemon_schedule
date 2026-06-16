@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useProject } from '../../store';
 import { Printer } from 'lucide-react';
 import Modal from '../Modal';
@@ -18,17 +18,38 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
   const { state } = useProject();
   const scenes = state.present.scenes;
 
-  const [sortOrder, setSortOrder] = useState<'sheet' | 'scene'>('sheet');
-  const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>(scenes.map(s => s.id));
+  const storageKey = `lemon_schedule_breakdown_sheet_${state.present.id}`;
+  const sceneIds = scenes.map(s => s.id);
+  const defaultSettings = { sortOrder: 'sheet' as 'sheet' | 'scene', selectedSceneIds: sceneIds };
+
+  const [settings, setSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+    } catch { return defaultSettings; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch {}
+  }, [storageKey, settings]);
+
+  const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    try { localStorage.removeItem(storageKey); } catch {}
+  }, [defaultSettings, storageKey]);
+
+  const sortOrder = settings.sortOrder;
+  const selectedSceneIds = settings.selectedSceneIds;
 
   const sceneItems = useMemo(() => scenes.map(s => ({ id: s.id, name: `${s.sceneNumber} — ${s.set || s.description}` })), [scenes]);
 
   const toggleScene = (id: string) => {
-    setSelectedSceneIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    update({ selectedSceneIds: selectedSceneIds.includes(id) ? selectedSceneIds.filter(x => x !== id) : [...selectedSceneIds, id] });
   };
 
   return (
-    <Modal open onClose={onClose} title="Scene Breakdown" icon={<Printer className="w-4 h-4" />} width="max-w-xl"
+    <Modal open onClose={onClose} onReset={resetSettings} title="Scene Breakdown" icon={<Printer className="w-4 h-4" />} width="max-w-xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -54,14 +75,14 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setSortOrder('sheet')}
+                onClick={() => update({ sortOrder: 'sheet' })}
                 className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${sortOrder === 'sheet' ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-700'}`}
               >
                 Sheet Order
               </button>
               <button
                 type="button"
-                onClick={() => setSortOrder('scene')}
+                onClick={() => update({ sortOrder: 'scene' })}
                 className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${sortOrder === 'scene' ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-700'}`}
               >
                 Scene Order

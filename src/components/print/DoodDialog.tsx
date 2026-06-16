@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
 import { getElementsFromScenes } from '../../store';
@@ -79,7 +79,30 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   const { project, dayEntries, allCastIds, categoryLabelLookup, allCategoryKeys } = useDoodDialogData();
   const castMembers = project.castMembers || [];
 
-  const [category, setCategory] = useState(initialCategory || 'cast');
+  const storageKey = `lemon_schedule_dood_${project.id}`;
+  const defaultSettings = { category: initialCategory || 'cast', includeNonShooting: true, showTotals: true };
+
+  const [settings, setSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+    } catch { return defaultSettings; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch {}
+  }, [storageKey, settings]);
+
+  const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    try { localStorage.removeItem(storageKey); } catch {}
+  }, [defaultSettings, storageKey]);
+
+  const category = settings.category;
+  const setCategory = (c: string) => update({ category: c });
+  const includeNonShooting = settings.includeNonShooting;
+  const showTotals = settings.showTotals;
   const [showCategories, setShowCategories] = useState(false);
 
   const isCast = category === 'cast';
@@ -112,8 +135,6 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const [selectedElementIds, setSelectedElementIds] = useState<Set<string>>(new Set(allElementIds));
   const [selectedDayInts, setSelectedDayInts] = useState<Set<number>>(new Set(dayEntries.map(d => d.dayInt)));
-  const [includeNonShooting, setIncludeNonShooting] = useState(true);
-  const [showTotals, setShowTotals] = useState(true);
 
   useEffect(() => {
     setSelectedElementIds(new Set(allElementIds));
@@ -168,7 +189,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   const canPrint = selectedElementIds.size > 0 && selectedDayInts.size > 0;
 
   return (
-    <Modal open onClose={onClose} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-5xl"
+    <Modal open onClose={onClose} onReset={resetSettings} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-5xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -308,7 +329,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             <input
               type="checkbox"
               checked={includeNonShooting}
-              onChange={e => setIncludeNonShooting(e.target.checked)}
+              onChange={e => update({ includeNonShooting: e.target.checked })}
               className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-white focus:ring-0 focus:outline-none"
             />
             <span className="text-xs text-zinc-300">Include non-shooting days (grey columns)</span>
@@ -317,7 +338,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             <input
               type="checkbox"
               checked={showTotals}
-              onChange={e => setShowTotals(e.target.checked)}
+              onChange={e => update({ showTotals: e.target.checked })}
               className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-white focus:ring-0 focus:outline-none"
             />
             <span className="text-xs text-zinc-300">Show totals columns</span>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
@@ -20,7 +20,28 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
   const { state } = useProject();
   const project = state.present;
 
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'cast');
+  const storageKey = `lemon_schedule_element_breakdown_${project.id}`;
+  const defaultSettings = { selectedCategory: initialCategory || 'cast' };
+
+  const [settings, setSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+    } catch { return defaultSettings; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch {}
+  }, [storageKey, settings]);
+
+  const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    try { localStorage.removeItem(storageKey); } catch {}
+  }, [defaultSettings, storageKey]);
+
+  const selectedCategory = settings.selectedCategory;
+  const setSelectedCategory = (c: string) => update({ selectedCategory: c });
   const [showCategories, setShowCategories] = useState(false);
 
   const categoryLabelLookup = useMemo(() => {
@@ -40,7 +61,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
   const categoryLabel = categoryLabelLookup[selectedCategory] || selectedCategory;
 
   return (
-    <Modal open onClose={onClose} title="Element Breakdown" icon={<Printer className="w-4 h-4" />} width="max-w-xl"
+    <Modal open onClose={onClose} onReset={resetSettings} title="Element Breakdown" icon={<Printer className="w-4 h-4" />} width="max-w-xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
