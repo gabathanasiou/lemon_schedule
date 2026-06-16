@@ -26,7 +26,7 @@ export default function Modal({
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/50" />
         <RadixDialog.Content
-          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none ${width || 'max-w-xl w-full'}`}
+          className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none ${width ? `${width} w-full` : 'max-w-xl w-full'}`}
         >
           <div className="flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
