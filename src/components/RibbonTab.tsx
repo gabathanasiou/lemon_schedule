@@ -60,9 +60,9 @@ function pvSceneStyle(scene?: { intExt?: string; dayNight?: string } | null): Re
 }
 
 const PREVIEW_SAMPLES = [
-  { intExt: 'INT', dayNight: 'DAY' },
-  { intExt: 'EXT', dayNight: 'DAY' },
-  { intExt: 'INT', dayNight: 'NIGHT' },
+  { intExt: 'INT', dayNight: 'DAY', sceneNumber: '5' },
+  { intExt: 'EXT', dayNight: 'DAY', sceneNumber: '12' },
+  { intExt: 'INT', dayNight: 'NIGHT', sceneNumber: '20A' },
 ];
 
 function cloneRows(rs: RibbonRow[]): RibbonRow[] {
@@ -669,6 +669,19 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
                 />
                 <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
+                <span className="text-[10px] text-zinc-600 shrink-0">Edge:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={12}
+                  value={activeDesign.edgePadding ?? 2}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
+                    dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
+                  }}
+                  className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+                />
+                <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
                 {/* Affix / Text editing */}
                 <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
                 {selCell && selCell.cell.field === 'text' ? (
@@ -724,6 +737,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                       fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1,
                       border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
                       display: 'flex', width: '100%', alignItems: 'stretch',
+                      paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2),
                     }} data-row={row.id}>
                       {row.cells.length === 0 ? (
                         <div className="py-3 text-center text-[10px] text-zinc-500 w-full">
@@ -886,11 +900,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   const rowStyle = pvSceneStyle(sample);
                   return (
                     <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
-                      <div className="flex-1 min-w-0 flex flex-col" style={rowStyle}>
+                      <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2) }}>
                         {rows.map((row, ri) => (
                           <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                             {row.cells.map((c, ci) => {
-                              const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                              const val = c.field === 'text' ? (c.textContent || '') : c.field === 'sceneNumber' ? sample.sceneNumber : getFieldValueFromSample(c.field);
                               const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
                               const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
                               const shortDisplay = !c.wrap && display.length <= 4;
