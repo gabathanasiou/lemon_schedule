@@ -8,7 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, ArrowLeft } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
 import DropdownMenu from './DropdownMenu';
@@ -36,6 +36,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
+  const [viewSubMenu, setViewSubMenu] = useState<string | null>(null);
   const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const handleRowDoubleClick = useCallback((id: string) => {
@@ -1126,7 +1127,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
             <div className="w-px h-4 bg-zinc-200" />
             <DropdownMenu
               open={ribbonMenuOpen}
-              onOpenChange={setRibbonMenuOpen}
+              onOpenChange={(o) => { setRibbonMenuOpen(o); if (!o) setViewSubMenu(null); }}
               width="w-48"
               trigger={
                 <button
@@ -1137,27 +1138,47 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 </button>
               }
             >
-              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Layout</div>
-              {project.ribbonDesigns.map(d => (
-              <DropdownItem
-                  key={d.id}
-                  onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
-                  icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
-                >
-                  {d.name}
-                </DropdownItem>
-              ))}
-              <DropdownDivider />
-              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">View</div>
-              {(['portrait', 'landscape', 'full'] as const).map(m => (
-                <DropdownItem
-                  key={m}
-                  onClick={() => { setViewMode(m); setRibbonMenuOpen(false); }}
-                  icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
-                >
-                  {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
-                </DropdownItem>
-              ))}
+              {viewSubMenu === 'layout' ? (
+                <>
+                  <DropdownItem onClick={() => setViewSubMenu(null)} icon={<ArrowLeft className="w-3 h-3" />}>Back</DropdownItem>
+                  <DropdownDivider />
+                  {project.ribbonDesigns.map(d => (
+                  <DropdownItem
+                      key={d.id}
+                      onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
+                      icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
+                    >
+                      {d.name}
+                    </DropdownItem>
+                  ))}
+                </>
+              ) : viewSubMenu === 'view' ? (
+                <>
+                  <DropdownItem onClick={() => setViewSubMenu(null)} icon={<ArrowLeft className="w-3 h-3" />}>Back</DropdownItem>
+                  <DropdownDivider />
+                  {(['portrait', 'landscape', 'full'] as const).map(m => (
+                    <DropdownItem
+                      key={m}
+                      onClick={() => { setViewMode(m); setRibbonMenuOpen(false); }}
+                      icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+                    >
+                      {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
+                    </DropdownItem>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <DropdownItem onClick={() => setViewSubMenu('layout')} icon={<ChevronDown className="w-3 h-3 rotate-[-90deg]" />}>
+                    <span>Ribbon Layout</span>
+                    <span className="ml-auto text-zinc-500 text-[10px]">{currentRibbonName}</span>
+                  </DropdownItem>
+                  <DropdownDivider />
+                  <DropdownItem onClick={() => setViewSubMenu('view')} icon={<ChevronDown className="w-3 h-3 rotate-[-90deg]" />}>
+                    <span>Stripboard View</span>
+                    <span className="ml-auto text-zinc-500 text-[10px]">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+                  </DropdownItem>
+                </>
+              )}
             </DropdownMenu>
             <button
               onClick={() => setTextEditingEnabled(p => !p)}
