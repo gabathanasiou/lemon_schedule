@@ -608,9 +608,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
       <MiniTab
         tabs={[
-          { id: 'scenes', label: 'Scene Breakdown' },
-          { id: 'elements', label: 'Elements' },
           { id: 'sheet', label: 'Sheet' },
+          { id: 'elements', label: 'Elements' },
+          { id: 'scenes', label: 'Scene Breakdown' },
         ]}
         activeTab={subTab}
         onChange={(id) => {
