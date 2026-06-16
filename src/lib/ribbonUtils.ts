@@ -1,3 +1,4 @@
+import React from 'react';
 import { RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef } from '../types';
 import { formatDuration } from './utils';
 
@@ -43,6 +44,29 @@ export const ALL_FIELDS: FieldDef[] = [
 
 export const FIELD_MAP = Object.fromEntries(ALL_FIELDS.map(f => [f.key, f])) as Record<string, FieldDef>;
 export const CATEGORIES = [...new Set(ALL_FIELDS.map(f => f.category))];
+
+export function getAlign(cell: RibbonCell): string {
+  if (cell.align) return cell.align;
+  return FIELD_MAP[cell.field || '']?.align || 'left';
+}
+
+export function getRibbonCellBaseStyle(cell: RibbonCell): React.CSSProperties {
+  return {
+    flex: `0 0 ${cell.width}%`,
+    minWidth: 0,
+    padding: '6px 6px',
+    overflow: cell.wrap ? 'visible' : 'hidden',
+    textOverflow: cell.wrap ? undefined : 'ellipsis',
+    whiteSpace: cell.wrap ? 'normal' : 'nowrap',
+    wordBreak: cell.wrap ? 'break-word' : undefined,
+    textAlign: getAlign(cell),
+    textTransform: cell.field === 'set' ? 'uppercase' : 'none',
+    fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+    fontSize: '8pt',
+    lineHeight: 1.1,
+    fontFamily: 'Helvetica, sans-serif',
+  };
+}
 
 export const SAMPLE: Record<string, string> = {
   sceneNumber: '5',
