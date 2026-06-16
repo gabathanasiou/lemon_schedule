@@ -92,7 +92,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${p.title}.json`;
+    a.download = `${p.title}.lemon`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -138,7 +138,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           >
             <Plus className="w-3.5 h-3.5" /> New Project
           </button>
-          <input type="file" accept=".json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
+          <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
         </ModalFooter>
       }
     >

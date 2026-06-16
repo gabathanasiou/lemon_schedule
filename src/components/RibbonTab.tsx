@@ -452,15 +452,15 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
            const url = URL.createObjectURL(blob);
            const a = document.createElement('a');
-           a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.json`;
-           a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
+            a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
+            a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
          }}
            icon={<Download className="w-3.5 h-3.5" />}>
            Export
          </DropdownItem>
          <DropdownItem onClick={() => {
            const input = document.createElement('input');
-           input.type = 'file'; input.accept = '.json';
+            input.type = 'file'; input.accept = '.ribbon,.json';
            input.onchange = () => {
              const file = input.files?.[0];
              if (!file) return;
