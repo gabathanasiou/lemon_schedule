@@ -193,7 +193,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', border: '2px solid #000', background: noteBg, color: noteFg }}>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', borderBottom: '2px solid #000', background: noteBg, color: noteFg }}>
                     {cells.map((cell, ci) => {
                       const wrapCell = ci === mainCellIdx;
                       if (wrapCell) {
@@ -255,7 +255,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             if (r.type === 'BREAK') {
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', border: '2px solid #000', background: '#591b1b', color: '#ffffff' }}>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', borderBottom: '2px solid #000', background: '#591b1b', color: '#ffffff' }}>
                     {cells.map((cell, ci) => {
                       const wrapCell = ci === mainCellIdx;
                       if (wrapCell) {
@@ -321,7 +321,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', border: '2px solid #000' }}>
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderBottom: '2px solid #000' }}>
                   {filteredRibbon && filteredRibbon.length > 0 && filteredRibbon.map((row, ri) => (
                     <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
                       {row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))}
