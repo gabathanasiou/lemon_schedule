@@ -612,130 +612,129 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
         {/* ── Canvas ── */}
         <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
+          {/* Action bar */}
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap min-h-[28px]">
+            <button
+              onClick={e => {
+                if (!selCell) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                setContextPos({ x: rect.left, y: rect.bottom });
+              }}
+              disabled={!selCell}
+              className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+              <ArrowRightLeft className="w-3 h-3" /> Change
+              <ChevronDown className="w-3 h-3 text-zinc-500" />
+            </button>
+            <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
+              className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+              <Trash2 className="w-3 h-3" /> Delete Cell
+            </button>
+            <button onClick={() => selCell && setSelId(addCell(selCell.row.id, selCell.ci))} disabled={!selCell}
+              className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+              <Plus className="w-3 h-3" /> Insert After
+            </button>
+            <div className="w-px h-4 bg-zinc-800 mx-1" />
+            <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, -1)} disabled={!selCell || (selCell?.ci === 0)}
+              className="h-7 w-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+              <ArrowLeft className="w-3 h-3" />
+            </button>
+            <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, 1)} disabled={!selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
+              className="h-7 w-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+              <ArrowRight className="w-3 h-3" />
+            </button>
+            <div className="w-px h-4 bg-zinc-800 mx-1" />
+            {(['left', 'center', 'right'] as const).map(a => {
+              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+              const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
+              return (
+                <button key={a}
+                  onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
+                  disabled={!selCell}
+                  className={`h-7 w-7 rounded-md border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                    active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                  }`}>
+                  <Icon className="w-3 h-3" />
+                </button>
+              );
+            })}
+            <div className="w-px h-4 bg-zinc-800 mx-1" />
+            <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
+              disabled={!selCell}
+              className={`h-7 w-7 rounded-md border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+              }`}>
+              <WrapText className="w-3 h-3" />
+            </button>
+            <button onClick={() => setShowGrid(g => !g)}
+              className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors ${
+                showGrid ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+              }`}>
+              <Grid3X3 className="w-3 h-3" />
+            </button>
+            {/* Cell vertical padding */}
+            <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
+            <span className="text-[10px] text-zinc-600 shrink-0">Pad:</span>
+            <input
+              type="number"
+              min={0}
+              max={24}
+              value={activeDesign.cellPadding ?? 6}
+              onChange={e => {
+                const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                dispatch({ type: 'SET_RIBBON_CELL_PADDING', payload: { id: activeDesign.id, cellPadding: v } });
+              }}
+              className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+            />
+            <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
+            <span className="text-[10px] text-zinc-600 shrink-0">Edge:</span>
+            <input
+              type="number"
+              min={0}
+              max={12}
+              value={activeDesign.edgePadding ?? 2}
+              onChange={e => {
+                const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
+                dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
+              }}
+              className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+            />
+            <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
+            {/* Affix / Text editing */}
+            <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
+            {selCell && selCell.cell.field === 'text' ? (
+              <input
+                value={selCell.cell.textContent || ''}
+                onChange={e => setTextContent(selCell.cell.id, e.target.value)}
+                placeholder="Text content..."
+                className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32 shrink-0"
+              />
+            ) : selCell && selCell.cell.field ? (
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[9px] text-zinc-600">Pfx</span>
+                <input
+                  value={selCell.cell.prefix || ''}
+                  onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
+                  placeholder=""
+                  className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                />
+                <span className="text-[9px] text-zinc-600">Sfx</span>
+                <input
+                  value={selCell.cell.suffix || ''}
+                  onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
+                  placeholder=""
+                  className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                />
+              </div>
+            ) : (
+              <div className="shrink-0" style={{ width: 170 }} />
+            )}
+          </div>
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             {/* ══ Designer ══ */}
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Designer</span>
-              </div>
-
-              {/* Action bar */}
-                <div className="flex items-center gap-1.5 mb-2 flex-wrap min-h-[28px]">
-                <button
-                  onClick={e => {
-                    if (!selCell) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setContextPos({ x: rect.left, y: rect.bottom });
-                  }}
-                  disabled={!selCell}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-                  <ArrowRightLeft className="w-3 h-3" /> Change
-                  <ChevronDown className="w-3 h-3 text-zinc-500" />
-                </button>
-                <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
-                  className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Trash2 className="w-3 h-3" /> Delete Cell
-                </button>
-                <button onClick={() => selCell && setSelId(addCell(selCell.row.id, selCell.ci))} disabled={!selCell}
-                  className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Plus className="w-3 h-3" /> Insert After
-                </button>
-                <div className="w-px h-4 bg-zinc-800 mx-1" />
-                <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, -1)} disabled={!selCell || (selCell?.ci === 0)}
-                  className="h-7 w-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                  <ArrowLeft className="w-3 h-3" />
-                </button>
-                <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, 1)} disabled={!selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
-                  className="h-7 w-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-                <div className="w-px h-4 bg-zinc-800 mx-1" />
-                {(['left', 'center', 'right'] as const).map(a => {
-                  const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-                  const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
-                  return (
-                    <button key={a}
-                      onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
-                      disabled={!selCell}
-                      className={`h-7 w-7 rounded-md border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                        active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                      }`}>
-                      <Icon className="w-3 h-3" />
-                    </button>
-                  );
-                })}
-                <div className="w-px h-4 bg-zinc-800 mx-1" />
-                <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
-                  disabled={!selCell}
-                  className={`h-7 w-7 rounded-md border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                    selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                  }`}>
-                  <WrapText className="w-3 h-3" />
-                </button>
-                <button onClick={() => setShowGrid(g => !g)}
-                  className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors ${
-                    showGrid ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                  }`}>
-                  <Grid3X3 className="w-3 h-3" />
-                </button>
-                {/* Cell vertical padding */}
-                <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
-                <span className="text-[10px] text-zinc-600 shrink-0">Pad:</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={24}
-                  value={activeDesign.cellPadding ?? 6}
-                  onChange={e => {
-                    const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                    dispatch({ type: 'SET_RIBBON_CELL_PADDING', payload: { id: activeDesign.id, cellPadding: v } });
-                  }}
-                  className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-                />
-                <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
-                <span className="text-[10px] text-zinc-600 shrink-0">Edge:</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={12}
-                  value={activeDesign.edgePadding ?? 2}
-                  onChange={e => {
-                    const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
-                    dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
-                  }}
-                  className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-                />
-                <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
-                {/* Affix / Text editing */}
-                <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
-                {selCell && selCell.cell.field === 'text' ? (
-                  <input
-                    value={selCell.cell.textContent || ''}
-                    onChange={e => setTextContent(selCell.cell.id, e.target.value)}
-                    placeholder="Text content..."
-                    className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32 shrink-0"
-                  />
-                ) : selCell && selCell.cell.field ? (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[9px] text-zinc-600">Pfx</span>
-                    <input
-                      value={selCell.cell.prefix || ''}
-                      onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
-                      placeholder=""
-                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                    />
-                    <span className="text-[9px] text-zinc-600">Sfx</span>
-                    <input
-                      value={selCell.cell.suffix || ''}
-                      onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
-                      placeholder=""
-                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                    />
-                  </div>
-                ) : (
-                  <div className="shrink-0" style={{ width: 170 }} />
-                )}
               </div>
 
               {/* Ribbon rows */}
