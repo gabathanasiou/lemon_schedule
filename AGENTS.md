@@ -228,11 +228,25 @@ All ribbon cells MUST use `getRibbonCellBaseStyle(cell, cellPadding?)` from `rib
 
 `cellPadding` is stored per `RibbonDesign` (`cellPadding?: number`, default 6), editable in the ribbon designer toolbar ("Pad:" input, 0–24px). The store action is `SET_RIBBON_CELL_PADDING`.
 
-Rendering locations that must pass `cellPadding`:
+`edgePadding` is stored per `RibbonDesign` (`edgePadding?: number`, default 2), editable in the ribbon designer toolbar ("Edge:" input, 0–12px). The store action is `SET_RIBBON_EDGE_PADDING`. Applied as `paddingTop`/`paddingBottom` on the outer scene ribbon container (not on individual cells or between rows).
+
+Rendering locations that must pass both `cellPadding` and `edgePadding`:
 - `SortableRow.tsx` (prop `cellPadding`, passed from `ScheduleTab` → `DayBlock` → `SortableRow` and `UnscheduledBlock` → `SortableRow`)
 - `PrintSchedule.tsx` → `DaySection` (prop `cellPadding`, passed from `App.tsx`)
 - `PrintDialog.tsx` (resolved from selected ribbon design)
 - `RibbonTab.tsx` (from `activeDesign.cellPadding`)
+
+### View Mode (`src/lib/persist.ts`)
+
+Shared `useViewMode()` hook returns `[mode, setMode, maxWidth]`. Persisted to localStorage (`lemon_schedule_view_mode`), default `'portrait'`.
+
+| Mode | `maxWidth` | Button label |
+|---|---|---|
+| `'portrait'` | `730px` | A4 |
+| `'landscape'` | `1060px` | A4L |
+| `'full'` | `null` | Full |
+
+Applied on the content wrapper in both `RibbonTab.tsx` and `ScheduleTab.tsx` via `style={{ maxWidth: viewWidth || undefined, ... }}`. Toggle rendered in both toolbars as a segmented button group.
 
 ## Types (`src/types.ts`)
 - `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
