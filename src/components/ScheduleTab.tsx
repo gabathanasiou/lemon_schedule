@@ -1149,7 +1149,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                   </DropdownItem>
                 ))}
               </DropdownSubmenu>
-              <DropdownDivider />
               <DropdownSubmenu label="Stripboard View" side="left" width="w-44">
                 {(['portrait', 'landscape', 'full'] as const).map(m => (
                   <DropdownItem
