@@ -18,11 +18,13 @@ import DropdownDivider from './DropdownDivider';
 import MiniTab from './MiniTab';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import { useViewMode } from '../lib/persist';
 
 export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void; onPrint?: () => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const [viewMode, setViewMode, viewWidth] = useViewMode();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -1163,6 +1165,15 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               <Pencil className="w-3.5 h-3.5 shrink-0" />
               Edit
             </button>
+            <div className="w-px h-4 bg-zinc-200" />
+            <div className="flex items-center rounded-md border border-zinc-200 overflow-hidden">
+              {(['portrait', 'landscape', 'full'] as const).map(m => (
+                <button key={m} onClick={() => setViewMode(m)}
+                  className={`h-7 px-2 text-[10px] font-medium transition-colors ${viewMode === m ? 'bg-zinc-200 text-zinc-900' : 'bg-white text-zinc-500 hover:text-zinc-700'}`}>
+                  {m === 'portrait' ? 'A4' : m === 'landscape' ? 'A4L' : 'Full'}
+                </button>
+              ))}
+            </div>
             {onPrint && (
               <button
                 onClick={onPrint}
@@ -1257,7 +1268,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
             setContextMenu(null);
           }}
         >
-          <div className="w-full max-w-4xl">
+          <div style={{ maxWidth: viewWidth || undefined, width: '100%', margin: '0 auto' }}>
                {existingDays.map((dayInt, i) => (
                 <DayBlock 
                   key={dayInt} 

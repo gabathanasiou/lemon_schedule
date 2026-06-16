@@ -22,6 +22,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
+import { useViewMode } from '../lib/persist';
 
 const FIELD_ICONS: Record<string, React.ElementType> = {
   sceneNumber: Hash, callTime: Clock, duration: Timer, intExt: MapPin,
@@ -81,6 +82,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const project = state.present;
   const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
     || { id: '', name: 'Default', rows: getDefaultRibbonRows(), createdAt: 0 };
+  const [viewMode, setViewMode, viewWidth] = useViewMode();
 
   const [selId, setSelId] = useState<string | null>(null);
   const [resizing, setResizing] = useState<{ rowId: string; ci: number; sx: number; a: number; b: number; leftSum: number; rightSum: number; n: number } | null>(null);
@@ -509,10 +511,18 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
          ))}
        </DropdownMenu>
        <div className="flex-1" />
-       <button onClick={() => commit(getDefaultRibbonRows())}
-         className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
-         <RotateCcw className="w-3 h-3" /> Reset
-       </button>
+        <button onClick={() => commit(getDefaultRibbonRows())}
+          className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
+          <RotateCcw className="w-3 h-3" /> Reset
+        </button>
+        <div className="flex items-center rounded-md border border-zinc-700 overflow-hidden ml-2">
+          {(['portrait', 'landscape', 'full'] as const).map(m => (
+            <button key={m} onClick={() => setViewMode(m)}
+              className={`h-7 px-2 text-[10px] font-medium transition-colors ${viewMode === m ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'}`}>
+              {m === 'portrait' ? 'A4' : m === 'landscape' ? 'A4L' : 'Full'}
+            </button>
+          ))}
+        </div>
      </>
    );
 
@@ -587,7 +597,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
         {/* ── Canvas ── */}
         <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
-          <div className="max-w-[960px] mx-auto space-y-6">
+          <div className="mx-auto space-y-6" style={{ maxWidth: viewWidth || undefined, width: '100%' }}>
 
             {/* ══ Designer ══ */}
             <section>
