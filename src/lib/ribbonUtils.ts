@@ -50,11 +50,11 @@ export function getAlign(cell?: RibbonCell): string {
   return FIELD_MAP[cell?.field || '']?.align || 'left';
 }
 
-export function getRibbonCellBaseStyle(cell: RibbonCell): React.CSSProperties {
+export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): React.CSSProperties {
   return {
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
-    padding: '6px 6px',
+    padding: `${cellPadding ?? 6}px 6px`,
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
@@ -180,6 +180,7 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     name: 'Default',
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
+    cellPadding: 6,
   };
 }
 

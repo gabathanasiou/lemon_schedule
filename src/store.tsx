@@ -149,6 +149,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     name: 'Default',
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
+    cellPadding: 6,
   };
   return {
     id,
@@ -234,6 +235,7 @@ type Action =
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
   | { type: 'SET_ACTIVE_RIBBON'; payload: string }
   | { type: 'RESTORE_RIBBON_FROM_TRASH'; payload: string }
+  | { type: 'SET_RIBBON_CELL_PADDING'; payload: { id: string; cellPadding: number } }
 
 interface State {
   past: Project[];
@@ -250,6 +252,7 @@ function reducer(state: State, action: Action): State {
         name: 'Default',
         rows: getDefaultRibbonRows(),
         createdAt: Date.now(),
+        cellPadding: 6,
       };
       p.ribbonDesigns = [defaultDesign];
       p.activeRibbonId = p.activeRibbonId || defaultDesign.id;
@@ -929,6 +932,14 @@ function reducer(state: State, action: Action): State {
         ribbonTrash: state.present.ribbonTrash.filter(t => t.design.id !== action.payload),
       });
     }
+
+    case 'SET_RIBBON_CELL_PADDING':
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: state.present.ribbonDesigns.map(d =>
+          d.id === action.payload.id ? { ...d, cellPadding: action.payload.cellPadding } : d
+        ),
+      });
 
     case 'RENAME_RIBBON_DESIGN':
       return applyChange({
