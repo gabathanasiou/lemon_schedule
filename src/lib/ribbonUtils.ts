@@ -54,7 +54,7 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): 
   return {
     flex: `0 0 ${cell.width}%`,
     minWidth: 0,
-    padding: `${cellPadding ?? 6}px 6px`,
+    padding: `${cellPadding ?? 6}px`,
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
