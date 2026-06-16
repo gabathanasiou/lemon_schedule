@@ -1401,7 +1401,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
 
       {/* Color Picker Modal */}
       {colorPicker && (
-        <Modal open onClose={() => setColorPicker(null)} title="Note Color" width="max-w-sm"
+        <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
           footer={
             <ModalFooter>
               <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
@@ -1409,19 +1409,19 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
             </ModalFooter>
           }
         >
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Background</span>
-              <div className="flex items-center gap-2">
-                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <input type="text" readOnly value={colorPicker.bg} className="w-20 text-[10px] text-zinc-500 font-mono bg-transparent border border-zinc-700 rounded px-1 py-0.5 outline-none select-all" />
+          <div className="p-6 space-y-5">
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-300">Background</span>
+              <div className="flex items-center gap-2.5">
+                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
+                <input type="text" readOnly value={colorPicker.bg} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400">Text</span>
-              <div className="flex items-center gap-2">
-                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <input type="text" readOnly value={colorPicker.text} className="w-20 text-[10px] text-zinc-500 font-mono bg-transparent border border-zinc-700 rounded px-1 py-0.5 outline-none select-all" />
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-300">Text Color</span>
+              <div className="flex items-center gap-2.5">
+                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
+                <input type="text" readOnly value={colorPicker.text} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
               </div>
             </div>
             <div>
