@@ -33,7 +33,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
-  const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string } | null>(null);
+  const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
 
@@ -41,7 +41,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
     if (textEditingEnabled) return;
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
+      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
     } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
       onOpenScene(row.sceneId);
     }
@@ -731,7 +731,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
       newRows.push({ ...row, id: newId, order: row.order + 0.5 });
       newRowIds.push(newId);
     } else if (action === 'change_color' && row.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff' });
+      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
@@ -763,7 +763,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const applyNoteColor = () => {
     if (!colorPicker || !activeVersion) return;
     const newRows = activeVersion.rows.map(r =>
-      r.id === colorPicker.rowId ? { ...r, noteColor: colorPicker.bg, noteTextColor: colorPicker.text } : r
+      r.id === colorPicker.rowId ? { ...r, noteColor: colorPicker.bg, noteTextColor: colorPicker.text, noteText: colorPicker.noteText } : r
     );
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setColorPicker(null);
@@ -1414,18 +1414,25 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               <span className="text-xs text-zinc-400">Background</span>
               <div className="flex items-center gap-2">
                 <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <span className="text-[10px] text-zinc-500 font-mono">{colorPicker.bg}</span>
+                <input type="text" readOnly value={colorPicker.bg} className="w-20 text-[10px] text-zinc-500 font-mono bg-transparent border border-zinc-700 rounded px-1 py-0.5 outline-none select-all" />
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-zinc-400">Text</span>
               <div className="flex items-center gap-2">
                 <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-8 h-8 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <span className="text-[10px] text-zinc-500 font-mono">{colorPicker.text}</span>
+                <input type="text" readOnly value={colorPicker.text} className="w-20 text-[10px] text-zinc-500 font-mono bg-transparent border border-zinc-700 rounded px-1 py-0.5 outline-none select-all" />
               </div>
             </div>
-            <div className="text-xs text-zinc-300 px-3 py-2 rounded border border-zinc-800" style={{ background: colorPicker.bg, color: colorPicker.text }}>
-              Preview text
+            <div>
+              <textarea
+                value={colorPicker.noteText}
+                onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
+                rows={3}
+                className="w-full text-xs px-3 py-2 rounded border border-zinc-800 outline-none focus:border-zinc-600 resize-none"
+                style={{ background: colorPicker.bg, color: colorPicker.text }}
+                placeholder="Banner text..."
+              />
             </div>
           </div>
         </Modal>
