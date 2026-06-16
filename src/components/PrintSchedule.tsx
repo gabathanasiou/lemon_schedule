@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell } from '../types';
-import { getFieldValue } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
 function filterColumns(cells: RibbonCell[], showTimes: boolean, showDurations: boolean): RibbonCell[] {
@@ -166,21 +166,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = (cell: RibbonCell): React.CSSProperties => ({
-    flex: `0 0 ${cell.width}%`,
-    minWidth: 0,
-    textAlign: cell.align || 'left',
-    padding: '6pt 6pt',
-    overflow: cell.wrap ? 'visible' : 'hidden',
-    textOverflow: cell.wrap ? undefined : 'ellipsis',
-    whiteSpace: cell.wrap ? 'normal' : 'nowrap',
-    wordBreak: cell.wrap ? 'break-word' : undefined,
-    textTransform: cell.field === 'set' ? 'uppercase' : 'none',
-    fontWeight: 500,
-    fontSize: '8pt',
-    lineHeight: 1.1,
-    fontFamily: 'Helvetica, sans-serif',
-  });
+  const cellPrintStyle = getRibbonCellBaseStyle;
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
