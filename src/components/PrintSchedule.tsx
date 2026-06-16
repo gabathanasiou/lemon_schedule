@@ -156,7 +156,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     });
   }, [ribbon, showTimes, showDurations]);
   const noteBreakPad = Math.max(6, (ribbon?.length || 2) * 12 - 6);
-  const noteBreakPadPt = `${noteBreakPad}pt 6pt`;
+  const noteBreakPadPx = `${noteBreakPad}px 6px`;
   const mainCellIdx = cells ? (() => {
     const nonSpecial = cells
       .map((c, i) => ({i, w: c.width, f: c.field}))
@@ -201,7 +201,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: noteBreakPadPt,
+                            padding: noteBreakPadPx,
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -229,7 +229,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           flex: `0 0 ${cell.width}%`,
                           textAlign: cell.align || 'left',
-                           padding: noteBreakPadPt,
+                           padding: noteBreakPadPx,
                            overflow: 'hidden',
                            whiteSpace: 'nowrap',
                            textOverflow: 'ellipsis',
@@ -274,7 +274,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                           <div key={cell.id} style={{
                             flex: `0 0 ${cell.width}%`,
                             textAlign: 'center',
-                            padding: noteBreakPadPt,
+                            padding: noteBreakPadPx,
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
@@ -302,7 +302,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           flex: `0 0 ${cell.width}%`,
                           textAlign: cell.align || 'left',
-                           padding: noteBreakPadPt,
+                           padding: noteBreakPadPx,
                            overflow: 'hidden',
                            whiteSpace: 'nowrap',
                            textOverflow: 'ellipsis',
