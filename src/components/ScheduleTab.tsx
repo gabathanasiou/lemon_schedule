@@ -37,6 +37,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const handleRowDoubleClick = useCallback((id: string) => {
@@ -1166,14 +1167,28 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               Edit
             </button>
             <div className="w-px h-4 bg-zinc-200" />
-            <div className="flex items-center rounded-md border border-zinc-200 overflow-hidden">
-              {(['portrait', 'landscape', 'full'] as const).map(m => (
-                <button key={m} onClick={() => setViewMode(m)}
-                  className={`h-7 px-2 text-[10px] font-medium transition-colors ${viewMode === m ? 'bg-zinc-200 text-zinc-900' : 'bg-white text-zinc-500 hover:text-zinc-700'}`}>
-                  {m === 'portrait' ? 'A4' : m === 'landscape' ? 'A4L' : 'Full'}
+            <DropdownMenu
+              open={viewMenuOpen}
+              onOpenChange={setViewMenuOpen}
+              width="w-40"
+              trigger={
+                <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900">
+                  <span className="text-zinc-400 font-normal">View:</span>
+                  <span className="font-medium">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+                  <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
                 </button>
+              }
+            >
+              {(['portrait', 'landscape', 'full'] as const).map(m => (
+                <DropdownItem
+                  key={m}
+                  onClick={() => { setViewMode(m); setViewMenuOpen(false); }}
+                  icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+                >
+                  {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
+                </DropdownItem>
               ))}
-            </div>
+            </DropdownMenu>
             {onPrint && (
               <button
                 onClick={onPrint}
