@@ -1125,7 +1125,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               </span>
             )}
             <div className="w-px h-4 bg-zinc-200" />
-            <DropdownMenu
+              <DropdownMenu
               open={ribbonMenuOpen}
               onOpenChange={setRibbonMenuOpen}
               width="w-44"
@@ -1133,7 +1133,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 <button
                   className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
                 >
-                  <span className="text-zinc-400 font-normal">Ribbons:</span>
+                  <span className="text-zinc-400 font-normal">Layout:</span>
                   <span className="font-medium">{currentRibbonName}</span>
                   <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
                 </button>
