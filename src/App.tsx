@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from 'react';
 import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, Project } from './types';
@@ -104,7 +104,7 @@ function AppContent() {
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ opacity: 0, background: '#ffffff' });
   const [hoveredTopTab, setHoveredTopTab] = useState<string | null>(null);
   const [hoverTopTabStyle, setHoverTopTabStyle] = useState<React.CSSProperties>({});
   const project = state.present;
@@ -126,7 +126,7 @@ function AppContent() {
     setTopTabOverlayStyle({ left, width, opacity: 1, transform: 'translateY(0)', background: bg, ...borders });
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = topTabRefs.current.get(activeTab);
     if (!el) return;
     const ro = new ResizeObserver(() => measureTopOverlay());
