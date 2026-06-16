@@ -30,6 +30,12 @@ function formatDayDateShort(dateStr: string): string {
   return `${weekday}, ${day}${suffix}`;
 }
 
+const PREVIEW_SAMPLES = [
+  { intExt: 'INT', dayNight: 'DAY' },
+  { intExt: 'EXT', dayNight: 'DAY' },
+  { intExt: 'INT', dayNight: 'NIGHT' },
+];
+
 export interface PrintOptions {
   showTimes: boolean;
   showDurations: boolean;
@@ -85,7 +91,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const ribbonDesigns = project.ribbonDesigns || [];
 
   return (
-    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-7xl"
+    <Modal open onClose={onClose} title="Print Schedule" icon={<Printer className="w-4 h-4" />} width="max-w-3xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -145,30 +151,39 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               const rows = design?.rows ?? getDefaultRibbonRows();
               const cellPadding = design?.cellPadding;
               if (!rows) return null;
-              const sample = { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' };
-              const sc = sceneStyle(sample.intExt, sample.dayNight);
               return (
-                <div className="border border-zinc-700 rounded overflow-hidden" style={{ background: sc.bg, color: sc.fg, fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1 }}>
-                  <div className="flex flex-col min-w-0">
-                    {rows.map((row, ri) => (
-                      <div key={row.id || ri} className="flex min-w-0" style={ri < rows.length - 1 ? { borderBottom: `1px solid ${sc.fg}20` } : {}}>
-                        {row.cells.map((c, ci) => {
-                          const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                          const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
-                          const fieldLabel = FIELD_MAP[c.field]?.label || catLabel || '';
-                          const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
-                          return (
-                            <div key={c.id} style={{
-                              ...getRibbonCellBaseStyle(c, cellPadding),
-                              borderRight: ci < row.cells.length - 1 ? `1px solid ${sc.fg}20` : 'none',
-                            }}>
-                              {display || ''}
+                <div style={{
+                  fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000', overflow: 'hidden',
+                }}>
+                  {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
+                    const rowStyle = sceneStyle(sample.intExt, sample.dayNight);
+                    return (
+                      <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
+                        <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.bg, color: rowStyle.fg }}>
+                          {rows.map((row, ri) => (
+                            <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
+                              {row.cells.map((c, ci) => {
+                                const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
+                                const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
+                                const fieldLabel = FIELD_MAP[c.field]?.label || catLabel || '';
+                                const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
+                                const shortDisplay = !c.wrap && display.length <= 4;
+                                return (
+                                  <div key={c.id} style={{
+                                    ...getRibbonCellBaseStyle(c, cellPadding),
+                                    borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
+                                    textOverflow: shortDisplay ? 'clip' : 'ellipsis',
+                                  }}>
+                                    {display || ''}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               );
             })()}
