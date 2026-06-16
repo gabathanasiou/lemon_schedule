@@ -324,7 +324,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderBottom: '2px solid #000', paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2 }}>
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderBottom: '2px solid #000', paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
                   {filteredRibbon && filteredRibbon.length > 0 && filteredRibbon.map((row, ri) => (
                     <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
                       {row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))}

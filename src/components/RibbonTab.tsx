@@ -737,7 +737,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                       fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1,
                       border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
                       display: 'flex', width: '100%', alignItems: 'stretch',
-                      paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2),
+                      paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2),
                     }} data-row={row.id}>
                       {row.cells.length === 0 ? (
                         <div className="py-3 text-center text-[10px] text-zinc-500 w-full">
@@ -900,7 +900,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   const rowStyle = pvSceneStyle(sample);
                   return (
                     <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
-                      <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2) }}>
+                      <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2) }}>
                         {rows.map((row, ri) => (
                           <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                             {row.cells.map((c, ci) => {

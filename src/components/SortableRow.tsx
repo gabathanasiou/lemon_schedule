@@ -729,7 +729,7 @@ export const SortableRow: React.FC<{
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
-            <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2 }}>
+            <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               {ribbon.map((row, ri) => (
                 <div key={row.id || ri} className="flex w-full min-h-0">
                   {row.cells.map((c, ci) => renderCellFlex(c, ci === row.cells.length - 1))}
