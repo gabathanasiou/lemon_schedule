@@ -8,13 +8,14 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import HelpModal from './HelpModal';
 import MiniTab from './MiniTab';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -38,6 +39,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   const handleRowDoubleClick = useCallback((id: string) => {
     if (textEditingEnabled) return;
@@ -1162,6 +1164,13 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               </DropdownSubmenu>
             </DropdownMenu>
             <button
+              onClick={() => setShowHelp(true)}
+              className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
+              title="Keyboard Shortcuts & Help"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setTextEditingEnabled(p => !p)}
               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
             >
@@ -1443,6 +1452,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
           </div>
         </Modal>
       )}
+      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </DndContext>
   </div>
 );

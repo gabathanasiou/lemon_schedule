@@ -265,3 +265,7 @@ This rule applies to `SortableRow.tsx:updateScene` (the auto-register check), `s
 - `ScheduleRow`: `{ id, type: 'SCENE'|'BREAK'|'NOTE', sceneId?, shootDay?, order, estimatedDuration? }`
 - `ScheduleVersion`: `{ id, name, rows: ScheduleRow[], dayMeta: Record<number, ShootDayMeta> }`
 - `Project`: `{ id, title, scenes: Scene[], versions: ScheduleVersion[], activeVersionId, rules: ProjectRule[], castMembers: CastMember[] }`
+
+### Help Modal (`src/components/HelpModal.tsx`)
+
+When adding any new keyboard shortcut, control, or interaction to the schedule stripboard, you MUST update `HelpModal.tsx` to document it. The modal is organized by category sections using `<Section>`, `<Row>`, and `<Kbd>` components. Use Unicode symbols for keyboard keys: `⌘` (Cmd), `⌥` (Opt/Alt), `⇧` (Shift), `⌫` (Delete/Backspace), `⏎` (Enter), `⎋` (Esc), `↹` (Tab).
