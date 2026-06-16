@@ -1149,14 +1149,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 </DropdownItem>
               ))}
             </DropdownMenu>
-            <button
-              onClick={() => setTextEditingEnabled(p => !p)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 text-white' : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'}`}
-            >
-              <Pencil className="w-3.5 h-3.5 shrink-0" />
-              Edit
-            </button>
-            <div className="w-px h-4 bg-zinc-200" />
             <DropdownMenu
               open={viewMenuOpen}
               onOpenChange={setViewMenuOpen}
@@ -1179,6 +1171,13 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 </DropdownItem>
               ))}
             </DropdownMenu>
+            <button
+              onClick={() => setTextEditingEnabled(p => !p)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+            >
+              <Pencil className="w-3.5 h-3.5 shrink-0" />
+              Edit
+            </button>
             {onPrint && (
               <button
                 onClick={onPrint}
