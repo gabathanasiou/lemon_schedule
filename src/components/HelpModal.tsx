@@ -80,7 +80,6 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>0</Kbd> – <Kbd>9</Kbd></>} action="Quick-schedule: type day number for selected unscheduled ribbons" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit digit buffer immediately (during quick-schedule)" />
           <Row keys={<>Drag & drop</>} action="Move ribbons between days or reorder within a day" />
-          <Row keys={<>Drag day header</>} action="Reorder entire days (swaps ribbons and metadata)" />
         </Section>
 
         <Section title="Cut, Paste & Delete">
