@@ -3,7 +3,7 @@
  *
  * IMPORTANT: When adding new controls, shortcuts, or interactions to the stripboard,
  * update this modal to reflect them. Each section is a category; add new rows as needed.
- * Use Unicode symbols in `<kbd>` elements for keyboard keys.
+ * Use Unicode symbols in `<Kbd>` elements for keyboard keys.
  */
 
 import React from 'react';
@@ -19,15 +19,17 @@ const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div>
     <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-2">{title}</h3>
-    <div className="space-y-1.5">{children}</div>
+    <table className="w-full text-xs">
+      <tbody>{children}</tbody>
+    </table>
   </div>
 );
 
 const Row: React.FC<{ keys: React.ReactNode; action: string }> = ({ keys, action }) => (
-  <div className="flex items-start gap-3 text-xs">
-    <div className="flex items-center gap-1 shrink-0 min-w-[100px]">{keys}</div>
-    <span className="text-zinc-400">{action}</span>
-  </div>
+  <tr className="border-b border-zinc-800/50 last:border-b-0">
+    <td className="py-1.5 pr-3 text-zinc-300 whitespace-nowrap align-top w-[130px]">{keys}</td>
+    <td className="py-1.5 text-zinc-400">{action}</td>
+  </tr>
 );
 
 interface HelpModalProps {
@@ -37,7 +39,7 @@ interface HelpModalProps {
 
 export default function HelpModal({ open, onClose }: HelpModalProps) {
   return (
-    <Modal open={open} onClose={onClose} title="Stripboard Controls" width="max-w-lg"
+    <Modal open={open} onClose={onClose} title="Stripboard Controls" width="max-w-xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">
@@ -79,7 +81,6 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit digit buffer immediately (during quick-schedule)" />
           <Row keys={<>Drag & drop</>} action="Move rows between days or reorder within a day" />
           <Row keys={<>Drag day header</>} action="Reorder entire days (swaps rows and metadata)" />
-          <Row keys={<><Kbd>⇧</Kbd> + Drag</>} action="Not yet implemented (range select only)" />
         </Section>
 
         <Section title="Cut, Paste & Delete">
