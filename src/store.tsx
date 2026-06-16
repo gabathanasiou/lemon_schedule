@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
-import { getDefaultRibbonRows, cid } from './lib/ribbonUtils';
+import { getDefaultRibbonRows, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -183,6 +183,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     sceneRibbon: SCENE_RIBBON_DEFAULTS,
     ribbonDesigns: [defaultDesign],
     activeRibbonId: defaultDesign.id,
+    colorPalette: DEFAULT_COLOR_PALETTE,
   };
 }
 
@@ -238,6 +239,7 @@ type Action =
   | { type: 'RESTORE_RIBBON_FROM_TRASH'; payload: string }
   | { type: 'SET_RIBBON_CELL_PADDING'; payload: { id: string; cellPadding: number } }
   | { type: 'SET_RIBBON_EDGE_PADDING'; payload: { id: string; edgePadding: number } }
+  | { type: 'SET_COLOR_PALETTE'; payload: SceneColorPalette }
 
 interface State {
   past: Project[];
@@ -264,6 +266,7 @@ function reducer(state: State, action: Action): State {
       past: [],
       present: {
         ...p,
+        colorPalette: p.colorPalette || DEFAULT_COLOR_PALETTE,
         breakdownElements: p.breakdownElements || {},
         customCategories: p.customCategories || [],
         elementsTrash: p.elementsTrash || [],
@@ -969,6 +972,12 @@ function reducer(state: State, action: Action): State {
       return applyChange({
         ...state.present,
         activeRibbonId: action.payload,
+      });
+
+    case 'SET_COLOR_PALETTE':
+      return applyChange({
+        ...state.present,
+        colorPalette: action.payload,
       });
 
     default:

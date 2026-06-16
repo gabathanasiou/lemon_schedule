@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors } from '../lib/ribbonUtils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
@@ -138,9 +138,12 @@ export const SortableRow: React.FC<{
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
+  const nb = getNoteBannerColors(state.present.colorPalette);
+  const sel = getSelectedStripColors(state.present.colorPalette);
+
   if (row.type === 'NOTE') {
-    const noteStyle: React.CSSProperties = { background: row.noteColor || '#591b1b', color: row.noteTextColor || '#ffffff' };
-    if (isSelected && !isFaded) { noteStyle.background = '#FF4013'; noteStyle.color = '#ffffff'; }
+    const noteStyle: React.CSSProperties = { background: row.noteColor || nb.background, color: row.noteTextColor || nb.color };
+    if (isSelected && !isFaded) { noteStyle.background = sel.background; noteStyle.color = sel.color; }
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
@@ -265,8 +268,8 @@ export const SortableRow: React.FC<{
   }
 
   if (row.type === 'BREAK') {
-    const breakStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
-    if (isSelected && !isFaded) { breakStyle.background = '#FF4013'; breakStyle.color = '#ffffff'; }
+    const breakStyle: React.CSSProperties = { background: nb.background, color: nb.color };
+    if (isSelected && !isFaded) { breakStyle.background = sel.background; breakStyle.color = sel.color; }
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
@@ -704,10 +707,10 @@ export const SortableRow: React.FC<{
   };
 
   if (scene) {
-    const rowStyle = sceneStyle(scene);
+    const rowStyle = sceneStyle(scene, state.present.colorPalette?.sceneColors);
     if (isSelected && !isFaded) {
-      rowStyle.background = '#FF4013';
-      rowStyle.color = '#ffffff';
+      rowStyle.background = sel.background;
+      rowStyle.color = sel.color;
     }
 
     // ── Ribbon-based rendering (non-compact) ──

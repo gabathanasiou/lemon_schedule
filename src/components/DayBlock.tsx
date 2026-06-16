@@ -7,31 +7,22 @@ import { SortableRow } from './SortableRow';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { Trash2, Flag } from 'lucide-react';
-import { ScheduleRow, ShootDayMeta, Scene, RibbonRow } from '../types';
-import { getFieldValue, FIELD_MAP } from '../lib/ribbonUtils';
+import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette } from '../types';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
 
-const sceneCardClass = (scene?: Scene | null): string => {
-  if (!scene) return 'bg-white text-zinc-900';
-  const intExt = (scene.intExt || '').toUpperCase();
-  const dayNight = (scene.dayNight || '').toUpperCase();
-  if (intExt.includes('INT') && dayNight.includes('DAY')) return 'bg-[#FFFFFF] text-[#464646]';
-  if (intExt.includes('EXT') && dayNight.includes('DAY')) return 'bg-[#BDD857] text-[#000000]';
-  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return 'bg-[#67832E] text-[#F2FCE3]';
-  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return 'bg-[#2148A7] text-[#FFFFFF]';
-  if (intExt.includes('INT') && dayNight.includes('MORNING')) return 'bg-[#EFBEA0] text-[#4A3730]';
-  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return 'bg-[#E88AA5] text-[#FFFFFF]';
-  if (intExt.includes('INT') && dayNight.includes('EVENING')) return 'bg-[#E29926] text-[#000000]';
-  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return 'bg-[#CE7D21] text-[#000000]';
-  return 'bg-white text-zinc-900';
-};
+function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
+  if (!scene) return { background: '#ffffff', color: '#18181b' };
+  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
+}
 
-const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[] }> = ({ row, scenes, compact, ribbon }) => {
+const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[]; palette?: SceneColorPalette }> = ({ row, scenes, compact, ribbon, palette }) => {
   const h = compact ? 'min-h-[30px]' : 'min-h-[44px]';
   const sz = compact ? 'text-[7pt]' : '';
+  const noteColors = getNoteBannerColors(palette);
   if (row.type === 'NOTE') {
-    const bg = row.noteColor || '#591b1b';
-    const fg = row.noteTextColor || '#ffffff';
+    const bg = row.noteColor || noteColors.background;
+    const fg = row.noteTextColor || noteColors.color;
     return (
       <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: bg, color: fg }}>
         <div className="flex-1 flex items-center justify-center px-3 italic">{row.noteText || 'Note'}</div>
@@ -41,7 +32,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
 
   if (row.type === 'BREAK') {
     return (
-      <div className={`opacity-30 flex items-stretch bg-[#591b1b] text-white ${h} border-b shrink-0 ${sz}`}>
+      <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: noteColors.background, color: noteColors.color }}>
         <div className="flex-1 flex items-center justify-center px-3">{row.breakLabel || 'BREAK'}</div>
       </div>
     );
@@ -52,9 +43,10 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
 
   if (ribbon && ribbon.length > 0 && ribbon[0].cells.length > 0) {
     const cells = ribbon[0].cells;
+    const sc = getSceneCardStyle(scene, palette);
     return (
-      <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz} ${sceneCardClass(scene)}`}
-        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
+      <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz}`}
+        style={{ ...sc, fontFamily: 'Helvetica, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
         {cells.map(c => {
           const val = c.field === 'text' ? (c.textContent || '') : getFieldValue(c.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
           const label = FIELD_MAP[c.field]?.label || c.field;
@@ -76,7 +68,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   }
 
   return (
-    <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz} ${sceneCardClass(scene)}`}>
+    <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz}`} style={getSceneCardStyle(scene, palette)}>
       <div className={`flex items-center justify-center shrink-0 px-1 border-r border-black/10 ${compact ? 'w-[30px]' : 'w-[50px]'}`}>{scene.sceneNumber}</div>
       <div className="flex-1 flex items-center px-3 gap-1 min-w-0">
         <span className="uppercase shrink-0">{scene.intExt}.</span>
@@ -88,15 +80,15 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   );
 };
 
-export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; ribbon?: RibbonRow[] }> = ({ rows, scenes, ribbon }) => {
+export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; ribbon?: RibbonRow[]; palette?: SceneColorPalette }> = ({ rows, scenes, ribbon, palette }) => {
   if (rows.length === 0) return null;
-  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} ribbon={ribbon} />;
+  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} ribbon={ribbon} palette={palette} />;
   const maxShow = Math.min(rows.length, 5);
   const rest = rows.length - maxShow;
   return (
     <div className="flex flex-col shrink-0">
       {rows.slice(0, maxShow).map((r, i) => (
-        <GhostCard key={r.id} row={r} scenes={scenes} compact ribbon={ribbon} />
+        <GhostCard key={r.id} row={r} scenes={scenes} compact ribbon={ribbon} palette={palette} />
       ))}
       {rest > 0 && (
         <div className="opacity-30 flex items-center justify-center min-h-[30px] bg-zinc-100 text-zinc-500 text-[10px] font-bold border-b shrink-0">
@@ -192,10 +184,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     lineHeight: '1.2',
   };
 
+  const dhColors = getDayHeaderColors(project.colorPalette);
+
   if (isStatusDay) {
     return (
       <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black border-b-dashed border-b-zinc-300">
-        <div className="bg-black text-white">
+        <div style={{ background: dhColors.background, color: dhColors.color }}>
           <table className="schedule-table">
             <tbody>
               <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
@@ -225,7 +219,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
       {/* Day Ribbon Banner */}
-      <div className="bg-black text-white">
+      <div style={{ background: dhColors.background, color: dhColors.color }}>
         <table className="schedule-table">
           <tbody>
             <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
@@ -278,14 +272,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} palette={project.colorPalette} />
         )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {computedRows.map((r) => {
             return (
               <React.Fragment key={r.id}>
                 {showGhosts && insertBeforeId === r.id && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
+                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} palette={project.colorPalette} />
                 )}
                 <SortableRow 
                   row={r} 
@@ -318,7 +312,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       {/* Day Footer */}
       <>
         {showGhosts && insertBeforeId === `end-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} />
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} palette={project.colorPalette} />
         )}
         <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
           style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>

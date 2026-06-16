@@ -110,6 +110,23 @@ export interface RuleViolation {
   sceneIds?: string[];
 }
 
+export interface SceneColorEntry {
+  intExt: string;
+  dayNight: string;
+  background: string;
+  text: string;
+}
+
+export interface SceneColorPalette {
+  sceneColors: SceneColorEntry[];
+  selectedStripBg: string;
+  selectedStripText: string;
+  dayHeaderBg: string;
+  dayHeaderText: string;
+  noteBg: string;
+  noteText: string;
+}
+
 export interface CastMember {
   id: string;
   name: string;
@@ -204,4 +221,5 @@ export interface Project {
   sceneRibbon: SceneRibbonColumn[];
   ribbonDesigns: RibbonDesign[];
   activeRibbonId: string;
+  colorPalette?: SceneColorPalette;
 }

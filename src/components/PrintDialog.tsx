@@ -4,22 +4,8 @@ import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor } from '../lib/ribbonUtils';
 import { useViewMode } from '../lib/persist';
-
-function sceneStyle(intExt?: string, dayNight?: string): { bg: string; fg: string } {
-  const ie = (intExt || '').toUpperCase();
-  const dn = (dayNight || '').toUpperCase();
-  if (ie.includes('INT') && dn.includes('DAY')) return { bg: '#ffffff', fg: '#464646' };
-  if (ie.includes('EXT') && dn.includes('DAY')) return { bg: '#bdd857', fg: '#000000' };
-  if (ie.includes('INT') && dn.includes('NIGHT')) return { bg: '#67832e', fg: '#f2fce3' };
-  if (ie.includes('EXT') && dn.includes('NIGHT')) return { bg: '#2148a7', fg: '#ffffff' };
-  if (ie.includes('INT') && dn.includes('MORNING')) return { bg: '#efbea0', fg: '#4a3730' };
-  if (ie.includes('EXT') && dn.includes('MORNING')) return { bg: '#e88aa5', fg: '#ffffff' };
-  if (ie.includes('INT') && dn.includes('EVENING')) return { bg: '#e29926', fg: '#000000' };
-  if (ie.includes('EXT') && dn.includes('EVENING')) return { bg: '#ce7d21', fg: '#000000' };
-  return { bg: '#ffffff', fg: '#18181b' };
-}
 
 function formatDayDateShort(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -192,10 +178,10 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000', overflow: 'hidden', maxWidth: viewWidth || undefined, margin: '0 auto',
                 }}>
                   {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
-                    const rowStyle = sceneStyle(sample.intExt, sample.dayNight);
+                    const rowStyle = resolveSceneColor(sample.intExt, sample.dayNight, project.colorPalette?.sceneColors);
                     return (
                       <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
-                        <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.bg, color: rowStyle.fg, paddingTop: design?.edgePadding ?? 2, paddingBottom: design?.edgePadding ?? 2, paddingLeft: design?.edgePadding ?? 2, paddingRight: design?.edgePadding ?? 2 }}>
+                        <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.background, color: rowStyle.color, paddingTop: design?.edgePadding ?? 2, paddingBottom: design?.edgePadding ?? 2, paddingLeft: design?.edgePadding ?? 2, paddingRight: design?.edgePadding ?? 2 }}>
                           {rows.map((row, ri) => (
                             <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                               {row.cells.map((c, ci) => {

@@ -5,7 +5,7 @@ import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   normalizeCells, getFieldValueFromSample, getDefaultRibbonRows, cid, MIN_PCT,
-  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, resolveSceneColor,
 } from '../lib/ribbonUtils';
 import {
   Hash, Clock, Timer, MapPin, Building2, Sun, Users, FileText, AlignLeft,
@@ -45,21 +45,6 @@ function getCustomIcon(name: string): React.ElementType {
 }
 
 const PREVIEW_STYLE = { bg: '#ffffff', fg: '#464646' };
-
-function pvSceneStyle(scene?: { intExt?: string; dayNight?: string } | null): React.CSSProperties {
-  if (!scene) return { background: '#ffffff', color: '#18181b' };
-  const intExt = (scene.intExt || '').toUpperCase();
-  const dayNight = (scene.dayNight || '').toUpperCase();
-  if (intExt.includes('INT') && dayNight.includes('DAY')) return { background: '#ffffff', color: '#464646' };
-  if (intExt.includes('EXT') && dayNight.includes('DAY')) return { background: '#bdd857', color: '#000000' };
-  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return { background: '#67832e', color: '#f2fce3' };
-  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return { background: '#2148a7', color: '#ffffff' };
-  if (intExt.includes('INT') && dayNight.includes('MORNING')) return { background: '#efbea0', color: '#4a3730' };
-  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return { background: '#e88aa5', color: '#ffffff' };
-  if (intExt.includes('INT') && dayNight.includes('EVENING')) return { background: '#e29926', color: '#000000' };
-  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return { background: '#ce7d21', color: '#000000' };
-  return { background: '#ffffff', color: '#18181b' };
-}
 
 const PREVIEW_SAMPLES = [
   { intExt: 'INT', dayNight: 'DAY', sceneNumber: '5' },
@@ -946,7 +931,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
-                  const rowStyle = pvSceneStyle(sample);
+                  const rowStyle = resolveSceneColor(sample.intExt || '', sample.dayNight || '', project.colorPalette?.sceneColors);
                   return (
                     <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                       <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2) }}>

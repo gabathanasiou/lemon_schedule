@@ -1,16 +1,13 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
-import { Scene, IntExt, DayNight } from '../types';
+import { Scene } from '../types';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
 import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
-import { sceneStyle } from '../lib/ribbonUtils';
-
-const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
-const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+import { sceneStyle, INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -314,7 +311,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {
-        const colors = sceneStyle(scene);
+        const colors = sceneStyle(scene, project.colorPalette?.sceneColors);
         return (
           <div
             className="shrink-0 w-full flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none"

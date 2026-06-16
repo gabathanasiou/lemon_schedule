@@ -11,6 +11,7 @@ import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
 import { RulesTab } from './components/RulesTab';
+import DesignTab from './components/DesignTab';
 import { ProjectManager } from './components/ProjectManager';
 import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
@@ -42,8 +43,8 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject } = useProject();
   const dialog = useDialog();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'rules' | 'reports'>('breakdown');
-  const [scheduleSubTab, setScheduleSubTab] = useState<'stripboard' | 'ribbons'>('stripboard');
+  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
+  const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('colors');
   const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('scenes');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
@@ -65,7 +66,6 @@ function AppContent() {
 
   const handleOpenScheduleAtScene = useCallback((sceneId: string) => {
     setActiveTab('schedule');
-    setScheduleSubTab('stripboard');
     setScheduleTargetScene(sceneId);
   }, []);
 
@@ -118,7 +118,7 @@ function AppContent() {
     if (!el || !container) return;
     const cr = container.getBoundingClientRect();
     const er = el.getBoundingClientRect();
-    const isDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
+    const isDark = activeTab === 'reports' || activeTab === 'design';
     const left = er.left - cr.left;
     const width = er.width;
     const bg = isDark ? '#18181b' : '#ffffff';
@@ -133,9 +133,9 @@ function AppContent() {
     ro.observe(el);
     measureTopOverlay();
     return () => ro.disconnect();
-  }, [activeTab, scheduleSubTab]);
+  }, [activeTab, designSubTab]);
 
-  const topTabIsDark = activeTab === 'reports' || (activeTab === 'schedule' && scheduleSubTab === 'ribbons');
+  const topTabIsDark = activeTab === 'reports' || activeTab === 'design';
 
   const updateTopHover = (tabId: string | null) => {
     setHoveredTopTab(tabId);
@@ -404,6 +404,7 @@ function AppContent() {
             <input 
               value={project.title} 
               onChange={e => dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}})}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
           </div>
@@ -477,6 +478,15 @@ function AppContent() {
                 </button>
               </DropdownMenu>
             )}
+            <button 
+              ref={el => { if (el) topTabRefs.current.set('design', el); }}
+              onMouseEnter={() => updateTopHover('design')}
+              onMouseLeave={() => updateTopHover(null)}
+              onClick={() => setActiveTab('design')}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+            >
+              <span className="relative">Design</span>
+            </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('rules', el); }}
               onMouseEnter={() => updateTopHover('rules')}
@@ -624,7 +634,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px">
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
       </main>
 
       {showTrash && (

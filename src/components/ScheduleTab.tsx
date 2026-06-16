@@ -10,18 +10,16 @@ import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import RibbonTab from './RibbonTab';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
-import MiniTab from './MiniTab';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode } from '../lib/persist';
 
-export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
+export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -39,7 +37,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint, targ
   const [forceUnscheduledExpanded, setForceUnscheduledExpanded] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
-  const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
   const handleRowDoubleClick = useCallback((id: string) => {
@@ -1115,36 +1112,11 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint, targ
       : [activeDragRow!].filter(Boolean);
   })();
 
-  if (subTab === 'ribbons') {
-    return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <MiniTab
-          theme="dark"
-          tabs={[
-            { id: 'stripboard', label: 'Stripboard' },
-            { id: 'ribbons', label: 'Ribbon Designer' },
-          ]}
-          activeTab={subTab}
-          onChange={onSubTabChange}
-          rightContent={<div ref={setRibbonPortalTarget} className="flex items-center gap-2" />}
-        />
-        <div className="flex-1 flex overflow-hidden bg-zinc-950"><RibbonTab headerTarget={ribbonPortalTarget} /></div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <MiniTab
-        theme="light"
-        tabs={[
-          { id: 'stripboard', label: 'Stripboard' },
-          { id: 'ribbons', label: 'Ribbon Designer' },
-        ]}
-        activeTab={subTab}
-        onChange={onSubTabChange}
-        rightContent={
-          <>
+      <div className="flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
+        <span className="text-xs font-semibold text-zinc-500">Stripboard</span>
+        <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
             <span className="text-zinc-300 select-none">·</span>
             <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
@@ -1214,9 +1186,8 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint, targ
                 Print
               </button>
             )}
-          </>
-        }
-      />
+          </div>
+        </div>
       <style>{`
         .schedule-table {
           width: 100%;

@@ -11,6 +11,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import MiniTab from './MiniTab';
+import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -28,9 +29,6 @@ const ACTIONS_COL = 0;
 const INT_EXT_COL = 3;
 const DAY_NIGHT_COL = 5;
 const CAST_COL = 8;
-
-const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
-const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule }: {
  subTab: 'scenes' | 'elements' | 'sheet';

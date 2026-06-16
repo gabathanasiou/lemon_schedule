@@ -1,20 +1,80 @@
 import React from 'react';
-import { Scene, RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef } from '../types';
+import { Scene, RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef, SceneColorEntry, SceneColorPalette, IntExt, DayNight } from '../types';
 import { formatDuration } from './utils';
 
-export function sceneStyle(scene?: Scene | null): React.CSSProperties {
-  if (!scene) return { background: '#ffffff', color: '#18181b' };
-  const intExt = (scene.intExt || '').toUpperCase();
-  const dayNight = (scene.dayNight || '').toUpperCase();
-  if (intExt.includes('INT') && dayNight.includes('DAY')) return { background: '#ffffff', color: '#464646' };
-  if (intExt.includes('EXT') && dayNight.includes('DAY')) return { background: '#bdd857', color: '#000000' };
-  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return { background: '#67832e', color: '#f2fce3' };
-  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return { background: '#2148a7', color: '#ffffff' };
-  if (intExt.includes('INT') && dayNight.includes('MORNING')) return { background: '#efbea0', color: '#4a3730' };
-  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return { background: '#e88aa5', color: '#ffffff' };
-  if (intExt.includes('INT') && dayNight.includes('EVENING')) return { background: '#e29926', color: '#000000' };
-  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return { background: '#ce7d21', color: '#000000' };
-  return { background: '#ffffff', color: '#18181b' };
+export const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
+export const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+
+const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string }> = {
+  'INT|DAY':    { background: '#ffffff', color: '#000000' },
+  'EXT|DAY':    { background: '#d7da50', color: '#000000' },
+  'INT/EXT|DAY':   { background: '#00af2f', color: '#000000' },
+  'INT|NIGHT':  { background: '#41a31a', color: '#ffffff' },
+  'EXT|NIGHT':  { background: '#005c93', color: '#ffffff' },
+  'INT/EXT|NIGHT': { background: '#00af2f', color: '#000000' },
+  'INT|MORNING':  { background: '#ff9ca2', color: '#000000' },
+  'EXT|MORNING':  { background: '#ff9ca2', color: '#000000' },
+  'INT/EXT|MORNING': { background: '#00af2f', color: '#000000' },
+  'INT|EVENING':  { background: '#ff9d25', color: '#000000' },
+  'EXT|EVENING':  { background: '#ff9d25', color: '#000000' },
+  'INT/EXT|EVENING': { background: '#00af2f', color: '#000000' },
+  'INT|DAWN':   { background: '#ffffff', color: '#18181b' },
+  'EXT|DAWN':   { background: '#ffffff', color: '#18181b' },
+  'INT/EXT|DAWN':  { background: '#ffffff', color: '#18181b' },
+  'INT|DUSK':   { background: '#ffffff', color: '#18181b' },
+  'EXT|DUSK':   { background: '#ffffff', color: '#18181b' },
+  'INT/EXT|DUSK':  { background: '#ffffff', color: '#18181b' },
+};
+
+const DEFAULT_FALLBACK = { background: '#ffffff', color: '#18181b' };
+
+export function resolveSceneColor(intExt: string, dayNight: string, colorEntries?: SceneColorEntry[]): { background: string; color: string } {
+  const ie = intExt.toUpperCase();
+  const dn = dayNight.toUpperCase();
+  if (colorEntries) {
+    const match = colorEntries.find(e => e.intExt.toUpperCase() === ie && e.dayNight.toUpperCase() === dn);
+    if (match) return { background: match.background, color: match.text };
+  }
+  return SCENE_COLOR_FALLBACKS[`${ie}|${dn}`] || DEFAULT_FALLBACK;
+}
+
+export function sceneStyle(scene?: Scene | null, colorEntries?: SceneColorEntry[]): React.CSSProperties {
+  if (!scene) return DEFAULT_FALLBACK;
+  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', colorEntries);
+}
+
+export function getDefaultSceneColors(): SceneColorEntry[] {
+  const entries: SceneColorEntry[] = [];
+  for (const ie of INT_EXT_OPTIONS) {
+    for (const dn of DAY_NIGHT_OPTIONS) {
+      const key = `${ie}|${dn}`;
+      const fb = SCENE_COLOR_FALLBACKS[key] || DEFAULT_FALLBACK;
+      entries.push({ intExt: ie, dayNight: dn, background: fb.background, text: fb.color });
+    }
+  }
+  return entries;
+}
+
+export const DEFAULT_COLOR_PALETTE: SceneColorPalette = {
+  sceneColors: getDefaultSceneColors(),
+  selectedStripBg: '#b20000',
+  selectedStripText: '#ffffff',
+  dayHeaderBg: '#000000',
+  dayHeaderText: '#ffffff',
+  noteBg: '#3f0000',
+  noteText: '#ffffff',
+};
+
+export function getSelectedStripColors(palette?: SceneColorPalette): { background: string; color: string } {
+  return palette ? { background: palette.selectedStripBg, color: palette.selectedStripText } : { background: '#b20000', color: '#ffffff' };
+}
+
+export function getDayHeaderColors(palette?: SceneColorPalette): { background: string; color: string } {
+  return palette ? { background: palette.dayHeaderBg, color: palette.dayHeaderText } : { background: '#000000', color: '#ffffff' };
+}
+
+export function getNoteBannerColors(palette?: SceneColorPalette): { background: string; color: string } {
+  return palette ? { background: palette.noteBg, color: palette.noteText } : { background: '#3f0000', color: '#ffffff' };
 }
 
 export interface FieldDef {

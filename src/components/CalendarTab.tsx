@@ -3,8 +3,9 @@ import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, D
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
-import { ScheduleRow, Scene, ShootDayMeta, RuleViolation } from '../types';
+import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
 import { generateUUID } from '../lib/utils';
+import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { checkDay } from '../lib/rulesEngine';
@@ -39,39 +40,27 @@ function getCalendarDays(year: number, month: number) {
   return days;
 }
 
-function sceneColor(scene?: Scene | null) {
-  if (!scene) return { bg: '#591b1b', text: '#ffffff' };
-  const ie = (scene.intExt || '').toUpperCase();
-  const dn = (scene.dayNight || '').toUpperCase();
-  if (ie.includes('INT') && dn.includes('DAY')) return { bg: '#ffffff', text: '#464646' };
-  if (ie.includes('EXT') && dn.includes('DAY')) return { bg: '#bdd857', text: '#000000' };
-  if (ie.includes('INT') && dn.includes('NIGHT')) return { bg: '#67832e', text: '#f2fce3' };
-  if (ie.includes('EXT') && dn.includes('NIGHT')) return { bg: '#2148a7', text: '#ffffff' };
-  if (ie.includes('INT') && dn.includes('MORNING')) return { bg: '#efbea0', text: '#4a3730' };
-  if (ie.includes('EXT') && dn.includes('MORNING')) return { bg: '#e88aa5', text: '#ffffff' };
-  if (ie.includes('INT') && dn.includes('EVENING')) return { bg: '#e29926', text: '#000000' };
-  if (ie.includes('EXT') && dn.includes('EVENING')) return { bg: '#ce7d21', text: '#000000' };
-  return { bg: '#ffffff', text: '#18181b' };
-}
-
 const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: string[] }> = ({ row, scene, showDesc, violations }) => {
+  const { state } = useProject();
+  const palette = state.present.colorPalette;
   if (!scene) {
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
+    const nb = getNoteBannerColors(palette);
     return (
-      <div className={`text-[9px] font-semibold bg-[#591b1b] text-white px-1.5 py-0.5 truncate mb-0.5 select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div style={{ background: nb.background, color: nb.color }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate mb-0.5 select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
   }
-  const c = sceneColor(scene);
+  const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
   const vFlag = violations && violations.length > 0 ? (
     <Tooltip content={violations.join('\n• ')}>
       <Flag className="w-2 h-2 text-red-500 fill-red-500 shrink-0" />
     </Tooltip>
   ) : null;
   return (
-    <div style={{ background: c.bg, color: c.text }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 select-none cursor-grab">
+    <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 select-none cursor-grab">
       <span className="truncate">{scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}</span>
       {vFlag}
     </div>

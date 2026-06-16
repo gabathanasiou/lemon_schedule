@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
+import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
+import { getFieldValue, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle } from '../lib/ribbonUtils';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
 function filterColumns(cells: RibbonCell[], showTimes: boolean, showDurations: boolean): RibbonCell[] {
@@ -32,21 +32,6 @@ interface PrintScheduleProps {
   edgePadding?: number;
 }
 
-function sceneStyle(scene?: Scene | null): React.CSSProperties {
-  if (!scene) return { background: '#ffffff', color: '#18181b' };
-  const intExt = (scene.intExt || '').toUpperCase();
-  const dayNight = (scene.dayNight || '').toUpperCase();
-  if (intExt.includes('INT') && dayNight.includes('DAY')) return { background: '#ffffff', color: '#464646' };
-  if (intExt.includes('EXT') && dayNight.includes('DAY')) return { background: '#bdd857', color: '#000000' };
-  if (intExt.includes('INT') && dayNight.includes('NIGHT')) return { background: '#67832e', color: '#f2fce3' };
-  if (intExt.includes('EXT') && dayNight.includes('NIGHT')) return { background: '#2148a7', color: '#ffffff' };
-  if (intExt.includes('INT') && dayNight.includes('MORNING')) return { background: '#efbea0', color: '#4a3730' };
-  if (intExt.includes('EXT') && dayNight.includes('MORNING')) return { background: '#e88aa5', color: '#ffffff' };
-  if (intExt.includes('INT') && dayNight.includes('EVENING')) return { background: '#e29926', color: '#000000' };
-  if (intExt.includes('EXT') && dayNight.includes('EVENING')) return { background: '#ce7d21', color: '#000000' };
-  return { background: '#ffffff', color: '#18181b' };
-}
-
 function formatDateLong(dateStr: string): string {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
@@ -70,6 +55,7 @@ interface DaySectionProps {
   ribbon?: RibbonRow[];
   cellPadding?: number;
   edgePadding?: number;
+  sceneColors?: SceneColorEntry[];
 }
 
 const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
@@ -113,7 +99,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, cellPadding, edgePadding }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, cellPadding, edgePadding, sceneColors }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -319,7 +305,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             }
             const scene = scenes.find(s => s.id === r.sceneId);
             if (!scene) return null;
-            const rowStyle = sceneStyle(scene);
+            const rowStyle = sceneStyle(scene, sceneColors);
             const bgColor = rowStyle.background || '#ffffff';
 
             if (cells) {
@@ -647,6 +633,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 ribbon={ribbon}
                 cellPadding={cellPadding}
                 edgePadding={edgePadding}
+                sceneColors={project.colorPalette?.sceneColors}
               />
             ))}
           </div>
