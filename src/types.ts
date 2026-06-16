@@ -179,6 +179,7 @@ export interface RibbonDesign {
   rows: RibbonRow[];
   createdAt: number;
   cellPadding?: number;
+  edgePadding?: number;
 }
 
 export interface Project {

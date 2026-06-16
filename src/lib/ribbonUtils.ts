@@ -185,6 +185,7 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPadding: 6,
+    edgePadding: 2,
   };
 }
 
