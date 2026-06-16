@@ -1132,10 +1132,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 <button
                   className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
                 >
-                  <span className="text-zinc-400 font-normal">Layout:</span>
-                  <span className="font-medium">{currentRibbonName}</span>
-                  <span className="text-zinc-300 select-none">·</span>
-                  <span className="font-medium">{viewMode === 'portrait' ? 'A4' : viewMode === 'landscape' ? 'A4L' : 'Full'}</span>
+                  <span className="text-zinc-400 font-normal">View</span>
                   <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
                 </button>
               }
