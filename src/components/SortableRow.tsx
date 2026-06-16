@@ -98,7 +98,7 @@ export const SortableRow: React.FC<{
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
         if (key === 'set') continue;
         const existing = state.present.breakdownElements?.[key] || [];
-        const existingNames = new Set(existing.map(e => (e.name || e.id).toUpperCase()));
+        const existingNames = new Set(existing.map(e => (key === 'cast' ? e.id : (e.name || e.id)).toUpperCase()));
         const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
         for (const item of items) {
           if (!existingNames.has(item.toUpperCase())) {

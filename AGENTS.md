@@ -248,6 +248,18 @@ Shared `useViewMode()` hook returns `[mode, setMode, maxWidth]`. Persisted to lo
 
 Applied on the content wrapper in both `RibbonTab.tsx` and `ScheduleTab.tsx` via `style={{ maxWidth: viewWidth || undefined, ... }}`. Toggle rendered in both toolbars as a segmented button group.
 
+### Cast Member Handling
+
+Cast members use **IDs as references** (`e.id`), stored in `castMembers[]`. Every other breakdown element uses **names as references** (`e.name`).
+
+The scene field `scene.cast` holds comma-separated IDs (e.g. `"1, 2, 3"`). All other entity fields hold comma-separated names.
+
+When checking if an element already exists:
+- **Cast** (`key === 'cast'`) → compare by `e.id`
+- **All other categories** → compare by `e.name || e.id`
+
+This rule applies to `SortableRow.tsx:updateScene` (the auto-register check), `store.tsx:ADD_ELEMENT` (deduplication), and EntityDropdown's `displayMode` (always use `"id"` for cast).
+
 ## Types (`src/types.ts`)
 - `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
 - `ScheduleRow`: `{ id, type: 'SCENE'|'BREAK'|'NOTE', sceneId?, shootDay?, order, estimatedDuration? }`
