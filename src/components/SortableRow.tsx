@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow, RibbonRow } from '../types';
+import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
 import { useProject } from '../store';
@@ -54,7 +54,8 @@ export const SortableRow: React.FC<{
   onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon }) => {
+  cellPadding?: number,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, cellPadding }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -409,7 +410,7 @@ export const SortableRow: React.FC<{
     );
   }
 
-  const renderCellContent = (cell: import('../types').RibbonCell) => {
+  const renderCellContent = (cell: RibbonCell) => {
     const { field, width: cellWidth, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     if (!field) {
@@ -548,7 +549,7 @@ export const SortableRow: React.FC<{
       </td>
     );
   };
-  const cellFlexBase = getRibbonCellBaseStyle;
+  const cellFlexBase = (cell: RibbonCell) => getRibbonCellBaseStyle(cell, cellPadding);
 
   const ENTITY_FIELDS = useMemo(() => {
     const hiddenSet = new Set(state.present.hiddenCategories || []);
@@ -601,7 +602,7 @@ export const SortableRow: React.FC<{
     return items;
   }, [scenes, state.present.castMembers]);
 
-  const renderCellFlex = (cell: import('../types').RibbonCell, isLast: boolean) => {
+  const renderCellFlex = (cell: RibbonCell, isLast: boolean) => {
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     const style: React.CSSProperties = {
