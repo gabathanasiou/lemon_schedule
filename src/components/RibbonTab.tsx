@@ -654,6 +654,21 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   }`}>
                   <Grid3X3 className="w-3 h-3" />
                 </button>
+                {/* Cell vertical padding */}
+                <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
+                <span className="text-[10px] text-zinc-600 shrink-0">Pad:</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  value={activeDesign.cellPadding ?? 6}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                    dispatch({ type: 'SET_RIBBON_CELL_PADDING', payload: { id: activeDesign.id, cellPadding: v } });
+                  }}
+                  className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+                />
+                <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
                 {/* Affix / Text editing */}
                 <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
                 {selCell && selCell.cell.field === 'text' ? (
@@ -772,7 +787,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   }}
                                   className="relative cursor-pointer select-none transition-colors"
                                   style={{
-                                    padding: '6px 6px',
+                                    padding: `${activeDesign.cellPadding ?? 6}px 6px`,
                                     verticalAlign: 'middle',
                                     borderRight: showGrid && ci < row.cells.length - 1 ? '1px solid #000' : 'none',
                                     borderBottom: '1px solid #000',
@@ -881,7 +896,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                               const shortDisplay = !c.wrap && display.length <= 4;
                               return (
                                 <div key={c.id} style={{
-                                  ...getRibbonCellBaseStyle(c),
+                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
                                   borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
                                   textOverflow: shortDisplay ? 'clip' : 'ellipsis',
                                 }}>
