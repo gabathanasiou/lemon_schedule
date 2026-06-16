@@ -194,33 +194,21 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               const rows = design?.rows ?? getDefaultRibbonRows();
               const cellPadding = design?.cellPadding;
               if (!rows) return null;
-              const filteredRows = rows.map(row => {
-                const cells = row.cells.filter(c => {
-                  if (c.field === 'callTime' && !settings.showTimes) return false;
-                  if (c.field === 'duration' && !settings.showDurations) return false;
-                  return true;
-                });
-                if (cells.length === row.cells.length) return row;
-                if (cells.length === 0) return { ...row, cells };
-                const total = cells.reduce((s, c) => s + c.width, 0);
-                const scale = 100 / total;
-                return { ...row, cells: cells.map(c => ({ ...c, width: Math.round(c.width * scale * 100) / 100 })) };
-              });
               return (
                 <div style={{
                   fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000', overflow: 'hidden', maxWidth: viewWidth || undefined, margin: '0 auto',
                 }}>
-                  {filteredRows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
+                  {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
                     const rowStyle = sceneStyle(sample.intExt, sample.dayNight);
                     return (
                       <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                         <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.bg, color: rowStyle.fg, paddingTop: design?.edgePadding ?? 2, paddingBottom: design?.edgePadding ?? 2, paddingLeft: design?.edgePadding ?? 2, paddingRight: design?.edgePadding ?? 2 }}>
-                          {filteredRows.map((row, ri) => (
-                            <div key={row.id || ri} className="flex w-full min-h-0" style={ri < filteredRows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
+                          {rows.map((row, ri) => (
+                            <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                               {row.cells.map((c, ci) => {
-                                const val = c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field);
-                                const catLabel = (project.customCategories || []).find(x => x.key === c.field)?.label;
-                                const fieldLabel = FIELD_MAP[c.field]?.label || catLabel || '';
+                                const hidden = (c.field === 'callTime' && !settings.showTimes) || (c.field === 'duration' && !settings.showDurations);
+                                const val = hidden ? '' : (c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field));
+                                const fieldLabel = hidden ? '' : (FIELD_MAP[c.field]?.label || (project.customCategories || []).find(x => x.key === c.field)?.label || '');
                                 const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
                                 const shortDisplay = !c.wrap && display.length <= 4;
                                 return (
