@@ -1138,7 +1138,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 </button>
               }
             >
-              <DropdownSubmenu label="Ribbon Layout" width="w-44">
+              <DropdownSubmenu label="Ribbon Layout" side="left" width="w-44">
                 {project.ribbonDesigns.map(d => (
                 <DropdownItem
                     key={d.id}
@@ -1150,7 +1150,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 ))}
               </DropdownSubmenu>
               <DropdownDivider />
-              <DropdownSubmenu label="Stripboard View" width="w-44">
+              <DropdownSubmenu label="Stripboard View" side="left" width="w-44">
                 {(['portrait', 'landscape', 'full'] as const).map(m => (
                   <DropdownItem
                     key={m}
