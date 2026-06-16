@@ -23,6 +23,7 @@ import DropdownDivider from './DropdownDivider';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { useViewMode } from '../lib/persist';
+import { Tooltip } from './Tooltip';
 
 const FIELD_ICONS: Record<string, React.ElementType> = {
   sceneNumber: Hash, callTime: Clock, duration: Timer, intExt: MapPin,
@@ -612,121 +613,146 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
         {/* ── Canvas ── */}
         <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
-          {/* Action bar */}
-          <div className="flex items-center gap-1.5 mb-2 flex-wrap min-h-[28px]">
-            <button
-              onClick={e => {
-                if (!selCell) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                setContextPos({ x: rect.left, y: rect.bottom });
-              }}
-              disabled={!selCell}
-              className="h-7 px-2.5 text-[10px] font-medium rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-              <ArrowRightLeft className="w-3 h-3" /> Change
-              <ChevronDown className="w-3 h-3 text-zinc-500" />
-            </button>
-            <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
-              className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-              <Trash2 className="w-3 h-3" /> Delete Cell
-            </button>
-            <button onClick={() => selCell && setSelId(addCell(selCell.row.id, selCell.ci))} disabled={!selCell}
-              className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-              <Plus className="w-3 h-3" /> Insert After
-            </button>
-            <div className="w-px h-4 bg-zinc-800 mx-1" />
-            <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, -1)} disabled={!selCell || (selCell?.ci === 0)}
-              className="h-7 w-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-              <ArrowLeft className="w-3 h-3" />
-            </button>
-            <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, 1)} disabled={!selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
-              className="h-7 w-7 rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-              <ArrowRight className="w-3 h-3" />
-            </button>
-            <div className="w-px h-4 bg-zinc-800 mx-1" />
+          {/* Toolbar */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 mb-4 flex items-center gap-1.5 flex-wrap min-h-[36px] select-none">
+            {/* Edit actions */}
+            <Tooltip content="Change Field">
+              <button
+                onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
+                disabled={!selCell}
+                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+                <ArrowRightLeft className="w-3 h-3" /> Change
+                <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Delete Cell">
+              <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
+                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+            </Tooltip>
+            <Tooltip content="Insert Cell After">
+              <button onClick={() => selCell && setSelId(addCell(selCell.row.id, selCell.ci))} disabled={!selCell}
+                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                <Plus className="w-3 h-3" /> Insert
+              </button>
+            </Tooltip>
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
+            {/* Move */}
+            <Tooltip content="Move Left">
+              <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, -1)} disabled={!selCell || (selCell?.ci === 0)}
+                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                <ArrowLeft className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Move Right">
+              <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, 1)} disabled={!selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
+                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
+            {/* Align */}
             {(['left', 'center', 'right'] as const).map(a => {
               const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
               const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
+              const label = a === 'left' ? 'Align Left' : a === 'center' ? 'Align Center' : 'Align Right';
               return (
-                <button key={a}
-                  onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
-                  disabled={!selCell}
-                  className={`h-7 w-7 rounded-md border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                    active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                  }`}>
-                  <Icon className="w-3 h-3" />
-                </button>
+                <Tooltip key={a} content={label}>
+                  <button
+                    onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
+                    disabled={!selCell}
+                    className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                      active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                    }`}>
+                    <Icon className="w-3 h-3" />
+                  </button>
+                </Tooltip>
               );
             })}
-            <div className="w-px h-4 bg-zinc-800 mx-1" />
-            <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
-              disabled={!selCell}
-              className={`h-7 w-7 rounded-md border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-              }`}>
-              <WrapText className="w-3 h-3" />
-            </button>
-            <button onClick={() => setShowGrid(g => !g)}
-              className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors ${
-                showGrid ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-              }`}>
-              <Grid3X3 className="w-3 h-3" />
-            </button>
-            {/* Cell vertical padding */}
-            <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
-            <span className="text-[10px] text-zinc-600 shrink-0">Pad:</span>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              value={activeDesign.cellPadding ?? 6}
-              onChange={e => {
-                const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                dispatch({ type: 'SET_RIBBON_CELL_PADDING', payload: { id: activeDesign.id, cellPadding: v } });
-              }}
-              className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-            />
-            <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
-            <span className="text-[10px] text-zinc-600 shrink-0">Edge:</span>
-            <input
-              type="number"
-              min={0}
-              max={12}
-              value={activeDesign.edgePadding ?? 2}
-              onChange={e => {
-                const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
-                dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
-              }}
-              className="w-9 h-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-            />
-            <span className="text-[10px] text-zinc-600 mr-1 shrink-0">px</span>
-            {/* Affix / Text editing */}
-            <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0" />
-            {selCell && selCell.cell.field === 'text' ? (
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
+            {/* Toggles */}
+            <Tooltip content="Toggle Text Wrap">
+              <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
+                disabled={!selCell}
+                className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                  selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                }`}>
+                <WrapText className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Toggle Grid Lines">
+              <button onClick={() => setShowGrid(g => !g)}
+                className={`h-7 w-7 rounded border flex items-center justify-center transition-colors ${
+                  showGrid ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                }`}>
+                <Grid3X3 className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
+            {/* Sizing */}
+            <span className="text-[10px] text-zinc-500 shrink-0">Pad</span>
+            <Tooltip content="Cell Padding (px)">
               <input
-                value={selCell.cell.textContent || ''}
-                onChange={e => setTextContent(selCell.cell.id, e.target.value)}
-                placeholder="Text content..."
-                className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32 shrink-0"
+                type="number"
+                min={0}
+                max={24}
+                value={activeDesign.cellPadding ?? 6}
+                onChange={e => {
+                  const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                  dispatch({ type: 'SET_RIBBON_CELL_PADDING', payload: { id: activeDesign.id, cellPadding: v } });
+                }}
+                className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
               />
-            ) : selCell && selCell.cell.field ? (
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="text-[9px] text-zinc-600">Pfx</span>
-                <input
-                  value={selCell.cell.prefix || ''}
-                  onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
-                  placeholder=""
-                  className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                />
-                <span className="text-[9px] text-zinc-600">Sfx</span>
-                <input
-                  value={selCell.cell.suffix || ''}
-                  onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
-                  placeholder=""
-                  className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                />
-              </div>
-            ) : (
-              <div className="shrink-0" style={{ width: 170 }} />
+            </Tooltip>
+            <Tooltip content="Edge Padding (px)">
+              <input
+                type="number"
+                min={0}
+                max={12}
+                value={activeDesign.edgePadding ?? 2}
+                onChange={e => {
+                  const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
+                  dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
+                }}
+                className="ml-1 w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+              />
+            </Tooltip>
+            <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
+            {/* Affix */}
+            {selCell && (
+              <>
+                <div className="w-px h-5 bg-zinc-700 mx-1" />
+                {selCell.cell.field === 'text' ? (
+                  <Tooltip content="Static Text Content">
+                    <input
+                      value={selCell.cell.textContent || ''}
+                      onChange={e => setTextContent(selCell.cell.id, e.target.value)}
+                      placeholder="Text content..."
+                      className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32 shrink-0"
+                    />
+                  </Tooltip>
+                ) : selCell.cell.field ? (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Tooltip content="Prefix">
+                      <input
+                        value={selCell.cell.prefix || ''}
+                        onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
+                        placeholder="Prefix"
+                        className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                      />
+                    </Tooltip>
+                    <Tooltip content="Suffix">
+                      <input
+                        value={selCell.cell.suffix || ''}
+                        onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
+                        placeholder="Suffix"
+                        className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                      />
+                    </Tooltip>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
