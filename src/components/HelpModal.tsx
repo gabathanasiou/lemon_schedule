@@ -51,58 +51,58 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
       <div className="px-6 py-4 space-y-5 overflow-y-auto max-h-[65vh]">
         <Section title="Cell Editing (Edit mode)">
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit edit, stay on cell" />
-          <Row keys={<><Kbd>⇧</Kbd> + <Kbd>⏎</Kbd></>} action="Commit & jump to same field in next row (selects row)" />
+          <Row keys={<><Kbd>⇧</Kbd> + <Kbd>⏎</Kbd></>} action="Commit & jump to same field in next ribbon (selects ribbon)" />
           <Row keys={<><Kbd>⎋</Kbd> Esc</>} action="Cancel edit, revert to original value" />
-          <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Commit & navigate same field up/down (selects row)" />
+          <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Commit & navigate same field up/down (selects ribbon)" />
           <Row keys={<>First keystroke</>} action="Auto-clears duration/call time field on type (clear-on-type)" />
           <Row keys={<>Double-click</>} action="Enter edit mode on note/break text cells" />
         </Section>
 
         <Section title="Selection">
-          <Row keys={<>Click</>} action="Select a single row" />
-          <Row keys={<><Kbd>⌘</Kbd> + Click</>} action="Toggle row in/out of multi-selection" />
-          <Row keys={<><Kbd>⇧</Kbd> + Click</>} action="Select contiguous range from last clicked row" />
-          <Row keys={<>Click + drag</>} action="Marquee select multiple rows (empty space)" />
-          <Row keys={<><Kbd>⌥</Kbd> + Click</>} action="Start marquee selection from on top of a row" />
-          <Row keys={<><Kbd>⌘</Kbd> hold</>} action="Add Mode: disable drag, enable marquee from rows, click toggles" />
-          <Row keys={<><Kbd>⎋</Kbd> Esc</>} action="Clear all row selections" />
+          <Row keys={<>Click</>} action="Select a single ribbon" />
+          <Row keys={<><Kbd>⌘</Kbd> + Click</>} action="Toggle ribbon in/out of multi-selection" />
+          <Row keys={<><Kbd>⇧</Kbd> + Click</>} action="Select contiguous range from last clicked ribbon" />
+          <Row keys={<>Click + drag</>} action="Marquee select multiple ribbons (empty space)" />
+          <Row keys={<><Kbd>⌥</Kbd> + Click</>} action="Start marquee selection from on top of a ribbon" />
+          <Row keys={<><Kbd>⌘</Kbd> hold</>} action="Add Mode: disable drag, enable marquee from ribbons, click toggles" />
+          <Row keys={<><Kbd>⎋</Kbd> Esc</>} action="Clear all ribbon selections" />
         </Section>
 
         <Section title="Navigation">
           <Row keys={<><Kbd>←</Kbd> <Kbd>→</Kbd></>} action="Select previous / next day header" />
-          <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move selection up / down through all rows" />
+          <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move selection up / down through all ribbons" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>↑</Kbd>/<Kbd>↓</Kbd></>} action="Extend / contract selection range" />
           <Row keys={<><Kbd>↹</Kbd> Tab</>} action="Toggle focus between unscheduled sidebar ↔ stripboard" />
-          <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="With 1 row selected: focus inline cell editor" />
+          <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="With 1 ribbon selected: focus inline cell editor" />
         </Section>
 
         <Section title="Scheduling">
-          <Row keys={<><Kbd>0</Kbd> – <Kbd>9</Kbd></>} action="Quick-schedule: type day number for selected unscheduled rows" />
+          <Row keys={<><Kbd>0</Kbd> – <Kbd>9</Kbd></>} action="Quick-schedule: type day number for selected unscheduled ribbons" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit digit buffer immediately (during quick-schedule)" />
-          <Row keys={<>Drag & drop</>} action="Move rows between days or reorder within a day" />
-          <Row keys={<>Drag day header</>} action="Reorder entire days (swaps rows and metadata)" />
+          <Row keys={<>Drag & drop</>} action="Move ribbons between days or reorder within a day" />
+          <Row keys={<>Drag day header</>} action="Reorder entire days (swaps ribbons and metadata)" />
         </Section>
 
         <Section title="Cut, Paste & Delete">
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>X</Kbd></>} action="Cut selected rows to clipboard (unschedule with marker)" />
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>V</Kbd></>} action="Paste clipboard items below selected row (1 row selected)" />
-          <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Unschedule selected rows (move back to Unscheduled)" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>X</Kbd></>} action="Cut selected ribbons to clipboard (unschedule with marker)" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>V</Kbd></>} action="Paste clipboard items below selected ribbon (1 ribbon selected)" />
+          <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Unschedule selected ribbons (move back to Unscheduled)" />
         </Section>
 
         <Section title="Context Menu (Right-click)">
-          <Row keys={<>Right-click</>} action="Open context menu on a row" />
-          <Row keys={<>Add Note / Break</>} action="Insert a note or break row below the target" />
+          <Row keys={<>Right-click</>} action="Open context menu on a ribbon" />
+          <Row keys={<>Add Note / Break</>} action="Insert a note or break ribbon below the target" />
           <Row keys={<>Duplicate</>} action="Clone scene (lettered suffix), note, or break" />
-          <Row keys={<>Cut to Buffer</>} action="Cut selected rows to clipboard" />
-          <Row keys={<>Paste Below</>} action="Paste clipboard items below" />
+          <Row keys={<>Cut to Buffer</>} action="Cut selected ribbons to clipboard" />
+          <Row keys={<>Paste Below</>} action="Paste clipboard ribbons below" />
           <Row keys={<>Change Color</>} action="Edit banner background & text color (notes only)" />
           <Row keys={<>Open Sheet</>} action="Open scene in Breakdown tab (scenes only)" />
-          <Row keys={<>Remove Ribbon</>} action="Unschedule the row" />
-          <Row keys={<>Delete</>} action="Permanently delete the row" />
+          <Row keys={<>Remove Ribbon</>} action="Unschedule the ribbon" />
+          <Row keys={<>Delete</>} action="Permanently delete the ribbon" />
         </Section>
 
         <Section title="Unscheduled Sidebar">
-          <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break rows in Unscheduled" />
+          <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Unscheduled" />
           <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, or Set" />
           <Row keys={<>Collapse</>} action="Collapse sidebar to save space (persisted)" />
           <Row keys={<>Resize edge</>} action="Drag right edge to resize sidebar (200px – 600px)" />
@@ -113,7 +113,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Double-click scene</>} action="Open scene in Breakdown tab" />
           <Row keys={<>Click day header</>} action="Select the entire day" />
           <Row keys={<>Click empty space</>} action="Deselect all rows" />
-          <Row keys={<>Trash on day header</>} action="Unschedule all rows from that day" />
+          <Row keys={<>Trash on day header</>} action="Unschedule all ribbons from that day" />
         </Section>
 
         <div className="text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
