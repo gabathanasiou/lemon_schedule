@@ -69,26 +69,20 @@ function loadProjectFromStorage(id: string): Project | null {
           return Date.now() - t.deletedAt < thirtyDays;
         });
 
-        // Migrate renamed keys: extras→backgroundActors, animals→animalsAndWranglers
+        // Migrate renamed keys: extras→backgroundActors
         for (const s of parsed.scenes || []) {
           if ('extras' in s) { s.backgroundActors = s.extras; delete s.extras; }
-          if ('animals' in s) { s.animalsAndWranglers = s.animals; delete s.animals; }
         }
         if (parsed.breakdownElements) {
           if (parsed.breakdownElements.extras) {
             parsed.breakdownElements.backgroundActors = parsed.breakdownElements.extras;
             delete parsed.breakdownElements.extras;
           }
-          if (parsed.breakdownElements.animals) {
-            parsed.breakdownElements.animalsAndWranglers = parsed.breakdownElements.animals;
-            delete parsed.breakdownElements.animals;
-          }
         }
         for (const d of parsed.ribbonDesigns || []) {
           for (const row of d.rows || []) {
             for (const cell of row.cells || []) {
               if (cell.field === 'extras') cell.field = 'backgroundActors';
-              if (cell.field === 'animals') cell.field = 'animalsAndWranglers';
             }
           }
         }
@@ -108,31 +102,43 @@ function loadProjectFromStorage(id: string): Project | null {
 // getDefaultRibbonRows and cid imported from ribbonUtils
 
 const BUILTIN_SCENE_KEYS = new Set([
-  'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
-  'description', 'cast', 'notes', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe',
-  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'shootDay',
+  'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'sequence', 'unit', 'location',
+  'dayNight', 'description', 'cast', 'notes', 'shootDay',
+  'backgroundActors', 'stunts', 'vehicles', 'props', 'camera', 'specialEffects',
+  'wardrobe', 'makeup', 'animals', 'animalWrangler', 'music', 'sound', 'artDept',
+  'setDressing', 'greenery', 'specialEquipment', 'security', 'additionalLabor',
+  'visualEffects', 'mechanicalEffects', 'miscellaneous',
 ]);
 
-export const PROTECTED_CATEGORIES = new Set(['cast', 'set', 'notes']);
+export const PROTECTED_CATEGORIES = new Set(['cast', 'set']);
 
 export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
-  cast: 'Cast',
-  set: 'Sets',
-  props: 'Props',
+  cast: 'Cast Members',
+  set: 'Set',
   backgroundActors: 'Background Actors',
   stunts: 'Stunts',
   vehicles: 'Vehicles',
+  props: 'Props',
+  camera: 'Camera',
+  specialEffects: 'Special Effects',
   wardrobe: 'Wardrobe',
-  makeup: 'Makeup & Hair',
-  sfx: 'SFX',
-  vfx: 'VFX',
+  makeup: 'Makeup/Hair',
+  animals: 'Animals',
+  animalWrangler: 'Animal Wrangler',
+  music: 'Music',
   sound: 'Sound',
-  music: 'Music / Playback',
-  animalsAndWranglers: 'Animals & Wranglers',
-  weapons: 'Weapons / Armoury',
-  greenery: 'Greenery',
   artDept: 'Art Department',
+  setDressing: 'Set Dressing',
+  greenery: 'Greenery',
+  specialEquipment: 'Special Equipment',
+  security: 'Security',
+  additionalLabor: 'Additional Labor',
+  visualEffects: 'Visual Effects',
+  mechanicalEffects: 'Mechanical Effects',
+  miscellaneous: 'Miscellaneous',
   location: 'Location',
+  sequence: 'Sequence',
+  unit: 'Unit',
 };
 
 function getSceneFieldValue(scene: Scene, category: string): string {
