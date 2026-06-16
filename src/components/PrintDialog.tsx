@@ -4,7 +4,7 @@ import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
 
 function sceneStyle(intExt?: string, dayNight?: string): { bg: string; fg: string } {
   const ie = (intExt || '').toUpperCase();
@@ -159,16 +159,8 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                           const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
                           return (
                             <div key={c.id} style={{
-                              flex: `0 0 ${c.width}%`,
-                              minWidth: 0,
-                              padding: '3px 3px',
+                              ...getRibbonCellBaseStyle(c),
                               borderRight: ci < row.cells.length - 1 ? `1px solid ${sc.fg}20` : 'none',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                              textAlign: c.align || 'left',
-                              textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                              fontWeight: c.field === 'sceneNumber' ? 700 : 500,
                             }}>
                               {display || ''}
                             </div>
