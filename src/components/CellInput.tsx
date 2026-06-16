@@ -78,18 +78,18 @@ export const CellInput: React.FC<{
       e.preventDefault();
       const currentTarget = e.currentTarget;
       currentTarget.blur();
-      if (multiline || !navigateOnEnter) return;
+      if (!e.shiftKey) return;
       setTimeout(() => {
         const query = col ? `input[data-col="${col}"], textarea[data-col="${col}"]` : 'input.cell-input, textarea.cell-input';
         const allInputs = Array.from(document.querySelectorAll(query)).filter(el => !(el as HTMLInputElement).readOnly) as (HTMLInputElement | HTMLTextAreaElement)[];
         const currentIndex = allInputs.indexOf(currentTarget);
         if (currentIndex > -1) {
-          let nextIndex = currentIndex;
-          if (e.key === 'Enter' && e.shiftKey) nextIndex--;
-          else nextIndex++;
-          if (nextIndex >= 0 && nextIndex < allInputs.length) {
+          const nextIndex = currentIndex + 1;
+          if (nextIndex < allInputs.length) {
             allInputs[nextIndex]?.focus();
             allInputs[nextIndex]?.select();
+            const rowEl = allInputs[nextIndex]?.closest('[data-row-id]');
+            if (rowEl) onRowNavigate?.(rowEl.getAttribute('data-row-id')!);
           }
         }
       }, 0);
