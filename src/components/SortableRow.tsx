@@ -636,7 +636,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full text-xs" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
+            <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
             <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
@@ -698,7 +698,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={field === 'set' ? 'single' : 'multi'} positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={field === 'set' ? 'single' : 'multi'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
