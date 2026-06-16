@@ -31,7 +31,8 @@ export const UnscheduledBlock: React.FC<{
   onCollapseChange?: (collapsed: boolean) => void,
   ribbon?: RibbonRow[],
   cellPadding?: number,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, cellPadding }) => {
+  edgePadding?: number,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, cellPadding, edgePadding }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -305,6 +306,7 @@ export const UnscheduledBlock: React.FC<{
                     onRowNavigate={onRowNavigate}
                     ribbon={ribbon}
                     cellPadding={cellPadding}
+                    edgePadding={edgePadding}
                   />
                 </React.Fragment>
               ))}
