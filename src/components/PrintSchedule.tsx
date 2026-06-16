@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
 function filterColumns(cells: RibbonCell[], showTimes: boolean, showDurations: boolean): RibbonCell[] {
@@ -157,7 +157,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       return { ...row, cells: filtered };
     });
   }, [ribbon, showTimes, showDurations]);
-  const noteBreakPadPx = `${(cellPadding ?? 6) * 2}px 6px`;
+  const noteBreakPadPx = `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px 6px`;
   const mainCellIdx = cells ? (() => {
     const nonSpecial = cells
       .map((c, i) => ({i, w: c.width, f: c.field}))
@@ -237,7 +237,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                return (
                  <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                    <tbody>
-                      <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg, '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
+                      <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg, '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
                        <>
                          <td className="print-col-sc" />
                          {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
@@ -299,7 +299,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
-                    <tr className="print-row-break" style={{ '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
+                    <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
                       <>
                         <td className="print-col-sc" />
                         {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}

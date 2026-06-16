@@ -218,11 +218,13 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 All ribbon cells MUST use `getRibbonCellBaseStyle(cell, cellPadding?)` from `ribbonUtils.ts`. Never hardcode padding, font, or text styling on ribbon cells.
 
 | Rule | Value |
-|---|---|
+|---|---|---|
 | Scene cell vertical padding | `cellPadding ?? 6` px |
-| Note/break banner vertical padding | `(cellPadding ?? 6) * 2` px — **always twice scene cells** |
+| Note/break banner vertical padding | `getNoteBreakPad(cellPadding, ribbonRowCount)` — **matches total scene height** |
 | Horizontal padding | `6px` (fixed) |
-| Banner height formula | `const noteBreakPadPx = \`${(cellPadding ?? 6) * 2}px 6px\`;` |
+| Banner pad formula | `cellPadding * N + 6 * (N - 1)` where `N = ribbonRowCount` — accounts for content line-height (≈12px per row) |
+| Shared helper | `getNoteBreakPad(cellPadding, rowCount)` in `src/lib/ribbonUtils.ts` |
+| Usage | `\`${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px 6px\`` for inline; `'--note-row-py': \`${getNoteBreakPad(...)}px\`` for CSS vars |
 
 `cellPadding` is stored per `RibbonDesign` (`cellPadding?: number`, default 6), editable in the ribbon designer toolbar ("Pad:" input, 0–24px). The store action is `SET_RIBBON_CELL_PADDING`.
 

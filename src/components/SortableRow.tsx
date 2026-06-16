@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
@@ -137,7 +137,7 @@ export const SortableRow: React.FC<{
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
 
-  const noteBreakPadPx = `${(cellPadding ?? 6) * 2}px 6px`;
+  const noteBreakPadPx = `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px 6px`;
 
   const hasViolations = sceneViolations && sceneViolations.length > 0;
   const violationBadge = hasViolations ? (
@@ -224,7 +224,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-note" style={{ ...noteStyle, '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
+              <tr className="row-note" style={{ ...noteStyle, '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
                 <td className="col-sc" />
                 {!isCompact ? (
                   <>
@@ -350,7 +350,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-break" style={{ ...breakStyle, '--note-row-py': `${(cellPadding ?? 6) * 2}px` } as any}>
+              <tr className="row-break" style={{ ...breakStyle, '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
                 <td className="col-sc" />
                 {!isCompact ? (
                   <>

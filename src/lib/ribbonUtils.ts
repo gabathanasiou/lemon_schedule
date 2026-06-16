@@ -68,6 +68,10 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): 
   };
 }
 
+export function getNoteBreakPad(cellPadding: number, ribbonRowCount: number): number {
+  return cellPadding * ribbonRowCount + 6 * (ribbonRowCount - 1);
+}
+
 export const SAMPLE: Record<string, string> = {
   sceneNumber: '5',
   callTime: '08:00',
