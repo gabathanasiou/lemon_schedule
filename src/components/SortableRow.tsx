@@ -137,10 +137,7 @@ export const SortableRow: React.FC<{
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none";
 
-  const ribbonRowCount = ribbon?.length || 2;
-  const noteBreakPad = Math.max(6, ribbonRowCount * 12 - 6);
-  const noteBreakPadPx = `${noteBreakPad}px 6px`;
-  const noteBreakPadPt = `${noteBreakPad}pt 6pt`;
+  const noteBreakPadPx = `${(cellPadding ?? 6) * 2}px 6px`;
 
   const hasViolations = sceneViolations && sceneViolations.length > 0;
   const violationBadge = hasViolations ? (
@@ -172,18 +169,15 @@ export const SortableRow: React.FC<{
           <div className="flex items-stretch min-w-0" style={noteStyle}>
             {cells.map((cell, ci) => {
               const wrapCell = ci === mainCellIdx;
-              const cellStyle: React.CSSProperties = {
-                flex: `0 0 ${cell.width}%`,
-                textAlign: wrapCell ? 'center' : cell.align || 'left',
+              const base = getRibbonCellBaseStyle(cell, cellPadding);
+              const cellStyle: React.CSSProperties = wrapCell ? {
+                ...base,
                 padding: noteBreakPadPx,
-                overflow: wrapCell ? 'visible' : 'hidden',
-                whiteSpace: wrapCell ? 'normal' : 'nowrap',
-                textOverflow: wrapCell ? undefined : 'ellipsis',
-                wordBreak: wrapCell ? 'break-word' : undefined,
-                fontSize: '8pt',
-                lineHeight: 1.1,
-                fontFamily: 'Helvetica, sans-serif',
-              };
+                textAlign: 'center',
+                overflow: 'visible',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
+              } : { ...base, padding: noteBreakPadPx };
               if (wrapCell) {
                 return (
                   <div key={cell.id} style={cellStyle}>
@@ -301,18 +295,15 @@ export const SortableRow: React.FC<{
           <div className="flex items-stretch min-w-0" style={breakStyle}>
             {cells.map((cell, ci) => {
               const wrapCell = ci === mainCellIdx;
-              const cellStyle: React.CSSProperties = {
-                flex: `0 0 ${cell.width}%`,
-                textAlign: wrapCell ? 'center' : cell.align || 'left',
+              const base = getRibbonCellBaseStyle(cell, cellPadding);
+              const cellStyle: React.CSSProperties = wrapCell ? {
+                ...base,
                 padding: noteBreakPadPx,
-                overflow: wrapCell ? 'visible' : 'hidden',
-                whiteSpace: wrapCell ? 'normal' : 'nowrap',
-                textOverflow: wrapCell ? undefined : 'ellipsis',
-                wordBreak: wrapCell ? 'break-word' : undefined,
-                fontSize: '8pt',
-                lineHeight: 1.1,
-                fontFamily: 'Helvetica, sans-serif',
-              };
+                textAlign: 'center',
+                overflow: 'visible',
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
+              } : { ...base, padding: noteBreakPadPx };
               if (wrapCell) {
                 return (
                   <div key={cell.id} style={cellStyle}>

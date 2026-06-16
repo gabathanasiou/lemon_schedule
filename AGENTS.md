@@ -213,6 +213,25 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - Custom collision detection is `useCallback` with empty deps, reading `activeDragIds` via `activeDragIdsRef.current` (stable ref) to correctly filter dragging rows from droppable containers.
 - `handleDragOver` sets `insertBeforeId` to distinguish beginning (`day-{day}`), end (`end-{day}`), and row-insertion targets.
 
+### Ribbon Cell Styling (single source of truth: `src/lib/ribbonUtils.ts`)
+
+All ribbon cells MUST use `getRibbonCellBaseStyle(cell, cellPadding?)` from `ribbonUtils.ts`. Never hardcode padding, font, or text styling on ribbon cells.
+
+| Rule | Value |
+|---|---|
+| Scene cell vertical padding | `cellPadding ?? 6` px |
+| Note/break banner vertical padding | `(cellPadding ?? 6) * 2` px — **always twice scene cells** |
+| Horizontal padding | `6px` (fixed) |
+| Banner height formula | `const noteBreakPadPx = \`${(cellPadding ?? 6) * 2}px 6px\`;` |
+
+`cellPadding` is stored per `RibbonDesign` (`cellPadding?: number`, default 6), editable in the ribbon designer toolbar ("Pad:" input, 0–24px). The store action is `SET_RIBBON_CELL_PADDING`.
+
+Rendering locations that must pass `cellPadding`:
+- `SortableRow.tsx` (prop `cellPadding`, passed from `ScheduleTab` → `DayBlock` → `SortableRow` and `UnscheduledBlock` → `SortableRow`)
+- `PrintSchedule.tsx` → `DaySection` (prop `cellPadding`, passed from `App.tsx`)
+- `PrintDialog.tsx` (resolved from selected ribbon design)
+- `RibbonTab.tsx` (from `activeDesign.cellPadding`)
+
 ## Types (`src/types.ts`)
 - `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
 - `ScheduleRow`: `{ id, type: 'SCENE'|'BREAK'|'NOTE', sceneId?, shootDay?, order, estimatedDuration? }`

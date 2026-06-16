@@ -157,8 +157,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       return { ...row, cells: filtered };
     });
   }, [ribbon, showTimes, showDurations]);
-  const noteBreakPad = Math.max(6, (ribbon?.length || 2) * 12 - 6);
-  const noteBreakPadPx = `${noteBreakPad}px 6px`;
+  const noteBreakPadPx = `${(cellPadding ?? 6) * 2}px 6px`;
   const mainCellIdx = cells ? (() => {
     const nonSpecial = cells
       .map((c, i) => ({i, w: c.width, f: c.field}))
