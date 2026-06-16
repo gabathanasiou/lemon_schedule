@@ -212,7 +212,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                     const rowStyle = sceneStyle(sample.intExt, sample.dayNight);
                     return (
                       <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
-                        <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.bg, color: rowStyle.fg }}>
+                        <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.bg, color: rowStyle.fg, paddingTop: design?.edgePadding ?? 2, paddingBottom: design?.edgePadding ?? 2 }}>
                           {filteredRows.map((row, ri) => (
                             <div key={row.id || ri} className="flex w-full min-h-0" style={ri < filteredRows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
                               {row.cells.map((c, ci) => {

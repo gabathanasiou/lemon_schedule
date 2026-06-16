@@ -29,6 +29,7 @@ interface PrintScheduleProps {
   fileName: string;
   ribbon?: RibbonRow[];
   cellPadding?: number;
+  edgePadding?: number;
 }
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
@@ -68,6 +69,7 @@ interface DaySectionProps {
   chronoDay: number;
   ribbon?: RibbonRow[];
   cellPadding?: number;
+  edgePadding?: number;
 }
 
 const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
@@ -111,7 +113,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, cellPadding }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, cellPadding, edgePadding }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -322,7 +324,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderBottom: '2px solid #000' }}>
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderBottom: '2px solid #000', paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2 }}>
                   {filteredRibbon && filteredRibbon.length > 0 && filteredRibbon.map((row, ri) => (
                     <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
                       {row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))}
@@ -551,7 +553,7 @@ const CAST_LIST_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, cellPadding }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, cellPadding, edgePadding }) => {
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -644,6 +646,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 chronoDay={chronoDayMap.get(dayInt)}
                 ribbon={ribbon}
                 cellPadding={cellPadding}
+                edgePadding={edgePadding}
               />
             ))}
           </div>
