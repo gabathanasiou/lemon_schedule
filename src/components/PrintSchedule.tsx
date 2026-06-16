@@ -28,6 +28,7 @@ interface PrintScheduleProps {
   includeStatusDays?: boolean;
   fileName: string;
   ribbon?: RibbonRow[];
+  cellPadding?: number;
 }
 
 function sceneStyle(scene?: Scene | null): React.CSSProperties {
@@ -66,6 +67,7 @@ interface DaySectionProps {
   showDurations: boolean;
   chronoDay: number;
   ribbon?: RibbonRow[];
+  cellPadding?: number;
 }
 
 const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
@@ -109,7 +111,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, cellPadding }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -166,7 +168,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = getRibbonCellBaseStyle;
+  const cellPrintStyle = (cell: RibbonCell) => getRibbonCellBaseStyle(cell, cellPadding);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
@@ -199,7 +201,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       if (wrapCell) {
                         return (
                           <div key={cell.id} style={{
-                            ...getRibbonCellBaseStyle(cell),
+                            ...getRibbonCellBaseStyle(cell, cellPadding),
                             padding: noteBreakPadPx,
                             textAlign: 'center',
                             overflow: 'visible',
@@ -223,7 +225,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       }
                       return (
                         <div key={cell.id} style={{
-                          ...getRibbonCellBaseStyle(cell),
+                          ...getRibbonCellBaseStyle(cell, cellPadding),
                           padding: noteBreakPadPx,
                         }}>
                           {content}
@@ -261,7 +263,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       if (wrapCell) {
                         return (
                           <div key={cell.id} style={{
-                            ...getRibbonCellBaseStyle(cell),
+                            ...getRibbonCellBaseStyle(cell, cellPadding),
                             padding: noteBreakPadPx,
                             textAlign: 'center',
                             overflow: 'visible',
@@ -285,7 +287,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       }
                       return (
                         <div key={cell.id} style={{
-                          ...getRibbonCellBaseStyle(cell),
+                          ...getRibbonCellBaseStyle(cell, cellPadding),
                           padding: noteBreakPadPx,
                         }}>
                           {content}
@@ -550,7 +552,7 @@ const CAST_LIST_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, cellPadding }) => {
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -642,6 +644,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 showDurations={showDurations}
                 chronoDay={chronoDayMap.get(dayInt)}
                 ribbon={ribbon}
+                cellPadding={cellPadding}
               />
             ))}
           </div>
