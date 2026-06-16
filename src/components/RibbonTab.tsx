@@ -415,114 +415,114 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
    const placed = used.size;
    const total = allFields.length;
 
-   const headerContent = (
-     <>
-       <DropdownMenu
-         open={fileMenuOpen}
-         onOpenChange={setFileMenuOpen}
-         width="w-44"
-         trigger={
-           <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-             <span className="text-xs font-semibold text-zinc-400">Edit</span>
-             <ChevronDown className="w-3 h-3 text-zinc-500" />
-           </button>
-         }
-       >
-         <DropdownItem onClick={async () => { await promptSaveDefault(); const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' }); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
-           icon={<Plus className="w-3.5 h-3.5" />}>
-           New Design
-         </DropdownItem>
-         <DropdownItem onClick={async () => { const n = await dialog.prompt({ title: 'Rename Design', defaultValue: activeDesign.name, placeholder: 'New name' }); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
-           icon={<Pencil className="w-3.5 h-3.5" />}>
-           Rename
-         </DropdownItem>
-         <DropdownItem onClick={async () => {
-           const n = await dialog.prompt({ title: 'Duplicate Design', defaultValue: `${activeDesign.name} — Copy`, placeholder: 'Name for the copy' });
-           if (n) {
-             const rows = activeDesign.id ? undefined : cloneRows(rowsRef.current);
-             dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id, ...(rows ? { rows } : {}) } });
-             setFileMenuOpen(false);
-           }
-         }}
-           icon={<Copy className="w-3.5 h-3.5" />}>
-           Duplicate
-         </DropdownItem>
-         <DropdownDivider />
-         <DropdownItem onClick={() => {
-            const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
-           const url = URL.createObjectURL(blob);
-           const a = document.createElement('a');
-            a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
-            a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
-         }}
-           icon={<Download className="w-3.5 h-3.5" />}>
-           Export
-         </DropdownItem>
-         <DropdownItem onClick={() => {
-           const input = document.createElement('input');
-            input.type = 'file'; input.accept = '.ribbon,.json';
-           input.onchange = () => {
-             const file = input.files?.[0];
-             if (!file) return;
-             const reader = new FileReader();
-             reader.onload = () => {
-               try {
-                 const data = JSON.parse(reader.result as string);
-                 if (data.rows && Array.isArray(data.rows)) {
-                    dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, cellPadding: data.cellPadding, edgePadding: data.edgePadding } });
-                 }
-               } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
-               setFileMenuOpen(false);
-             };
-             reader.readAsText(file);
-           };
-           input.click();
-         }}
-           icon={<Upload className="w-3.5 h-3.5" />}>
-           Import
-         </DropdownItem>
-         <DropdownDivider />
-         <DropdownItem
-           onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${activeDesign.name}"?`, message: 'This can be restored from Trash.', danger: true }); if (ok) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
-           variant="danger"
-           icon={<Trash2 className="w-3.5 h-3.5" />}>
-           Delete Design
-         </DropdownItem>
-       </DropdownMenu>
-       <DropdownMenu
-         open={designMenuOpen}
-         onOpenChange={setDesignMenuOpen}
-         width="w-52"
-         trigger={
-           <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-             <span className="text-xs font-semibold text-zinc-500">Ribbon:</span>
-             <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
-             <ChevronDown className="w-3 h-3 text-zinc-500" />
-           </button>
-         }
-       >
-         <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Designs</div>
-         {project.ribbonDesigns.map(d => (
-           <DropdownItem
-             key={d.id}
-             onClick={() => switchDesign(d.id)}
-             icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-           >
-             {d.name}
-           </DropdownItem>
-         ))}
-       </DropdownMenu>
-       <div className="flex-1" />
+    const headerContent = (
+      <>
+        <DropdownMenu
+          open={designMenuOpen}
+          onOpenChange={setDesignMenuOpen}
+          width="w-52"
+          trigger={
+            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+              <span className="text-xs font-semibold text-zinc-500">Editing:</span>
+              <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
+              <ChevronDown className="w-3 h-3 text-zinc-500" />
+            </button>
+          }
+        >
+          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Designs</div>
+          {project.ribbonDesigns.map(d => (
+            <DropdownItem
+              key={d.id}
+              onClick={() => switchDesign(d.id)}
+              icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+            >
+              {d.name}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
+        <DropdownMenu
+          open={fileMenuOpen}
+          onOpenChange={setFileMenuOpen}
+          width="w-44"
+          trigger={
+            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+              <span className="text-xs font-semibold text-zinc-400">Edit</span>
+              <ChevronDown className="w-3 h-3 text-zinc-500" />
+            </button>
+          }
+        >
+          <DropdownItem onClick={async () => { await promptSaveDefault(); const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' }); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
+            icon={<Plus className="w-3.5 h-3.5" />}>
+            New Design
+          </DropdownItem>
+          <DropdownItem onClick={async () => { const n = await dialog.prompt({ title: 'Rename Design', defaultValue: activeDesign.name, placeholder: 'New name' }); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
+            icon={<Pencil className="w-3.5 h-3.5" />}>
+            Rename
+          </DropdownItem>
+          <DropdownItem onClick={async () => {
+            const n = await dialog.prompt({ title: 'Duplicate Design', defaultValue: `${activeDesign.name} — Copy`, placeholder: 'Name for the copy' });
+            if (n) {
+              const rows = activeDesign.id ? undefined : cloneRows(rowsRef.current);
+              dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id, ...(rows ? { rows } : {}) } });
+              setFileMenuOpen(false);
+            }
+          }}
+            icon={<Copy className="w-3.5 h-3.5" />}>
+            Duplicate
+          </DropdownItem>
+          <DropdownDivider />
+          <DropdownItem onClick={() => {
+             const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+             a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
+             a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
+          }}
+            icon={<Download className="w-3.5 h-3.5" />}>
+            Export
+          </DropdownItem>
+          <DropdownItem onClick={() => {
+            const input = document.createElement('input');
+             input.type = 'file'; input.accept = '.ribbon,.json';
+            input.onchange = () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const data = JSON.parse(reader.result as string);
+                  if (data.rows && Array.isArray(data.rows)) {
+                     dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, cellPadding: data.cellPadding, edgePadding: data.edgePadding } });
+                  }
+                } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
+                setFileMenuOpen(false);
+              };
+              reader.readAsText(file);
+            };
+            input.click();
+          }}
+            icon={<Upload className="w-3.5 h-3.5" />}>
+            Import
+          </DropdownItem>
+          <DropdownDivider />
+          <DropdownItem
+            onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${activeDesign.name}"?`, message: 'This can be restored from Trash.', danger: true }); if (ok) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
+            variant="danger"
+            icon={<Trash2 className="w-3.5 h-3.5" />}>
+            Delete Design
+          </DropdownItem>
+        </DropdownMenu>
         <button onClick={() => commit(getDefaultRibbonRows())}
           className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
           <RotateCcw className="w-3 h-3" /> Reset
         </button>
+        <div className="flex-1" />
         <DropdownMenu
           open={viewMenuOpen}
           onOpenChange={setViewMenuOpen}
           width="w-36"
           trigger={
-            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors ml-2">
+            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
               <span className="text-xs font-semibold text-zinc-500">View:</span>
               <span className="text-xs font-semibold text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
               <ChevronDown className="w-3 h-3 text-zinc-500" />
@@ -539,7 +539,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             </DropdownItem>
           ))}
         </DropdownMenu>
-     </>
+      </>
    );
 
    return (
