@@ -5,6 +5,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
+import { useViewMode } from '../lib/persist';
 
 function sceneStyle(intExt?: string, dayNight?: string): { bg: string; fg: string } {
   const ie = (intExt || '').toUpperCase();
@@ -51,6 +52,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const { state } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const [, , viewWidth] = useViewMode();
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
@@ -206,7 +208,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               });
               return (
                 <div style={{
-                  fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000', overflow: 'hidden',
+                  fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000', overflow: 'hidden', maxWidth: viewWidth || undefined, margin: '0 auto',
                 }}>
                   {filteredRows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
                     const rowStyle = sceneStyle(sample.intExt, sample.dayNight);
