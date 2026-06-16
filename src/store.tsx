@@ -230,7 +230,7 @@ type Action =
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
-  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[] } }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; cellPadding?: number; edgePadding?: number } }
   | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[] } }
   | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
@@ -883,16 +883,21 @@ function reducer(state: State, action: Action): State {
       });
 
     case 'ADD_RIBBON_DESIGN': {
+      const source = action.payload.cloneFromId
+        ? state.present.ribbonDesigns.find(d => d.id === action.payload.cloneFromId)
+        : null;
       const rows = action.payload.rows
         ? JSON.parse(JSON.stringify(action.payload.rows))
-        : action.payload.cloneFromId
-          ? JSON.parse(JSON.stringify(state.present.ribbonDesigns.find(d => d.id === action.payload.cloneFromId)?.rows || getDefaultRibbonRows()))
+        : source
+          ? JSON.parse(JSON.stringify(source.rows))
           : getDefaultRibbonRows();
       const newDesign: RibbonDesign = {
         id: generateUUID(),
         name: action.payload.name,
         rows,
         createdAt: Date.now(),
+        cellPadding: action.payload.cellPadding ?? source?.cellPadding ?? 6,
+        edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 2,
       };
       return applyChange({
         ...state.present,

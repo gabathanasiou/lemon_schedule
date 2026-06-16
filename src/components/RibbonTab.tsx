@@ -449,7 +449,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
          </DropdownItem>
          <DropdownDivider />
          <DropdownItem onClick={() => {
-           const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows }, null, 2)], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
            const url = URL.createObjectURL(blob);
            const a = document.createElement('a');
            a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.json`;
@@ -469,7 +469,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                try {
                  const data = JSON.parse(reader.result as string);
                  if (data.rows && Array.isArray(data.rows)) {
-                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows } });
+                    dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, cellPadding: data.cellPadding, edgePadding: data.edgePadding } });
                  }
                } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
                setFileMenuOpen(false);
