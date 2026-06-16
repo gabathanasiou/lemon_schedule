@@ -153,7 +153,7 @@ export const SortableRow: React.FC<{
 
   if (row.type === 'NOTE') {
     const noteStyle: React.CSSProperties = { background: row.noteColor || '#591b1b', color: row.noteTextColor || '#ffffff' };
-    if (isSelected && !isFaded) noteStyle.background = darkenHex(noteStyle.background as string);
+    if (isSelected && !isFaded) { noteStyle.background = '#FF4013'; noteStyle.color = '#ffffff'; }
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
@@ -279,7 +279,7 @@ export const SortableRow: React.FC<{
 
   if (row.type === 'BREAK') {
     const breakStyle: React.CSSProperties = { background: '#591b1b', color: '#ffffff' };
-    if (isSelected && !isFaded) breakStyle.background = darkenHex(breakStyle.background as string);
+    if (isSelected && !isFaded) { breakStyle.background = '#FF4013'; breakStyle.color = '#ffffff'; }
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
@@ -719,7 +719,8 @@ export const SortableRow: React.FC<{
   if (scene) {
     const rowStyle = sceneStyle(scene);
     if (isSelected && !isFaded) {
-      rowStyle.background = darkenHex(rowStyle.background as string);
+      rowStyle.background = '#FF4013';
+      rowStyle.color = '#ffffff';
     }
 
     // ── Ribbon-based rendering (non-compact) ──
