@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
@@ -548,21 +548,7 @@ export const SortableRow: React.FC<{
       </td>
     );
   };
-
-  const cellFlexBase = (cell: import('../types').RibbonCell): React.CSSProperties => ({
-    flex: `0 0 ${cell.width}%`,
-    minWidth: 0,
-    padding: '6px 6px',
-    overflow: cell.wrap ? 'visible' : 'hidden',
-    textOverflow: cell.wrap ? undefined : 'ellipsis',
-    whiteSpace: cell.wrap ? 'normal' : 'nowrap',
-    wordBreak: cell.wrap ? 'break-word' : undefined,
-    textTransform: cell.field === 'set' ? 'uppercase' : 'none',
-    fontWeight: 500,
-    fontSize: '8pt',
-    lineHeight: 1.1,
-    fontFamily: 'Helvetica, sans-serif',
-  });
+  const cellFlexBase = getRibbonCellBaseStyle;
 
   const ENTITY_FIELDS = useMemo(() => {
     const hiddenSet = new Set(state.present.hiddenCategories || []);
