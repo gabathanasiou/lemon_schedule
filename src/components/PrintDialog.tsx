@@ -141,9 +141,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               </RadixDropdownMenu.Portal>
             </RadixDropdownMenu.Root>
             {(() => {
-              const rows = selectedRibbonId
-                ? ribbonDesigns.find(d => d.id === selectedRibbonId)?.rows
-                : getDefaultRibbonRows();
+              const design = selectedRibbonId ? ribbonDesigns.find(d => d.id === selectedRibbonId) : undefined;
+              const rows = design?.rows ?? getDefaultRibbonRows();
+              const cellPadding = design?.cellPadding;
               if (!rows) return null;
               const sample = { sceneNumber: '5', intExt: 'INT', set: 'KITCHEN', dayNight: 'DAY', cast: '1, 2, 4', pageCount: '2 3/8', description: 'John makes breakfast.' };
               const sc = sceneStyle(sample.intExt, sample.dayNight);
@@ -159,7 +159,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                           const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
                           return (
                             <div key={c.id} style={{
-                              ...getRibbonCellBaseStyle(c),
+                              ...getRibbonCellBaseStyle(c, cellPadding),
                               borderRight: ci < row.cells.length - 1 ? `1px solid ${sc.fg}20` : 'none',
                             }}>
                               {display || ''}
