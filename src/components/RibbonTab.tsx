@@ -758,14 +758,14 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             {/* ══ Designer ══ */}
-            <section>
+            <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
               <div className="flex items-center gap-2 mb-3">
+                <Pencil className="w-3.5 h-3.5 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Designer</span>
               </div>
 
               {/* Ribbon rows */}
-              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
-                <div className="space-y-5">
+              <div className="space-y-5">
                 {rows.map((row, ri) => (
                   <div key={row.id} className="group/row">
                     <div className="flex items-center gap-2 mb-1">
@@ -932,7 +932,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               <button onClick={addRow} className="mt-4 w-full py-2 text-[10px] font-medium rounded-lg border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/50 transition-colors flex items-center justify-center gap-1.5">
                 <Plus className="w-3.5 h-3.5" /> Add Row
               </button>
-              </div>
             </section>
 
             {/* ══ Live Preview (matches schedule stripboard exactly) ══ */}
