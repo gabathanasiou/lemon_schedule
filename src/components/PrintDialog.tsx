@@ -4,7 +4,7 @@ import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { getFieldValueFromSample, getDefaultRibbonRows, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle } from '../lib/ribbonUtils';
 import { useViewMode } from '../lib/persist';
 
 function sceneStyle(intExt?: string, dayNight?: string): { bg: string; fg: string } {
@@ -69,7 +69,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     showExportDate: true,
     showPageNumbers: true,
     includeStatusDays: true,
-    selectedRibbonId: '',
+    selectedRibbonId: project.activeRibbonId || (project.ribbonDesigns[0]?.id || ''),
   };
 
   const [settings, setSettings] = useState(() => {
@@ -158,7 +158,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             <RadixDropdownMenu.Root>
               <RadixDropdownMenu.Trigger asChild>
                 <button className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors">
-                  <span>{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : 'Default layout'}</span>
+                  <span>{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
                 </button>
               </RadixDropdownMenu.Trigger>
@@ -169,13 +169,6 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   sideOffset={4}
                   collisionPadding={8}
                 >
-                  <RadixDropdownMenu.Item
-                    onSelect={() => update({ selectedRibbonId: '' })}
-                    className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${settings.selectedRibbonId === '' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
-                  >
-                    <span className="flex-1">Default layout</span>
-                    {settings.selectedRibbonId === '' && <Check className="w-3 h-3 shrink-0" />}
-                  </RadixDropdownMenu.Item>
                   {ribbonDesigns.map(d => (
                     <RadixDropdownMenu.Item
                       key={d.id}
@@ -190,8 +183,8 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               </RadixDropdownMenu.Portal>
             </RadixDropdownMenu.Root>
             {(() => {
-              const design = settings.selectedRibbonId ? ribbonDesigns.find(d => d.id === settings.selectedRibbonId) : undefined;
-              const rows = design?.rows ?? getDefaultRibbonRows();
+              const design = settings.selectedRibbonId ? ribbonDesigns.find(d => d.id === settings.selectedRibbonId) : ribbonDesigns[0];
+              const rows = design?.rows;
               const cellPadding = design?.cellPadding;
               if (!rows) return null;
               return (

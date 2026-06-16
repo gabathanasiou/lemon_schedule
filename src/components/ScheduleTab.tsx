@@ -11,7 +11,6 @@ import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/
 import { Pencil, Check, ChevronDown, Printer } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import RibbonTab from './RibbonTab';
-import { getDefaultRibbonRows } from '../lib/ribbonUtils';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -591,13 +590,11 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
 
   if (!activeVersion) return <div>No active version</div>;
 
-  const activeRibbonDesign = project.activeRibbonId
-    ? project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
-    : undefined;
-  const activeRibbon = activeRibbonDesign?.rows ?? getDefaultRibbonRows();
-  const cellPadding = activeRibbonDesign?.cellPadding;
-  const edgePadding = activeRibbonDesign?.edgePadding;
-  const currentRibbonName = activeRibbonDesign?.name || 'Default';
+  const activeRibbonDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId) || project.ribbonDesigns[0];
+  const activeRibbon = activeRibbonDesign.rows;
+  const cellPadding = activeRibbonDesign.cellPadding;
+  const edgePadding = activeRibbonDesign.edgePadding;
+  const currentRibbonName = activeRibbonDesign.name;
 
   const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
   const missingScenesInRows = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
@@ -1142,13 +1139,6 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
                 </button>
               }
             >
-              <DropdownItem
-                onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: '' }); setRibbonMenuOpen(false); }}
-                icon={!project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-              >
-                Default
-              </DropdownItem>
-              <DropdownDivider />
               {project.ribbonDesigns.map(d => (
               <DropdownItem
                   key={d.id}
