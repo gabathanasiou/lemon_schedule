@@ -609,7 +609,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       <MiniTab
         tabs={[
           { id: 'sheet', label: 'Sheet' },
-          { id: 'elements', label: 'Elements' },
+          { id: 'elements', label: 'Element Manager' },
           { id: 'scenes', label: 'Scene Breakdown' },
         ]}
         activeTab={subTab}
