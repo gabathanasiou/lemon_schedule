@@ -75,7 +75,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
         }
       } catch {
-        dialog.alert({ title: 'Invalid File', message: 'Could not parse JSON.' });
+        dialog.alert({ title: 'Invalid File', message: 'Could not read file.' });
       }
       setImporting(false);
     };
@@ -258,7 +258,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         <button
                           onClick={e => handleExportJSON(e, p)}
                           className="p-1.5 rounded-md transition-colors hover:bg-zinc-700"
-                          title="Export as JSON"
+                           title="Export"
                         >
                           <Download className="w-3.5 h-3.5 text-zinc-400" />
                         </button>

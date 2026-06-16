@@ -299,7 +299,7 @@ function AppContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${project.title || 'Export'}.json`;
+    a.download = `${project.title || 'Export'}.lemon`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -352,7 +352,7 @@ function AppContent() {
                 New Project
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
-                Open Project...
+                Project Manager
               </DropdownItem>
               <DropdownDivider />
               <DropdownItem onClick={() => { setShowFileMenu(false); importFileRef.current?.click(); }} icon={<FileUp className="w-3.5 h-3.5" />}>
@@ -364,7 +364,7 @@ function AppContent() {
                   Breakdown to CSV
                 </DropdownItem>
                 <DropdownItem onClick={() => { setShowFileMenu(false); handleExportJSON(); }}>
-                  Save Project as JSON
+                  Export Project
                 </DropdownItem>
               </DropdownSubmenu>
               <DropdownSubmenu label="Print" icon={<Printer className="w-3.5 h-3.5" />} width="w-48">
