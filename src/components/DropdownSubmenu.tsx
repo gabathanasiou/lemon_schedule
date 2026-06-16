@@ -44,8 +44,8 @@ export default function DropdownSubmenu({ label, icon, width, side = 'right', ch
         <RadixDropdownMenu.SubContent
           className={`bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[210] text-zinc-300 p-1 flex flex-col font-sans select-none max-h-80 overflow-y-auto min-w-0 ${width || 'w-48'}`}
           side={side}
-          sideOffset={4}
-          alignOffset={-4}
+          sideOffset={8}
+          alignOffset={0}
           collisionPadding={8}
         >
           {children}
