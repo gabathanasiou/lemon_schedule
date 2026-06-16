@@ -5,7 +5,7 @@ import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   normalizeCells, getFieldValueFromSample, getDefaultRibbonRows, cid, MIN_PCT,
-  getCustomFieldDefs,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle,
 } from '../lib/ribbonUtils';
 import {
   Hash, Clock, Timer, MapPin, Building2, Sun, Users, FileText, AlignLeft,
@@ -73,11 +73,6 @@ function getLabel(field: string) {
   if (!field) return 'Empty';
   const f = FIELD_MAP[field];
   return f ? f.label : field;
-}
-
-function getAlign(cell?: RibbonCell) {
-  if (cell?.align) return cell.align;
-  return FIELD_MAP[cell?.field || '']?.align || 'left';
 }
 
 export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement | null }) {
@@ -886,17 +881,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                               const shortDisplay = !c.wrap && display.length <= 4;
                               return (
                                 <div key={c.id} style={{
-                                  flex: `0 0 ${c.width}%`,
-                                  minWidth: 0,
-                                  padding: '6px 6px',
+                                  ...getRibbonCellBaseStyle(c),
                                   borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
-                                  overflow: 'hidden',
                                   textOverflow: shortDisplay ? 'clip' : 'ellipsis',
-                                  whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                                  wordBreak: c.wrap ? 'break-word' : undefined,
-                                  textAlign: getAlign(c),
-                                  textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                                  fontWeight: c.field === 'sceneNumber' ? 700 : 500,
                                 }}>
                                   {display || ''}
                                 </div>
