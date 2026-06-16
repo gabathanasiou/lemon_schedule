@@ -33,11 +33,12 @@ export default function DropdownSubmenu({ label, icon, width, side = 'right', ch
   return (
     <RadixDropdownMenu.Sub>
       <RadixDropdownMenu.SubTrigger className="w-full text-left px-3 py-2 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-300 justify-between hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white data-[state=open]:bg-zinc-800 data-[state=open]:text-white">
+        {side === 'left' && <ChevronRight className="w-3 h-3 text-zinc-500 rotate-180 order-first" />}
         <span className="flex items-center gap-2">
           {icon && <span className="text-zinc-400 shrink-0">{icon}</span>}
           {label}
         </span>
-        <ChevronRight className={`w-3 h-3 text-zinc-500 ${side === 'left' ? 'rotate-180' : ''}`} />
+        {side === 'right' && <ChevronRight className="w-3 h-3 text-zinc-500" />}
       </RadixDropdownMenu.SubTrigger>
       <RadixDropdownMenu.Portal>
         <RadixDropdownMenu.SubContent
