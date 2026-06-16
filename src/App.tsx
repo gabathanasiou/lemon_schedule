@@ -49,6 +49,8 @@ function AppContent() {
   const [brSheetIdx, setBrSheetIdx] = useState(0);
   const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
   const [reportsCategory, setReportsCategory] = useState('cast');
+  const [scheduleTargetScene, setScheduleTargetScene] = useState<string | null>(null);
+  const [scheduleScrollTop, setScheduleScrollTop] = useState(0);
 
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setActiveTab('breakdown');
@@ -60,6 +62,15 @@ function AppContent() {
     const idx = state.present.scenes.findIndex(s => s.id === sceneId);
     if (idx >= 0) { setActiveTab('breakdown'); setBrSubTab('sheet'); setBrSheetIdx(idx); }
   }, [state.present.scenes]);
+
+  const handleOpenScheduleAtScene = useCallback((sceneId: string) => {
+    setActiveTab('schedule');
+    setScheduleSubTab('stripboard');
+    setScheduleTargetScene(sceneId);
+  }, []);
+
+  const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
+
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
@@ -613,7 +624,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px">
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} onPrint={() => setShowPrintDialog(true)} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} subTab={scheduleSubTab} onSubTabChange={setScheduleSubTab} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
       </main>
 
       {showTrash && (

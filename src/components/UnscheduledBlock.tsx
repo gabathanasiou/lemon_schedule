@@ -23,6 +23,7 @@ export const UnscheduledBlock: React.FC<{
   activeDragIds?: Set<string>,
   onRowClick?: (id: string, e: React.MouseEvent) => void,
   onSelectionChange?: (ids: Set<string>, isAddMode: boolean) => void,
+  onRowDoubleClick?: (id: string) => void,
   insertBeforeId?: string | null,
   activeDragRow?: ScheduleRow | null,
   activeDragRows?: ScheduleRow[],
@@ -32,7 +33,8 @@ export const UnscheduledBlock: React.FC<{
   ribbon?: RibbonRow[],
   cellPadding?: number,
   edgePadding?: number,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, cellPadding, edgePadding }) => {
+  forceExpanded?: boolean,
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, cellPadding, edgePadding, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -51,6 +53,13 @@ export const UnscheduledBlock: React.FC<{
   useEffect(() => {
     localStorage.setItem(COLLAPSED_KEY, String(isCollapsed));
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (forceExpanded && isCollapsed) {
+      setIsCollapsed(false);
+      onCollapseChange?.(false);
+    }
+  }, [forceExpanded, isCollapsed, onCollapseChange]);
 
   useEffect(() => {
     if (textEditingEnabled) return;
@@ -303,6 +312,7 @@ export const UnscheduledBlock: React.FC<{
                     isFaded={activeDragIds?.has(r.id) ?? false}
                     onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
                     textEditingEnabled={textEditingEnabled}
+                    onDoubleClick={onRowDoubleClick}
                     onRowNavigate={onRowNavigate}
                     ribbon={ribbon}
                     cellPadding={cellPadding}

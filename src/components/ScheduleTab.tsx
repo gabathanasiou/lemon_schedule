@@ -21,7 +21,7 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode } from '../lib/persist';
 
-export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void; onPrint?: () => void }) {
+export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; subTab: 'stripboard' | 'ribbons'; onSubTabChange: (t: 'stripboard' | 'ribbons') => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -36,6 +36,7 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
+  const [forceUnscheduledExpanded, setForceUnscheduledExpanded] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [ribbonPortalTarget, setRibbonPortalTarget] = useState<HTMLDivElement | null>(null);
@@ -484,7 +485,30 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
     const id = setTimeout(() => setFocusedRowId(null), 3000);
     return () => clearTimeout(id);
   }, [focusedRowId]);
-  const scrollToRow = (rowId: string) => {
+
+  useEffect(() => {
+    if (!savedScrollTop || targetSceneId) return;
+    if (scheduleScrollRef.current) {
+      scheduleScrollRef.current.scrollTop = savedScrollTop;
+    }
+  }, [savedScrollTop, targetSceneId]);
+
+  useEffect(() => {
+    if (!targetSceneId || !activeVersion) return;
+    const row = activeVersion.rows.find(r => r.sceneId === targetSceneId);
+    if (row) {
+      if (row.shootDay == null) setForceUnscheduledExpanded(true);
+      setSelectedRowIds(new Set([row.id]));
+      requestAnimationFrame(() => {
+        scrollToRow(row.id, 0.3);
+        onSceneTargetSeen?.();
+      });
+    } else {
+      onSceneTargetSeen?.();
+    }
+  }, [targetSceneId, activeVersion, onSceneTargetSeen]);
+
+  const scrollToRow = (rowId: string, offsetFraction?: number) => {
     requestAnimationFrame(() => {
       let el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`) ?? null;
       let container: HTMLElement | null = el ? scheduleScrollRef.current : null;
@@ -497,15 +521,19 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
       if (!el || !container) return;
       const cRect = container.getBoundingClientRect();
       const eRect = el.getBoundingClientRect();
-      const buffer = 200;
 
-      let targetScroll = container.scrollTop;
-      if (eRect.top < cRect.top + buffer) {
-        targetScroll = container.scrollTop + eRect.top - (cRect.top + buffer);
-      } else if (eRect.bottom > cRect.bottom - buffer) {
-        targetScroll = container.scrollTop + eRect.bottom - (cRect.bottom - buffer);
+      let targetScroll: number;
+      if (offsetFraction !== undefined) {
+        targetScroll = container.scrollTop + eRect.top - cRect.top - cRect.height * offsetFraction;
       } else {
-        return;
+        const buffer = 200;
+        if (eRect.top < cRect.top + buffer) {
+          targetScroll = container.scrollTop + eRect.top - (cRect.top + buffer);
+        } else if (eRect.bottom > cRect.bottom - buffer) {
+          targetScroll = container.scrollTop + eRect.bottom - (cRect.bottom - buffer);
+        } else {
+          return;
+        }
       }
 
       const start = container.scrollTop;
@@ -1261,10 +1289,10 @@ export function ScheduleTab({ onOpenScene, subTab, onSubTabChange, onPrint }: { 
               }
           }}
       >
-         <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} cellPadding={cellPadding} edgePadding={edgePadding} />
+           <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} cellPadding={cellPadding} edgePadding={edgePadding} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
+        <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
           onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());

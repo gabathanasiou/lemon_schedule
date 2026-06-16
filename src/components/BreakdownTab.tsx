@@ -32,7 +32,7 @@ const CAST_COL = 8;
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet }: {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule }: {
  subTab: 'scenes' | 'elements' | 'sheet';
  onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
   savedCat: string;
@@ -40,6 +40,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   savedSheetIdx: number;
   onSheetIdxChange: (i: number) => void;
   onOpenSheet?: (rowIndex: number) => void;
+  onOpenSchedule?: (sceneId: string) => void;
 }) {
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -654,7 +655,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           </>
         }
       />
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} /> : (
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : (
         <>
       <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">

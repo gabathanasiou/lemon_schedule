@@ -6,7 +6,8 @@ import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
-import { parsePageCount, formatPageCount, generateUUID } from '../lib/utils';
+import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
+import { sceneStyle } from '../lib/ribbonUtils';
 
 const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
@@ -24,7 +25,7 @@ const BREAKDOWN_LABEL: Record<string, string> = {
 
 let persistedIndex = 0;
 
-export function SceneSheet({ initialIndex, onIndexChange, headerTarget }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null }) {
+export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const scenes = project.scenes;
@@ -56,6 +57,28 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget }: { init
 
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
+
+  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const scheduleRow = scene ? activeVersion?.rows.find(r => r.sceneId === scene.id) : null;
+  const shootDay = scheduleRow?.shootDay;
+  const shootDayMeta = shootDay != null ? activeVersion?.dayMeta?.[shootDay] : null;
+
+  const chronoDayMap = useMemo(() => {
+    const m = new Map<number, number>();
+    const existingDays = Object.keys(activeVersion?.dayMeta || {}).map(Number).sort((a, b) => {
+      const dateA = activeVersion?.dayMeta?.[a]?.date || '';
+      const dateB = activeVersion?.dayMeta?.[b]?.date || '';
+      return dateA.localeCompare(dateB);
+    });
+    let counter = 0;
+    for (const d of existingDays) {
+      const status = activeVersion?.dayMeta?.[d]?.status;
+      if (!status || status === 'work') { counter++; m.set(d, counter); }
+    }
+    return m;
+  }, [activeVersion?.dayMeta]);
+
+  const displayDay = shootDay != null ? (chronoDayMap.get(shootDay) ?? shootDay) : null;
 
   const goTo = useCallback((n: number) => {
     if (Object.keys(editsRef.current).length > 0) {
@@ -289,6 +312,28 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget }: { init
   return (
     <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
+
+      {scene && (() => {
+        const colors = sceneStyle(scene);
+        return (
+          <div
+            className="shrink-0 w-full flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none"
+            style={{ background: colors.background, color: colors.color }}
+            onClick={() => onOpenSchedule?.(scene.id)}
+            title="Click to open in Schedule"
+          >
+            {shootDayMeta ? (
+              <>
+                <span className="font-bold text-sm whitespace-nowrap">Day {displayDay}</span>
+                <span className="flex-1 text-center text-xs font-semibold opacity-80">Date: {formatDateLong(shootDayMeta.date)}</span>
+              </>
+            ) : (
+              <span className="text-center text-xs font-semibold opacity-80 w-full">Unscheduled</span>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="max-w-4xl mx-auto w-full flex flex-col h-full px-4 py-3 gap-3">
         {!headerTarget && navBar}
 

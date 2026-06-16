@@ -178,3 +178,15 @@ export function normalizePunctuation(s: string): string {
     .replace(/[\u2013\u2014]/g, '-')
     .replace(/\u2026/g, '...');
 }
+
+export function formatDateLong(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+  const year = d.getFullYear();
+  const suffixes = ['TH', 'ST', 'ND', 'RD'];
+  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
+  return `${weekday} ${day}${suffix} ${month} ${year}`;
+}

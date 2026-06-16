@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
-import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
+import { addMinutesToTime, formatDuration, formatPageCount, formatDateLong } from '../lib/utils';
 import { SortableRow } from './SortableRow';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
@@ -10,18 +10,6 @@ import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow } from '../types';
 import { getFieldValue, FIELD_MAP } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
-
-function formatDateLong(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  if (isNaN(d.getTime())) return dateStr;
-  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
-  const year = d.getFullYear();
-  const suffixes = ['TH', 'ST', 'ND', 'RD'];
-  const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
-  return `${weekday} ${day}${suffix} ${month} ${year}`;
-}
 
 const sceneCardClass = (scene?: Scene | null): string => {
   if (!scene) return 'bg-white text-zinc-900';
