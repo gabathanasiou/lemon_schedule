@@ -225,24 +225,51 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       const current = rowsByCat.current[cat] || [];
       const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
       const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
+
+      const mergedSources = new Set<string>();
+      const merges: { sourceIds: string[]; targetId: string; targetName: string }[] = [];
+
+      for (const orig of snap) {
+        if (!rowMap.has(orig.key)) {
+          const surviving = current.find(r => r.name && r.name.toLowerCase() === orig.name.toLowerCase());
+          if (surviving && cat !== 'cast') {
+            mergedSources.add(orig.id);
+            let merge = merges.find(m => m.targetId === surviving.id);
+            if (!merge) {
+              merge = { sourceIds: [], targetId: surviving.id, targetName: surviving.name };
+              merges.push(merge);
+            }
+            merge.sourceIds.push(orig.id);
+          }
+        }
+      }
+
+      for (const merge of merges) {
+        dispatch({ type: 'MERGE_ELEMENTS', payload: { category: cat, ...merge } });
+      }
+
+      const mergeTargets = new Set(merges.map(m => m.targetId));
+
       for (const row of current) {
+        if (mergeTargets.has(row.id)) continue;
         const orig = snapMap.get(row.key);
         if (!orig) {
           const match = snap.find(s => s.name.toLowerCase() === row.name.toLowerCase());
-          if (match) {
+          if (match && !mergedSources.has(match.id)) {
             dispatch({ type: 'UPDATE_ELEMENT', payload: { category: cat, id: match.id, updates: { id: row.id, name: row.name } } });
             snapMap.delete(match.key);
-          } else {
+          } else if (!match) {
             dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: row.id, name: row.name } } });
           }
         } else if (orig.id !== row.id || orig.name !== row.name) {
           dispatch({ type: 'UPDATE_ELEMENT', payload: { category: cat, id: orig.id, updates: { id: row.id, name: row.name } } });
         }
       }
+
       for (const orig of snap) {
         if (!rowMap.has(orig.key)) {
-          const isMerged = !(cat === 'cast') && current.some(r => r.name && r.name.toLowerCase() === orig.name.toLowerCase());
-          if (!isMerged) dispatch({ type: 'DELETE_ELEMENT', payload: { category: cat, id: orig.id } });
+          if (mergedSources.has(orig.id)) continue;
+          dispatch({ type: 'DELETE_ELEMENT', payload: { category: cat, id: orig.id } });
         }
       }
     }

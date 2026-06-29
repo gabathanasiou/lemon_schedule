@@ -230,6 +230,7 @@ type Action =
   | { type: 'ADD_ELEMENT'; payload: { category: string; element: { id: string; name: string } } }
   | { type: 'UPDATE_ELEMENT'; payload: { category: string; id: string; updates: { id?: string; name?: string } } }
   | { type: 'DELETE_ELEMENT'; payload: { category: string; id: string } }
+  | { type: 'MERGE_ELEMENTS'; payload: { category: string; sourceIds: string[]; targetId: string; targetName: string } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
   | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; cellPadding?: number; edgePadding?: number } }
@@ -762,6 +763,49 @@ function reducer(state: State, action: Action): State {
           ? (state.present.castMembers || []).filter(c => c.id !== id)
           : state.present.castMembers,
         elementsTrash: [...state.present.elementsTrash, trashItem],
+      });
+    }
+
+    case 'MERGE_ELEMENTS': {
+      const { category, sourceIds, targetId, targetName } = action.payload;
+      const isCast = category === 'cast';
+      const list = state.present.breakdownElements[category] || [];
+      const sourceSet = new Set(sourceIds.map(id => id.toLowerCase()));
+
+      const filtered = list.filter(e => !sourceSet.has(e.id.toLowerCase()));
+      if (!filtered.some(e => e.id.toLowerCase() === targetId.toLowerCase())) {
+        filtered.push({ id: targetId, name: targetName });
+      }
+
+      const scenes = state.present.scenes.map(scene => {
+        const val = getSceneFieldValue(scene, category);
+        if (!val) return scene;
+        const items = getFieldItems(category, val);
+        let changed = false;
+        const newItems = items.map(item => {
+          if (sourceSet.has(item.toLowerCase())) {
+            changed = true;
+            return targetName;
+          }
+          return item;
+        });
+        if (!changed) return scene;
+        return { ...scene, [category]: newItems.join(', ') };
+      });
+
+      let castMembers = state.present.castMembers;
+      if (isCast) {
+        castMembers = castMembers.filter(c => !sourceSet.has(c.id.toLowerCase()));
+        if (!castMembers.some(c => c.id.toLowerCase() === targetId.toLowerCase())) {
+          castMembers = [...castMembers, { id: targetId, name: targetName }];
+        }
+      }
+
+      return applyChange({
+        ...state.present,
+        scenes,
+        breakdownElements: { ...state.present.breakdownElements, [category]: filtered },
+        castMembers,
       });
     }
 
