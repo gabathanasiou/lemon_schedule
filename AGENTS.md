@@ -157,6 +157,21 @@ Utility classes exported from EntityDropdown.tsx: `DD_ITEM_CLASS(active)`, `DD_P
 ### Entity Selection
 Whenever a UI needs the user to select items from a list (days, set pieces, props, cast members, etc.), use the `EntityDropdown` component. It handles multi/single-select, search filtering, custom display, and click-to-toggle in one shared component. Do not hand-roll checkboxes, tag inputs, or custom dropdowns — `EntityDropdown` with `items`/`renderItem`/`mode` covers every case cleanly.
 
+**Deriving `mode`:** Always use `isMultiValue(category, customCategories?)` from `src/lib/categories.ts` instead of hardcoding `mode="multi"` or `mode="single"`. The `multiValue` boolean on each category definition (built-in or custom) is the single source of truth:
+```tsx
+<EntityDropdown mode={isMultiValue(field, project.customCategories) ? 'multi' : 'single'} ... />
+```
+
+**Extracting field values:** Use `getFieldItems(field, value)` instead of raw `val.split(',')`. It returns `[value.trim()]` for single-value categories (e.g. `set`) and `value.split(',').map(...)` for multi-value categories. Never write `category === 'set' ? [val] : val.split(',')` — use the helper.
+
+```tsx
+import { getFieldItems, isMultiValue } from '../lib/categories';
+const items = getFieldItems(category, fieldValue);
+```
+
+### Category `multiValue` Property
+Each category (built-in via `ELEMENT_CATEGORIES` in `src/lib/categories.ts`, custom via `CustomCategoryDef.multiValue?`) has a `multiValue: boolean`. Only `set` is `multiValue: false` by default. Custom categories can toggle this in the Element Manager's Create/Edit Category modal. When adding a new built-in single-value category, set `multiValue: false` in `ELEMENT_CATEGORIES` — no other code changes needed.
+
 ### Key Patterns
 - **Click-to-toggle** (NOT hover): All menus use React state + backdrop div for closing.
 - **Lucide icons**: Always `w-3.5 h-3.5` in menus and buttons. Use `className="shrink-0"` to prevent icon squishing.
