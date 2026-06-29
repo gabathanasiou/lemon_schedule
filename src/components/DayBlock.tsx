@@ -9,7 +9,7 @@ import { Tooltip } from './Tooltip';
 import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
@@ -216,7 +216,148 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   const dhColors = getDayHeaderColors(project.colorPalette);
 
+  // Ribbon column layout for header/footer
+  const ribbonActive = !!(ribbon && ribbon.length > 0);
+  const cells = ribbonActive ? ribbon![0].cells : null;
+  const cw = colWidths ?? cells?.map(() => 100 / (cells.length || 1)) ?? [];
+  const cpv = cellPaddingV ?? 6;
+  const cph = cellPaddingH ?? 6;
+  const hPad = `${getNoteBreakPad(cpv, ribbon?.length || 1)}px ${cph}px`;
+  const mainCellIdx = cells ? (() => {
+    const nonSpecial = cells
+      .map((c, i) => ({i, w: cw[i] ?? 0, f: c.field}))
+      .filter(x => x.f !== 'duration' && x.f !== 'callTime');
+    return nonSpecial.length > 0
+      ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
+      : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+  })() : null;
+  const labelCellIdx = cells ? cells.findIndex(c => c.field !== 'duration' && c.field !== 'callTime') : -1;
+
+  const renderRibbonHeader = (statusLabel?: string) => {
+    if (!cells || mainCellIdx == null) return null;
+    const label = statusLabel || `DAY #${displayDay}`;
+    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    return (
+      <div className="flex-1 min-w-0 flex flex-col" style={{ paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+          {cells.map((cell, ci) => {
+            if (ci === mainCellIdx) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center', padding: hPad, overflow: 'visible',
+                  whiteSpace: 'normal', wordBreak: 'break-word',
+                }}>
+                  <strong>{dateStr}</strong>
+                </div>
+              );
+            }
+            if (ci === labelCellIdx) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center', padding: hPad, overflow: 'visible',
+                }}>
+                  <span className="font-bold">{label}</span>
+                </div>
+              );
+            }
+            if (cell.field === 'callTime') {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center', padding: hPad, overflow: 'visible',
+                }}>
+                  {!statusLabel && (
+                    <>
+                      <span className="font-semibold text-[10px]">CALL </span>
+                      <CellInput
+                        value={meta?.unitCall || '08:00'}
+                        onChange={val => updateMeta({unitCall: val})}
+                        clearOnType col="duration"
+                        className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                      />
+                    </>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <div key={cell.id} style={{
+                gridColumn: ci + 1, gridRow: 1,
+                ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                textAlign: 'center', padding: hPad, overflow: 'visible',
+              }} />
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRibbonFooter = () => {
+    if (!cells || mainCellIdx == null) return null;
+    const endTime = runningElapsed > 0 ? addMinutesToTime(meta?.unitCall || '08:00', runningElapsed) : '';
+    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    return (
+      <div ref={setFooterRef} style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '1px solid var(--border, #d4d4d8)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+          {cells.map((cell, ci) => {
+            if (ci === labelCellIdx) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center', overflow: 'hidden',
+                  whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                }}>
+                  End of Day #{displayDay}
+                  {endTime && <span> · {endTime}</span>}
+                </div>
+              );
+            }
+            if (ci === mainCellIdx) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center',
+                }}>
+                  {dateStr}
+                </div>
+              );
+            }
+            return (
+              <div key={cell.id} style={{
+                gridColumn: ci + 1, gridRow: 1,
+                ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                textAlign: 'center',
+              }} />
+            );
+          })}
+        </div>
+        <div style={{ padding: `2px ${cpv}px`, display: 'flex', justifyContent: 'flex-end', gap: 16, color: '#18181b' }}>
+          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+          <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+        </div>
+      </div>
+    );
+  };
+
   if (isStatusDay) {
+    const statusLabel = meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : 'HOLIDAY';
+    if (ribbonActive) {
+      return (
+        <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black border-b-dashed border-b-zinc-300">
+          <div style={{ background: dhColors.background, color: dhColors.color }}>
+            {renderRibbonHeader(statusLabel)}
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black border-b-dashed border-b-zinc-300">
         <div style={{ background: dhColors.background, color: dhColors.color }}>
@@ -226,7 +367,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
                 style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
                 <td className="col-sc" style={{textAlign: 'left'}}>
-                  <span className="font-bold" style={{paddingLeft: 4}}>{meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
+                  <span className="font-bold" style={{paddingLeft: 4}}>{statusLabel}</span>
                 </td>
                 <td className="col-call"><span style={{visibility: 'hidden'}}>CALL</span></td>
                 <td className="col-dur" />
@@ -250,54 +391,55 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       
       {/* Day Ribbon Banner */}
       <div style={{ background: dhColors.background, color: dhColors.color }}>
-        <table className="schedule-table">
-          <tbody>
-            <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
-              onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-              style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
-              <td className="col-sc" style={{textAlign: 'left'}}>
-                <span className="font-bold" style={{paddingLeft: 4}}>{meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : meta?.status === 'holiday' ? 'HOLIDAY' : `DAY #${displayDay}`}</span>
-              </td>
-              <td className="col-call">
-                {violations.length > 0 && (
-                  <Tooltip content={vMessages}>
-                    <span className="inline-flex items-center gap-0.5 text-red-400">
-                      <Flag className="w-3.5 h-3.5 fill-red-400" />
-                      <span className="text-[10px] font-bold">{violations.length}</span>
-                    </span>
-                  </Tooltip>
-                )}
-                <button 
-                  onClick={() => {
-                    dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt });
-                  }}
-                  className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors ml-1"
-                  title="Remove all scenes from this day"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </td>
-              <td className="col-dur" />
-              <td className="col-ie" />
-              <td className="col-set text-center font-semibold">
-                {meta?.date ? formatDateLong(meta.date) : ''}
-              </td>
-              <td className="col-dn" />
-              <td className="col-cast">
-                <span className="font-semibold text-[10px] text-zinc-400">CALL</span>
-              </td>
-              <td className="col-pgs">
-                <CellInput
-                  value={meta?.unitCall || '08:00'}
-                  onChange={val => updateMeta({unitCall: val})}
-                  clearOnType
-                  col="duration"
-                  className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-full text-center"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {ribbonActive ? renderRibbonHeader() : (
+          <table className="schedule-table">
+            <tbody>
+              <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
+                onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
+                style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
+                <td className="col-sc" style={{textAlign: 'left'}}>
+                  <span className="font-bold" style={{paddingLeft: 4}}>DAY #{displayDay}</span>
+                </td>
+                <td className="col-call">
+                  {violations.length > 0 && (
+                    <Tooltip content={vMessages}>
+                      <span className="inline-flex items-center gap-0.5 text-red-400">
+                        <Flag className="w-3.5 h-3.5 fill-red-400" />
+                        <span className="text-[10px] font-bold">{violations.length}</span>
+                      </span>
+                    </Tooltip>
+                  )}
+                  <button 
+                    onClick={() => { dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt }); }}
+                    className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors ml-1"
+                    title="Remove all scenes from this day"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </td>
+                <td className="col-dur" />
+                <td className="col-ie" />
+                <td className="col-set text-center font-semibold">
+                  {meta?.date ? formatDateLong(meta.date) : ''}
+                </td>
+                <td className="col-dn" />
+                <td className="col-cast">
+                  <span className="font-semibold text-[10px] text-zinc-400">CALL</span>
+                </td>
+                <td className="col-pgs">
+                  <CellInput
+                    value={meta?.unitCall || '08:00'}
+                    onChange={val => updateMeta({unitCall: val})}
+                    clearOnType
+                    col="duration"
+                    className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-full text-center"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+
       </div>
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
@@ -346,21 +488,23 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         {showGhosts && insertBeforeId === `end-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
-        <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
-          style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>
-          <span className="shrink-0">
-            End of Day #{displayDay}
-            {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
-          </span>
-          <span className="flex-1 text-center">
-            {meta?.date ? formatDateLong(meta.date) : ''}
-          </span>
-          <div className="flex shrink-0" style={{gap: '20pt'}}>
-            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-            <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+        {ribbonActive ? renderRibbonFooter() : (
+          <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
+            style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>
+            <span className="shrink-0">
+              End of Day #{displayDay}
+              {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
+            </span>
+            <span className="flex-1 text-center">
+              {meta?.date ? formatDateLong(meta.date) : ''}
+            </span>
+            <div className="flex shrink-0" style={{gap: '20pt'}}>
+              <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+              <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+            </div>
           </div>
-          </div>
-        </>
+        )}
+      </>
     </div>
   );
 }

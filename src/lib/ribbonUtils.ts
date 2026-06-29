@@ -351,7 +351,7 @@ export function normalizeColWidths(widths: number[]): number[] {
 }
 
 export function getDefaultColWidths(): number[] {
-  return [7.56, 6.46, 7.68, 6.33, 39.29, 23.02, 9.65];
+  return [7.78, 6.53, 8.4, 7.84, 45.15, 15.22, 9.11];
 }
 
 export function getDefaultRibbonRows(): RibbonRow[] {
@@ -360,26 +360,26 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 1',
       cells: [
-        { id: cid(), field: 'sceneNumber', prefix: 'Sc', align: 'left' },
-        { id: cid(), field: 'callTime', align: 'center' },
-        { id: cid(), field: 'duration', align: 'center' },
+        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'center' },
+        { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
+        { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'intExt', align: 'left' },
-        { id: cid(), field: 'set', align: 'left' },
-        { id: cid(), field: 'cast', prefix: 'Cast', align: 'left', wrap: true },
-        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'right' },
+        { id: cid(), field: 'set', align: 'left', verticalAlign: 'middle' },
+        { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top' },
+        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top', wrap: true },
       ],
     },
     {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: '' },
-        { id: cid(), field: '' },
-        { id: cid(), field: '' },
+        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'center' },
+        { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
+        { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'dayNight', align: 'left' },
-        { id: cid(), field: 'description', align: 'left' },
-        { id: cid(), field: '' },
-        { id: cid(), field: '' },
+        { id: cid(), field: 'description', align: 'left', verticalAlign: 'top' },
+        { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top' },
+        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top', wrap: true },
       ],
     },
   ];
@@ -393,7 +393,7 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPaddingV: 3,
-    cellPaddingH: 6,
+    cellPaddingH: 20,
     edgePadding: 3,
   };
 }

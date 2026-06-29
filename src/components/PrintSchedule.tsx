@@ -195,11 +195,58 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
   return (
     <div className="print-day">
-      <div className="print-day-header">
-        <span className="print-day-number">DAY #{chronoDay}</span>
-        {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
-        <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
-      </div>
+      {cells ? (
+        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '), background: '#000000', color: '#ffffff', borderBottom: '2px solid #000' }}>
+          {cells.map((cell, ci) => {
+            if (ci === mainCellIdx) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+                }}>
+                  {meta?.date ? formatDateLong(meta.date) : ''}
+                </div>
+              );
+            }
+            if (ci === 0) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+                }}>
+                  DAY #{chronoDay}
+                </div>
+              );
+            }
+            if (cell.field === 'callTime') {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+                }}>
+                  CALL {meta?.unitCall || ''}
+                </div>
+              );
+            }
+            return (
+              <div key={cell.id} style={{
+                gridColumn: ci + 1, gridRow: 1,
+                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+              }} />
+            );
+          })}
+        </div>
+      ) : (
+        <div className="print-day-header">
+          <span className="print-day-number">DAY #{chronoDay}</span>
+          {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
+          <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
+        </div>
+      )}
 
       {computedRows.map((r) => {
             if (r.type === 'NOTE') {
@@ -408,17 +455,58 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             );
           })}
 
-      <div className="print-day-footer">
-        <span className="print-footer-end-label">
-          End of Day #{chronoDay}
-          {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
-        </span>
-        {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
-        <div className="print-footer-stats">
-          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-          <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+      {cells ? (
+        <div className="print-day-footer" style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' ') }}>
+          {cells.map((cell, ci) => {
+            if (ci === 0) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                }}>
+                  End of Day #{chronoDay}
+                  {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
+                </div>
+              );
+            }
+            if (ci === mainCellIdx) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                }}>
+                  {meta?.date ? formatDateLong(meta.date) : ''}
+                </div>
+              );
+            }
+            return (
+              <div key={cell.id} style={{
+                gridColumn: ci + 1, gridRow: 1,
+                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+              }} />
+            );
+          })}
+          <div style={{ gridColumn: `1 / -1`, padding: `2px ${cellPaddingV ?? 6}px`, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
+            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+            <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="print-day-footer">
+          <span className="print-footer-end-label">
+            End of Day #{chronoDay}
+            {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
+          </span>
+          {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
+          <div className="print-footer-stats">
+            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+            <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

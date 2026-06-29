@@ -164,7 +164,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPaddingV: 3,
-    cellPaddingH: 6,
+    cellPaddingH: 20,
     edgePadding: 3,
   };
   return {
