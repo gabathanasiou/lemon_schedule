@@ -739,19 +739,32 @@ In context menu JSX:
 
 #### View toggle
 
-In ScheduleTab header toolbar:
+In ScheduleTab header toolbar, alongside the Full/Compact toggle:
 ```tsx
-<div className="flex items-center gap-1">
-  <button
-    className={cn('px-2 py-1 text-xs rounded', stripView === 'full' ? 'bg-zinc-700 text-white' : 'text-zinc-400')}
-    onClick={() => dispatch({ type: 'SET_STRIP_VIEW', versionId, mode: 'full' })}
-  >
-    Full
-  </button>
-  <button
-    className={cn('px-2 py-1 text-xs rounded', stripView === 'compact' ? 'bg-zinc-700 text-white' : 'text-zinc-400')}
-    onClick={() => dispatch({ type: 'SET_STRIP_VIEW', versionId, mode: 'compact' })}
-  >
+<div className="flex items-center gap-2">
+  {/* Start date prompt (only when not set) */}
+  {!calendar.startDate && (
+    <button
+      className="px-2 py-1 text-xs rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 flex items-center gap-1"
+      onClick={() => onNavigateToCalendar()}
+    >
+      <CalendarIcon className="w-3 h-3" />
+      Set start date
+    </button>
+  )}
+
+  {/* Full / Compact toggle */}
+  <div className="flex items-center gap-1">
+    <button
+      className={cn('px-2 py-1 text-xs rounded', stripView === 'full' ? 'bg-zinc-700 text-white' : 'text-zinc-400')}
+      onClick={() => dispatch({ type: 'SET_STRIP_VIEW', versionId, mode: 'full' })}
+    >
+      Full
+    </button>
+    <button
+      className={cn('px-2 py-1 text-xs rounded', stripView === 'compact' ? 'bg-zinc-700 text-white' : 'text-zinc-400')}
+      onClick={() => dispatch({ type: 'SET_STRIP_VIEW', versionId, mode: 'compact' })}
+    >
     Compact
   </button>
 </div>
@@ -788,6 +801,21 @@ interface DayBlockProps {
 ```tsx
 // OLD: formatDateLong(meta.date)    (line 254)
 // NEW: formatDateLong(date)         (date passed as prop)
+```
+
+#### Day 1 START tag
+
+Day 1's header shows a `START` badge when a date is derived (see section 8.8 for styling). Only on `dayInt === 1` and `date !== null`.
+
+#### No start date warning
+
+When `date === null` (no start date set or no available date), the header shows an amber warning instead of a date:
+```tsx
+{date ? (
+  <span>{formatDateLong(date)}</span>
+) : (
+  <span className="text-amber-500 text-xs">⚠ No start date — set in Calendar tab</span>
+)}
 ```
 
 #### Footer / day break styling
@@ -920,7 +948,7 @@ The Calendar is a **timeline management panel**:
 [Start: 2026-06-29 📅]  [✓ Auto Weekends]  [Sat-Sun ▾]  [Today]
 ```
 
-- **Start date input**: Native `<input type="date" />`.
+- **Start date input**: Native `<input type="date" />`. When empty, shows placeholder "Set start date…" with a subtle highlight to draw the eye.
 - **Auto-weekends toggle**: Checkbox/switch.
 - **Weekend days selector**: Dropdown for "Sat-Sun", "Fri-Sat", "None", custom.
 - **Today button**: Navigate to current month.
@@ -946,7 +974,7 @@ Cell types:
 | Holiday | `calendar.daysOff[type='holiday']` | Green badge `HOLIDAY: label` |
 | Weekend (auto) | `autoWeekends + weekendDays` | Gray `WEEKEND` |
 | Custom day off | `calendar.daysOff[type='custom']` | Gray `OFF` |
-| Start date | `calendar.startDate` | `START` badge |
+| Start date | `calendar.startDate` | Colored ring + `START` badge (see 8.8) |
 | Free date | none of the above | Empty/interactive |
 
 ### 8.4 Right-click context menu (replaces current)
@@ -1041,6 +1069,122 @@ The tool palette (Select / Work / Hold / Travel / Holiday / Eraser) is replaced 
 - **Hold mode** — click dates to toggle hold day
 - **Travel mode** — click dates to toggle travel day
 - **Eraser** — click any entry to remove it (day off, hold, travel, or working day)
+
+### 8.8 Start date UX
+
+The production start date is the anchor for the entire schedule. It needs to be obvious, easy to set, and easy to change — with clear feedback when it changes.
+
+#### Empty state (no start date set)
+
+When `calendar.startDate` is null:
+
+**Calendar:**
+- The start date input field shows placeholder `"Set start date…"` with a subtle pulsing highlight (e.g. `ring-2 ring-amber-500/50 animate-pulse`).
+- A prominent banner above the calendar grid:
+  ```
+  ┌──────────────────────────────────────────────────┐
+  │ 📅 Set your production start date to begin        │
+  │    scheduling. Working days will flow from here.  │
+  │                              [Set Start Date →]   │
+  └──────────────────────────────────────────────────┘
+  ```
+  The "Set Start Date" button opens the date picker or defaults to today.
+- The banner dismisses once a start date is set.
+
+**Stripboard:**
+- If working day groups exist but have no derived dates, each DayBlock header shows:
+  ```
+  DAY 1 · ⚠ No start date — set in Calendar tab
+  ```
+  with an amber warning style (`text-amber-500`).
+- A small clickable link/button in the stripboard header toolbar:
+  ```tsx
+  {!calendar.startDate && (
+    <button
+      className="px-2 py-1 text-xs rounded bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 flex items-center gap-1"
+      onClick={() => switchToCalendarTab()}
+    >
+      <CalendarIcon className="w-3 h-3" />
+      Set start date
+    </button>
+  )}
+  ```
+  This navigates the user to the Calendar tab and focuses the start date input.
+
+#### Start date cell styling (calendar)
+
+The start date cell is visually distinct from all other cells:
+
+```tsx
+{isStartDate && (
+  <div className="relative">
+    <div className="absolute inset-0 ring-2 ring-blue-500 rounded-md pointer-events-none" />
+    <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-[9px] font-bold px-1 py-0.5 rounded shadow">
+      START
+    </div>
+    {/* cell content */}
+  </div>
+)}
+```
+
+- Blue colored ring around the entire cell (not just a badge).
+- `START` badge in the top-right corner.
+- The cell is still interactive (can still be right-clicked, scenes can be dragged onto it if it's a working day).
+- The ring persists even if the start date is also a working day — both indicators show simultaneously.
+
+#### Day 1 indicator in stripboard
+
+The first working day block (Day 1) shows a small `START` tag in its header:
+
+```tsx
+// In DayBlock header, next to "DAY 1":
+{dayInt === 1 && date && (
+  <span className="ml-1.5 text-[9px] font-bold text-blue-400 bg-blue-500/10 px-1 py-0.5 rounded">
+    START
+  </span>
+)}
+```
+
+- Only shows on Day 1 (the first working day group).
+- Only shows when a date is derived (start date is set).
+- Matches the calendar's START badge color (blue) for visual consistency.
+
+#### Changing start date feedback
+
+When the user changes the start date, ALL working day dates shift. This is a significant visual change that needs feedback:
+
+```tsx
+// After SET_PRODUCTION_START dispatch:
+// 1. All DayBlock headers flash briefly with an amber highlight
+// 2. A toast/notification appears:
+"Start date updated — all working days rescheduled"
+
+// Implementation: a transient state flag that triggers a CSS animation
+const [flashDates, setFlashDates] = useState(false);
+useEffect(() => {
+  if (startDateChanged) {
+    setFlashDates(true);
+    const t = setTimeout(() => setFlashDates(false), 1500);
+    return () => clearTimeout(t);
+  }
+}, [startDateChanged]);
+
+// In DayBlock header:
+<div className={cn('day-header', flashDates && 'animate-[flash_1.5s_ease-out]')}>
+```
+
+The flash is a subtle amber background pulse that fades out over 1.5 seconds — enough to draw attention to the changed dates without being jarring.
+
+#### Start date in print
+
+The print schedule header shows the production start date prominently:
+
+```
+PRODUCTION SCHEDULE
+Start: Monday 29th June 2026    Days: 1-5    Version: Main
+```
+
+This is a small addition to `PrintSchedule.tsx` header area.
 
 ---
 
@@ -1190,13 +1334,15 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 **Goal**: Calendar shows derived days, manages days off/hold/travel, inserts working days.
 
 1. **Rewrite `CalendarTab.tsx`**: Replace tool palette with start-date picker, auto-weekends toggle, weekend-days selector.
-2. **Days off rendering**: Auto-weekend badges, holiday badges, custom day-off badges on calendar cells.
-3. **Status day rendering**: Hold/travel badges on calendar cells.
-4. **Derived working day display**: `DAY #N · date` header on working day cells + scene cards.
-5. **Right-click context menu**: New menu with insert/convert/mark options.
-6. **Side panel**: Unscheduled + Boneyard sections with separate headers.
-7. **Drag-and-drop**: Preserve scene-card DnD between cells. Remove day-header drag.
-8. **Manual testing**: Set start date, add holidays, toggle weekends, insert days, convert working days to hold, verify stripboard updates automatically.
+2. **Start date UX**: Empty state banner, pulsing input highlight, START cell ring + badge, change feedback flash (see section 8.8).
+3. **Days off rendering**: Auto-weekend badges, holiday badges, custom day-off badges on calendar cells.
+4. **Status day rendering**: Hold/travel badges on calendar cells.
+5. **Derived working day display**: `DAY #N · date` header on working day cells + scene cards.
+6. **Right-click context menu**: New menu with insert/convert/mark options.
+7. **Side panel**: Unscheduled + Boneyard sections with separate headers.
+8. **Drag-and-drop**: Preserve scene-card DnD between cells. Remove day-header drag.
+9. **Stripboard start date prompt**: "Set start date" button in stripboard toolbar when `startDate` is null. "No start date" warning in DayBlock headers. Day 1 START tag.
+10. **Manual testing**: Set start date (verify empty state → banner appears → dismisses), add holidays, toggle weekends, insert days, convert working days to hold, change start date (verify flash feedback), verify stripboard updates automatically.
 
 ### Phase 4: Downstream & Polish
 
@@ -1247,13 +1393,13 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 | `src/types.ts` | Medium | New types: `DAY_BREAK`, `ProductionCalendar`, `DayOffEntry`, `StatusDayEntry`, `StripViewMode`, `boneyard` field, simplified `ShootDayMeta` |
 | `src/lib/scheduling.ts` | **New** (~250 lines) | All derivation utilities, date math, group computation, stripboard layout |
 | `src/store.tsx` | High | 12 new actions, `applySchedulingDerivation`, default calendar on new projects, modified existing actions |
-| `src/components/ScheduleTab.tsx` | High | Day groups derivation, stripboard layout, context menu (3 new items), DAY_BREAK drag, view toggle |
-| `src/components/DayBlock.tsx` | Medium | Accept `date` prop, compact mode header toggle, remove `meta.date` reads |
+| `src/components/ScheduleTab.tsx` | High | Day groups derivation, stripboard layout, context menu (3 new items), DAY_BREAK drag, view toggle, start date prompt button |
+| `src/components/DayBlock.tsx` | Medium | Accept `date` prop, compact mode header toggle, Day 1 START tag, no-start-date warning, remove `meta.date` reads |
 | `src/components/SortableRow.tsx` | Medium | DAY_BREAK row variant (banner separator) |
 | `src/components/StatusDayBlock.tsx` | **New** (~60 lines) | Hold/travel day rendering between working day blocks |
 | `src/components/UnscheduledZone.tsx` | **New** (~50 lines) | Unscheduled scenes at bottom of stripboard |
 | `src/components/BoneyardBlock.tsx` | Low | Rename from UnscheduledBlock, filter for `boneyard: true` |
-| `src/components/CalendarTab.tsx` | High | Full rewrite: start date, days off, status days, derived display, new context menu, side panel with unscheduled + boneyard |
+| `src/components/CalendarTab.tsx` | High | Full rewrite: start date UX (empty state, banner, ring, flash), days off, status days, derived display, new context menu, side panel with unscheduled + boneyard |
 | `src/components/PrintSchedule.tsx` | Medium | Replace `chronoDayMap`, use `deriveStripboardLayout` |
 | `src/components/DoodsTab.tsx` | Medium | Replace `chronoDayMap` |
 | `src/components/print/Dood.tsx` | Medium | Replace `chronoDayMap` |
