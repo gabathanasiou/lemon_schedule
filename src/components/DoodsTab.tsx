@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useProject } from '../store';
 import { Scene, ScheduleRow, ShootDayMeta, CustomCategoryDef } from '../types';
-import { getLabel, DEFAULT_CATEGORY_LABELS } from '../lib/categories';
+import { getLabel, DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -60,17 +60,8 @@ function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): s
 }
 
 function getSceneElements(scene: Scene, category: string): string[] {
-  if (category === 'cast') {
-    if (!scene.cast) return [];
-    return scene.cast.split(',').map(x => x.trim()).filter(Boolean);
-  }
-  if (category === 'set') {
-    if (!scene.set) return [];
-    return [scene.set.trim()];
-  }
   const raw = String((scene as any)[category] ?? '');
-  if (!raw) return [];
-  return raw.split(',').map(x => x.trim()).filter(Boolean);
+  return getFieldItems(category, raw);
 }
 
 interface DoodsTabProps {

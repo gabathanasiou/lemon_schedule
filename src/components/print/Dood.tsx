@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Scene, ScheduleRow, ShootDayMeta } from '../../types';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
-import { DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
+import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -89,13 +89,8 @@ interface DoodTotals {
 }
 
 function getSceneElements(scene: Scene, category: string): string[] {
-  if (category === 'cast') {
-    if (!scene.cast) return [];
-    return scene.cast.split(',').map(x => x.trim()).filter(Boolean);
-  }
   const raw = String((scene as any)[category] ?? '');
-  if (!raw) return [];
-  return raw.split(',').map(x => x.trim()).filter(Boolean);
+  return getFieldItems(category, raw);
 }
 
 function getElementDisplayName(elementId: string, isCast: boolean, castMemberNames?: Map<string, string>): string {

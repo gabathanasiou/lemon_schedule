@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useProject } from '../store';
 import { Scene, ScheduleRow, ShootDayMeta, CustomCategoryDef } from '../types';
 import { formatPageCount } from '../lib/utils';
-import { DEFAULT_CATEGORY_LABELS } from '../lib/categories';
+import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
   const builtin = DEFAULT_CATEGORY_LABELS[key];
@@ -12,16 +12,8 @@ function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): s
 }
 
 function getElementValues(scene: any, category: string): string[] {
-  if (category === 'cast') {
-    if (!scene.cast) return [];
-    return scene.cast.split(',').map((x: string) => x.trim()).filter(Boolean);
-  }
-  if (category === 'set') {
-    if (!scene.set) return [];
-    return [scene.set.trim()];
-  }
   const raw = String(scene[category] ?? '');
-  return raw.split(',').map((x: string) => x.trim()).filter(Boolean);
+  return getFieldItems(category, raw);
 }
 
 interface ElementBreakdownViewProps {

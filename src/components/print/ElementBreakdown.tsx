@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Scene, ScheduleRow, ShootDayMeta, CastMember, CustomCategoryDef } from '../../types';
 import { formatPageCount } from '../../lib/utils';
 import { DEFAULT_CATEGORY_LABELS } from '../../store';
+import { getFieldItems } from '../../lib/categories';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 
 const CSS = `
@@ -45,7 +46,7 @@ function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): s
 
 function getElementValues(scene: any, category: string): string[] {
   const raw = String(scene[category] ?? '');
-  return raw.split(',').map(x => x.trim()).filter(Boolean);
+  return getFieldItems(category, raw);
 }
 
 const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows, dayMeta, castMembers, customCategories, category }) => {
