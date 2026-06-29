@@ -241,7 +241,7 @@ export function formatCellText(prefix: string | undefined, value: string | undef
   const p = prefix || '';
   const v = value || '';
   const s = suffix || '';
-  return `${p}${p && v ? '\u00A0' : ''}${v}${s && v ? '\u00A0' : ''}${s}`;
+  return `${p}${p && v ? ' ' : ''}${v}${s && v ? ' ' : ''}${s}`;
 }
 
 
