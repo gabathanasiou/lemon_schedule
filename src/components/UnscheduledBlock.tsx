@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Scene, ScheduleRow, RibbonRow } from '../types';
+import { CellBorders } from '../lib/persist';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableRow } from './SortableRow';
@@ -31,10 +32,12 @@ export const UnscheduledBlock: React.FC<{
   onRowNavigate?: (rowId: string) => void,
   onCollapseChange?: (collapsed: boolean) => void,
   ribbon?: RibbonRow[],
+  colWidths?: number[],
   cellPadding?: number,
   edgePadding?: number,
+  cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, cellPadding, edgePadding, forceExpanded }) => {
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPadding, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -302,22 +305,24 @@ export const UnscheduledBlock: React.FC<{
               {rows.map((r, i, arr) => (
                 <React.Fragment key={r.id}>
                   {showGhosts && insertBeforeId === r.id && (
-                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} ribbon={ribbon} />
+                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} ribbon={ribbon} colWidths={colWidths} />
                   )}
-                  <SortableRow 
-                    row={r}
-                    scenes={projectScenes}
-                    isCompact
-                    isSelected={selectedIds?.has(r.id) ?? false}
-                    isFaded={activeDragIds?.has(r.id) ?? false}
-                    onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
-                    textEditingEnabled={textEditingEnabled}
-                    onDoubleClick={onRowDoubleClick}
-                    onRowNavigate={onRowNavigate}
-                    ribbon={ribbon}
-                    cellPadding={cellPadding}
-                    edgePadding={edgePadding}
-                  />
+                    <SortableRow 
+                      row={r}
+                      scenes={projectScenes}
+                      isCompact
+                      isSelected={selectedIds?.has(r.id) ?? false}
+                      isFaded={activeDragIds?.has(r.id) ?? false}
+                      onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
+                      textEditingEnabled={textEditingEnabled}
+                      onDoubleClick={onRowDoubleClick}
+                      onRowNavigate={onRowNavigate}
+                      ribbon={ribbon}
+                      colWidths={colWidths}
+                      cellPadding={cellPadding}
+                      edgePadding={edgePadding}
+                      cellBorders={cellBorders}
+                    />
                 </React.Fragment>
               ))}
             </SortableContext>

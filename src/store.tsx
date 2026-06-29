@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
 import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
-import { getDefaultRibbonRows, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
+import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
 import Papa from 'papaparse';
 
@@ -86,10 +86,22 @@ function loadProjectFromStorage(id: string): Project | null {
           }
         }
         for (const d of parsed.ribbonDesigns || []) {
+          // Migrate: extract colWidths from cells, strips width from cells
+          if (!d.colWidths || d.colWidths.length === 0) {
+            const maxRow = (d.rows || []).reduce((a: any, b: any) =>
+              (a?.cells?.length ?? 0) >= (b?.cells?.length ?? 0) ? a : b, d.rows?.[0]);
+            d.colWidths = maxRow?.cells?.map((c: any) => c.width ?? 10) ?? [];
+          }
+          const numCols = d.colWidths.length;
           for (const row of d.rows || []) {
             for (const cell of row.cells || []) {
               if (cell.field === 'extras') cell.field = 'backgroundActors';
               if (cell.field === 'animals') cell.field = 'animalsAndWranglers';
+              delete (cell as any).width;
+            }
+            // Pad rows with fewer cells to match colWidths.length
+            while ((row.cells || []).length < numCols) {
+              row.cells.push({ id: cid(), field: '' });
             }
           }
         }
@@ -148,6 +160,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
   const defaultDesign: RibbonDesign = {
     id: generateUUID(),
     name: 'Default',
+    colWidths: getDefaultColWidths(),
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPadding: 3,
@@ -235,8 +248,8 @@ type Action =
   | { type: 'MERGE_ELEMENTS'; payload: { category: string; sourceIds: string[]; targetId: string; targetName: string } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
-  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; cellPadding?: number; edgePadding?: number } }
-  | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[] } }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPadding?: number; edgePadding?: number } }
+  | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[]; colWidths: number[] } }
   | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
   | { type: 'SET_ACTIVE_RIBBON'; payload: string }
@@ -260,6 +273,7 @@ function reducer(state: State, action: Action): State {
       const defaultDesign: RibbonDesign = {
         id: generateUUID(),
         name: 'Default',
+        colWidths: getDefaultColWidths(),
         rows: getDefaultRibbonRows(),
         createdAt: Date.now(),
         cellPadding: 6,
@@ -969,9 +983,15 @@ function reducer(state: State, action: Action): State {
         : source
           ? JSON.parse(JSON.stringify(source.rows))
           : getDefaultRibbonRows();
+      const colWidths = action.payload.colWidths
+        ? [...action.payload.colWidths]
+        : source?.colWidths
+          ? [...source.colWidths]
+          : getDefaultColWidths();
       const newDesign: RibbonDesign = {
         id: generateUUID(),
         name: action.payload.name,
+        colWidths,
         rows,
         createdAt: Date.now(),
         cellPadding: action.payload.cellPadding ?? source?.cellPadding ?? 3,
@@ -988,7 +1008,7 @@ function reducer(state: State, action: Action): State {
       return applyChange({
         ...state.present,
         ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, rows: action.payload.rows } : d
+          d.id === action.payload.id ? { ...d, rows: action.payload.rows, colWidths: action.payload.colWidths } : d
         ),
       });
 

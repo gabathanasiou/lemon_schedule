@@ -8,7 +8,8 @@ import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
 import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette } from '../types';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors } from '../lib/ribbonUtils';
+import { CellBorders } from '../lib/persist';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
@@ -16,7 +17,7 @@ function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): R
   return resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
 }
 
-const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[]; palette?: SceneColorPalette }> = ({ row, scenes, compact, ribbon, palette }) => {
+const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ row, scenes, compact, ribbon, colWidths, palette }) => {
   const h = compact ? 'min-h-[30px]' : 'min-h-[44px]';
   const sz = compact ? 'text-[7pt]' : '';
   const noteColors = getNoteBannerColors(palette);
@@ -42,27 +43,56 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   if (!scene) return null;
 
   if (ribbon && ribbon.length > 0 && ribbon[0].cells.length > 0) {
-    const cells = ribbon[0].cells;
+    const cw = colWidths ?? [];
     const sc = getSceneCardStyle(scene, palette);
+    const mgroups = computeMergeGroups(ribbon);
+    const hiddenIds = new Set<string>();
+    for (const g of mgroups) {
+      for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+        const cell = ribbon[ri]?.cells[g.colIndex];
+        if (cell) hiddenIds.add(cell.id);
+      }
+    }
+    const items: { cell: RibbonRow['cells'][0]; col: number; ri: number; span: number }[] = [];
+    for (let ri = 0; ri < ribbon.length; ri++) {
+      for (let ci = 0; ci < ribbon[ri].cells.length; ci++) {
+        const cell = ribbon[ri].cells[ci];
+        if (hiddenIds.has(cell.id)) continue;
+        const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
+        items.push({ cell, col: ci, ri, span: g ? g.span : 1 });
+      }
+    }
     return (
       <div className={`opacity-30 flex items-stretch border-b shrink-0 ${h} ${sz}`}
         style={{ ...sc, fontFamily: 'Helvetica, sans-serif', fontSize: compact ? '7pt' : '8pt', lineHeight: '1.1' }}>
-        {cells.map(c => {
-          const val = c.field === 'text' ? (c.textContent || '') : getFieldValue(c.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
-          const label = FIELD_MAP[c.field]?.label || c.field;
-          const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : label;
-          return (
-            <div key={c.id} style={{
-              flex: `0 0 ${c.width}%`, minWidth: 0, padding: compact ? '3pt 3pt' : '4pt 4pt',
-              borderRight: '1px solid rgba(0,0,0,0.15)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-              textAlign: c.align || 'left',
-              fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-              fontStyle: val ? 'normal' : 'italic',
-            }}>
-              {display || ''}
-            </div>
-          );
-        })}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+          gridTemplateRows: `repeat(${ribbon.length}, auto)`,
+          width: '100%',
+        }}>
+          {items.map(({ cell, col, ri, span }) => {
+            const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
+            const label = FIELD_MAP[cell.field]?.label || cell.field;
+            const display = val ? `${cell.prefix || ''}${cell.prefix && val ? '\u00A0' : ''}${val}${cell.suffix && val ? '\u00A0' : ''}${cell.suffix || ''}` : label;
+            return (
+              <div key={cell.id} style={{
+                gridColumn: col + 1,
+                gridRow: span ? `${ri + 1} / span ${span}` : ri + 1,
+                padding: compact ? '3pt 3pt' : '4pt 4pt',
+                borderRight: '1px solid rgba(0,0,0,0.15)',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                textAlign: cell.align || 'left',
+                fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
+                fontStyle: val ? 'normal' : 'italic',
+              }}>
+                {display || ''}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -80,15 +110,15 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   );
 };
 
-export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; ribbon?: RibbonRow[]; palette?: SceneColorPalette }> = ({ rows, scenes, ribbon, palette }) => {
+export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ rows, scenes, ribbon, colWidths, palette }) => {
   if (rows.length === 0) return null;
-  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} ribbon={ribbon} palette={palette} />;
+  if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} ribbon={ribbon} colWidths={colWidths} palette={palette} />;
   const maxShow = Math.min(rows.length, 5);
   const rest = rows.length - maxShow;
   return (
     <div className="flex flex-col shrink-0">
       {rows.slice(0, maxShow).map((r, i) => (
-        <GhostCard key={r.id} row={r} scenes={scenes} compact ribbon={ribbon} palette={palette} />
+        <GhostCard key={r.id} row={r} scenes={scenes} compact ribbon={ribbon} colWidths={colWidths} palette={palette} />
       ))}
       {rest > 0 && (
         <div className="opacity-30 flex items-center justify-center min-h-[30px] bg-zinc-100 text-zinc-500 text-[10px] font-bold border-b shrink-0">
@@ -99,7 +129,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; rib
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], cellPadding?: number, edgePadding?: number }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, cellPadding, edgePadding }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPadding?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPadding, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;
@@ -272,30 +302,32 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} palette={project.colorPalette} />
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {computedRows.map((r) => {
             return (
               <React.Fragment key={r.id}>
                 {showGhosts && insertBeforeId === r.id && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} palette={project.colorPalette} />
+                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
                 )}
-                <SortableRow 
-                  row={r} 
-                  scenes={project.scenes} 
-                  isSelected={selectedIds.has(r.id)}
-                  isFaded={activeDragIds.has(r.id)}
-                  onSelectToggle={(e) => onRowClick?.(r.id, e)}
-                  textEditingEnabled={textEditingEnabled}
-                  sceneViolations={sceneViolationMap.get(r.sceneId || '')}
-                  focusedRowId={focusedRowId}
-                  onDoubleClick={onRowDoubleClick}
-                  onRowNavigate={onRowNavigate}
-                  ribbon={ribbon}
-                  cellPadding={cellPadding}
-                  edgePadding={edgePadding}
-                />
+                  <SortableRow 
+                    row={r} 
+                    scenes={project.scenes} 
+                    isSelected={selectedIds.has(r.id)}
+                    isFaded={activeDragIds.has(r.id)}
+                    onSelectToggle={(e) => onRowClick?.(r.id, e)}
+                    textEditingEnabled={textEditingEnabled}
+                    sceneViolations={sceneViolationMap.get(r.sceneId || '')}
+                    focusedRowId={focusedRowId}
+                    onDoubleClick={onRowDoubleClick}
+                    onRowNavigate={onRowNavigate}
+                    ribbon={ribbon}
+                    colWidths={colWidths}
+                    cellPadding={cellPadding}
+                    edgePadding={edgePadding}
+                    cellBorders={cellBorders}
+                  />
               </React.Fragment>
             );
           })}
@@ -312,7 +344,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       {/* Day Footer */}
       <>
         {showGhosts && insertBeforeId === `end-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} palette={project.colorPalette} />
+          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
         <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
           style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>

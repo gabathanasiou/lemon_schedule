@@ -4,8 +4,9 @@ import { useProject } from '../store';
 import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
-  normalizeCells, getFieldValueFromSample, getDefaultRibbonRows, cid, MIN_PCT,
-  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, resolveSceneColor,
+  getFieldValueFromSample, getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps,
+  computeMergeGroups, getMergeLookup, mergeSiblingIds,
 } from '../lib/ribbonUtils';
 import {
   Hash, Clock, Timer, MapPin, Building2, Sun, Users, FileText, AlignLeft,
@@ -22,7 +23,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
-import { useViewMode } from '../lib/persist';
+import { useViewMode, useCellBorders } from '../lib/persist';
 import { Tooltip } from './Tooltip';
 
 const FIELD_ICONS: Record<string, React.ElementType> = {
@@ -67,29 +68,35 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const dialog = useDialog();
   const project = state.present;
   const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
-    || { id: '', name: 'Default', rows: getDefaultRibbonRows(), createdAt: 0 };
+    || { id: '', name: 'Default', colWidths: getDefaultColWidths(), rows: getDefaultRibbonRows(), createdAt: 0 };
   const [viewMode, setViewMode, viewWidth] = useViewMode();
+  const [cellBorders] = useCellBorders();
 
   const [selId, setSelId] = useState<string | null>(null);
-  const [resizing, setResizing] = useState<{ rowId: string; ci: number; sx: number; a: number; b: number; leftSum: number; rightSum: number; n: number } | null>(null);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [dropHover, setDropHover] = useState<string | null>(null);
   const [cellDrag, setCellDrag] = useState<{ rowId: string; cellId: string } | null>(null);
+  const cellDragRef = useRef<{ rowId: string; cellId: string } | null>(null);
   const [cellDropTarget, setCellDropTarget] = useState<string | null>(null);
   const [betweenDrop, setBetweenDrop] = useState<string | null>(null);
-  const [affixEdit, setAffixEdit] = useState<{ type: 'prefix' | 'suffix'; value: string } | null>(null);
-  const [textEdit, setTextEdit] = useState<string | null>(null);
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const lastSpacerSync = useRef(0);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const previewSectionRef = useRef<HTMLDivElement>(null);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
   const [rows, setRows] = useState<RibbonRow[]>(cloneRows(initialRows));
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+  const colWidths = activeDesign?.colWidths ?? getDefaultColWidths();
+  const colWidthsRef = useRef(colWidths);
+  colWidthsRef.current = colWidths;
+  const numCols = colWidths.length;
   const [designMenuOpen, setDesignMenuOpen] = useState(false);
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+
+  const mergeLookup = useMemo(() => getMergeLookup(rows), [rows]);
 
   const resetRows = useCallback((newRows: RibbonRow[]) => {
     setRows(cloneRows(newRows));
@@ -102,9 +109,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     }
   }, [project.ribbonDesigns, project.activeRibbonId, resetRows]);
 
-  const saveToStore = useCallback((rows: RibbonRow[]) => {
+  const saveToStore = useCallback((rws: RibbonRow[], cws: number[]) => {
     if (!activeDesign || !activeDesign.id) return;
-    dispatch({ type: 'UPDATE_RIBBON_DESIGN', payload: { id: activeDesign.id, rows: cloneRows(rows) } });
+    dispatch({ type: 'UPDATE_RIBBON_DESIGN', payload: { id: activeDesign.id, rows: cloneRows(rws), colWidths: [...cws] } });
   }, [activeDesign, dispatch]);
 
   const promptSaveDefault = useCallback(async () => {
@@ -114,7 +121,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     const name = await dialog.prompt({ title: 'Save Default Design?', defaultValue: 'My Design', placeholder: 'Enter a name for your design' });
     if (name) {
       const newId = generateUUID();
-      dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: name.trim(), rows: cloneRows(rowsRef.current) } });
+      dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: name.trim(), rows: cloneRows(rowsRef.current), colWidths: [...colWidthsRef.current] } });
       dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
     }
   }, [activeDesign, dispatch, dialog]);
@@ -134,42 +141,10 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     };
   }, []);
 
-  const commit = useCallback((next: RibbonRow[]) => {
+  const commit = useCallback((next: RibbonRow[], nextCW: number[]) => {
     setRows(cloneRows(next));
-    saveToStore(next);
+    saveToStore(next, nextCW);
   }, [saveToStore]);
-
-  const liveMutate = useCallback((mutator: (r: RibbonRow[]) => void) => {
-    setRows(prev => {
-      const all = cloneRows(prev);
-      mutator(all);
-      return all;
-    });
-  }, []);
-
-  /* auto-sync Row 2 spacer with Row 1 first 3 cells */
-  useEffect(() => {
-    const r1 = rows[0];
-    const r2 = rows[1];
-    if (!r1 || !r2 || r2.cells.length < 2) return;
-    const sw = r1.cells.slice(0, 3).reduce((s, c) => s + c.width, 0);
-    if (Math.abs(r2.cells[0].width - sw) < 0.01) return;
-    if (Math.abs(lastSpacerSync.current - sw) < 0.01) return;
-    lastSpacerSync.current = sw;
-    liveMutate(all => {
-      const a = all[0]?.cells;
-      const b = all[1]?.cells;
-      if (a && b && b.length >= 2) {
-        const w = Math.round(a.slice(0, 3).reduce((s, c) => s + c.width, 0) * 100) / 100;
-        b[0].width = w;
-        b[1].width = Math.max(MIN_PCT, Math.round((100 - w) * 100) / 100);
-        if (b.length > 2) {
-          const normal = normalizeCells(b);
-          b.splice(0, b.length, ...normal);
-        }
-      }
-    });
-  }, [rows, liveMutate]);
 
   const findCell = useCallback((cid: string) => {
     for (const r of rows) {
@@ -181,125 +156,120 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
   const selCell = selId ? findCell(selId) : null;
 
-  /* actions */
+  /* ── Actions ── */
+
   const assign = useCallback((cellId: string, key: string) => {
     const f = FIELD_MAP[key];
-    const dw = f?.defaultWidth;
     const dp = f?.defaultPrefix;
     const ds = f?.defaultSuffix;
     commit(rows.map(r => ({
-      ...r, cells: normalizeCells(r.cells.map(c => c.id === cellId ? {
-        ...c, field: key, ...(dw && dw !== c.width ? { width: dw } : {}),
+      ...r, cells: r.cells.map(c => c.id === cellId ? {
+        ...c, field: key,
         prefix: dp, suffix: ds, align: f?.align,
         ...(key !== 'text' ? { textContent: undefined } : {}),
-      } : c)),
-    })));
-  }, [rows, commit]);
+      } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
 
   const clearCell = useCallback((cellId: string) => {
     commit(rows.map(r => ({
       ...r, cells: r.cells.map(c => c.id === cellId ? { ...c, field: '' } : c),
-    })));
-  }, [rows, commit]);
+    })), colWidths);
+  }, [rows, colWidths, commit]);
 
-  const removeCell = useCallback((rowId: string, ci: number) => {
-    commit(rows.map(r => r.id === rowId ? { ...r, cells: normalizeCells(r.cells.filter((_, i) => i !== ci)) } : r));
+  /* Column operations */
+  const removeColumn = useCallback((ci: number) => {
+    if (numCols <= 1) return;
+    commit(
+      rows.map(r => ({ ...r, cells: r.cells.filter((_, i) => i !== ci) })),
+      colWidths.filter((_, i) => i !== ci),
+    );
     setSelId(null);
-  }, [rows, commit]);
+  }, [rows, colWidths, numCols, commit]);
 
-  const addCell = useCallback((rowId: string, after: number): string => {
+  const addColumn = useCallback((after: number): string => {
     const newId = cid();
-    commit(rows.map(r => {
-      if (r.id !== rowId) return r;
-      const nc = [...r.cells];
-      nc.splice(after + 1, 0, { id: newId, field: '', width: 10 });
-      return { ...r, cells: normalizeCells(nc) };
-    }));
+    commit(
+      rows.map(r => {
+        const nc = [...r.cells];
+        nc.splice(after + 1, 0, { id: cid(), field: '' });
+        return { ...r, cells: nc };
+      }),
+      [...colWidths.slice(0, after + 1), 10, ...colWidths.slice(after + 1)],
+    );
     return newId;
-  }, [rows, commit]);
+  }, [rows, colWidths, commit]);
 
-  const insertCellAt = useCallback((rowId: string, ci: number, fieldKey?: string): string => {
+  const insertColumnAt = useCallback((ci: number, fieldKey?: string): string => {
     const newId = cid();
     const f = fieldKey ? FIELD_MAP[fieldKey] : null;
-    commit(rows.map(r => {
-      if (r.id !== rowId) return r;
-      const nc = [...r.cells];
-      nc.splice(ci, 0, { id: newId, field: fieldKey || '', width: f?.defaultWidth || 10, suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap });
-      return { ...r, cells: normalizeCells(nc) };
-    }));
+    const dw = f?.defaultWidth || 10;
+    commit(
+      rows.map(r => {
+        const nc = [...r.cells];
+        nc.splice(ci, 0, { id: cid(), field: fieldKey || '', suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap });
+        return { ...r, cells: nc };
+      }),
+      [...colWidths.slice(0, ci), dw, ...colWidths.slice(ci)],
+    );
     return newId;
-  }, [rows, commit]);
+  }, [rows, colWidths, commit]);
 
+  const swapCellsAllRows = useCallback((ci: number, cj: number) => {
+    if (ci === cj || ci < 0 || cj < 0 || ci >= numCols || cj >= numCols) return;
+    const newCW = [...colWidths];
+    [newCW[ci], newCW[cj]] = [newCW[cj], newCW[ci]];
+    commit(
+      rows.map(r => {
+        const nc = [...r.cells];
+        if (nc[ci] && nc[cj]) [nc[ci], nc[cj]] = [nc[cj], nc[ci]];
+        return { ...r, cells: nc };
+      }),
+      newCW,
+    );
+  }, [rows, colWidths, numCols, commit]);
+
+  /* Style edits — propagate to merge siblings */
   const setAlign = useCallback((cellId: string, align: 'left' | 'center' | 'right' | undefined) => {
+    const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({
-      ...r, cells: r.cells.map(c => c.id === cellId ? { ...c, align } : c),
-    })));
-  }, [rows, commit]);
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, align } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
 
   const setWrapCell = useCallback((cellId: string, wrap: boolean) => {
+    const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({
-      ...r, cells: r.cells.map(c => c.id === cellId ? { ...c, wrap: wrap || undefined } : c),
-    })));
-  }, [rows, commit]);
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, wrap: wrap || undefined } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
 
   const setAffix = useCallback((cellId: string, key: 'prefix' | 'suffix', value: string) => {
+    const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({
-      ...r, cells: r.cells.map(c => c.id === cellId ? { ...c, [key]: value || undefined } : c),
-    })));
-  }, [rows, commit]);
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, [key]: value || undefined } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
 
   const setTextContent = useCallback((cellId: string, text: string) => {
+    const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({
-      ...r, cells: r.cells.map(c => c.id === cellId ? { ...c, textContent: text || undefined } : c),
-    })));
-  }, [rows, commit]);
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, textContent: text || undefined } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
 
-  const moveCellToRow = useCallback((srcRowId: string, srcCi: number, tgtRowId: string, tgtCi: number) => {
-    if (srcRowId === tgtRowId && srcCi === tgtCi) return;
-    const srcRow = rows.find(r => r.id === srcRowId);
-    if (!srcRow) return;
-    const cell = { ...srcRow.cells[srcCi] };
-    commit(rows.map(r => {
-      if (r.id === srcRowId && r.id === tgtRowId) {
-        const nc = r.cells.filter((_, i) => i !== srcCi);
-        const insertAt = tgtCi > srcCi ? tgtCi - 1 : tgtCi;
-        nc.splice(insertAt, 0, cell);
-        return { ...r, cells: normalizeCells(nc) };
-      }
-      if (r.id === srcRowId) {
-        return { ...r, cells: normalizeCells(r.cells.filter((_, i) => i !== srcCi)) };
-      }
-      if (r.id === tgtRowId) {
-        const nc = [...r.cells];
-        nc.splice(tgtCi, 0, cell);
-        return { ...r, cells: normalizeCells(nc) };
-      }
-      return r;
-    }));
-  }, [rows, commit]);
-
-  const moveCell = useCallback((rowId: string, ci: number, dir: -1 | 1) => {
-    const j = ci + dir;
-    if (j < 0) return;
-    const row = rows.find(r => r.id === rowId);
-    if (!row || j >= row.cells.length) return;
-    commit(rows.map(r => {
-      if (r.id !== rowId) return r;
-      const nc = [...r.cells];
-      [nc[ci], nc[j]] = [nc[j], nc[ci]];
-      return { ...r, cells: normalizeCells(nc) };
-    }));
-  }, [rows, commit]);
-
+  /* Row operations */
   const addRow = useCallback(() => {
-    commit([...rows, { id: `row-${cid()}`, name: `Row ${rows.length + 1}`, cells: [{ id: cid(), field: '', width: 100 }] }]);
-  }, [rows, commit]);
+    const emptyCells: RibbonCell[] = [];
+    for (let i = 0; i < numCols; i++) emptyCells.push({ id: cid(), field: '' });
+    commit([...rows, { id: `row-${cid()}`, name: `Row ${rows.length + 1}`, cells: emptyCells }], colWidths);
+  }, [rows, colWidths, numCols, commit]);
 
   const removeRow = useCallback((rid: string) => {
     if (rows.length <= 1) return;
-    commit(rows.filter(r => r.id !== rid));
+    commit(rows.filter(r => r.id !== rid), colWidths);
     setSelId(null);
-  }, [rows, commit]);
+  }, [rows, colWidths, commit]);
 
   const moveRow = useCallback((rid: string, dir: -1 | 1) => {
     const i = rows.findIndex(r => r.id === rid);
@@ -308,54 +278,101 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     if (j < 0 || j >= rows.length) return;
     const next = [...rows];
     [next[i], next[j]] = [next[j], next[i]];
-    commit(next);
-  }, [rows, commit]);
+    commit(next, colWidths);
+  }, [rows, colWidths, commit]);
 
-  /* resize effect */
-  useEffect(() => {
-    if (!resizing) return;
+  /* Cell swap between rows (cross-row drag) */
+  const moveCellToRow = useCallback((srcRowId: string, srcCi: number, tgtRowId: string, tgtCi: number) => {
+    if (srcRowId === tgtRowId && srcCi === tgtCi) return;
+    const srcRow = rows.find(r => r.id === srcRowId);
+    const tgtRow = rows.find(r => r.id === tgtRowId);
+    if (!srcRow || !tgtRow) return;
+    commit(rows.map(r => {
+      if (r.id === srcRowId && r.id === tgtRowId) {
+        const nc = [...r.cells];
+        const [moved] = nc.splice(srcCi, 1);
+        nc.splice(tgtCi > srcCi ? tgtCi - 1 : tgtCi, 0, moved);
+        return { ...r, cells: nc };
+      }
+      if (r.id === srcRowId) {
+        const nc = [...r.cells];
+        nc[srcCi] = { ...tgtRow.cells[tgtCi] };
+        return { ...r, cells: nc };
+      }
+      if (r.id === tgtRowId) {
+        const nc = [...r.cells];
+        nc[tgtCi] = { ...srcRow.cells[srcCi] };
+        return { ...r, cells: nc };
+      }
+      return r;
+    }), colWidths);
+  }, [rows, colWidths, commit]);
+
+  /* ── Direct-DOM column resize ── */
+  const startResize = useCallback((ci: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const gridEl = gridRef.current;
+    if (!gridEl) return;
+    const startX = e.clientX;
+    const gridWidth = gridEl.offsetWidth;
+    const initial = colWidthsRef.current;
+
+    const applyCss = (cw: number[]) => {
+      const css = cw.map(w => `${w}%`).join(' ');
+      gridEl.style.gridTemplateColumns = css;
+      // Also update preview grids
+      const prevSection = previewSectionRef.current;
+      if (prevSection) {
+        prevSection.querySelectorAll('[data-preview-grid]').forEach(pg => {
+          (pg as HTMLElement).style.gridTemplateColumns = css;
+        });
+      }
+    };
+
     const onMove = (e: MouseEvent) => {
-      const rowEl = document.querySelector(`[data-row="${resizing.rowId}"]`) as HTMLElement | null;
-      if (!rowEl) return;
-      const pxW = rowEl.offsetWidth || 1;
-      const deltaPct = ((e.clientX - resizing.sx) / pxW) * 100;
+      const deltaPct = ((e.clientX - startX) / gridWidth) * 100;
+      const cw = [...initial];
+      if (ci >= cw.length - 1) return;
+      const curA = cw[ci];
+      const curB = cw[ci + 1];
+      const totalAB = curA + curB;
 
-      liveMutate(all => {
-        for (const r of all) {
-          if (r.id !== resizing.rowId || resizing.ci >= r.cells.length - 1) continue;
-
-          if (e.shiftKey) {
-            const newA = Math.max(MIN_PCT, Math.min(
-              resizing.a + resizing.rightSum - MIN_PCT * resizing.n,
-              resizing.a + deltaPct
-            ));
-            const remaining = resizing.rightSum + resizing.a - newA;
-            const scale = remaining / resizing.rightSum;
-            r.cells[resizing.ci].width = Math.round(newA * 100) / 100;
-            for (let i = resizing.ci + 1; i < r.cells.length; i++) {
-              r.cells[i].width = Math.max(MIN_PCT, Math.round(r.cells[i].width * scale * 100) / 100);
-            }
-          } else {
-            const newA = Math.max(MIN_PCT, Math.min(resizing.a + resizing.b - MIN_PCT, resizing.a + deltaPct));
-            const newB = resizing.a + resizing.b - newA;
-            r.cells[resizing.ci].width = Math.round(newA * 100) / 100;
-            r.cells[resizing.ci + 1].width = Math.round(newB * 100) / 100;
-          }
+      if (e.shiftKey) {
+        const rightSum = cw.slice(ci + 1).reduce((s, w) => s + w, 0);
+        const nRight = cw.length - ci - 1;
+        const newA = Math.max(MIN_PCT, Math.min(curA + rightSum - MIN_PCT * nRight, curA + deltaPct));
+        const remaining = rightSum + curA - newA;
+        const scale = remaining / rightSum;
+        cw[ci] = Math.round(newA * 100) / 100;
+        for (let i = ci + 1; i < cw.length; i++) {
+          cw[i] = Math.max(MIN_PCT, Math.round(cw[i] * scale * 100) / 100);
         }
-      });
+      } else {
+        const newA = Math.max(MIN_PCT, Math.min(totalAB - MIN_PCT, curA + deltaPct));
+        const newB = totalAB - newA;
+        cw[ci] = Math.round(newA * 100) / 100;
+        cw[ci + 1] = Math.round(newB * 100) / 100;
+      }
+
+      applyCss(cw);
+      colWidthsRef.current = cw;
     };
+
     const onUp = () => {
-      setResizing(null);
-      saveToStore(rowsRef.current);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      saveToStore(rowsRef.current, [...colWidthsRef.current]);
     };
+
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
-    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-  }, [resizing, liveMutate, saveToStore]);
+  }, [saveToStore]);
 
-  /* keyboard */
+  /* ── Keyboard (use refs for stable closures) ── */
   const selIdRef = useRef(selId);
   selIdRef.current = selId;
+
   const clearCellRef = useRef(clearCell);
   clearCellRef.current = clearCell;
 
@@ -397,134 +414,133 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     for (const c of project.customCategories || []) labels[c.key] = c.label;
     return labels;
   }, [project.customCategories]);
-   const placed = used.size;
-   const total = allFields.length;
+  const placed = used.size;
+  const total = allFields.length;
 
-    const headerContent = (
-      <>
-        <DropdownMenu
-          open={designMenuOpen}
-          onOpenChange={setDesignMenuOpen}
-          width="w-52"
-          trigger={
-            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-              <span className="text-xs font-semibold text-zinc-500">Editing:</span>
-              <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500" />
-            </button>
-          }
-        >
-          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Designs</div>
-          {project.ribbonDesigns.map(d => (
-            <DropdownItem
-              key={d.id}
-              onClick={() => switchDesign(d.id)}
-              icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              {d.name}
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
-        <DropdownMenu
-          open={fileMenuOpen}
-          onOpenChange={setFileMenuOpen}
-          width="w-44"
-          trigger={
-            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-              <span className="text-xs font-semibold text-zinc-400">Edit</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500" />
-            </button>
-          }
-        >
-          <DropdownItem onClick={async () => { await promptSaveDefault(); const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' }); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
-            icon={<Plus className="w-3.5 h-3.5" />}>
-            New Design
-          </DropdownItem>
-          <DropdownItem onClick={async () => { const n = await dialog.prompt({ title: 'Rename Design', defaultValue: activeDesign.name, placeholder: 'New name' }); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
-            icon={<Pencil className="w-3.5 h-3.5" />}>
-            Rename
-          </DropdownItem>
-          <DropdownItem onClick={async () => {
-            const n = await dialog.prompt({ title: 'Duplicate Design', defaultValue: `${activeDesign.name} — Copy`, placeholder: 'Name for the copy' });
-            if (n) {
-              const rows = activeDesign.id ? undefined : cloneRows(rowsRef.current);
-              dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id, ...(rows ? { rows } : {}) } });
-              setFileMenuOpen(false);
-            }
-          }}
-            icon={<Copy className="w-3.5 h-3.5" />}>
-            Duplicate
-          </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem onClick={() => {
-             const blob = new Blob([JSON.stringify({ name: activeDesign.name, rows: rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-             a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
-             a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
-          }}
-            icon={<Download className="w-3.5 h-3.5" />}>
-            Export
-          </DropdownItem>
-          <DropdownItem onClick={() => {
-            const input = document.createElement('input');
-             input.type = 'file'; input.accept = '.ribbon,.json';
-            input.onchange = () => {
-              const file = input.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = () => {
-                try {
-                  const data = JSON.parse(reader.result as string);
-                  if (data.rows && Array.isArray(data.rows)) {
-                     dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, cellPadding: data.cellPadding, edgePadding: data.edgePadding } });
-                  }
-                } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
-                setFileMenuOpen(false);
-              };
-              reader.readAsText(file);
-            };
-            input.click();
-          }}
-            icon={<Upload className="w-3.5 h-3.5" />}>
-            Import
-          </DropdownItem>
-          <DropdownDivider />
+  const headerContent = (
+    <>
+      <DropdownMenu
+        open={designMenuOpen}
+        onOpenChange={setDesignMenuOpen}
+        width="w-52"
+        trigger={
+          <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+            <span className="text-xs font-semibold text-zinc-500">Editing:</span>
+            <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          </button>
+        }
+      >
+        <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Designs</div>
+        {project.ribbonDesigns.map(d => (
           <DropdownItem
-            onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${activeDesign.name}"?`, message: 'This can be restored from Trash.', danger: true }); if (ok) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
-            variant="danger"
-            icon={<Trash2 className="w-3.5 h-3.5" />}>
-            Delete Design
+            key={d.id}
+            onClick={() => switchDesign(d.id)}
+            icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {d.name}
           </DropdownItem>
-        </DropdownMenu>
-        <button onClick={() => commit(getDefaultRibbonRows())}
-          className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
-          <RotateCcw className="w-3 h-3" /> Reset
-        </button>
-        <div className="flex-1" />
-        <DropdownMenu
-          open={viewMenuOpen}
-          onOpenChange={setViewMenuOpen}
-          width="w-36"
-          trigger={
-            <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
-              <span className="text-xs font-semibold text-zinc-500">View:</span>
-              <span className="text-xs font-semibold text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500" />
-            </button>
+        ))}
+      </DropdownMenu>
+      <DropdownMenu
+        open={fileMenuOpen}
+        onOpenChange={setFileMenuOpen}
+        width="w-44"
+        trigger={
+          <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+            <span className="text-xs font-semibold text-zinc-400">Edit</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          </button>
+        }
+      >
+        <DropdownItem onClick={async () => { await promptSaveDefault(); const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' }); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
+          icon={<Plus className="w-3.5 h-3.5" />}>
+          New Design
+        </DropdownItem>
+        <DropdownItem onClick={async () => { const n = await dialog.prompt({ title: 'Rename Design', defaultValue: activeDesign.name, placeholder: 'New name' }); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
+          icon={<Pencil className="w-3.5 h-3.5" />}>
+          Rename
+        </DropdownItem>
+        <DropdownItem onClick={async () => {
+          const n = await dialog.prompt({ title: 'Duplicate Design', defaultValue: `${activeDesign.name} — Copy`, placeholder: 'Name for the copy' });
+          if (n) {
+            dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id } });
+            setFileMenuOpen(false);
           }
-        >
-          {(['portrait', 'landscape', 'full'] as const).map(m => (
-            <DropdownItem
-              key={m}
-              onClick={() => { setViewMode(m); setViewMenuOpen(false); }}
-              icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
-            >
-              {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
-      </>
+        }}
+          icon={<Copy className="w-3.5 h-3.5" />}>
+          Duplicate
+        </DropdownItem>
+        <DropdownDivider />
+        <DropdownItem onClick={() => {
+           const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+           a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
+           a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
+        }}
+          icon={<Download className="w-3.5 h-3.5" />}>
+          Export
+        </DropdownItem>
+        <DropdownItem onClick={() => {
+          const input = document.createElement('input');
+           input.type = 'file'; input.accept = '.ribbon,.json';
+          input.onchange = () => {
+            const file = input.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              try {
+                const data = JSON.parse(reader.result as string);
+                if (data.rows && Array.isArray(data.rows)) {
+                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPadding: data.cellPadding, edgePadding: data.edgePadding } });
+                }
+              } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
+              setFileMenuOpen(false);
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        }}
+          icon={<Upload className="w-3.5 h-3.5" />}>
+          Import
+        </DropdownItem>
+        <DropdownDivider />
+        <DropdownItem
+          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${activeDesign.name}"?`, message: 'This can be restored from Trash.', danger: true }); if (ok) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
+          variant="danger"
+          icon={<Trash2 className="w-3.5 h-3.5" />}>
+          Delete Design
+        </DropdownItem>
+      </DropdownMenu>
+      <button onClick={() => commit(getDefaultRibbonRows(), getDefaultColWidths())}
+        className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
+        <RotateCcw className="w-3 h-3" /> Reset
+      </button>
+      <div className="flex-1" />
+      <DropdownMenu
+        open={viewMenuOpen}
+        onOpenChange={setViewMenuOpen}
+        width="w-36"
+        trigger={
+          <button className="flex items-center gap-1.5 hover:bg-zinc-800 rounded px-2 py-1 transition-colors">
+            <span className="text-xs font-semibold text-zinc-500">View:</span>
+            <span className="text-xs font-semibold text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          </button>
+        }
+      >
+        {(['portrait', 'landscape', 'full'] as const).map(m => (
+          <DropdownItem
+            key={m}
+            onClick={() => { setViewMode(m); setViewMenuOpen(false); }}
+            icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+    </>
    );
 
    return (
@@ -600,7 +616,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
           {/* Toolbar */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 mb-4 flex items-center gap-1.5 flex-wrap min-h-[36px] select-none">
-            {/* Edit actions */}
             <Tooltip content="Change Field">
               <button
                 onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
@@ -610,34 +625,38 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
               </button>
             </Tooltip>
-            <Tooltip content="Delete Cell">
-              <button onClick={() => selCell && removeCell(selCell.row.id, selCell.ci)} disabled={!selCell || (selCell ? selCell.row.cells.length <= 1 : true)}
+            <Tooltip content="Delete Column">
+              <button onClick={() => selCell && removeColumn(selCell.ci)} disabled={!selCell || numCols <= 1}
                 className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                <Trash2 className="w-3 h-3" /> Delete
+                <Trash2 className="w-3 h-3" /> Delete Col
               </button>
             </Tooltip>
-            <Tooltip content="Insert Cell After">
-              <button onClick={() => selCell && setSelId(addCell(selCell.row.id, selCell.ci))} disabled={!selCell}
+            <Tooltip content="Delete Row">
+              <button onClick={() => selCell && removeRow(selCell.row.id)} disabled={!selCell || rows.length <= 1}
+                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                <Trash2 className="w-3 h-3" /> Row
+              </button>
+            </Tooltip>
+            <Tooltip content="Add Column After">
+              <button onClick={() => selCell && setSelId(addColumn(selCell.ci))} disabled={!selCell}
                 className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                <Plus className="w-3 h-3" /> Insert
+                <Plus className="w-3 h-3" /> Add Col
               </button>
             </Tooltip>
             <div className="w-px h-5 bg-zinc-700 mx-1" />
-            {/* Move */}
-            <Tooltip content="Move Left">
-              <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, -1)} disabled={!selCell || (selCell?.ci === 0)}
+            <Tooltip content="Move Column Left">
+              <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={!selCell || selCell.ci === 0}
                 className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
                 <ArrowLeft className="w-3 h-3" />
               </button>
             </Tooltip>
-            <Tooltip content="Move Right">
-              <button onClick={() => selCell && moveCell(selCell.row.id, selCell.ci, 1)} disabled={!selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
+            <Tooltip content="Move Column Right">
+              <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={!selCell || (selCell && selCell.ci >= numCols - 1)}
                 className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
                 <ArrowRight className="w-3 h-3" />
               </button>
             </Tooltip>
             <div className="w-px h-5 bg-zinc-700 mx-1" />
-            {/* Align */}
             {(['left', 'center', 'right'] as const).map(a => {
               const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
               const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
@@ -656,7 +675,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               );
             })}
             <div className="w-px h-5 bg-zinc-700 mx-1" />
-            {/* Toggles */}
             <Tooltip content="Toggle Text Wrap">
               <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
                 disabled={!selCell}
@@ -675,7 +693,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               </button>
             </Tooltip>
             <div className="w-px h-5 bg-zinc-700 mx-1" />
-            {/* Sizing */}
             <span className="text-[10px] text-zinc-500 shrink-0">Pad</span>
             <Tooltip content="Cell Padding (px)">
               <input
@@ -704,7 +721,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               />
             </Tooltip>
             <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
-            {/* Affix */}
             {selCell && (
               <>
                 <div className="w-px h-5 bg-zinc-700 mx-1" />
@@ -742,20 +758,19 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           </div>
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
-            {/* ══ Designer ══ */}
+            {/* ══ Designer (CSS Grid) ══ */}
             <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Pencil className="w-3.5 h-3.5 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Designer</span>
               </div>
 
-              {/* Ribbon rows */}
               <div className="space-y-5">
                 {rows.map((row, ri) => (
                   <div key={row.id} className="group/row">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] font-semibold text-zinc-500 select-none">{row.name}</span>
-                      <span className="text-[9px] text-zinc-600 select-none">{row.cells.length}c · {row.cells.reduce((s, c) => s + c.width, 0).toFixed(1)}%</span>
+                      <span className="text-[9px] text-zinc-600 select-none">{numCols}c</span>
                       <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
                         <button onClick={() => moveRow(row.id, -1)} disabled={ri === 0}
                           className="p-1 rounded hover:bg-zinc-800 disabled:opacity-20"><ArrowUp className="w-3 h-3 text-zinc-500" /></button>
@@ -767,160 +782,127 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                         )}
                       </div>
                     </div>
-
-                    <div style={{
-                      fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1,
-                      border: '1px solid #000', background: PREVIEW_STYLE.bg, color: PREVIEW_STYLE.fg,
-                      display: 'flex', width: '100%', alignItems: 'stretch',
-                      paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2),
-                    }} data-row={row.id}>
-                      {row.cells.length === 0 ? (
-                        <div className="py-3 text-center text-[10px] text-zinc-500 w-full">
-                          Empty — use Insert After to add cells
-                        </div>
-                      ) : (
-                        row.cells.map((c, ci) => {
-                          const assigned = Boolean(c.field);
-                          const isSel = selId === c.id;
-                          const align = getAlign(c);
-                          const label = c.field === 'text' ? (c.textContent || 'Text') : FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || c.field || 'Empty';
-                          const shortLabel = !c.wrap && label.length <= 4;
-
-                          return (
-                            <React.Fragment key={c.id}>
-                              {/* Insertion zone before */}
-                              <div
-                                onDragOver={e => { e.preventDefault(); e.stopPropagation(); setBetweenDrop(`${row.id}-${ci}`); }}
-                                onDragLeave={() => setBetweenDrop(null)}
-                                onDrop={e => {
-                                  e.stopPropagation(); setBetweenDrop(null);
-                                  if (cellDrag) {
-                                    const src = rows.find(r => r.id === cellDrag.rowId);
-                                    const sci = src?.cells.findIndex(cc => cc.id === cellDrag.cellId);
-                                    if (sci != null && sci >= 0) moveCellToRow(cellDrag.rowId, sci, row.id, ci);
-                                    setCellDrag(null);
-                                    return;
-                                  }
-                                  const k = e.dataTransfer.getData('text/field');
-                                  if (k) setSelId(insertCellAt(row.id, ci, k));
-                                }}
-                                className={betweenDrop === `${row.id}-${ci}` ? 'w-[4pt] bg-blue-500 min-w-[4pt]' : 'w-0 min-w-0'}
-                                style={{ height: 16, flexShrink: 0 }}
-                              />
-                              <div className="relative group/cell" style={{ flex: `0 0 ${c.width}%`, minWidth: 0 }}
-                                ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}>
-                                <div
-                                  onClick={() => setSelId(c.id)}
-                                  onDoubleClick={e => { setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                                  onContextMenu={e => { e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                                  draggable
-                                  onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); setCellDrag({ rowId: row.id, cellId: c.id }); }}
-                                  onDragEnd={() => { setCellDrag(null); setCellDropTarget(null); }}
-                                  onDragOver={e => {
-                                    if (cellDrag && cellDrag.cellId !== c.id) { e.preventDefault(); setCellDropTarget(c.id); e.dataTransfer.dropEffect = 'move'; }
-                                    else if (!cellDrag) { e.preventDefault(); setDropHover(c.id); }
-                                  }}
-                                  onDragLeave={() => { setCellDropTarget(null); setDropHover(null); }}
-                                  onDrop={e => {
-                                    e.preventDefault();
-                                    if (cellDrag) {
-                                      const src = rows.find(r => r.id === cellDrag.rowId);
-                                      const sci = src?.cells.findIndex(cc => cc.id === cellDrag.cellId);
-                                      if (sci != null && sci >= 0) moveCellToRow(cellDrag.rowId, sci, row.id, ci);
-                                      setCellDrag(null); setCellDropTarget(null);
-                                    } else {
-                                      const k = e.dataTransfer.getData('text/field');
-                                      if (k) assign(c.id, k);
-                                      setDropHover(null);
-                                    }
-                                  }}
-                                  className="relative cursor-pointer select-none transition-colors"
-                                  style={{
-                                    padding: `${activeDesign.cellPadding ?? 6}px 6px`,
-                                    verticalAlign: 'middle',
-                                    borderRight: showGrid && ci < row.cells.length - 1 ? '1px solid #000' : 'none',
-                                    borderBottom: '1px solid #000',
-                                    borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : 'none',
-                                    outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDrag ? '2px dashed #3b82f6' : 'none',
-                                    outlineOffset: -1,
-                                    background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDrag ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : 'transparent',
-                                  }}
-                                >
-                                  <div style={{
-                                    display: 'flex',
-                                    fontSize: '8pt', lineHeight: 1.1,
-                                    fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-                                    textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                                    color: assigned ? undefined : '#71717a',
-                                    overflow: c.wrap ? 'visible' : 'hidden',
-                                  }}>
-                                    {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
-                                    <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix || ''}{c.prefix ? '\u00A0' : ''}</span>
-                                    <span style={{
-                                      flexShrink: 1, minWidth: 0,
-                                      overflow: c.wrap ? 'visible' : 'hidden',
-                                      textOverflow: c.wrap ? 'clip' : shortLabel ? 'clip' : 'ellipsis',
-                                      whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                                      wordBreak: c.wrap ? 'break-word' : undefined,
-                                    }}>{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
-                                    {(align === 'left' || align === 'center') && ci < row.cells.length - 1 && <span style={{ flex: '1 1 0' }} />}
-                                  </div>
-                                </div>
-
-                                {/* Resize handle */}
-                                <div
-                                  onMouseDown={e => { e.preventDefault(); e.stopPropagation(); if (ci < row.cells.length - 1) { const leftSum = row.cells.slice(0, ci).reduce((s, c2) => s + c2.width, 0); const rightCells = row.cells.slice(ci + 1); const rightSum = rightCells.reduce((s, c2) => s + c2.width, 0); setResizing({ rowId: row.id, ci, sx: e.clientX, a: c.width, b: row.cells[ci+1].width, leftSum, rightSum, n: rightCells.length }); } }}
-                                  className="absolute right-0 top-0 bottom-0 w-[6px] cursor-col-resize z-10 group/h"
-                                >
-                                  <div className="absolute right-0 top-1 bottom-1 w-[2px] bg-zinc-600 group-hover/h:bg-blue-400 transition-colors rounded-full" />
-                                </div>
-                              </div>
-                            </React.Fragment>
-                          );
-                        })
-                      )}
-                      {/* + cell at end */}
-                      <button
-                        onClick={() => setSelId(addCell(row.id, row.cells.length - 1))}
-                        onDragOver={e => { e.preventDefault(); if (cellDrag) setCellDropTarget('end-' + row.id); else setDropHover(row.id); }}
-                        onDragLeave={() => { setCellDropTarget(null); setDropHover(null); }}
-                        onDrop={e => {
-                          e.preventDefault();
-                          setDropHover(null); setCellDropTarget(null);
-                          if (cellDrag) {
-                            const src = rows.find(r => r.id === cellDrag.rowId);
-                            const sci = src?.cells.findIndex(cc => cc.id === cellDrag.cellId);
-                            if (sci != null && sci >= 0) {
-                              const srcRow = rows.find(r => r.id === cellDrag.rowId);
-                              if (srcRow) moveCellToRow(cellDrag.rowId, sci, row.id, srcRow.id === row.id ? row.cells.length : row.cells.length);
-                            }
-                            setCellDrag(null);
-                            return;
-                          }
-                          const k = e.dataTransfer.getData('text/field');
-                          const f = FIELD_MAP[k];
-                          if (k) setSelId(insertCellAt(row.id, row.cells.length, k));
-                          else setSelId(addCell(row.id, row.cells.length - 1));
-                        }}
-                        className={`flex items-center justify-center cursor-pointer transition-colors bg-zinc-200 ${dropHover === row.id ? 'bg-blue-900/50 ring-2 ring-blue-500 ring-inset' : cellDropTarget === 'end-' + row.id ? 'bg-blue-900/50 ring-2 ring-blue-500 ring-inset' : 'hover:bg-zinc-300'}`}
-                        style={{
-                          flexShrink: 0, width: '48px',
-                          borderBottom: '1px solid #000',
-                          borderLeft: '1px solid rgba(255,255,255,0.08)',
-                        }}
-                      ><Plus className={`w-3 h-3 ${dropHover === row.id || cellDropTarget === 'end-' + row.id ? 'text-blue-400' : 'text-zinc-500'}`} /></button>
-                    </div>
                   </div>
                 ))}
-              </div>
 
-              <button onClick={addRow} className="mt-4 w-full py-2 text-[10px] font-medium rounded-lg border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/50 transition-colors flex items-center justify-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Add Row
-              </button>
+                {/* Single CSS Grid */}
+                <div ref={gridRef} style={{
+                  display: 'grid',
+                  gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
+                  gridTemplateRows: `repeat(${rows.length}, auto)`,
+                  border: '1px solid #000',
+                  background: PREVIEW_STYLE.bg,
+                  color: PREVIEW_STYLE.fg,
+                  fontFamily: 'Helvetica, sans-serif',
+                  fontSize: '8pt',
+                  lineHeight: 1.1,
+                  paddingTop: (activeDesign.edgePadding ?? 2),
+                  paddingBottom: (activeDesign.edgePadding ?? 2),
+                  paddingLeft: (activeDesign.edgePadding ?? 2),
+                  paddingRight: (activeDesign.edgePadding ?? 2),
+                }}>
+                  {rows.map((row, ri) =>
+                    row.cells.map((c, ci) => {
+                      const assigned = Boolean(c.field);
+                      const isSel    = selId === c.id;
+                      const align    = getAlign(c);
+                      const label    = c.field === 'text' ? (c.textContent || 'Text') : FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || c.field || 'Empty';
+                      const mergeInfo = mergeLookup.get(c.id);
+
+                      return (
+                        <div key={c.id}
+                          ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}
+                          onClick={() => setSelId(c.id)}
+                          onDoubleClick={e => { setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
+                          onContextMenu={e => { e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
+                          draggable
+                          onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'cell'); const val = { rowId: row.id, cellId: c.id }; cellDragRef.current = val; setCellDrag(val); }}
+                          onDragEnd={() => { cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null); }}
+                          onDragOver={e => {
+                            const d = cellDragRef.current;
+                            if (d && d.cellId !== c.id) { e.preventDefault(); setCellDropTarget(c.id); e.dataTransfer.dropEffect = 'move'; }
+                            else if (!d) { e.preventDefault(); setDropHover(c.id); }
+                          }}
+                          onDragLeave={() => { setCellDropTarget(null); setDropHover(null); }}
+                          onDrop={e => {
+                            e.preventDefault();
+                            const d = cellDragRef.current;
+                            if (d) {
+                              const src = rows.find(r2 => r2.id === d.rowId);
+                              const sci = src?.cells.findIndex(cc => cc.id === d.cellId);
+                              if (sci != null && sci >= 0) moveCellToRow(d.rowId, sci, row.id, ci);
+                              cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null);
+                            } else {
+                              const k = e.dataTransfer.getData('text/field');
+                              if (k) assign(c.id, k);
+                              setDropHover(null);
+                            }
+                          }}
+                          style={{
+                            gridColumn: ci + 1,
+                            gridRow: ri + 1,
+                            display: 'flex',
+                            position: 'relative',
+                            padding: `${activeDesign.cellPadding ?? 6}px 6px`,
+                            borderRight: ci < numCols - 1 ? (showGrid ? '1px solid #000' : 'none') : 'none',
+                            borderBottom: ri < rows.length - 1 ? '1px solid #000' : 'none',
+                            borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : mergeInfo ? '3px solid #60a5fa' : 'none',
+                            outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDragRef.current ? '2px dashed #3b82f6' : 'none',
+                            outlineOffset: -1,
+                            background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDragRef.current ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : mergeInfo ? 'rgba(96,165,250,0.06)' : 'transparent',
+                            minHeight: 16,
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            userSelect: 'none',
+                          }}>
+                          <div style={{
+                            display: 'flex', flex: 1, minWidth: 0,
+                            fontWeight: c.field === 'sceneNumber' ? 700 : 500,
+                            textTransform: c.field === 'set' ? 'uppercase' : 'none',
+                            color: assigned ? undefined : '#71717a',
+                            overflow: c.wrap ? 'visible' : 'hidden',
+                          }}>
+                            {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
+                            {c.prefix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
+                            <span style={{
+                              flexShrink: 1, minWidth: 0,
+                              overflow: c.wrap ? 'visible' : 'hidden',
+                              textOverflow: c.wrap ? 'clip' : 'ellipsis',
+                              whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                              wordBreak: c.wrap ? 'break-word' : undefined,
+                            }}>{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
+                            {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
+                          </div>
+                          {/* Merge badges */}
+                          {mergeInfo && !mergeInfo.isLead && (
+                            <div className="absolute right-0.5 top-0.5 text-blue-400 opacity-60 leading-none pointer-events-none" style={{ fontSize: '6px' }}>&#x21d5;</div>
+                          )}
+                          {mergeInfo && mergeInfo.isLead && (
+                            <div className="absolute bottom-0 right-0 px-1 bg-blue-100 text-blue-600 leading-none rounded-tl-sm z-20 pointer-events-none" style={{ fontSize: '7px', fontWeight: 700 }}>&#x21d5;{mergeInfo.group.span}</div>
+                          )}
+                          {/* Column resize handle */}
+                          {ci < numCols - 1 && (
+                            <div
+                              onMouseDown={e => startResize(ci, e)}
+                              className="absolute right-0 top-0 bottom-0 w-[6px] cursor-col-resize z-10 group/h"
+                            >
+                              <div className="absolute right-0 top-1 bottom-1 w-[2px] bg-zinc-600 group-hover/h:bg-blue-400 transition-colors rounded-full" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button onClick={addRow} className="mt-5 w-full py-2.5 text-[10px] font-medium rounded-lg border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/50 transition-colors flex items-center justify-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5" /> Add Row
+                </button>
+              </div>
             </section>
 
-            {/* ══ Live Preview (matches schedule stripboard exactly) ══ */}
-            <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
+            {/* ══ Live Preview (Grid + Merge) ══ */}
+            <section ref={previewSectionRef} className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Eye className="w-3.5 h-3.5 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Live Preview</span>
@@ -935,25 +917,67 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   return (
                     <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                       <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2) }}>
-                        {rows.map((row, ri) => (
-                          <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
-                            {row.cells.map((c, ci) => {
+                        <div data-preview-grid style={{
+                          display: 'grid',
+                          gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
+                          gridTemplateRows: `repeat(${rows.length}, auto)`,
+                        }}>
+                          {(() => {
+                            const mgroups = computeMergeGroups(rows);
+                            const hiddenIds = new Set<string>();
+                            for (const g of mgroups) {
+                              for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                                const cell = rows[ri]?.cells[g.colIndex];
+                                if (cell) hiddenIds.add(cell.id);
+                              }
+                            }
+                            const items: { id: string; col: number; row: number; span: number; cell: RibbonCell }[] = [];
+                            for (let ri = 0; ri < rows.length; ri++) {
+                              for (let ci = 0; ci < rows[ri].cells.length; ci++) {
+                                const cell = rows[ri].cells[ci];
+                                if (hiddenIds.has(cell.id)) continue;
+                                const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
+                                items.push({ id: cell.id, col: ci, row: ri, span: g ? g.span : 1, cell });
+                              }
+                            }
+                            return items.map(p => {
+                              const c = p.cell;
+                              const a = getAlign(c);
                               const val = c.field === 'text' ? (c.textContent || '') : c.field === 'sceneNumber' ? sample.sceneNumber : getFieldValueFromSample(c.field);
                               const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
                               const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
-                              const shortDisplay = !c.wrap && display.length <= 4;
+                              const lastVisRow = p.row + p.span - 1;
+                              const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, p.col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                               return (
-                                <div key={c.id} style={{
-                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
-                                  borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
-                                  textOverflow: shortDisplay ? 'clip' : 'ellipsis',
+                                <div key={p.id} style={{
+                                  gridColumn: p.col + 1,
+                                  gridRow: `${p.row + 1} / span ${p.span}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: `${activeDesign.cellPadding ?? 6}px 6px`,
+                                  borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
+                                  borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
+                                  ...cellBorderStyle,
+                                  overflow: 'hidden',
+                                  fontWeight: c.field === 'sceneNumber' ? 700 : 400,
+                                  textTransform: c.field === 'set' ? 'uppercase' : 'none',
                                 }}>
-                                  {display || ''}
+                                  {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
+                                  {c.prefix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
+                                  <span style={{
+                                    flexShrink: 1, minWidth: 0,
+                                    overflow: c.wrap ? 'visible' : 'hidden',
+                                    textOverflow: c.wrap ? 'clip' : 'ellipsis',
+                                    whiteSpace: c.wrap ? 'normal' : 'nowrap',
+                                    wordBreak: c.wrap ? 'break-word' : undefined,
+                                  }}>{display}</span>
+                                  {(a === 'left' || a === 'center') && <span style={{ flex: '1 1 0' }} />}
+                                  {c.suffix && val && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{'\u00A0' + c.suffix}</span>}
                                 </div>
                               );
-                            })}
-                          </div>
-                        ))}
+                            });
+                          })()}
+                        </div>
                       </div>
                     </div>
                   );
@@ -972,7 +996,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-96 w-52"
             style={{ left: Math.max(0, Math.min(contextPos.x, window.innerWidth - 220)), top: Math.max(0, Math.min(contextPos.y, window.innerHeight - 420)) }}
           >
-            {/* Scrollable field list */}
             <div
               ref={el => {
                 if (el && selCell) {
@@ -1000,7 +1023,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               })}
             </div>
 
-            {/* Sticky bottom actions */}
             <div className="shrink-0 border-t border-zinc-800 pt-2">
 
               {selCell.cell.field && selCell.cell.field !== 'text' && (
@@ -1044,11 +1066,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 <span className="truncate flex-1">Clear field</span>
               </button>
               <button
-                onClick={() => { removeCell(selCell.row.id, selCell.ci); setContextPos(null); }}
+                onClick={() => { removeColumn(selCell.ci); setContextPos(null); }}
                 className="w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-red-400 hover:bg-rose-950/40 hover:text-red-400"
               >
                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate flex-1">Delete Cell</span>
+                <span className="truncate flex-1">Delete Column</span>
               </button>
             </div>
           </div>

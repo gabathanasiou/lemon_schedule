@@ -1,6 +1,69 @@
 import React from 'react';
 import { Scene, RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef, SceneColorEntry, SceneColorPalette, IntExt, DayNight } from '../types';
 import { formatDuration } from './utils';
+import type { CellBorders } from './persist';
+
+export interface MergeGroup {
+  colIndex: number;
+  rowIndex: number;
+  field: string;
+  span: number;
+}
+
+export function computeMergeGroups(rows: RibbonRow[]): MergeGroup[] {
+  if (rows.length < 2) return [];
+  const maxCols = Math.max(...rows.map(r => r.cells.length));
+  const groups: MergeGroup[] = [];
+  for (let ci = 0; ci < maxCols; ci++) {
+    let runStart = -1;
+    let runField = '';
+    for (let ri = 0; ri < rows.length; ri++) {
+      const cell = rows[ri].cells[ci];
+      const field = cell?.field || '';
+      if (field && field === runField) continue;
+      if (runStart >= 0 && ri - runStart >= 2) {
+        groups.push({ colIndex: ci, rowIndex: runStart, field: runField, span: ri - runStart });
+      }
+      runStart = field ? ri : -1;
+      runField = field;
+    }
+    if (runStart >= 0 && rows.length - runStart >= 2) {
+      groups.push({ colIndex: ci, rowIndex: runStart, field: runField, span: rows.length - runStart });
+    }
+  }
+  return groups;
+}
+
+export function getMergeLookup(rows: RibbonRow[]): Map<string, { group: MergeGroup; isLead: boolean }> {
+  const groups = computeMergeGroups(rows);
+  const map = new Map<string, { group: MergeGroup; isLead: boolean }>();
+  for (const g of groups) {
+    const leadCell = rows[g.rowIndex]?.cells[g.colIndex];
+    if (leadCell) map.set(leadCell.id, { group: g, isLead: true });
+    for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+      const cell = rows[ri]?.cells[g.colIndex];
+      if (cell) map.set(cell.id, { group: g, isLead: false });
+    }
+  }
+  return map;
+}
+
+export function mergeSiblingIds(cellId: string, rows: RibbonRow[]): string[] {
+  const groups = computeMergeGroups(rows);
+  for (const g of groups) {
+    for (let ri = g.rowIndex; ri < g.rowIndex + g.span; ri++) {
+      if (rows[ri]?.cells[g.colIndex]?.id === cellId) {
+        const ids: string[] = [];
+        for (let ri2 = g.rowIndex; ri2 < g.rowIndex + g.span; ri2++) {
+          const c = rows[ri2]?.cells[g.colIndex];
+          if (c) ids.push(c.id);
+        }
+        return ids;
+      }
+    }
+  }
+  return [cellId];
+}
 
 export const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
 export const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
@@ -127,7 +190,6 @@ export function getAlign(cell?: RibbonCell): string {
 
 export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): React.CSSProperties {
   return {
-    flex: `0 0 ${cell.width}%`,
     minWidth: 0,
     padding: `${cellPadding ?? 6}px`,
     overflow: cell.wrap ? 'visible' : 'hidden',
@@ -141,6 +203,19 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): 
     lineHeight: 1.1,
     fontFamily: 'Helvetica, sans-serif',
   };
+}
+
+
+export function getCellBorderProps(borders: CellBorders | undefined, textColor: string, isLastInRow: boolean, isLastRow: boolean): React.CSSProperties {
+  const style: React.CSSProperties = {};
+  if (!borders || borders === 'none') return style;
+  if ((borders === 'vertical' || borders === 'both') && !isLastInRow) {
+    style.borderRight = `1px solid ${textColor}`;
+  }
+  if ((borders === 'horizontal' || borders === 'both') && !isLastRow) {
+    style.borderBottom = `1px solid ${textColor}`;
+  }
+  return style;
 }
 
 export function getNoteBreakPad(cellPadding: number, ribbonRowCount: number): number {
@@ -184,14 +259,6 @@ export function cid(): string {
   return `c${Math.random().toString(36).slice(2, 7)}`;
 }
 
-export function normalizeCells(cells: RibbonCell[]): RibbonCell[] {
-  if (cells.length === 0) return cells;
-  const sum = cells.reduce((s, c) => s + c.width, 0);
-  if (Math.abs(sum - 100) < 0.01) return cells;
-  const scale = 100 / sum;
-  return cells.map(c => ({ ...c, width: Math.max(MIN_PCT, Math.round(c.width * scale * 100) / 100) }));
-}
-
 export function getFieldValue(field: string, scene: Record<string, any>): string {
   if (!field || !scene) return '';
   if (field === 'duration') {
@@ -228,15 +295,8 @@ export function renderCellText(scene: Record<string, any> | null, cell: RibbonCe
   return `${cell.prefix || ''}${val}${cell.suffix || ''}`;
 }
 
-function mkRow(name: string, keys: string[]): RibbonRow {
-  return {
-    id: `row-${cid()}`,
-    name,
-    cells: keys.map(k => {
-      const f = FIELD_MAP[k];
-      return { id: cid(), field: k, width: f?.defaultWidth || 10, prefix: f?.defaultPrefix, suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap };
-    }),
-  };
+export function getDefaultColWidths(): number[] {
+  return [7.56, 6.46, 7.68, 6.33, 39.29, 23.02, 9.65];
 }
 
 export function getDefaultRibbonRows(): RibbonRow[] {
@@ -245,22 +305,26 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 1',
       cells: [
-        { id: cid(), field: 'sceneNumber', width: 7.56, prefix: 'Sc', align: 'left' },
-        { id: cid(), field: 'callTime', width: 6.46, align: 'center' },
-        { id: cid(), field: 'duration', width: 7.68, align: 'center' },
-        { id: cid(), field: 'intExt', width: 6.33, align: 'left' },
-        { id: cid(), field: 'set', width: 39.29, align: 'left' },
-        { id: cid(), field: 'cast', width: 23.02, prefix: 'Cast', align: 'left', wrap: true },
-        { id: cid(), field: 'pageCount', width: 9.65, suffix: 'pgs', align: 'right' },
+        { id: cid(), field: 'sceneNumber', prefix: 'Sc', align: 'left' },
+        { id: cid(), field: 'callTime', align: 'center' },
+        { id: cid(), field: 'duration', align: 'center' },
+        { id: cid(), field: 'intExt', align: 'left' },
+        { id: cid(), field: 'set', align: 'left' },
+        { id: cid(), field: 'cast', prefix: 'Cast', align: 'left', wrap: true },
+        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'right' },
       ],
     },
     {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: '', width: 21.72 },
-        { id: cid(), field: 'dayNight', width: 6.26, align: 'left' },
-        { id: cid(), field: 'description', width: 72.02, align: 'left' },
+        { id: cid(), field: '' },
+        { id: cid(), field: '' },
+        { id: cid(), field: '' },
+        { id: cid(), field: 'dayNight', align: 'left' },
+        { id: cid(), field: 'description', align: 'left' },
+        { id: cid(), field: '' },
+        { id: cid(), field: '' },
       ],
     },
   ];
@@ -270,6 +334,7 @@ export function getDefaultRibbonDesign(): RibbonDesign {
   return {
     id: `d${Date.now()}`,
     name: 'Default',
+    colWidths: getDefaultColWidths(),
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPadding: 3,

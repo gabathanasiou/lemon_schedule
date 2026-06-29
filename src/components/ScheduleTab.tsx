@@ -17,13 +17,14 @@ import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { useViewMode } from '../lib/persist';
+import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 
 export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const [viewMode, setViewMode, viewWidth] = useViewMode();
+  const [cellBorders, setCellBorders] = useCellBorders();
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -619,6 +620,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const activeRibbonDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId) || project.ribbonDesigns[0];
   const activeRibbon = activeRibbonDesign.rows;
+  const activeColWidths = activeRibbonDesign.colWidths;
   const cellPadding = activeRibbonDesign.cellPadding;
   const edgePadding = activeRibbonDesign.edgePadding;
   const currentRibbonName = activeRibbonDesign.name;
@@ -1162,6 +1164,18 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   </DropdownItem>
                 ))}
               </DropdownSubmenu>
+              <DropdownDivider />
+              <DropdownSubmenu label="Cell Borders" side="left" width="w-44">
+                {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
+                  <DropdownItem
+                    key={m}
+                    onClick={() => { setCellBorders(m); setRibbonMenuOpen(false); }}
+                    icon={cellBorders === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+                  >
+                    {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
+                  </DropdownItem>
+                ))}
+              </DropdownSubmenu>
             </DropdownMenu>
             <button
               onClick={() => setShowHelp(true)}
@@ -1260,7 +1274,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               }
           }}
       >
-           <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} cellPadding={cellPadding} edgePadding={edgePadding} forceExpanded={forceUnscheduledExpanded} />
+            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPadding={cellPadding} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -1289,8 +1303,10 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                    focusedRowId={focusedRowId}
                    onRowDoubleClick={handleRowDoubleClick}
                     onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                    ribbon={activeRibbon}
-                    cellPadding={cellPadding} edgePadding={edgePadding}
+                      ribbon={activeRibbon}
+                      colWidths={activeColWidths}
+                      cellPadding={cellPadding} edgePadding={edgePadding}
+                     cellBorders={cellBorders}
                   />
               ))}
           </div>
@@ -1309,12 +1325,12 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               const opacity = isTop ? 1 : 1 - (arr.length - 1 - i) * 0.2;
               return (
                 <div key={id} style={{ position: isTop ? 'relative' : 'absolute', top: offset, left: 0, right: 0, opacity, zIndex: isTop ? 10 : 5 - i }}>
-                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} cellPadding={cellPadding} edgePadding={edgePadding} />
+                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPadding={cellPadding} edgePadding={edgePadding} cellBorders={cellBorders} />
                 </div>
               );
             })}
             {activeDragIds.size === 1 && activeDragIds.has(activeId as string) && (
-              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} cellPadding={cellPadding} edgePadding={edgePadding} />
+              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPadding={cellPadding} edgePadding={edgePadding} />
             )}
             {activeDragIds.size > 1 && (
                <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white z-20">

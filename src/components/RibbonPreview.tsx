@@ -1,21 +1,41 @@
 import React from 'react';
 import { Scene, RibbonRow } from '../types';
-import { getRibbonCellBaseStyle, getFieldValue, sceneStyle } from '../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, getFieldValue, sceneStyle, computeMergeGroups } from '../lib/ribbonUtils';
 
 function fmt(prefix: string | undefined, val: string, suffix: string | undefined): string {
   return `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 }
 
-export function RibbonPreview({ scene, ribbon, cellPadding = 3, edgePadding = 2, onDoubleClick }: {
+export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgePadding = 2, onDoubleClick }: {
   scene: Scene;
   ribbon: RibbonRow[];
+  colWidths?: number[];
   cellPadding?: number;
   edgePadding?: number;
   onDoubleClick?: () => void;
 }) {
   if (!ribbon || ribbon.length === 0) return null;
 
+  const cw = colWidths ?? [];
   const rowBg = sceneStyle(scene);
+
+  const mgroups = computeMergeGroups(ribbon);
+  const hiddenIds = new Set<string>();
+  for (const g of mgroups) {
+    for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+      const cell = ribbon[ri]?.cells[g.colIndex];
+      if (cell) hiddenIds.add(cell.id);
+    }
+  }
+  const items: { cell: typeof ribbon[0]['cells'][0]; col: number; row: number; span: number }[] = [];
+  for (let ri = 0; ri < ribbon.length; ri++) {
+    for (let ci = 0; ci < ribbon[ri].cells.length; ci++) {
+      const cell = ribbon[ri].cells[ci];
+      if (hiddenIds.has(cell.id)) continue;
+      const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
+      items.push({ cell, col: ci, row: ri, span: g ? g.span : 1 });
+    }
+  }
 
   return (
     <div className="border border-zinc-300 rounded overflow-hidden bg-white">
@@ -38,14 +58,22 @@ export function RibbonPreview({ scene, ribbon, cellPadding = 3, edgePadding = 2,
               paddingRight: edgePadding,
             }}
           >
-            {ribbon.map((row, ri) => (
-              <div key={row.id || ri} className="flex w-full min-h-0">
-                {row.cells.map(cell => {
+            {cw.length > 0 && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+                gridTemplateRows: `repeat(${ribbon.length}, auto)`,
+              }}>
+                {items.map(({ cell, col, row, span }) => {
                   const style = getRibbonCellBaseStyle(cell, cellPadding);
                   const val = cell.field ? getFieldValue(cell.field, scene) : '';
                   const text = cell.textContent || fmt(cell.prefix, val, cell.suffix);
                   return (
-                    <div key={cell.id} style={style}>
+                    <div key={cell.id} style={{
+                      ...style,
+                      gridColumn: col + 1,
+                      gridRow: span ? `${row + 1} / span ${span}` : row + 1,
+                    }}>
                       <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1 }}>
                         {text}
                       </span>
@@ -53,7 +81,7 @@ export function RibbonPreview({ scene, ribbon, cellPadding = 3, edgePadding = 2,
                   );
                 })}
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

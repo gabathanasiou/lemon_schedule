@@ -1,20 +1,32 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import type { CellBorders } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
-function filterColumns(cells: RibbonCell[], showTimes: boolean, showDurations: boolean): RibbonCell[] {
-  const filtered = cells.filter(c => {
+function filterIndices(cells: RibbonCell[], colWidths: number[], showTimes: boolean, showDurations: boolean): { keep: boolean[]; filteredWidths: number[] } {
+  const keep: boolean[] = cells.map(c => {
     if (c.field === 'callTime' && !showTimes) return false;
     if (c.field === 'duration' && !showDurations) return false;
     return true;
   });
-  if (filtered.length === cells.length) return cells;
-  if (filtered.length === 0) return filtered;
-  const total = filtered.reduce((s, c) => s + c.width, 0);
-  if (total <= 0) return filtered;
+  if (keep.every(k => k)) return { keep, filteredWidths: colWidths };
+  const filteredWidths: number[] = [];
+  for (let i = 0; i < colWidths.length; i++) {
+    if (keep[i]) filteredWidths.push(colWidths[i]);
+  }
+  if (filteredWidths.length === 0) return { keep, filteredWidths };
+  const total = filteredWidths.reduce((s, w) => s + w, 0);
+  if (total <= 0) return { keep, filteredWidths };
   const scale = 100 / total;
-  return filtered.map(c => ({ ...c, width: Math.round(c.width * scale * 100) / 100 }));
+  for (let i = 0; i < filteredWidths.length; i++) {
+    filteredWidths[i] = Math.round(filteredWidths[i] * scale * 100) / 100;
+  }
+  return { keep, filteredWidths };
+}
+
+function filterCells(cells: RibbonCell[], keep: boolean[]): RibbonCell[] {
+  return cells.filter((_, i) => keep[i]);
 }
 
 interface PrintScheduleProps {
@@ -28,8 +40,10 @@ interface PrintScheduleProps {
   includeStatusDays?: boolean;
   fileName: string;
   ribbon?: RibbonRow[];
+  colWidths?: number[];
   cellPadding?: number;
   edgePadding?: number;
+  cellBorders?: CellBorders;
 }
 
 function formatDateLong(dateStr: string): string {
@@ -53,8 +67,10 @@ interface DaySectionProps {
   showDurations: boolean;
   chronoDay: number;
   ribbon?: RibbonRow[];
+  colWidths?: number[];
   cellPadding?: number;
   edgePadding?: number;
+  cellBorders?: CellBorders;
   sceneColors?: SceneColorEntry[];
 }
 
@@ -99,7 +115,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, cellPadding, edgePadding, sceneColors }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPadding, edgePadding, cellBorders, sceneColors }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -136,23 +152,21 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   }
 
   const rawCells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
-  const cells = useMemo(() => rawCells ? filterColumns(rawCells, showTimes, showDurations) : null, [rawCells, showTimes, showDurations]);
+  const cw = colWidths ?? [];
+  const { keep, filteredWidths } = useMemo(() => rawCells ? filterIndices(rawCells, cw, showTimes, showDurations) : { keep: [] as boolean[], filteredWidths: [] as number[] }, [rawCells, cw, showTimes, showDurations]);
+  const cells = useMemo(() => rawCells ? filterCells(rawCells, keep) : null, [rawCells, keep]);
   const filteredRibbon = useMemo(() => {
-    if (!ribbon) return undefined;
-    return ribbon.map(row => {
-      const filtered = filterColumns(row.cells, showTimes, showDurations);
-      if (filtered === row.cells) return row;
-      return { ...row, cells: filtered };
-    });
-  }, [ribbon, showTimes, showDurations]);
+    if (!ribbon || keep.length === 0) return undefined;
+    return ribbon.map(row => ({ ...row, cells: filterCells(row.cells, keep) }));
+  }, [ribbon, keep]);
   const noteBreakPadPx = `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px ${cellPadding ?? 6}px`;
   const mainCellIdx = cells ? (() => {
     const nonSpecial = cells
-      .map((c, i) => ({i, w: c.width, f: c.field}))
+      .map((c, i) => ({i, w: filteredWidths[i] ?? 0, f: c.field}))
       .filter(x => x.f !== 'duration' && x.f !== 'callTime');
     return nonSpecial.length > 0
       ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
-      : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+      : cells.map((c, i) => ({i, w: filteredWidths[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
   const cellPrintStyle = (cell: RibbonCell) => getRibbonCellBaseStyle(cell, cellPadding);
@@ -160,10 +174,18 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
 
-  const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number) => {
+  const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLastInRow?: boolean, isLastRow?: boolean, textColor?: string, col?: number, row?: number, span?: number) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
-    return <div key={cell.id} style={cellPrintStyle(cell)}>{display || ''}</div>;
+    const style: React.CSSProperties = {
+      ...cellPrintStyle(cell),
+      ...getCellBorderProps(cellBorders, textColor || '#000', isLastInRow ?? true, isLastRow ?? true),
+    };
+    if (col !== undefined && row !== undefined) {
+      style.gridColumn = col + 1;
+      style.gridRow = span ? `${row + 1} / span ${span}` : row + 1;
+    }
+    return <div key={cell.id} style={style}>{display || ''}</div>;
   };
 
 
@@ -182,21 +204,24 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', borderBottom: '2px solid #000', background: noteBg, color: noteFg }}>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000', background: noteBg, color: noteFg }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '),
+                    }}>
                     {cells.map((cell, ci) => {
                       const wrapCell = ci === mainCellIdx;
                       if (wrapCell) {
                         return (
                           <div key={cell.id} style={{
-                            ...getRibbonCellBaseStyle(cell, cellPadding),
+                            gridColumn: ci + 1, gridRow: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                             padding: noteBreakPadPx,
                             textAlign: 'center',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                           }}>
                             {r.noteText || ''}
                           </div>
@@ -212,13 +237,15 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       }
                       return (
                         <div key={cell.id} style={{
-                          ...getRibbonCellBaseStyle(cell, cellPadding),
+                          gridColumn: ci + 1, gridRow: 1,
                           padding: noteBreakPadPx,
+                          fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                         }}>
                           {content}
                         </div>
                       );
                     })}
+                    </div>
                    </div>
                  );
                }
@@ -244,21 +271,24 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             if (r.type === 'BREAK') {
               if (cells) {
                 return (
-                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', borderBottom: '2px solid #000', background: '#591b1b', color: '#ffffff' }}>
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000', background: '#591b1b', color: '#ffffff' }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '),
+                    }}>
                     {cells.map((cell, ci) => {
                       const wrapCell = ci === mainCellIdx;
                       if (wrapCell) {
                         return (
                           <div key={cell.id} style={{
-                            ...getRibbonCellBaseStyle(cell, cellPadding),
+                            gridColumn: ci + 1, gridRow: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                             padding: noteBreakPadPx,
                             textAlign: 'center',
                             overflow: 'visible',
                             whiteSpace: 'normal',
                             wordBreak: 'break-word',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                           }}>
                             {r.breakLabel || 'BREAK'}
                           </div>
@@ -274,13 +304,15 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                       }
                       return (
                         <div key={cell.id} style={{
-                          ...getRibbonCellBaseStyle(cell, cellPadding),
+                          gridColumn: ci + 1, gridRow: 1,
                           padding: noteBreakPadPx,
+                          fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                         }}>
                           {content}
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 );
               }
@@ -310,12 +342,36 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', display: 'flex', flexDirection: 'column', borderBottom: '2px solid #000', paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, background: bgColor }}>
-                  {filteredRibbon && filteredRibbon.length > 0 && filteredRibbon.map((row, ri) => (
-                    <div key={row.id || ri} style={{ display: 'flex', ...rowStyle }}>
-                      {row.cells.map((c) => renderSceneCellFlex(c, scene, r.computedCallTime, r.estimatedDuration))}
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000', paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, background: bgColor }}>
+                  {filteredRibbon && filteredRibbon.length > 0 && (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '),
+                      gridTemplateRows: `repeat(${filteredRibbon.length}, auto)`,
+                      ...rowStyle,
+                    }}>
+                      {(() => {
+                        const mgroups = computeMergeGroups(filteredRibbon);
+                        const hiddenIds = new Set<string>();
+                        for (const g of mgroups) {
+                          for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                            const cell = filteredRibbon[ri]?.cells[g.colIndex];
+                            if (cell) hiddenIds.add(cell.id);
+                          }
+                        }
+                        const items: { cell: RibbonCell; col: number; row: number; span: number }[] = [];
+                        for (let ri = 0; ri < filteredRibbon.length; ri++) {
+                          for (let ci = 0; ci < filteredRibbon[ri].cells.length; ci++) {
+                            const cell = filteredRibbon[ri].cells[ci];
+                            if (hiddenIds.has(cell.id)) continue;
+                            const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
+                            items.push({ cell, col: ci, row: ri, span: g ? g.span : 1 });
+                          }
+                        }
+                        return items.map(({ cell, col, row, span }) => renderSceneCellFlex(cell, scene, r.computedCallTime, r.estimatedDuration, col === filteredRibbon[0].cells.length - 1, row + span - 1 >= filteredRibbon.length - 1, rowStyle.color, col, row, span));
+                      })()}
                     </div>
-                  ))}
+                  )}
                 </div>
               );
             }
@@ -539,7 +595,7 @@ const CAST_LIST_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, cellPadding, edgePadding }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPadding, edgePadding, cellBorders }) => {
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -631,8 +687,10 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 showDurations={showDurations}
                 chronoDay={chronoDayMap.get(dayInt)}
                 ribbon={ribbon}
+                colWidths={colWidths}
                 cellPadding={cellPadding}
                 edgePadding={edgePadding}
+                cellBorders={cellBorders}
                 sceneColors={project.colorPalette?.sceneColors}
               />
             ))}

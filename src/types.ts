@@ -177,7 +177,6 @@ export const SCENE_RIBBON_DEFAULTS: SceneRibbonColumn[] = [
 export interface RibbonCell {
   id: string;
   field: string;          // 'sceneNumber' | 'set' | 'cast' | '' for spacer | 'text'
-  width: number;          // percentage of row
   align?: 'left' | 'center' | 'right';
   wrap?: boolean;
   prefix?: string;
@@ -194,6 +193,7 @@ export interface RibbonRow {
 export interface RibbonDesign {
   id: string;
   name: string;
+  colWidths: number[];    // global column widths shared by all rows (percentages summing to 100)
   rows: RibbonRow[];
   createdAt: number;
   cellPadding?: number;

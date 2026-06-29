@@ -2,10 +2,11 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
+import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor } from '../lib/ribbonUtils';
-import { useViewMode } from '../lib/persist';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 
 function formatDayDateShort(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -32,6 +33,7 @@ export interface PrintOptions {
   selectedDays: number[];
   includeStatusDays: boolean;
   selectedRibbonId?: string;
+  cellBorders?: CellBorders;
 }
 
 export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: PrintOptions) => void; onClose: () => void }) {
@@ -39,6 +41,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const [, , viewWidth] = useViewMode();
+  const [currentCellBorders] = useCellBorders();
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
     .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
@@ -56,6 +59,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     showPageNumbers: true,
     includeStatusDays: true,
     selectedRibbonId: project.activeRibbonId || (project.ribbonDesigns[0]?.id || ''),
+    cellBorders: currentCellBorders,
   };
 
   const [settings, setSettings] = useState(() => {
@@ -127,7 +131,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             Cancel
           </button>
           <button
-            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId })}
+            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId, cellBorders: settings.cellBorders })}
             disabled={selectedDays.size === 0}
             className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -171,6 +175,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             {(() => {
               const design = settings.selectedRibbonId ? ribbonDesigns.find(d => d.id === settings.selectedRibbonId) : ribbonDesigns[0];
               const rows = design?.rows;
+              const cw = design?.colWidths ?? [];
               const cellPadding = design?.cellPadding;
               if (!rows) return null;
               return (
@@ -182,26 +187,55 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                     return (
                       <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                         <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.background, color: rowStyle.color, paddingTop: design?.edgePadding ?? 2, paddingBottom: design?.edgePadding ?? 2, paddingLeft: design?.edgePadding ?? 2, paddingRight: design?.edgePadding ?? 2 }}>
-                          {rows.map((row, ri) => (
-                            <div key={row.id || ri} className="flex w-full min-h-0" style={ri < rows.length - 1 ? { borderBottom: '1px solid rgba(0,0,0,0.12)' } : {}}>
-                              {row.cells.map((c, ci) => {
-                                const hidden = (c.field === 'callTime' && !settings.showTimes) || (c.field === 'duration' && !settings.showDurations);
-                                const val = hidden ? '' : (c.field === 'text' ? (c.textContent || '') : getFieldValueFromSample(c.field));
-                                const fieldLabel = hidden ? '' : (FIELD_MAP[c.field]?.label || (project.customCategories || []).find(x => x.key === c.field)?.label || '');
-                                const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
-                                const shortDisplay = !c.wrap && display.length <= 4;
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: cw.map(function (w) { return w + '%'; }).join(' '),
+                            gridTemplateRows: 'repeat(' + String(rows.length) + ', auto)',
+                          }}>
+                            {(() => {
+                              const mgroups = computeMergeGroups(rows);
+                              const hiddenIds: Set<string> = new Set();
+                              for (var _gi = 0; _gi < mgroups.length; _gi++) {
+                                var g = mgroups[_gi];
+                                for (var _ri = g.rowIndex + 1; _ri < g.rowIndex + g.span; _ri++) {
+                                  var cell = rows[_ri] && rows[_ri].cells[g.colIndex];
+                                  if (cell) hiddenIds.add(cell.id);
+                                }
+                              }
+                              var items: { cell: RibbonCell; col: number; row: number; span: number }[] = [];
+                              for (var ri = 0; ri < rows.length; ri++) {
+                                for (var ci = 0; ci < rows[ri].cells.length; ci++) {
+                                  var cell = rows[ri].cells[ci];
+                                  if (hiddenIds.has(cell.id)) continue;
+                                  var mg = mgroups.find(function (gg) { return gg.colIndex === ci && gg.rowIndex === ri; });
+                                  items.push({ cell: cell, col: ci, row: ri, span: mg ? mg.span : 1 });
+                                }
+                              }
+                              return items.map(function (p) {
+                                var cell = p.cell;
+                                var col = p.col;
+                                var row = p.row;
+                                var span = p.span;
+                                var hidden = (cell.field === 'callTime' && !settings.showTimes) || (cell.field === 'duration' && !settings.showDurations);
+                                var val = hidden ? '' : (cell.field === 'text' ? (cell.textContent || '') : getFieldValueFromSample(cell.field));
+                                var fieldLabel = hidden ? '' : (FIELD_MAP[cell.field]?.label || (project.customCategories || []).find(function (x) { return x.key === cell.field; })?.label || '');
+                                var display = val ? (cell.prefix || '') + (cell.prefix && val ? '\u00A0' : '') + val + (cell.suffix && val ? '\u00A0' : '') + (cell.suffix || '') : fieldLabel;
+                                var lastVisRow = row + span - 1;
+                                var cellBorderStyle = getCellBorderProps(settings.cellBorders, rowStyle.color, col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                                 return (
-                                  <div key={c.id} style={{
-                                    ...getRibbonCellBaseStyle(c, cellPadding),
-                                    borderRight: ci < row.cells.length - 1 ? '1px solid rgba(0,0,0,0.12)' : 'none',
-                                    textOverflow: shortDisplay ? 'clip' : 'ellipsis',
+                                  <div key={cell.id} style={{
+                                    gridColumn: col + 1,
+                                    gridRow: span ? (row + 1) + ' / span ' + span : row + 1,
+                                    ...getRibbonCellBaseStyle(cell, cellPadding),
+                                    borderRight: col < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
+                                    ...cellBorderStyle,
                                   }}>
                                     {display || ''}
                                   </div>
                                 );
-                              })}
-                            </div>
-                          ))}
+                              });
+                            })()}
+                          </div>
                         </div>
                       </div>
                     );
@@ -211,6 +245,21 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             })()}
           </div>
         )}
+
+        <div className="space-y-3">
+          <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Cell Borders</h3>
+          <div className="flex gap-1.5">
+            {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
+              <button
+                key={m}
+                onClick={() => update({ cellBorders: m })}
+                className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${settings.cellBorders === m ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+              >
+                {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-x-8">
           <div className="space-y-4 min-w-0">

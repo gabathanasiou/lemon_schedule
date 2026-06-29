@@ -3,7 +3,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
@@ -40,9 +41,11 @@ export const SortableRow: React.FC<{
   onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
+  colWidths?: number[],
   cellPadding?: number,
   edgePadding?: number,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, cellPadding, edgePadding }) => {
+  cellBorders?: CellBorders,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPadding, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -146,30 +149,41 @@ export const SortableRow: React.FC<{
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
+      const cw = colWidths ?? cells.map(() => 100 / cells.length);
       const nonSpecial = cells
-        .map((c, i) => ({i, w: c.width, f: c.field}))
+        .map((c, i) => ({i, w: cw[i] ?? 0, f: c.field}))
         .filter(x => x.f !== 'duration' && x.f !== 'callTime');
       const mainCellIdx = nonSpecial.length > 0
         ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
-        : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+        : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
 
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0" style={noteStyle}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+              width: '100%',
+            }}>
             {cells.map((cell, ci) => {
               const wrapCell = ci === mainCellIdx;
-              const base = getRibbonCellBaseStyle(cell, cellPadding);
-              const cellStyle: React.CSSProperties = wrapCell ? {
-                ...base,
-                padding: noteBreakPadPx,
-                textAlign: 'center',
-                overflow: 'visible',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word',
-              } : { ...base, padding: noteBreakPadPx };
               if (wrapCell) {
                 return (
-                  <div key={cell.id} style={cellStyle}>
+                  <div key={cell.id} style={{
+                    gridColumn: ci + 1,
+                    gridRow: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: noteBreakPadPx,
+                    textAlign: 'center',
+                    overflow: 'visible',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    fontSize: '8pt',
+                    lineHeight: 1.1,
+                    fontFamily: 'Helvetica, sans-serif',
+                  }}>
                     <CellInput
                       value={row.noteText || ''}
                       onChange={val => updateRow({noteText: val.toUpperCase()})}
@@ -184,7 +198,12 @@ export const SortableRow: React.FC<{
               }
               if (cell.field === 'duration') {
                 return (
-                  <div key={cell.id} style={cellStyle}>
+                  <div key={cell.id} style={{
+                    gridColumn: ci + 1, gridRow: 1,
+                    padding: noteBreakPadPx,
+                    fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                    textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
+                  }}>
                     <CellInput
                       value={row.estimatedDuration === 0 || !row.estimatedDuration ? '' : formatDuration(row.estimatedDuration || 0)}
                       onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
@@ -199,10 +218,18 @@ export const SortableRow: React.FC<{
               }
               if (cell.field === 'callTime') {
                 const v = row.computedCallTime || '';
-                return <div key={cell.id} style={cellStyle}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
+                return <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  padding: noteBreakPadPx,
+                  fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
-              return <div key={cell.id} style={cellStyle} />;
+              return <div key={cell.id} style={{
+                gridColumn: ci + 1, gridRow: 1,
+                padding: noteBreakPadPx,
+              }} />;
             })}
+            </div>
           </div>
         </div>
       );
@@ -272,30 +299,41 @@ export const SortableRow: React.FC<{
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
+      const cw = colWidths ?? cells.map(() => 100 / cells.length);
       const nonSpecial = cells
-        .map((c, i) => ({i, w: c.width, f: c.field}))
+        .map((c, i) => ({i, w: cw[i] ?? 0, f: c.field}))
         .filter(x => x.f !== 'duration' && x.f !== 'callTime');
       const mainCellIdx = nonSpecial.length > 0
         ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
-        : cells.map((c, i) => ({i, w: c.width})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+        : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
 
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0" style={breakStyle}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+              width: '100%',
+            }}>
             {cells.map((cell, ci) => {
               const wrapCell = ci === mainCellIdx;
-              const base = getRibbonCellBaseStyle(cell, cellPadding);
-              const cellStyle: React.CSSProperties = wrapCell ? {
-                ...base,
-                padding: noteBreakPadPx,
-                textAlign: 'center',
-                overflow: 'visible',
-                whiteSpace: 'normal',
-                wordBreak: 'break-word',
-              } : { ...base, padding: noteBreakPadPx };
               if (wrapCell) {
                 return (
-                  <div key={cell.id} style={cellStyle}>
+                  <div key={cell.id} style={{
+                    gridColumn: ci + 1,
+                    gridRow: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: noteBreakPadPx,
+                    textAlign: 'center',
+                    overflow: 'visible',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    fontSize: '8pt',
+                    lineHeight: 1.1,
+                    fontFamily: 'Helvetica, sans-serif',
+                  }}>
                     <CellInput
                       value={row.breakLabel || ''}
                       onChange={val => updateRow({breakLabel: val.toUpperCase()})}
@@ -310,7 +348,12 @@ export const SortableRow: React.FC<{
               }
               if (cell.field === 'duration') {
                 return (
-                  <div key={cell.id} style={cellStyle}>
+                  <div key={cell.id} style={{
+                    gridColumn: ci + 1, gridRow: 1,
+                    padding: noteBreakPadPx,
+                    fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                    textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
+                  }}>
                     <CellInput
                       value={formatDuration(row.breakDuration || 0)}
                       onChange={val => updateRow({breakDuration: parseDuration(val)})}
@@ -325,10 +368,18 @@ export const SortableRow: React.FC<{
               }
               if (cell.field === 'callTime') {
                 const v = row.computedCallTime || '';
-                return <div key={cell.id} style={cellStyle}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
+                return <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  padding: noteBreakPadPx,
+                  fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
-              return <div key={cell.id} style={cellStyle} />;
+              return <div key={cell.id} style={{
+                gridColumn: ci + 1, gridRow: 1,
+                padding: noteBreakPadPx,
+              }} />;
             })}
+            </div>
           </div>
         </div>
       );
@@ -390,18 +441,18 @@ export const SortableRow: React.FC<{
     );
   }
 
-  const renderCellContent = (cell: RibbonCell) => {
-    const { field, width: cellWidth, align, prefix, suffix, wrap, id: cellId } = cell;
+  const renderCellContent = (cell: RibbonCell, ci?: number) => {
+    const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     if (!field) {
-      return <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
+      return <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
     }
     const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
     const displayText = `${prefix || ''}${val}${suffix || ''}`;
 
     if (field === 'intExt') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <SelectDropdown
             value={scene!.intExt}
             onChange={val => updateScene({intExt: val as any})}
@@ -415,7 +466,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'dayNight') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, textTransform: 'uppercase', borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <SelectDropdown
             value={scene!.dayNight}
             onChange={val => updateScene({dayNight: val as any})}
@@ -429,7 +480,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'cast') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <EntityDropdown
             value={scene!.cast}
             onChange={val => updateScene({cast: val})}
@@ -446,7 +497,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'pageCount') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           {textEditingEnabled ? (
             <CellInput
               value={scene!.pageCount}
@@ -469,7 +520,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'duration') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <CellInput
             value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
             onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
@@ -485,7 +536,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'sceneNumber') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <div className="flex items-center gap-px">
             <CellInput
               value={scene!.sceneNumber}
@@ -501,7 +552,7 @@ export const SortableRow: React.FC<{
     }
     if (field === 'text') {
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <span style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
         </td>
       );
@@ -510,14 +561,14 @@ export const SortableRow: React.FC<{
       const v = ((scene as any)[field] as string) || '';
       const entityItems = entityItemsMap[field] || [];
       return (
-        <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
           <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
         </td>
       );
     }
     // Generic text field (description, notes, props, etc.)
     return (
-      <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
+      <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
         <CellInput
           value={displayText}
           onChange={val => updateScene({[field]: val})}
@@ -582,13 +633,18 @@ export const SortableRow: React.FC<{
     return items;
   }, [scenes, state.present.castMembers]);
 
-  const renderCellFlex = (cell: RibbonCell, isLast: boolean) => {
+  const renderCellFlex = (cell: RibbonCell, isLast: boolean, isLastRow: boolean, textColor: string, col?: number, gRow?: number, span?: number) => {
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     const style: React.CSSProperties = {
       ...cellFlexBase(cell),
       textAlign: a as any,
+      ...getCellBorderProps(cellBorders, textColor, isLast, isLastRow),
     };
+    if (col !== undefined && gRow !== undefined) {
+      style.gridColumn = col + 1;
+      style.gridRow = span ? `${gRow + 1} / span ${span}` : gRow + 1;
+    }
     if (!field) return <div key={cellId} style={style} />;
 
     const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
@@ -714,15 +770,37 @@ export const SortableRow: React.FC<{
 
     // ── Ribbon-based rendering (non-compact) ──
     if (ribbon && ribbon.length > 0 && !isCompact) {
+      const cw = colWidths ?? [];
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
             <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
-              {ribbon.map((row, ri) => (
-                <div key={row.id || ri} className="flex w-full min-h-0">
-                  {row.cells.map((c, ci) => renderCellFlex(c, ci === row.cells.length - 1))}
-                </div>
-              ))}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+                gridTemplateRows: `repeat(${ribbon.length}, auto)`,
+              }}>
+                {(() => {
+                  const mgroups = computeMergeGroups(ribbon);
+                  const hiddenIds = new Set<string>();
+                  for (const g of mgroups) {
+                    for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                      const cell = ribbon[ri]?.cells[g.colIndex];
+                      if (cell) hiddenIds.add(cell.id);
+                    }
+                  }
+                  const items: { cell: RibbonCell; col: number; row: number; span: number }[] = [];
+                  for (let ri = 0; ri < ribbon.length; ri++) {
+                    for (let ci = 0; ci < ribbon[ri].cells.length; ci++) {
+                      const cell = ribbon[ri].cells[ci];
+                      if (hiddenIds.has(cell.id)) continue;
+                      const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
+                      items.push({ cell, col: ci, row: ri, span: g ? g.span : 1 });
+                    }
+                  }
+                  return items.map(({ cell, col, row, span }) => renderCellFlex(cell, col === ribbon[0].cells.length - 1, row + span - 1 >= ribbon.length - 1, rowStyle.color, col, row, span));
+                })()}
+              </div>
             </div>
           </div>
         </div>
