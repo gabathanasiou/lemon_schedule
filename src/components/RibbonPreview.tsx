@@ -75,7 +75,7 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                       gridColumn: col + 1,
                       gridRow: span ? `${row + 1} / span ${span}` : row + 1,
                     }}>
-                      <RibbonCellText cell={cell} span={span}>
+                      <RibbonCellText cell={cell} span={span} cellPadding={cellPadding}>
                         {text}
                       </RibbonCellText>
                     </div>

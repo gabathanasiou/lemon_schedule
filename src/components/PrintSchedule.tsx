@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
 import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
-import type { CellBorders } from '../lib/persist';
+import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
 function filterIndices(cells: RibbonCell[], colWidths: number[], showTimes: boolean, showDurations: boolean): { keep: boolean[]; filteredWidths: number[] } {
@@ -45,6 +45,7 @@ interface PrintScheduleProps {
   cellPadding?: number;
   edgePadding?: number;
   cellBorders?: CellBorders;
+  viewMode?: ViewMode;
 }
 
 function formatDateLong(dateStr: string): string {
@@ -184,9 +185,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     };
     if (col !== undefined && row !== undefined) {
       style.gridColumn = col + 1;
-      style.gridRow = span ? `${row + 1} / span ${span}` : row + 1;
+      style.gridRow = span ? `${row + 2} / span ${span}` : row + 2;
     }
-    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span}>{display || ''}</RibbonCellText></div>;
+    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span} cellPadding={cellPadding}>{display || ''}</RibbonCellText></div>;
   };
 
 
@@ -343,12 +344,12 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
 
             if (cells) {
               return (
-                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000', paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, background: bgColor }}>
+                <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000', paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, background: bgColor }}>
                   {filteredRibbon && filteredRibbon.length > 0 && (
                     <div style={{
                       display: 'grid',
                       gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '),
-                      gridTemplateRows: `repeat(${filteredRibbon.length}, auto)`,
+                      gridTemplateRows: `${edgePadding ?? 2}px repeat(${filteredRibbon.length}, auto) ${edgePadding ?? 2}px`,
                       ...rowStyle,
                     }}>
                       {(() => {
@@ -596,7 +597,10 @@ const CAST_LIST_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPadding, edgePadding, cellBorders }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPadding, edgePadding, cellBorders, viewMode }) => {
+  const VIEW_WIDTHS: Record<string, number | null> = { portrait: 730, landscape: 1060, full: null };
+  const contentMaxWidth = viewMode ? VIEW_WIDTHS[viewMode] : null;
+
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
@@ -667,7 +671,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
       {showPageNumbers && (
         <style>{`@page { @bottom-right { content: counter(page); font-family: Helvetica, sans-serif; font-size: 8pt; } }`}</style>
       )}
-      <div className="print-root">
+      <div className="print-root" style={contentMaxWidth ? { maxWidth: contentMaxWidth, margin: '0 auto' } : undefined}>
         {showCastList && <CastListPrint castMembers={project.castMembers || []} relevantCastIds={printedCastIds} />}
 
         <div className="print-title-section">

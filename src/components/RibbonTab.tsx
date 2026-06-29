@@ -917,8 +917,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
                             gridColumn: ci + 1,
                             gridRow: ri + 1,
-                            display: 'flex',
-                            alignItems: c.verticalAlign === 'top' ? 'flex-start' : c.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                             position: 'relative',
                             padding: `${activeDesign.cellPadding ?? 6}px 6px`,
                             borderRight: ci < numCols - 1 ? '1px solid #000' : 'none',
@@ -1012,7 +1010,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             }
                             return items.map(p => {
                               const c = p.cell;
-                              const a = getAlign(c);
                               const val = c.field === 'text' ? (c.textContent || '') : c.field === 'sceneNumber' ? sample.sceneNumber : getFieldValueFromSample(c.field);
                               const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
                               const display = val || fieldLabel;
@@ -1023,18 +1020,14 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   ...getRibbonCellBaseStyle(c, activeDesign.cellPadding, p.span),
                                   gridColumn: p.col + 1,
                                   gridRow: `${p.row + 1} / span ${p.span}`,
-                                  display: 'flex',
-                                  alignItems: c.verticalAlign === 'top' ? 'flex-start' : c.verticalAlign === 'bottom' ? 'flex-end' : 'center',
-                                  padding: `${activeDesign.cellPadding ?? 6}px 6px`,
+                                  padding: p.span > 1 ? '0px 6px' : `${activeDesign.cellPadding ?? 6}px 6px`,
                                   borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   ...cellBorderStyle,
                                 }}>
-                                  {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
-                                  <RibbonCellText cell={c} span={p.span} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
+                                  <RibbonCellText cell={c} span={p.span} cellPadding={activeDesign.cellPadding} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
                                     {formatCellText(val ? c.prefix : undefined, display, val ? c.suffix : undefined)}
                                   </RibbonCellText>
-                                  {(a === 'left' || a === 'center') && <span style={{ flex: '1 1 0' }} />}
                                 </div>
                               );
                             });

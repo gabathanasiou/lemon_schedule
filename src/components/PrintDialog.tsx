@@ -5,7 +5,8 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
+import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 
 function formatDayDateShort(dateStr: string): string {
@@ -34,13 +35,14 @@ export interface PrintOptions {
   includeStatusDays: boolean;
   selectedRibbonId?: string;
   cellBorders?: CellBorders;
+  viewMode?: import('../lib/persist').ViewMode;
 }
 
 export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: PrintOptions) => void; onClose: () => void }) {
   const { state } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const [, , viewWidth] = useViewMode();
+  const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [currentCellBorders] = useCellBorders();
 
   const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
@@ -131,7 +133,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             Cancel
           </button>
           <button
-            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId, cellBorders: settings.cellBorders })}
+            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId, cellBorders: settings.cellBorders, viewMode })}
             disabled={selectedDays.size === 0}
             className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -144,34 +146,70 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
       <div className="px-6 py-4 space-y-4">
         {ribbonDesigns.length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Ribbon Layout</h3>
-            <RadixDropdownMenu.Root>
-              <RadixDropdownMenu.Trigger asChild>
-                <button className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors">
-                  <span>{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
-                </button>
-              </RadixDropdownMenu.Trigger>
-              <RadixDropdownMenu.Portal>
-                <RadixDropdownMenu.Content
-                  className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
-                  align="start"
-                  sideOffset={4}
-                  collisionPadding={8}
-                >
-                  {ribbonDesigns.map(d => (
-                    <RadixDropdownMenu.Item
-                      key={d.id}
-                      onSelect={() => update({ selectedRibbonId: d.id })}
-                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+            <div className="flex items-center border-b border-zinc-800 pb-1.5">
+              <div className="flex items-center gap-2 flex-1">
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
+                <RadixDropdownMenu.Root>
+                  <RadixDropdownMenu.Trigger asChild>
+                    <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                      <span className="tabular-nums truncate max-w-[120px]">{settings.selectedRibbonId ? (ribbonDesigns.find(d => d.id === settings.selectedRibbonId)?.name || 'Unknown') : (ribbonDesigns[0]?.name || 'Unknown')}</span>
+                      <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                    </button>
+                  </RadixDropdownMenu.Trigger>
+                  <RadixDropdownMenu.Portal>
+                    <RadixDropdownMenu.Content
+                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
+                      align="start"
+                      sideOffset={4}
+                      collisionPadding={8}
                     >
-                      <span className="flex-1">{d.name}</span>
-                      {settings.selectedRibbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
-                    </RadixDropdownMenu.Item>
-                  ))}
-                </RadixDropdownMenu.Content>
-              </RadixDropdownMenu.Portal>
-            </RadixDropdownMenu.Root>
+                      {ribbonDesigns.map(d => (
+                        <RadixDropdownMenu.Item
+                          key={d.id}
+                          onSelect={() => update({ selectedRibbonId: d.id })}
+                          className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                        >
+                          <span className="flex-1">{d.name}</span>
+                          {settings.selectedRibbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
+                        </RadixDropdownMenu.Item>
+                      ))}
+                    </RadixDropdownMenu.Content>
+                  </RadixDropdownMenu.Portal>
+                </RadixDropdownMenu.Root>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
+                <RadixDropdownMenu.Root>
+                  <RadixDropdownMenu.Trigger asChild>
+                    <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                      <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
+                      <ChevronDown className="w-3 h-3 text-zinc-500" />
+                    </button>
+                  </RadixDropdownMenu.Trigger>
+                  <RadixDropdownMenu.Portal>
+                    <RadixDropdownMenu.Content
+                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
+                      align="end"
+                      sideOffset={4}
+                      collisionPadding={8}
+                    >
+                      <RadixDropdownMenu.Item onSelect={() => setViewMode('portrait')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                        <span className="flex-1">Portrait</span>
+                        {viewMode === 'portrait' && <Check className="w-3 h-3 shrink-0" />}
+                      </RadixDropdownMenu.Item>
+                      <RadixDropdownMenu.Item onSelect={() => setViewMode('landscape')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                        <span className="flex-1">Landscape</span>
+                        {viewMode === 'landscape' && <Check className="w-3 h-3 shrink-0" />}
+                      </RadixDropdownMenu.Item>
+                      <RadixDropdownMenu.Item onSelect={() => setViewMode('full')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'full' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                        <span className="flex-1">Full Width</span>
+                        {viewMode === 'full' && <Check className="w-3 h-3 shrink-0" />}
+                      </RadixDropdownMenu.Item>
+                    </RadixDropdownMenu.Content>
+                  </RadixDropdownMenu.Portal>
+                </RadixDropdownMenu.Root>
+              </div>
+            </div>
             {(() => {
               const design = settings.selectedRibbonId ? ribbonDesigns.find(d => d.id === settings.selectedRibbonId) : ribbonDesigns[0];
               const rows = design?.rows;
@@ -211,28 +249,30 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                                   items.push({ cell: cell, col: ci, row: ri, span: mg ? mg.span : 1 });
                                 }
                               }
-                              return items.map(function (p) {
-                                var cell = p.cell;
-                                var col = p.col;
-                                var row = p.row;
-                                var span = p.span;
-                                var hidden = (cell.field === 'callTime' && !settings.showTimes) || (cell.field === 'duration' && !settings.showDurations);
-                                var val = hidden ? '' : (cell.field === 'text' ? (cell.textContent || '') : getFieldValueFromSample(cell.field));
-                                var fieldLabel = hidden ? '' : (FIELD_MAP[cell.field]?.label || (project.customCategories || []).find(function (x) { return x.key === cell.field; })?.label || '');
-                                var display = val ? (cell.prefix || '') + (cell.prefix && val ? '\u00A0' : '') + val + (cell.suffix && val ? '\u00A0' : '') + (cell.suffix || '') : fieldLabel;
-                                var lastVisRow = row + span - 1;
-                                var cellBorderStyle = getCellBorderProps(settings.cellBorders, rowStyle.color, col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
-                                return (
-                                  <div key={cell.id} style={{
-                                    gridColumn: col + 1,
-                                    gridRow: span ? (row + 1) + ' / span ' + span : row + 1,
-                                    ...getRibbonCellBaseStyle(cell, cellPadding),
-                                    borderRight: col < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
-                                    ...cellBorderStyle,
-                                  }}>
-                                    {display || ''}
-                                  </div>
-                                );
+                               return items.map(function (p) {
+                                 var cell = p.cell;
+                                 var col = p.col;
+                                 var row = p.row;
+                                 var span = p.span;
+                                 var hidden = (cell.field === 'callTime' && !settings.showTimes) || (cell.field === 'duration' && !settings.showDurations);
+                                 var val = hidden ? '' : (cell.field === 'text' ? (cell.textContent || '') : getFieldValueFromSample(cell.field));
+                                 var fieldLabel = hidden ? '' : (FIELD_MAP[cell.field]?.label || (project.customCategories || []).find(function (x) { return x.key === cell.field; })?.label || '');
+                                 var display = val ? formatCellText(cell.prefix, val, cell.suffix) : fieldLabel;
+                                 var lastVisRow = row + span - 1;
+                                 var cellBorderStyle = getCellBorderProps(settings.cellBorders, rowStyle.color, col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
+                                 return (
+                                   <div key={cell.id} style={{
+                                     gridColumn: col + 1,
+                                     gridRow: span ? (row + 1) + ' / span ' + span : row + 1,
+                                     ...getRibbonCellBaseStyle(cell, cellPadding, span),
+                                     borderRight: col < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
+                                     ...cellBorderStyle,
+                                   }}>
+                                     <RibbonCellText cell={cell} span={span} cellPadding={cellPadding}>
+                                       {display || ''}
+                                     </RibbonCellText>
+                                   </div>
+                                 );
                               });
                             })()}
                           </div>

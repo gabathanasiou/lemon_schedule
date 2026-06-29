@@ -644,7 +644,7 @@ export const SortableRow: React.FC<{
     };
     if (col !== undefined && gRow !== undefined) {
       style.gridColumn = col + 1;
-      style.gridRow = span ? `${gRow + 1} / span ${span}` : gRow + 1;
+      style.gridRow = span ? `${gRow + 2} / span ${span}` : gRow + 2;
     }
     if (!field) return <div key={cellId} style={style} />;
 
@@ -659,7 +659,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -671,7 +671,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -683,7 +683,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -695,7 +695,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -716,7 +716,7 @@ export const SortableRow: React.FC<{
             {textEditingEnabled ? (
               <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
             ) : (
-              <RibbonCellText cell={cell} span={span || 1} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
+              <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
             )}
             {violationBadge}
           </div>
@@ -726,14 +726,14 @@ export const SortableRow: React.FC<{
     if (field === 'text') {
       return (
         <div key={cellId} style={style}>
-          <RibbonCellText cell={cell} span={span || 1}>{cell.textContent || ''}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding}>{cell.textContent || ''}</RibbonCellText>
         </div>
       );
     }
     if (field === 'callTime') {
       return (
         <div key={cellId} style={style}>
-          <RibbonCellText cell={cell} span={span || 1}>{fmt(prefix, val, suffix)}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding}>{fmt(prefix, val, suffix)}</RibbonCellText>
         </div>
       );
     }
@@ -745,7 +745,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -756,7 +756,7 @@ export const SortableRow: React.FC<{
         {textEditingEnabled ? (
           <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
-          <RibbonCellText cell={cell} span={span || 1} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
         )}
       </div>
     );
@@ -775,11 +775,11 @@ export const SortableRow: React.FC<{
       return (
         <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
-            <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: edgePadding ?? 2, paddingBottom: edgePadding ?? 2, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+            <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
-                gridTemplateRows: `repeat(${ribbon.length}, auto)`,
+                gridTemplateRows: `${edgePadding ?? 2}px repeat(${ribbon.length}, auto) ${edgePadding ?? 2}px`,
               }}>
                 {(() => {
                   const mgroups = computeMergeGroups(ribbon);

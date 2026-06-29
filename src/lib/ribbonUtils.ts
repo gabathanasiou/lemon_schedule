@@ -194,10 +194,13 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number, s
   const cp = cellPadding ?? 6;
   return {
     minWidth: 0,
-    padding: `${cp}px 6px`,
+    padding: multiRow ? '0px 6px' : `${cp}px 6px`,
     overflow: multiRow || cell.wrap ? 'visible' : 'hidden',
     textAlign: getAlign(cell),
-    alignSelf: va === 'top' ? 'start' : va === 'bottom' ? 'end' : 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: va === 'top' ? 'flex-start' : va === 'bottom' ? 'flex-end' : 'center',
+    alignSelf: 'stretch',
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
     fontSize: '8pt',
@@ -206,7 +209,7 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number, s
   };
 }
 
-export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1): React.CSSProperties {
+export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1, _cellPadding?: number): React.CSSProperties {
   const multiRow = span > 1;
   if (multiRow && !cell.wrap) {
     return {
@@ -220,6 +223,7 @@ export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1): React.CSSPro
   }
   if (cell.wrap) {
     return {
+      display: 'block',
       whiteSpace: 'normal',
       overflow: 'visible',
       overflowWrap: 'break-word',
