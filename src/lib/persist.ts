@@ -42,3 +42,23 @@ export function useViewMode(): [ViewMode, (m: ViewMode) => void, number | null] 
 
   return [mode, setViewMode, VIEW_WIDTHS[mode]];
 }
+
+export type CellBorders = 'none' | 'vertical' | 'horizontal' | 'both';
+
+const CELL_BORDERS_KEY = 'lemon_schedule_cell_borders';
+
+export function useCellBorders(): [CellBorders, (m: CellBorders) => void] {
+  const [mode, setMode] = useState<CellBorders>(() => {
+    try {
+      const stored = localStorage.getItem(CELL_BORDERS_KEY);
+      return (stored === 'vertical' || stored === 'horizontal' || stored === 'both') ? stored : 'none';
+    } catch { return 'none'; }
+  });
+
+  const setBorders = useCallback((m: CellBorders) => {
+    setMode(m);
+    try { localStorage.setItem(CELL_BORDERS_KEY, m); } catch {}
+  }, []);
+
+  return [mode, setBorders];
+}

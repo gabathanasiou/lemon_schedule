@@ -1,9 +1,10 @@
 import React from 'react';
 import { Scene, RibbonRow } from '../types';
-import { getRibbonCellBaseStyle, getRibbonTextWrapStyle, getFieldValue, sceneStyle, computeMergeGroups } from '../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, formatCellText, getFieldValue, sceneStyle, computeMergeGroups } from '../lib/ribbonUtils';
+import { RibbonCellText } from './RibbonCellText';
 
 function fmt(prefix: string | undefined, val: string, suffix: string | undefined): string {
-  return `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
+  return formatCellText(prefix, val, suffix);
 }
 
 export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgePadding = 2, onDoubleClick }: {
@@ -74,9 +75,9 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                       gridColumn: col + 1,
                       gridRow: span ? `${row + 1} / span ${span}` : row + 1,
                     }}>
-                      <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span) }}>
+                      <RibbonCellText cell={cell} span={span}>
                         {text}
-                      </span>
+                      </RibbonCellText>
                     </div>
                   );
                 })}

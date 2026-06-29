@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, getRibbonTextWrapStyle, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
@@ -172,7 +173,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPadding, span);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
-    `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
+    formatCellText(prefix, val, suffix);
 
   const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLastInRow?: boolean, isLastRow?: boolean, textColor?: string, col?: number, row?: number, span?: number) => {
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
@@ -185,7 +186,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       style.gridColumn = col + 1;
       style.gridRow = span ? `${row + 1} / span ${span}` : row + 1;
     }
-    return <div key={cell.id} style={style}><span style={getRibbonTextWrapStyle(cell, span)}>{display || ''}</span></div>;
+    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span}>{display || ''}</RibbonCellText></div>;
   };
 
 

@@ -232,6 +232,13 @@ export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1): React.CSSPro
   };
 }
 
+export function formatCellText(prefix: string | undefined, value: string | undefined, suffix: string | undefined): string {
+  const p = prefix || '';
+  const v = value || '';
+  const s = suffix || '';
+  return `${p}${p && v ? '\u00A0' : ''}${v}${s && v ? '\u00A0' : ''}${s}`;
+}
+
 
 export function getCellBorderProps(borders: CellBorders | undefined, textColor: string, isLastInRow: boolean, isLastRow: boolean): React.CSSProperties {
   const style: React.CSSProperties = {};

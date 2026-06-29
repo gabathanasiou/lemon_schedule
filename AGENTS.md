@@ -270,6 +270,29 @@ Shared `useViewMode()` hook returns `[mode, setMode, maxWidth]`. Persisted to lo
 
 Applied on the content wrapper in both `RibbonTab.tsx` and `ScheduleTab.tsx` via `style={{ maxWidth: viewWidth || undefined, ... }}`. Toggle rendered in both toolbars as a segmented button group.
 
+### Cell Borders (`src/lib/persist.ts`, `src/lib/ribbonUtils.ts`)
+
+Global view setting for interior cell borders in scene ribbons. Persisted to localStorage (`lemon_schedule_cell_borders`), default `'none'`.
+
+| Type | Values |
+|---|---|
+| `CellBorders` | `'none'` \| `'vertical'` \| `'horizontal'` \| `'both'` |
+
+**`useCellBorders()`** hook (`src/lib/persist.ts`) returns `[mode, setMode]`. Persisted via `useState` + `useCallback` + `localStorage`.
+
+**`getCellBorderProps(borders, textColor, isLastInRow, isLastRow)`** helper (`src/lib/ribbonUtils.ts`) returns CSS props:
+- Vertical/Both + not last cell → `{ borderRight: '1px solid {textColor}' }`
+- Horizontal/Both + not last row → `{ borderBottom: '1px solid {textColor}' }`
+- Always one-sided (right/bottom only) → no doubling between stacked rows or adjacent cells
+
+**Usages:**
+- `ScheduleTab.tsx` — View dropdown submenu "Cell Borders" with None/Vertical/Horizontal/Both; passed through `DayBlock`/`UnscheduledBlock` → `SortableRow`
+- `SortableRow.tsx:renderCellFlex` — applies `getCellBorderProps` to each scene cell using `rowStyle.color`
+- `RibbonTab.tsx` — Live Preview section applies borders with `useCellBorders()`
+- `PrintDialog.tsx` — Cell Borders selector in print dialog, defaults to current `useCellBorders()` value; saved in `PrintOptions.cellBorders`; applied in preview
+- `PrintSchedule.tsx` — accepts `cellBorders` prop, applies in `renderSceneCellFlex` using scene's resolved text color
+- `App.tsx` — passes `printOptions.cellBorders` to `<PrintSchedule>`
+
 ### Cast Member Handling
 
 Cast members use **IDs as references** (`e.id`), stored in `castMembers[]`. Every other breakdown element uses **names as references** (`e.name`).

@@ -3,7 +3,8 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getRibbonTextWrapStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
@@ -138,7 +139,7 @@ export const SortableRow: React.FC<{
   ) : null;
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
-    `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
+    formatCellText(prefix, val, suffix);
 
   const nb = getNoteBannerColors(state.present.colorPalette);
   const sel = getSelectedStripColors(state.present.colorPalette);
@@ -658,7 +659,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1), ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -670,7 +671,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1), ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -682,7 +683,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1), ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -694,7 +695,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <span className={inputClass} style={{ fontSize: '8pt', display: 'block', ...getRibbonTextWrapStyle(cell, span || 1), ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+            <RibbonCellText cell={cell} span={span || 1} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -715,7 +716,7 @@ export const SortableRow: React.FC<{
             {textEditingEnabled ? (
               <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
             ) : (
-              <span className={inputClass} style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1), ...(!sv ? emptyStyle : {}) }}>{sv ? displayText : fieldLabel}</span>
+              <RibbonCellText cell={cell} span={span || 1} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
             )}
             {violationBadge}
           </div>
@@ -725,14 +726,14 @@ export const SortableRow: React.FC<{
     if (field === 'text') {
       return (
         <div key={cellId} style={style}>
-          <span style={{ fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1) }}>{cell.textContent || ''}</span>
+          <RibbonCellText cell={cell} span={span || 1}>{cell.textContent || ''}</RibbonCellText>
         </div>
       );
     }
     if (field === 'callTime') {
       return (
         <div key={cellId} style={style}>
-          <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1) }}>{fmt(prefix, val, suffix)}</span>
+          <RibbonCellText cell={cell} span={span || 1}>{fmt(prefix, val, suffix)}</RibbonCellText>
         </div>
       );
     }
@@ -744,7 +745,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1), ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <RibbonCellText cell={cell} span={span || 1} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -755,7 +756,7 @@ export const SortableRow: React.FC<{
         {textEditingEnabled ? (
           <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
-          <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span || 1), ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+          <RibbonCellText cell={cell} span={span || 1} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
         )}
       </div>
     );

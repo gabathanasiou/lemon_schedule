@@ -5,7 +5,7 @@ import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   getFieldValueFromSample, getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
-  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, getRibbonTextWrapStyle, resolveSceneColor, getCellBorderProps,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, formatCellText, resolveSceneColor, getCellBorderProps,
   computeMergeGroups, getMergeLookup, mergeSiblingIds,
 } from '../lib/ribbonUtils';
 import {
@@ -26,6 +26,7 @@ import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { useViewMode, useCellBorders } from '../lib/persist';
 import { Tooltip } from './Tooltip';
+import { RibbonCellText } from './RibbonCellText';
 
 const FIELD_ICONS: Record<string, React.ElementType> = {
   sceneNumber: Hash, callTime: Clock, duration: Timer, intExt: MapPin,
@@ -937,10 +938,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             color: assigned ? undefined : '#71717a',
                           }}>
                             {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
-                            <span style={{
-                              ...getRibbonTextWrapStyle(c, 1),
-                              flexShrink: 1, minWidth: 0,
-                            }}>{c.prefix ? c.prefix + '\u00A0' : ''}{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
+                            <RibbonCellText cell={c} span={1} style={{ flexShrink: 1, minWidth: 0 }}>
+                              {formatCellText(c.prefix, assigned ? label : 'Empty', c.suffix)}
+                            </RibbonCellText>
                             {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
                           </div>
                           {/* Merge badges */}
@@ -1031,12 +1031,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   ...cellBorderStyle,
                                 }}>
                                   {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
-                                  <span style={{
-                                    ...getRibbonTextWrapStyle(c, p.span),
-                                    flexShrink: 1, minWidth: 0,
-                                    fontStyle: val ? 'normal' : 'italic',
-                                    opacity: val ? 1 : 0.5,
-                                  }}>{c.prefix && val ? c.prefix + '\u00A0' : ''}{display}{c.suffix && val ? '\u00A0' + c.suffix : ''}</span>
+                                  <RibbonCellText cell={c} span={p.span} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
+                                    {formatCellText(val ? c.prefix : undefined, display, val ? c.suffix : undefined)}
+                                  </RibbonCellText>
                                   {(a === 'left' || a === 'center') && <span style={{ flex: '1 1 0' }} />}
                                 </div>
                               );
