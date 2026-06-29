@@ -15,7 +15,7 @@ import {
   Plus, Trash2, GripHorizontal,
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
   ChevronDown, ArrowLeft, ArrowRight,
-  AlignCenter, AlignRight, WrapText, Grid3X3, Type, Tag, CircleDot,
+  AlignCenter, AlignRight, WrapText, Type, Tag, CircleDot,
   Download, Upload, Copy, Check, Pencil,
   PanelTop, Equal, PanelBottom,
 } from 'lucide-react';
@@ -75,7 +75,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
   const [selId, setSelId] = useState<string | null>(null);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
-  const [showGrid, setShowGrid] = useState(true);
   const [dropHover, setDropHover] = useState<string | null>(null);
   const [cellDrag, setCellDrag] = useState<{ rowId: string; cellId: string } | null>(null);
   const cellDragRef = useRef<{ rowId: string; cellId: string } | null>(null);
@@ -773,14 +772,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 <WrapText className="w-3 h-3" />
               </button>
             </Tooltip>
-            <Tooltip content="Toggle Grid Lines">
-              <button onClick={() => setShowGrid(g => !g)}
-                className={`h-7 w-7 rounded border flex items-center justify-center transition-colors ${
-                  showGrid ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                }`}>
-                <Grid3X3 className="w-3 h-3" />
-              </button>
-            </Tooltip>
             <div className="w-px h-5 bg-zinc-700 mx-1" />
             <span className="text-[10px] text-zinc-500 shrink-0">Pad</span>
             <Tooltip content="Cell Padding (px)">
@@ -923,7 +914,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             display: 'flex',
                             position: 'relative',
                             padding: `${activeDesign.cellPadding ?? 6}px 6px`,
-                            borderRight: ci < numCols - 1 ? (showGrid ? '1px solid #000' : 'none') : 'none',
+                            borderRight: ci < numCols - 1 ? '1px solid #000' : 'none',
                             borderBottom: ri < rows.length - 1 ? '1px solid #000' : 'none',
                             borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : mergeInfo ? '3px solid #60a5fa' : 'none',
                             outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDragRef.current ? '2px dashed #3b82f6' : 'none',
