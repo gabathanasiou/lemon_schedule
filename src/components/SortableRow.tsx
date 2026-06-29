@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups, getAlign } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -167,28 +167,22 @@ export const SortableRow: React.FC<{
                 gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
               }}>
             {cells.map((cell, ci) => {
+              const a = getAlign(cell);
               const wrapCell = ci === mainCellIdx;
               if (wrapCell) {
                 return (
                   <div key={cell.id} style={{
-                    gridColumn: ci + 1,
-                    gridRow: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                     padding: noteBreakPadPx,
-                    textAlign: 'center',
                     overflow: 'visible',
                     whiteSpace: 'normal',
                     wordBreak: 'break-word',
-                    fontSize: '8pt',
-                    lineHeight: 1.1,
-                    fontFamily: 'Helvetica, sans-serif',
                   }}>
                     <CellInput
                       value={row.noteText || ''}
                       onChange={val => updateRow({noteText: val.toUpperCase()})}
-                      className={`${inputClass} text-center`}
+                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
                       placeholder="Enter note here..."
                       multiline
                       autoFocus={focusedRowId === row.id}
@@ -201,19 +195,16 @@ export const SortableRow: React.FC<{
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                     padding: noteBreakPadPx,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
-                    textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
+                    overflow: 'visible',
                   }}>
                     <CellInput
                       value={row.estimatedDuration === 0 || !row.estimatedDuration ? '' : formatDuration(row.estimatedDuration || 0)}
                       onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
                       clearOnType
                       col="duration"
-                      className={`${inputClass} ${cell.align === 'center' ? 'text-center' : cell.align === 'right' ? 'text-right' : 'text-left'}`}
+                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
                       navigateOnEnter={false}
                       onRowNavigate={onRowNavigate}
                     />
@@ -224,17 +215,16 @@ export const SortableRow: React.FC<{
                 const v = row.computedCallTime || '';
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                   padding: noteBreakPadPx,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
-                  fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                  overflow: 'visible',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
+                ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                 padding: noteBreakPadPx,
+                overflow: 'visible',
               }} />;
             })}
             </div>
@@ -325,28 +315,22 @@ export const SortableRow: React.FC<{
                 gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
               }}>
             {cells.map((cell, ci) => {
+              const a = getAlign(cell);
               const wrapCell = ci === mainCellIdx;
               if (wrapCell) {
                 return (
                   <div key={cell.id} style={{
-                    gridColumn: ci + 1,
-                    gridRow: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                     padding: noteBreakPadPx,
-                    textAlign: 'center',
                     overflow: 'visible',
                     whiteSpace: 'normal',
                     wordBreak: 'break-word',
-                    fontSize: '8pt',
-                    lineHeight: 1.1,
-                    fontFamily: 'Helvetica, sans-serif',
                   }}>
                     <CellInput
                       value={row.breakLabel || ''}
                       onChange={val => updateRow({breakLabel: val.toUpperCase()})}
-                      className={`${inputClass} text-center`}
+                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
                       placeholder="ENTER BREAK TEXT"
                       multiline
                       autoFocus={focusedRowId === row.id}
@@ -359,19 +343,16 @@ export const SortableRow: React.FC<{
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                     padding: noteBreakPadPx,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
-                    textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
+                    overflow: 'visible',
                   }}>
                     <CellInput
                       value={formatDuration(row.breakDuration || 0)}
                       onChange={val => updateRow({breakDuration: parseDuration(val)})}
                       clearOnType
                       col="duration"
-                      className={`${inputClass} ${cell.align === 'center' ? 'text-center' : cell.align === 'right' ? 'text-right' : 'text-left'}`}
+                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
                       navigateOnEnter={false}
                       onRowNavigate={onRowNavigate}
                     />
@@ -382,17 +363,16 @@ export const SortableRow: React.FC<{
                 const v = row.computedCallTime || '';
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                   padding: noteBreakPadPx,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
-                  fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                  overflow: 'visible',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
+                ...getRibbonCellBaseStyle(cell, cellPadding, 1),
                 padding: noteBreakPadPx,
+                overflow: 'visible',
               }} />;
             })}
             </div>
