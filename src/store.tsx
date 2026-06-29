@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useReducer, useCallback, u
 import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
+import { isMultiValue, getFieldItems } from './lib/categories';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -69,20 +70,26 @@ function loadProjectFromStorage(id: string): Project | null {
           return Date.now() - t.deletedAt < thirtyDays;
         });
 
-        // Migrate renamed keys: extras→backgroundActors
+        // Migrate renamed keys: extras→backgroundActors, animals→animalsAndWranglers
         for (const s of parsed.scenes || []) {
           if ('extras' in s) { s.backgroundActors = s.extras; delete s.extras; }
+          if ('animals' in s) { s.animalsAndWranglers = s.animals; delete s.animals; }
         }
         if (parsed.breakdownElements) {
           if (parsed.breakdownElements.extras) {
             parsed.breakdownElements.backgroundActors = parsed.breakdownElements.extras;
             delete parsed.breakdownElements.extras;
           }
+          if (parsed.breakdownElements.animals) {
+            parsed.breakdownElements.animalsAndWranglers = parsed.breakdownElements.animals;
+            delete parsed.breakdownElements.animals;
+          }
         }
         for (const d of parsed.ribbonDesigns || []) {
           for (const row of d.rows || []) {
             for (const cell of row.cells || []) {
               if (cell.field === 'extras') cell.field = 'backgroundActors';
+              if (cell.field === 'animals') cell.field = 'animalsAndWranglers';
             }
           }
         }
@@ -102,43 +109,31 @@ function loadProjectFromStorage(id: string): Project | null {
 // getDefaultRibbonRows and cid imported from ribbonUtils
 
 const BUILTIN_SCENE_KEYS = new Set([
-  'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'sequence', 'unit', 'location',
-  'dayNight', 'description', 'cast', 'notes', 'shootDay',
-  'backgroundActors', 'stunts', 'vehicles', 'props', 'camera', 'specialEffects',
-  'wardrobe', 'makeup', 'animals', 'animalWrangler', 'music', 'sound', 'artDept',
-  'setDressing', 'greenery', 'specialEquipment', 'security', 'additionalLabor',
-  'visualEffects', 'mechanicalEffects', 'miscellaneous',
+  'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
+  'description', 'cast', 'notes', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe',
+  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'shootDay',
 ]);
 
-export const PROTECTED_CATEGORIES = new Set(['cast', 'set']);
+export const PROTECTED_CATEGORIES = new Set(['cast', 'set', 'notes']);
 
 export const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
-  cast: 'Cast Members',
-  set: 'Set',
+  cast: 'Cast',
+  set: 'Sets',
+  props: 'Props',
   backgroundActors: 'Background Actors',
   stunts: 'Stunts',
   vehicles: 'Vehicles',
-  props: 'Props',
-  camera: 'Camera',
-  specialEffects: 'Special Effects',
   wardrobe: 'Wardrobe',
-  makeup: 'Makeup/Hair',
-  animals: 'Animals',
-  animalWrangler: 'Animal Wrangler',
-  music: 'Music',
+  makeup: 'Makeup & Hair',
+  sfx: 'SFX',
+  vfx: 'VFX',
   sound: 'Sound',
-  artDept: 'Art Department',
-  setDressing: 'Set Dressing',
+  music: 'Music / Playback',
+  animalsAndWranglers: 'Animals & Wranglers',
+  weapons: 'Weapons / Armoury',
   greenery: 'Greenery',
-  specialEquipment: 'Special Equipment',
-  security: 'Security',
-  additionalLabor: 'Additional Labor',
-  visualEffects: 'Visual Effects',
-  mechanicalEffects: 'Mechanical Effects',
-  miscellaneous: 'Miscellaneous',
+  artDept: 'Art Department',
   location: 'Location',
-  sequence: 'Sequence',
-  unit: 'Unit',
 };
 
 function getSceneFieldValue(scene: Scene, category: string): string {
@@ -673,7 +668,7 @@ function reducer(state: State, action: Action): State {
           for (const s of state.present.scenes) {
             const val = getSceneFieldValue(s, category);
             if (!val) continue;
-            for (const item of val.split(',').map(x => x.trim()).filter(Boolean)) ids.add(item);
+            for (const item of getFieldItems(category, val)) ids.add(item);
           }
           list = [...ids].sort().map(item => ({ id: item, name: item }));
         }
@@ -708,11 +703,12 @@ function reducer(state: State, action: Action): State {
           return { ...scene, [category]: items.join(', ') };
         });
       } else if (!isCast && updates.name && updates.name !== old.name) {
-        if (category === 'set') {
+        if (!isMultiValue(category, state.present.customCategories)) {
           const oldUpper = old.name.toUpperCase();
           newScenes = state.present.scenes.map(scene => {
-            if (scene.set.toUpperCase() !== oldUpper) return scene;
-            return { ...scene, set: updates.name! };
+            const val = getSceneFieldValue(scene, category);
+            if (!val || val.toUpperCase() !== oldUpper) return scene;
+            return { ...scene, [category]: updates.name! };
           });
         } else {
           const oldLower = old.name.toLowerCase();
@@ -755,7 +751,7 @@ function reducer(state: State, action: Action): State {
         scenes: state.present.scenes.map(scene => {
           const val = getSceneFieldValue(scene, category);
           if (!val) return scene;
-          const items = val.split(',').map(x => x.trim()).filter(x => x.toLowerCase() !== matchLower);
+          const items = getFieldItems(category, val).filter(x => x.toLowerCase() !== matchLower);
           return { ...scene, [category]: items.join(', ') };
         }),
         breakdownElements: {
@@ -992,11 +988,13 @@ function reducer(state: State, action: Action): State {
 }
 
 export function getElementsFromScenes(scenes: Scene[], category: string): { id: string; name: string }[] {
-  if (category === 'set') {
+  if (!isMultiValue(category)) {
     const map = new Map<string, string>();
+    const isSet = category === 'set';
     for (const s of scenes) {
-      const val = normalizePunctuation(s.set).trim().toUpperCase();
-      if (!val) continue;
+      const raw = ((s as any)[category] as string || '').trim();
+      if (!raw) continue;
+      const val = isSet ? normalizePunctuation(raw).toUpperCase() : raw;
       if (!map.has(val)) map.set(val, val);
     }
     return [...map.values()].sort().map(v => ({ id: v, name: v }));
