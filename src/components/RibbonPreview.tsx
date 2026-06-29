@@ -74,7 +74,7 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                       gridColumn: col + 1,
                       gridRow: span ? `${row + 1} / span ${span}` : row + 1,
                     }}>
-                      <span style={{ ...getRibbonTextWrapStyle(cell, span), display: 'block', fontSize: '8pt' }}>
+                      <span style={{ display: 'block', fontSize: '8pt', ...getRibbonTextWrapStyle(cell, span) }}>
                         {text}
                       </span>
                     </div>
