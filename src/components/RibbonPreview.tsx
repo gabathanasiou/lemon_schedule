@@ -7,11 +7,12 @@ function fmt(prefix: string | undefined, val: string, suffix: string | undefined
   return formatCellText(prefix, val, suffix);
 }
 
-export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgePadding = 2, onDoubleClick }: {
+export function RibbonPreview({ scene, ribbon, colWidths, cellPaddingV = 3, cellPaddingH = 6, edgePadding = 2, onDoubleClick }: {
   scene: Scene;
   ribbon: RibbonRow[];
   colWidths?: number[];
-  cellPadding?: number;
+  cellPaddingV?: number;
+  cellPaddingH?: number;
   edgePadding?: number;
   onDoubleClick?: () => void;
 }) {
@@ -66,7 +67,7 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                 gridTemplateRows: `repeat(${ribbon.length}, auto)`,
               }}>
                 {items.map(({ cell, col, row, span }) => {
-                  const style = getRibbonCellBaseStyle(cell, cellPadding, span);
+                  const style = getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
                   const val = cell.field ? getFieldValue(cell.field, scene) : '';
                   const text = cell.textContent || fmt(cell.prefix, val, cell.suffix);
                   return (
@@ -75,7 +76,7 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                       gridColumn: col + 1,
                       gridRow: span ? `${row + 1} / span ${span}` : row + 1,
                     }}>
-                      <RibbonCellText cell={cell} span={span} cellPadding={cellPadding}>
+                      <RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>
                         {text}
                       </RibbonCellText>
                     </div>

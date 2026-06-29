@@ -129,7 +129,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; rib
   );
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPadding?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPadding, edgePadding, cellBorders }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;
@@ -324,7 +324,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                     onRowNavigate={onRowNavigate}
                     ribbon={ribbon}
                     colWidths={colWidths}
-                    cellPadding={cellPadding}
+                    cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
                     edgePadding={edgePadding}
                     cellBorders={cellBorders}
                   />

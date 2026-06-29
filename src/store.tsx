@@ -163,7 +163,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     colWidths: getDefaultColWidths(),
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
-    cellPadding: 3,
+    cellPaddingV: 3,
+    cellPaddingH: 6,
     edgePadding: 3,
   };
   return {
@@ -248,13 +249,14 @@ type Action =
   | { type: 'MERGE_ELEMENTS'; payload: { category: string; sourceIds: string[]; targetId: string; targetName: string } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
-  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPadding?: number; edgePadding?: number } }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number } }
   | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[]; colWidths: number[] } }
   | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
   | { type: 'SET_ACTIVE_RIBBON'; payload: string }
   | { type: 'RESTORE_RIBBON_FROM_TRASH'; payload: string }
-  | { type: 'SET_RIBBON_CELL_PADDING'; payload: { id: string; cellPadding: number } }
+  | { type: 'SET_RIBBON_CELL_PADDING_V'; payload: { id: string; cellPaddingV: number } }
+  | { type: 'SET_RIBBON_CELL_PADDING_H'; payload: { id: string; cellPaddingH: number } }
   | { type: 'SET_RIBBON_EDGE_PADDING'; payload: { id: string; edgePadding: number } }
   | { type: 'SET_COLOR_PALETTE'; payload: SceneColorPalette }
 
@@ -269,6 +271,14 @@ interface State {
 function reducer(state: State, action: Action): State {
   if (action.type === 'LOAD') {
     const p = action.payload;
+    if (p.ribbonDesigns) {
+      p.ribbonDesigns = p.ribbonDesigns.map((d: any) => {
+        if ((d.cellPaddingV === undefined && d.cellPaddingH === undefined) && d.cellPadding !== undefined) {
+          return { ...d, cellPaddingV: d.cellPadding, cellPaddingH: 6, cellPadding: undefined };
+        }
+        return d;
+      });
+    }
     if (!p.ribbonDesigns || p.ribbonDesigns.length === 0) {
       const defaultDesign: RibbonDesign = {
         id: generateUUID(),
@@ -276,7 +286,8 @@ function reducer(state: State, action: Action): State {
         colWidths: getDefaultColWidths(),
         rows: getDefaultRibbonRows(),
         createdAt: Date.now(),
-        cellPadding: 6,
+        cellPaddingV: 6,
+        cellPaddingH: 6,
         edgePadding: 2,
       };
       p.ribbonDesigns = [defaultDesign];
@@ -994,7 +1005,8 @@ function reducer(state: State, action: Action): State {
         colWidths,
         rows,
         createdAt: Date.now(),
-        cellPadding: action.payload.cellPadding ?? source?.cellPadding ?? 3,
+        cellPaddingV: action.payload.cellPaddingV ?? source?.cellPaddingV ?? 3,
+        cellPaddingH: action.payload.cellPaddingH ?? source?.cellPaddingH ?? 6,
         edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 3,
       };
       return applyChange({
@@ -1039,11 +1051,19 @@ function reducer(state: State, action: Action): State {
       });
     }
 
-    case 'SET_RIBBON_CELL_PADDING':
+    case 'SET_RIBBON_CELL_PADDING_V':
       return applyChange({
         ...state.present,
         ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, cellPadding: action.payload.cellPadding } : d
+          d.id === action.payload.id ? { ...d, cellPaddingV: action.payload.cellPaddingV } : d
+        ),
+      });
+
+    case 'SET_RIBBON_CELL_PADDING_H':
+      return applyChange({
+        ...state.present,
+        ribbonDesigns: state.present.ribbonDesigns.map(d =>
+          d.id === action.payload.id ? { ...d, cellPaddingH: action.payload.cellPaddingH } : d
         ),
       });
 

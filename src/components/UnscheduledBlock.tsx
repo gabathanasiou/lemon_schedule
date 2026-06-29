@@ -33,11 +33,12 @@ export const UnscheduledBlock: React.FC<{
   onCollapseChange?: (collapsed: boolean) => void,
   ribbon?: RibbonRow[],
   colWidths?: number[],
-  cellPadding?: number,
+  cellPaddingV?: number,
+  cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPadding, edgePadding, cellBorders, forceExpanded }) => {
+}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -319,7 +320,7 @@ export const UnscheduledBlock: React.FC<{
                       onRowNavigate={onRowNavigate}
                       ribbon={ribbon}
                       colWidths={colWidths}
-                      cellPadding={cellPadding}
+                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
                       edgePadding={edgePadding}
                       cellBorders={cellBorders}
                     />

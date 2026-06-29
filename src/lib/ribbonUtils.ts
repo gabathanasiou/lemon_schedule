@@ -189,13 +189,14 @@ export function getAlign(cell?: RibbonCell): string {
   return FIELD_MAP[cell?.field || '']?.align || 'left';
 }
 
-export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number, span = 1): React.CSSProperties {
+export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, cellPaddingH?: number, span = 1): React.CSSProperties {
   const va = cell.verticalAlign;
   const multiRow = span > 1;
-  const cp = cellPadding ?? 6;
+  const cpv = cellPaddingV ?? 6;
+  const cph = cellPaddingH ?? 6;
   return {
     minWidth: 0,
-    padding: multiRow ? '0px 6px' : `${cp}px 6px`,
+    padding: multiRow ? `0px ${cph}px` : `${cpv}px ${cph}px`,
     overflow: multiRow || cell.wrap ? 'visible' : 'hidden',
     textAlign: getAlign(cell),
     display: 'flex',
@@ -205,7 +206,7 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number, s
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
     fontSize: '8pt',
-    lineHeight: multiRow ? `calc(8pt * 1.1 + ${cp * 2}px)` : 1.1,
+    lineHeight: multiRow ? `calc(8pt * 1.1 + ${cpv * 2}px)` : 1.1,
     fontFamily: 'Helvetica, sans-serif',
   };
 }
@@ -257,8 +258,8 @@ export function getCellBorderProps(borders: CellBorders | undefined, textColor: 
   return style;
 }
 
-export function getNoteBreakPad(cellPadding: number, ribbonRowCount: number): number {
-  return cellPadding * ribbonRowCount + 6 * (ribbonRowCount - 1);
+export function getNoteBreakPad(cellPaddingV: number, ribbonRowCount: number): number {
+  return cellPaddingV * ribbonRowCount + 6 * (ribbonRowCount - 1);
 }
 
 export const SAMPLE: Record<string, string> = {
@@ -391,7 +392,8 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     colWidths: getDefaultColWidths(),
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
-    cellPadding: 3,
+    cellPaddingV: 3,
+    cellPaddingH: 6,
     edgePadding: 3,
   };
 }

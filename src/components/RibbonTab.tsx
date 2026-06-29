@@ -530,7 +530,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         </DropdownItem>
         <DropdownDivider />
         <DropdownItem onClick={() => {
-           const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPadding: activeDesign.cellPadding, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
+           const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPaddingV: activeDesign.cellPaddingV, cellPaddingH: activeDesign.cellPaddingH, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
            a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
@@ -550,7 +550,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               try {
                 const data = JSON.parse(reader.result as string);
                 if (data.rows && Array.isArray(data.rows)) {
-                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPadding: data.cellPadding, edgePadding: data.edgePadding } });
+                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding, cellPaddingH: data.cellPaddingH ?? 6, edgePadding: data.edgePadding } });
                 }
               } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
               setFileMenuOpen(false);
@@ -787,16 +787,30 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               </button>
             </Tooltip>
             <div className="w-px h-5 bg-zinc-700 mx-1" />
-            <span className="text-[10px] text-zinc-500 shrink-0">Pad</span>
-            <Tooltip content="Cell Padding (px)">
+            <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
+            <Tooltip content="Vertical Cell Padding (px)">
               <input
                 type="number"
                 min={0}
                 max={24}
-                value={activeDesign.cellPadding ?? 6}
+                value={activeDesign.cellPaddingV ?? 6}
                 onChange={e => {
                   const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                  dispatch({ type: 'SET_RIBBON_CELL_PADDING', payload: { id: activeDesign.id, cellPadding: v } });
+                  dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: v } });
+                }}
+                className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+              />
+            </Tooltip>
+            <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
+            <Tooltip content="Horizontal Cell Padding (px)">
+              <input
+                type="number"
+                min={0}
+                max={24}
+                value={activeDesign.cellPaddingH ?? 6}
+                onChange={e => {
+                  const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                  dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: v } });
                 }}
                 className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
               />
@@ -854,13 +868,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             {/* ══ Designer (CSS Grid) ══ */}
-            <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
-              <div className="flex items-center gap-2 mb-3">
+            <section className="bg-zinc-900 rounded-lg border border-zinc-800">
+              <div className="flex items-center gap-2 mb-3 px-5 pt-5">
                 <Pencil className="w-3.5 h-3.5 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Designer</span>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-5 pb-5">
 
                 {/* Single CSS Grid */}
                 <div ref={gridRef} style={{
@@ -916,11 +930,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             }
                           }}
                           style={{
-                            ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
+                            position: 'relative',
+                            ...getRibbonCellBaseStyle(c, activeDesign.cellPaddingV, activeDesign.cellPaddingH),
                             gridColumn: ci + 1,
                             gridRow: ri + 1,
-                            position: 'relative',
-                            padding: `${activeDesign.cellPadding ?? 6}px 6px`,
+                            padding: `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
                             borderRight: ci < numCols - 1 ? '1px solid #000' : 'none',
                             borderBottom: ri < rows.length - 1 ? '1px solid #000' : 'none',
                             borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : mergeInfo ? '3px solid #60a5fa' : 'none',
@@ -972,8 +986,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             </section>
 
             {/* ══ Live Preview (Grid + Merge) ══ */}
-            <section ref={previewSectionRef} className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
-              <div className="flex items-center gap-2 mb-3">
+            <section ref={previewSectionRef} className="bg-zinc-900 rounded-lg border border-zinc-800">
+              <div className="flex items-center gap-2 mb-3 px-5 pt-5">
                 <Eye className="w-3.5 h-3.5 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Live Preview</span>
                 <span className="ml-auto text-[9px] text-zinc-600">Sample data · {rows.length} rows · {rows.reduce((s, r) => s + r.cells.length, 0)} cells</span>
@@ -981,6 +995,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
               <div style={{
                 fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000',
+                marginBottom: '20px',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
                   const rowStyle = resolveSceneColor(sample.intExt || '', sample.dayNight || '', project.colorPalette?.sceneColors);
@@ -1019,15 +1034,15 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                               const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, p.col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                               return (
                                 <div key={p.id} style={{
-                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPadding, p.span),
+                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPaddingV, activeDesign.cellPaddingH, p.span),
                                   gridColumn: p.col + 1,
                                   gridRow: `${p.row + 1} / span ${p.span}`,
-                                  padding: p.span > 1 ? '0px 6px' : `${activeDesign.cellPadding ?? 6}px 6px`,
+                                  padding: p.span > 1 ? `0px ${activeDesign.cellPaddingH ?? 6}px` : `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
                                   borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   ...cellBorderStyle,
                                 }}>
-                                  <RibbonCellText cell={c} span={p.span} cellPadding={activeDesign.cellPadding} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
+                                  <RibbonCellText cell={c} span={p.span} cellPadding={activeDesign.cellPaddingV} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
                                     {formatCellText(val ? c.prefix : undefined, display, val ? c.suffix : undefined)}
                                   </RibbonCellText>
                                 </div>

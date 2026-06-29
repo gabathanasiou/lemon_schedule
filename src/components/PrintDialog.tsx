@@ -214,7 +214,8 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
               const design = settings.selectedRibbonId ? ribbonDesigns.find(d => d.id === settings.selectedRibbonId) : ribbonDesigns[0];
               const rows = design?.rows;
               const cw = design?.colWidths ?? [];
-              const cellPadding = design?.cellPadding;
+              const cellPaddingV = design?.cellPaddingV;
+              const cellPaddingH = design?.cellPaddingH;
               if (!rows) return null;
               return (
                 <div style={{
@@ -264,11 +265,11 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                                    <div key={cell.id} style={{
                                      gridColumn: col + 1,
                                      gridRow: span ? (row + 1) + ' / span ' + span : row + 1,
-                                     ...getRibbonCellBaseStyle(cell, cellPadding, span),
+                                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span),
                                      borderRight: col < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
                                      ...cellBorderStyle,
                                    }}>
-                                     <RibbonCellText cell={cell} span={span} cellPadding={cellPadding}>
+                                     <RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>
                                        {display || ''}
                                      </RibbonCellText>
                                    </div>

@@ -42,7 +42,8 @@ interface PrintScheduleProps {
   fileName: string;
   ribbon?: RibbonRow[];
   colWidths?: number[];
-  cellPadding?: number;
+  cellPaddingV?: number;
+  cellPaddingH?: number;
   edgePadding?: number;
   cellBorders?: CellBorders;
   viewMode?: ViewMode;
@@ -70,7 +71,8 @@ interface DaySectionProps {
   chronoDay: number;
   ribbon?: RibbonRow[];
   colWidths?: number[];
-  cellPadding?: number;
+  cellPaddingV?: number;
+  cellPaddingH?: number;
   edgePadding?: number;
   cellBorders?: CellBorders;
   sceneColors?: SceneColorEntry[];
@@ -117,7 +119,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPadding, edgePadding, cellBorders, sceneColors }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -161,7 +163,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     if (!ribbon || keep.length === 0) return undefined;
     return ribbon.map(row => ({ ...row, cells: filterCells(row.cells, keep) }));
   }, [ribbon, keep]);
-  const noteBreakPadPx = `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px ${cellPadding ?? 6}px`;
+  const noteBreakPadPx = `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px ${cellPaddingH ?? 6}px`;
   const mainCellIdx = cells ? (() => {
     const nonSpecial = cells
       .map((c, i) => ({i, w: filteredWidths[i] ?? 0, f: c.field}))
@@ -171,7 +173,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: filteredWidths[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPadding, span);
+  const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     formatCellText(prefix, val, suffix);
@@ -187,7 +189,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       style.gridColumn = col + 1;
       style.gridRow = span ? `${row + 2} / span ${span}` : row + 2;
     }
-    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span} cellPadding={cellPadding}>{display || ''}</RibbonCellText></div>;
+    return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>{display || ''}</RibbonCellText></div>;
   };
 
 
@@ -254,7 +256,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                return (
                  <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                    <tbody>
-                      <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg, '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
+                      <tr className="print-row-note" style={{ '--note-bg': noteBg, '--note-fg': noteFg, '--td-border-color': noteBg, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                        <>
                          <td className="print-col-sc" />
                          {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
@@ -321,7 +323,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
-                    <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
+                    <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                       <>
                         <td className="print-col-sc" />
                         {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
@@ -597,7 +599,7 @@ const CAST_LIST_STYLE = `
   }
 `;
 
-const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPadding, edgePadding, cellBorders, viewMode }) => {
+const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showDurations, showCastList, showExportDate, showPageNumbers, selectedDays, includeStatusDays, fileName, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, viewMode }) => {
   const VIEW_WIDTHS: Record<string, number | null> = { portrait: 730, landscape: 1060, full: null };
   const contentMaxWidth = viewMode ? VIEW_WIDTHS[viewMode] : null;
 
@@ -693,7 +695,8 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 chronoDay={chronoDayMap.get(dayInt)}
                 ribbon={ribbon}
                 colWidths={colWidths}
-                cellPadding={cellPadding}
+                cellPaddingV={cellPaddingV}
+                cellPaddingH={cellPaddingH}
                 edgePadding={edgePadding}
                 cellBorders={cellBorders}
                 sceneColors={project.colorPalette?.sceneColors}

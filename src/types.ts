@@ -197,7 +197,8 @@ export interface RibbonDesign {
   colWidths: number[];    // global column widths shared by all rows (percentages summing to 100)
   rows: RibbonRow[];
   createdAt: number;
-  cellPadding?: number;
+  cellPaddingV?: number;
+  cellPaddingH?: number;
   edgePadding?: number;
 }
 

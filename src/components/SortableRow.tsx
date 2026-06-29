@@ -43,10 +43,11 @@ export const SortableRow: React.FC<{
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
   colWidths?: number[],
-  cellPadding?: number,
+  cellPaddingV?: number,
+  cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPadding, edgePadding, cellBorders }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
   const ctrlOrCmdHeld = useAddMode();
@@ -127,7 +128,7 @@ export const SortableRow: React.FC<{
 
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full outline-none";
 
-  const noteBreakPadPx = `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px ${cellPadding ?? 6}px`;
+  const noteBreakPadPx = `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px ${cellPaddingH ?? 6}px`;
 
   const hasViolations = sceneViolations && sceneViolations.length > 0;
   const violationBadge = hasViolations ? (
@@ -173,7 +174,7 @@ export const SortableRow: React.FC<{
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
-                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                     whiteSpace: 'normal',
@@ -195,7 +196,7 @@ export const SortableRow: React.FC<{
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
-                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
@@ -215,14 +216,14 @@ export const SortableRow: React.FC<{
                 const v = row.computedCallTime || '';
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                   padding: noteBreakPadPx,
                   overflow: 'visible',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                 padding: noteBreakPadPx,
                 overflow: 'visible',
               }} />;
@@ -239,7 +240,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-note" style={{ ...noteStyle, '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
+              <tr className="row-note" style={{ ...noteStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                 <td className="col-sc" />
                 {!isCompact ? (
                   <>
@@ -321,7 +322,7 @@ export const SortableRow: React.FC<{
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
-                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                     whiteSpace: 'normal',
@@ -343,7 +344,7 @@ export const SortableRow: React.FC<{
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
-                    ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
@@ -363,14 +364,14 @@ export const SortableRow: React.FC<{
                 const v = row.computedCallTime || '';
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                   padding: noteBreakPadPx,
                   overflow: 'visible',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cellPadding, 1),
+                ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                 padding: noteBreakPadPx,
                 overflow: 'visible',
               }} />;
@@ -387,7 +388,7 @@ export const SortableRow: React.FC<{
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-break" style={{ ...breakStyle, '--note-row-py': `${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px` } as any}>
+              <tr className="row-break" style={{ ...breakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                 <td className="col-sc" />
                 {!isCompact ? (
                   <>
@@ -577,7 +578,7 @@ export const SortableRow: React.FC<{
       </td>
     );
   };
-  const cellFlexBase = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPadding, span);
+  const cellFlexBase = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
 
   const ENTITY_FIELDS = useMemo(() => {
     const hiddenSet = new Set(state.present.hiddenCategories || []);
@@ -655,7 +656,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -667,7 +668,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -679,7 +680,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -691,7 +692,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -712,7 +713,7 @@ export const SortableRow: React.FC<{
             {textEditingEnabled ? (
               <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
             ) : (
-              <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
+              <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
             )}
             {violationBadge}
           </div>
@@ -722,14 +723,14 @@ export const SortableRow: React.FC<{
     if (field === 'text') {
       return (
         <div key={cellId} style={style}>
-          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding}>{cell.textContent || ''}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV}>{cell.textContent || ''}</RibbonCellText>
         </div>
       );
     }
     if (field === 'callTime') {
       return (
         <div key={cellId} style={style}>
-          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding}>{fmt(prefix, val, suffix)}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV}>{fmt(prefix, val, suffix)}</RibbonCellText>
         </div>
       );
     }
@@ -741,7 +742,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
         </div>
       );
@@ -752,7 +753,7 @@ export const SortableRow: React.FC<{
         {textEditingEnabled ? (
           <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
-          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPadding} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
+          <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
         )}
       </div>
     );
