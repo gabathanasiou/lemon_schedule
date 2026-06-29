@@ -192,6 +192,8 @@ type Action =
   | { type: 'LOAD'; payload: Project }
   | { type: 'UNDO' }
   | { type: 'REDO' }
+  | { type: 'BATCH_START' }
+  | { type: 'BATCH_COMMIT' }
   | { type: 'UPDATE_PROJECT', payload: Partial<Project> }
   | { type: 'ADD_SCENE', payload: Scene }
   | { type: 'UPDATE_SCENE', payload: Partial<Scene> & { id: string } }
@@ -247,6 +249,8 @@ interface State {
   past: Project[];
   present: Project;
   future: Project[];
+  _batchDepth: number;
+  _batchBase?: Project;
 }
 
 function reducer(state: State, action: Action): State {
@@ -275,7 +279,26 @@ function reducer(state: State, action: Action): State {
         categoryTrash: p.categoryTrash || [],
       },
       future: [],
+      _batchDepth: 0,
     };
+  }
+
+  if (action.type === 'BATCH_START') {
+    return { ...state, _batchDepth: state._batchDepth + 1, _batchBase: state._batchBase ?? state.present };
+  }
+
+  if (action.type === 'BATCH_COMMIT') {
+    const newDepth = state._batchDepth - 1;
+    if (newDepth <= 0) {
+      const base = state._batchBase ?? state.present;
+      return {
+        past: [...state.past, base].slice(-50),
+        present: state.present,
+        future: [],
+        _batchDepth: 0,
+      };
+    }
+    return { ...state, _batchDepth: newDepth };
   }
 
   if (action.type === 'UNDO') {
@@ -285,7 +308,8 @@ function reducer(state: State, action: Action): State {
     return {
       past: newPast,
       present: previous,
-      future: [state.present, ...state.future]
+      future: [state.present, ...state.future],
+      _batchDepth: 0,
     };
   }
 
@@ -296,16 +320,21 @@ function reducer(state: State, action: Action): State {
     return {
       past: [...state.past, state.present],
       present: next,
-      future: newFuture
+      future: newFuture,
+      _batchDepth: 0,
     };
   }
 
   // Helper for applying changes to `present` and pushing to `past`
   const applyChange = (newPresent: Project): State => {
+    if (state._batchDepth > 0) {
+      return { ...state, present: newPresent };
+    }
     return {
-      past: [...state.past, state.present].slice(-50), // keep last 50
+      past: [...state.past, state.present].slice(-50),
       present: newPresent,
-      future: []
+      future: [],
+      _batchDepth: 0,
     };
   };
 
@@ -1078,7 +1107,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
     past: [],
     present: blank,
-    future: []
+    future: [],
+    _batchDepth: 0,
   });
 
   // On mount: migrate legacy data or load most recent project
