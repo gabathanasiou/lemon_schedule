@@ -189,6 +189,7 @@ export function getAlign(cell?: RibbonCell): string {
 }
 
 export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): React.CSSProperties {
+  const va = cell.verticalAlign;
   return {
     minWidth: 0,
     padding: `${cellPadding ?? 6}px`,
@@ -197,6 +198,7 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): 
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textAlign: getAlign(cell),
+    alignSelf: va === 'middle' ? 'center' : va === 'bottom' ? 'end' : va === 'top' ? 'start' : undefined,
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
     fontSize: '8pt',

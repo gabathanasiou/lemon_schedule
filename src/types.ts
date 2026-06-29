@@ -178,6 +178,7 @@ export interface RibbonCell {
   id: string;
   field: string;          // 'sceneNumber' | 'set' | 'cast' | '' for spacer | 'text'
   align?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   wrap?: boolean;
   prefix?: string;
   suffix?: string;

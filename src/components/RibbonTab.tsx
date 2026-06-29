@@ -17,6 +17,7 @@ import {
   ChevronDown, ArrowLeft, ArrowRight,
   AlignCenter, AlignRight, WrapText, Grid3X3, Type, Tag, CircleDot,
   Download, Upload, Copy, Check, Pencil,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -230,6 +231,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   }, [rows, colWidths, numCols, commit]);
 
   /* Style edits — propagate to merge siblings */
+  const setVerticalAlign = useCallback((cellId: string, va: 'top' | 'middle' | 'bottom' | undefined) => {
+    const ids = mergeSiblingIds(cellId, rows);
+    commit(rows.map(r => ({
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, verticalAlign: va } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit]);
+
   const setAlign = useCallback((cellId: string, align: 'left' | 'center' | 'right' | undefined) => {
     const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({
@@ -665,6 +673,24 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 <Tooltip key={a} content={label}>
                   <button
                     onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
+                    disabled={!selCell}
+                    className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                      active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                    }`}>
+                    <Icon className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              );
+            })}
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
+            {(['top', 'middle', 'bottom'] as const).map(va => {
+              const Icon = va === 'top' ? AlignStartVertical : va === 'middle' ? AlignCenterVertical : AlignEndVertical;
+              const active = selCell?.cell.verticalAlign === va;
+              const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
+              return (
+                <Tooltip key={va} content={label}>
+                  <button
+                    onClick={() => selCell && setVerticalAlign(selId!, active ? undefined : va)}
                     disabled={!selCell}
                     className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
                       active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
