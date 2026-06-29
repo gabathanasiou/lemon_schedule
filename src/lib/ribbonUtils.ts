@@ -198,7 +198,7 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): 
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',
     wordBreak: cell.wrap ? 'break-word' : undefined,
     textAlign: getAlign(cell),
-    alignSelf: va === 'middle' ? 'center' : va === 'bottom' ? 'end' : va === 'top' ? 'start' : undefined,
+    alignSelf: va === 'top' ? 'start' : va === 'bottom' ? 'end' : 'center',
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
     fontSize: '8pt',

@@ -17,7 +17,7 @@ import {
   ChevronDown, ArrowLeft, ArrowRight,
   AlignCenter, AlignRight, WrapText, Grid3X3, Type, Tag, CircleDot,
   Download, Upload, Copy, Check, Pencil,
-  AlignStartVertical, AlignCenterVertical, AlignEndVertical,
+  PanelTop, Equal, PanelBottom,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -237,6 +237,42 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, verticalAlign: va } : c),
     })), colWidths);
   }, [rows, colWidths, commit]);
+
+  const copyFromRow = useCallback((cellId: string, srcRowIdx: number) => {
+    const target = findCell(cellId);
+    if (!target) return;
+    const srcRow = rows[srcRowIdx];
+    if (!srcRow || !srcRow.cells[target.ci]) return;
+    const src = srcRow.cells[target.ci];
+    commit(rows.map(r => ({
+      ...r, cells: r.cells.map(c => c.id === cellId ? {
+        ...c,
+        field: src.field,
+        align: src.align,
+        wrap: src.wrap,
+        prefix: src.prefix,
+        suffix: src.suffix,
+        textContent: src.textContent,
+        verticalAlign: src.verticalAlign,
+      } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit, findCell]);
+
+  const copyFromAbove = useCallback((cellId: string) => {
+    const target = findCell(cellId);
+    if (!target) return;
+    const ri = rows.findIndex(r => r.id === target.row.id);
+    if (ri <= 0) return;
+    copyFromRow(cellId, ri - 1);
+  }, [findCell, rows, copyFromRow]);
+
+  const copyFromBelow = useCallback((cellId: string) => {
+    const target = findCell(cellId);
+    if (!target) return;
+    const ri = rows.findIndex(r => r.id === target.row.id);
+    if (ri < 0 || ri >= rows.length - 1) return;
+    copyFromRow(cellId, ri + 1);
+  }, [findCell, rows, copyFromRow]);
 
   const setAlign = useCallback((cellId: string, align: 'left' | 'center' | 'right' | undefined) => {
     const ids = mergeSiblingIds(cellId, rows);
@@ -665,6 +701,31 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               </button>
             </Tooltip>
             <div className="w-px h-5 bg-zinc-700 mx-1" />
+            <Tooltip content="Move Row Up">
+              <button onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                <ArrowUp className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Move Row Down">
+              <button onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                <ArrowDown className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Copy field from row above">
+              <button onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+                className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                <ArrowDown className="w-2.5 h-2.5" /> Copy
+              </button>
+            </Tooltip>
+            <Tooltip content="Copy field from row below">
+              <button onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+                className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                <ArrowUp className="w-2.5 h-2.5" /> Copy
+              </button>
+            </Tooltip>
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
             {(['left', 'center', 'right'] as const).map(a => {
               const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
               const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
@@ -684,13 +745,15 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             })}
             <div className="w-px h-5 bg-zinc-700 mx-1" />
             {(['top', 'middle', 'bottom'] as const).map(va => {
-              const Icon = va === 'top' ? AlignStartVertical : va === 'middle' ? AlignCenterVertical : AlignEndVertical;
-              const active = selCell?.cell.verticalAlign === va;
+              const Icon = va === 'top' ? PanelTop : va === 'middle' ? Equal : PanelBottom;
+              const active = va === 'middle'
+                ? (!selCell?.cell.verticalAlign || selCell?.cell.verticalAlign === 'middle')
+                : selCell?.cell.verticalAlign === va;
               const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
               return (
                 <Tooltip key={va} content={label}>
                   <button
-                    onClick={() => selCell && setVerticalAlign(selId!, active ? undefined : va)}
+                    onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
                     disabled={!selCell}
                     className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
                       active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
@@ -797,16 +860,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] font-semibold text-zinc-500 select-none">{row.name}</span>
                       <span className="text-[9px] text-zinc-600 select-none">{numCols}c</span>
-                      <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                        <button onClick={() => moveRow(row.id, -1)} disabled={ri === 0}
-                          className="p-1 rounded hover:bg-zinc-800 disabled:opacity-20"><ArrowUp className="w-3 h-3 text-zinc-500" /></button>
-                        <button onClick={() => moveRow(row.id, 1)} disabled={ri === rows.length - 1}
-                          className="p-1 rounded hover:bg-zinc-800 disabled:opacity-20"><ArrowDown className="w-3 h-3 text-zinc-500" /></button>
-                        {rows.length > 1 && (
-                          <button onClick={() => removeRow(row.id)}
-                            className="p-1 rounded hover:bg-red-950/50"><Trash2 className="w-3 h-3 text-zinc-500 hover:text-red-400" /></button>
-                        )}
-                      </div>
                     </div>
                   </div>
                 ))}
@@ -971,7 +1024,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                               const a = getAlign(c);
                               const val = c.field === 'text' ? (c.textContent || '') : c.field === 'sceneNumber' ? sample.sceneNumber : getFieldValueFromSample(c.field);
                               const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
-                              const display = val ? `${c.prefix || ''}${c.prefix && val ? '\u00A0' : ''}${val}${c.suffix && val ? '\u00A0' : ''}${c.suffix || ''}` : fieldLabel;
+                              const display = val || fieldLabel;
                               const lastVisRow = p.row + p.span - 1;
                               const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, p.col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                               return (
@@ -989,16 +1042,18 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   textTransform: c.field === 'set' ? 'uppercase' : 'none',
                                 }}>
                                   {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
-                                  {c.prefix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
+                                  {c.prefix && val && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
                                   <span style={{
                                     flexShrink: 1, minWidth: 0,
                                     overflow: c.wrap ? 'visible' : 'hidden',
                                     textOverflow: c.wrap ? 'clip' : 'ellipsis',
                                     whiteSpace: c.wrap ? 'normal' : 'nowrap',
                                     wordBreak: c.wrap ? 'break-word' : undefined,
+                                    fontStyle: val ? 'normal' : 'italic',
+                                    opacity: val ? 1 : 0.5,
                                   }}>{display}</span>
-                                  {(a === 'left' || a === 'center') && <span style={{ flex: '1 1 0' }} />}
                                   {c.suffix && val && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{'\u00A0' + c.suffix}</span>}
+                                  {(a === 'left' || a === 'center') && <span style={{ flex: '1 1 0' }} />}
                                 </div>
                               );
                             });
