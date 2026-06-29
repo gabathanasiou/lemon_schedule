@@ -220,6 +220,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [rows, category, dispatch]);
 
   function performSave() {
+    if (autoMergeRef.current) {
+      for (const cat of Object.keys(rowsByCat.current)) {
+        if (cat !== 'cast') mergeCategory(cat);
+      }
+    }
     for (const cat of Object.keys(rowsByCat.current)) {
       const snap = snapByCat.current[cat] || [];
       const current = rowsByCat.current[cat] || [];
@@ -273,9 +278,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         }
       }
     }
+    autoMergeRef.current = false;
     snapByCat.current = {};
     for (const cat of Object.keys(rowsByCat.current)) {
-      if (autoMergeRef.current && cat !== 'cast') mergeCategory(cat);
       snapByCat.current[cat] = (rowsByCat.current[cat] || []).map(r => ({ ...r }));
     }
     if (dupDialog) setDupDialog(null);
