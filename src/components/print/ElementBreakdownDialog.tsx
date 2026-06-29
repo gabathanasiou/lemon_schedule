@@ -25,8 +25,8 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
 
   const [settings, setSettings] = useState(() => {
     try {
-      const stored = localStorage.getItem(storageKey);
-      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+      const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return { ...defaultSettings, ...stored, selectedCategory: initialCategory || stored.selectedCategory || 'cast' };
     } catch { return defaultSettings; }
   });
 
@@ -36,9 +36,9 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
 
   const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
   const resetSettings = useCallback(() => {
-    setSettings(defaultSettings);
+    setSettings({ selectedCategory: initialCategory || 'cast' });
     try { localStorage.removeItem(storageKey); } catch {}
-  }, [defaultSettings, storageKey]);
+  }, [storageKey, initialCategory]);
 
   const selectedCategory = settings.selectedCategory;
   const setSelectedCategory = (c: string) => update({ selectedCategory: c });
@@ -93,7 +93,18 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
             </RadixDropdownMenu.Trigger>
             <RadixDropdownMenu.Portal>
               <RadixDropdownMenu.Content
-                className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-0 scrollbar-custom"
+                onOpenAutoFocus={(e) => {
+                  e.preventDefault();
+                  const content = e.currentTarget as HTMLElement;
+                  requestAnimationFrame(() => {
+                    const active = content.querySelector(`[data-cat="${selectedCategory}"]`) as HTMLElement | null;
+                    if (active) {
+                      active.focus();
+                      active.scrollIntoView({ block: 'nearest' });
+                    }
+                  });
+                }}
+                className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[180px] scrollbar-custom"
                 align="start"
                 sideOffset={4}
                 collisionPadding={8}
@@ -106,6 +117,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
                   return (
                     <RadixDropdownMenu.Item
                       key={key}
+                      data-cat={key}
                       onSelect={() => setSelectedCategory(key)}
                       className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
                         active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white'

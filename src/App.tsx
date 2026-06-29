@@ -242,6 +242,7 @@ function AppContent() {
           scenes={project.scenes}
           scheduleRows={version?.rows || []}
           dayMeta={version?.dayMeta || {}}
+          castMembers={project.castMembers || []}
           elementIds={elementIds}
           dayInts={doodOptions.dayInts}
           includeNonShooting={doodOptions.includeNonShooting}

@@ -84,8 +84,8 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const [settings, setSettings] = useState(() => {
     try {
-      const stored = localStorage.getItem(storageKey);
-      return stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+      const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return { ...defaultSettings, ...stored, category: initialCategory || stored.category || 'cast' };
     } catch { return defaultSettings; }
   });
 
@@ -95,9 +95,9 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
   const update = (patch: Partial<typeof defaultSettings>) => setSettings(s => ({ ...s, ...patch }));
   const resetSettings = useCallback(() => {
-    setSettings(defaultSettings);
+    setSettings({ category: initialCategory || 'cast', includeNonShooting: true, showTotals: true });
     try { localStorage.removeItem(storageKey); } catch {}
-  }, [defaultSettings, storageKey]);
+  }, [storageKey, initialCategory]);
 
   const category = settings.category;
   const setCategory = (c: string) => update({ category: c });
@@ -189,7 +189,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   const canPrint = selectedElementIds.size > 0 && selectedDayInts.size > 0;
 
   return (
-    <Modal open onClose={onClose} onReset={resetSettings} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-5xl"
+    <Modal open onClose={onClose} onReset={resetSettings} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -222,7 +222,18 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             </RadixDropdownMenu.Trigger>
             <RadixDropdownMenu.Portal>
               <RadixDropdownMenu.Content
-                className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-0 scrollbar-custom"
+                onOpenAutoFocus={(e) => {
+                  e.preventDefault();
+                  const content = e.currentTarget as HTMLElement;
+                  requestAnimationFrame(() => {
+                    const active = content.querySelector(`[data-cat="${category}"]`) as HTMLElement | null;
+                    if (active) {
+                      active.focus();
+                      active.scrollIntoView({ block: 'nearest' });
+                    }
+                  });
+                }}
+                className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[180px] scrollbar-custom"
                 align="start"
                 sideOffset={4}
                 collisionPadding={8}
@@ -235,6 +246,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                   return (
                     <RadixDropdownMenu.Item
                       key={key}
+                      data-cat={key}
                       onSelect={() => setCategory(key)}
                       className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
                         active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white'

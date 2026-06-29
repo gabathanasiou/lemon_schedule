@@ -76,7 +76,8 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
       const vals = getElementValues(scene, category);
       for (const v of vals) {
         const upper = v.toUpperCase();
-        if (!elMap.has(upper)) elMap.set(upper, { name: v, sceneIds: [] });
+        const name = category === 'set' ? upper : v;
+        if (!elMap.has(upper)) elMap.set(upper, { name, sceneIds: [] });
         elMap.get(upper)!.sceneIds.push(scene.id);
       }
     }
@@ -118,7 +119,10 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
           <div key={el.key}>
             <div className="eb-cat-header">
               {category === 'cast'
-                ? `${el.name}`
+                ? (() => {
+                    const cm = castMembers.find(c => c.id === el.name);
+                    return cm ? `${el.name}. ${cm.name}` : el.name;
+                  })()
                 : el.name}
             </div>
             <table className="eb-table">

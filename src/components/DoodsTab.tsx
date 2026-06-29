@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useProject } from '../store';
 import { Scene, ScheduleRow, ShootDayMeta, CustomCategoryDef } from '../types';
 import { getLabel, DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
+import { useColumnResize } from '../lib/useColumnResize';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -76,6 +77,11 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   const dayMeta = (activeVersion?.dayMeta || {}) as Record<number, ShootDayMeta>;
   const castMembers = project.castMembers || [];
   const isCast = selectedCategory === 'cast';
+
+  const { widths, startResize, resetWidths, hasCustomWidths } = useColumnResize(
+    'lemon_schedule_col_widths_dood',
+    { name: 200, day: 42, work: 50, hold: 50, trav: 50, start: 70, finish: 70 },
+  );
 
   const elementIds = useMemo(() => {
     const allIds = new Set<string>();
@@ -229,6 +235,9 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
       <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
         <span className="text-sm font-bold text-white">Day Out of Days — {categoryLabel}</span>
         <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+          {hasCustomWidths && (
+            <button onClick={resetWidths} className="text-zinc-500 hover:text-zinc-300 transition-colors">Reset Columns</button>
+          )}
           <span><span className="inline-block w-2 h-2 rounded-sm bg-lime-900/40 mr-1"></span>W=Work</span>
           <span><span className="inline-block w-2 h-2 rounded-sm bg-amber-900/30 mr-1"></span>H=Hold</span>
           {isCast && <span><span className="inline-block w-2 h-2 rounded-sm bg-sky-900/30 mr-1"></span>T=Travel</span>}
@@ -239,53 +248,110 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="border-separate border-spacing-0 text-[11px] w-full">
+        <table className="border-separate border-spacing-0 text-[11px] table-fixed">
+          <colgroup>
+            <col style={{ width: widths.name }} />
+            {data.days.map(d => <col key={d.dayInt} style={{ width: widths.day }} />)}
+            <col style={{ width: widths.work }} />
+            <col style={{ width: widths.hold }} />
+            {isCast && <col style={{ width: widths.trav }} />}
+            <col style={{ width: widths.start }} />
+            <col style={{ width: widths.finish }} />
+          </colgroup>
           <thead>
             <tr className="sticky top-0 z-20">
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1.5 text-left text-zinc-400 font-medium border-r border-zinc-800 whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>{categoryLabel}</th>
+              <th className="sticky left-0 bg-zinc-900 px-3 py-1.5 text-left text-zinc-400 font-medium border-r border-zinc-800 whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+                {categoryLabel}
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+              </th>
               {data.days.map((d, ci) => (
-                <th key={d.dayInt} className={`px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`} style={{ minWidth: 42 }}>
+                <th key={d.dayInt} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="px-2 py-1.5 text-center text-zinc-500 font-medium border-l border-l-zinc-800 bg-zinc-900 cursor-default">Work</th>
-              <th className="px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">Hold</th>
-              {isCast && <th className="px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">Trav</th>}
-              <th className="px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default" style={{ minWidth: 60 }}>Start</th>
-              <th className="px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default" style={{ minWidth: 60 }}>Finish</th>
+              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium border-l border-l-zinc-800 bg-zinc-900 cursor-default">
+                Work
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+              </th>
+              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+                Hold
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+              </th>
+              {isCast && <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+                Trav
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+              </th>}
+              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+                Start
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+              </th>
+              <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+                Finish
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+              </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 28 }}>
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>Day of Week</th>
+              <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+                Day of Week
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+              </th>
               {data.days.map((d, ci) => (
-                <th key={d.dayInt} className={`px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                <th key={d.dayInt} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {formatDow(d.isoDate)}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="px-2 py-1 border-l border-l-zinc-800 bg-zinc-900"></th>
-              <th className="px-2 py-1 bg-zinc-900"></th>
-              {isCast && <th className="px-2 py-1 bg-zinc-900"></th>}
-              <th className="px-2 py-1 bg-zinc-900"></th>
-              <th className="px-2 py-1 bg-zinc-900"></th>
+              <th className="relative px-2 py-1 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+              </th>
+              <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+              </th>
+              {isCast && <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+              </th>}
+              <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+              </th>
+              <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+              </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 52, boxShadow: '0 4px 6px -2px rgba(0,0,0,0.5)' }}>
-              <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-b border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>Shooting Day</th>
+              <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-b border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+                Shooting Day
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+              </th>
               {data.days.map((d, ci) => (
-                <th key={d.dayInt} className={`px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                <th key={d.dayInt} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {d.isShooting ? chronoDayMap.get(d.dayInt) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
                 </th>
               ))}
-              <th className="px-2 py-1 border-b border-zinc-800 border-l border-l-zinc-800 bg-zinc-900"></th>
-              <th className="px-2 py-1 border-b border-zinc-800 bg-zinc-900"></th>
-              {isCast && <th className="px-2 py-1 border-b border-zinc-800 bg-zinc-900"></th>}
-              <th className="px-2 py-1 border-b border-zinc-800 bg-zinc-900"></th>
-              <th className="px-2 py-1 border-b border-zinc-800 bg-zinc-900"></th>
+              <th className="relative px-2 py-1 border-b border-zinc-800 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+              </th>
+              <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+              </th>
+              {isCast && <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+              </th>}
+              <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+              </th>
+              <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+              </th>
             </tr>
           </thead>
           <tbody>
             {data.rows.map(row => (
               <tr key={row.elementId} className="group hover:bg-zinc-800/40">
-                <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-3 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ maxWidth: 400, boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
+                <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-3 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                   {row.elementName}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
                 </td>
                 {data.days.map((d, ci) => {
                   const code = row.cells[ci];
@@ -293,16 +359,32 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                   const isSwCell = code === 'SW' || code === 'SWF';
                   const gapClass = (d.hasGap && !isSwCell) ? 'border-l [border-left-style:dotted] border-l-zinc-600' : '';
                   return (
-                    <td key={ci} className={`px-2 py-1.5 text-center border-b border-zinc-800 text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code)}>
+                    <td key={ci} className={`relative px-2 py-1.5 text-center border-b border-zinc-800 text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code)}>
                       <span className={!d.isShooting ? 'opacity-40' : ''}>{code}</span>
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
                     </td>
                   );
                 })}
-                <td className="px-2 py-1.5 text-center text-xs text-zinc-400 font-medium border-b border-zinc-800 border-l border-l-zinc-800 cursor-default">{row.workDays > 0 ? row.workDays : ''}</td>
-                <td className="px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">{row.holdDays > 0 ? row.holdDays : ''}</td>
-                {isCast && <td className="px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">{row.travelDays > 0 ? row.travelDays : ''}</td>}
-                <td className="px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">{row.startDate ? formatDateShort(row.startDate) : ''}</td>
-                <td className="px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">{row.finishDate ? formatDateShort(row.finishDate) : ''}</td>
+                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 font-medium border-b border-zinc-800 border-l border-l-zinc-800 cursor-default">
+                  {row.workDays > 0 ? row.workDays : ''}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+                </td>
+                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
+                  {row.holdDays > 0 ? row.holdDays : ''}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+                </td>
+                {isCast && <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
+                  {row.travelDays > 0 ? row.travelDays : ''}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+                </td>}
+                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
+                  {row.startDate ? formatDateShort(row.startDate) : ''}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+                </td>
+                <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
+                  {row.finishDate ? formatDateShort(row.finishDate) : ''}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+                </td>
               </tr>
             ))}
           </tbody>

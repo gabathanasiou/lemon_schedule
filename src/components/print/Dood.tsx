@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta } from '../../types';
+import { Scene, ScheduleRow, ShootDayMeta, CastMember } from '../../types';
+import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
 
@@ -93,12 +94,12 @@ function getSceneElements(scene: Scene, category: string): string[] {
   return getFieldItems(category, raw);
 }
 
-function getElementDisplayName(elementId: string, isCast: boolean, castMemberNames?: Map<string, string>): string {
+function getElementDisplayName(elementId: string, isCast: boolean, castMemberNames?: Map<string, string>, elementNameMap?: Map<string, string>): string {
   if (isCast) {
     const name = castMemberNames?.get(elementId) || '—';
     return `${elementId.padStart(3, ' ')}.  ${name}`;
   }
-  return elementId;
+  return elementNameMap?.get(elementId.toLowerCase()) || elementId;
 }
 
 function deriveDood(
@@ -110,6 +111,7 @@ function deriveDood(
   includeNonShooting: boolean,
   category: string,
   castMemberNames?: Map<string, string>,
+  elementNameMap?: Map<string, string>,
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
   const isCast = category === 'cast';
   const scenesByDay = new Map<number, Scene[]>();
@@ -156,7 +158,7 @@ function deriveDood(
     for (const d of sortedDayInts) {
       const dayScenes = scenesByDay.get(d);
       if (!dayScenes) continue;
-      if (dayScenes.some(s => getSceneElements(s, category).includes(elementId))) {
+      if (dayScenes.some(s => getSceneElements(s, category).some(e => e.toLowerCase() === elementId))) {
         appearSet.add(d);
         const date = dayMeta[d]?.date || '';
         if (!firstDate || date < firstDate) firstDate = date;
@@ -184,7 +186,7 @@ function deriveDood(
     const holdCount = cells.filter(c => c === 'H').length;
     const travelCount = cells.filter(c => c === 'T').length;
     const totalDays = workDays + holdCount + travelCount;
-    const elementName = getElementDisplayName(elementId, isCast, castMemberNames);
+    const elementName = getElementDisplayName(elementId, isCast, castMemberNames, elementNameMap);
     const startDate = firstDate;
     const finishDate = lastDate;
 
@@ -200,6 +202,7 @@ interface DoodProps {
   scenes: Scene[];
   scheduleRows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>;
+  castMembers?: CastMember[];
   elementIds: string[];
   dayInts: number[];
   includeNonShooting: boolean;
@@ -212,6 +215,7 @@ const Dood: React.FC<DoodProps> = ({
   scenes,
   scheduleRows,
   dayMeta,
+  castMembers,
   elementIds,
   dayInts,
   includeNonShooting,
@@ -220,17 +224,21 @@ const Dood: React.FC<DoodProps> = ({
 }) => {
   const castMemberNames = useMemo(() => {
     const m = new Map<string, string>();
-    for (const s of scenes) {
-      for (const id of s.cast.split(',').map(c => c.trim()).filter(Boolean)) {
-        if (!m.has(id)) m.set(id, id);
-      }
+    for (const cm of castMembers || []) m.set(cm.id, cm.name);
+    return m;
+  }, [castMembers]);
+
+  const elementNameMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of getElementsFromScenes(scenes, category)) {
+      m.set(e.id.toLowerCase(), e.name);
     }
     return m;
-  }, [scenes]);
+  }, [scenes, category]);
 
   const data = useMemo(() => deriveDood(
-    scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames,
-  ), [scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames]);
+    scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap,
+  ), [scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
