@@ -927,6 +927,93 @@ The current `UnscheduledBlock.tsx` becomes the **Boneyard** panel:
 
 Current unscheduled sidebar CSS/persistence keys retained (just renamed in UI).
 
+### 7.7 Selection Consistency & Multi-Selection
+
+Selection state remains **independent per view** (stripboard and calendar each manage their own). But the visual styling, shift-click behavior, and multi-drag must be consistent across both.
+
+#### Unified selection styling
+
+The calendar view (`CalendarTab.tsx`) currently renders selected scene cards with different styling from the stripboard (`SortableRow.tsx`). Extract a shared constant and apply it everywhere:
+
+```typescript
+// src/lib/selectionConstants.ts (or inline in a shared utils file)
+export const SELECTED_ROW_CLASS = 'ring-2 ring-blue-500 bg-blue-500/10';
+export const SELECTED_CARD_CLASS = 'ring-2 ring-blue-500 bg-blue-500/10';
+```
+
+Applied identically in:
+- `SortableRow.tsx` (stripboard scene rows)
+- `CalendarTab.tsx` (calendar scene cards)
+- `UnscheduledZone.tsx` (unscheduled zone at stripboard bottom)
+- `BoneyardBlock.tsx` (boneyard panel rows)
+
+All four locations use the same blue ring + tinted background. No more visual divergence between views.
+
+#### Shift-click range selection (both views)
+
+Currently the stripboard supports arrow-key + shift range selection (ScheduleTab.tsx:221-351) but **shift-click does not work** — clicking with shift held doesn't extend the selection. The calendar has marquee selection but no shift-click either.
+
+**Stripboard (`ScheduleTab.tsx`):**
+- Click: selects one row (clears previous selection).
+- Shift+click: selects all rows between the last anchor row and the clicked row (inclusive). Anchor = the last row clicked without shift. Works across day groups and the unscheduled zone.
+- Ctrl/Cmd+click: toggles individual row in/out of selection (additive). This partially works today via marquee add-mode but should be explicit on click, not requiring ctrl+drag activation.
+
+**Calendar (`CalendarTab.tsx`):**
+- Same three patterns on scene cards within calendar day cells.
+- Shift+click selects all scene cards between the anchor card and the clicked card (by calendar render order, not by row order — since calendar lays out cards by date).
+- Ctrl/Cmd+click toggles individual cards.
+
+**Shared logic:**
+```typescript
+// src/lib/useRangeSelection.ts (new hook)
+function useRangeSelection<T extends { id: string }>(items: T[]) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const anchorIdRef = useRef<string | null>(null);
+
+  const handleClick = (id: string, e: React.MouseEvent) => {
+    if (e.shiftKey && anchorIdRef.current) {
+      // Range select from anchor to clicked
+      const start = items.findIndex(i => i.id === anchorIdRef.current);
+      const end = items.findIndex(i => i.id === id);
+      const range = items.slice(Math.min(start, end), Math.max(start, end) + 1);
+      setSelectedIds(new Set(range.map(i => i.id)));
+    } else if (e.ctrlKey || e.metaKey) {
+      // Toggle individual
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+      });
+      anchorIdRef.current = id;
+    } else {
+      // Single select
+      setSelectedIds(new Set([id]));
+      anchorIdRef.current = id;
+    }
+  };
+
+  return { selectedIds, setSelectedIds, handleClick };
+}
+```
+
+Both `ScheduleTab` and `CalendarTab` use this hook (or adapt their existing selection state to call the same logic). The hook takes the flat ordered list of selectable items — in the stripboard this is `augmentedRows` (in row order), in the calendar it's the scene cards in calendar render order.
+
+#### Multi-drag in calendar
+
+The stripboard already supports multi-drag (`activeDragIds`, `handleDragStart` line 914-928). The calendar needs the same:
+
+- When multiple scene cards are selected in the calendar, dragging one drags all selected cards.
+- `handleDragStart` in CalendarTab checks if the dragged card is part of a multi-selection. If so, `activeDragIds` = all selected card IDs.
+- Ghost rendering shows all dragged cards (calendar already has inline ghost logic at lines 172-190 — extend to render multiple ghosts stacked).
+- `handleDragEnd` inserts all selected cards at the target position, preserving their relative order.
+- If the user drags from the boneyard/unscheduled panel, only the dragged card moves (panel items aren't range-selected with stripboard items).
+
+#### Selection in unscheduled zone and boneyard
+
+- **UnscheduledZone** (stripboard bottom): rows here participate in the same selection state as the stripboard. Shift-click range works across day groups AND the unscheduled zone (all items are in one flat `augmentedRows` array).
+- **BoneyardBlock** (sidebar): has its own independent selection state (boneyard items are filtered out of the main rows array, so range selection across the boundary doesn't make sense). Single-click selects, ctrl+click toggles, shift+click ranges within the boneyard list only.
+- **Calendar side panel**: unscheduled and boneyard cards in the side panel follow the calendar's selection state (for unscheduled) and an independent state (for boneyard), matching the pattern above.
+
 ---
 
 ## 8. Calendar Refactor
@@ -1445,7 +1532,8 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 6. **`UnscheduledZone.tsx`**: New component for unscheduled scenes at bottom of stripboard.
 7. **`BoneyardBlock.tsx`**: Rename from `UnscheduledBlock.tsx`. Show boneyard rows only.
 8. **View toggle**: Full/Compact segmented button in Schedule header.
-9. **Manual testing**: Create/edit/delete day breaks. Verify splits/merges. Verify dates derive correctly. Verify status days interleave. Verify unscheduled zone at bottom. Verify boneyard panel.
+9. **Selection consistency**: Extract shared `SELECTED_ROW_CLASS` constant. Apply to SortableRow, UnscheduledZone, BoneyardBlock. Implement `useRangeSelection` hook for shift-click range selection and ctrl/cmd-click toggle in stripboard. Verify multi-drag still works with new selection logic.
+10. **Manual testing**: Create/edit/delete day breaks. Verify splits/merges. Verify dates derive correctly. Verify status days interleave. Verify unscheduled zone at bottom. Verify boneyard panel. Test shift-click range selection across day groups. Test ctrl+click toggle. Verify selected styling matches across all row types.
 
 ### Phase 3: Calendar Refactor
 
@@ -1461,7 +1549,8 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 8. **Drag-and-drop**: Scene cards between working day cells. Day drag to swap working day positions (preserved from current — reorders groups in stripboard, dates re-derive). Unscheduled/boneyard panel drag onto working day cells (see 8.8).
 9. **Side panel**: Unscheduled + Boneyard sections with separate headers (see 8.9).
 10. **Stripboard start date prompt**: "Set start date" button in stripboard toolbar when `startDate` is null. "No start date" warning in DayBlock headers. Day 1 START tag.
-11. **Manual testing**: Set start date (empty state → banner → dismiss), use Days Off dialog (check/uncheck weekdays → dates shift), right-click empty date → insert working day, right-click weekend → override, double-click working day → edit call time, right-click hold day → edit cast, drag day onto another day → swap, drag scene between days, change start date → flash feedback, add holiday → working days push forward, remove hold day → working days pull back.
+11. **Calendar selection consistency**: Apply shared `SELECTED_CARD_CLASS` to calendar scene cards. Implement `useRangeSelection` hook for shift-click range selection on calendar cards. Implement multi-drag (dragging one selected card drags all selected). Verify selected styling matches stripboard.
+12. **Manual testing**: Set start date (empty state → banner → dismiss), use Days Off dialog (check/uncheck weekdays → dates shift), right-click empty date → insert working day, right-click weekend → override, double-click working day → edit call time, right-click hold day → edit cast, drag day onto another day → swap, drag scene between days, change start date → flash feedback, add holiday → working days push forward, remove hold day → working days pull back. Test shift-click range selection on calendar cards. Test ctrl+click toggle. Test multi-drag of selected cards. Verify selected card styling matches stripboard.
 
 ### Phase 4: Downstream & Polish
 
@@ -1511,14 +1600,15 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 |---|---|---|
 | `src/types.ts` | Medium | New types: `DAY_BREAK`, `ProductionCalendar`, `DayOffEntry`, `StatusDayEntry`, `StripViewMode`, `boneyard` field, simplified `ShootDayMeta` |
 | `src/lib/scheduling.ts` | **New** (~250 lines) | All derivation utilities, date math, group computation, stripboard layout |
+| `src/lib/useRangeSelection.ts` | **New** (~60 lines) | Shared shift-click range selection hook (used by ScheduleTab and CalendarTab) |
 | `src/store.tsx` | High | 12 new actions, `applySchedulingDerivation`, default calendar on new projects, modified existing actions |
-| `src/components/ScheduleTab.tsx` | High | Day groups derivation, stripboard layout, context menu (3 new items), DAY_BREAK drag, view toggle, start date prompt button |
+| `src/components/ScheduleTab.tsx` | High | Day groups derivation, stripboard layout, context menu (3 new items), DAY_BREAK drag, view toggle, start date prompt button, shift-click range selection, unified selection styling |
 | `src/components/DayBlock.tsx` | Medium | Accept `date` prop, compact mode header toggle, Day 1 START tag, no-start-date warning, remove `meta.date` reads |
-| `src/components/SortableRow.tsx` | Medium | DAY_BREAK row variant (banner separator) |
+| `src/components/SortableRow.tsx` | Medium | DAY_BREAK row variant (banner separator), unified selected styling |
 | `src/components/StatusDayBlock.tsx` | **New** (~60 lines) | Hold/travel day rendering between working day blocks |
-| `src/components/UnscheduledZone.tsx` | **New** (~50 lines) | Unscheduled scenes at bottom of stripboard |
-| `src/components/BoneyardBlock.tsx` | Low | Rename from UnscheduledBlock, filter for `boneyard: true` |
-| `src/components/CalendarTab.tsx` | High | Full rewrite: remove paint tools, start date UX (empty state, banner, ring, flash), Days Off dialog, right-click context menus (5 types), double-click shortcuts, edit modals (label/cast/call time), day drag swap, scene DnD, side panel with unscheduled + boneyard |
+| `src/components/UnscheduledZone.tsx` | **New** (~50 lines) | Unscheduled scenes at bottom of stripboard, participates in stripboard selection |
+| `src/components/BoneyardBlock.tsx` | Low | Rename from UnscheduledBlock, filter for `boneyard: true`, independent selection state |
+| `src/components/CalendarTab.tsx` | High | Full rewrite: remove paint tools, start date UX, Days Off dialog, right-click context menus (5 types), double-click shortcuts, edit modals, day drag swap, scene DnD, multi-drag, shift-click range selection, unified selection styling, side panel with unscheduled + boneyard |
 | `src/components/DaysOffDialog.tsx` | **New** (~80 lines) | Small modal with weekday checkboxes (Mon-start), updates `calendar.weekendDays` |
 | `src/components/QuickStatusPopover.tsx` | **New** (~50 lines) | Small floating panel for double-click on empty/weekend cells: Working/Hold/Travel/Holiday/DayOff |
 | `src/components/EditLabelModal.tsx` | **New** (~40 lines) | Simple text input modal for holiday/hold/travel labels |
@@ -1532,7 +1622,7 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 | `src/components/HelpModal.tsx` | Low | Day Breaks section |
 | `AGENTS.md` | Low | Architecture doc update |
 
-**Total**: ~1800-2200 lines of new/modified code across 18 files (plus 7 new files).
+**Total**: ~1900-2300 lines of new/modified code across 19 files (plus 8 new files).
 
 ---
 
