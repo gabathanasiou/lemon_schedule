@@ -11,9 +11,6 @@ export interface Scene {
   scriptDay: string;
   intExt: IntExt;
   set: string;
-  sequence: string;
-  unit: string;
-  location: string;
   dayNight: DayNight;
   description: string;
   cast: string;
@@ -22,23 +19,16 @@ export interface Scene {
   stunts: string;
   vehicles: string;
   props: string;
-  camera: string;
-  specialEffects: string;
   wardrobe: string;
   makeup: string;
-  animals: string;
-  animalWrangler: string;
-  music: string;
+  sfx: string;
+  vfx: string;
   sound: string;
-  artDept: string;
-  setDressing: string;
+  music: string;
+  animalsAndWranglers: string;
+  weapons: string;
   greenery: string;
-  specialEquipment: string;
-  security: string;
-  additionalLabor: string;
-  visualEffects: string;
-  mechanicalEffects: string;
-  miscellaneous: string;
+  artDept: string;
   shootDay: number | null;
 }
 
@@ -151,6 +141,7 @@ export interface CustomCategoryDef {
   key: string;
   label: string;
   icon: string;
+  multiValue?: boolean;
 }
 
 export interface ElementTrashItem {
