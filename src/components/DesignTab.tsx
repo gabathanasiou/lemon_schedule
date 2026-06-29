@@ -16,8 +16,8 @@ export default function DesignTab({ subTab, onSubTabChange }: DesignTabProps) {
       <MiniTab
         theme="dark"
         tabs={[
-          { id: 'colors', label: 'Colors' },
           { id: 'ribbons', label: 'Ribbon Designer' },
+          { id: 'colors', label: 'Colors' },
         ]}
         activeTab={subTab}
         onChange={onSubTabChange}

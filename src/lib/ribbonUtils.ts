@@ -335,6 +335,20 @@ export function renderCellText(scene: Record<string, any> | null, cell: RibbonCe
   return `${cell.prefix || ''}${val}${cell.suffix || ''}`;
 }
 
+export function normalizeColWidths(widths: number[]): number[] {
+  if (widths.length === 0) return widths;
+  const sum = widths.reduce((s, w) => s + w, 0);
+  if (Math.abs(sum - 100) < 0.01) return widths;
+  const scale = 100 / sum;
+  const scaled = widths.map(w => Math.round(w * scale * 100) / 100);
+  const diff = Math.round((100 - scaled.reduce((s, w) => s + w, 0)) * 100) / 100;
+  if (diff !== 0) {
+    const maxIdx = scaled.indexOf(Math.max(...scaled));
+    scaled[maxIdx] = Math.round((scaled[maxIdx] + diff) * 100) / 100;
+  }
+  return scaled;
+}
+
 export function getDefaultColWidths(): number[] {
   return [7.56, 6.46, 7.68, 6.33, 39.29, 23.02, 9.65];
 }

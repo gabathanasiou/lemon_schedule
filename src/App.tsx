@@ -44,7 +44,7 @@ function AppContent() {
   const { state, dispatch, currentProjectId, createProject } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
-  const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('colors');
+  const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('sheet');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);

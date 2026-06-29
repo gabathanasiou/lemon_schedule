@@ -6,7 +6,7 @@ import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   getFieldValueFromSample, getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
   getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, formatCellText, resolveSceneColor, getCellBorderProps,
-  computeMergeGroups, getMergeLookup, mergeSiblingIds,
+  computeMergeGroups, getMergeLookup, mergeSiblingIds, normalizeColWidths,
 } from '../lib/ribbonUtils';
 import {
   Hash, Clock, Timer, MapPin, Building2, Sun, Users, FileText, AlignLeft,
@@ -196,7 +196,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     if (numCols <= 1) return;
     commit(
       rows.map(r => ({ ...r, cells: r.cells.filter((_, i) => i !== ci) })),
-      colWidths.filter((_, i) => i !== ci),
+      normalizeColWidths(colWidths.filter((_, i) => i !== ci)),
     );
     setSelId(null);
   }, [rows, colWidths, numCols, commit]);
@@ -209,7 +209,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         nc.splice(after + 1, 0, { id: cid(), field: '' });
         return { ...r, cells: nc };
       }),
-      [...colWidths.slice(0, after + 1), 10, ...colWidths.slice(after + 1)],
+      normalizeColWidths([...colWidths.slice(0, after + 1), 10, ...colWidths.slice(after + 1)]),
     );
     return newId;
   }, [rows, colWidths, commit]);
@@ -224,7 +224,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         nc.splice(ci, 0, { id: cid(), field: fieldKey || '', suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap });
         return { ...r, cells: nc };
       }),
-      [...colWidths.slice(0, ci), dw, ...colWidths.slice(ci)],
+      normalizeColWidths([...colWidths.slice(0, ci), dw, ...colWidths.slice(ci)]),
     );
     return newId;
   }, [rows, colWidths, commit]);
