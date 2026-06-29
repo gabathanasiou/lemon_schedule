@@ -12,6 +12,7 @@ import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import MiniTab from './MiniTab';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
+import { getFieldItems, isMultiValue } from '../lib/categories';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -249,7 +250,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const breakdownEditors = useMemo(() => {
     const map = new Map<string, DataEditorComponent<CellBase<string>>>();
     for (const key of allBreakdownCategories) {
-      const sceneValues: string[] = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())) as string[])];
+      const sceneValues: string[] = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => getFieldItems(key, v)) as string[])];
       const storedElements: { id: string; name: string }[] = (project as any).breakdownElements?.[key] || [];
       const nameMap = new Map<string, { id: string; name: string }>(storedElements.map(e => [e.name.toLowerCase(), e]));
       const seen = new Set<string>();
@@ -284,7 +285,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             positioning="relative"
             defaultOpen
             autoFocus
-        mode="multi"
+            mode={isMultiValue(key, project.customCategories) ? 'multi' : 'single'}
             renderItem={(item) => (
               <>
                 {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
@@ -440,7 +441,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         const existingSet = new Set(
           isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
         );
-        const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
+        const items = getFieldItems(category, val);
         for (const item of items) {
           if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
             dispatch({ type: 'ADD_ELEMENT', payload: {
@@ -488,7 +489,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               const existingSet = new Set(
                 isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
               );
-              const newItems = newVal.split(',').map(x => x.trim()).filter(Boolean)
+              const newItems = getFieldItems(colDef.key, newVal)
                 .filter(v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()));
               for (const item of newItems) {
                 dispatch({ type: 'ADD_ELEMENT', payload: {
@@ -551,7 +552,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               const existingSet = new Set(
                 isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
               );
-              const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
+              const items = getFieldItems(category, val);
               for (const item of items) {
                 if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
                   dispatch({ type: 'ADD_ELEMENT', payload: {
