@@ -1,6 +1,6 @@
 import React from 'react';
 import { Scene, RibbonRow } from '../types';
-import { getRibbonCellBaseStyle, getFieldValue, sceneStyle, computeMergeGroups } from '../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, getRibbonTextWrapStyle, getFieldValue, sceneStyle, computeMergeGroups } from '../lib/ribbonUtils';
 
 function fmt(prefix: string | undefined, val: string, suffix: string | undefined): string {
   return `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
@@ -65,7 +65,7 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                 gridTemplateRows: `repeat(${ribbon.length}, auto)`,
               }}>
                 {items.map(({ cell, col, row, span }) => {
-                  const style = getRibbonCellBaseStyle(cell, cellPadding);
+                  const style = getRibbonCellBaseStyle(cell, cellPadding, span);
                   const val = cell.field ? getFieldValue(cell.field, scene) : '';
                   const text = cell.textContent || fmt(cell.prefix, val, cell.suffix);
                   return (
@@ -74,7 +74,7 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPadding = 3, edgeP
                       gridColumn: col + 1,
                       gridRow: span ? `${row + 1} / span ${span}` : row + 1,
                     }}>
-                      <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1 }}>
+                      <span style={{ ...getRibbonTextWrapStyle(cell, span), display: 'block', fontSize: '8pt' }}>
                         {text}
                       </span>
                     </div>
