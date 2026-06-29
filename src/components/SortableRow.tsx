@@ -28,18 +28,32 @@ function darkenHex(hex: string): string {
   return `#${r}${g}${b}`;
 }
 
-export const SortableRow: React.FC<{ 
+const sortableRowPropsEqual = (a: any, b: any) => {
+  if (a.row.id !== b.row.id || a.row.type !== b.row.type || a.row.shootDay !== b.row.shootDay || a.row.order !== b.row.order) return false;
+  if (a.row.estimatedDuration !== b.row.estimatedDuration) return false;
+  if (a.row.noteText !== b.row.noteText || a.row.noteColor !== b.row.noteColor || a.row.noteTextColor !== b.row.noteTextColor) return false;
+  if (a.row.breakLabel !== b.row.breakLabel || a.row.breakDuration !== b.row.breakDuration) return false;
+  if (a.row.computedCallTime !== b.row.computedCallTime || a.row.computedElapsed !== b.row.computedElapsed) return false;
+  if (a.scenes !== b.scenes) return false;
+  if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
+  if (a.isCompact !== b.isCompact || a.textEditingEnabled !== b.textEditingEnabled) return false;
+  if (a.focusedRowId !== b.focusedRowId) return false;
+  if (a.sceneViolations !== b.sceneViolations) return false;
+  if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
+  if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
+  if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
+  return true;
+};
+
+const SortableRowContent: React.FC<{ 
   row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number }, 
   scenes: Scene[], 
-  isOverlay?: boolean,
   isSelected?: boolean,
   isFaded?: boolean,
-  onSelectToggle?: (e: React.MouseEvent) => void,
   isCompact?: boolean,
   textEditingEnabled?: boolean,
   sceneViolations?: string[],
   focusedRowId?: string | null,
-  onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
   colWidths?: number[],
@@ -47,22 +61,9 @@ export const SortableRow: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
-  const ctrlOrCmdHeld = useAddMode();
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ 
-    id: row.id,
-    data: { type: 'ROW', row }
-  });
 
   const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
 
@@ -108,24 +109,6 @@ export const SortableRow: React.FC<{
     updateScene({ [field]: val });
   };
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging && !isOverlay ? 0.3 : undefined,
-  };
-
-  const commonProps = {
-    ref: setNodeRef,
-    style,
-    ...(ctrlOrCmdHeld ? {} : listeners),
-    ...attributes,
-    onClick: onSelectToggle,
-    onDoubleClick: () => onDoubleClick?.(row.id),
-    'data-row-id': row.id,
-    'data-shoot-day': row.shootDay,
-    className: `group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`
-  };
-
   const inputClass = "text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full outline-none";
 
   const noteBreakPadPx = `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px ${cellPaddingH ?? 6}px`;
@@ -160,7 +143,6 @@ export const SortableRow: React.FC<{
         : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
 
       return (
-        <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
             <div className="flex-1 min-w-0 flex flex-col" style={{ ...noteStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               <div style={{
@@ -234,12 +216,10 @@ export const SortableRow: React.FC<{
             </div>
             </div>
           </div>
-        </div>
       );
     }
 
     return (
-      <div {...commonProps}>
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
@@ -292,7 +272,6 @@ export const SortableRow: React.FC<{
             </tbody>
           </table>
         </div>
-      </div>
     );
   }
 
@@ -311,7 +290,6 @@ export const SortableRow: React.FC<{
         : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
 
       return (
-        <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
             <div className="flex-1 min-w-0 flex flex-col" style={{ ...breakStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               <div style={{
@@ -385,12 +363,10 @@ export const SortableRow: React.FC<{
             </div>
             </div>
           </div>
-        </div>
       );
     }
 
     return (
-      <div {...commonProps}>
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
@@ -441,7 +417,6 @@ export const SortableRow: React.FC<{
             </tbody>
           </table>
         </div>
-      </div>
     );
   }
 
@@ -776,7 +751,6 @@ export const SortableRow: React.FC<{
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cw = colWidths ?? [];
       return (
-        <div {...commonProps}>
           <div className="flex items-stretch min-w-0">
             <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               <div style={{
@@ -807,14 +781,12 @@ export const SortableRow: React.FC<{
               </div>
             </div>
           </div>
-        </div>
       );
     }
 
     if (isCompact) {
-      return (
-        <div {...commonProps}>
-          <div className="flex items-stretch min-w-0">
+    return (
+        <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
               <tbody>
                 <tr style={rowStyle}>
@@ -866,12 +838,10 @@ export const SortableRow: React.FC<{
               </tbody>
             </table>
           </div>
-        </div>
       );
     }
 
     return (
-      <div {...commonProps}>
         <div className="flex items-stretch min-w-0">
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
@@ -973,9 +943,81 @@ export const SortableRow: React.FC<{
             </tbody>
           </table>
         </div>
-      </div>
     );
   }
 
   return null;
+}, sortableRowPropsEqual);
+
+export const SortableRow: React.FC<{
+  row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number },
+  scenes: Scene[],
+  isOverlay?: boolean,
+  isSelected?: boolean,
+  isFaded?: boolean,
+  onSelectToggle?: (e: React.MouseEvent) => void,
+  isCompact?: boolean,
+  textEditingEnabled?: boolean,
+  sceneViolations?: string[],
+  focusedRowId?: string | null,
+  onDoubleClick?: (id: string) => void,
+  onRowNavigate?: (rowId: string) => void,
+  ribbon?: RibbonRow[],
+  colWidths?: number[],
+  cellPaddingV?: number,
+  cellPaddingH?: number,
+  edgePadding?: number,
+  cellBorders?: CellBorders,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+  const ctrlOrCmdHeld = useAddMode();
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: row.id,
+    data: { type: 'ROW', row }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging && !isOverlay ? 0.3 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...(ctrlOrCmdHeld ? {} : listeners)}
+      {...attributes}
+      onClick={onSelectToggle}
+      onDoubleClick={() => onDoubleClick?.(row.id)}
+      data-row-id={row.id}
+      data-shoot-day={row.shootDay}
+      className={`group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`}
+    >
+      <SortableRowContent
+        row={row}
+        scenes={scenes}
+        isSelected={isSelected}
+        isFaded={isFaded}
+        isCompact={isCompact}
+        textEditingEnabled={textEditingEnabled}
+        sceneViolations={sceneViolations}
+        focusedRowId={focusedRowId}
+        onRowNavigate={onRowNavigate}
+        ribbon={ribbon}
+        colWidths={colWidths}
+        cellPaddingV={cellPaddingV}
+        cellPaddingH={cellPaddingH}
+        edgePadding={edgePadding}
+        cellBorders={cellBorders}
+      />
+    </div>
+  );
 };

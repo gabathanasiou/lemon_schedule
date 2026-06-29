@@ -429,14 +429,20 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   useEffect(() => {
     if (!activeId) return;
-    const onMouseMove = (e: MouseEvent) => { mousePosRef.current = { y: e.clientY }; };
-    document.addEventListener('mousemove', onMouseMove);
-
+    let rafId: number | null = null;
     let stepSchedule = 0;
     let stepUnscheduled = 0;
     const buffer = 200;
+
     const loop = () => {
       const y = mousePosRef.current.y;
+      if (y == null) { rafId = requestAnimationFrame(loop); return; }
+
+      if (y > buffer && y < window.innerHeight - buffer) {
+        rafId = requestAnimationFrame(loop);
+        return;
+      }
+
       const scheduleContainer = scheduleScrollRef.current;
       const unscheduledContainer = document.querySelector('#unscheduled_rows_container')?.closest('.overflow-y-auto') as HTMLElement | null;
 
@@ -465,16 +471,20 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
         else stepUnscheduled = step;
         break;
       }
-      autoScrollRafRef.current = requestAnimationFrame(loop);
+      rafId = requestAnimationFrame(loop);
     };
-    autoScrollRafRef.current = requestAnimationFrame(loop);
+
+    const onMouseMove = (e: MouseEvent) => {
+      mousePosRef.current = { y: e.clientY };
+      if (rafId === null && (e.clientY < buffer || e.clientY > window.innerHeight - buffer)) {
+        rafId = requestAnimationFrame(loop);
+      }
+    };
+    document.addEventListener('mousemove', onMouseMove);
 
     return () => {
       document.removeEventListener('mousemove', onMouseMove);
-      if (autoScrollRafRef.current !== null) {
-        cancelAnimationFrame(autoScrollRafRef.current);
-        autoScrollRafRef.current = null;
-      }
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [activeId]);
 
@@ -564,7 +574,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   }, []);
 
   const collisionDetection = useCallback<CollisionDetection>((args) => {
-    const { active, pointerCoordinates, droppableContainers } = args;
+    const { active, droppableContainers } = args;
     const isDraggingDay = active.data.current?.type === 'DAY';
     const filteredContainers = droppableContainers.filter((container) => {
       const id = container.id as string;
@@ -574,26 +584,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       if (activeDragIdsRef.current.has(id)) return false;
       return true;
     });
-
-    if (pointerCoordinates) {
-      const collisions: { id: string; distance: number; area: number }[] = [];
-      for (const container of filteredContainers) {
-        const rect = container.rect.current;
-        if (rect) {
-          const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
-          const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const area = rect.width * rect.height;
-          collisions.push({ id: container.id as string, distance, area });
-        }
-      }
-      collisions.sort((a, b) => {
-        if (a.distance !== b.distance) return a.distance - b.distance;
-        return a.area - b.area;
-      });
-      if (collisions.length > 0) return collisions.map(c => ({ id: c.id }));
-    }
-
     return closestCorners({ ...args, droppableContainers: filteredContainers });
   }, []);
 
@@ -626,10 +616,10 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   const edgePadding = activeRibbonDesign.edgePadding;
   const currentRibbonName = activeRibbonDesign.name;
 
-  const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
-  const missingScenesInRows = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
+  const sceneIdsInRows = useMemo(() => new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId)), [activeVersion.rows]);
+  const missingScenesInRows = useMemo(() => project.scenes.filter(s => !sceneIdsInRows.has(s.id)), [project.scenes, sceneIdsInRows]);
   
-  const augmentedRows = [
+  const augmentedRows = useMemo(() => [
     ...activeVersion.rows,
     ...missingScenesInRows.map((s, i) => ({
       id: `row-synth-${s.id}`,
@@ -639,29 +629,33 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       order: 999999 + i,
       estimatedDuration: 30
     }))
-  ];
+  ], [activeVersion.rows, missingScenesInRows]);
 
-  const scheduledRows = augmentedRows.filter(r => !activeDragIds.has(r.id) && r.shootDay !== -1).reduce((acc, row) => {
-    if (row.shootDay !== null) {
-      if (!acc[row.shootDay]) acc[row.shootDay] = [];
-      acc[row.shootDay].push(row);
-    }
-    return acc;
-  }, {} as Record<number, ScheduleRow[]>);
+  const scheduledRows = useMemo(() => {
+    const grouped = augmentedRows.filter(r => !activeDragIds.has(r.id) && r.shootDay !== -1).reduce((acc, row) => {
+      if (row.shootDay !== null) {
+        if (!acc[row.shootDay]) acc[row.shootDay] = [];
+        acc[row.shootDay].push(row);
+      }
+      return acc;
+    }, {} as Record<number, ScheduleRow[]>);
+    (Object.values(grouped) as ScheduleRow[][]).forEach(dayRows => {
+      dayRows.sort((a, b) => a.order - b.order);
+    });
+    return grouped;
+  }, [augmentedRows, activeDragIds]);
 
-  (Object.values(scheduledRows) as ScheduleRow[][]).forEach(dayRows => {
-    dayRows.sort((a, b) => a.order - b.order);
-  });
+  const unscheduledRows = useMemo(() =>
+    augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order),
+  [augmentedRows, activeDragIds]);
 
-  const unscheduledRows = augmentedRows.filter(r => r.shootDay === null && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order);
-
-  const existingDays = Array.from(new Set([
+  const existingDays = useMemo(() => Array.from(new Set([
     ...Object.keys(activeVersion.dayMeta || {}).map(Number),
   ])).sort((a, b) => {
     const dateA = activeVersion.dayMeta?.[a]?.date || '';
     const dateB = activeVersion.dayMeta?.[b]?.date || '';
     return dateA.localeCompare(dateB);
-  });
+  }), [activeVersion.dayMeta]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -1082,7 +1076,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
   };
 
-  const activeDragRow = (() => {
+  const activeDragRow = useMemo(() => {
     if (!activeId || activeType !== 'ROW') return null;
     const ids = Array.from(activeDragIds.size > 1 ? activeDragIds : [activeId]);
     ids.sort((a, b) => {
@@ -1095,9 +1089,9 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       return 0;
     });
     return augmentedRows.find(r => r.id === ids[0]) || null;
-  })();
+  }, [activeId, activeType, activeDragIds, augmentedRows]);
 
-  const activeDragRows = (() => {
+  const activeDragRows = useMemo(() => {
     if (!activeId || activeType !== 'ROW') return [];
     return activeDragIds.size > 1
       ? Array.from(activeDragIds)
@@ -1113,7 +1107,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           .map(id => augmentedRows.find(r => r.id === id)!)
           .filter(Boolean)
       : [activeDragRow!].filter(Boolean);
-  })();
+  }, [activeId, activeType, activeDragIds, augmentedRows, activeDragRow]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

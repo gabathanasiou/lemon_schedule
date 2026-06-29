@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useReducer, useCallback, useState } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef } from 'react';
 import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
@@ -1191,21 +1191,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setInitialized(true);
   }, []);
 
-  // Auto-save current project to its storage key
+  // Auto-save current project to its storage key (debounced)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveProjectRef = useRef(state.present);
+  saveProjectRef.current = state.present;
   useEffect(() => {
     if (!currentProjectId) return;
-    localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
-    setProjectList(prev => {
-      const existing = prev.find(p => p.id === currentProjectId);
-      if (!existing) return prev;
-      const updated = prev.map(p =>
-        p.id === currentProjectId
-          ? { ...p, title: state.present.title, lastModified: Date.now() }
-          : p
-      );
-      saveProjectListToStorage(updated);
-      return updated;
-    });
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const project = saveProjectRef.current;
+      localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(project));
+      setProjectList(prev => {
+        const existing = prev.find(p => p.id === currentProjectId);
+        if (!existing) return prev;
+        const updated = prev.map(p =>
+          p.id === currentProjectId
+            ? { ...p, title: project.title, lastModified: Date.now() }
+            : p
+        );
+        saveProjectListToStorage(updated);
+        return updated;
+      });
+    }, 400);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [state.present, currentProjectId]);
 
   // Keyboard shortcuts

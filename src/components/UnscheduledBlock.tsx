@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Scene, ScheduleRow, RibbonRow } from '../types';
 import { CellBorders } from '../lib/persist';
 import { useDroppable } from '@dnd-kit/core';
@@ -12,6 +12,23 @@ import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
+
+const unscheduledBlockPropsEqual = (a: any, b: any) => {
+  if (a.rows !== b.rows) return false;
+  if (a.projectScenes !== b.projectScenes) return false;
+  if (a.textEditingEnabled !== b.textEditingEnabled) return false;
+  if (a.selectedIds !== b.selectedIds) return false;
+  if (a.activeDragIds !== b.activeDragIds) return false;
+  if (a.insertBeforeId !== b.insertBeforeId) return false;
+  if (a.activeDragRow !== b.activeDragRow) return false;
+  if (a.activeDragRows !== b.activeDragRows) return false;
+  if (a.activeRowId !== b.activeRowId) return false;
+  if (a.forceExpanded !== b.forceExpanded) return false;
+  if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
+  if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
+  if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
+  return true;
+};
 
 export const UnscheduledBlock: React.FC<{ 
   rows: ScheduleRow[], 
@@ -38,7 +55,7 @@ export const UnscheduledBlock: React.FC<{
   edgePadding?: number,
   cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = ({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
+}> = React.memo(({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
@@ -302,7 +319,7 @@ export const UnscheduledBlock: React.FC<{
           <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative">
             <MarqueeOverlay box={marqueeBox} />
             <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
-            <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={React.useMemo(() => rows.map(r => r.id), [rows])} strategy={verticalListSortingStrategy}>
               {rows.map((r, i, arr) => (
                 <React.Fragment key={r.id}>
                   {showGhosts && insertBeforeId === r.id && (
@@ -354,4 +371,4 @@ export const UnscheduledBlock: React.FC<{
       )}
     </div>
   );
-};
+}, unscheduledBlockPropsEqual);
