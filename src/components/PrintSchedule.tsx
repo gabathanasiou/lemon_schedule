@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, getRibbonTextWrapStyle, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import type { CellBorders } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
 
@@ -169,7 +169,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       : cells.map((c, i) => ({i, w: filteredWidths[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
-  const cellPrintStyle = (cell: RibbonCell) => getRibbonCellBaseStyle(cell, cellPadding);
+  const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPadding, span);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     `${prefix || ''}${prefix && val ? '\u00A0' : ''}${val}${suffix && val ? '\u00A0' : ''}${suffix || ''}`;
@@ -178,14 +178,14 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
     const style: React.CSSProperties = {
-      ...cellPrintStyle(cell),
+      ...cellPrintStyle(cell, span),
       ...getCellBorderProps(cellBorders, textColor || '#000', isLastInRow ?? true, isLastRow ?? true),
     };
     if (col !== undefined && row !== undefined) {
       style.gridColumn = col + 1;
       style.gridRow = span ? `${row + 1} / span ${span}` : row + 1;
     }
-    return <div key={cell.id} style={style}>{display || ''}</div>;
+    return <div key={cell.id} style={style}><span style={getRibbonTextWrapStyle(cell, span)}>{display || ''}</span></div>;
   };
 
 
