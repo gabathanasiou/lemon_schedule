@@ -177,7 +177,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     formatCellText(prefix, val, suffix);
 
   const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLastInRow?: boolean, isLastRow?: boolean, textColor?: string, col?: number, row?: number, span?: number) => {
-    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0 });
+    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0, sheetNumber: chronoDay });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
     const style: React.CSSProperties = {
       ...cellPrintStyle(cell, span),

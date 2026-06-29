@@ -448,7 +448,7 @@ export const SortableRow: React.FC<{
     if (!field) {
       return <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
     }
-    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
+    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: row.shootDay }) : getFieldValueFromSample(field);
     const displayText = `${prefix || ''}${val}${suffix || ''}`;
 
     if (field === 'intExt') {
@@ -648,7 +648,7 @@ export const SortableRow: React.FC<{
     }
     if (!field) return <div key={cellId} style={style} />;
 
-    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration }) : getFieldValueFromSample(field);
+    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: row.shootDay }) : getFieldValueFromSample(field);
     const fieldLabel = fieldLabels[field] || field;
     const emptyStyle: React.CSSProperties = { fontStyle: 'italic', opacity: 0.5 };
 

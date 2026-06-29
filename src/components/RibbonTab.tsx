@@ -16,6 +16,7 @@ import {
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
   ChevronDown, ArrowLeft, ArrowRight,
   AlignCenter, AlignRight, WrapText, Type, Tag, CircleDot,
+  ClipboardList,
   Download, Upload, Copy, Check, Pencil,
   PanelTop, Equal, PanelBottom,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ import { RibbonCellText } from './RibbonCellText';
 const FIELD_ICONS: Record<string, React.ElementType> = {
   sceneNumber: Hash, callTime: Clock, duration: Timer, intExt: MapPin,
   set: Building2, dayNight: Sun, cast: Users, pageCount: FileText,
+  sheetNumber: ClipboardList,
   description: AlignLeft, scriptDay: Calendar, notes: StickyNote,
   backgroundActors: UserPlus, stunts: Sparkles, vehicles: Car, props: Package,
   wardrobe: Shirt, makeup: Scissors, sfx: Volume1, vfx: Video,
