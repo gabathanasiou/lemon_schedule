@@ -922,7 +922,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDragRef.current ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : mergeInfo ? 'rgba(96,165,250,0.06)' : 'transparent',
                             minHeight: 16,
                             cursor: 'pointer',
-                            overflow: 'hidden',
+                            overflow: c.wrap ? 'visible' : 'hidden',
                             userSelect: 'none',
                           }}>
                           <div style={{
@@ -1028,7 +1028,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   ...cellBorderStyle,
-                                  overflow: 'hidden',
+                                  overflow: c.wrap ? 'visible' : 'hidden',
                                   fontWeight: c.field === 'sceneNumber' ? 700 : 400,
                                   textTransform: c.field === 'set' ? 'uppercase' : 'none',
                                 }}>
