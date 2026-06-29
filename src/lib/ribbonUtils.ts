@@ -192,7 +192,7 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): 
   const va = cell.verticalAlign;
   return {
     minWidth: 0,
-    padding: `${cellPadding ?? 6}px`,
+    padding: `${cellPadding ?? 6}px 6px`,
     overflow: cell.wrap ? 'visible' : 'hidden',
     textOverflow: cell.wrap ? undefined : 'ellipsis',
     whiteSpace: cell.wrap ? 'normal' : 'nowrap',

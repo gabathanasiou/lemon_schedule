@@ -857,14 +857,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               </div>
 
               <div className="space-y-5">
-                {rows.map((row, ri) => (
-                  <div key={row.id} className="group/row">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-semibold text-zinc-500 select-none">{row.name}</span>
-                      <span className="text-[9px] text-zinc-600 select-none">{numCols}c</span>
-                    </div>
-                  </div>
-                ))}
 
                 {/* Single CSS Grid */}
                 <div ref={gridRef} style={{
@@ -920,6 +912,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             }
                           }}
                           style={{
+                            ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
                             gridColumn: ci + 1,
                             gridRow: ri + 1,
                             display: 'flex',
@@ -1032,17 +1025,16 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                               const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, p.col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                               return (
                                 <div key={p.id} style={{
+                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
                                   gridColumn: p.col + 1,
                                   gridRow: `${p.row + 1} / span ${p.span}`,
-                                   display: 'flex',
+                                  display: 'flex',
                                   alignItems: c.verticalAlign === 'top' ? 'flex-start' : c.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                                   padding: `${activeDesign.cellPadding ?? 6}px 6px`,
                                   borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   ...cellBorderStyle,
                                   overflow: c.wrap ? 'visible' : 'hidden',
-                                  fontWeight: c.field === 'sceneNumber' ? 700 : 400,
-                                  textTransform: c.field === 'set' ? 'uppercase' : 'none',
                                 }}>
                                   {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
                                   {c.prefix && val && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
