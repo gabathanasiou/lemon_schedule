@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors } from '../lib/ribbonUtils';
+import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Tooltip } from './Tooltip';
@@ -81,11 +82,9 @@ export const SortableRow: React.FC<{
     for (const [key, val] of Object.entries(processed)) {
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
-        if (key === 'set') continue;
         const existing = state.present.breakdownElements?.[key] || [];
-        // Cast uses IDs, all other elements use names. Must match the right key per category.
         const existingNames = new Set(existing.map(e => (key === 'cast' ? e.id : (e.name || e.id)).toUpperCase()));
-        const items = val.split(',').map((x: string) => x.trim()).filter(Boolean);
+        const items = getFieldItems(key, val);
         for (const item of items) {
           if (!existingNames.has(item.toUpperCase())) {
             dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: { id: item, name: item } } });
@@ -512,7 +511,7 @@ export const SortableRow: React.FC<{
       const entityItems = entityItemsMap[field] || [];
       return (
         <td key={cellId} style={{ width: `${cellWidth}%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={field === 'set' ? 'single' : 'multi'} positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
+          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
         </td>
       );
     }
@@ -687,7 +686,7 @@ export const SortableRow: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={field === 'set' ? 'single' : 'multi'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
