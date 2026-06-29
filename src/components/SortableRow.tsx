@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups, getAlign } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -168,13 +168,13 @@ export const SortableRow: React.FC<{
                 gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
               }}>
             {cells.map((cell, ci) => {
-              const a = getAlign(cell);
               const wrapCell = ci === mainCellIdx;
               if (wrapCell) {
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    textAlign: 'center',
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                     whiteSpace: 'normal',
@@ -183,7 +183,7 @@ export const SortableRow: React.FC<{
                     <CellInput
                       value={row.noteText || ''}
                       onChange={val => updateRow({noteText: val.toUpperCase()})}
-                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+                      className={`${inputClass} text-center`}
                       placeholder="Enter note here..."
                       multiline
                       autoFocus={focusedRowId === row.id}
@@ -197,6 +197,7 @@ export const SortableRow: React.FC<{
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    textAlign: 'center',
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
@@ -205,7 +206,7 @@ export const SortableRow: React.FC<{
                       onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
                       clearOnType
                       col="duration"
-                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+                      className={`${inputClass} text-center`}
                       navigateOnEnter={false}
                       onRowNavigate={onRowNavigate}
                     />
@@ -217,6 +218,7 @@ export const SortableRow: React.FC<{
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center',
                   padding: noteBreakPadPx,
                   overflow: 'visible',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
@@ -224,6 +226,7 @@ export const SortableRow: React.FC<{
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                textAlign: 'center',
                 padding: noteBreakPadPx,
                 overflow: 'visible',
               }} />;
@@ -316,13 +319,13 @@ export const SortableRow: React.FC<{
                 gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
               }}>
             {cells.map((cell, ci) => {
-              const a = getAlign(cell);
               const wrapCell = ci === mainCellIdx;
               if (wrapCell) {
                 return (
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    textAlign: 'center',
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                     whiteSpace: 'normal',
@@ -331,7 +334,7 @@ export const SortableRow: React.FC<{
                     <CellInput
                       value={row.breakLabel || ''}
                       onChange={val => updateRow({breakLabel: val.toUpperCase()})}
-                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+                      className={`${inputClass} text-center`}
                       placeholder="ENTER BREAK TEXT"
                       multiline
                       autoFocus={focusedRowId === row.id}
@@ -345,6 +348,7 @@ export const SortableRow: React.FC<{
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    textAlign: 'center',
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
@@ -353,7 +357,7 @@ export const SortableRow: React.FC<{
                       onChange={val => updateRow({breakDuration: parseDuration(val)})}
                       clearOnType
                       col="duration"
-                      className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+                      className={`${inputClass} text-center`}
                       navigateOnEnter={false}
                       onRowNavigate={onRowNavigate}
                     />
@@ -365,6 +369,7 @@ export const SortableRow: React.FC<{
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center',
                   padding: noteBreakPadPx,
                   overflow: 'visible',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
@@ -372,6 +377,7 @@ export const SortableRow: React.FC<{
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                textAlign: 'center',
                 padding: noteBreakPadPx,
                 overflow: 'visible',
               }} />;

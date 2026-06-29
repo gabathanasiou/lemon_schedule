@@ -243,6 +243,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           gridColumn: ci + 1, gridRow: 1,
                           padding: noteBreakPadPx,
+                          textAlign: 'center',
                           fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                         }}>
                           {content}
@@ -310,6 +311,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         <div key={cell.id} style={{
                           gridColumn: ci + 1, gridRow: 1,
                           padding: noteBreakPadPx,
+                          textAlign: 'center',
                           fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                         }}>
                           {content}
