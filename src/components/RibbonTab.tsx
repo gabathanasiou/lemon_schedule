@@ -5,7 +5,7 @@ import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   getFieldValueFromSample, getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
-  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, getRibbonTextWrapStyle, resolveSceneColor, getCellBorderProps,
   computeMergeGroups, getMergeLookup, mergeSiblingIds,
 } from '../lib/ribbonUtils';
 import {
@@ -798,6 +798,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
               />
             </Tooltip>
+            <div className="w-px h-5 bg-zinc-700 mx-1" />
+            <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
             <Tooltip content="Edge Padding (px)">
               <input
                 type="number"
@@ -808,10 +810,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
                   dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
                 }}
-                className="ml-1 w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+                className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
               />
             </Tooltip>
-            <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
             {selCell && (
               <>
                 <div className="w-px h-5 bg-zinc-700 mx-1" />
@@ -927,7 +928,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDragRef.current ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : mergeInfo ? 'rgba(96,165,250,0.06)' : 'transparent',
                             minHeight: 16,
                             cursor: 'pointer',
-                            overflow: c.wrap ? 'visible' : 'hidden',
                             userSelect: 'none',
                           }}>
                           <div style={{
@@ -935,15 +935,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             fontWeight: c.field === 'sceneNumber' ? 700 : 500,
                             textTransform: c.field === 'set' ? 'uppercase' : 'none',
                             color: assigned ? undefined : '#71717a',
-                            overflow: c.wrap ? 'visible' : 'hidden',
                           }}>
                             {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
                             <span style={{
+                              ...getRibbonTextWrapStyle(c, 1),
                               flexShrink: 1, minWidth: 0,
-                              overflow: c.wrap ? 'visible' : 'hidden',
-                              textOverflow: c.wrap ? 'clip' : 'ellipsis',
-                              whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                              wordBreak: c.wrap ? 'break-word' : undefined,
                             }}>{c.prefix ? c.prefix + '\u00A0' : ''}{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
                             {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
                           </div>
@@ -1024,7 +1020,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                               const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, p.col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                               return (
                                 <div key={p.id} style={{
-                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPadding),
+                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPadding, p.span),
                                   gridColumn: p.col + 1,
                                   gridRow: `${p.row + 1} / span ${p.span}`,
                                   display: 'flex',
@@ -1033,15 +1029,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   ...cellBorderStyle,
-                                  overflow: c.wrap ? 'visible' : 'hidden',
                                 }}>
                                   {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
                                   <span style={{
+                                    ...getRibbonTextWrapStyle(c, p.span),
                                     flexShrink: 1, minWidth: 0,
-                                    overflow: c.wrap ? 'visible' : 'hidden',
-                                    textOverflow: c.wrap ? 'clip' : 'ellipsis',
-                                    whiteSpace: c.wrap ? 'normal' : 'nowrap',
-                                    wordBreak: c.wrap ? 'break-word' : undefined,
                                     fontStyle: val ? 'normal' : 'italic',
                                     opacity: val ? 1 : 0.5,
                                   }}>{c.prefix && val ? c.prefix + '\u00A0' : ''}{display}{c.suffix && val ? '\u00A0' + c.suffix : ''}</span>
