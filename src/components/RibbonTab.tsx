@@ -938,14 +938,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             overflow: c.wrap ? 'visible' : 'hidden',
                           }}>
                             {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
-                            {c.prefix && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
                             <span style={{
                               flexShrink: 1, minWidth: 0,
                               overflow: c.wrap ? 'visible' : 'hidden',
                               textOverflow: c.wrap ? 'clip' : 'ellipsis',
                               whiteSpace: c.wrap ? 'normal' : 'nowrap',
                               wordBreak: c.wrap ? 'break-word' : undefined,
-                            }}>{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
+                            }}>{c.prefix ? c.prefix + '\u00A0' : ''}{assigned ? label : 'Empty'}{c.suffix ? '\u00A0' + c.suffix : ''}</span>
                             {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
                           </div>
                           {/* Merge badges */}
@@ -1037,7 +1036,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                   overflow: c.wrap ? 'visible' : 'hidden',
                                 }}>
                                   {(a === 'center' || a === 'right') && <span style={{ flex: '1 1 0' }} />}
-                                  {c.prefix && val && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{c.prefix}{'\u00A0'}</span>}
                                   <span style={{
                                     flexShrink: 1, minWidth: 0,
                                     overflow: c.wrap ? 'visible' : 'hidden',
@@ -1046,8 +1044,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                     wordBreak: c.wrap ? 'break-word' : undefined,
                                     fontStyle: val ? 'normal' : 'italic',
                                     opacity: val ? 1 : 0.5,
-                                  }}>{display}</span>
-                                  {c.suffix && val && <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{'\u00A0' + c.suffix}</span>}
+                                  }}>{c.prefix && val ? c.prefix + '\u00A0' : ''}{display}{c.suffix && val ? '\u00A0' + c.suffix : ''}</span>
                                   {(a === 'left' || a === 'center') && <span style={{ flex: '1 1 0' }} />}
                                 </div>
                               );
