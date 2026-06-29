@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
+import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff } from 'lucide-react';
@@ -46,9 +47,9 @@ function elementKey(e: { id: string; name: string }) { return e.id || e.name || 
 function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string, number> {
   const counts = new Map<string, number>();
   for (const s of scenes) {
-    const val = isC ? s.cast : cat === 'set' ? s.set : (s as any)[cat] as string;
+    const val = isC ? s.cast : (s as any)[cat] as string;
     if (!val) continue;
-    const items = cat === 'set' ? [val.trim()] : val.split(',').map(x => x.trim()).filter(Boolean);
+    const items = getFieldItems(cat, val);
     for (const item of items) {
       const key = item.toLowerCase();
       counts.set(key, (counts.get(key) || 0) + 1);
@@ -154,6 +155,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [editCatKey, setEditCatKey] = useState('');
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('Tag');
+  const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const autoMergeRef = useRef(false);
 
   const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
@@ -442,7 +444,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                           e.stopPropagation();
                           if (isCustom) {
                             const cat = project.customCategories.find(c => c.key === key);
-                            setEditCatKey(key); setNewCatName(cat?.label || label); setNewCatIcon(cat?.icon || 'Tag'); setShowEditCustom(true);
+                            setEditCatKey(key); setNewCatName(cat?.label || label); setNewCatIcon(cat?.icon || 'Tag'); setNewCatMultiValue(cat?.multiValue ?? true); setShowEditCustom(true);
                           } else {
                             setEditCatKey(key); setNewCatName(label); setNewCatIcon('');
                             setShowEditBuiltin(true);
@@ -619,6 +621,25 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   })}
                 </div>
               </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Value Type</label>
+                <div className="mt-1 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setNewCatMultiValue(true)}
+                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  >
+                    Multiple values
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewCatMultiValue(false)}
+                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  >
+                    Single value
+                  </button>
+                </div>
+              </div>
             </div>
           </Modal>
         )}
@@ -665,6 +686,25 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   })}
                 </div>
               </div>
+              <div>
+                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Value Type</label>
+                <div className="mt-1 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setNewCatMultiValue(true)}
+                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  >
+                    Multiple values
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewCatMultiValue(false)}
+                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
+                  >
+                    Single value
+                  </button>
+                </div>
+              </div>
             </div>
           </Modal>
         )}
@@ -708,14 +748,14 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     if (!newCatName.trim()) return;
     const slug = newCatName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     const key = `_cat_${slug}`;
-    dispatch({ type: 'ADD_CUSTOM_CATEGORY', payload: { key, label: newCatName.trim(), icon: newCatIcon } });
+    dispatch({ type: 'ADD_CUSTOM_CATEGORY', payload: { key, label: newCatName.trim(), icon: newCatIcon, multiValue: newCatMultiValue } });
     setShowAddCustom(false);
     switchCategory(key);
   }
 
   function updateCustomCategory() {
     if (!newCatName.trim()) return;
-    dispatch({ type: 'UPDATE_CUSTOM_CATEGORY', payload: { key: editCatKey, label: newCatName.trim(), icon: newCatIcon } });
+    dispatch({ type: 'UPDATE_CUSTOM_CATEGORY', payload: { key: editCatKey, label: newCatName.trim(), icon: newCatIcon, multiValue: newCatMultiValue } });
     setShowEditCustom(false);
   }
 }
