@@ -188,22 +188,47 @@ export function getAlign(cell?: RibbonCell): string {
   return FIELD_MAP[cell?.field || '']?.align || 'left';
 }
 
-export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number): React.CSSProperties {
+export function getRibbonCellBaseStyle(cell: RibbonCell, cellPadding?: number, span = 1): React.CSSProperties {
   const va = cell.verticalAlign;
+  const multiRow = span > 1;
+  const cp = cellPadding ?? 6;
   return {
     minWidth: 0,
-    padding: `${cellPadding ?? 6}px 6px`,
-    overflow: cell.wrap ? 'visible' : 'hidden',
-    textOverflow: cell.wrap ? undefined : 'ellipsis',
-    whiteSpace: cell.wrap ? 'normal' : 'nowrap',
-    wordBreak: cell.wrap ? 'break-word' : undefined,
+    padding: `${cp}px 6px`,
+    overflow: multiRow || cell.wrap ? 'visible' : 'hidden',
     textAlign: getAlign(cell),
     alignSelf: va === 'top' ? 'start' : va === 'bottom' ? 'end' : 'center',
     textTransform: cell.field === 'set' ? 'uppercase' : 'none',
     fontWeight: cell.field === 'sceneNumber' ? 700 : 500,
     fontSize: '8pt',
-    lineHeight: 1.1,
+    lineHeight: multiRow ? `calc(8pt * 1.1 + ${cp * 2}px)` : 1.1,
     fontFamily: 'Helvetica, sans-serif',
+  };
+}
+
+export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1): React.CSSProperties {
+  const multiRow = span > 1;
+  if (multiRow && !cell.wrap) {
+    return {
+      display: '-webkit-box',
+      WebkitLineClamp: span,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden',
+      whiteSpace: 'normal',
+      overflowWrap: 'break-word',
+    } as React.CSSProperties;
+  }
+  if (cell.wrap) {
+    return {
+      whiteSpace: 'normal',
+      overflow: 'visible',
+      overflowWrap: 'break-word',
+    };
+  }
+  return {
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
 }
 
