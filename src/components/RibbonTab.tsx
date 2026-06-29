@@ -177,6 +177,17 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     })), colWidths);
   }, [rows, colWidths, commit]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.contentEditable === 'true') return;
+      if (selId) { e.preventDefault(); clearCell(selId); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selId, clearCell]);
+
   /* Column operations */
   const removeColumn = useCallback((ci: number) => {
     if (numCols <= 1) return;
@@ -912,6 +923,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             gridColumn: ci + 1,
                             gridRow: ri + 1,
                             display: 'flex',
+                            alignItems: c.verticalAlign === 'top' ? 'flex-start' : c.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                             position: 'relative',
                             padding: `${activeDesign.cellPadding ?? 6}px 6px`,
                             borderRight: ci < numCols - 1 ? '1px solid #000' : 'none',
@@ -1022,8 +1034,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                                 <div key={p.id} style={{
                                   gridColumn: p.col + 1,
                                   gridRow: `${p.row + 1} / span ${p.span}`,
-                                  display: 'flex',
-                                  alignItems: 'center',
+                                   display: 'flex',
+                                  alignItems: c.verticalAlign === 'top' ? 'flex-start' : c.verticalAlign === 'bottom' ? 'flex-end' : 'center',
                                   padding: `${activeDesign.cellPadding ?? 6}px 6px`,
                                   borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
