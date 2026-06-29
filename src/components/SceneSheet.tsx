@@ -8,6 +8,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
 import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
 import { sceneStyle, INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
+import { getFieldItems, isMultiValue } from '../lib/categories';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -164,7 +165,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         const v = (e as any)[cat]; if (!v) continue;
         const elements = breakdownElements[cat] || [];
         const existing = new Set(elements.flatMap((x: any) => [x.name.toLowerCase(), x.id.toLowerCase()]));
-        for (const item of v.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+        for (const item of getFieldItems(cat, v)) {
           const key = `${cat}:${item.toLowerCase()}`;
           if (!existing.has(item.toLowerCase()) && !added.has(key)) {
             added.add(key);
@@ -206,13 +207,13 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       }
       for (const s of scenes) {
         const raw = cat === 'cast' ? s.cast : (s as any)[cat] || '';
-        for (const v of raw.split(',').map((x: string) => x.trim()).filter(Boolean)) {
+        for (const v of getFieldItems(cat, raw)) {
           const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v);
         }
       }
       if (scene) {
         const ev = (edits[scene.id] as Record<string, any>)?.[cat];
-        if (ev) for (const v of ev.split(',').map((x: string) => x.trim()).filter(Boolean)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v); }
+        if (ev) for (const v of getFieldItems(cat, ev)) { const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v); }
       }
       result[cat] = items;
     }
@@ -388,7 +389,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
                   ) : cat === 'cast' ? (
                     <EntityDropdown value={val('cast')} onChange={v => update('cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>} />
                   ) : (
-                    <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode="multi" placeholder={allBreakdownLabel[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
+                    <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, project.customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
                   )}
                 </div>
               </div>
