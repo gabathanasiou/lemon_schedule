@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, getRibbonTextWrapStyle, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
@@ -580,7 +580,7 @@ export const SortableRow: React.FC<{
       </td>
     );
   };
-  const cellFlexBase = (cell: RibbonCell) => getRibbonCellBaseStyle(cell, cellPadding);
+  const cellFlexBase = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPadding, span);
 
   const ENTITY_FIELDS = useMemo(() => {
     const hiddenSet = new Set(state.present.hiddenCategories || []);
@@ -637,7 +637,7 @@ export const SortableRow: React.FC<{
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
     const style: React.CSSProperties = {
-      ...cellFlexBase(cell),
+      ...cellFlexBase(cell, span),
       textAlign: a as any,
       ...getCellBorderProps(cellBorders, textColor, isLast, isLastRow),
     };
@@ -658,7 +658,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt', ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -670,7 +670,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt', ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -682,7 +682,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!textEditingEnabled} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt', ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -694,7 +694,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: wrap ? 'visible' : 'hidden', textOverflow: wrap ? undefined : 'ellipsis', display: 'block', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+            <span className={inputClass} style={{ ...getRibbonTextWrapStyle(cell, span || 1), fontSize: '8pt', display: 'block', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
           )}
         </div>
       );
@@ -715,7 +715,7 @@ export const SortableRow: React.FC<{
             {textEditingEnabled ? (
               <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
             ) : (
-              <span className={inputClass} style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!sv ? emptyStyle : {}) }}>{sv ? displayText : fieldLabel}</span>
+              <span className={inputClass} style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt', ...(!sv ? emptyStyle : {}) }}>{sv ? displayText : fieldLabel}</span>
             )}
             {violationBadge}
           </div>
@@ -725,14 +725,14 @@ export const SortableRow: React.FC<{
     if (field === 'text') {
       return (
         <div key={cellId} style={style}>
-          <span style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap' }}>{cell.textContent || ''}</span>
+          <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), fontSize: '8pt' }}>{cell.textContent || ''}</span>
         </div>
       );
     }
     if (field === 'callTime') {
       return (
         <div key={cellId} style={style}>
-          <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1 }}>{fmt(prefix, val, suffix)}</span>
+          <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt' }}>{fmt(prefix, val, suffix)}</span>
         </div>
       );
     }
@@ -744,7 +744,7 @@ export const SortableRow: React.FC<{
           {textEditingEnabled ? (
             <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
-            <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
+            <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt', ...(!v ? emptyStyle : {}) }}>{v ? fmt(prefix, v, suffix) : fieldLabel}</span>
           )}
         </div>
       );
@@ -755,7 +755,7 @@ export const SortableRow: React.FC<{
         {textEditingEnabled ? (
           <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
-          <span style={{ display: 'block', fontSize: '8pt', lineHeight: 1.1, ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
+          <span style={{ ...getRibbonTextWrapStyle(cell, span || 1), display: 'block', fontSize: '8pt', ...(!val ? emptyStyle : {}) }}>{val ? displayText : fieldLabel}</span>
         )}
       </div>
     );
