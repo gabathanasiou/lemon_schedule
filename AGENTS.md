@@ -217,6 +217,13 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - `useProject()` hook returns `{ state, dispatch, currentProjectId }`.
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
 - Actions: `UPDATE_PROJECT`, `NEW_VERSION`, `DELETE_VERSION`, `RENAME_VERSION`, `SET_ACTIVE_VERSION`, `ADD_SCENE`, `UPDATE_SCENE`, `DELETE_SCENE`, `UNDO`, `REDO`, etc.
+- **Batching:** For bulk operations that dispatch many actions (import, paste), wrap in `BATCH_START` / `BATCH_COMMIT` to make the entire operation one undoable unit:
+  ```ts
+  dispatch({ type: 'BATCH_START' });
+  // ... many dispatches ...
+  dispatch({ type: 'BATCH_COMMIT' });
+  ```
+  Supports nesting — only the outermost commit pushes to undo history. `MERGE_ELEMENTS` is already atomic (single action, single undo entry).
 
 #### Drag Ghost Rendering (DayBlock.tsx)
 - Ghost rows for `day-{day}` appear **before** the SortableContext (consolidated single location).
