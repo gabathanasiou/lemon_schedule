@@ -160,12 +160,12 @@ export const SortableRow: React.FC<{
 
       return (
         <div {...commonProps}>
-          <div className="flex items-stretch min-w-0" style={noteStyle}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
-              width: '100%',
-            }}>
+          <div className="flex items-stretch min-w-0">
+            <div className="flex-1 min-w-0 flex flex-col" style={{ ...noteStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+              }}>
             {cells.map((cell, ci) => {
               const wrapCell = ci === mainCellIdx;
               if (wrapCell) {
@@ -202,6 +202,9 @@ export const SortableRow: React.FC<{
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     padding: noteBreakPadPx,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
                     fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                     textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
                   }}>
@@ -222,6 +225,10 @@ export const SortableRow: React.FC<{
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   padding: noteBreakPadPx,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
                   fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
@@ -230,6 +237,7 @@ export const SortableRow: React.FC<{
                 padding: noteBreakPadPx,
               }} />;
             })}
+            </div>
             </div>
           </div>
         </div>
@@ -310,12 +318,12 @@ export const SortableRow: React.FC<{
 
       return (
         <div {...commonProps}>
-          <div className="flex items-stretch min-w-0" style={breakStyle}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
-              width: '100%',
-            }}>
+          <div className="flex items-stretch min-w-0">
+            <div className="flex-1 min-w-0 flex flex-col" style={{ ...breakStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
+              }}>
             {cells.map((cell, ci) => {
               const wrapCell = ci === mainCellIdx;
               if (wrapCell) {
@@ -352,6 +360,9 @@ export const SortableRow: React.FC<{
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     padding: noteBreakPadPx,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
                     fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                     textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
                   }}>
@@ -372,6 +383,10 @@ export const SortableRow: React.FC<{
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   padding: noteBreakPadPx,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  textAlign: cell.align === 'center' ? 'center' : cell.align === 'right' ? 'right' : 'left',
                   fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                 }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
               }
@@ -380,6 +395,7 @@ export const SortableRow: React.FC<{
                 padding: noteBreakPadPx,
               }} />;
             })}
+            </div>
             </div>
           </div>
         </div>
