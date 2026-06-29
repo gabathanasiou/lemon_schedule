@@ -420,6 +420,7 @@ export function commitImport({
     }
   }
 
+  const importedSets = new Set<string>();
   for (const ps of result.scenes) {
     const castIds = ps.characters
       .map(name => {
@@ -437,6 +438,9 @@ export function commitImport({
       breakdownFields[cat] = items.join(', ');
     }
 
+    const setName = (breakdownFields.set || ps.set || '').toUpperCase().trim();
+    if (setName) importedSets.add(setName);
+
     const sceneBase: any = {
       id: generateUUID(),
       sceneNumber: ps.sceneNumber,
@@ -444,7 +448,7 @@ export function commitImport({
       pageCountDecimal: ps.pageCountDecimal ?? 1,
       scriptDay: breakdownFields.scriptDay || '',
       intExt: ps.intExt,
-      set: breakdownFields.set || ps.set.toUpperCase(),
+      set: setName || ps.set.toUpperCase(),
       dayNight: ps.dayNight,
       description: breakdownFields.description || '',
       cast: castIds,
@@ -473,5 +477,8 @@ export function commitImport({
     }
 
     dispatch({ type: 'ADD_SCENE', payload: sceneBase });
+  }
+  for (const name of importedSets) {
+    dispatch({ type: 'ADD_ELEMENT', payload: { category: 'set', element: { id: name, name } } });
   }
 }
