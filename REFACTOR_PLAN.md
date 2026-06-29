@@ -935,25 +935,53 @@ Current unscheduled sidebar CSS/persistence keys retained (just renamed in UI).
 
 The Calendar is a **timeline management panel**:
 - Set/view production start date
-- Mark days off (holidays, custom, auto-weekends)
-- Place hold/travel days (static, pinned)
-- See derived working-day assignments
+- Configure default days off (auto-weekends, which weekdays)
+- Mark individual dates as holidays, custom days off, hold days, or travel days
+- See derived working-day assignments (dates computed automatically)
 - Insert working days at specific dates
 - Rearrange scenes between day cells (drag-and-drop)
+- Reorder working days relative to each other (day drag = swap group positions)
 - View unscheduled + boneyard scenes in side panel
 
 ### 8.2 Calendar header controls
 
 ```
-[Start: 2026-06-29 📅]  [✓ Auto Weekends]  [Sat-Sun ▾]  [Today]
+[Start: 2026-06-29 📅]  [✓ Auto Weekends]  [Days Off ⚙]  [Today]
 ```
 
-- **Start date input**: Native `<input type="date" />`. When empty, shows placeholder "Set start date…" with a subtle highlight to draw the eye.
-- **Auto-weekends toggle**: Checkbox/switch.
-- **Weekend days selector**: Dropdown for "Sat-Sun", "Fri-Sat", "None", custom.
+- **Start date input**: Native `<input type="date" />`. When empty, shows placeholder "Set start date…" with a subtle pulsing highlight (`ring-2 ring-amber-500/50 animate-pulse`).
+- **Auto-weekends toggle**: Checkbox/switch. When ON, the weekdays selected in the Days Off dialog are automatically marked as days off. Individual weekend dates can always be overridden via right-click.
+- **Days Off dialog**: Opens a small modal with weekday checkboxes (see 8.3).
 - **Today button**: Navigate to current month.
 
-### 8.3 Calendar grid cells
+### 8.3 Days Off dialog
+
+A small modal dialog for selecting which weekdays are default days off. Opens from the "Days Off ⚙" button in the calendar header.
+
+```
+┌──────────────────────────────────┐
+│  Default Days Off                │
+│                                  │
+│  [✓] Monday                      │
+│  [✓] Tuesday                     │
+│  [ ] Wednesday                   │
+│  [ ] Thursday                    │
+│  [✓] Friday                      │
+│  [✓] Saturday                    │
+│  [✓] Sunday                      │
+│                                  │
+│         [Cancel]  [Apply]        │
+└──────────────────────────────────┘
+```
+
+- Starts with Monday (matches the calendar grid layout which is Monday-start).
+- Checked = this weekday is a default day off.
+- Updates `calendar.weekendDays` array (e.g. `[0, 6]` for Sat-Sun, `[5, 6]` for Fri-Sat, `[0, 1, 5, 6]` for Mon-Tue-Fri-Sat-Sun).
+- Only takes effect when `autoWeekends` is ON. When OFF, these checkboxes have no effect (but are still visible/editable for when the user turns auto-weekends back on).
+- Checking/unchecking immediately re-derives all working day dates.
+- Auto-weekends is not a hard lock — individual dates can always be overridden via right-click ("Insert Working Day Here" on a weekend date frees it).
+
+### 8.4 Calendar grid cells
 
 Each cell derives its state from the calendar configuration:
 
@@ -973,53 +1001,128 @@ Cell types:
 | Travel day | `calendar.statusDays` | Purple badge `TRAVEL` |
 | Holiday | `calendar.daysOff[type='holiday']` | Green badge `HOLIDAY: label` |
 | Weekend (auto) | `autoWeekends + weekendDays` | Gray `WEEKEND` |
-| Custom day off | `calendar.daysOff[type='custom']` | Gray `OFF` |
-| Start date | `calendar.startDate` | Colored ring + `START` badge (see 8.8) |
+| Custom day off | `calendar.daysOff[type='custom']` | Gray `OFF: label` |
+| Start date | `calendar.startDate` | Blue ring + `START` badge (see 8.12) |
 | Free date | none of the above | Empty/interactive |
 
-### 8.4 Right-click context menu (replaces current)
+### 8.5 Interaction model: right-click + double-click only
 
-**Empty/free date:**
-```
-- Insert Working Day Here    → INSERT_WORKING_DAY
-- Mark as Day Off            → SET_DAYS_OFF (custom)
-- Mark as Holiday...         → SET_DAYS_OFF (holiday, with label input)
-- Set as Hold Day            → SET_STATUS_DAY (hold)
-- Set as Travel Day          → SET_STATUS_DAY (travel)
----
-- Set as Production Start    → SET_PRODUCTION_START
-```
+**No paint tools.** No tool palette. All calendar interactions are via right-click context menus and double-click. This eliminates accidental clicks and makes every action intentional.
 
-**Working day cell:**
+### 8.6 Right-click context menus
+
+#### Empty / free date
+
 ```
-- Insert Working Day Before  → INSERT_WORKING_DAY (shift)
-- Convert to Hold Day        → CONVERT_WORKING_DAY (hold)
-- Convert to Travel Day      → CONVERT_WORKING_DAY (travel)
-- Convert to Day Off        → CONVERT_WORKING_DAY (dayoff)
-- Remove Working Day         → UNSCHEDULE_DAY (scenes → unscheduled)
----
-- Add Scene Here             → open panel to pick unscheduled scene
+Insert Working Day Here       → INSERT_WORKING_DAY
+─────────────────────────────
+Mark as Day Off               → SET_DAYS_OFF (custom)
+Mark as Holiday...            → SET_DAYS_OFF (holiday) → opens label modal
+Set as Hold Day               → SET_STATUS_DAY (hold)
+Set as Travel Day             → SET_STATUS_DAY (travel)
+─────────────────────────────
+Set as Production Start       → SET_PRODUCTION_START
 ```
 
-**Status day cell (hold/travel):**
+#### Weekend date (auto-weekends ON)
+
+Weekend dates are not locked — they can be overridden:
+
 ```
-- Remove Hold/Travel Day     → SET_STATUS_DAY (remove, frees date)
-- Edit Cast...               → open cast picker modal
+Insert Working Day Here       → INSERT_WORKING_DAY (frees this date from auto-weekend)
+─────────────────────────────
+Mark as Holiday...            → SET_DAYS_OFF (holiday) → opens label modal
+Set as Hold Day               → SET_STATUS_DAY (hold)
+Set as Travel Day             → SET_STATUS_DAY (travel)
+─────────────────────────────
+Set as Production Start       → SET_PRODUCTION_START
 ```
 
-**Day off cell (holiday/custom):**
+Note: "Mark as Day Off" is not shown — the date is already a day off (weekend). If the user wants to change the weekend to a custom day off with a label, they use "Mark as Holiday..." or we add "Mark as Custom Day Off..." — but the weekend state already serves this purpose.
+
+#### Working day cell
+
 ```
-- Remove Day Off             → SET_DAYS_OFF (remove, frees date)
-- Edit Label...              → update label
+Convert to Hold Day           → CONVERT_WORKING_DAY (hold)
+Convert to Travel Day         → CONVERT_WORKING_DAY (travel)
+Convert to Day Off            → CONVERT_WORKING_DAY (dayoff)
+Remove Working Day            → removes DAY_BREAK, scenes → unscheduled
+─────────────────────────────
+Edit Call Time...             → opens call time input modal
 ```
 
-### 8.5 Drag-and-drop
+"Remove Working Day" removes the day break that ends this day's group. The scenes in that group merge into the next group (or become unscheduled if it's the last group). Scenes are NOT sent to boneyard — they stay in circulation as unscheduled.
 
-- **Scene cards**: drag between calendar day cells = reassign to that working day group. Internal stripboard position updates (moves past/before day breaks).
-- **Day header drag**: **Disabled in V1.** Dates are derived, not draggable. To change which date a working day lands on, change the calendar config (start date, days off, status days).
-- **From unscheduled/boneyard panel**: drag scene onto a calendar day cell = schedule into that group.
+#### Hold / Travel day cell
 
-### 8.6 Calendar side panel: Unscheduled + Boneyard
+```
+Edit Cast...                  → opens EntityDropdown modal (cast picker)
+Edit Label...                 → opens text input modal
+Edit Call Time...             → opens call time input modal (if travel)
+─────────────────────────────
+Remove Hold/Travel Day        → SET_STATUS_DAY (remove) → frees the date
+```
+
+Removing a hold/travel day frees the date. Working days that were pushed forward by this status day flow back automatically.
+
+#### Holiday / Custom day-off cell
+
+```
+Edit Label...                 → opens text input modal
+─────────────────────────────
+Remove Day Off                → SET_DAYS_OFF (remove) → frees the date
+```
+
+Removing a day off frees the date. Working days that were pushed forward flow back.
+
+### 8.7 Double-click behaviors
+
+Double-click is a shortcut for the most common action on each cell type:
+
+| Cell type | Double-click action |
+|---|---|
+| Empty / free date | Opens quick status popover: Working / Hold / Travel / Holiday / Day Off |
+| Weekend date | Opens quick status popover (same — allows override) |
+| Working day | Opens call time editor |
+| Hold / Travel day | Opens cast picker |
+| Holiday / Custom day off | Opens label editor |
+
+The quick status popover is a small floating panel with 5 buttons:
+```
+┌─────────────────┐
+│ ○ Working Day   │
+│ ○ Hold Day      │
+│ ○ Travel Day    │
+│ ○ Holiday       │
+│ ○ Day Off       │
+└─────────────────┘
+```
+Selecting one dispatches the appropriate action immediately.
+
+### 8.8 Drag-and-drop
+
+Three drag interactions:
+
+#### Scene cards (between calendar day cells)
+- Drag a scene card from one working day cell to another = reassign to that working day group.
+- Internally: the scene's row moves past/before the appropriate DAY_BREAK in the stripboard.
+- Can drag onto any working day cell (not onto status/day-off cells — they're not drop targets).
+- Can drag from the unscheduled/boneyard side panel onto a working day cell.
+
+#### Day drag (swap working day positions)
+- Drag a working day header onto another working day cell → **swap group positions** in the stripboard.
+- Day 3's rows and Day 5's rows exchange places in the rows array.
+- DAY_BREAK positions shift accordingly.
+- Dates re-derive automatically based on new group order.
+- Can only drop onto other working day cells (not empty/status/day-off cells).
+- This preserves the current calendar's day-drag UX — the mechanism changes (reorder rows instead of swap stored dates) but the interaction is identical.
+
+#### From unscheduled / boneyard panel
+- Drag scene onto a calendar working day cell = schedule into that group.
+- Boneyard scenes auto-un-boneyard (`boneyard = false`) when dragged onto a day.
+- Unscheduled scenes just get `shootDay` assigned.
+
+### 8.9 Calendar side panel: Unscheduled + Boneyard
 
 One panel, two sections with different headers:
 
@@ -1051,26 +1154,41 @@ One panel, two sections with different headers:
 </div>
 ```
 
-- Both sections draggable onto calendar day cells.
+- Both sections draggable onto calendar working day cells.
 - Boneyard scenes auto-un-boneyard (`boneyard = false`) when dragged onto a day.
 - Unscheduled scenes just get `shootDay` assigned.
 - Width persisted (existing key `lemon_schedule_calendar_sidebar_width`).
 
-### 8.7 `TOGGLE_WORKING_DAY` deprecation
+### 8.10 Edit modals
 
-The current calendar "Work" tool (painting a date as a working day) is replaced by:
-- Adding days off / hold / travel days creates static entries (pushes working days around)
-- Inserting a working day creates a day break at the right position
-- Working days are NEVER directly "painted" — they emerge from the stripboard day breaks flowing around static entries
+Three small modals for editing existing calendar entries (reuse existing components):
 
-The tool palette (Select / Work / Hold / Travel / Holiday / Eraser) is replaced by:
-- **Select mode** (default) — click to select, drag to move
-- **Day Off mode** — click dates to toggle day off
-- **Hold mode** — click dates to toggle hold day
-- **Travel mode** — click dates to toggle travel day
-- **Eraser** — click any entry to remove it (day off, hold, travel, or working day)
+#### Label editor modal
+- Simple text input with Save/Cancel.
+- Used for: holidays, custom days off, hold day labels, travel day labels.
+- Pre-filled with existing label value.
 
-### 8.8 Start date UX
+#### Cast picker modal
+- `EntityDropdown` in multi-select mode, bound to `StatusDayEntry.castIds`.
+- Used for: hold days, travel days.
+- Pre-filled with existing cast assignments.
+
+#### Call time editor modal
+- `CellInput` bound to `dayMeta[N].unitCall` (working days) or `StatusDayEntry.unitCall` (travel days).
+- Used for: working days (via right-click or double-click), travel days.
+- Hold days don't have call times.
+
+### 8.11 `TOGGLE_WORKING_DAY` deprecation
+
+The current calendar tool palette (Select / Work / Hold / Travel / Holiday / Eraser) is **removed entirely**. Working days are never "painted" — they emerge from the stripboard day breaks flowing around static calendar entries.
+
+The current `TOGGLE_WORKING_DAY` store action is deprecated. Replaced by:
+- `INSERT_WORKING_DAY` — creates a day break at the calendar position
+- `SET_DAYS_OFF` — marks a date as off (pushes working days around)
+- `SET_STATUS_DAY` — creates hold/travel entries (pushes working days around)
+- `CONVERT_WORKING_DAY` — converts an existing working day to hold/travel/dayoff
+
+### 8.12 Start date UX
 
 The production start date is the anchor for the entire schedule. It needs to be obvious, easy to set, and easy to change — with clear feedback when it changes.
 
@@ -1331,18 +1449,19 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 
 ### Phase 3: Calendar Refactor
 
-**Goal**: Calendar shows derived days, manages days off/hold/travel, inserts working days.
+**Goal**: Calendar shows derived days, manages days off/hold/travel, inserts working days, full drag-and-drop.
 
-1. **Rewrite `CalendarTab.tsx`**: Replace tool palette with start-date picker, auto-weekends toggle, weekend-days selector.
-2. **Start date UX**: Empty state banner, pulsing input highlight, START cell ring + badge, change feedback flash (see section 8.8).
-3. **Days off rendering**: Auto-weekend badges, holiday badges, custom day-off badges on calendar cells.
-4. **Status day rendering**: Hold/travel badges on calendar cells.
-5. **Derived working day display**: `DAY #N · date` header on working day cells + scene cards.
-6. **Right-click context menu**: New menu with insert/convert/mark options.
-7. **Side panel**: Unscheduled + Boneyard sections with separate headers.
-8. **Drag-and-drop**: Preserve scene-card DnD between cells. Remove day-header drag.
-9. **Stripboard start date prompt**: "Set start date" button in stripboard toolbar when `startDate` is null. "No start date" warning in DayBlock headers. Day 1 START tag.
-10. **Manual testing**: Set start date (verify empty state → banner appears → dismisses), add holidays, toggle weekends, insert days, convert working days to hold, change start date (verify flash feedback), verify stripboard updates automatically.
+1. **Rewrite `CalendarTab.tsx`**: Remove tool palette entirely. Add start-date picker, auto-weekends toggle, Days Off dialog button (see 8.3), Today button.
+2. **Days Off dialog**: Small modal with weekday checkboxes starting Monday. Updates `calendar.weekendDays`. Re-derives dates on apply.
+3. **Start date UX**: Empty state banner, pulsing input highlight, START cell ring + badge, change feedback flash (see section 8.12).
+4. **Calendar cell rendering**: Auto-weekend badges, holiday badges, custom day-off badges, hold/travel badges, derived working day headers. Weekend cells are overridable (not locked).
+5. **Right-click context menus**: Five cell-type-specific menus (empty, weekend, working, hold/travel, day-off). No paint tools. All actions are intentional right-clicks (see 8.6).
+6. **Double-click shortcuts**: Quick status popover on empty/weekend, call time editor on working, cast picker on hold/travel, label editor on day-off (see 8.7).
+7. **Edit modals**: Label editor, cast picker (EntityDropdown), call time editor (CellInput) for existing calendar entries (see 8.10).
+8. **Drag-and-drop**: Scene cards between working day cells. Day drag to swap working day positions (preserved from current — reorders groups in stripboard, dates re-derive). Unscheduled/boneyard panel drag onto working day cells (see 8.8).
+9. **Side panel**: Unscheduled + Boneyard sections with separate headers (see 8.9).
+10. **Stripboard start date prompt**: "Set start date" button in stripboard toolbar when `startDate` is null. "No start date" warning in DayBlock headers. Day 1 START tag.
+11. **Manual testing**: Set start date (empty state → banner → dismiss), use Days Off dialog (check/uncheck weekdays → dates shift), right-click empty date → insert working day, right-click weekend → override, double-click working day → edit call time, right-click hold day → edit cast, drag day onto another day → swap, drag scene between days, change start date → flash feedback, add holiday → working days push forward, remove hold day → working days pull back.
 
 ### Phase 4: Downstream & Polish
 
@@ -1399,7 +1518,11 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 | `src/components/StatusDayBlock.tsx` | **New** (~60 lines) | Hold/travel day rendering between working day blocks |
 | `src/components/UnscheduledZone.tsx` | **New** (~50 lines) | Unscheduled scenes at bottom of stripboard |
 | `src/components/BoneyardBlock.tsx` | Low | Rename from UnscheduledBlock, filter for `boneyard: true` |
-| `src/components/CalendarTab.tsx` | High | Full rewrite: start date UX (empty state, banner, ring, flash), days off, status days, derived display, new context menu, side panel with unscheduled + boneyard |
+| `src/components/CalendarTab.tsx` | High | Full rewrite: remove paint tools, start date UX (empty state, banner, ring, flash), Days Off dialog, right-click context menus (5 types), double-click shortcuts, edit modals (label/cast/call time), day drag swap, scene DnD, side panel with unscheduled + boneyard |
+| `src/components/DaysOffDialog.tsx` | **New** (~80 lines) | Small modal with weekday checkboxes (Mon-start), updates `calendar.weekendDays` |
+| `src/components/QuickStatusPopover.tsx` | **New** (~50 lines) | Small floating panel for double-click on empty/weekend cells: Working/Hold/Travel/Holiday/DayOff |
+| `src/components/EditLabelModal.tsx` | **New** (~40 lines) | Simple text input modal for holiday/hold/travel labels |
+| `src/components/EditCastModal.tsx` | **New** (~50 lines) | EntityDropdown in multi-select for hold/travel cast lists |
 | `src/components/PrintSchedule.tsx` | Medium | Replace `chronoDayMap`, use `deriveStripboardLayout` |
 | `src/components/DoodsTab.tsx` | Medium | Replace `chronoDayMap` |
 | `src/components/print/Dood.tsx` | Medium | Replace `chronoDayMap` |
@@ -1409,7 +1532,7 @@ Callers pass `derivedDates` from their memoized computation. Minimal change — 
 | `src/components/HelpModal.tsx` | Low | Day Breaks section |
 | `AGENTS.md` | Low | Architecture doc update |
 
-**Total**: ~1500-1800 lines of new/modified code across 18 files (plus 3 new files).
+**Total**: ~1800-2200 lines of new/modified code across 18 files (plus 7 new files).
 
 ---
 
