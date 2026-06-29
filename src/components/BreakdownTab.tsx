@@ -410,6 +410,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
     // Process all pasted/extra rows beyond existing scenes
     let createdAny = false;
+    const hasPastedRows = newData.length > phantomIndex;
+    if (hasPastedRows) dispatch({ type: 'BATCH_START' });
     for (let row = phantomIndex; row < newData.length; row++) {
       const row_data = newData[row];
       if (!row_data) continue;
@@ -454,7 +456,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       createdAny = true;
     }
 
-    if (createdAny) return;
+    if (createdAny) {
+      dispatch({ type: 'BATCH_COMMIT' });
+      return;
+    }
+    if (hasPastedRows) dispatch({ type: 'BATCH_COMMIT' });
 
     for (let row = 0; row < Math.min(scenes.length, newData.length); row++) {
       for (let col = 0; col < COLUMNS.length; col++) {
@@ -541,6 +547,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           shootDay: null
         }));
         if (imported.length > 0) {
+          dispatch({ type: 'BATCH_START' });
           dispatch({ type: 'IMPORT_SCENES', payload: imported });
           const entityCategories = ['cast', ...allBreakdownCategories];
           for (const scene of imported) {
@@ -563,6 +570,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               }
             }
           }
+          dispatch({ type: 'BATCH_COMMIT' });
         }
         if (fileInputRef.current) fileInputRef.current.value = '';
       }

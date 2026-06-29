@@ -374,9 +374,11 @@ export function commitImport({
   projectTitle,
   reEnableCategories = [],
 }: CommitImportParams): void {
-  if (projectTitle) {
-    dispatch({ type: 'UPDATE_PROJECT', payload: { title: projectTitle } });
-  }
+  dispatch({ type: 'BATCH_START' });
+  try {
+    if (projectTitle) {
+      dispatch({ type: 'UPDATE_PROJECT', payload: { title: projectTitle } });
+    }
   for (const key of reEnableCategories) {
     dispatch({ type: 'SHOW_CATEGORY', payload: key });
   }
@@ -480,5 +482,8 @@ export function commitImport({
   }
   for (const name of importedSets) {
     dispatch({ type: 'ADD_ELEMENT', payload: { category: 'set', element: { id: name, name } } });
+  }
+  } finally {
+    dispatch({ type: 'BATCH_COMMIT' });
   }
 }
