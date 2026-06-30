@@ -981,9 +981,9 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
-    if (overId && (activeType === 'ROW' || activeType === 'DAY_FOOTER')) {
+    if (overId && activeType === 'ROW') {
       if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
-        setInsertBeforeId(activeType === 'ROW' ? 'end-unscheduled' : null);
+        setInsertBeforeId('end-unscheduled');
         return;
       }
       const day = getDayFromId(overId);
@@ -1001,6 +1001,13 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
         } else {
           setInsertBeforeId(null);
         }
+      }
+    } else if (overId && activeType === 'DAY_FOOTER') {
+      const day = getDayFromId(overId);
+      if (day !== null) {
+        setInsertBeforeId(`end-${day}`);
+      } else {
+        setInsertBeforeId(null);
       }
     } else {
       setInsertBeforeId(null);
@@ -1029,17 +1036,32 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       
       if (overDay !== null && activeDay !== overDay) {
          let newRows = augmentedRows.map(r => ({ ...r }));
-         newRows = newRows.map(r => {
-           if (r.shootDay === activeDay) return { ...r, shootDay: -1 }; 
-           if (r.shootDay === overDay) return { ...r, shootDay: activeDay };
-           return r;
-         }).map(r => r.shootDay === -1 ? { ...r, shootDay: overDay } : r);
+         if (activeDay < overDay) {
+           newRows = newRows.map(r => {
+             if (r.shootDay === activeDay) return { ...r, shootDay: overDay };
+             if (r.shootDay > activeDay && r.shootDay <= overDay) return { ...r, shootDay: r.shootDay - 1 };
+             return r;
+           });
+         } else {
+           newRows = newRows.map(r => {
+             if (r.shootDay === activeDay) return { ...r, shootDay: overDay };
+             if (r.shootDay >= overDay && r.shootDay < activeDay) return { ...r, shootDay: r.shootDay + 1 };
+             return r;
+           });
+         }
          
          const newMeta = { ...activeVersion.dayMeta };
-         const tempMeta = newMeta[activeDay];
-         newMeta[activeDay] = { ...(newMeta[overDay] || {}), shootDay: activeDay };
-         newMeta[overDay] = { ...(tempMeta || {}), shootDay: overDay };
-         if (!newMeta[overDay].unitCall) newMeta[overDay] = { ...newMeta[overDay], unitCall: '08:00', date: '' };
+         const moved = newMeta[activeDay] ? { ...newMeta[activeDay], shootDay: overDay } : undefined;
+         if (activeDay < overDay) {
+           for (let d = activeDay + 1; d <= overDay; d++) {
+             newMeta[d - 1] = newMeta[d] ? { ...newMeta[d], shootDay: d - 1 } : { shootDay: d - 1, unitCall: '08:00', date: '' };
+           }
+         } else {
+           for (let d = overDay; d < activeDay; d++) {
+             newMeta[d + 1] = newMeta[d] ? { ...newMeta[d], shootDay: d + 1 } : { shootDay: d + 1, unitCall: '08:00', date: '' };
+           }
+         }
+         if (moved) newMeta[overDay] = moved;
 
          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, dayMeta: newMeta } });
       }
@@ -1053,16 +1075,31 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       
       if (overDay !== null && activeDay !== overDay) {
          let newRows = augmentedRows.map(r => ({ ...r }));
-         newRows = newRows.map(r => {
-           if (r.shootDay === activeDay) return { ...r, shootDay: -1 }; 
-           if (r.shootDay === overDay) return { ...r, shootDay: activeDay };
-           return r;
-         }).map(r => r.shootDay === -1 ? { ...r, shootDay: overDay } : r);
-         
+         if (activeDay < overDay) {
+           newRows = newRows.map(r => {
+             if (r.shootDay === activeDay) return { ...r, shootDay: overDay };
+             if (r.shootDay > activeDay && r.shootDay <= overDay) return { ...r, shootDay: r.shootDay - 1 };
+             return r;
+           });
+         } else {
+           newRows = newRows.map(r => {
+             if (r.shootDay === activeDay) return { ...r, shootDay: overDay };
+             if (r.shootDay >= overDay && r.shootDay < activeDay) return { ...r, shootDay: r.shootDay + 1 };
+             return r;
+           });
+         }
          const newMeta = { ...activeVersion.dayMeta };
-         const tempMeta = newMeta[activeDay];
-         newMeta[activeDay] = newMeta[overDay];
-         newMeta[overDay] = tempMeta;
+         const moved = newMeta[activeDay] ? { ...newMeta[activeDay], shootDay: overDay } : undefined;
+         if (activeDay < overDay) {
+           for (let d = activeDay + 1; d <= overDay; d++) {
+             newMeta[d - 1] = newMeta[d] ? { ...newMeta[d], shootDay: d - 1 } : { shootDay: d - 1, unitCall: '08:00', date: '' };
+           }
+         } else {
+           for (let d = overDay; d < activeDay; d++) {
+             newMeta[d + 1] = newMeta[d] ? { ...newMeta[d], shootDay: d + 1 } : { shootDay: d + 1, unitCall: '08:00', date: '' };
+           }
+         }
+         if (moved) newMeta[overDay] = moved;
 
          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, dayMeta: newMeta } });
       }
