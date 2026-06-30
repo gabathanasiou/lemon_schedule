@@ -76,10 +76,8 @@ interface EntityDropdownProps {
   autoFocus?: boolean;
   /** Display mode: 'id' (cast, default) or 'name' (non-cast). Controls checked matching and default renderer. */
   displayMode?: 'id' | 'name';
-  /** Fires on every internal val change (for tracking uncommitted edits) */
-  onValueChange?: (val: string) => void;
-  /** Fires when user cancels with Escape */
-  onCancel?: () => void;
+  /** Show a "Press Enter to commit" hint at the bottom of the dropdown panel */
+  commitHint?: boolean;
 }
 
 /**
@@ -202,8 +200,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   defaultOpen = false,
   autoFocus: autoFocusProp = false,
   displayMode = 'name',
-  onValueChange,
-  onCancel,
+  commitHint = false,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -235,10 +232,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   useEffect(() => {
     if (open) { committedRef.current = false; setHighlightedIndex(-1); }
   }, [open]);
-
-  useEffect(() => {
-    if (mode === 'multi' || mode === 'select') onValueChange?.(val);
-  }, [val, mode]);
 
   useLayoutEffect(() => {
     if (highlightedIndex < 0 || !panelRef.current) return;
@@ -377,7 +370,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         placeholder={placeholder}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
-          if (e.key === 'Escape') { committedRef.current = true; onCancel?.(); setOpen(false); setQuery(''); setHighlightedIndex(-1); }
+          if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') { e.preventDefault(); commit(); }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -428,8 +421,13 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 )}
               </button>
             );
-          }) : (
+           }) : (
             <div className="px-2 py-1 text-xs text-zinc-400 text-center">No matches</div>
+          )}
+          {commitHint && (
+            <div className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 mt-1 pt-1">
+              Press Enter to commit
+            </div>
           )}
         </div>
       )}
