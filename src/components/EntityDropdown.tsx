@@ -26,7 +26,7 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { Scene } from '../types';
 import { useProject } from '../store';
-import { useDropdown, useOpenHandler, sortCastMembers } from '../lib/dropdown';
+import { useDropdown, sortCastMembers } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 
 export const DD_ITEM_CLASS = (active: boolean) =>
@@ -216,7 +216,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const committedRef = useRef(false);
 
-  const handleOpen = useOpenHandler(setOpen);
+  const forceOpen = useCallback(() => {
+    committedRef.current = false;
+    setOpen(true);
+  }, [setOpen]);
 
   useSmartPosition(ref, positioning === 'relative' && open);
 
@@ -237,7 +240,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (open) { committedRef.current = false; setHighlightedIndex(-1); }
+    committedRef.current = false;
+    if (open) setHighlightedIndex(-1);
   }, [open]);
 
   useLayoutEffect(() => {
@@ -392,8 +396,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     </>
   );
 
-  if (readOnly) {
-    return <span className={className}>{value || '—'}</span>;
+  if (readOnly && !open) {
+    return <span className={className} onAuxClick={forceOpen}>{value || '—'}</span>;
   }
 
   const displayValue = open
@@ -401,16 +405,17 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     : (value || '');
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
       <input
         autoFocus={autoFocusProp}
         value={displayValue}
         onChange={e => {
           if (mode === 'multi' || mode === 'select') { setVal(e.target.value); } else { setQuery(e.target.value); }
           setHighlightedIndex(-1);
-          if (!open) { standalone ? setOpen(true) : handleOpen(); }
+          forceOpen();
         }}
-        onFocus={() => { if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
+        onFocus={forceOpen}
+        onClick={forceOpen}
         onBlur={() => commit()}
         placeholder={placeholder}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
