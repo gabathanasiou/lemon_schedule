@@ -169,7 +169,7 @@ const DayCell: React.FC<{
           )}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5">
+      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5" data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`} data-shoot-day={shootDay == null ? 'null' : shootDay}>
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>

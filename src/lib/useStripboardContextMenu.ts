@@ -281,8 +281,8 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     prependSelect?: () => void;
   }) => (e: React.MouseEvent) => {
     const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
+    e.preventDefault();
     if (rowEl) {
-      e.preventDefault();
       e.stopPropagation();
       const rowId = rowEl.getAttribute('data-row-id')!;
       if (!selectedRowIds.has(rowId)) {
