@@ -337,8 +337,13 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-  const ctrlOrCmdHeld = useAddMode();
 
+  const activeDragIdsRef = useRef(activeDragIds);
+  activeDragIdsRef.current = activeDragIds;
+  const selectedRowIdsRef = useRef(selectedRowIds);
+  selectedRowIdsRef.current = selectedRowIds;
+
+  const ctrlOrCmdHeld = useAddMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     calendarGridRef,

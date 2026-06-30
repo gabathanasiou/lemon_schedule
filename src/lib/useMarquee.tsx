@@ -88,6 +88,7 @@ export function useMarquee(
           if (!rowId.startsWith('empty-')) return;
         }
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
+        e.stopPropagation();
       }
 
       const rect = container.getBoundingClientRect();
@@ -139,7 +140,11 @@ export function useMarquee(
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
       setMarqueeBox(null);
-      if (hadMovement) _marqueeJustEndedRef.current = true;
+      if (hadMovement) {
+        _marqueeJustEndedRef.current = true;
+      } else {
+        onSelectionChangeRef.current(new Set(), _addMode);
+      }
     };
 
     container.addEventListener('pointerdown', onPointerDown);
