@@ -848,7 +848,6 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       <ContextMenu open={!!dayContextMenu} x={dayContextMenu?.x ?? 0} y={dayContextMenu?.y ?? 0} onClose={() => setDayContextMenu(null)}>
         {dayContextMenu?.shootDay != null ? (
           <>
-            <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-4 pt-1 pb-0.5">Set Status</div>
             <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>
             <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
             <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
@@ -860,7 +859,6 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           </>
         ) : (
           <>
-            <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-4 pt-1 pb-0.5">Set</div>
             <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
             <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
             <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
