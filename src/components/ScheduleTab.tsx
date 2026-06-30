@@ -8,11 +8,14 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, SeparatorHorizontal, Archive } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
+import { deriveDayDates, computeDayGroups, deriveShootDays, deriveStripboardLayout, StripboardItem } from '../lib/scheduling';
+import UnscheduledZone from './UnscheduledZone';
+import StatusDayBlock from './StatusDayBlock';
 import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
 import Modal from './Modal';
@@ -786,6 +789,18 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
       setContextMenu(null);
       return;
+    } else if (action === 'add_day_break') {
+      dispatch({ type: 'ADD_DAY_BREAK', payload: { versionId: activeVersion.id, afterRowId: rowId } });
+      setContextMenu(null);
+      return;
+    } else if (action === 'remove_day_break') {
+      dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, breakRowId: rowId } });
+      setContextMenu(null);
+      return;
+    } else if (action === 'send_to_boneyard') {
+      dispatch({ type: 'TOGGLE_BONEYARD', payload: { versionId: activeVersion.id, rowId } });
+      setContextMenu(null);
+      return;
     } else if (action === 'delete') {
       newRows = newRows.filter(r => r.id !== rowId);
     } else if (action === 'unschedule') {
@@ -1419,6 +1434,13 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               )}
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_day_break')} icon={<SeparatorHorizontal className="w-3.5 h-3.5" />}>Add Day Break Below</ContextMenuItem>
+              {row?.type === 'DAY_BREAK' && (
+                <>
+                  <ContextMenuDivider />
+                  <ContextMenuItem onClick={() => handleContextMenuAction('remove_day_break')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Day Break</ContextMenuItem>
+                </>
+              )}
               {row && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
@@ -1427,6 +1449,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('send_to_boneyard')} icon={<Archive className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
                 </>
               )}
               {(row?.type === 'NOTE' || row?.type === 'BREAK') && (
