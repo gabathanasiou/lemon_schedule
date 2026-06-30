@@ -265,7 +265,17 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     const label = statusLabel || `DAY #${displayDay}`;
     const dateStr = meta?.date ? formatDateLong(meta.date) : '';
     return (
-      <div className="flex-1 min-w-0 flex flex-col relative" style={{ paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+      <div 
+        className="flex-1 min-w-0 flex flex-col relative"
+        data-row-id={`empty-${dayInt}`}
+        data-shoot-day={dayInt}
+        onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
+        style={{ 
+          paddingLeft: edgePadding ?? 2, 
+          paddingRight: edgePadding ?? 2,
+          ...(selectedIds.has(`empty-${dayInt}`) ? { background: '#27272a' } : {}),
+        }}
+      >
         {violations.length > 0 && (
           <div className="absolute top-0 right-0 p-1 z-10">
             <ViolationTooltip violations={violations}>
