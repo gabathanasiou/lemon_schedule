@@ -152,23 +152,7 @@ const SortableRowContent: React.FC<{
   const sel = getSelectedStripColors(state.present.colorPalette);
 
   if (row.type === 'DAY_BREAK') {
-    const groupRows = state.present.versions
-      .find(v => v.id === activeVersionId)
-      ?.rows || [];
-    const dbStyle: React.CSSProperties = { background: '#1e293b', color: '#94a3b8' };
-    return (
-      <div className="flex items-stretch min-w-0">
-        <table className="schedule-table flex-1 min-w-0">
-          <tbody>
-            <tr className="row-day-break" style={dbStyle}>
-              <td colSpan={isCompact ? 5 : 8} className="text-center" style={{ padding: '4px 8px', fontSize: '9pt', fontWeight: 600, letterSpacing: '0.05em', borderTop: '2px solid #475569' }}>
-                END OF DAY {row.shootDay > 0 ? row.shootDay : ''}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    );
+    return null; // day footer serves as the visual separator
   }
 
   if (row.type === 'NOTE') {

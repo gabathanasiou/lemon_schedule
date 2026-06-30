@@ -743,9 +743,17 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     const rowIndex = augmentedRows.findIndex(r => r.id === rowId);
     const isDummy = rowId.startsWith('empty-');
 
-    // Dummy rows can only add notes/breaks/day-breaks
-    if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_day_break')) {
+    // Dummy rows can only add notes/breaks/day-breaks and remove day breaks
+    if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_day_break' || action === 'remove_day_break')) {
       const dummyDayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
+      if (action === 'remove_day_break') {
+        const breakRow = activeVersion.rows.find(r => r.type === 'DAY_BREAK' && r.shootDay === shootDay);
+        if (breakRow) {
+          dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, breakRowId: breakRow.id } });
+        }
+        setContextMenu(null);
+        return;
+      }
       if (action === 'add_day_break') {
         const lastRow = dummyDayRows[dummyDayRows.length - 1];
         const afterRowId = lastRow ? lastRow.id : (() => {
@@ -1571,6 +1579,12 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                 <>
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('remove_day_break')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Day Break</ContextMenuItem>
+                </>
+              )}
+              {!row && contextMenu?.rowId.startsWith('empty-') && (
+                <>
+                  <ContextMenuDivider />
+                  <ContextMenuItem onClick={() => handleContextMenuAction('remove_day_break')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete Day</ContextMenuItem>
                 </>
               )}
               {row && <ContextMenuDivider />}
