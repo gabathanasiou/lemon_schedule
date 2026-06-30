@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection, Point } from 'react-spreadsheet';
-import { useProject, DEFAULT_CATEGORY_LABELS, PROTECTED_CATEGORIES } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye } from 'lucide-react';
@@ -10,7 +10,6 @@ import { SceneSheet } from './SceneSheet';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
-import { useDialog } from './Dialog';
 import MiniTab from './MiniTab';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -85,7 +84,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [activeCell, setActiveCell] = useState<Point | null>(null);
   const [selectionRange, setSelectionRange] = useState<{ start: Point; end: Point } | null>(null);
   const spreadsheetRef = useRef<any>(null);
-  const dialog = useDialog();
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
@@ -619,8 +617,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const totalPagesDecimal = scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0);
 
   const handleCopy = useCallback(async () => {
-    if (!selectionRange) return;
-    const { start, end } = selectionRange;
+    const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
+    if (!range) return;
+    const { start, end } = range;
     const rows: string[] = [];
     for (let r = start.row; r <= end.row; r++) {
       const cols: string[] = [];
@@ -631,11 +630,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     }
     await navigator.clipboard.writeText(rows.join('\n'));
     setContextMenu(null);
-  }, [selectionRange, data]);
+  }, [selectionRange, activeCell, data]);
 
   const handleCut = useCallback(async () => {
-    if (!selectionRange) return;
-    const { start, end } = selectionRange;
+    const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
+    if (!range) return;
+    const { start, end } = range;
     const rows: string[] = [];
     for (let r = start.row; r <= end.row; r++) {
       const cols: string[] = [];
@@ -653,7 +653,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     }
     handleChange(newData);
     setContextMenu(null);
-  }, [selectionRange, data, handleChange]);
+  }, [selectionRange, activeCell, data, handleChange]);
 
   const handlePaste = useCallback(async () => {
     if (!activeCell) return;
@@ -676,8 +676,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [activeCell, data, handleChange]);
 
   const handleClear = useCallback(() => {
-    if (!selectionRange) return;
-    const { start, end } = selectionRange;
+    const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
+    if (!range) return;
+    const { start, end } = range;
     const newData = data.map(row => row.map(cell => ({ ...cell })));
     for (let r = start.row; r <= end.row; r++) {
       for (let c = start.column; c <= end.column; c++) {
@@ -687,7 +688,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     }
     handleChange(newData);
     setContextMenu(null);
-  }, [selectionRange, data, handleChange]);
+  }, [selectionRange, activeCell, data, handleChange]);
 
   const handleCellContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -933,10 +934,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           <>
             {contextMenu.col !== undefined && (
               <>
-                <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange}>Copy</ContextMenuItem>
-                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange}>Cut</ContextMenuItem>
+                <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange && !activeCell}>Copy</ContextMenuItem>
+                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange && !activeCell}>Cut</ContextMenuItem>
                 <ContextMenuItem onClick={handlePaste} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!activeCell}>Paste</ContextMenuItem>
-                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange}>Clear</ContextMenuItem>
+                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange && !activeCell}>Clear</ContextMenuItem>
                 <ContextMenuDivider />
               </>
             )}
@@ -951,26 +952,14 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             ) : (
               <ContextMenuItem onClick={() => { deleteScene(scenes[contextMenu.row]?.id); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3 h-3" />}>Delete Row</ContextMenuItem>
             )}
-            {contextMenu.col !== undefined && (() => {
+             {contextMenu.col !== undefined && (() => {
               const colKey = COLUMNS[contextMenu.col!]?.key;
               const isElementColumn = colKey && (colKey === 'cast' || colKey === 'set' || allBreakdownCategories.includes(colKey));
               if (!isElementColumn) return null;
               const colLabel = colKey ? (allBreakdownLabels[colKey] || COLUMNS[contextMenu.col!]?.label || colKey) : '';
-              const canHide = isElementColumn && !PROTECTED_CATEGORIES.has(colKey!) && !(project.customCategories || []).some(c => c.key === colKey);
               return (
                 <>
                   <ContextMenuDivider />
-                  {canHide && (
-                    <ContextMenuItem onClick={async () => {
-                      const ok = await dialog.confirm({ title: `Hide "${colLabel}"?`, message: 'Category will be hidden from all views.', danger: true });
-                      if (ok) {
-                        dispatch({ type: 'HIDE_CATEGORY', payload: colKey! });
-                        setContextMenu(null);
-                      }
-                    }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>
-                      Hide {colLabel}
-                    </ContextMenuItem>
-                  )}
                   <ContextMenuItem onClick={() => {
                     onCategoryChange(colKey!);
                     onSubTabChange('elements');
