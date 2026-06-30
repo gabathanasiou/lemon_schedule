@@ -8,6 +8,8 @@ import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
+import { StripboardContextMenuContent } from './StripboardContextMenuContent';
+import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { checkDay } from '../lib/rulesEngine';
 import { ViolationTooltip } from './ViolationTooltip';
 import { EntityDropdown } from './EntityDropdown';
@@ -81,6 +83,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean;
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
       onClick={(e) => onToggle?.(row.id, e)}
       data-row-id={row.id}
+      data-shoot-day={row.shootDay == null ? 'null' : row.shootDay}
       className={`${isSelected ? 'before:absolute before:inset-0 before:bg-black/15 before:pointer-events-none before:z-10 before:content-[\'\'] relative' : ''}`}>
       <SceneCardContent row={row} scene={scene} showDesc={showDesc} violations={violations} />
       {isFaded && <div className="absolute inset-0 bg-white/50 pointer-events-none" />}
@@ -96,7 +99,6 @@ const DayCell: React.FC<{
   sceneViolationMap: Map<string, RuleViolation[]>;
   onToggle: (dateKey: string) => void;
   onDoubleClick?: (dateKey: string) => void;
-  onContextMenu?: (e: React.MouseEvent, dateKey: string, shootDay: number | null) => void;
   status?: string;
   chronoDay?: number;
   dayCastIds?: string;
@@ -110,7 +112,7 @@ const DayCell: React.FC<{
   activeRowId?: string | null;
   activeDragDay?: number | null;
   monthSeparator?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, onContextMenu, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -149,7 +151,8 @@ const DayCell: React.FC<{
           ref={setHandleRef} {...listeners} {...attributes}
           onClick={() => activeTool && onToggle(dateKey)}
           onDoubleClick={(e) => { e.preventDefault(); if (!activeTool && onDoubleClick) onDoubleClick(dateKey); }}
-          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, dateKey, shootDay); }}
+          data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`}
+          data-shoot-day={shootDay == null ? 'null' : shootDay}
           title={activeTool ? `Click to set ${activeTool}` : 'Double-click to set status'}
           style={{ opacity: isDragging ? 0.3 : 1, cursor: activeTool ? 'pointer' : (isWorkingDay && shootDay != null ? 'grab' : 'default') }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
@@ -334,12 +337,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-  const [dayContextMenu, setDayContextMenu] = useState<{ x: number; y: number; dateKey: string; shootDay: number | null } | null>(null);
   const ctrlOrCmdHeld = useAddMode();
-
-  const handleDayContextMenu = useCallback((e: React.MouseEvent, dateKey: string, shootDay: number | null) => {
-    setDayContextMenu({ x: e.clientX, y: e.clientY, dateKey, shootDay });
-  }, []);
 
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
@@ -432,6 +430,39 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     ...(activeVersion?.rows || []),
     ...missingScenes.map((s, i) => ({ id: `row-synth-${s.id}`, type: 'SCENE' as const, sceneId: s.id, shootDay: null as number | null, order: 999999 + i, estimatedDuration: 30 })),
   ], [activeVersion?.rows, missingScenes]);
+
+  const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
+  const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
+
+  const scrollToRow = useCallback((rowId: string) => {
+    const el = document.querySelector(`[data-row-id="${rowId}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, []);
+
+  const {
+    contextMenu,
+    setContextMenu,
+    inClipboard,
+    cutSelected,
+    pasteClipboard,
+    handleContextMenuAction,
+    createOnContextMenu,
+    selectNextAfterRemove,
+  } = useStripboardContextMenu({
+    selectedRowIds,
+    setSelectedRowIds,
+    augmentedRows,
+    activeVersion,
+    activeDragIds,
+    textEditingEnabled: false,
+    dispatch,
+    setFocusedRowId,
+    scrollToRow,
+    setColorPicker,
+    project,
+  });
+
+  const handleContextMenu = createOnContextMenu();
 
   const rowsByDate = useMemo(() => {
     const map = new Map<string, ScheduleRow[]>();
@@ -668,7 +699,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
 
   return (
     <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}>
+      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
         <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
@@ -736,7 +767,6 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     monthSeparator={monthSeparator}
                     activeTool={activeTool}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
-                    onContextMenu={handleDayContextMenu}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
                     showDesc={showDesc}
@@ -844,28 +874,40 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           </div>
         </Modal>
       )}
-      {dayContextMenu && <div className="fixed inset-0 z-[199]" onClick={() => setDayContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setDayContextMenu(null); }} />}
-      <ContextMenu open={!!dayContextMenu} x={dayContextMenu?.x ?? 0} y={dayContextMenu?.y ?? 0} onClose={() => setDayContextMenu(null)}>
-        {dayContextMenu?.shootDay != null ? (
-          <>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
-            <ContextMenuDivider />
-            <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>
-              Remove Working Day
-            </ContextMenuItem>
-          </>
-        ) : (
-          <>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
-            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
-            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
-            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
-          </>
-        )}
-      </ContextMenu>
+      {contextMenu && contextMenu.rowId.startsWith('empty-date-') ? (
+        <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
+          <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: contextMenu.rowId.replace('empty-date-', '') }); setContextMenu(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
+          <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'hold' }); setContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
+          <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'travel' }); setContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
+          <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'holiday' }); setContextMenu(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
+        </ContextMenu>
+      ) : contextMenu ? (
+        <StripboardContextMenuContent
+          contextMenu={contextMenu}
+          setContextMenu={setContextMenu}
+          augmentedRows={augmentedRows}
+          selectedRowIds={selectedRowIds}
+          inClipboard={inClipboard}
+          cutSelected={cutSelected}
+          pasteClipboard={pasteClipboard}
+          handleContextMenuAction={handleContextMenuAction}
+          dispatch={dispatch}
+          activeVersion={activeVersion}
+          selectNextAfterRemove={selectNextAfterRemove}
+          extraItems={contextMenu.rowId.startsWith('empty-') ? (
+            <>
+              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'work' }); setContextMenu(null); } }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>
+              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'hold' }); setContextMenu(null); } }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
+              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'travel' }); setContextMenu(null); } }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
+              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'holiday' }); setContextMenu(null); } }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
+              <ContextMenuDivider />
+              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) dispatch({ type: 'TOGGLE_WORKING_DAY', date: dk }); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>
+                Remove Working Day
+              </ContextMenuItem>
+            </>
+          ) : undefined}
+        />
+      ) : null}
     </DndContext>
   );
 };
