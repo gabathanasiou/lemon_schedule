@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ProductionCalendar } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ProductionCalendar, ShootDayMeta } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
-import { deriveShootDays, computeDayGroups, recomputeDayMeta, deriveDayDates, defaultCalendar } from './lib/scheduling';
+import { deriveDayDates, defaultCalendar } from './lib/scheduling';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -261,7 +261,7 @@ type Action =
   | { type: 'SET_RIBBON_EDGE_PADDING'; payload: { id: string; edgePadding: number } }
   | { type: 'SET_COLOR_PALETTE'; payload: SceneColorPalette }
   | { type: 'ADD_DAY_BREAK'; payload: { versionId: string; afterRowId: string } }
-  | { type: 'REMOVE_DAY_BREAK'; payload: { versionId: string; breakRowId: string } }
+  | { type: 'REMOVE_DAY_BREAK'; payload: { versionId: string; day: number } }
   | { type: 'INSERT_WORKING_DAY'; payload: { versionId: string; date: string } }
   | { type: 'SET_PRODUCTION_START'; payload: { versionId: string; date: string | null } }
   | { type: 'SET_DAYS_OFF'; payload: { versionId: string; date: string; entry?: { type: 'holiday' | 'custom'; label?: string } } }
@@ -310,8 +310,9 @@ function reducer(state: State, action: Action): State {
       p.versions = p.versions.map((v: any) => {
         if (v.calendar) return v;
         const cal = defaultCalendar();
-        const groups = computeDayGroups(v.rows || []);
-        const dates = deriveDayDates(cal, groups.length);
+        const maxDay = (v.rows || []).reduce((m: number, r: any) => Math.max(m, r.shootDay || 0), 0);
+        const groupCount = Math.max(Object.keys(v.dayMeta || {}).length, maxDay);
+        const dates = deriveDayDates(cal, groupCount);
         const dayMeta = { ...(v.dayMeta || {}) };
         for (const [dayNum, dateStr] of dates) {
           dayMeta[dayNum] = { ...(dayMeta[dayNum] || { shootDay: dayNum, unitCall: '08:00', date: '' }), date: dateStr };
@@ -387,22 +388,6 @@ function reducer(state: State, action: Action): State {
       future: [],
       _batchDepth: 0,
     };
-  };
-
-  const applySchedulingDerivation = (versionId: string): State => {
-    const version = state.present.versions.find(v => v.id === versionId);
-    if (!version) return state;
-    const newRows = deriveShootDays(version.rows);
-    const groups = computeDayGroups(newRows);
-    const newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
-    return applyChange({
-      ...state.present,
-      versions: state.present.versions.map(v =>
-        v.id === versionId
-          ? { ...v, rows: newRows, dayMeta: newDayMeta, updatedAt: Date.now() }
-          : v
-      ),
-    });
   };
 
   switch (action.type) {
@@ -1152,22 +1137,22 @@ function reducer(state: State, action: Action): State {
       if (!version) return state;
       const targetRow = version.rows.find(r => r.id === afterRowId);
       if (!targetRow) return state;
-      const newOrder = targetRow.order + 0.5;
-      const breakRow: ScheduleRow = {
-        id: generateUUID(),
-        type: 'DAY_BREAK',
-        shootDay: targetRow.shootDay,
-        order: newOrder,
-      };
-      const rawRows = [...version.rows, breakRow].sort((a, b) => a.order - b.order);
-      const newRows = deriveShootDays(rawRows);
-      const groups = computeDayGroups(newRows);
-      let newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
       const cal = version.calendar || defaultCalendar();
+      const newRows = version.rows.map(r => {
+        if (r.shootDay > targetRow.shootDay) return { ...r, shootDay: r.shootDay + 1 };
+        if (r.shootDay === targetRow.shootDay && r.order > targetRow.order) return { ...r, shootDay: r.shootDay + 1 };
+        return r;
+      });
+      const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
+      const newDayMeta = { ...version.dayMeta };
+      for (let d = 1; d <= maxDay; d++) {
+        if (!newDayMeta[d]) newDayMeta[d] = { shootDay: d, unitCall: '08:00', date: '' };
+      }
       if (cal.startDate) {
-        const dates = deriveDayDates(cal, groups.length);
+        const groups = Math.max(maxDay, Object.keys(newDayMeta).length);
+        const dates = deriveDayDates(cal, groups);
         for (const [dayNum, dateStr] of dates) {
-          newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
+          if (newDayMeta[dayNum]) newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
         }
       }
       return applyChange({
@@ -1181,19 +1166,24 @@ function reducer(state: State, action: Action): State {
     }
 
     case 'REMOVE_DAY_BREAK': {
-      const { versionId, breakRowId } = action.payload;
+      const { versionId, day } = action.payload;
       const version = state.present.versions.find(v => v.id === versionId);
       if (!version) return state;
-      const filtered = version.rows.filter(r => r.id !== breakRowId);
-      const reordered = filtered.map((r, i) => ({ ...r, order: i }));
-      const newRows = deriveShootDays(reordered);
-      const groups = computeDayGroups(newRows);
-      let newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
       const cal = version.calendar || defaultCalendar();
+      const newRows = version.rows.map(r =>
+        r.shootDay >= day ? { ...r, shootDay: Math.max(1, r.shootDay - 1) } : r
+      );
+      const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
+      const newDayMeta: Record<number, ShootDayMeta> = {};
+      for (let d = 1; d <= maxDay; d++) {
+        newDayMeta[d] = version.dayMeta[d + 1] 
+          ? { ...version.dayMeta[d + 1], shootDay: d }
+          : (version.dayMeta[d] ? { ...version.dayMeta[d], shootDay: d } : { shootDay: d, unitCall: '08:00', date: '' });
+      }
       if (cal.startDate) {
-        const dates = deriveDayDates(cal, groups.length);
+        const dates = deriveDayDates(cal, maxDay);
         for (const [dayNum, dateStr] of dates) {
-          newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
+          if (newDayMeta[dayNum]) newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
         }
       }
       return applyChange({
@@ -1220,27 +1210,20 @@ function reducer(state: State, action: Action): State {
         const { [date]: _, ...rest } = newCal.statusDays;
         newCal.statusDays = rest;
       }
-      const breakRow: ScheduleRow = {
-        id: generateUUID(),
-        type: 'DAY_BREAK',
-        shootDay: 0,
-        order: version.rows.length,
-      };
-      const rawRows = [...version.rows, breakRow].sort((a, b) => a.order - b.order);
-      const newRows = deriveShootDays(rawRows);
-      const groups = computeDayGroups(newRows);
-      let newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
+      const maxDay = version.rows.reduce((m, r) => Math.max(m, r.shootDay), 0);
+      const newDay = maxDay + 1;
+      const newDayMeta = { ...version.dayMeta, [newDay]: { shootDay: newDay, unitCall: '08:00', date: '' } };
       if (newCal.startDate) {
-        const dates = deriveDayDates(newCal, groups.length);
+        const dates = deriveDayDates(newCal, Object.keys(newDayMeta).length);
         for (const [dayNum, dateStr] of dates) {
-          newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
+          if (newDayMeta[dayNum]) newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
         }
       }
       return applyChange({
         ...state.present,
         versions: state.present.versions.map(v =>
           v.id === versionId
-            ? { ...v, rows: newRows, dayMeta: newDayMeta, calendar: newCal, updatedAt: Date.now() }
+            ? { ...v, dayMeta: newDayMeta, calendar: newCal, updatedAt: Date.now() }
             : v
         ),
       });
@@ -1251,11 +1234,11 @@ function reducer(state: State, action: Action): State {
       const version = state.present.versions.find(v => v.id === versionId);
       if (!version) return state;
       const cal = { ...(version.calendar || defaultCalendar()), startDate: date };
-      let dayMeta = version.dayMeta;
+      let dayMeta = { ...version.dayMeta };
       if (date) {
-        const groups = computeDayGroups(version.rows);
-        const dates = deriveDayDates(cal, groups.length);
-        dayMeta = { ...version.dayMeta };
+        const maxDay = version.rows.reduce((m, r) => Math.max(m, r.shootDay), 0);
+        const groupCount = Math.max(Object.keys(dayMeta).length, maxDay);
+        const dates = deriveDayDates(cal, groupCount);
         for (const [dayNum, dateStr] of dates) {
           dayMeta[dayNum] = { ...(dayMeta[dayNum] || { shootDay: dayNum, unitCall: '08:00', date: '' }), date: dateStr };
         }

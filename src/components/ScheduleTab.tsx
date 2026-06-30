@@ -13,7 +13,6 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
-import { deriveDayDates, computeDayGroups, deriveShootDays, deriveStripboardLayout, StripboardItem } from '../lib/scheduling';
 import StatusDayBlock from './StatusDayBlock';
 import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
@@ -693,33 +692,13 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   }, [existingDays, activeVersion]);
 
   const stripView = activeVersion?.stripView || 'full';
-  const hasCalendar = !!(activeVersion?.calendar?.startDate);
 
-  const dayGroups = useMemo(() => {
-    if (!activeVersion) return [];
-    return computeDayGroups(activeVersion.rows);
-  }, [activeVersion?.rows]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const derivedDates = useMemo(() => {
-    const cal = activeVersion?.calendar;
-    if (!cal?.startDate) return new Map<number, string>();
-    return deriveDayDates(cal, dayGroups.length);
-  }, [activeVersion?.calendar, dayGroups.length]);
-
-  const stripboardLayout = useMemo(() => {
-    const cal = activeVersion?.calendar;
-    if (!cal || !activeVersion) return [];
-    return deriveStripboardLayout(activeVersion.rows, cal);
-  }, [activeVersion?.rows, activeVersion?.calendar]);
-
-  const boneyardRows = useMemo(() =>
-    (activeVersion?.rows || []).filter(r => r.boneyard)
-  , [activeVersion?.rows]);
-
-  const newUnscheduledRows = useMemo(() =>
-    augmentedRows.filter(r => r.shootDay === null && !r.boneyard)
-  , [augmentedRows]);
-
+  const flatRowIdsRef = useRef<string[]>([]);
+  flatRowIdsRef.current = existingDays.flatMap(dayInt => {
+    const dayRows = scheduledRows[dayInt];
+    if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
+    return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
+  });
   const getDayFromId = (id: string): number | null => {
     if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
     if (id.startsWith('day-wrap-') || id.startsWith('day-') || id.startsWith('end-')) {
@@ -739,10 +718,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_day_break' || action === 'remove_day_break')) {
       const dummyDayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
       if (action === 'remove_day_break') {
-        const breakRow = activeVersion.rows.find(r => r.type === 'DAY_BREAK' && r.shootDay === shootDay);
-        if (breakRow) {
-          dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, breakRowId: breakRow.id } });
-        }
+        dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, day: shootDay } });
         setContextMenu(null);
         return;
       }
@@ -838,7 +814,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       setContextMenu(null);
       return;
     } else if (action === 'remove_day_break') {
-      dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, breakRowId: rowId } });
+      dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, day: row.shootDay || shootDay } });
       setContextMenu(null);
       return;
     } else if (action === 'send_to_boneyard') {
@@ -898,21 +874,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   selectedRowIdsRef.current = selectedRowIds;
   const lastClickedIdRef = useRef(lastClickedId);
   lastClickedIdRef.current = lastClickedId;
-  const flatRowIdsRef = useRef<string[]>([]);
-  flatRowIdsRef.current = hasCalendar && stripboardLayout.length > 0
-    ? stripboardLayout.flatMap(item => {
-        if (item.kind === 'working') {
-          const dayInt = item.dayNumber;
-          if (item.rows.length === 0) return [`empty-${dayInt}`];
-          return [`empty-${dayInt}`, ...item.rows.map(r => r.id)];
-        }
-        return [];
-      })
-    : existingDays.flatMap(dayInt => {
-        const dayRows = scheduledRows[dayInt];
-        if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
-        return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
-      });
   const unscheduledFlatRef = useRef<string[]>([]);
   unscheduledFlatRef.current = unscheduledRows.map(r => r.id);
   const stripboardLastIdRef = useRef<string | null>(null);
@@ -1378,7 +1339,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               }
           }}
        >
-            <UnscheduledBlock rows={hasCalendar ? newUnscheduledRows : unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
+            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -1389,76 +1350,30 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
-            {hasCalendar && stripboardLayout.length > 0 ? (
-              <>
-                {stripboardLayout.map((item, i) => {
-                  if (item.kind === 'working') {
-                    return (
-                      <DayBlock 
-                        key={`day-${item.dayNumber}`}
-                        dayInt={item.dayNumber} 
-                        rows={item.rows}
-                        meta={activeVersion?.dayMeta[item.dayNumber]}
-                        selectedIds={selectedRowIds}
-                        activeDragIds={activeDragIds}
-                        onRowClick={handleRowClick}
-                        textEditingEnabled={textEditingEnabled}
-                        insertBeforeId={insertBeforeId}
-                        activeRowId={activeId}
-                        activeDragRow={activeDragRow}
-                        activeDragRows={activeDragRows}
-                        chronoDay={item.dayNumber}
-                        focusedRowId={focusedRowId}
-                        onRowDoubleClick={handleRowDoubleClick}
-                        onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                        ribbon={activeRibbon}
-                        colWidths={activeColWidths}
-                        cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
-                        cellBorders={cellBorders}
-                        stripView={stripView}
-                        date={item.date}
-                        isLastGroup={i === stripboardLayout.length - 1 || stripboardLayout[i + 1]?.kind !== 'working'}
-                      />
-                    );
-                  } else {
-                    return (
-                      <StatusDayBlock
-                        key={`status-${item.date}`}
-                        entry={item.entry}
-                        date={item.date}
-                      />
-                    );
-                  }
-                })}
-              </>
-            ) : (
-              <>
-                {existingDays.map((dayInt, i) => (
-                  <DayBlock 
-                    key={dayInt} 
-                    dayInt={dayInt} 
-                    rows={scheduledRows[dayInt] || []}
-                    meta={activeVersion?.dayMeta[dayInt]}
-                    selectedIds={selectedRowIds}
-                    activeDragIds={activeDragIds}
-                    onRowClick={handleRowClick}
-                    textEditingEnabled={textEditingEnabled}
-                    insertBeforeId={insertBeforeId}
-                    activeRowId={activeId}
-                    activeDragRow={activeDragRow}
-                    activeDragRows={activeDragRows}
-                    chronoDay={chronoDayMap.get(dayInt)}
-                    focusedRowId={focusedRowId}
-                    onRowDoubleClick={handleRowDoubleClick}
+               {existingDays.map((dayInt, i) => (
+                <DayBlock 
+                  key={dayInt} 
+                  dayInt={dayInt} 
+                  rows={scheduledRows[dayInt] || []}
+                  meta={activeVersion?.dayMeta[dayInt]}
+                  selectedIds={selectedRowIds}
+                  activeDragIds={activeDragIds}
+                  onRowClick={handleRowClick}
+                  textEditingEnabled={textEditingEnabled}
+                  insertBeforeId={insertBeforeId}
+                  activeRowId={activeId}
+                  activeDragRow={activeDragRow}
+                  activeDragRows={activeDragRows}
+                  chronoDay={chronoDayMap.get(dayInt)}
+                   focusedRowId={focusedRowId}
+                   onRowDoubleClick={handleRowDoubleClick}
                     onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                    ribbon={activeRibbon}
-                    colWidths={activeColWidths}
-                    cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
-                    cellBorders={cellBorders}
+                      ribbon={activeRibbon}
+                      colWidths={activeColWidths}
+                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
+                     cellBorders={cellBorders}
                   />
-                ))}
-              </>
-            )}
+              ))}
           </div>
           <MarqueeOverlay box={marqueeBox} />
         </div>
