@@ -400,7 +400,7 @@ export function normalizeColWidths(widths: number[]): number[] {
 }
 
 export function getDefaultColWidths(): number[] {
-  return [7.78, 6.53, 8.4, 7.84, 45.15, 15.22, 9.11];
+  return [8.34, 6.18, 8.73, 8.08, 37.72, 10.15, 20.8];
 }
 
 export function getDefaultRibbonRows(): RibbonRow[] {
@@ -409,26 +409,26 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 1',
       cells: [
-        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'center' },
+        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle' },
         { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'intExt', align: 'left' },
         { id: cid(), field: 'set', align: 'left', verticalAlign: 'middle' },
-        { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top' },
-        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top', wrap: true },
+        { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top', wrap: true },
+        { id: cid(), field: 'notes', align: 'left', verticalAlign: 'top' },
       ],
     },
     {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'center' },
+        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top' },
         { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'dayNight', align: 'left' },
         { id: cid(), field: 'description', align: 'left', verticalAlign: 'top' },
-        { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top' },
-        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top', wrap: true },
+        { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top', wrap: true },
+        { id: cid(), field: 'notes', align: 'left', verticalAlign: 'top' },
       ],
     },
   ];
@@ -442,7 +442,7 @@ export function getDefaultRibbonDesign(): RibbonDesign {
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPaddingV: 3,
-    cellPaddingH: 20,
+    cellPaddingH: 3,
     edgePadding: 3,
   };
 }

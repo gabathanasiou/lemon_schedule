@@ -165,12 +165,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
   const assign = useCallback((cellId: string, key: string) => {
     const f = FIELD_MAP[key];
-    const dp = f?.defaultPrefix;
-    const ds = f?.defaultSuffix;
+    const isPageCount = key === 'pageCount';
     commit(rows.map(r => ({
       ...r, cells: r.cells.map(c => c.id === cellId ? {
         ...c, field: key,
-        prefix: dp, suffix: ds, align: f?.align,
+        prefix: isPageCount ? f?.defaultPrefix : undefined,
+        suffix: isPageCount ? f?.defaultSuffix : undefined,
+        align: f?.align,
         ...(key !== 'text' ? { textContent: undefined } : {}),
       } : c),
     })), colWidths);
@@ -223,7 +224,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     commit(
       rows.map(r => {
         const nc = [...r.cells];
-        nc.splice(ci, 0, { id: cid(), field: fieldKey || '', suffix: f?.defaultSuffix, align: f?.align, wrap: f?.defaultWrap });
+        nc.splice(ci, 0, { id: cid(), field: fieldKey || '', prefix: fieldKey === 'pageCount' ? f?.defaultPrefix : undefined, suffix: fieldKey === 'pageCount' ? f?.defaultSuffix : undefined, align: f?.align, wrap: f?.defaultWrap });
         return { ...r, cells: nc };
       }),
       normalizeColWidths([...colWidths.slice(0, ci), dw, ...colWidths.slice(ci)]),
@@ -664,7 +665,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           Delete Design
         </DropdownItem>
       </DropdownMenu>
-      <button onClick={() => { commit(getDefaultRibbonRows(), getDefaultColWidths()); dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } }); dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 6 } }); dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } }); }}
+      <button onClick={() => { commit(getDefaultRibbonRows(), getDefaultColWidths()); dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } }); dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 3 } }); dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } }); }}
         className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
         <RotateCcw className="w-3 h-3" /> Reset
       </button>
@@ -764,9 +765,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         </aside>
 
         {/* ── Canvas ── */}
-        <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
+        <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
           {/* Toolbar */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none" onClick={e => e.stopPropagation()}>
             {/* Structure */}
             <div className="flex items-center gap-1.5 px-3 py-1.5">
               <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Structure</span>
@@ -1006,6 +1007,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             className="absolute right-0 top-0 cursor-col-resize group/tab z-10"
                             style={{ transform: 'translateX(50%)' }}
                             onMouseDown={e => startResize(i, e)}
+                            onClick={e => e.stopPropagation()}
                           >
                             <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-zinc-500 group-hover/tab:border-t-blue-400 transition-colors" />
                             <div className="w-px h-3.5 mx-auto bg-zinc-500 group-hover/tab:bg-blue-400 transition-colors" />
@@ -1017,7 +1019,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 </div>
 
                 {/* Single CSS Grid */}
-                <div ref={gridRef} className="-mt-5" style={{
+                <div ref={gridRef} className="-mt-5" onClick={() => setSelId(null)} style={{
                   display: 'grid',
                   gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
                   gridTemplateRows: `repeat(${rows.length}, auto)`,
@@ -1042,10 +1044,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
                       return (
                         <div key={c.id}
+                          data-cell-id={c.id}
                           ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}
-                          onClick={() => setSelId(c.id)}
-                          onDoubleClick={e => { setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                          onContextMenu={e => { e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
+                           onClick={e => { e.stopPropagation(); setSelId(c.id); }}
+                           onDoubleClick={e => { e.stopPropagation(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
+                           onContextMenu={e => { e.stopPropagation(); e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
                           draggable
                           onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'cell'); const val = { rowId: row.id, cellId: c.id }; cellDragRef.current = val; setCellDrag(val); }}
                           onDragEnd={() => { cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null); }}
@@ -1099,24 +1102,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             </RibbonCellText>
                             {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
                           </div>
-                          {/* Merge badges */}
-                          {mergeInfo && !mergeInfo.isLead && (
-                            <div className={`absolute right-0.5 top-0.5 opacity-60 leading-none pointer-events-none ${mergeInfo.group.direction === 'h' ? 'text-amber-400' : 'text-emerald-400'}`} style={{ fontSize: '6px' }}>
-                              {mergeInfo.group.direction === 'h' ? '\u21D4' : '\u21D5'}
-                            </div>
-                          )}
-                          {mergeInfo && mergeInfo.isLead && (
-                            <div className={`absolute bottom-0 right-0 px-1 leading-none rounded-tl-sm z-20 pointer-events-none ${mergeInfo.group.direction === 'h' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`} style={{ fontSize: '7px', fontWeight: 700 }}>
-                              {mergeInfo.group.direction === 'h' ? '\u21D4' : '\u21D5'}{mergeInfo.group.span}
-                            </div>
-                          )}
                         </div>
                       );
                     })
                   )}
                 </div>
 
-                <button onClick={addRow} className="mt-5 w-full py-2.5 text-[10px] font-medium rounded-lg border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/50 transition-colors flex items-center justify-center gap-1.5">
+                <button onClick={e => { e.stopPropagation(); addRow(); }} className="mt-5 w-full py-2.5 text-[10px] font-medium rounded-lg border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/50 transition-colors flex items-center justify-center gap-1.5">
                   <Plus className="w-3.5 h-3.5" /> Add Row
                 </button>
               </div>
@@ -1211,7 +1203,19 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
       {contextPos && selCell && (
         <>
-          <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} />
+          <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} onContextMenu={e => {
+            e.preventDefault();
+            const backdrop = e.currentTarget as HTMLElement;
+            backdrop.style.pointerEvents = 'none';
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            backdrop.style.pointerEvents = '';
+            const cellDiv = el?.closest('[data-cell-id]') as HTMLElement | null;
+            if (cellDiv) {
+              const cid = cellDiv.getAttribute('data-cell-id');
+              if (cid) { setSelId(cid); setContextPos({ x: e.clientX, y: e.clientY }); return; }
+            }
+            setContextPos(null);
+          }} />
           <div
             className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-96 w-52"
             style={{ left: Math.max(0, Math.min(contextPos.x, window.innerWidth - 220)), top: Math.max(0, Math.min(contextPos.y, window.innerHeight - 420)) }}

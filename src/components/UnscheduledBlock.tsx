@@ -97,6 +97,7 @@ export const UnscheduledBlock: React.FC<{
   const panelRef = useRef<HTMLDivElement>(null);
   const unscheduledMarqueeRef = useRef<HTMLDivElement>(null);
   const showGhosts = activeRowId && activeDragRows.length > 0;
+  const sortableItems = useMemo(() => rows.map(r => r.id), [rows]);
 
   const { marqueeBox } = useMarquee(
     unscheduledMarqueeRef,
@@ -319,7 +320,7 @@ export const UnscheduledBlock: React.FC<{
           <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative">
             <MarqueeOverlay box={marqueeBox} />
             <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
-            <SortableContext items={React.useMemo(() => rows.map(r => r.id), [rows])} strategy={verticalListSortingStrategy}>
+            <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
               {rows.map((r, i, arr) => (
                 <React.Fragment key={r.id}>
                   {showGhosts && insertBeforeId === r.id && (
