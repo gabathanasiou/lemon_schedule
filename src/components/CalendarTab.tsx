@@ -602,16 +602,24 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   };
 
   const activeType = activeId ? (activeDragDay !== null ? 'DAY' : 'SCENE_CARD') : null;
-  const sortedDraggedIds = Array.from(activeDragIds).sort((a, b) => {
-    const rA = augmentedRows.find(r => r.id === a);
-    const rB = augmentedRows.find(r => r.id === b);
-    if (rA && rB) {
-      if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
-      return rA.order - rB.order;
-    }
-    return 0;
-  });
-  const activeDragRows = sortedDraggedIds.map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
+
+  const activeDragRows = useMemo(() => {
+    if (!activeId || activeType !== 'SCENE_CARD') return [];
+    return activeDragIds.size > 1
+      ? Array.from(activeDragIds)
+          .sort((a, b) => {
+            const rA = augmentedRows.find(r => r.id === a);
+            const rB = augmentedRows.find(r => r.id === b);
+            if (rA && rB) {
+              if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
+              return rA.order - rB.order;
+            }
+            return 0;
+          })
+          .map(id => augmentedRows.find(r => r.id === id)!)
+          .filter(Boolean)
+      : [augmentedRows.find(r => r.id === activeId)!].filter(Boolean);
+  }, [activeId, activeType, activeDragIds, augmentedRows]);
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
