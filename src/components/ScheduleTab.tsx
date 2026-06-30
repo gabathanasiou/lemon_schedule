@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection, useDroppable } from '@dnd-kit/core';
+import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { UnscheduledBlock } from './UnscheduledBlock';
+import { StackedGhosts } from './DayBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID, formatDateLong } from '../lib/utils';
-import { deriveShootDays } from '../lib/scheduling';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, SeparatorHorizontal, Archive } from 'lucide-react';
@@ -615,6 +615,39 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const ctrlOrCmdHeld = useAddMode();
 
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const { active, pointerCoordinates, droppableContainers } = args;
+    const isDraggingDay = active.data.current?.type === 'DAY';
+    const filteredContainers = droppableContainers.filter((container) => {
+      const id = container.id as string;
+      if (isDraggingDay) return id.startsWith('day-wrap-');
+      if (id.startsWith('day-wrap-')) return false;
+      if (activeDragIdsRef.current.has(id)) return false;
+      return true;
+    });
+
+    if (pointerCoordinates) {
+      const collisions: { id: string; distance: number; area: number }[] = [];
+      for (const container of filteredContainers) {
+        const rect = container.rect.current;
+        if (rect) {
+          const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
+          const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const area = rect.width * rect.height;
+          collisions.push({ id: container.id as string, distance, area });
+        }
+      }
+      collisions.sort((a, b) => {
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return a.area - b.area;
+      });
+      if (collisions.length > 0) return collisions.map(c => ({ id: c.id }));
+    }
+
+    return closestCorners({ ...args, droppableContainers: filteredContainers });
+  }, []);
+
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     scheduleScrollRef,
     useCallback((ids, isAddMode) => {
@@ -709,11 +742,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   const flatIds = useMemo(() =>
     flatLayout.map(item => item.kind === 'header' ? `day-header-${item.dayInt}` : item.row.id),
     [flatLayout]
-  );
-
-  const allFlatIds = useMemo(() =>
-    [...flatIds, ...unscheduledRows.map(r => r.id)],
-    [flatIds, unscheduledRows]
   );
 
   const sceneViolationMap = useMemo(() => {
@@ -1012,32 +1040,19 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
-    const dragType = e.active.data.current?.type as string | undefined;
-    if (overId && dragType === 'ROW') {
+    if (overId) {
       if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
         setInsertBeforeId('end-unscheduled');
         return;
       }
-      const day = getDayFromId(overId);
-      if (day !== null) {
-        const dayRows = scheduledRows[day] || [];
-        if (dayRows.some(r => r.id === overId)) {
-          setInsertBeforeId(overId);
-        } else {
-          setInsertBeforeId(overId.startsWith('end-') ? overId : `day-${day}`);
-        }
-      } else {
-        const isUnscheduledRow = unscheduledRows.some(r => r.id === overId);
-        if (isUnscheduledRow) {
-          setInsertBeforeId(overId);
-        } else {
-          setInsertBeforeId(null);
-        }
+      if (overId.startsWith('day-header-')) {
+        setInsertBeforeId(overId);
+        return;
       }
-    } else if (overId && dragType === 'DAY_FOOTER') {
-      const day = getDayFromId(overId);
-      if (day !== null) {
-        setInsertBeforeId(`end-${day}`);
+      // Row-level sortable item
+      const dayRows = augmentedRows.filter(r => r.shootDay !== null).some(r => r.id === overId);
+      if (dayRows) {
+        setInsertBeforeId(overId);
       } else {
         setInsertBeforeId(null);
       }
@@ -1102,36 +1117,75 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     const activeRow = augmentedRows.find(r => r.id === activeId);
     if (!activeRow) return;
 
-    // Reorder via arrayMove on allFlatIds (schedule + unscheduled), then derive shootDay
-    const activeIdx = allFlatIds.indexOf(activeId);
-    let overIdx: number;
-    if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
-      overIdx = allFlatIds.length - 1; // drop at end of unscheduled zone
+    let overDay = getDayFromId(overId);
+    if (overId === 'unscheduled_bin' || overId === 'end-unscheduled' || (overDay === null && augmentedRows.some(r => r.id === overId && r.shootDay === null))) {
+      overDay = null;
+    } else if (overDay === null && !overId.startsWith('day-header-')) {
+      return;
+    }
+
+    let draggingIds = [activeId];
+    if (selectedRowIds.has(activeId) && selectedRowIds.size > 1) {
+      draggingIds = Array.from(selectedRowIds);
+      draggingIds.sort((a, b) => {
+        const rA = augmentedRows.find(r => r.id === a);
+        const rB = augmentedRows.find(r => r.id === b);
+        if (rA && rB) {
+          if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
+          return rA.order - rB.order;
+        }
+        return 0;
+      });
+    }
+
+    let newRows = augmentedRows.map(r => ({ ...r }));
+    const sanitizeRow = (r: ScheduleRow) => r.id.startsWith('row-synth-') ? { ...r, id: generateUUID() } : r;
+
+    if (draggingIds.length === 1) {
+      newRows = newRows.filter(r => r.id !== activeId);
+      let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
+      let insertIndex: number;
+      if (lastInsertBeforeId?.startsWith('day-header-')) {
+        insertIndex = 0;
+      } else if (lastInsertBeforeId && dayRows.some(r => r.id === lastInsertBeforeId)) {
+        insertIndex = dayRows.findIndex(r => r.id === lastInsertBeforeId);
+        if (insertIndex === -1) insertIndex = dayRows.length;
+      } else {
+        insertIndex = dayRows.length;
+      }
+      const movedRow = { ...activeRow, shootDay: overDay };
+      dayRows.splice(insertIndex, 0, movedRow);
+      dayRows.forEach((r, i) => r.order = i);
+      newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
+      setSelectedRowIds(new Set([activeId]));
     } else {
-      overIdx = allFlatIds.indexOf(overId);
-    }
-    if (activeIdx === -1 || overIdx === -1) return;
+      const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
+      const dayRowsBefore = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
+      let rawIndex: number;
+      if (lastInsertBeforeId?.startsWith('day-header-')) {
+        rawIndex = 0;
+      } else if (lastInsertBeforeId && dayRowsBefore.some(r => r.id === lastInsertBeforeId)) {
+        rawIndex = dayRowsBefore.findIndex(r => r.id === lastInsertBeforeId);
+        if (rawIndex === -1) rawIndex = dayRowsBefore.length;
+      } else {
+        rawIndex = dayRowsBefore.length;
+      }
+      const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
+        const idx = dayRowsBefore.findIndex(r => r.id === id);
+        return idx >= 0 && idx < rawIndex;
+      }).length;
 
-    const newFlatIds: string[] = arrayMove(allFlatIds, activeIdx, overIdx) as string[];
-    const newRowOrder = newFlatIds.filter(id => !id.startsWith('day-header-'));
-
-    // Reorder version rows to match newRowOrder
-    const rowById = new Map<string, ScheduleRow>(activeVersion.rows.map(r => [r.id, r]));
-    const reordered: ScheduleRow[] = [];
-    for (const id of newRowOrder) {
-      const row = rowById.get(id);
-      if (row) reordered.push(row);
+      newRows = newRows.filter(r => !draggingIds.includes(r.id));
+      const dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
+      const newItems = draggingItems.map(item => ({ ...item, shootDay: overDay }));
+      dayRows.splice(insertIndex, 0, ...newItems);
+      dayRows.forEach((r, i) => r.order = i);
+      newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
+      setSelectedRowIds(new Set(draggingIds));
     }
-    // Append any rows not in newRowOrder (orphaned, etc.)
-    for (const row of activeVersion.rows) {
-      if (!newRowOrder.includes(row.id)) reordered.push(row);
-    }
-    const indexed = reordered.map((r, i) => ({ ...r, order: i }));
-    const derived = deriveShootDays(indexed);
 
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: derived } });
-    setSelectedRowIds(new Set([activeId]));
-    setFocusedRowId(activeId);
+    const persistentRows = newRows.map(sanitizeRow);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
   };
 
   const activeDragRow = useMemo(() => {
@@ -1166,6 +1220,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           .filter(Boolean)
       : [activeDragRow!].filter(Boolean);
   }, [activeId, activeType, activeDragIds, augmentedRows, activeDragRow]);
+
+  const showGhosts = !!activeId && activeDragRows.length > 0;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1307,7 +1363,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       `}</style>
     <DndContext 
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
@@ -1357,40 +1413,49 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                 if (item.kind === 'header') {
                   const meta = activeVersion?.dayMeta[item.dayInt];
                   const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+                  const headerId = `day-header-${item.dayInt}`;
                   return (
-                    <DayHeaderRow
-                      key={`header-${item.dayInt}`}
-                      dayInt={item.dayInt}
-                      dateStr={dateStr}
-                      callTime={meta?.unitCall || '08:00'}
-                      handleRowClick={handleRowClick}
-                      selectedRowIds={selectedRowIds}
-                      setSelectedRowIds={setSelectedRowIds}
-                      setContextMenu={setContextMenu}
-                    />
+                    <React.Fragment key={`header-${item.dayInt}`}>
+                      {showGhosts && insertBeforeId === headerId && (
+                        <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={activeRibbon} colWidths={activeColWidths} palette={project.colorPalette} />
+                      )}
+                      <DayHeaderRow
+                        dayInt={item.dayInt}
+                        dateStr={dateStr}
+                        callTime={meta?.unitCall || '08:00'}
+                        handleRowClick={handleRowClick}
+                        selectedRowIds={selectedRowIds}
+                        setSelectedRowIds={setSelectedRowIds}
+                        setContextMenu={setContextMenu}
+                      />
+                    </React.Fragment>
                   );
                 }
                 return (
-                  <SortableRow
-                    key={item.row.id}
-                    row={item.row}
-                    scenes={project.scenes}
-                    isSelected={selectedRowIds.has(item.row.id)}
-                    isFaded={activeDragIds.has(item.row.id)}
-                    isCompact={stripView === 'compact'}
-                    textEditingEnabled={textEditingEnabled}
-                    onSelectToggle={(e) => handleRowClick(item.row.id, e)}
-                    sceneViolations={sceneViolationMap.get(item.row.sceneId || '')}
-                    focusedRowId={focusedRowId}
-                    onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                    onDoubleClick={handleRowDoubleClick}
-                    ribbon={activeRibbon}
-                    colWidths={activeColWidths}
-                    cellPaddingV={cellPaddingV}
-                    cellPaddingH={cellPaddingH}
-                    edgePadding={edgePadding}
-                    cellBorders={cellBorders}
-                  />
+                  <React.Fragment key={item.row.id}>
+                    {showGhosts && insertBeforeId === item.row.id && (
+                      <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={activeRibbon} colWidths={activeColWidths} palette={project.colorPalette} />
+                    )}
+                    <SortableRow
+                      row={item.row}
+                      scenes={project.scenes}
+                      isSelected={selectedRowIds.has(item.row.id)}
+                      isFaded={activeDragIds.has(item.row.id)}
+                      isCompact={stripView === 'compact'}
+                      textEditingEnabled={textEditingEnabled}
+                      onSelectToggle={(e) => handleRowClick(item.row.id, e)}
+                      sceneViolations={sceneViolationMap.get(item.row.sceneId || '')}
+                      focusedRowId={focusedRowId}
+                      onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
+                      onDoubleClick={handleRowDoubleClick}
+                      ribbon={activeRibbon}
+                      colWidths={activeColWidths}
+                      cellPaddingV={cellPaddingV}
+                      cellPaddingH={cellPaddingH}
+                      edgePadding={edgePadding}
+                      cellBorders={cellBorders}
+                    />
+                  </React.Fragment>
                 );
               })}
             </SortableContext>
