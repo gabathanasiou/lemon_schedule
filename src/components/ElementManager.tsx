@@ -257,7 +257,37 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [rows, category, dispatch]);
 
   function performSave() {
+    const preMerged = new Map<string, Set<string>>();
     if (autoMergeRef.current) {
+      for (const cat of Object.keys(rowsByCat.current)) {
+        if (cat === 'cast') continue;
+        const current = rowsByCat.current[cat] || [];
+        const snap = snapByCat.current[cat] || [];
+        const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
+        const groups = new Map<string, LocalRow[]>();
+        for (const r of current) {
+          const normKey = (r.name || r.id).toLowerCase();
+          if (!groups.has(normKey)) groups.set(normKey, []);
+          groups.get(normKey)!.push(r);
+        }
+        for (const [, group] of groups) {
+          if (group.length <= 1) continue;
+          let target = group[0];
+          for (const r of group) { if (r.name) { target = r; break; } }
+          const sourceIds: string[] = [];
+          for (const r of group) {
+            if (r.key === target.key) continue;
+            const snapRow = snapMap.get(r.key);
+            if (snapRow && snapRow.id) sourceIds.push(snapRow.id);
+          }
+          if (sourceIds.length > 0) {
+            dispatch({ type: 'MERGE_ELEMENTS', payload: { category: cat, sourceIds, targetId: target.id, targetName: target.name } });
+            let s = preMerged.get(cat);
+            if (!s) { s = new Set(); preMerged.set(cat, s); }
+            for (const sid of sourceIds) s.add(sid);
+          }
+        }
+      }
       for (const cat of Object.keys(rowsByCat.current)) {
         if (cat !== 'cast') mergeCategory(cat);
       }
@@ -268,7 +298,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
       const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
 
-      const mergedSources = new Set<string>();
+      const mergedSources = new Set<string>(preMerged.get(cat) || []);
       const merges: { sourceIds: string[]; targetId: string; targetName: string }[] = [];
 
       for (const orig of snap) {
