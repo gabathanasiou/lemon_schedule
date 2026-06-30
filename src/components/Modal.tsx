@@ -56,6 +56,7 @@ export default function Modal({
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d) return;
+    e.preventDefault();
     setDragPos({ left: d.posX + e.clientX - d.startX, top: d.posY + e.clientY - d.startY });
   }, []);
 
@@ -72,6 +73,7 @@ export default function Modal({
   const onResizeMove = useCallback((e: React.PointerEvent) => {
     const rs = resizeRef.current;
     if (!rs) return;
+    e.preventDefault();
     const dx = e.clientX - rs.startX;
     const dy = e.clientY - rs.startY;
     let newW = rs.startW, newH = rs.startH, newL = rs.startL, newT = rs.startT;
@@ -118,11 +120,11 @@ export default function Modal({
         <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" />
         <RadixDialog.Content
           ref={contentRef}
-          className={`fixed z-[9999] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none ${posClasses} ${sizeClasses}`}
+          className={`fixed z-[9999] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
           style={Object.keys(combinedStyle).length > 0 ? combinedStyle : undefined}
         >
           <div
-            className={`flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 shrink-0 select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 shrink-0 select-none bg-zinc-950 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -146,7 +148,7 @@ export default function Modal({
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }}>
+          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }}>
             {children}
           </div>
 
@@ -174,7 +176,7 @@ export default function Modal({
 
 export function ModalFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-end gap-3 px-5 py-2.5 border-t border-zinc-800 bg-zinc-900">
+    <div className="flex items-center justify-end gap-3 px-5 py-2 border-t border-zinc-800 bg-zinc-950">
       {children}
     </div>
   );

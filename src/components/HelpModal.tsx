@@ -42,7 +42,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
     <Modal open={open} onClose={onClose} title="Stripboard Controls" width="max-w-xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">
+          <button onClick={onClose} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">
             Close
           </button>
         </ModalFooter>

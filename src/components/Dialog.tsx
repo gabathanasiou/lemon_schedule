@@ -73,6 +73,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d) return;
+    e.preventDefault();
     setDragPos({ left: d.posX + e.clientX - d.startX, top: d.posY + e.clientY - d.startY });
   }, []);
 
@@ -91,6 +92,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const onResizeMove = useCallback((e: React.PointerEvent) => {
     const rs = resizeRef.current;
     if (!rs) return;
+    e.preventDefault();
     const dx = e.clientX - rs.startX;
     const dy = e.clientY - rs.startY;
     let newW = rs.startW, newH = rs.startH, newL = rs.startL, newT = rs.startT;
@@ -163,7 +165,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
           <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/20" />
           <RadixDialog.Content
             ref={contentRef}
-            className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-5 space-y-4 focus:outline-none ${dragPos || size ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'} ${size ? '' : 'w-full max-w-sm'}`}
+            className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-5 space-y-4 focus:outline-none select-none ${dragPos || size ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'} ${size ? '' : 'w-full max-w-sm'}`}
             style={{ ...(dragPos ? { left: dragPos.left, top: dragPos.top } : {}), ...(size ? { width: size.w, height: size.h } : {}) }}
             onEscapeKeyDown={(e) => {
               close();

@@ -69,7 +69,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
           </button>
           <button
             onClick={() => onPrint({ category: selectedCategory })}
-            className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
           >
             <Printer className="w-3.5 h-3.5" />
             Print

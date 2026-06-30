@@ -596,7 +596,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             footer={
               <ModalFooter>
                 <button onClick={() => { setDupDialog(null); performSave(); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Save as-is</button>
-                <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">Merge & Save</button>
+                <button onClick={() => { autoMergeRef.current = true; setDupDialog(null); performSave(); }} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Merge & Save</button>
               </ModalFooter>
             }
           >
@@ -616,7 +616,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             footer={
               <ModalFooter>
                 <button onClick={() => setShowAddCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={createCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors">Create</button>
+                <button onClick={createCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">Create</button>
               </ModalFooter>
             }
           >
@@ -682,7 +682,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             footer={
               <ModalFooter>
                 <button onClick={() => setShowEditCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={updateCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
+                <button onClick={updateCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">Save</button>
               </ModalFooter>
             }
           >
@@ -747,7 +747,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
             footer={
               <ModalFooter>
                 <button onClick={() => setShowEditBuiltin(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={updateBuiltinLabel} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors">Save</button>
+                <button onClick={updateBuiltinLabel} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">Save</button>
               </ModalFooter>
             }
           >

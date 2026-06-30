@@ -1034,14 +1034,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
       {statusModal !== null && (
         <Modal open onClose={() => setStatusModal(null)} title={`Day ${statusModal.shootDay}`} width="max-w-sm"
           footer={
-            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800">
+            <div className="flex items-center justify-between px-6 py-2.5 border-t border-zinc-800">
               <button type="button"
                 onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY' as any, date: statusModal.dateKey }); setStatusModal(null); }}
                 className="text-xs font-medium text-rose-400 hover:bg-rose-950/40 px-2 py-1 rounded transition-colors"
               >Remove</button>
               <button type="button"
                 onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: modalStatus, castIds: modalCastIds || '' }); setStatusModal(null); }}
-                className="px-4 py-1.5 rounded-md text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
+                className="px-4 py-1.5 rounded-md text-xs font-bold bg-zinc-800 text-white border border-zinc-700 hover:bg-zinc-700 transition-colors"
               >Apply</button>
             </div>
           }
@@ -1123,7 +1123,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
           footer={
             <ModalFooter>
               <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">Apply</button>
+              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
             </ModalFooter>
           }
         >

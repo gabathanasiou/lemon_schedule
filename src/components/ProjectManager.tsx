@@ -122,19 +122,19 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const hasProjects = projectList.length > 0;
 
   return (
-    <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-3xl"
+    <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
       footer={
         <ModalFooter>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
           </button>
           <button
             onClick={() => { createProject(); onClose?.(); }}
-            className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2"
+            className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
           >
             <Plus className="w-3.5 h-3.5" /> New Project
           </button>
@@ -142,21 +142,21 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         </ModalFooter>
       }
     >
-      <div className="px-6 py-4">
+      <div className="px-5 py-3">
         {!hasProjects ? (
-          <div className="text-center py-16 text-zinc-500">
-            <FolderOpen className="w-16 h-16 mx-auto mb-4 text-zinc-700" />
+          <div className="text-center py-12 text-zinc-500">
+            <FolderOpen className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
             <p className="text-sm font-medium text-zinc-400">No projects yet</p>
             <p className="text-xs mt-1 text-zinc-600">Create a new project or import one to get started.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{projectList.length} project{projectList.length !== 1 ? 's' : ''}</span>
               <div className="relative">
                 <RadixDropdownMenu.Root open={showSortMenu} onOpenChange={(o) => setShowSortMenu(o)} modal={true}>
                   <RadixDropdownMenu.Trigger asChild>
-                    <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 bg-zinc-900 hover:bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
+                    <button className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-2.5 py-1 rounded-md transition-colors">
                       <ArrowUpDown className="w-3 h-3" />
                       {sortOptions.find(o => o.key === sortKey)?.label}
                     </button>
@@ -194,7 +194,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                   key={p.id}
                   onClick={() => handleCardClick(p)}
                   onDoubleClick={isRenaming ? undefined : () => startRenaming(p)}
-                  className={`group flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer select-none ${
+                  className={`group flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none ${
                     isActive
                       ? 'bg-zinc-800 border-zinc-700 text-white'
                       : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'

@@ -58,7 +58,7 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
           <button
             onClick={() => onPrint({ sortOrder, sceneIds: selectedSceneIds })}
             disabled={selectedSceneIds.length === 0}
-            className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
             Print / Save PDF

@@ -729,7 +729,7 @@ function AppContent() {
                     setShowRestoreModal(null);
                   } catch (e) { console.error(e); }
                 }}
-                className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+                className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors"
               >
                 Restore {showRestoreModal.projects.length > 0 ? `(${showRestoreModal.projects.length})` : ''}
               </button>
