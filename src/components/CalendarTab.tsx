@@ -631,10 +631,13 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       setActiveDragIds(new Set());
     } else {
       const draggedId = e.active.id as string;
-      const currentSelection = new Set(selectedRowIds);
+      const currentSelection = selectedRowIdsRef.current;
       if (currentSelection.has(draggedId) && currentSelection.size > 1) {
         setActiveDragIds(new Set(currentSelection));
       } else {
+        if (currentSelection.size > 0) {
+          setSelectedRowIds(new Set());
+        }
         setActiveDragIds(new Set([draggedId]));
       }
       setActiveDragRow(augmentedRows.find(r => r.id === draggedId) || null);
