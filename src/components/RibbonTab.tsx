@@ -402,9 +402,10 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   }, [rows, colWidths, commit]);
 
   /* ── Direct-DOM column resize ── */
-  const startResize = useCallback((ci: number, e: React.MouseEvent) => {
+  const startResize = useCallback((ci: number, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const gridEl = gridRef.current;
     if (!gridEl) return;
     const startX = e.clientX;
@@ -417,7 +418,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       if (tabBarRef.current) {
         tabBarRef.current.style.gridTemplateColumns = css;
       }
-      // Also update preview grids
       const prevSection = previewSectionRef.current;
       if (prevSection) {
         prevSection.querySelectorAll('[data-preview-grid]').forEach(pg => {
@@ -426,7 +426,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       }
     };
 
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const deltaPct = ((e.clientX - startX) / gridWidth) * 100;
       const cw = [...initial];
       if (ci >= cw.length - 1) return;
@@ -456,13 +456,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     };
 
     const onUp = () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
       saveToStore(rowsRef.current, [...colWidthsRef.current]);
     };
 
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   }, [saveToStore]);
 
   /* ── Keyboard (use refs for stable closures) ── */
@@ -1006,7 +1006,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                           <div
                             className="absolute right-0 top-0 cursor-col-resize group/tab z-10"
                             style={{ transform: 'translateX(50%)' }}
-                            onMouseDown={e => startResize(i, e)}
+                            onPointerDown={e => startResize(i, e)}
                             onClick={e => e.stopPropagation()}
                           >
                             <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-zinc-500 group-hover/tab:border-t-blue-400 transition-colors" />

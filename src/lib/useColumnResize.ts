@@ -23,21 +23,22 @@ export function useColumnResize(
   widthsRef.current = widths;
 
   const startResize = useCallback(
-    (columnId: string, e: React.MouseEvent) => {
+    (columnId: string, e: React.PointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
       const startX = e.clientX;
       const startWidth = widthsRef.current[columnId] ?? defaults[columnId] ?? 100;
 
-      const onMove = (ev: MouseEvent) => {
+      const onMove = (ev: PointerEvent) => {
         const delta = ev.clientX - startX;
         const newWidth = Math.max(MIN, Math.min(MAX, startWidth + delta));
         setWidths(prev => ({ ...prev, [columnId]: newWidth }));
       };
 
       const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
         try {
@@ -47,8 +48,8 @@ export function useColumnResize(
 
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
     },
     [defaults, storageKey],
   );

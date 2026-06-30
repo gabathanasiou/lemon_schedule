@@ -192,28 +192,29 @@ export const UnscheduledBlock: React.FC<{
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
   };
 
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+  const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
     const startX = e.clientX;
     const startWidth = panelRef.current?.offsetWidth || widthRef.current;
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       const newWidth = Math.min(600, Math.max(200, startWidth + e.clientX - startX));
       widthRef.current = newWidth;
       if (panelRef.current) {
         panelRef.current.style.width = `${newWidth}px`;
       }
     };
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       setWidth(widthRef.current);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('pointerup', handlePointerUp);
     };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('pointermove', handlePointerMove);
+    document.addEventListener('pointerup', handlePointerUp);
   }, []);
 
   return (
@@ -370,7 +371,8 @@ export const UnscheduledBlock: React.FC<{
       {!isCollapsed && (
         <div
           className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
-          onMouseDown={handleResizeStart}
+          onPointerDown={handleResizeStart}
+          data-no-longpress
         />
       )}
     </div>

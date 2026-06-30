@@ -262,87 +262,87 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
             <tr className="sticky top-0 z-20">
               <th className="sticky left-0 bg-zinc-900 px-3 py-1.5 text-left text-zinc-400 font-medium border-r border-zinc-800 whitespace-nowrap z-30" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 {categoryLabel}
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
                 <th key={d.dayInt} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
               <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium border-l border-l-zinc-800 bg-zinc-900 cursor-default">
                 Work
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
               </th>
               <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
                 Hold
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
               </th>
               {isCast && <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
                 Trav
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
                 Start
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
               </th>
               <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
                 Finish
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 28 }}>
               <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 Day of Week
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
                 <th key={d.dayInt} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {formatDow(d.isoDate)}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
               <th className="relative px-2 py-1 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
               </th>
               <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
               </th>
               {isCast && <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
               </th>
               <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
             <tr className="sticky z-20" style={{ top: 52, boxShadow: '0 4px 6px -2px rgba(0,0,0,0.5)' }}>
               <th className="sticky left-0 bg-zinc-900 px-3 py-1 text-left text-zinc-500 font-normal border-b border-r border-zinc-800 z-30 cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 Shooting Day
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
                 <th key={d.dayInt} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {d.isShooting ? chronoDayMap.get(d.dayInt) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}
               <th className="relative px-2 py-1 border-b border-zinc-800 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
               </th>
               <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
               </th>
               {isCast && <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
               <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
               </th>
               <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
               </th>
             </tr>
           </thead>
@@ -351,7 +351,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
               <tr key={row.elementId} className="group hover:bg-zinc-800/40">
                 <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-3 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                   {row.elementName}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
                 </td>
                 {data.days.map((d, ci) => {
                   const code = row.cells[ci];
@@ -361,29 +361,29 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                   return (
                     <td key={ci} className={`relative px-2 py-1.5 text-center border-b border-zinc-800 text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code)}>
                       <span className={!d.isShooting ? 'opacity-40' : ''}>{code}</span>
-                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('day', e)} />
+                      <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                     </td>
                   );
                 })}
                 <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 font-medium border-b border-zinc-800 border-l border-l-zinc-800 cursor-default">
                   {row.workDays > 0 ? row.workDays : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('work', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
                   {row.holdDays > 0 ? row.holdDays : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('hold', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('hold', e)} />
                 </td>
                 {isCast && <td className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
                   {row.travelDays > 0 ? row.travelDays : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('trav', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
                 </td>}
                 <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
                   {row.startDate ? formatDateShort(row.startDate) : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('start', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
                   {row.finishDate ? formatDateShort(row.finishDate) : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('finish', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('finish', e)} />
                 </td>
               </tr>
             ))}

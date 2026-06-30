@@ -138,19 +138,19 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
             <tr className="sticky top-0 z-20">
               <th className="sticky left-0 bg-zinc-900 px-2 py-1.5 text-left text-zinc-400 font-medium border-b border-r border-zinc-800 whitespace-nowrap z-30 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                 {selectedLabel}
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               <th className="relative text-left px-2 py-1.5 border-b border-r border-zinc-800 font-medium text-zinc-400 cursor-default">
                 Scenes
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('scenes', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('scenes', e)} />
               </th>
               <th className="relative text-left px-2 py-1.5 border-b border-r border-zinc-800 font-medium text-zinc-400 whitespace-nowrap cursor-default">
                 Total Pages
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('pages', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('pages', e)} />
               </th>
               <th className="relative text-left px-2 py-1.5 border-b border-zinc-800 font-medium text-zinc-400 cursor-default">
                 Shoot Days
-                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('days', e)} />
+                <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('days', e)} />
               </th>
             </tr>
           </thead>
@@ -159,19 +159,19 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
               <tr key={el.key} className="group hover:bg-zinc-800/40">
                 <td className="sticky left-0 bg-zinc-950 group-hover:bg-zinc-800 px-2 py-1.5 text-white font-medium border-b border-r border-zinc-800 whitespace-nowrap z-10 overflow-hidden text-ellipsis cursor-default" style={{ boxShadow: '4px 0 6px -2px rgba(0,0,0,0.5)' }}>
                   {el.name}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('name', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-r border-zinc-800 cursor-default">
                   {el.scenes || '—'}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('scenes', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('scenes', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-r border-zinc-800 whitespace-nowrap cursor-default">
                   {el.totalPages} pgs
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('pages', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('pages', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-zinc-800 cursor-default">
                   {el.shootDays || '—'}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onMouseDown={(e) => startResize('days', e)} />
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('days', e)} />
                 </td>
               </tr>
             ))}
