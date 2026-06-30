@@ -577,11 +577,15 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
-      if (r.shootDay === null) return true;
+      if (r.shootDay === null && !r.boneyard) return true;
       const meta = activeVersion?.dayMeta?.[r.shootDay];
       return !meta?.date;
     }).sort((a, b) => a.order - b.order);
   }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
+
+  const calBoneyardRows = useMemo(() =>
+    augmentedRows.filter(r => r.boneyard && !activeDragIds.has(r.id))
+  , [augmentedRows, activeDragIds]);
 
   const handleToggle = useCallback((dateKey: string) => {
     dispatch({ type: 'INSERT_WORKING_DAY', payload: { versionId: project.activeVersionId!, date: dateKey } });
@@ -850,6 +854,18 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
         <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} onRowDoubleClick={handleRowDoubleClick} />
+        {calBoneyardRows.length > 0 && (
+          <div className="border-r border-zinc-200 bg-zinc-50 flex flex-col shrink-0" style={{ width: '160px' }}>
+            <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-500 bg-white">
+              BONEYARD ({calBoneyardRows.length})
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-0">
+              {calBoneyardRows.map((r) => (
+                <SceneCard key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedRowIds.has(r.id)} isFaded={activeDragIds.has(r.id)} onToggle={handleRowClick} onDoubleClick={handleRowDoubleClick} />
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
