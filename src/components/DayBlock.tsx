@@ -155,10 +155,12 @@ const dayBlockPropsEqual = (a: any, b: any) => {
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
+  if (a.stripView !== b.stripView) return false;
+  if (a.date !== b.date || a.isLastGroup !== b.isLastGroup) return false;
   return true;
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders, stripView?: 'full' | 'compact', date?: string | null, isLastGroup?: boolean }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, stripView = 'full', date, isLastGroup }) => {
   const displayDay = chronoDay ?? dayInt;
   const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;

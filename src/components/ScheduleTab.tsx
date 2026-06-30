@@ -697,6 +697,34 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     return m;
   }, [existingDays, activeVersion]);
 
+  const stripView = activeVersion?.stripView || 'full';
+  const hasCalendar = !!(activeVersion?.calendar?.startDate);
+
+  const dayGroups = useMemo(() => {
+    if (!activeVersion) return [];
+    return computeDayGroups(activeVersion.rows);
+  }, [activeVersion?.rows]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const derivedDates = useMemo(() => {
+    const cal = activeVersion?.calendar;
+    if (!cal?.startDate) return new Map<number, string>();
+    return deriveDayDates(cal, dayGroups.length);
+  }, [activeVersion?.calendar, dayGroups.length]);
+
+  const stripboardLayout = useMemo(() => {
+    const cal = activeVersion?.calendar;
+    if (!cal || !activeVersion) return [];
+    return deriveStripboardLayout(activeVersion.rows, cal);
+  }, [activeVersion?.rows, activeVersion?.calendar]);
+
+  const boneyardRows = useMemo(() =>
+    (activeVersion?.rows || []).filter(r => r.boneyard)
+  , [activeVersion?.rows]);
+
+  const newUnscheduledRows = useMemo(() =>
+    (activeVersion?.rows || []).filter(r => r.shootDay === null && !r.boneyard)
+  , [activeVersion?.rows]);
+
   const getDayFromId = (id: string): number | null => {
     if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
     if (id.startsWith('day-wrap-') || id.startsWith('day-') || id.startsWith('end-')) {
@@ -1159,6 +1187,21 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
             <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
             <span className="text-zinc-300 select-none">·</span>
             <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
+            <div className="w-px h-4 bg-zinc-200" />
+            <div className="flex items-center gap-0.5">
+              <button
+                className={`px-2 py-0.5 text-[10px] font-medium rounded-l ${stripView === 'full' ? 'bg-zinc-700 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}
+                onClick={() => dispatch({ type: 'SET_STRIP_VIEW', payload: { versionId: activeVersion!.id, mode: 'full' } })}
+              >
+                Full
+              </button>
+              <button
+                className={`px-2 py-0.5 text-[10px] font-medium rounded-r ${stripView === 'compact' ? 'bg-zinc-700 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}
+                onClick={() => dispatch({ type: 'SET_STRIP_VIEW', payload: { versionId: activeVersion!.id, mode: 'compact' } })}
+              >
+                Compact
+              </button>
+            </div>
             {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
               <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -1309,8 +1352,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                  setContextMenu(null);
               }
           }}
-      >
-            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
+       >
+            <UnscheduledBlock rows={hasCalendar ? boneyardRows : unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -1321,30 +1364,94 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
-               {existingDays.map((dayInt, i) => (
-                <DayBlock 
-                  key={dayInt} 
-                  dayInt={dayInt} 
-                  rows={scheduledRows[dayInt] || []}
-                  meta={activeVersion?.dayMeta[dayInt]}
+            {hasCalendar && stripboardLayout.length > 0 ? (
+              <>
+                {stripboardLayout.map((item, i) => {
+                  if (item.kind === 'working') {
+                    return (
+                      <DayBlock 
+                        key={`day-${item.dayNumber}`}
+                        dayInt={item.dayNumber} 
+                        rows={item.rows}
+                        meta={activeVersion?.dayMeta[item.dayNumber]}
+                        selectedIds={selectedRowIds}
+                        activeDragIds={activeDragIds}
+                        onRowClick={handleRowClick}
+                        textEditingEnabled={textEditingEnabled}
+                        insertBeforeId={insertBeforeId}
+                        activeRowId={activeId}
+                        activeDragRow={activeDragRow}
+                        activeDragRows={activeDragRows}
+                        chronoDay={item.dayNumber}
+                        focusedRowId={focusedRowId}
+                        onRowDoubleClick={handleRowDoubleClick}
+                        onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
+                        ribbon={activeRibbon}
+                        colWidths={activeColWidths}
+                        cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
+                        cellBorders={cellBorders}
+                        stripView={stripView}
+                        date={item.date}
+                        isLastGroup={i === stripboardLayout.length - 1 || stripboardLayout[i + 1]?.kind !== 'working'}
+                      />
+                    );
+                  } else {
+                    return (
+                      <StatusDayBlock
+                        key={`status-${item.date}`}
+                        entry={item.entry}
+                        date={item.date}
+                      />
+                    );
+                  }
+                })}
+                <UnscheduledZone
+                  rows={newUnscheduledRows}
+                  scenes={project.scenes}
+                  textEditingEnabled={textEditingEnabled}
                   selectedIds={selectedRowIds}
                   activeDragIds={activeDragIds}
                   onRowClick={handleRowClick}
-                  textEditingEnabled={textEditingEnabled}
                   insertBeforeId={insertBeforeId}
                   activeRowId={activeId}
-                  activeDragRow={activeDragRow}
-                  activeDragRows={activeDragRows}
-                  chronoDay={chronoDayMap.get(dayInt)}
-                   focusedRowId={focusedRowId}
-                   onRowDoubleClick={handleRowDoubleClick}
+                  onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
+                  onRowDoubleClick={handleRowDoubleClick}
+                  ribbon={activeRibbon}
+                  colWidths={activeColWidths}
+                  cellPaddingV={cellPaddingV}
+                  cellPaddingH={cellPaddingH}
+                  edgePadding={edgePadding}
+                  cellBorders={cellBorders}
+                />
+              </>
+            ) : (
+              <>
+                {existingDays.map((dayInt, i) => (
+                  <DayBlock 
+                    key={dayInt} 
+                    dayInt={dayInt} 
+                    rows={scheduledRows[dayInt] || []}
+                    meta={activeVersion?.dayMeta[dayInt]}
+                    selectedIds={selectedRowIds}
+                    activeDragIds={activeDragIds}
+                    onRowClick={handleRowClick}
+                    textEditingEnabled={textEditingEnabled}
+                    insertBeforeId={insertBeforeId}
+                    activeRowId={activeId}
+                    activeDragRow={activeDragRow}
+                    activeDragRows={activeDragRows}
+                    chronoDay={chronoDayMap.get(dayInt)}
+                    focusedRowId={focusedRowId}
+                    onRowDoubleClick={handleRowDoubleClick}
                     onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                      ribbon={activeRibbon}
-                      colWidths={activeColWidths}
-                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
-                     cellBorders={cellBorders}
+                    ribbon={activeRibbon}
+                    colWidths={activeColWidths}
+                    cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
+                    cellBorders={cellBorders}
                   />
-              ))}
+                ))}
+              </>
+            )}
           </div>
           <MarqueeOverlay box={marqueeBox} />
         </div>
