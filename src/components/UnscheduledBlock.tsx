@@ -9,6 +9,7 @@ import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
+import MarqueeToolButton from './MarqueeToolButton';
 import { IS_COARSE } from '../lib/device';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
@@ -319,7 +320,8 @@ export const UnscheduledBlock: React.FC<{
           </div>
           
           <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y' : undefined }}>
-            <MarqueeOverlay box={marqueeBox} />
+             <MarqueeOverlay box={marqueeBox} />
+             <MarqueeToolButton />
             <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
             <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
               {rows.map((r, i, arr) => (

@@ -16,6 +16,7 @@ import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
+import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
@@ -23,6 +24,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import MarqueeToolButton from './MarqueeToolButton';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 
@@ -414,6 +416,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   }, []);
 
   const ctrlOrCmdHeld = useAddMode();
+  const marqueeMode = useMarqueeMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     calendarGridRef,
@@ -427,12 +430,12 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   const sensors = useSensors(
     IS_COARSE
       ? useSensor(TouchSensor, {
-          activationConstraint: activeTool || ctrlOrCmdHeld
+          activationConstraint: activeTool || ctrlOrCmdHeld || marqueeMode !== 'off'
             ? { delay: 999999, tolerance: 0 }
             : { delay: 200, tolerance: 5 }
         })
       : useSensor(PointerSensor, {
-          activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld ? 999999 : 3) }
+          activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld || marqueeMode !== 'off' ? 999999 : 3) }
         })
   );
 
@@ -1002,8 +1005,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
                   />
                 );
               })}
-            </div>
+              </div>
           </div>
+          <MarqueeToolButton />
         </div>
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
