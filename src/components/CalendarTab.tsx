@@ -616,8 +616,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   , [augmentedRows, activeDragIds]);
 
   const handleToggle = useCallback((dateKey: string) => {
+    const cal = activeVersion?.calendar || defaultCalendar();
+    const isOccupied = workingMap.has(dateKey) || cal.daysOff[dateKey] || cal.statusDays[dateKey];
+    if (isOccupied) return;
     dispatch({ type: 'INSERT_WORKING_DAY', payload: { versionId: project.activeVersionId!, date: dateKey } });
-  }, [dispatch, project.activeVersionId]);
+  }, [dispatch, project.activeVersionId, activeVersion, workingMap]);
 
   const sortUnscheduled = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;

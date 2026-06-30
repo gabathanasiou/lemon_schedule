@@ -718,8 +718,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   , [activeVersion?.rows]);
 
   const newUnscheduledRows = useMemo(() =>
-    (activeVersion?.rows || []).filter(r => r.shootDay === null && !r.boneyard)
-  , [activeVersion?.rows]);
+    augmentedRows.filter(r => r.shootDay === null && !r.boneyard)
+  , [augmentedRows]);
 
   const getDayFromId = (id: string): number | null => {
     if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
