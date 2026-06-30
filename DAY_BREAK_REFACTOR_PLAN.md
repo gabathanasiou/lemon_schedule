@@ -2,6 +2,7 @@
 
 > **Branch**: `day-breaks-v3`
 > **Date**: 2026-06-29
+> **Audited**: 2026-06-30 — verified against current codebase. Line numbers updated. No substantive conflicts found.
 > **Target**: Move from static-date working days to a flow-based day-break system, inspired by Movie Magic Scheduling / StudioBinder.
 
 ---
@@ -63,10 +64,10 @@
 
 | Entity | File | Key Fields |
 |---|---|---|
-| `ScheduleRow` | `src/types.ts:35-55` | `id, type ('SCENE' \| 'BREAK' \| 'NOTE'), shootDay, order, sceneId?, ...` |
+| `ScheduleRow` | `src/types.ts:35-55` | `id, type ('SCENE' | 'BREAK' | 'NOTE'), shootDay, order, sceneId?, ...` |
 | `ShootDayMeta` | `src/types.ts:57-64` | `shootDay, unitCall, date, status?, castIds?` |
 | `ScheduleVersion` | `src/types.ts:66-73` | `id, name, rows, dayMeta: Record<number, ShootDayMeta>` |
-| `Project` | `src/types.ts:203-226` | `scenes, versions, activeVersionId, rules, castMembers` |
+| `Project` | `src/types.ts:206-229` | `scenes, versions, activeVersionId, rules, castMembers` |
 
 ### Key sentinels
 
@@ -84,17 +85,17 @@ Scene → ScheduleRow.shootDay → dayMeta[N].date → Calendar cell
 
 ### Calendar working-day creation
 
-`TOGGLE_WORKING_DAY` (store.tsx:542-567): looks for existing dayMeta entry by date. If not found, creates one with `shootDay = max(existing keys) + 1`. ShootDay IDs are monotonic, never renumbered.
+`TOGGLE_WORKING_DAY` (store.tsx:567-592): looks for existing dayMeta entry by date. If not found, creates one with `shootDay = max(existing keys) + 1`. ShootDay IDs are monotonic, never renumbered.
 
 ### Stripboard day rendering
 
-- `existingDays` (ScheduleTab.tsx:656-662): dayMeta keys sorted by `.date`
-- `chronoDayMap` (ScheduleTab.tsx:664-672): maps `shootDay → chronologicalDayNumber` (work-status days only, sorted by date)
+- `existingDays` (ScheduleTab.tsx:679-685): dayMeta keys sorted by `.date`
+- `chronoDayMap` (ScheduleTab.tsx:687-695): maps `shootDay → chronologicalDayNumber` (work-status days only, sorted by date)
 - Same `chronoDayMap` recomputed independently in **6 places**: ScheduleTab, CalendarTab, PrintSchedule, DoodsTab, Dood.tsx, SceneSheet
 
 ### Right-click context menu (stripboard)
 
-ScheduleTab.tsx:1260-1274 captures `[data-row-id]`; menu items (1361-1428): Cut/Paste, Add Note Below, Add Break Below, Duplicate, Change Color, Remove Ribbon, Delete. No "Day Break" option.
+ScheduleTab.tsx:1276-1286 captures `[data-row-id]`; menu items (1385-1445): Cut/Paste, Add Note Below, Add Break Below, Duplicate, Change Color, Remove Ribbon, Delete. No "Day Break" option.
 
 ### Known fragilities
 
@@ -103,6 +104,13 @@ ScheduleTab.tsx:1260-1274 captures `[data-row-id]`; menu items (1361-1428): Cut/
 - Dead code: stripboard has a `day-wrap-*` drag branch that no draggable registers
 - Two separate code paths patch dayMeta: `UPDATE_DAY_META` (store) vs `DayBlock.updateMeta` (direct `UPDATE_VERSION`)
 - No date utility module — all date math inline
+
+### Recent changes (June 30) — no conflicts
+
+- **ElementManager**: Merge detection fix + "Merge Duplicates" button now triggers full save+merge pipeline. Unrelated to day breaks.
+- **EntityDropdown**: `uppercase` prop for set fields, backspace fix, synthetic item styling. No impact on plan.
+- **BreakdownTab**: Context menu with copy/cut/paste/clear, column selection visuals. Unrelated.
+- **Selection system**: Already has ctrl/cmd+click toggle, shift+click range select, multi-drag across day groups. The plan's `useRangeSelection` hook proposal (section 7.7) should be treated as an extraction/cleanup of existing inline logic, not new implementation.
 
 ---
 
@@ -633,7 +641,7 @@ Note: This may "lose" unitCall if groups are renumbered due to insertion/deletio
 #### Day groups derivation (replaces `existingDays` + `chronoDayMap`)
 
 ```typescript
-// OLD (lines 656-672): sort dayMeta keys by date, compute chronoDayMap independently
+// OLD (lines 679-695): sort dayMeta keys by date, compute chronoDayMap independently
 // NEW:
 const dayGroups = useMemo(() => computeDayGroups(augmentedRows), [augmentedRows]);
 const groupCount = dayGroups.length;
@@ -918,14 +926,13 @@ if (row.type === 'DAY_BREAK') {
 
 ### 7.6 `BoneyardBlock.tsx` (renamed from `UnscheduledBlock.tsx`)
 
-The current `UnscheduledBlock.tsx` becomes the **Boneyard** panel:
+The current `UnscheduledBlock.tsx` (375 lines, shows all `shootDay === null` rows) becomes the **Boneyard** panel:
 - Rename component and display label from "Unscheduled" to "Boneyard"
-- Shows only rows where `boneyard: true`
+- **Critical split**: In the new model, `shootDay === null` rows fall into TWO categories: unscheduled (bottom of stripboard) and boneyard (sidebar). The current UnscheduledBlock must be split:
+  - `UnscheduledZone.tsx` (new) — renders unscheduled rows (`boneyard: false`, `shootDay: null`) at stripboard bottom
+  - `BoneyardBlock.tsx` (renamed) — renders boneyard rows (`boneyard: true`) in sidebar
+- Filter: show only rows where `boneyard: true`
 - Same drag-and-drop out of boneyard (drag onto a day = un-boneyard + schedule)
-- Same collapse/width persistence
-- Header: "BONEYARD" label with count
-
-Current unscheduled sidebar CSS/persistence keys retained (just renamed in UI).
 
 ### 7.7 Selection Consistency & Multi-Selection
 
@@ -951,21 +958,21 @@ All four locations use the same blue ring + tinted background. No more visual di
 
 #### Shift-click range selection (both views)
 
-Currently the stripboard supports arrow-key + shift range selection (ScheduleTab.tsx:221-351) but **shift-click does not work** — clicking with shift held doesn't extend the selection. The calendar has marquee selection but no shift-click either.
+**Note:** The selection logic for shift+click range selection, ctrl/cmd+click toggle, and multi-drag already exists inline in `ScheduleTab.tsx:handleRowClick` (lines 58-88) and `CalendarTab.tsx:handleRowClick` (lines 637-656). The `useRangeSelection` hook below is an extraction/consolidation step, not new functionality. The hook should be a drop-in replacement for the existing inline handlers.
 
 **Stripboard (`ScheduleTab.tsx`):**
-- Click: selects one row (clears previous selection).
-- Shift+click: selects all rows between the last anchor row and the clicked row (inclusive). Anchor = the last row clicked without shift. Works across day groups and the unscheduled zone.
-- Ctrl/Cmd+click: toggles individual row in/out of selection (additive). This partially works today via marquee add-mode but should be explicit on click, not requiring ctrl+drag activation.
+- Click: selects one row (clears previous selection). ✓ Already works.
+- Shift+click: selects all rows between the last anchor row and the clicked row. ✓ Already works via `flatRowIdsRef`.
+- Ctrl/Cmd+click: toggles individual row in/out of selection. ✓ Already works.
 
 **Calendar (`CalendarTab.tsx`):**
 - Same three patterns on scene cards within calendar day cells.
 - Shift+click selects all scene cards between the anchor card and the clicked card (by calendar render order, not by row order — since calendar lays out cards by date).
 - Ctrl/Cmd+click toggles individual cards.
 
-**Shared logic:**
+**Shared logic** (extracts existing inline handlers from `ScheduleTab.tsx:58-88` and `CalendarTab.tsx:637-656`):
 ```typescript
-// src/lib/useRangeSelection.ts (new hook)
+// src/lib/useRangeSelection.ts (new hook — consolidates existing logic)
 function useRangeSelection<T extends { id: string }>(items: T[]) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const anchorIdRef = useRef<string | null>(null);
@@ -1269,7 +1276,7 @@ Three small modals for editing existing calendar entries (reuse existing compone
 
 The current calendar tool palette (Select / Work / Hold / Travel / Holiday / Eraser) is **removed entirely**. Working days are never "painted" — they emerge from the stripboard day breaks flowing around static calendar entries.
 
-The current `TOGGLE_WORKING_DAY` store action is deprecated. Replaced by:
+The current `TOGGLE_WORKING_DAY` store action (store.tsx:228 type, 567-592 handler) is deprecated. Replaced by:
 - `INSERT_WORKING_DAY` — creates a day break at the calendar position
 - `SET_DAYS_OFF` — marks a date as off (pushes working days around)
 - `SET_STATUS_DAY` — creates hold/travel entries (pushes working days around)
