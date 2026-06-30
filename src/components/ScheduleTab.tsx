@@ -724,6 +724,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     [flatLayout]
   );
 
+  const allFlatIds = useMemo(() =>
+    [...flatIds, ...unscheduledRows.map(r => r.id)],
+    [flatIds, unscheduledRows]
+  );
+
   const sceneViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
     for (const dayInt of existingDays) {
@@ -1110,21 +1115,17 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     const activeRow = augmentedRows.find(r => r.id === activeId);
     if (!activeRow) return;
 
-    const overDay = getDayFromId(overId);
-
-    // Drop to unscheduled
-    if (overId === 'unscheduled_bin' || overId === 'end-unscheduled' || (overDay === null && augmentedRows.some(r => r.id === overId && r.shootDay === null))) {
-      const newRows = activeVersion.rows.map(r => r.id === activeId ? { ...r, shootDay: null as any, order: 999999 } : r);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-      return;
+    // Reorder via arrayMove on allFlatIds (schedule + unscheduled), then derive shootDay
+    const activeIdx = allFlatIds.indexOf(activeId);
+    let overIdx: number;
+    if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
+      overIdx = allFlatIds.length - 1; // drop at end of unscheduled zone
+    } else {
+      overIdx = allFlatIds.indexOf(overId);
     }
-
-    // Reorder via arrayMove on flatIds, then derive shootDay
-    const activeIdx = flatIds.indexOf(activeId);
-    const overIdx = flatIds.indexOf(overId);
     if (activeIdx === -1 || overIdx === -1) return;
 
-    const newFlatIds: string[] = arrayMove(flatIds, activeIdx, overIdx) as string[];
+    const newFlatIds: string[] = arrayMove(allFlatIds, activeIdx, overIdx) as string[];
     const newRowOrder = newFlatIds.filter(id => !id.startsWith('day-header-'));
 
     // Reorder version rows to match newRowOrder
@@ -1134,7 +1135,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       const row = rowById.get(id);
       if (row) reordered.push(row);
     }
-    // Append any rows not in newRowOrder (unscheduled, etc.)
+    // Append any rows not in newRowOrder (orphaned, etc.)
     for (const row of activeVersion.rows) {
       if (!newRowOrder.includes(row.id)) reordered.push(row);
     }
