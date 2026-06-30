@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID, formatDateLong } from '../lib/utils';
@@ -19,6 +19,35 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 import { checkDay } from '../lib/rulesEngine';
+
+const DayHeaderRow: React.FC<{
+  dayInt: number;
+  dateStr: string;
+  callTime: string;
+  handleRowClick: (id: string, e: React.MouseEvent) => void;
+  selectedRowIds: Set<string>;
+  setSelectedRowIds: (v: Set<string>) => void;
+  setContextMenu: (v: { x: number; y: number; rowId: string; shootDay: number | null } | null) => void;
+}> = ({ dayInt, dateStr, callTime, handleRowClick, selectedRowIds, setSelectedRowIds, setContextMenu }) => {
+  const { setNodeRef } = useSortable({ id: `day-header-${dayInt}`, disabled: true });
+  const rowId = `empty-${dayInt}`;
+  return (
+    <div ref={setNodeRef}
+      className="day-header-row flex items-center justify-between bg-zinc-700 text-white text-xs px-3 py-2 font-bold border-b-2 border-black"
+      data-row-id={rowId}
+      data-shoot-day={dayInt}
+      onClick={(e) => { e.stopPropagation(); handleRowClick(rowId, e as any); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (!selectedRowIds.has(rowId)) setSelectedRowIds(new Set([rowId]));
+        setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay: dayInt });
+      }}>
+      <span>DAY #{dayInt}</span>
+      {dateStr && <span className="text-zinc-300">{dateStr}</span>}
+      <span className="text-zinc-400 text-[10px]">{callTime}</span>
+    </div>
+  );
+};
 
 export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
@@ -1386,20 +1415,16 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   const meta = activeVersion?.dayMeta[item.dayInt];
                   const dateStr = meta?.date ? formatDateLong(meta.date) : '';
                   return (
-                    <div key={`header-${item.dayInt}`}
-                      className="day-header-row flex items-center justify-between bg-zinc-700 text-white text-xs px-3 py-2 font-bold border-b-2 border-black"
-                      data-row-id={`empty-${item.dayInt}`}
-                      data-shoot-day={item.dayInt}
-                      onClick={(e) => { e.stopPropagation(); handleRowClick(`empty-${item.dayInt}`, e as any); }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        if (!selectedRowIds.has(`empty-${item.dayInt}`)) setSelectedRowIds(new Set([`empty-${item.dayInt}`]));
-                        setContextMenu({ x: e.clientX, y: e.clientY, rowId: `empty-${item.dayInt}`, shootDay: item.dayInt });
-                      }}>
-                      <span>DAY #{item.dayInt}</span>
-                      {dateStr && <span className="text-zinc-300">{dateStr}</span>}
-                      <span className="text-zinc-400 text-[10px]">{meta?.unitCall || '08:00'}</span>
-                    </div>
+                    <DayHeaderRow
+                      key={`header-${item.dayInt}`}
+                      dayInt={item.dayInt}
+                      dateStr={dateStr}
+                      callTime={meta?.unitCall || '08:00'}
+                      handleRowClick={handleRowClick}
+                      selectedRowIds={selectedRowIds}
+                      setSelectedRowIds={setSelectedRowIds}
+                      setContextMenu={setContextMenu}
+                    />
                   );
                 }
                 return (
