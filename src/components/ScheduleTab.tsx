@@ -5,6 +5,7 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID, formatDateLong } from '../lib/utils';
+import { deriveShootDays } from '../lib/scheduling';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, SeparatorHorizontal, Archive } from 'lucide-react';
@@ -1105,90 +1106,42 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     }
 
     const activeRow = augmentedRows.find(r => r.id === activeId);
-    
     if (!activeRow) return;
 
-    let overDay = getDayFromId(overId);
+    const overDay = getDayFromId(overId);
+
+    // Drop to unscheduled
     if (overId === 'unscheduled_bin' || overId === 'end-unscheduled' || (overDay === null && augmentedRows.some(r => r.id === overId && r.shootDay === null))) {
-      overDay = null; // explicit drop to unscheduled
-    } else if (overDay === null && !overId.startsWith('day-') && !overId.startsWith('end-')) {
-      return; // invalid drop
+      const newRows = activeVersion.rows.map(r => r.id === activeId ? { ...r, shootDay: null as any, order: 999999 } : r);
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+      return;
     }
 
-    let draggingIds = [activeId];
-    if (selectedRowIds.has(activeId) && selectedRowIds.size > 1) {
-       draggingIds = Array.from(selectedRowIds);
-       draggingIds.sort((a, b) => {
-          const rA = augmentedRows.find(r => r.id === a);
-          const rB = augmentedRows.find(r => r.id === b);
-          if (rA && rB) {
-             if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
-             return rA.order - rB.order;
-          }
-          return 0;
-       });
+    // Reorder via arrayMove on flatIds, then derive shootDay
+    const activeIdx = flatIds.indexOf(activeId);
+    const overIdx = flatIds.indexOf(overId);
+    if (activeIdx === -1 || overIdx === -1) return;
+
+    const newFlatIds: string[] = arrayMove(flatIds, activeIdx, overIdx) as string[];
+    const newRowOrder = newFlatIds.filter(id => !id.startsWith('day-header-'));
+
+    // Reorder version rows to match newRowOrder
+    const rowById = new Map<string, ScheduleRow>(activeVersion.rows.map(r => [r.id, r]));
+    const reordered: ScheduleRow[] = [];
+    for (const id of newRowOrder) {
+      const row = rowById.get(id);
+      if (row) reordered.push(row);
     }
-
-    let newRows = augmentedRows.map(r => ({ ...r }));
-    
-    // helper to clean synth IDs when saving
-    const sanitizeRow = (r: ScheduleRow) => {
-       if (r.id.startsWith('row-synth-')) {
-          return { ...r, id: generateUUID() };
-       }
-       return r;
+    // Append any rows not in newRowOrder (unscheduled, etc.)
+    for (const row of activeVersion.rows) {
+      if (!newRowOrder.includes(row.id)) reordered.push(row);
     }
+    const indexed = reordered.map((r, i) => ({ ...r, order: i }));
+    const derived = deriveShootDays(indexed);
 
-    if (draggingIds.length === 1) {
-      newRows = newRows.filter(r => r.id !== activeId);
-      let dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      let insertIndex: number;
-      if (lastInsertBeforeId?.startsWith('day-')) {
-        insertIndex = 0;
-      } else if (lastInsertBeforeId?.startsWith('end-')) {
-        insertIndex = dayRows.length;
-      } else if (lastInsertBeforeId && dayRows.some(r => r.id === lastInsertBeforeId)) {
-        insertIndex = dayRows.findIndex(r => r.id === lastInsertBeforeId);
-        if (insertIndex === -1) insertIndex = dayRows.length;
-      } else {
-        insertIndex = dayRows.length;
-      }
-      const movedRow = { ...activeRow, shootDay: overDay };
-      dayRows.splice(insertIndex, 0, movedRow);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
-      setSelectedRowIds(new Set([activeId]));
-    } else {
-      const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
-      const dayRowsBefore = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      let rawIndex: number;
-      if (lastInsertBeforeId?.startsWith('day-')) {
-        rawIndex = 0;
-      } else if (lastInsertBeforeId?.startsWith('end-')) {
-        rawIndex = dayRowsBefore.length;
-      } else if (lastInsertBeforeId && dayRowsBefore.some(r => r.id === lastInsertBeforeId)) {
-        rawIndex = dayRowsBefore.findIndex(r => r.id === lastInsertBeforeId);
-        if (rawIndex === -1) rawIndex = dayRowsBefore.length;
-      } else {
-        rawIndex = dayRowsBefore.length;
-      }
-      const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
-        const idx = dayRowsBefore.findIndex(r => r.id === id);
-        return idx >= 0 && idx < rawIndex;
-      }).length;
-
-      newRows = newRows.filter(r => !draggingIds.includes(r.id));
-      const dayRows = newRows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
-      const newItems = draggingItems.map(item => ({ ...item, shootDay: overDay }));
-      dayRows.splice(insertIndex, 0, ...newItems);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.shootDay !== overDay), ...dayRows];
-      setSelectedRowIds(new Set(draggingIds));
-    }
-
-    // Convert synthetic rows that got modified into real rows
-    const persistentRows = newRows.map(sanitizeRow);
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: derived } });
+    setSelectedRowIds(new Set([activeId]));
+    setFocusedRowId(activeId);
   };
 
   const activeDragRow = useMemo(() => {

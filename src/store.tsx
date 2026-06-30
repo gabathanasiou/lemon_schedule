@@ -1145,7 +1145,8 @@ function reducer(state: State, action: Action): State {
         order: targetRow.order + 0.5,
       };
       const rawRows = [...version.rows, breakRow].sort((a, b) => a.order - b.order);
-      const newRows = deriveShootDays(rawRows);
+      const reindexed = rawRows.map((r, i) => ({ ...r, order: i }));
+      const newRows = deriveShootDays(reindexed);
       const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
       const newDayMeta = { ...version.dayMeta };
       for (let d = 1; d <= maxDay; d++) {
