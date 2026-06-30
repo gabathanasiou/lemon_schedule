@@ -584,24 +584,32 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
       if (r.shootDay === null) return;
       if (activeDragIds.has(r.id)) return;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return;
-      const meta = activeVersion.dayMeta?.[r.shootDay];
-      if (!meta?.date) return;
-      const dk = meta.date;
-      if (!map.has(dk)) map.set(dk, []);
-      map.get(dk)!.push(r);
+      let dateKey: string | undefined;
+      if (calDerivedDates.size > 0) {
+        dateKey = calDerivedDates.get(r.shootDay);
+      } else {
+        const meta = activeVersion.dayMeta?.[r.shootDay];
+        dateKey = meta?.date || undefined;
+      }
+      if (!dateKey) return;
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey)!.push(r);
     });
     return map;
-  }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
+  }, [augmentedRows, activeVersion, activeDragIds, showBreaks, calDerivedDates]);
 
   const unscheduledRows = useMemo(() => {
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
       if (r.shootDay === null && !r.boneyard) return true;
+      if (calDerivedDates.size > 0) {
+        return !calDerivedDates.has(r.shootDay);
+      }
       const meta = activeVersion?.dayMeta?.[r.shootDay];
       return !meta?.date;
     }).sort((a, b) => a.order - b.order);
-  }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
+  }, [augmentedRows, activeVersion, activeDragIds, showBreaks, calDerivedDates]);
 
   const calBoneyardRows = useMemo(() =>
     augmentedRows.filter(r => r.boneyard && !activeDragIds.has(r.id))
