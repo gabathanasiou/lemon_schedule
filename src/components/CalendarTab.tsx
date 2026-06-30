@@ -176,16 +176,8 @@ const DayCell: React.FC<{
         </span>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 mx-0.5" data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`} data-shoot-day={shootDay == null ? 'null' : shootDay}>
-        {activeRowId && activeDragRows.length > 0 && insertBeforeId === `day-${dateKey}` && (
-          <div className="opacity-40 flex flex-col gap-0 mb-0.5">
-            {activeDragRows.slice(0, 3).map(dr => (
-              <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
-            ))}
-            {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
-          </div>
-        )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-          {rows.map((r) => (
+          {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
               {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
                 <div className="opacity-40 flex flex-col gap-0 mb-0.5">
@@ -196,17 +188,17 @@ const DayCell: React.FC<{
                 </div>
               )}
               <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
+              {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
+                <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+                  {activeDragRows.slice(0, 3).map(dr => (
+                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                  ))}
+                  {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+                </div>
+              )}
             </React.Fragment>
           ))}
         </SortableContext>
-        {activeRowId && activeDragRows.length > 0 && insertBeforeId && insertBeforeId.startsWith('end-') && (
-          <div className="opacity-40 flex flex-col gap-0 mt-0.5">
-            {activeDragRows.slice(0, 3).map(dr => (
-              <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
-            ))}
-            {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
-          </div>
-        )}
         <div ref={setEndRef} className="h-1 w-full shrink-0" />
       </div>
     </div>
@@ -288,7 +280,7 @@ const UnscheduledSidebar: React.FC<{
         )}
       </div>
       <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 ${isOver ? 'bg-blue-50' : ''}`}>
-        {rows.map((r) => (
+        {rows.map((r, i, arr) => (
           <React.Fragment key={r.id}>
             {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
               <div className="opacity-40 flex flex-col gap-0 mb-0.5">
@@ -299,16 +291,16 @@ const UnscheduledSidebar: React.FC<{
               </div>
             )}
             <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
+            {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
+              <div className="opacity-40 flex flex-col gap-0 mt-0.5">
+                {activeDragRows.slice(0, 2).map(dr => (
+                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                ))}
+                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+              </div>
+            )}
           </React.Fragment>
         ))}
-        {activeRowId && activeDragRows.length > 0 && insertBeforeId === 'end-unscheduled' && (
-          <div className="opacity-40 flex flex-col gap-0 mt-0.5">
-            {activeDragRows.slice(0, 2).map(dr => (
-              <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
-            ))}
-            {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
-          </div>
-        )}
         {rows.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
       </div>
       <div
@@ -731,24 +723,64 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     if (targetShootDay === undefined) return;
 
     let newRows = activeVersion.rows.map(r => ({ ...r }));
-    const draggingItems = draggingIds
-      .map(id => newRows.find(r => r.id === id)!)
-      .filter(Boolean)
-      .map(r => {
-        if (r.id.startsWith('row-synth-')) return { ...r, id: generateUUID(), shootDay: targetShootDay, order: 0 };
-        return { ...r, shootDay: targetShootDay, order: 0 };
-      });
+    const sanitizeRow = (r: ScheduleRow) => {
+      if (r.id.startsWith('row-synth-')) return { ...r, id: generateUUID() };
+      return r;
+    };
 
-    newRows = newRows.filter(r => !draggingIds.includes(r.id));
-    const targetDayRows = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
-    const targetRowId = lastInsertId && !lastInsertId.startsWith('day-') && targetDayRows.some(r => r.id === lastInsertId) ? lastInsertId : null;
-    let insertIdx = targetRowId ? targetDayRows.findIndex(r => r.id === targetRowId) : targetDayRows.length;
-    if (insertIdx === -1) insertIdx = targetDayRows.length;
-    targetDayRows.splice(insertIdx, 0, ...draggingItems);
-    targetDayRows.forEach((r, i) => r.order = i);
-    newRows = [...newRows.filter(r => r.shootDay !== targetShootDay), ...targetDayRows];
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    setSelectedRowIds(new Set());
+    if (draggingIds.length === 1) {
+      newRows = newRows.filter(r => r.id !== draggedId);
+      let dayRows = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
+      let insertIndex: number;
+      if (lastInsertId?.startsWith('day-')) {
+        insertIndex = 0;
+      } else if (lastInsertId?.startsWith('end-')) {
+        insertIndex = dayRows.length;
+      } else if (lastInsertId && dayRows.some(r => r.id === lastInsertId)) {
+        insertIndex = dayRows.findIndex(r => r.id === lastInsertId);
+        if (insertIndex === -1) insertIndex = dayRows.length;
+      } else {
+        insertIndex = dayRows.length;
+      }
+      const sourceRow = augmentedRows.find(r => r.id === draggedId) || activeVersion.rows.find(r => r.id === draggedId);
+      if (!sourceRow) { setSelectedRowIds(new Set()); return; }
+      const movedRow = { ...sourceRow, shootDay: targetShootDay };
+      dayRows.splice(insertIndex, 0, movedRow);
+      dayRows.forEach((r, i) => r.order = i);
+      newRows = [...newRows.filter(r => r.shootDay !== targetShootDay), ...dayRows];
+      setSelectedRowIds(new Set([draggedId]));
+    } else {
+      const draggingItems = draggingIds
+        .map(id => augmentedRows.find(r => r.id === id) || activeVersion.rows.find(r => r.id === id))
+        .filter(Boolean) as ScheduleRow[];
+      const dayRowsBefore = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
+      let rawIndex: number;
+      if (lastInsertId?.startsWith('day-')) {
+        rawIndex = 0;
+      } else if (lastInsertId?.startsWith('end-')) {
+        rawIndex = dayRowsBefore.length;
+      } else if (lastInsertId && dayRowsBefore.some(r => r.id === lastInsertId)) {
+        rawIndex = dayRowsBefore.findIndex(r => r.id === lastInsertId);
+        if (rawIndex === -1) rawIndex = dayRowsBefore.length;
+      } else {
+        rawIndex = dayRowsBefore.length;
+      }
+      const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
+        const idx = dayRowsBefore.findIndex(r => r.id === id);
+        return idx >= 0 && idx < rawIndex;
+      }).length;
+
+      newRows = newRows.filter(r => !draggingIds.includes(r.id));
+      const dayRows = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
+      const newItems = draggingItems.map(item => ({ ...item, shootDay: targetShootDay }));
+      dayRows.splice(insertIndex, 0, ...newItems);
+      dayRows.forEach((r, i) => r.order = i);
+      newRows = [...newRows.filter(r => r.shootDay !== targetShootDay), ...dayRows];
+      setSelectedRowIds(new Set(draggingIds));
+    }
+
+    const persistentRows = newRows.map(sanitizeRow);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
   };
 
   const goPrev = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
