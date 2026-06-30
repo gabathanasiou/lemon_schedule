@@ -1139,11 +1139,20 @@ function reducer(state: State, action: Action): State {
       if (!targetRow) return state;
       const cal = version.calendar || defaultCalendar();
       const oldMaxDay = version.rows.reduce((m, r) => Math.max(m, r.shootDay), 0);
-      const newRows = version.rows.map(r => {
+      // Increment shootDay on rows after the split point
+      const shiftedRows = version.rows.map(r => {
         if (r.shootDay > targetRow.shootDay) return { ...r, shootDay: r.shootDay + 1 };
         if (r.shootDay === targetRow.shootDay && r.order > targetRow.order) return { ...r, shootDay: r.shootDay + 1 };
         return r;
       });
+      // Insert DAY_BREAK row after the target row
+      const breakRow: ScheduleRow = {
+        id: generateUUID(),
+        type: 'DAY_BREAK',
+        shootDay: targetRow.shootDay,
+        order: targetRow.order + 0.5,
+      };
+      const newRows = [...shiftedRows, breakRow].sort((a, b) => a.order - b.order);
       let maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
       if (maxDay === oldMaxDay) maxDay = oldMaxDay + 1;
       const newDayMeta = { ...version.dayMeta };
@@ -1172,9 +1181,10 @@ function reducer(state: State, action: Action): State {
       const version = state.present.versions.find(v => v.id === versionId);
       if (!version) return state;
       const cal = version.calendar || defaultCalendar();
-      const newRows = version.rows.map(r =>
-        r.shootDay >= day ? { ...r, shootDay: Math.max(1, r.shootDay - 1) } : r
-      );
+      // Remove DAY_BREAK rows from the merged day, decrement shootDay
+      const newRows = version.rows
+        .filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === day))
+        .map(r => r.shootDay > day ? { ...r, shootDay: r.shootDay - 1 } : r);
       const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
       const newDayMeta: Record<number, ShootDayMeta> = {};
       for (let d = 1; d <= maxDay; d++) {

@@ -356,8 +356,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       <div ref={setFooterRef}
         data-row-id={`empty-${dayInt}`}
         data-shoot-day={dayInt}
-        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '2px solid var(--border, #a1a1aa)', background: '#f4f4f5' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '2px solid var(--border, #a1a1aa)', background: '#f4f4f5', display: 'flex', alignItems: 'center', gap: 0 }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
           {cells.map((cell, ci) => {
             if (ci === labelCellIdx) {
               return (

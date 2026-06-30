@@ -152,7 +152,27 @@ const SortableRowContent: React.FC<{
   const sel = getSelectedStripColors(state.present.colorPalette);
 
   if (row.type === 'DAY_BREAK') {
-    return null; // day footer serves as the visual separator
+    const dbStyle: React.CSSProperties = { background: '#1e293b', color: '#cbd5e1' };
+    if (isSelected && !isFaded) { dbStyle.background = sel.background; dbStyle.color = sel.color; }
+    return (
+      <div className="flex items-stretch min-w-0">
+        <table className="schedule-table flex-1 min-w-0">
+          <tbody>
+            <tr className="row-day-break" style={{ ...dbStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+              <td className="col-sc" />
+              {!isCompact && <><td className="col-call" /><td className="col-dur" /><td className="col-ie" /></>}
+              <td className="col-set" colSpan={isCompact ? 2 : 1} style={{ textAlign: 'center' }}>
+                <span style={{ fontSize: '9pt', fontWeight: 600, letterSpacing: '0.05em' }}>
+                  END OF DAY {row.shootDay > 0 ? row.shootDay : ''}
+                </span>
+              </td>
+              {!isCompact && <td className="col-dn" />}
+              <td className="col-cast" />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
   }
 
   if (row.type === 'NOTE') {

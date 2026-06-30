@@ -1030,32 +1030,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
     if (activeId === overId) return;
 
-    // Day footer drag — move the split point (day break)
-    if (active.data.current?.type === 'DAY_FOOTER') {
-      const activeDay = active.data.current?.dayInt as number;
-      // Remove old break: merge this day with the next
-      dispatch({ type: 'BATCH_START' });
-      dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, day: activeDay } });
-      // Create new break at drop position
-      const targetDay = getDayFromId(overId);
-      if (targetDay !== null && targetDay !== activeDay) {
-        const dayRows = scheduledRows[targetDay] || [];
-        const firstRow = dayRows[0];
-        if (firstRow) {
-          const prevDay = targetDay - 1;
-          const prevRows = scheduledRows[prevDay] || [];
-          const lastPrev = prevRows.length > 0 ? prevRows[prevRows.length - 1] : null;
-          const afterRowId = lastPrev ? lastPrev.id : activeVersion.rows.find(r => r.shootDay === targetDay)?.id;
-          if (afterRowId) {
-            dispatch({ type: 'ADD_DAY_BREAK', payload: { versionId: activeVersion.id, afterRowId } });
-          }
-        }
-      }
-      dispatch({ type: 'BATCH_COMMIT' });
-      return;
-    }
-
-    // Day header drag — reorder days
+    // Day header drag — reorder days (from calendar)
     if (active.data.current?.type === 'DAY') {
       const activeDay = parseInt(activeId.replace('day-wrap-', ''), 10);
       const overDay = getDayFromId(overId);
@@ -1428,14 +1403,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeType === 'DAY_FOOTER' ? (
-          <div className="pointer-events-none">
-            <div className="flex justify-between items-center px-2 py-1.5 border-t-2 border-zinc-400 bg-zinc-100"
-              style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b', minWidth: '300px' }}>
-              <span className="font-bold">DAY #{activeId ? activeId.replace('day-footer-', '') : ''}</span>
-            </div>
-          </div>
-        ) : activeDragRow ? (
+        {activeDragRow ? (
           <div className="w-[1024px] max-w-4xl pointer-events-none relative">
             {activeDragIds.size > 1 && Array.from(activeDragIds).slice(0, 3).reverse().map((id, i, arr) => {
               const row = augmentedRows.find(r => r.id === id);
