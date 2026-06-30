@@ -130,11 +130,8 @@ export function computeDayGroups(rows: ScheduleRow[]): ScheduleRow[][] {
     }
   }
 
-  // Remove trailing empty group if no rows after last DAY_BREAK
-  if (groups.length > 1 && groups[groups.length - 1].length === 0) {
-    groups.pop();
-  }
-
+  // Keep trailing empty group — it represents an empty working day
+  // (user added a DAY_BREAK at the very end to create a new day)
   return groups;
 }
 

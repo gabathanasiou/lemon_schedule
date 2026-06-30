@@ -740,9 +740,22 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     const rowIndex = augmentedRows.findIndex(r => r.id === rowId);
     const isDummy = rowId.startsWith('empty-');
 
-    // Dummy rows can only add notes/breaks
-    if (isDummy && (action === 'add_note' || action === 'add_break')) {
-      const newId = generateUUID();
+    // Dummy rows can only add notes/breaks/day-breaks
+    if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_day_break')) {
+      const dummyDayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
+      if (action === 'add_day_break') {
+        const lastRow = dummyDayRows[dummyDayRows.length - 1];
+        const afterRowId = lastRow ? lastRow.id : (() => {
+          const prevDay = shootDay - 1;
+          const prevRows = activeVersion.rows.filter(r => r.shootDay === prevDay).sort((a, b) => a.order - b.order);
+          return prevRows.length > 0 ? prevRows[prevRows.length - 1].id : activeVersion.rows[0]?.id;
+        })();
+        if (afterRowId) {
+          dispatch({ type: 'ADD_DAY_BREAK', payload: { versionId: activeVersion.id, afterRowId } });
+        }
+        setContextMenu(null);
+        return;
+      }      const newId = generateUUID();
       const newRow: ScheduleRow = {
         id: newId,
         type: action === 'add_note' ? 'NOTE' : 'BREAK',
