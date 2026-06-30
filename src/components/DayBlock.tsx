@@ -448,7 +448,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
-      {/* Day Ribbon Banner */}
+      {/* Day Ribbon Banner — hidden in compact mode */}
+      {stripView === 'full' && (
       <div style={{ background: dhColors.background, color: dhColors.color }}>
         {ribbonActive ? renderRibbonHeader() : (
           <table className="schedule-table">
@@ -500,8 +501,10 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         )}
 
       </div>
-
+      )}
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
+
+      {/* Scene rows drop zone */}
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
