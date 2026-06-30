@@ -83,7 +83,10 @@ export function useMarquee(
       if (onRibbon && e.altKey) {
         e.stopPropagation();
       } else {
-        if (!_addMode && onRibbon) return;
+        if (!_addMode && onRibbon) {
+          const rowId = onRibbon.getAttribute('data-row-id') || '';
+          if (!rowId.startsWith('empty-')) return;
+        }
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
       }
 

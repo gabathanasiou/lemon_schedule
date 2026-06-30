@@ -342,7 +342,10 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   const calendarGridRef = useRef<HTMLDivElement>(null);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     calendarGridRef,
-    useCallback((ids) => setSelectedRowIds(prev => new Set(isAddModeActive() ? [...prev, ...ids] : ids)), []),
+    useCallback((ids) => {
+      const filtered = new Set([...ids].filter(id => !id.startsWith('empty-') && !id.startsWith('empty-date-')));
+      setSelectedRowIds(prev => isAddModeActive() ? new Set([...prev, ...filtered]) : filtered);
+    }, []),
     true,
   );
 
