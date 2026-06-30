@@ -1336,7 +1336,13 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeDragRow ? (
+        {activeType === 'DAY' && activeId ? (
+          <div className="pointer-events-none" style={{ minWidth: '300px' }}>
+            <div className="flex items-center justify-between bg-zinc-700 text-white text-xs px-3 py-2 font-bold rounded shadow-lg opacity-90">
+              <span>DAY #{activeId.replace('day-wrap-', '')}</span>
+            </div>
+          </div>
+        ) : activeDragRow ? (
           <div className="w-[1024px] max-w-4xl pointer-events-none relative">
             {activeDragIds.size > 1 && Array.from(activeDragIds).slice(0, 3).reverse().map((id, i, arr) => {
               const row = augmentedRows.find(r => r.id === id);

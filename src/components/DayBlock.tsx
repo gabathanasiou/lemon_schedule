@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount, formatDateLong } from '../lib/utils';
@@ -175,6 +176,22 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     id: `end-${dayInt}`,
     data: { type: 'DAY_END', dayInt }
   });
+
+  // Day-wrap: drop target for day-header drag reordering
+  const { setNodeRef: setDayWrapRef } = useDroppable({
+    id: `day-wrap-${dayInt}`,
+    data: { type: 'DAY_WRAP', dayInt }
+  });
+
+  // Day header draggable for reordering days
+  const { attributes: dayAttrs, listeners: dayListeners, setNodeRef: setDayDragRef, transform: dayTransform, isDragging: isDayDragging } = useDraggable({
+    id: `day-wrap-${dayInt}`,
+    data: { type: 'DAY', shootDay: dayInt }
+  });
+  const dayDragStyle: React.CSSProperties = {
+    transform: CSS.Translate.toString(dayTransform),
+    opacity: isDayDragging ? 0.3 : 1,
+  };
 
   const violations = useMemo(() => {
     if (!activeVersion) return [];
@@ -447,7 +464,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
       {/* Day Ribbon Banner */}
-      <div style={{ background: dhColors.background, color: dhColors.color }}>
+      <div ref={setDayWrapRef} style={{ background: dhColors.background, color: dhColors.color, ...dayDragStyle }}>
+        <div ref={setDayDragRef} {...dayAttrs} {...dayListeners} style={{ cursor: 'grab' }}>
         {ribbonActive ? renderRibbonHeader() : (
           <table className="schedule-table">
             <tbody>
@@ -496,6 +514,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             </tbody>
           </table>
         )}
+        </div>
 
       </div>
 
