@@ -481,16 +481,16 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       rafId = requestAnimationFrame(loop);
     };
 
-    const onMouseMove = (e: MouseEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       mousePosRef.current = { y: e.clientY };
       if (rafId === null && (e.clientY < buffer || e.clientY > window.innerHeight - buffer)) {
         rafId = requestAnimationFrame(loop);
       }
     };
-    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('pointermove', onPointerMove);
 
     return () => {
-      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('pointermove', onPointerMove);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [activeId]);
@@ -1304,7 +1304,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
             <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
+        <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y' : undefined }}
           onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());

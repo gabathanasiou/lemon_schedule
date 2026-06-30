@@ -80,6 +80,11 @@ export function useMarquee(
       const target = e.target as HTMLElement;
       const onRibbon = target.closest('[data-row-id]');
 
+      if (e.pointerType === 'touch' && !_addMode) {
+        if (target.closest('button, input, select, textarea, [role="button"]')) return;
+        return;
+      }
+
       if (onRibbon && e.altKey) {
         e.stopPropagation();
       } else {
