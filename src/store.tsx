@@ -1149,8 +1149,8 @@ function reducer(state: State, action: Action): State {
       const newRows = deriveShootDays(rawRows);
       const groups = computeDayGroups(newRows);
       let newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
-      const cal = version.calendar;
-      if (cal?.startDate) {
+      const cal = version.calendar || defaultCalendar();
+      if (cal.startDate) {
         const dates = deriveDayDates(cal, groups.length);
         for (const [dayNum, dateStr] of dates) {
           newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
@@ -1160,7 +1160,7 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         versions: state.present.versions.map(v =>
           v.id === versionId
-            ? { ...v, rows: newRows, dayMeta: newDayMeta, updatedAt: Date.now() }
+            ? { ...v, rows: newRows, dayMeta: newDayMeta, calendar: v.calendar || cal, updatedAt: Date.now() }
             : v
         ),
       });
@@ -1175,8 +1175,8 @@ function reducer(state: State, action: Action): State {
       const newRows = deriveShootDays(reordered);
       const groups = computeDayGroups(newRows);
       let newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
-      const cal = version.calendar;
-      if (cal?.startDate) {
+      const cal = version.calendar || defaultCalendar();
+      if (cal.startDate) {
         const dates = deriveDayDates(cal, groups.length);
         for (const [dayNum, dateStr] of dates) {
           newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
@@ -1186,7 +1186,7 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         versions: state.present.versions.map(v =>
           v.id === versionId
-            ? { ...v, rows: newRows, dayMeta: newDayMeta, updatedAt: Date.now() }
+            ? { ...v, rows: newRows, dayMeta: newDayMeta, calendar: v.calendar || cal, updatedAt: Date.now() }
             : v
         ),
       });
