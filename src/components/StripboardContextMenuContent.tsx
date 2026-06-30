@@ -83,7 +83,7 @@ export const StripboardContextMenuContent: React.FC<{
               {row?.type === 'NOTE' && (
                 <>
                   <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_note'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
-                  <ContextMenuItem onClick={() => { handleContextMenuAction('change_color'); }} icon={<Palette className="w-3.5 h-3.5" />}>Change Color</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { handleContextMenuAction('change_color'); }} icon={<Palette className="w-3.5 h-3.5" />}>Edit Banner</ContextMenuItem>
                 </>
               )}
               {row?.type === 'BREAK' && (

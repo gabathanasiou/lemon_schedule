@@ -42,6 +42,75 @@ export function useDialog() {
 export function DialogProvider({ children }: { children: React.ReactNode }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const resizeRef = useRef<{ dir: 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'; startX: number; startY: number; startL: number; startT: number; startW: number; startH: number } | null>(null);
+
+  const isDragging = dragRef.current !== null;
+  const isResizing = resizeRef.current !== null;
+
+  useEffect(() => {
+    if (!dialog) { setDragPos(null); setSize(null); }
+  }, [dialog]);
+
+  const captureRect = useCallback((): { left: number; top: number; width: number; height: number } | null => {
+    const el = contentRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }, []);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const r = captureRect(); if (!r) return;
+    setDragPos(r); setSize({ w: r.width, h: r.height });
+    dragRef.current = { startX: e.clientX, startY: e.clientY, posX: r.left, posY: r.top };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [captureRect]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    setDragPos({ left: d.posX + e.clientX - d.startX, top: d.posY + e.clientY - d.startY });
+  }, []);
+
+  const onPointerUp = useCallback(() => { dragRef.current = null; }, []);
+
+  const startResize = useCallback((dir: 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw') => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    const r = captureRect(); if (!r) return;
+    setDragPos(r); setSize({ w: r.width, h: r.height });
+    resizeRef.current = { dir, startX: e.clientX, startY: e.clientY, startL: r.left, startT: r.top, startW: r.width, startH: r.height };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [captureRect]);
+
+  const MIN_W = 200, MIN_H = 100, MAX_EDGE = 32;
+
+  const onResizeMove = useCallback((e: React.PointerEvent) => {
+    const rs = resizeRef.current;
+    if (!rs) return;
+    const dx = e.clientX - rs.startX;
+    const dy = e.clientY - rs.startY;
+    let newW = rs.startW, newH = rs.startH, newL = rs.startL, newT = rs.startT;
+
+    if (rs.dir.includes('e')) newW = rs.startW + dx;
+    if (rs.dir.includes('w')) { newW = rs.startW - dx; newL = rs.startL + dx; }
+    if (rs.dir.includes('s')) newH = rs.startH + dy;
+    if (rs.dir.includes('n')) { newH = rs.startH - dy; newT = rs.startT + dy; }
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    newW = Math.max(MIN_W, Math.min(newW, vw - MAX_EDGE * 2));
+    newH = Math.max(MIN_H, Math.min(newH, vh - MAX_EDGE * 2));
+    if (rs.dir.includes('w')) newL = Math.max(MAX_EDGE, Math.min(newL, vw - newW - MAX_EDGE));
+    if (rs.dir.includes('n')) newT = Math.max(MAX_EDGE, Math.min(newT, vh - newH - MAX_EDGE));
+
+    setSize({ w: newW, h: newH });
+    setDragPos({ left: newL, top: newT });
+  }, []);
+
+  const onResizeUp = useCallback(() => { resizeRef.current = null; }, []);
 
   const close = useCallback(() => {
     if (dialog) {
@@ -91,9 +160,11 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
       <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) close(); }} modal={true}>
         <RadixDialog.Portal>
-          <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/50" />
+          <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/20" />
           <RadixDialog.Content
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[10000] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm p-5 space-y-4 focus:outline-none"
+            ref={contentRef}
+            className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-5 space-y-4 focus:outline-none ${dragPos || size ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'} ${size ? '' : 'w-full max-w-sm'}`}
+            style={{ ...(dragPos ? { left: dragPos.left, top: dragPos.top } : {}), ...(size ? { width: size.w, height: size.h } : {}) }}
             onEscapeKeyDown={(e) => {
               close();
               e.preventDefault();
@@ -113,7 +184,12 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               }
             }}
           >
-            <div className="flex items-center justify-between">
+            <div
+              className={`flex items-center justify-between select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+            >
               <RadixDialog.Title className="text-sm font-bold text-white">
                 {dialog?.options.title}
               </RadixDialog.Title>
@@ -166,6 +242,16 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               >
                 {dialog?.kind === 'alert' ? 'OK' : dialog?.kind === 'confirm' ? 'Confirm' : 'Save'}
               </button>
+            </div>
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute left-2 right-2 top-0 h-[6px] cursor-n-resize pointer-events-auto" onPointerDown={startResize('n')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute left-2 right-2 bottom-0 h-[6px] cursor-s-resize pointer-events-auto" onPointerDown={startResize('s')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute top-2 bottom-2 left-0 w-[6px] cursor-w-resize pointer-events-auto" onPointerDown={startResize('w')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute top-2 bottom-2 right-0 w-[6px] cursor-e-resize pointer-events-auto" onPointerDown={startResize('e')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute top-0 left-0 w-[10px] h-[10px] cursor-nw-resize pointer-events-auto" onPointerDown={startResize('nw')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute top-0 right-0 w-[10px] h-[10px] cursor-ne-resize pointer-events-auto" onPointerDown={startResize('ne')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute bottom-0 left-0 w-[10px] h-[10px] cursor-sw-resize pointer-events-auto" onPointerDown={startResize('sw')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className="absolute bottom-0 right-0 w-[10px] h-[10px] cursor-se-resize pointer-events-auto" onPointerDown={startResize('se')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
             </div>
           </RadixDialog.Content>
         </RadixDialog.Portal>

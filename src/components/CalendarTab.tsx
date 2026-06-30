@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -16,6 +16,12 @@ import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
+import { usePersistState } from '../lib/persist';
+import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
+import DropdownDivider from './DropdownDivider';
+import DropdownSubmenu from './DropdownSubmenu';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 
@@ -42,19 +48,30 @@ function getCalendarDays(year: number, month: number) {
   return days;
 }
 
-const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: RuleViolation[] }> = ({ row, scene, showDesc, violations }) => {
+const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[] }> = ({ row, scene, displayField, violations }) => {
   const { state } = useProject();
   const palette = state.present.colorPalette;
   if (!scene) {
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
+    const bg = row.noteColor || nb.background;
+    const fg = row.noteTextColor || nb.color;
     return (
-      <div style={{ background: nb.background, color: nb.color }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate border-b border-white select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div style={{ background: bg, color: fg }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate border-b border-white select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
   }
+  const getDisplayValue = (): string => {
+    if (displayField === 'description') return scene.description;
+    if (displayField === 'cast') {
+      const ids = scene.cast.split(',').map(s => s.trim()).filter(Boolean);
+      const members = state.present.castMembers || [];
+      return ids.map(id => members.find(m => m.id === id)?.name || id).join(', ');
+    }
+    return (scene as any)[displayField] || '';
+  };
   const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
   const vFlag = violations && violations.length > 0 ? (
     <ViolationTooltip violations={violations}>
@@ -63,13 +80,13 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
   ) : null;
   return (
     <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 border-b border-white select-none cursor-grab">
-      <span className="truncate">{scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}</span>
+      <span className="truncate">{scene.sceneNumber}. {getDisplayValue()}</span>
       {vFlag}
     </div>
   );
 };
 
-const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void }> = ({ row, scene, showDesc, violations, isSelected, isFaded, onToggle, onDoubleClick }) => {
+const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
@@ -86,7 +103,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean;
       data-row-id={row.id}
       data-shoot-day={row.shootDay == null ? 'null' : row.shootDay}
       className={`${isSelected ? 'before:absolute before:inset-0 before:bg-black/15 before:pointer-events-none before:z-10 before:content-[\'\'] relative' : ''}`}>
-      <SceneCardContent row={row} scene={scene} showDesc={showDesc} violations={violations} />
+      <SceneCardContent row={row} scene={scene} displayField={displayField} violations={violations} />
       {isFaded && <div className="absolute inset-0 bg-white/50 pointer-events-none" />}
     </div>
   );
@@ -95,7 +112,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean;
 const DayCell: React.FC<{
   dateKey: string; date: Date; isCurrentMonth: boolean; isToday: boolean;
   isWorkingDay: boolean; shootDay: number | null; label: string | null;
-  rows: ScheduleRow[]; scenes: Scene[]; showDesc: boolean;
+  rows: ScheduleRow[]; scenes: Scene[]; displayField: string;
   violations: RuleViolation[];
   sceneViolationMap: Map<string, RuleViolation[]>;
   onToggle: (dateKey: string) => void;
@@ -114,7 +131,7 @@ const DayCell: React.FC<{
   activeDragDay?: number | null;
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator, onRowDoubleClick }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator, onRowDoubleClick }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -184,16 +201,16 @@ const DayCell: React.FC<{
               {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
                 <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (
-                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                   ))}
                   {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
               )}
-              <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
+              <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
               {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
                 <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (
-                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                   ))}
                   {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
@@ -210,7 +227,7 @@ const DayCell: React.FC<{
 const UnscheduledSidebar: React.FC<{
   rows: ScheduleRow[];
   scenes: Scene[];
-  showDesc: boolean;
+  displayField: string;
   sceneViolationMap: Map<string, RuleViolation[]>;
   activeDragRows?: ScheduleRow[];
   insertBeforeId?: string | null;
@@ -220,7 +237,7 @@ const UnscheduledSidebar: React.FC<{
   onRowClick?: (id: string, e: React.MouseEvent) => void;
   onSort?: (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => void;
   onRowDoubleClick?: (id: string) => void;
-}> = ({ rows, scenes, showDesc, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onRowDoubleClick }) => {
+}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onRowDoubleClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
@@ -288,16 +305,16 @@ const UnscheduledSidebar: React.FC<{
             {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
               <div className="opacity-40 flex flex-col gap-0 mb-0.5">
                 {activeDragRows.slice(0, 2).map(dr => (
-                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                 ))}
                 {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
-            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
+            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
             {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
               <div className="opacity-40 flex flex-col gap-0">
                 {activeDragRows.slice(0, 2).map(dr => (
-                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
                 ))}
                 {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
               </div>
@@ -314,16 +331,25 @@ const UnscheduledSidebar: React.FC<{
   );
 };
 
-export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; onOpenScene?: (sceneId: string) => void }> = ({ showDesc = false, showBreaks = true, onOpenScene }) => {
+export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> = ({ onOpenScene }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+
+  const [calSettings, setCalSettings] = usePersistState<{ displayField: string; showBreaks: boolean; showConflicts: boolean }>('lemon_schedule_calendar_view', {
+    displayField: 'set',
+    showBreaks: true,
+    showConflicts: true,
+  });
+  const { displayField, showBreaks, showConflicts } = calSettings;
+  const updateCal = (patch: Partial<typeof calSettings>) => setCalSettings(prev => ({ ...prev, ...patch }));
 
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [statusModal, setStatusModal] = useState<{ shootDay: number; dateKey: string } | null>(null);
   const [modalStatus, setModalStatus] = useState('work');
   const [modalCastIds, setModalCastIds] = useState('');
@@ -448,16 +474,34 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; o
     return labels;
   }, [workingMap]);
 
+  const availableFields = useMemo(() => {
+    const hiddenSet = new Set(project.hiddenCategories || []);
+    const fields: { key: string; label: string }[] = [
+      { key: 'description', label: 'Description' },
+    ];
+    for (const cat of ELEMENT_CATEGORIES) {
+      if (!hiddenSet.has(cat.key)) {
+        fields.push({ key: cat.key, label: getLabel(cat.key, cat.label, project.categoryLabels) });
+      }
+    }
+    for (const cat of project.customCategories || []) {
+      if (!hiddenSet.has(cat.key)) {
+        fields.push({ key: cat.key, label: cat.label });
+      }
+    }
+    return fields;
+  }, [project.hiddenCategories, project.customCategories, project.categoryLabels]);
+
   const violationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();
-    if (!activeVersion) return m;
+    if (!activeVersion || !showConflicts) return m;
     for (const [k] of Object.entries(activeVersion.dayMeta || {})) {
       const day = Number(k);
       const v = checkDay(day, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta, project.castMembers || []);
       if (v.length > 0) m.set(activeVersion.dayMeta[day]?.date || '', v);
     }
     return m;
-  }, [activeVersion, project.rules, project.scenes, project.castMembers]);
+  }, [activeVersion, project.rules, project.scenes, project.castMembers, showConflicts]);
 
   const sceneViolationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();
@@ -825,7 +869,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; o
   return (
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
-        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} onRowDoubleClick={handleRowDoubleClick} />
+        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} onRowDoubleClick={handleRowDoubleClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
@@ -834,17 +878,55 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; o
               <button onClick={goNext} className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
             </div>
             <div className="flex items-center gap-3">
-              {selectedRowIds.size > 0 && (
-                <span className="bg-blue-100 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                  {selectedRowIds.size} selected
-                  <button onClick={() => setSelectedRowIds(new Set())} className="hover:text-blue-900 font-bold">&times;</button>
-                </span>
-              )}
-              <span className="text-[10px] text-zinc-400">
-                <span className="text-[7px] font-bold text-green-600 mr-1">SW</span>Start &nbsp;
-                <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">W</span>Work &nbsp;
-                <span className="text-[7px] font-bold text-green-600 mr-1 ml-2">FW</span>Finish
-              </span>
+              <DropdownMenu
+                open={viewMenuOpen}
+                onOpenChange={setViewMenuOpen}
+                width="w-48"
+                theme="light"
+                trigger={
+                  <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600">
+                    View
+                    <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                  </button>
+                }
+              >
+                <DropdownSubmenu label="Display Field" side="left" width="w-44" icon={<AlignLeft className="w-3.5 h-3.5" />}>
+                  {availableFields.map(f => {
+                    const Icon = f.key === 'description' ? AlignLeft : CAT_ICONS[f.key] || getCustomIcon((project.customCategories || []).find(c => c.key === f.key)?.icon || 'Tag');
+                    return (
+                      <DropdownItem
+                        key={f.key}
+                        onClick={() => { updateCal({ displayField: f.key }); setViewMenuOpen(false); }}
+                        icon={Icon ? <Icon className="w-3.5 h-3.5" /> : undefined}
+                      >
+                        <span className="flex-1">{f.label}</span>
+                        {displayField === f.key && <Check className="w-3.5 h-3.5 shrink-0" />}
+                      </DropdownItem>
+                    );
+                  })}
+                </DropdownSubmenu>
+                <DropdownDivider />
+                <button
+                  onClick={() => updateCal({ showBreaks: !showBreaks })}
+                  className="w-full text-left px-3 py-2 rounded flex items-center justify-between gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100"
+                >
+                  <span className="flex items-center gap-2">
+                    <StickyNote className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                    Breaks &amp; Notes
+                  </span>
+                  {showBreaks ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                </button>
+                <button
+                  onClick={() => updateCal({ showConflicts: !showConflicts })}
+                  className="w-full text-left px-3 py-2 rounded flex items-center justify-between gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100"
+                >
+                  <span className="flex items-center gap-2">
+                    <Flag className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                    Conflicts
+                  </span>
+                  {showConflicts ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                </button>
+              </DropdownMenu>
             </div>
           </div>
           <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
@@ -894,7 +976,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; o
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
-                    showDesc={showDesc}
+                    displayField={displayField}
                     violations={violationMap.get(day.dateKey) || []}
                     sceneViolationMap={sceneViolationMap}
                     onToggle={handleToggle}
@@ -918,7 +1000,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; o
         {activeDragRows.length > 0 ? (
           <div className="flex flex-col gap-0.5 opacity-90">
             {activeDragRows.slice(0, 3).map(r => (
-              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />
+              <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
             ))}
             {activeDragRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{activeDragRows.length - 3} more</div>}
           </div>
@@ -939,7 +1021,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; o
             </div>
             <div className="flex flex-col gap-0.5 p-1.5">
               {augmentedRows.filter(r => r.shootDay === activeDragDay).map(r => (
-                <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} />
+                <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
               ))}
               {augmentedRows.filter(r => r.shootDay === activeDragDay).length === 0 && (
                 <div className="text-[9px] text-zinc-400 text-center py-2">No scenes</div>

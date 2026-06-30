@@ -34,7 +34,7 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID } from './lib/utils';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, Settings, HardDrive, FileUp } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp } from 'lucide-react';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -98,9 +98,6 @@ function AppContent() {
   const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
   const [elementBreakdownOptions, setElementBreakdownOptions] = useState<ElementBreakdownOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
-  const [showCalendarDesc, setShowCalendarDesc] = useState(false);
-  const [showCalendarBreaks, setShowCalendarBreaks] = useState(true);
-  const [showCalendarViewMenu, setShowCalendarViewMenu] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -448,38 +445,6 @@ function AppContent() {
             >
               <span className="relative">Calendar</span>
             </button>
-            {activeTab === 'calendar' && (
-              <DropdownMenu
-                open={showCalendarViewMenu}
-                onOpenChange={setShowCalendarViewMenu}
-                width="w-36"
-                trigger={
-                  <button
-                    className="p-1 hover:bg-zinc-800 rounded transition-colors"
-                    title="Calendar view options"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-zinc-400 hover:text-white" />
-                  </button>
-                }
-              >
-                <div className="px-3 py-1 text-zinc-400 text-[9px] uppercase tracking-wider font-mono">Show</div>
-                <button onClick={() => { setShowCalendarDesc(false); setShowCalendarViewMenu(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 ${!showCalendarDesc ? 'text-white font-semibold' : ''}`}>
-                  Scene title
-                </button>
-                <button onClick={() => { setShowCalendarDesc(true); setShowCalendarViewMenu(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 ${showCalendarDesc ? 'text-white font-semibold' : ''}`}>
-                  Description
-                </button>
-                <DropdownDivider />
-                <div className="px-3 py-1 text-zinc-400 text-[9px] uppercase tracking-wider font-mono">Show</div>
-                <button onClick={() => { setShowCalendarBreaks(!showCalendarBreaks); }}
-                  className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-zinc-800 flex items-center justify-between">
-                  <span>Breaks &amp; Notes</span>
-                  <span className={`w-3 h-3 rounded border ${showCalendarBreaks ? 'bg-blue-500 border-blue-500' : 'border-zinc-500'}`} />
-                </button>
-              </DropdownMenu>
-            )}
             <button 
               ref={el => { if (el) topTabRefs.current.set('design', el); }}
               onMouseEnter={() => updateTopHover('design')}
@@ -636,7 +601,7 @@ function AppContent() {
 
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px">
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab showDesc={showCalendarDesc} showBreaks={showCalendarBreaks} onOpenScene={handleOpenScene} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
+        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
       </main>
 
       {showTrash && (

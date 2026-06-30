@@ -8,7 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -1155,16 +1155,15 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               open={ribbonMenuOpen}
               onOpenChange={setRibbonMenuOpen}
               width="w-48"
-              trigger={
-                <button
-                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer select-none hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900"
-                >
-                  <span className="text-zinc-400 font-normal">View</span>
-                  <ChevronDown className="w-3 h-3 shrink-0 text-zinc-400" />
-                </button>
+              theme="light"
+                trigger={
+                  <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600">
+                    View
+                    <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                  </button>
               }
             >
-              <DropdownSubmenu label="Ribbon Layout" side="left" width="w-44">
+              <DropdownSubmenu label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
                 {project.ribbonDesigns.map(d => (
                 <DropdownItem
                     key={d.id}
@@ -1175,7 +1174,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   </DropdownItem>
                 ))}
               </DropdownSubmenu>
-              <DropdownSubmenu label="Stripboard View" side="left" width="w-44">
+              <DropdownSubmenu label="Stripboard View" icon={<Monitor className="w-3.5 h-3.5" />} width="w-44">
                 {(['portrait', 'landscape', 'full'] as const).map(m => (
                   <DropdownItem
                     key={m}
@@ -1187,7 +1186,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                 ))}
               </DropdownSubmenu>
               <DropdownDivider />
-              <DropdownSubmenu label="Cell Borders" side="left" width="w-44">
+              <DropdownSubmenu label="Cell Borders" icon={<Table className="w-3.5 h-3.5" />} width="w-44">
                 {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
                   <DropdownItem
                     key={m}
@@ -1435,7 +1434,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   {row?.type === 'NOTE' && (
                     <>
                       <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleContextMenuAction('change_color')} icon={<Palette className="w-3.5 h-3.5" />}>Change Color</ContextMenuItem>
+                      <ContextMenuItem onClick={() => handleContextMenuAction('change_color')} icon={<Palette className="w-3.5 h-3.5" />}>Edit Banner</ContextMenuItem>
                     </>
                   )}
                   {row?.type === 'BREAK' && (

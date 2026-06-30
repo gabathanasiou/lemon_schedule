@@ -1,5 +1,6 @@
 import React from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useDropdownTheme } from './DropdownMenu';
 
 interface DropdownItemProps {
   onClick: () => void;
@@ -19,9 +20,18 @@ export default function DropdownItem({
   className = '',
   children,
 }: DropdownItemProps) {
+  const theme = useDropdownTheme();
+  const isLight = theme === 'light';
+
   const variantStyles = variant === 'danger'
-    ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300 focus-visible:bg-red-900/30 focus-visible:text-red-300'
-    : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white';
+    ? isLight
+      ? 'text-red-600 hover:bg-red-100 focus-visible:bg-red-100'
+      : 'text-red-400 hover:bg-red-900/30 hover:text-red-300 focus-visible:bg-red-900/30 focus-visible:text-red-300'
+    : isLight
+      ? 'text-zinc-700 hover:bg-zinc-100 focus-visible:bg-zinc-100'
+      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white';
+
+  const iconColor = isLight ? 'text-zinc-500' : 'text-zinc-400';
 
   return (
     <RadixDropdownMenu.Item
@@ -29,7 +39,7 @@ export default function DropdownItem({
       onSelect={(e) => { onClick(); }}
       disabled={disabled}
     >
-      {icon && <span className="text-zinc-400 shrink-0">{icon}</span>}
+      {icon && <span className={`${iconColor} shrink-0`}>{icon}</span>}
       {children}
     </RadixDropdownMenu.Item>
   );

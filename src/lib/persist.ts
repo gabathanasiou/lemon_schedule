@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, SetStateAction } from 'react';
 
-export function usePersistState<T>(storageKey: string, defaults: T): [T, (value: T) => void, () => void] {
+export function usePersistState<T>(storageKey: string, defaults: T): [T, (value: SetStateAction<T>) => void, () => void] {
   const [value, setValue] = useState<T>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
