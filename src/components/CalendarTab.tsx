@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -17,6 +17,7 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 import { usePersistState } from '../lib/persist';
+import { deriveDayDates, computeDayGroups, getCalendarMonthDays, defaultCalendar } from '../lib/scheduling';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -120,7 +121,6 @@ const DayCell: React.FC<{
   status?: string;
   chronoDay?: number;
   dayCastIds?: string;
-  activeTool?: string | null;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
@@ -131,7 +131,7 @@ const DayCell: React.FC<{
   activeDragDay?: number | null;
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator, onRowDoubleClick }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator, onRowDoubleClick }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -174,12 +174,12 @@ const DayCell: React.FC<{
         )}
         <div
           ref={setHandleRef} {...listeners} {...attributes}
-          onClick={() => activeTool && onToggle(dateKey)}
-          onDoubleClick={(e) => { e.preventDefault(); if (!activeTool && onDoubleClick) onDoubleClick(dateKey); }}
+          onClick={() => onToggle(dateKey)}
+          onDoubleClick={(e) => { e.preventDefault(); onDoubleClick(dateKey); }}
           data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`}
           data-shoot-day={shootDay == null ? 'null' : shootDay}
-          title={activeTool ? `Click to set ${activeTool}` : 'Double-click to set status'}
-          style={{ opacity: isDragging ? 0.3 : 1, cursor: activeTool ? 'pointer' : (isWorkingDay && shootDay != null ? 'grab' : 'default') }}
+          title={isWorkingDay && shootDay != null ? 'Drag to reorder' : 'Click to insert working day'}
+          style={{ opacity: isDragging ? 0.3 : 1, cursor: isWorkingDay && shootDay != null ? 'grab' : 'pointer' }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
@@ -368,7 +368,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     setModalCastIds(meta[day]?.castIds || '');
     setStatusModal({ shootDay: day, dateKey });
   }, [activeVersion]);
-  const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
@@ -423,7 +422,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld ? 999999 : 3) } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
   );
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
@@ -585,27 +584,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
 
   const handleToggle = useCallback((dateKey: string) => {
-    if (activeTool) {
-      if (activeTool === 'remove') {
-        const meta = (activeVersion?.dayMeta ?? {}) as Record<number, ShootDayMeta>;
-        if (!Object.values(meta).some(v => v.date === dateKey)) return;
-        dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
-      } else {
-        const meta = activeVersion?.dayMeta || {};
-        let shootDay: number | null = null;
-        for (const [k, v] of Object.entries(meta) as [string, ShootDayMeta][]) {
-          if (v.date === dateKey) { shootDay = Number(k); break; }
-        }
-        if (shootDay == null) {
-          const existing = Object.keys(meta).map(Number);
-          shootDay = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-        }
-        dispatch({ type: 'UPDATE_DAY_META' as any, shootDay, date: dateKey, status: activeTool });
-      }
-      return;
-    }
-    dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
-  }, [dispatch, activeTool, activeVersion]);
+    dispatch({ type: 'INSERT_WORKING_DAY', payload: { versionId: project.activeVersionId!, date: dateKey } });
+  }, [dispatch, project.activeVersionId]);
 
   const sortUnscheduled = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;
@@ -929,21 +909,26 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
               </DropdownMenu>
             </div>
           </div>
-          <div className="flex items-center gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white">
-            {[
-              { key: null, label: <Pointer className="w-3 h-3" />, title: 'Select' },
-              { key: 'work', label: 'W', title: 'Work' },
-              { key: 'hold', label: 'H', title: 'Hold' },
-              { key: 'travel', label: 'T', title: 'Travel' },
-              { key: 'holiday', label: 'HOL', title: 'Holiday' },
-              { key: 'remove', label: <Eraser className="w-3 h-3" />, title: 'Erase' },
-            ].map(t => (
-              <button key={t.key || 'none'} type="button"
-                onClick={() => setActiveTool(prev => prev === t.key ? null : t.key)}
-                title={t.title}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${activeTool === t.key ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-100'}`}
-              >{t.label}</button>
-            ))}
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-200 bg-white flex-wrap">
+            <input
+              type="date"
+              value={activeVersion?.calendar?.startDate || ''}
+              onChange={e => {
+                const val = e.target.value || null;
+                dispatch({ type: 'SET_PRODUCTION_START', payload: { versionId: project.activeVersionId!, date: val } });
+              }}
+              className="text-[10px] border border-zinc-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            />
+            <label className="flex items-center gap-1 text-[10px] text-zinc-600 cursor-pointer select-none">
+              <input type="checkbox" checked={activeVersion?.calendar?.autoWeekends ?? true}
+                onChange={e => dispatch({ type: 'SET_AUTO_WEEKENDS', payload: { versionId: project.activeVersionId!, value: e.target.checked } })}
+                className="w-3 h-3"
+              />
+              Auto Weekends
+            </label>
+            <button onClick={() => { setCurrentMonth(new Date().getMonth()); setCurrentYear(new Date().getFullYear()); }}
+              className="text-[10px] text-zinc-500 hover:text-zinc-900 transition-colors px-2 py-0.5"
+            >Today</button>
           </div>
           <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative">
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
@@ -972,7 +957,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
                     chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
                     dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
                     monthSeparator={monthSeparator}
-                    activeTool={activeTool}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
