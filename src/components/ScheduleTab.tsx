@@ -581,38 +581,17 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     };
   }, []);
 
-  const collisionDetection = useCallback<CollisionDetection>((args) => {
-    const { active, pointerCoordinates, droppableContainers } = args;
-    const isDraggingDay = active.data.current?.type === 'DAY';
-    const filteredContainers = droppableContainers.filter((container) => {
-      const id = container.id as string;
-      const isDayWrap = id.startsWith('day-wrap-');
-      if (isDraggingDay) return isDayWrap;
-      if (isDayWrap) return false;
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const { droppableContainers } = args;
+    const isDraggingDay = args.active.data.current?.type === 'DAY';
+    const filtered = droppableContainers.filter((c) => {
+      const id = c.id as string;
+      if (isDraggingDay) return id.startsWith('day-wrap-');
+      if (id.startsWith('day-wrap-')) return false;
       if (activeDragIdsRef.current.has(id)) return false;
       return true;
     });
-
-    if (pointerCoordinates) {
-      const collisions: { id: string; distance: number; area: number }[] = [];
-      for (const container of filteredContainers) {
-        const rect = container.rect.current;
-        if (rect) {
-          const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
-          const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const area = rect.width * rect.height;
-          collisions.push({ id: container.id as string, distance, area });
-        }
-      }
-      collisions.sort((a, b) => {
-        if (a.distance !== b.distance) return a.distance - b.distance;
-        return a.area - b.area;
-      });
-      if (collisions.length > 0) return collisions.map(c => ({ id: c.id }));
-    }
-
-    return closestCorners({ ...args, droppableContainers: filteredContainers });
+    return closestCorners({ ...args, droppableContainers: filtered });
   }, []);
 
   const ctrlOrCmdHeld = useAddMode();
