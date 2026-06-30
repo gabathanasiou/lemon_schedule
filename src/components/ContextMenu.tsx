@@ -56,11 +56,13 @@ export const ContextMenuItem: React.FC<{
   onClick: () => void;
   variant?: 'default' | 'danger';
   icon?: React.ReactNode;
+  disabled?: boolean;
   children: React.ReactNode;
-}> = ({ onClick, variant = 'default', icon, children }) => (
+}> = ({ onClick, variant = 'default', icon, disabled = false, children }) => (
   <button
-    onClick={onClick}
+    onClick={disabled ? undefined : onClick}
     className={`w-full text-left px-3 py-2 flex items-center gap-2 rounded transition-colors ${
+      disabled ? 'opacity-40 cursor-default' :
       variant === 'danger'
         ? 'hover:bg-red-100 text-red-600'
         : 'hover:bg-zinc-100'

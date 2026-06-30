@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection } from 'react-spreadsheet';
-import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection, Point } from 'react-spreadsheet';
+import { useProject, DEFAULT_CATEGORY_LABELS, PROTECTED_CATEGORIES } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye } from 'lucide-react';
@@ -10,6 +10,7 @@ import { SceneSheet } from './SceneSheet';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
+import { useDialog } from './Dialog';
 import MiniTab from './MiniTab';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -80,7 +81,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     if (el && scrollTops.current[subTab] !== undefined) el.scrollTop = scrollTops.current[subTab];
   }, [subTab]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
+  const [activeCell, setActiveCell] = useState<Point | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{ start: Point; end: Point } | null>(null);
+  const spreadsheetRef = useRef<any>(null);
+  const dialog = useDialog();
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
@@ -613,6 +618,93 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   const totalPagesDecimal = scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0);
 
+  const handleCopy = useCallback(async () => {
+    if (!selectionRange) return;
+    const { start, end } = selectionRange;
+    const rows: string[] = [];
+    for (let r = start.row; r <= end.row; r++) {
+      const cols: string[] = [];
+      for (let c = start.column; c <= end.column; c++) {
+        cols.push(data[r]?.[c]?.value ?? '');
+      }
+      rows.push(cols.join('\t'));
+    }
+    await navigator.clipboard.writeText(rows.join('\n'));
+    setContextMenu(null);
+  }, [selectionRange, data]);
+
+  const handleCut = useCallback(async () => {
+    if (!selectionRange) return;
+    const { start, end } = selectionRange;
+    const rows: string[] = [];
+    for (let r = start.row; r <= end.row; r++) {
+      const cols: string[] = [];
+      for (let c = start.column; c <= end.column; c++) {
+        cols.push(data[r]?.[c]?.value ?? '');
+      }
+      rows.push(cols.join('\t'));
+    }
+    await navigator.clipboard.writeText(rows.join('\n'));
+    const newData = data.map(row => row.map(cell => ({ ...cell })));
+    for (let r = start.row; r <= end.row; r++) {
+      for (let c = start.column; c <= end.column; c++) {
+        newData[r][c] = { ...newData[r][c], value: '' };
+      }
+    }
+    handleChange(newData);
+    setContextMenu(null);
+  }, [selectionRange, data, handleChange]);
+
+  const handlePaste = useCallback(async () => {
+    if (!activeCell) return;
+    const text = await navigator.clipboard.readText();
+    if (!text) return;
+    const pastedRows = text.split(/\r\n|\n|\r/);
+    const pastedData = pastedRows.map(r => r.split('\t'));
+    const newData = data.map(row => row.map(cell => ({ ...cell })));
+    for (let r = 0; r < pastedData.length; r++) {
+      for (let c = 0; c < pastedData[r].length; c++) {
+        const targetR = activeCell.row + r;
+        const targetC = activeCell.column + c;
+        if (targetR < newData.length && targetC < newData[targetR].length) {
+          newData[targetR][targetC] = { ...newData[targetR][targetC], value: pastedData[r][c] };
+        }
+      }
+    }
+    handleChange(newData);
+    setContextMenu(null);
+  }, [activeCell, data, handleChange]);
+
+  const handleClear = useCallback(() => {
+    if (!selectionRange) return;
+    const { start, end } = selectionRange;
+    const newData = data.map(row => row.map(cell => ({ ...cell })));
+    for (let r = start.row; r <= end.row; r++) {
+      for (let c = start.column; c <= end.column; c++) {
+        if (c === 0) continue;
+        newData[r][c] = { ...newData[r][c], value: '' };
+      }
+    }
+    handleChange(newData);
+    setContextMenu(null);
+  }, [selectionRange, data, handleChange]);
+
+  const handleCellContextMenu = useCallback((e: React.MouseEvent) => {
+    const td = (e.target as HTMLElement).closest('td');
+    if (!td) return;
+    const tr = td.parentElement as HTMLTableRowElement;
+    const tbody = tr.parentElement as HTMLTableSectionElement;
+    if (!tbody || !tbody.parentElement) return;
+    const trs = Array.from(tbody.querySelectorAll(':scope > tr'));
+    const row = trs.indexOf(tr);
+    const tds = Array.from(tr.querySelectorAll(':scope > td, :scope > th'));
+    const col = tds.indexOf(td) - 1;
+    if (row < 0 || col < 0) return;
+    e.preventDefault();
+    setContextMenu(null);
+    setContextMenu({ x: e.clientX, y: e.clientY, row, col });
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
       <MiniTab
@@ -716,12 +808,15 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                z-index: 2;
                position: relative;
              }
-             .Spreadsheet__cell--active {
-               outline: 2px solid #2563eb;
-               outline-offset: -2px;
-               z-index: 2;
-               position: relative;
-             }
+              .Spreadsheet__cell--active {
+                outline: 2px solid #2563eb;
+                outline-offset: -2px;
+                z-index: 2;
+                position: relative;
+              }
+              .Spreadsheet__floating-rect--selected {
+                z-index: 5;
+              }
              .Spreadsheet__cell input {
                width: 100%;
                height: 100%;
@@ -770,44 +865,52 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
              .column-resize-handle:active {
                background: rgba(37, 99, 235, 0.3);
              }
-             ${widthStyle}
-           `}</style>
-          <Spreadsheet
-            data={data}
-            onChange={handleChange}
-            columnLabels={COLUMNS.map(c => c.label)}
-            RowIndicator={RowIndicator}
-            ColumnIndicator={CustomColIndicator}
-            onSelect={(sel) => {
-              if (sel instanceof EntireRowsSelection) {
-                const range = sel.toRange(data);
-                if (range) {
-                  const rows = new Set<number>();
-                  for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
-                  setSelectedRows(rows);
-                }
-              } else if (sel instanceof EntireColumnsSelection) {
-                const range = sel.toRange(data);
-                if (range) {
-                  const rows = new Set<number>();
-                  for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
-                  setSelectedRows(rows);
-                }
-              } else if (sel instanceof RangeSelection) {
-                const rows = new Set<number>();
-                for (let r = sel.range.start.row; r <= sel.range.end.row; r++) rows.add(r);
-                setSelectedRows(rows);
-              } else {
-                setSelectedRows(new Set());
-              }
-            }}
-            onKeyDown={e => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                e.preventDefault();
-                addScene();
-              }
-            }}
-          />
+              ${widthStyle}
+            `}</style>
+           <div onContextMenu={handleCellContextMenu}>
+           <Spreadsheet
+             ref={spreadsheetRef}
+             data={data}
+             onChange={handleChange}
+             columnLabels={COLUMNS.map(c => c.label)}
+             RowIndicator={RowIndicator}
+             ColumnIndicator={CustomColIndicator}
+             onSelect={(sel) => {
+               if (sel instanceof EntireRowsSelection) {
+                 const range = sel.toRange(data);
+                 if (range) {
+                   const rows = new Set<number>();
+                   for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
+                   setSelectedRows(rows);
+                   setSelectionRange(range);
+                 }
+               } else if (sel instanceof EntireColumnsSelection) {
+                 const range = sel.toRange(data);
+                 if (range) {
+                   const rows = new Set<number>();
+                   for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
+                   setSelectedRows(rows);
+                   setSelectionRange(range);
+                 }
+               } else if (sel instanceof RangeSelection) {
+                 const rows = new Set<number>();
+                 for (let r = sel.range.start.row; r <= sel.range.end.row; r++) rows.add(r);
+                 setSelectedRows(rows);
+                 setSelectionRange(sel.range);
+               } else {
+                 setSelectedRows(new Set());
+                 setSelectionRange(null);
+               }
+             }}
+             onActivate={(point) => setActiveCell(point)}
+             onKeyDown={e => {
+               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                 e.preventDefault();
+                 addScene();
+               }
+             }}
+           />
+           </div>
         </div>
       </div>
         </>
@@ -817,6 +920,15 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
         {contextMenu && contextMenu.row < scenes.length && (
           <>
+            {contextMenu.col !== undefined && (
+              <>
+                <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange}>Copy</ContextMenuItem>
+                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange}>Cut</ContextMenuItem>
+                <ContextMenuItem onClick={handlePaste} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!activeCell}>Paste</ContextMenuItem>
+                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!selectionRange}>Clear</ContextMenuItem>
+                <ContextMenuDivider />
+              </>
+            )}
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />}>Insert Above</ContextMenuItem>
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
             <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
@@ -828,6 +940,36 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             ) : (
               <ContextMenuItem onClick={() => { deleteScene(scenes[contextMenu.row]?.id); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3 h-3" />}>Delete Row</ContextMenuItem>
             )}
+            {contextMenu.col !== undefined && (() => {
+              const colKey = COLUMNS[contextMenu.col!]?.key;
+              const isElementColumn = colKey && (colKey === 'cast' || colKey === 'set' || allBreakdownCategories.includes(colKey));
+              if (!isElementColumn) return null;
+              const colLabel = colKey ? (allBreakdownLabels[colKey] || COLUMNS[contextMenu.col!]?.label || colKey) : '';
+              const canHide = isElementColumn && !PROTECTED_CATEGORIES.has(colKey!) && !(project.customCategories || []).some(c => c.key === colKey);
+              return (
+                <>
+                  <ContextMenuDivider />
+                  {canHide && (
+                    <ContextMenuItem onClick={async () => {
+                      const ok = await dialog.confirm({ title: `Hide "${colLabel}"?`, message: 'Category will be hidden from all views.', danger: true });
+                      if (ok) {
+                        dispatch({ type: 'HIDE_CATEGORY', payload: colKey! });
+                        setContextMenu(null);
+                      }
+                    }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>
+                      Hide {colLabel}
+                    </ContextMenuItem>
+                  )}
+                  <ContextMenuItem onClick={() => {
+                    onCategoryChange(colKey!);
+                    onSubTabChange('elements');
+                    setContextMenu(null);
+                  }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>
+                    Go to Element Manager → {colLabel}
+                  </ContextMenuItem>
+                </>
+              );
+            })()}
           </>
         )}
         {contextMenu && contextMenu.row >= scenes.length && (
