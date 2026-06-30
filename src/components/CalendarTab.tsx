@@ -17,7 +17,7 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
 import { usePersistState } from '../lib/persist';
-import { deriveDayDates, computeDayGroups, getCalendarMonthDays, defaultCalendar } from '../lib/scheduling';
+import { deriveDayDates, defaultCalendar } from '../lib/scheduling';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -430,8 +430,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   const calDerivedDates = useMemo(() => {
     const cal = activeVersion?.calendar;
     if (!cal?.startDate) return new Map<number, string>();
-    const calGroups = computeDayGroups(activeVersion?.rows || []);
-    return deriveDayDates(cal, calGroups.length);
+    const maxDay = (activeVersion?.rows || []).reduce((m, r) => Math.max(m, r.shootDay || 0), 0);
+    const groupCount = Math.max(maxDay, Object.keys(activeVersion?.dayMeta || {}).length);
+    return deriveDayDates(cal, groupCount);
   }, [activeVersion?.calendar, activeVersion?.rows]);
 
   const workingMap = useMemo(() => {
