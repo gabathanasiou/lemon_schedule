@@ -82,6 +82,8 @@ interface EntityDropdownProps {
   keepAlphabetical?: boolean;
   /** Override the min-width of the dropdown panel (Tailwind class, e.g. "min-w-[250px]") */
   panelMinWidth?: string;
+  /** Called when the dropdown is dismissed by clicking outside (handleClose). Not called on Enter/Tab commit. */
+  onExit?: () => void;
 }
 
 /**
@@ -207,6 +209,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   commitHint = false,
   keepAlphabetical = false,
   panelMinWidth,
+  onExit,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -293,14 +296,14 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const handleClose = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
-    if (mode === 'multi' || mode === 'select') {
-      onChange(sortAndJoin(val));
-    } else {
-      onChange(query || (localIds.length > 0 ? localIds[0] : ''));
-    }
+    const newVal = mode === 'multi' || mode === 'select'
+      ? sortAndJoin(val)
+      : (query || (localIds.length > 0 ? localIds[0] : ''));
+    if (newVal !== value) onChange(newVal);
     setOpen(false);
     setQuery('');
-  }, [mode, val, localIds, query, onChange, sortAndJoin]);
+    onExit?.();
+  }, [mode, val, localIds, query, onChange, sortAndJoin, onExit, value]);
 
   useDropdown(open, ref, handleClose);
 
@@ -334,14 +337,14 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const commit = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
-    if (mode === 'multi' || mode === 'select') {
-      onChange(sortAndJoin(val));
-    } else {
-      onChange(query || (localIds.length > 0 ? localIds[0] : ''));
-    }
+    const newVal = mode === 'multi' || mode === 'select'
+      ? sortAndJoin(val)
+      : (query || (localIds.length > 0 ? localIds[0] : ''));
+    if (newVal !== value) onChange(newVal);
+    onExit?.();
     setOpen(false);
     setQuery('');
-  }, [mode, val, localIds, query, onChange, sortAndJoin]);
+  }, [mode, val, localIds, query, onChange, sortAndJoin, value, onExit]);
 
   const defaultFilter = useCallback((item: EntityItem, q: string) => {
     const lower = q.toLowerCase();

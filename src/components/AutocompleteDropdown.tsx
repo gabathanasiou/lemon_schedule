@@ -21,6 +21,8 @@ interface AutocompleteDropdownProps {
   autoFocus?: boolean;
   /** Show all options without filtering (for short predetermined lists) */
   showAll?: boolean;
+  /** Called when the dropdown is dismissed by clicking outside or committing. Not called on Escape. */
+  onExit?: () => void;
 }
 
 export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
@@ -36,6 +38,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   defaultOpen = false,
   autoFocus: autoFocusProp = false,
   showAll = false,
+  onExit,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const [val, setVal] = useState(value);
@@ -52,6 +55,8 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   useSmartPosition(ref, positioning === 'relative' && open);
 
   useDropdown(open, ref, () => {
+    if (val !== value) onChange(val);
+    onExit?.();
     setOpen(false);
     setVal(value);
   });
@@ -77,7 +82,8 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   );
 
   const commit = (opt: string) => {
-    onChange(opt);
+    if (opt !== value) onChange(opt);
+    onExit?.();
     setOpen(false);
   };
 

@@ -182,6 +182,27 @@ Default sorting is handled by `sortCastMembers()` in `src/lib/dropdown.ts`. The 
 
 **Search-active:** When the user is actively typing a partial query (no exact match), a separate inline comparator runs (query matches first → selected first → numeric ID tiebreaker). This path is unaffected by `displayMode`. When the last comma-separated segment exactly matches an existing item, the search path is bypassed and the default sort is used.
 
+### Dropdown Cell Editor Pattern (`onExit`)
+
+When using `EntityDropdown` or `AutocompleteDropdown` as a cell editor in the Breakdown spreadsheet, **always separate `onChange` from `exitEditMode`** using the `onExit` prop. This prevents the editor from unmounting on every commit, allowing the user to reopen the dropdown by clicking the input again.
+
+```tsx
+// WRONG — exitEditMode on every commit unmounts the editor, blocking re-entry:
+<EntityDropdown
+  onChange={val => { onChange({ value: val }); exitEditMode(); }}
+/>
+
+// CORRECT — onChange updates cell value, onExit handles edit mode exit:
+<EntityDropdown
+  onChange={val => onChange({ value: val })}
+  onExit={() => exitEditMode()}
+/>
+```
+
+**How it works:** Both `EntityDropdown` and `AutocompleteDropdown` compare the committed value with the original `value` prop. If unchanged, `onChange` is skipped entirely (no cell re-render, no unmount). If changed, `onChange` fires to update the cell. In both cases, `onExit?.()` is called, which triggers `exitEditMode()`. The result: Enter/Tab/Escape on the same value leaves the cell cleanly, and clicking the input reopens the dropdown instantly.
+
+This pattern is used in `BreakdownTab.tsx` for all editors: CastEditor, SetEditor, generic breakdown editors, IntExtEditor, and DayNightEditor.
+
 ### Category `multiValue` Property
 Each category (built-in via `ELEMENT_CATEGORIES` in `src/lib/categories.ts`, custom via `CustomCategoryDef.multiValue?`) has a `multiValue: boolean`. Only `set` is `multiValue: false` by default. Custom categories can toggle this in the Element Manager's Create/Edit Category modal. When adding a new built-in single-value category, set `multiValue: false` in `ELEMENT_CATEGORIES` — no other code changes needed.
 

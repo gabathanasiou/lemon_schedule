@@ -164,29 +164,21 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     );
   }, [scenes, deleteScene]);
 
-  const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const committedRef = useRef(false);
-    const handleChange = (val: string) => {
-      if (committedRef.current) return;
-      committedRef.current = true;
-      onChange({ value: val });
-      exitEditMode();
-    };
-    return (
-      <EntityDropdown
-        value={cell?.value || ''}
-        onChange={handleChange}
-        positioning="fixed"
-        defaultOpen
-        autoFocus
-        mode="multi"
-        placeholder="Cast"
-        className="text-xs"
-        displayMode="id"
-        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
-      />
-    );
-  }, []);
+  const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
+    <EntityDropdown
+      value={cell?.value || ''}
+      onChange={val => onChange({ value: val })}
+      onExit={() => exitEditMode()}
+      positioning="fixed"
+      defaultOpen
+      autoFocus
+      mode="multi"
+      placeholder="Cast"
+      className="text-xs"
+      displayMode="id"
+      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
+    />
+  ), []);
 
   const PageCountEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
@@ -215,7 +207,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     return (
       <EntityDropdown
         value={cell?.value || ''}
-        onChange={val => { onChange({ value: val }); exitEditMode(); }}
+        onChange={val => onChange({ value: val })}
+        onExit={() => exitEditMode()}
         items={setItems}
         mode="single"
         keepAlphabetical
@@ -231,7 +224,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
     <AutocompleteDropdown
       value={cell?.value || ''}
-      onChange={val => { onChange({ value: val }); exitEditMode(); }}
+      onChange={val => onChange({ value: val })}
+      onExit={() => exitEditMode()}
       options={INT_EXT_OPTIONS}
       positioning="relative"
       defaultOpen
@@ -243,7 +237,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const DayNightEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
     <AutocompleteDropdown
       value={cell?.value || ''}
-      onChange={val => { onChange({ value: val }); exitEditMode(); }}
+      onChange={val => onChange({ value: val })}
+      onExit={() => exitEditMode()}
       options={DAY_NIGHT_OPTIONS}
       positioning="relative"
       defaultOpen
@@ -274,17 +269,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         const key = e.id || e.name;
         if (!seen.has(key)) { items.push({ id: e.id, name: e.name }); seen.add(key); }
       }
-      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
-        const committedRef = useRef(false);
-        return (
+      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => (
           <EntityDropdown
             value={cell?.value || ''}
-            onChange={val => {
-              if (committedRef.current) return;
-              committedRef.current = true;
-              onChange({ value: val });
-              exitEditMode();
-            }}
+            onChange={val => onChange({ value: val })}
+            onExit={() => exitEditMode()}
             items={items}
             placeholder={allBreakdownLabels[key]}
             positioning="relative"
@@ -299,7 +288,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             )}
           />
         );
-      };
       map.set(key, Editor);
     }
     return map;
