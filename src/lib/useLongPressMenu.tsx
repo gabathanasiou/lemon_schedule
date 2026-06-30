@@ -25,7 +25,7 @@ export function useMarqueeMode(): MarqueeMode {
 }
 
 const LONG_PRESS_MS = 500;
-const MOVE_TOLERANCE = 8;
+const MOVE_TOLERANCE = 5;
 const RING_SIZE = 44;
 const RING_STROKE = 3;
 
@@ -104,6 +104,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       if (e.pointerType !== 'touch' || e.button !== 0) return;
       const target = e.target as HTMLElement;
       if (isInteractiveElement(target)) return;
+      if (!target.closest('[data-row-id]')) return;
 
       const x = e.clientX;
       const y = e.clientY;
@@ -129,10 +130,6 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
         });
 
         heldTarget.dispatchEvent(ctxEvent);
-
-        if (!ctxEvent.defaultPrevented) {
-          setMarqueeMode('transient');
-        }
       }, LONG_PRESS_MS);
     };
 

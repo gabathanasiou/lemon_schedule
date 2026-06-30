@@ -650,7 +650,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   }, [activeVersion, project.scenes, dispatch]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
-    if (e.metaKey || e.ctrlKey) {
+    if (e.metaKey || e.ctrlKey || marqueeMode === 'tool') {
       e.stopPropagation();
       setSelectedRowIds(prev => {
         const next = new Set(prev);

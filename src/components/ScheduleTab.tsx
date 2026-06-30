@@ -65,7 +65,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       marqueeJustEndedRef.current = false;
       return;
     }
-    if (e.metaKey || e.ctrlKey) {
+    if (e.metaKey || e.ctrlKey || marqueeMode === 'tool') {
       e.stopPropagation();
       setSelectedRowIds(prev => {
         const next = new Set(prev);
