@@ -556,6 +556,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) setSelectedRowIds(new Set(allIds.slice(Math.min(idxA, idxB), Math.max(idxA, idxB) + 1)));
     } else {
+      setSelectedRowIds(new Set([id]));
       setLastClickedId(id);
     }
   };
