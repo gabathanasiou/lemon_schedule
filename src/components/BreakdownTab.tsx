@@ -316,7 +316,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     const isResizing = resizeRef.current?.col === column;
     return (
       <th
-        className="Spreadsheet__header"
+        className={`Spreadsheet__header${selected ? ' Spreadsheet__header--selected' : ''}`}
         style={{ width, maxWidth: width, minWidth: width, position: 'relative', overflow: 'visible' }}
         onMouseDown={(e) => {
           if ((e.target as HTMLElement).closest('.column-resize-handle')) return;
@@ -690,20 +690,27 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [selectionRange, data, handleChange]);
 
   const handleCellContextMenu = useCallback((e: React.MouseEvent) => {
-    const td = (e.target as HTMLElement).closest('td');
-    if (!td) return;
-    const tr = td.parentElement as HTMLTableRowElement;
-    const tbody = tr.parentElement as HTMLTableSectionElement;
-    if (!tbody || !tbody.parentElement) return;
-    const trs = Array.from(tbody.querySelectorAll(':scope > tr'));
-    const row = trs.indexOf(tr);
-    const tds = Array.from(tr.querySelectorAll(':scope > td, :scope > th'));
-    const col = tds.indexOf(td) - 1;
-    if (row < 0 || col < 0) return;
     e.preventDefault();
+    const td = (e.target as HTMLElement).closest('td');
+    let row = -1;
+    let col = -1;
+    if (td) {
+      const tr = td.parentElement as HTMLTableRowElement;
+      const tbody = tr.parentElement as HTMLTableSectionElement;
+      if (tbody && tbody.parentElement) {
+        const trs = Array.from(tbody.querySelectorAll(':scope > tr'));
+        row = trs.indexOf(tr);
+        const tds = Array.from(tr.querySelectorAll(':scope > td, :scope > th'));
+        col = tds.indexOf(td) - 1;
+      }
+    } else if (activeCell) {
+      row = activeCell.row;
+      col = activeCell.column;
+    }
+    if (row < 0) return;
     setContextMenu(null);
-    setContextMenu({ x: e.clientX, y: e.clientY, row, col });
-  }, []);
+    setContextMenu({ x: e.clientX, y: e.clientY, row, col: col >= 0 ? col : undefined });
+  }, [activeCell]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
@@ -787,9 +794,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                white-space: nowrap;
                position: relative;
                user-select: none;
-               background: #fafafa;
-             }
-             .Spreadsheet__header-label {
+                background: #fafafa;
+              }
+              th.Spreadsheet__header--selected {
+                background: #dbeafe;
+                color: #1e40af;
+              }
                padding: 3px 8px;
                overflow: hidden;
                text-overflow: ellipsis;
@@ -814,9 +824,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 z-index: 2;
                 position: relative;
               }
-              .Spreadsheet__floating-rect--selected {
-                z-index: 5;
-              }
+               .Spreadsheet__floating-rect--selected {
+                 z-index: 15;
+               }
              .Spreadsheet__cell input {
                width: 100%;
                height: 100%;
