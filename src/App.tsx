@@ -35,6 +35,7 @@ import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID } from './lib/utils';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp } from 'lucide-react';
+import { LongPressMenuProvider } from './lib/useLongPressMenu';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -328,6 +329,7 @@ function AppContent() {
   };
 
   return (
+    <LongPressMenuProvider>
     <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} />
@@ -760,6 +762,7 @@ function AppContent() {
       )}
 
     </div>
+    </LongPressMenuProvider>
   );
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getMarqueeMode, setMarqueeMode } from './useLongPressMenu';
 
 interface MarqueeBox {
   left: number;
@@ -80,7 +81,7 @@ export function useMarquee(
       const target = e.target as HTMLElement;
       const onRibbon = target.closest('[data-row-id]');
 
-      if (e.pointerType === 'touch' && !_addMode) {
+      if (e.pointerType === 'touch' && !_addMode && getMarqueeMode() === 'off') {
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
         return;
       }
@@ -108,6 +109,18 @@ export function useMarquee(
     };
 
     const onPointerMove = (e: PointerEvent) => {
+      if (!active && e.pointerType === 'touch' && getMarqueeMode() !== 'off') {
+        const rect = container.getBoundingClientRect();
+        startX = e.clientX - rect.left + container.scrollLeft;
+        startY = e.clientY - rect.top + container.scrollTop;
+        active = true;
+        hadMovement = false;
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
+        e.preventDefault();
+        return;
+      }
       if (!active) return;
       const rect = container.getBoundingClientRect();
       const curX = e.clientX - rect.left + container.scrollLeft;
@@ -141,6 +154,9 @@ export function useMarquee(
 
     const onPointerUp = () => {
       if (!active) return;
+      if (getMarqueeMode() === 'transient') {
+        setMarqueeMode('off');
+      }
       active = false;
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
