@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { checkDay } from '../lib/rulesEngine';
 import { ViolationTooltip } from './ViolationTooltip';
@@ -849,10 +849,10 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
         {dayContextMenu?.shootDay != null ? (
           <>
             <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-4 pt-1 pb-0.5">Set Status</div>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }}>Work</ContextMenuItem>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }}>Hold</ContextMenuItem>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }}>Travel</ContextMenuItem>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }}>Holiday</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'work' }); setDayContextMenu(null); }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: dayContextMenu.shootDay, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
             <ContextMenuDivider />
             <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>
               Remove Working Day
@@ -861,10 +861,10 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
         ) : (
           <>
             <div className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider px-4 pt-1 pb-0.5">Set</div>
-            <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }}>Make Working Day</ContextMenuItem>
-            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }}>Hold</ContextMenuItem>
-            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }}>Travel</ContextMenuItem>
-            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }}>Holiday</ContextMenuItem>
+            <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: dayContextMenu.dateKey }); setDayContextMenu(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'hold' }); setDayContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'travel' }); setDayContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
+            <ContextMenuItem onClick={() => { const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dayContextMenu.dateKey, status: 'holiday' }); setDayContextMenu(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
           </>
         )}
       </ContextMenu>

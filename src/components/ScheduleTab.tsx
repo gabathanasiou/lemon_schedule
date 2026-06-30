@@ -8,7 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -1390,7 +1390,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           if (selectedRowIds.size > 1) {
             return (
               <>
-                <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
+                <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
                 <ContextMenuDivider />
                 <ContextMenuItem variant="danger" onClick={() => {
                   const ids = Array.from(selectedRowIds);
@@ -1398,7 +1398,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
                   selectNextAfterRemove(new Set(ids as string[]));
                   setContextMenu(null);
-                }}>
+                }} icon={<Trash2 className="w-3.5 h-3.5" />}>
                   Remove {selectedRowIds.size} Ribbons
                 </ContextMenuItem>
               </>
@@ -1408,42 +1408,42 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
             <>
               {inClipboard > 0 && (
                 <>
-                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }}>Paste Below ({inClipboard})</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }} icon={<ClipboardPaste className="w-3.5 h-3.5" />}>Paste Below ({inClipboard})</ContextMenuItem>
                   <ContextMenuDivider />
                 </>
               )}
               {row && (
                 <>
-                  <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }}>Cut to Buffer</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut to Buffer</ContextMenuItem>
                   <ContextMenuDivider />
                 </>
               )}
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')}>Add Note Below</ContextMenuItem>
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')}>Add Break Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
               {row && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')}>Duplicate (Ghost Scene)</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
                   <ContextMenuDivider />
-                  <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }}>Open Sheet</ContextMenuItem>
+                  <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
                   <ContextMenuDivider />
-                  <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')}>Remove Ribbon</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
                 </>
               )}
               {(row?.type === 'NOTE' || row?.type === 'BREAK') && (
                 <>
                   {row?.type === 'NOTE' && (
                     <>
-                      <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')}>Duplicate Note</ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleContextMenuAction('change_color')}>Change Color</ContextMenuItem>
+                      <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
+                      <ContextMenuItem onClick={() => handleContextMenuAction('change_color')} icon={<Palette className="w-3.5 h-3.5" />}>Change Color</ContextMenuItem>
                     </>
                   )}
                   {row?.type === 'BREAK' && (
-                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')}>Duplicate Break</ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
                   )}
                   <ContextMenuDivider />
-                  <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')}>Remove Ribbon</ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger">Delete</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
                 </>
               )}
             </>
