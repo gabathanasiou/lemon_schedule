@@ -8,32 +8,36 @@ export const ContextMenu: React.FC<{
   y: number;
   onClose: () => void;
   children: React.ReactNode;
-}> = ({ open, x, y, onClose, children }) => {
+  containerRef?: React.RefObject<HTMLElement>;
+}> = ({ open, x, y, onClose, children, containerRef }) => {
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
-    window.addEventListener('mousedown', handler, true);
-    return () => window.removeEventListener('mousedown', handler, true);
+    window.addEventListener('pointerdown', handler, true);
+    return () => window.removeEventListener('pointerdown', handler, true);
   }, [open, onClose]);
 
   useLayoutEffect(() => {
     if (!open || !menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let top = Math.max(MARGIN, y);
-    let left = Math.max(MARGIN, x);
-    if (rect.right > vw) left = vw - rect.width - MARGIN;
-    if (rect.bottom > vh) top = Math.max(MARGIN, vh - rect.height - MARGIN);
+    const containerRect = containerRef?.current?.getBoundingClientRect();
+    const vw = containerRect ? containerRect.right : window.innerWidth;
+    const vh = containerRect ? containerRect.bottom : window.innerHeight;
+    const minLeft = containerRect ? containerRect.left : 0;
+    const minTop = containerRect ? containerRect.top : 0;
+    let top = Math.max(minTop + MARGIN, y);
+    let left = Math.max(minLeft + MARGIN, x);
+    if (left + rect.width > vw) left = vw - rect.width - MARGIN;
+    if (top + rect.height > vh) top = Math.max(minTop + MARGIN, vh - rect.height - MARGIN);
     menuRef.current.style.top = `${top}px`;
     menuRef.current.style.left = `${left}px`;
-  }, [open, x, y]);
+  }, [open, x, y, containerRef]);
 
   if (!open) return null;
 

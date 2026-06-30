@@ -17,6 +17,7 @@ export const StripboardContextMenuContent: React.FC<{
   activeVersion: any;
   selectNextAfterRemove?: (ids: Set<string>) => void;
   extraItems?: React.ReactNode;
+  containerRef?: React.RefObject<HTMLElement>;
 }> = ({
   contextMenu,
   setContextMenu,
@@ -31,11 +32,12 @@ export const StripboardContextMenuContent: React.FC<{
   activeVersion,
   selectNextAfterRemove,
   extraItems,
+  containerRef,
 }) => {
   const row = augmentedRows.find(r => r.id === contextMenu.rowId);
 
   return (
-    <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
+    <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} containerRef={containerRef}>
       {selectedRowIds.size > 1 ? (
         <>
           <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>

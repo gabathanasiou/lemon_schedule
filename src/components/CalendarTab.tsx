@@ -50,7 +50,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
     return (
-      <div style={{ background: nb.background, color: nb.color }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate border-b border-black/10 select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div style={{ background: nb.background, color: nb.color }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate border-b border-white select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
@@ -62,14 +62,14 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     </ViolationTooltip>
   ) : null;
   return (
-    <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 border-b border-black/10 select-none cursor-grab">
+    <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 border-b border-white select-none cursor-grab">
       <span className="truncate">{scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}</span>
       {vFlag}
     </div>
   );
 };
 
-const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void }> = ({ row, scene, showDesc, violations, isSelected, isFaded, onToggle }) => {
+const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void }> = ({ row, scene, showDesc, violations, isSelected, isFaded, onToggle, onDoubleClick }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
@@ -82,6 +82,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean;
     return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
       onClick={(e) => onToggle?.(row.id, e)}
+      onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id); }}
       data-row-id={row.id}
       data-shoot-day={row.shootDay == null ? 'null' : row.shootDay}
       className={`${isSelected ? 'before:absolute before:inset-0 before:bg-black/15 before:pointer-events-none before:z-10 before:content-[\'\'] relative' : ''}`}>
@@ -112,7 +113,8 @@ const DayCell: React.FC<{
   activeRowId?: string | null;
   activeDragDay?: number | null;
   monthSeparator?: string | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator }) => {
+  onRowDoubleClick?: (id: string) => void;
+}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, showDesc, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator, onRowDoubleClick }) => {
   const isNonWorkStatus = status && status !== 'work';
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -187,7 +189,7 @@ const DayCell: React.FC<{
                   {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
               )}
-              <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
+              <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
               {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
                 <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (
@@ -217,7 +219,8 @@ const UnscheduledSidebar: React.FC<{
   selectedIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
   onSort?: (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => void;
-}> = ({ rows, scenes, showDesc, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort }) => {
+  onRowDoubleClick?: (id: string) => void;
+}> = ({ rows, scenes, showDesc, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onRowDoubleClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
@@ -290,7 +293,7 @@ const UnscheduledSidebar: React.FC<{
                 {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
-            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
+            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
             {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
               <div className="opacity-40 flex flex-col gap-0">
                 {activeDragRows.slice(0, 2).map(dr => (
@@ -311,7 +314,7 @@ const UnscheduledSidebar: React.FC<{
   );
 };
 
-export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }> = ({ showDesc = false, showBreaks = true }) => {
+export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean; onOpenScene?: (sceneId: string) => void }> = ({ showDesc = false, showBreaks = true, onOpenScene }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -608,6 +611,29 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     }
   };
 
+  const handleRowDoubleClick = useCallback((id: string) => {
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      const rowEl = activeEl.closest(`[data-row-id="${id}"]`);
+      if (rowEl) return;
+    }
+    const row = activeVersion?.rows.find(r => r.id === id);
+    if (row?.type === 'NOTE') {
+      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
+    } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
+      onOpenScene(row.sceneId);
+    }
+  }, [activeVersion, onOpenScene]);
+
+  const applyNoteColor = useCallback(() => {
+    if (!colorPicker || !activeVersion) return;
+    const newRows = activeVersion.rows.map(r =>
+      r.id === colorPicker.rowId ? { ...r, noteColor: colorPicker.bg, noteTextColor: colorPicker.text, noteText: colorPicker.noteText } : r
+    );
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    setColorPicker(null);
+  }, [colorPicker, activeVersion, dispatch]);
+
   const activeType = activeId ? (activeDragDay !== null ? 'DAY' : 'SCENE_CARD') : null;
 
   const activeDragRows = useMemo(() => {
@@ -799,7 +825,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   return (
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
-        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} />
+        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} onRowDoubleClick={handleRowDoubleClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
@@ -880,6 +906,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
                     activeDragRows={activeDragRows}
                     activeRowId={activeId}
                     activeDragDay={activeDragDay}
+                    onRowDoubleClick={handleRowDoubleClick}
                   />
                 );
               })}
@@ -974,7 +1001,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
         </Modal>
       )}
       {contextMenu && contextMenu.rowId.startsWith('empty-date-') ? (
-        <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
+        <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} containerRef={calendarGridRef}>
           <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: contextMenu.rowId.replace('empty-date-', '') }); setContextMenu(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
           <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'hold' }); setContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
           <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'travel' }); setContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
@@ -993,6 +1020,8 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           dispatch={dispatch}
           activeVersion={activeVersion}
           selectNextAfterRemove={selectNextAfterRemove}
+          containerRef={calendarGridRef}
+          onOpenScene={onOpenScene}
           extraItems={contextMenu.rowId.startsWith('empty-') ? (
             <>
               <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'work' }); setContextMenu(null); } }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>
@@ -1007,6 +1036,43 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
           ) : undefined}
         />
       ) : null}
+      {colorPicker && (
+        <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
+          footer={
+            <ModalFooter>
+              <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-lg hover:bg-zinc-800 transition-colors">Apply</button>
+            </ModalFooter>
+          }
+        >
+          <div className="p-6 space-y-5">
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-300">Background</span>
+              <div className="flex items-center gap-2.5">
+                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
+                <input type="text" readOnly value={colorPicker.bg} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-zinc-300">Text Color</span>
+              <div className="flex items-center gap-2.5">
+                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
+                <input type="text" readOnly value={colorPicker.text} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
+              </div>
+            </div>
+            <div>
+              <textarea
+                value={colorPicker.noteText}
+                onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
+                rows={3}
+                className="w-full text-xs px-3 py-2 rounded border border-zinc-800 outline-none focus:border-zinc-600 resize-none"
+                style={{ background: colorPicker.bg, color: colorPicker.text }}
+                placeholder="Banner text..."
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
     </DndContext>
   );
 };
