@@ -176,8 +176,16 @@ const DayCell: React.FC<{
         </span>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 mx-0.5" data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`} data-shoot-day={shootDay == null ? 'null' : shootDay}>
+        {activeRowId && activeDragRows.length > 0 && insertBeforeId === `day-${dateKey}` && (
+          <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+            {activeDragRows.slice(0, 3).map(dr => (
+              <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+            ))}
+            {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+          </div>
+        )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-          {rows.map((r, i, arr) => (
+          {rows.map((r) => (
             <React.Fragment key={r.id}>
               {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
                 <div className="opacity-40 flex flex-col gap-0 mb-0.5">
@@ -188,17 +196,17 @@ const DayCell: React.FC<{
                 </div>
               )}
               <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
-              {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
-                <div className="opacity-40 flex flex-col gap-0 mb-0.5">
-                  {activeDragRows.slice(0, 3).map(dr => (
-                    <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
-                  ))}
-                  {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
-                </div>
-              )}
             </React.Fragment>
           ))}
         </SortableContext>
+        {activeRowId && activeDragRows.length > 0 && insertBeforeId && insertBeforeId.startsWith('end-') && (
+          <div className="opacity-40 flex flex-col gap-0 mt-0.5">
+            {activeDragRows.slice(0, 3).map(dr => (
+              <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+            ))}
+            {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+          </div>
+        )}
         <div ref={setEndRef} className="h-1 w-full shrink-0" />
       </div>
     </div>
@@ -280,7 +288,7 @@ const UnscheduledSidebar: React.FC<{
         )}
       </div>
       <div ref={setNodeRef} className={`flex-1 overflow-y-auto p-2 flex flex-col gap-0 ${isOver ? 'bg-blue-50' : ''}`}>
-        {rows.map((r, i, arr) => (
+        {rows.map((r) => (
           <React.Fragment key={r.id}>
             {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
               <div className="opacity-40 flex flex-col gap-0 mb-0.5">
@@ -291,16 +299,16 @@ const UnscheduledSidebar: React.FC<{
               </div>
             )}
             <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
-            {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
-              <div className="opacity-40 flex flex-col gap-0 mt-0.5">
-                {activeDragRows.slice(0, 2).map(dr => (
-                  <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
-                ))}
-                {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
-              </div>
-            )}
           </React.Fragment>
         ))}
+        {activeRowId && activeDragRows.length > 0 && insertBeforeId === 'end-unscheduled' && (
+          <div className="opacity-40 flex flex-col gap-0 mt-0.5">
+            {activeDragRows.slice(0, 2).map(dr => (
+              <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
+            ))}
+            {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
+          </div>
+        )}
         {rows.length === 0 && <div className="text-center text-zinc-400 text-[10px] py-8">All scenes scheduled</div>}
       </div>
       <div
