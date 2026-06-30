@@ -42,6 +42,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const handleRowDoubleClick = useCallback((id: string) => {
     if (textEditingEnabled) return;
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      const rowEl = activeEl.closest(`[data-row-id="${id}"]`);
+      if (rowEl) return;
+    }
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
@@ -239,7 +244,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       e.preventDefault();
       setFocusedRowId(selectedId);
       const rowType = selectedRow?.type;
-      const colSelector = (rowType === 'NOTE' || rowType === 'BREAK') ? 'text' : 'duration';
+      const isNoteOrBreak = rowType === 'NOTE' || rowType === 'BREAK';
+      const colSelector = isNoteOrBreak ? (e.shiftKey ? 'text' : 'duration') : 'duration';
       const selector = `[data-row-id="${selectedId}"] [data-col="${colSelector}"]`;
       const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
       input?.focus();
@@ -509,6 +515,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       setSelectedRowIds(new Set([row.id]));
       requestAnimationFrame(() => {
         scrollToRow(row.id, 0.3);
+        setForceUnscheduledExpanded(false);
         onSceneTargetSeen?.();
       });
     } else {
@@ -574,7 +581,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   }, []);
 
   const collisionDetection = useCallback<CollisionDetection>((args) => {
-    const { active, droppableContainers } = args;
+    const { active, pointerCoordinates, droppableContainers } = args;
     const isDraggingDay = active.data.current?.type === 'DAY';
     const filteredContainers = droppableContainers.filter((container) => {
       const id = container.id as string;
@@ -584,6 +591,26 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       if (activeDragIdsRef.current.has(id)) return false;
       return true;
     });
+
+    if (pointerCoordinates) {
+      const collisions: { id: string; distance: number; area: number }[] = [];
+      for (const container of filteredContainers) {
+        const rect = container.rect.current;
+        if (rect) {
+          const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
+          const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const area = rect.width * rect.height;
+          collisions.push({ id: container.id as string, distance, area });
+        }
+      }
+      collisions.sort((a, b) => {
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return a.area - b.area;
+      });
+      if (collisions.length > 0) return collisions.map(c => ({ id: c.id }));
+    }
+
     return closestCorners({ ...args, droppableContainers: filteredContainers });
   }, []);
 

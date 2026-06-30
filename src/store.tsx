@@ -825,6 +825,13 @@ function reducer(state: State, action: Action): State {
       const isCast = category === 'cast';
       const list = state.present.breakdownElements[category] || [];
       const sourceSet = new Set(sourceIds.map(id => id.toLowerCase()));
+      const sourceNames = isCast ? sourceSet : new Set(
+        sourceIds.map(sid => {
+          const elem = list.find(e => e.id.toLowerCase() === sid.toLowerCase());
+          return (elem?.name || elem?.id || '').toLowerCase();
+        }).filter(Boolean)
+      );
+      const matchSet = isCast ? sourceSet : sourceNames;
 
       const filtered = list.filter(e => !sourceSet.has(e.id.toLowerCase()));
       if (!filtered.some(e => e.id.toLowerCase() === targetId.toLowerCase())) {
@@ -837,7 +844,7 @@ function reducer(state: State, action: Action): State {
         const items = getFieldItems(category, val);
         let changed = false;
         const newItems = items.map(item => {
-          if (sourceSet.has(item.toLowerCase())) {
+          if (matchSet.has(item.toLowerCase())) {
             changed = true;
             return targetName;
           }

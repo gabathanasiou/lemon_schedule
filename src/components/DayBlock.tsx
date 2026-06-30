@@ -48,18 +48,27 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
     const mgroups = computeMergeGroups(ribbon);
     const hiddenIds = new Set<string>();
     for (const g of mgroups) {
-      for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-        const cell = ribbon[ri]?.cells[g.colIndex];
-        if (cell) hiddenIds.add(cell.id);
+      if (g.direction === 'v') {
+        for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+          const cell = ribbon[ri]?.cells[g.colIndex];
+          if (cell) hiddenIds.add(cell.id);
+        }
+      } else {
+        for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
+          const cell = ribbon[g.rowIndex]?.cells[ci];
+          if (cell) hiddenIds.add(cell.id);
+        }
       }
     }
-    const items: { cell: RibbonRow['cells'][0]; col: number; ri: number; span: number }[] = [];
+    const items: { cell: RibbonRow['cells'][0]; col: number; ri: number; vSpan: number; hSpan: number }[] = [];
     for (let ri = 0; ri < ribbon.length; ri++) {
       for (let ci = 0; ci < ribbon[ri].cells.length; ci++) {
         const cell = ribbon[ri].cells[ci];
         if (hiddenIds.has(cell.id)) continue;
         const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-        items.push({ cell, col: ci, ri, span: g ? g.span : 1 });
+        const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
+        const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
+        items.push({ cell, col: ci, ri, vSpan, hSpan });
       }
     }
     return (
@@ -71,14 +80,15 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
           gridTemplateRows: `repeat(${ribbon.length}, auto)`,
           width: '100%',
         }}>
-          {items.map(({ cell, col, ri, span }) => {
+          {items.map(({ cell, col, ri, vSpan, hSpan }) => {
+            const span = vSpan || 1;
             const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration || 0 });
             const label = FIELD_MAP[cell.field]?.label || cell.field;
             const display = val ? `${cell.prefix || ''}${cell.prefix && val ? '\u00A0' : ''}${val}${cell.suffix && val ? '\u00A0' : ''}${cell.suffix || ''}` : label;
             return (
               <div key={cell.id} style={{
-                gridColumn: col + 1,
-                gridRow: span ? `${ri + 1} / span ${span}` : ri + 1,
+                gridColumn: (hSpan && hSpan > 1) ? `${col + 1} / span ${hSpan}` : col + 1,
+                gridRow: span > 1 ? `${ri + 1} / span ${span}` : ri + 1,
                 padding: compact ? '3pt 3pt' : '4pt 4pt',
                 borderRight: '1px solid rgba(0,0,0,0.15)',
                 overflow: 'hidden',

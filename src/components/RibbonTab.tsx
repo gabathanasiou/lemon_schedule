@@ -85,7 +85,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const [betweenDrop, setBetweenDrop] = useState<string | null>(null);
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const gridRef = useRef<HTMLDivElement>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
   const previewSectionRef = useRef<HTMLDivElement>(null);
+  const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
   const [rows, setRows] = useState<RibbonRow[]>(cloneRows(initialRows));
@@ -287,6 +289,39 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     copyFromRow(cellId, ri + 1);
   }, [findCell, rows, copyFromRow]);
 
+  const copyFromCol = useCallback((cellId: string, srcColIdx: number) => {
+    const target = findCell(cellId);
+    if (!target) return;
+    const srcCell = target.row.cells[srcColIdx];
+    if (!srcCell) return;
+    commit(rows.map(r => ({
+      ...r, cells: r.cells.map(c => c.id === cellId ? {
+        ...c,
+        field: srcCell.field,
+        align: srcCell.align,
+        wrap: srcCell.wrap,
+        prefix: srcCell.prefix,
+        suffix: srcCell.suffix,
+        textContent: srcCell.textContent,
+        verticalAlign: srcCell.verticalAlign,
+      } : c),
+    })), colWidths);
+  }, [rows, colWidths, commit, findCell]);
+
+  const copyFromLeft = useCallback((cellId: string) => {
+    const target = findCell(cellId);
+    if (!target) return;
+    if (target.ci <= 0) return;
+    copyFromCol(cellId, target.ci - 1);
+  }, [findCell, copyFromCol]);
+
+  const copyFromRight = useCallback((cellId: string) => {
+    const target = findCell(cellId);
+    if (!target) return;
+    if (target.ci < 0 || target.ci >= target.row.cells.length - 1) return;
+    copyFromCol(cellId, target.ci + 1);
+  }, [findCell, copyFromCol]);
+
   const setAlign = useCallback((cellId: string, align: 'left' | 'center' | 'right' | undefined) => {
     const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({
@@ -378,6 +413,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     const applyCss = (cw: number[]) => {
       const css = cw.map(w => `${w}%`).join(' ');
       gridEl.style.gridTemplateColumns = css;
+      if (tabBarRef.current) {
+        tabBarRef.current.style.gridTemplateColumns = css;
+      }
       // Also update preview grids
       const prevSection = previewSectionRef.current;
       if (prevSection) {
@@ -436,10 +474,66 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const contextPosRef = useRef(contextPos);
   contextPosRef.current = contextPos;
 
+  const selCellRef = useRef(selCell);
+  selCellRef.current = selCell;  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  const setAffixRef = useRef(setAffix);
+  setAffixRef.current = setAffix;
+  const setTextContentRef = useRef(setTextContent);
+  setTextContentRef.current = setTextContent;
+  const setAlignRef = useRef(setAlign);
+  setAlignRef.current = setAlign;
+  const setWrapCellRef = useRef(setWrapCell);
+  setWrapCellRef.current = setWrapCell;
+  const setVerticalAlignRef = useRef(setVerticalAlign);
+  setVerticalAlignRef.current = setVerticalAlign;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && contextPosRef.current) { setContextPos(null); return; }
       if (e.key === 'Delete' && selIdRef.current && !contextPosRef.current) { e.preventDefault(); clearCellRef.current(selIdRef.current); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        const sc = selCellRef.current;
+        if (sc && sc.cell.field) {
+          e.preventDefault();
+          cellClipboardRef.current = {
+            field: sc.cell.field,
+            align: sc.cell.align,
+            wrap: sc.cell.wrap,
+            prefix: sc.cell.prefix,
+            suffix: sc.cell.suffix,
+            textContent: sc.cell.textContent,
+            verticalAlign: sc.cell.verticalAlign,
+          };
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        const sc = selCellRef.current;
+        const clip = cellClipboardRef.current;
+        if (sc && clip) {
+          e.preventDefault();
+          const cellId = sc.cell.id;
+          const rows = rowsRef.current;
+          const ids = mergeSiblingIds(cellId, rows);
+          const updated = rows.map(r => ({
+            ...r, cells: r.cells.map(c => ids.includes(c.id) ? {
+              ...c,
+              field: clip.field,
+              align: clip.align,
+              wrap: clip.wrap || undefined,
+              prefix: clip.prefix || undefined,
+              suffix: clip.suffix || undefined,
+              textContent: clip.textContent || undefined,
+              verticalAlign: (clip.verticalAlign as any) || undefined,
+            } : c),
+          }));
+          commitRef.current(updated, colWidthsRef.current);
+        }
+        return;
+      }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         if (!selIdRef.current) return;
         e.preventDefault();
@@ -550,7 +644,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               try {
                 const data = JSON.parse(reader.result as string);
                 if (data.rows && Array.isArray(data.rows)) {
-                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding, cellPaddingH: data.cellPaddingH ?? 6, edgePadding: data.edgePadding } });
+                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 6, edgePadding: data.edgePadding ?? 3 } });
                 }
               } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
               setFileMenuOpen(false);
@@ -570,7 +664,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           Delete Design
         </DropdownItem>
       </DropdownMenu>
-      <button onClick={() => commit(getDefaultRibbonRows(), getDefaultColWidths())}
+      <button onClick={() => { commit(getDefaultRibbonRows(), getDefaultColWidths()); dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } }); dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 6 } }); dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } }); }}
         className="h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
         <RotateCcw className="w-3 h-3" /> Reset
       </button>
@@ -672,198 +766,221 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         {/* ── Canvas ── */}
         <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12">
           {/* Toolbar */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 mb-4 flex items-center gap-1.5 flex-wrap min-h-[36px] select-none">
-            <Tooltip content="Change Field">
-              <button
-                onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
-                disabled={!selCell}
-                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-                <ArrowRightLeft className="w-3 h-3" /> Change
-                <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
-              </button>
-            </Tooltip>
-            <Tooltip content="Delete Column">
-              <button onClick={() => selCell && removeColumn(selCell.ci)} disabled={!selCell || numCols <= 1}
-                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                <Trash2 className="w-3 h-3" /> Delete Col
-              </button>
-            </Tooltip>
-            <Tooltip content="Delete Row">
-              <button onClick={() => selCell && removeRow(selCell.row.id)} disabled={!selCell || rows.length <= 1}
-                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                <Trash2 className="w-3 h-3" /> Row
-              </button>
-            </Tooltip>
-            <Tooltip content="Add Column After">
-              <button onClick={() => selCell && setSelId(addColumn(selCell.ci))} disabled={!selCell}
-                className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                <Plus className="w-3 h-3" /> Add Col
-              </button>
-            </Tooltip>
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            <Tooltip content="Move Column Left">
-              <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={!selCell || selCell.ci === 0}
-                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                <ArrowLeft className="w-3 h-3" />
-              </button>
-            </Tooltip>
-            <Tooltip content="Move Column Right">
-              <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={!selCell || (selCell && selCell.ci >= numCols - 1)}
-                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </Tooltip>
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            <Tooltip content="Move Row Up">
-              <button onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                <ArrowUp className="w-3 h-3" />
-              </button>
-            </Tooltip>
-            <Tooltip content="Move Row Down">
-              <button onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-                className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                <ArrowDown className="w-3 h-3" />
-              </button>
-            </Tooltip>
-            <Tooltip content="Copy field from row above">
-              <button onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-                className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                <ArrowDown className="w-2.5 h-2.5" /> Copy
-              </button>
-            </Tooltip>
-            <Tooltip content="Copy field from row below">
-              <button onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-                className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                <ArrowUp className="w-2.5 h-2.5" /> Copy
-              </button>
-            </Tooltip>
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            {(['left', 'center', 'right'] as const).map(a => {
-              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-              const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
-              const label = a === 'left' ? 'Align Left' : a === 'center' ? 'Align Center' : 'Align Right';
-              return (
-                <Tooltip key={a} content={label}>
-                  <button
-                    onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none">
+            {/* Structure */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Structure</span>
+              <Tooltip content="Change Field">
+                <button
+                  onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
+                  disabled={!selCell}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+                  <ArrowRightLeft className="w-3 h-3" /> Change
+                  <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <Tooltip content="Add Column After">
+                <button onClick={() => selCell && setSelId(addColumn(selCell.ci))} disabled={!selCell}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                  <Plus className="w-3 h-3" /> Add Col
+                </button>
+              </Tooltip>
+              <Tooltip content="Delete Column">
+                <button onClick={() => selCell && removeColumn(selCell.ci)} disabled={!selCell || numCols <= 1}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                  <Trash2 className="w-3 h-3" /> Col
+                </button>
+              </Tooltip>
+              <Tooltip content="Delete Row">
+                <button onClick={() => selCell && removeRow(selCell.row.id)} disabled={!selCell || rows.length <= 1}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                  <Trash2 className="w-3 h-3" /> Row
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <Tooltip content="Move Column Left">
+                <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={!selCell || selCell.ci === 0}
+                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                  <ArrowLeft className="w-3 h-3" />
+                </button>
+              </Tooltip>
+              <Tooltip content="Move Column Right">
+                <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={!selCell || (selCell && selCell.ci >= numCols - 1)}
+                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <Tooltip content="Move Row Up">
+                <button onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                  <ArrowUp className="w-3 h-3" />
+                </button>
+              </Tooltip>
+              <Tooltip content="Move Row Down">
+                <button onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+              </Tooltip>
+            </div>
+            {/* Cell Style */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Style</span>
+              <Tooltip content="Copy field from row above">
+                <button onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowDown className="w-2.5 h-2.5" /> Copy
+                </button>
+              </Tooltip>
+              <Tooltip content="Copy field from row below">
+                <button onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={!selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowUp className="w-2.5 h-2.5" /> Copy
+                </button>
+              </Tooltip>
+              <Tooltip content="Copy field from column left">
+                <button onClick={() => selCell && copyFromLeft(selCell.cell.id)} disabled={!selCell || selCell.ci <= 0}
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowLeft className="w-2.5 h-2.5" /> Copy
+                </button>
+              </Tooltip>
+              <Tooltip content="Copy field from column right">
+                <button onClick={() => selCell && copyFromRight(selCell.cell.id)} disabled={!selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowRight className="w-2.5 h-2.5" /> Copy
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              {(['left', 'center', 'right'] as const).map(a => {
+                const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+                const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
+                const label = a === 'left' ? 'Align Left' : a === 'center' ? 'Align Center' : 'Align Right';
+                return (
+                  <Tooltip key={a} content={label}>
+                    <button
+                      onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
+                      disabled={!selCell}
+                      className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                        active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                      }`}>
+                      <Icon className="w-3 h-3" />
+                    </button>
+                  </Tooltip>
+                );
+              })}
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              {(['top', 'middle', 'bottom'] as const).map(va => {
+                const Icon = va === 'top' ? PanelTop : va === 'middle' ? Equal : PanelBottom;
+                const active = va === 'middle'
+                  ? (!selCell?.cell.verticalAlign || selCell?.cell.verticalAlign === 'middle')
+                  : selCell?.cell.verticalAlign === va;
+                const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
+                return (
+                  <Tooltip key={va} content={label}>
+                    <button
+                      onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
+                      disabled={!selCell}
+                      className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                        active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                      }`}>
+                      <Icon className="w-3 h-3" />
+                    </button>
+                  </Tooltip>
+                );
+              })}
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <Tooltip content="Toggle Text Wrap">
+                <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
+                  disabled={!selCell}
+                  className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
+                    selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
+                  }`}>
+                  <WrapText className="w-3 h-3" />
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              {selCell?.cell.field === 'text' ? (
+                <Tooltip content="Static Text Content">
+                  <input
+                    value={selCell?.cell.textContent || ''}
+                    onChange={e => selCell && setTextContent(selCell.cell.id, e.target.value)}
+                    placeholder="Text content..."
                     disabled={!selCell}
-                    className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                      active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                    }`}>
-                    <Icon className="w-3 h-3" />
-                  </button>
+                    className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30 w-32 shrink-0"
+                  />
                 </Tooltip>
-              );
-            })}
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            {(['top', 'middle', 'bottom'] as const).map(va => {
-              const Icon = va === 'top' ? PanelTop : va === 'middle' ? Equal : PanelBottom;
-              const active = va === 'middle'
-                ? (!selCell?.cell.verticalAlign || selCell?.cell.verticalAlign === 'middle')
-                : selCell?.cell.verticalAlign === va;
-              const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
-              return (
-                <Tooltip key={va} content={label}>
-                  <button
-                    onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
-                    disabled={!selCell}
-                    className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                      active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                    }`}>
-                    <Icon className="w-3 h-3" />
-                  </button>
-                </Tooltip>
-              );
-            })}
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            <Tooltip content="Toggle Text Wrap">
-              <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
-                disabled={!selCell}
-                className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                  selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                }`}>
-                <WrapText className="w-3 h-3" />
-              </button>
-            </Tooltip>
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
-            <Tooltip content="Vertical Cell Padding (px)">
-              <input
-                type="number"
-                min={0}
-                max={24}
-                value={activeDesign.cellPaddingV ?? 6}
-                onChange={e => {
-                  const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                  dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: v } });
-                }}
-                className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-              />
-            </Tooltip>
-            <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
-            <Tooltip content="Horizontal Cell Padding (px)">
-              <input
-                type="number"
-                min={0}
-                max={24}
-                value={activeDesign.cellPaddingH ?? 6}
-                onChange={e => {
-                  const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                  dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: v } });
-                }}
-                className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-              />
-            </Tooltip>
-            <div className="w-px h-5 bg-zinc-700 mx-1" />
-            <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
-            <Tooltip content="Edge Padding (px)">
-              <input
-                type="number"
-                min={0}
-                max={12}
-                value={activeDesign.edgePadding ?? 2}
-                onChange={e => {
-                  const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
-                  dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
-                }}
-                className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
-              />
-            </Tooltip>
-            {selCell && (
-              <>
-                <div className="w-px h-5 bg-zinc-700 mx-1" />
-                {selCell.cell.field === 'text' ? (
-                  <Tooltip content="Static Text Content">
+              ) : (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Tooltip content="Prefix">
                     <input
-                      value={selCell.cell.textContent || ''}
-                      onChange={e => setTextContent(selCell.cell.id, e.target.value)}
-                      placeholder="Text content..."
-                      className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 w-32 shrink-0"
+                      value={selCell?.cell.prefix || ''}
+                      onChange={e => selCell?.cell.field && setAffix(selCell.cell.id, 'prefix', e.target.value)}
+                      placeholder="Prefix"
+                      disabled={!selCell || !selCell.cell.field}
+                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-25"
                     />
                   </Tooltip>
-                ) : selCell.cell.field ? (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Tooltip content="Prefix">
-                      <input
-                        value={selCell.cell.prefix || ''}
-                        onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
-                        placeholder="Prefix"
-                        className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                      />
-                    </Tooltip>
-                    <Tooltip content="Suffix">
-                      <input
-                        value={selCell.cell.suffix || ''}
-                        onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
-                        placeholder="Suffix"
-                        className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                      />
-                    </Tooltip>
-                  </div>
-                ) : null}
-              </>
-            )}
+                  <Tooltip content="Suffix">
+                    <input
+                      value={selCell?.cell.suffix || ''}
+                      onChange={e => selCell?.cell.field && setAffix(selCell.cell.id, 'suffix', e.target.value)}
+                      placeholder="Suffix"
+                      disabled={!selCell || !selCell.cell.field}
+                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-25"
+                    />
+                  </Tooltip>
+                </div>
+              )}
+            </div>
+            {/* Layout */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Layout</span>
+              <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
+              <Tooltip content="Vertical Cell Padding (px)">
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  value={activeDesign.cellPaddingV ?? 6}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                    dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: v } });
+                  }}
+                  className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+                />
+              </Tooltip>
+              <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
+              <Tooltip content="Horizontal Cell Padding (px)">
+                <input
+                  type="number"
+                  min={0}
+                  max={24}
+                  value={activeDesign.cellPaddingH ?? 6}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                    dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: v } });
+                  }}
+                  className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+                />
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
+              <Tooltip content="Edge Padding (px)">
+                <input
+                  type="number"
+                  min={0}
+                  max={12}
+                  value={activeDesign.edgePadding ?? 2}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
+                    dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
+                  }}
+                  className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0"
+                />
+              </Tooltip>
+            </div>
           </div>
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
@@ -876,12 +993,35 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
               <div className="space-y-5 pb-5">
 
+                {/* Column resize tabs */}
+                <div className="h-5 select-none" style={{ paddingLeft: activeDesign.edgePadding ?? 2, paddingRight: activeDesign.edgePadding ?? 2 }}>
+                  <div ref={tabBarRef} className="h-full relative" style={{
+                    display: 'grid',
+                    gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
+                  }}>
+                    {colWidths.map((_w, i) => (
+                      <div key={i} className="relative h-full">
+                        {i < colWidths.length - 1 && (
+                          <div
+                            className="absolute right-0 top-0 cursor-col-resize group/tab z-10"
+                            style={{ transform: 'translateX(50%)' }}
+                            onMouseDown={e => startResize(i, e)}
+                          >
+                            <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-zinc-500 group-hover/tab:border-t-blue-400 transition-colors" />
+                            <div className="w-px h-3.5 mx-auto bg-zinc-500 group-hover/tab:bg-blue-400 transition-colors" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Single CSS Grid */}
-                <div ref={gridRef} style={{
+                <div ref={gridRef} className="-mt-5" style={{
                   display: 'grid',
                   gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
                   gridTemplateRows: `repeat(${rows.length}, auto)`,
-                  border: '1px solid #000',
+                  border: '1px solid #d4d4d8',
                   background: PREVIEW_STYLE.bg,
                   color: PREVIEW_STYLE.fg,
                   fontFamily: 'Helvetica, sans-serif',
@@ -935,12 +1075,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             gridColumn: ci + 1,
                             gridRow: ri + 1,
                             padding: `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
-                            borderRight: ci < numCols - 1 ? '1px solid #000' : 'none',
-                            borderBottom: ri < rows.length - 1 ? '1px solid #000' : 'none',
-                            borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : mergeInfo ? '3px solid #60a5fa' : 'none',
+                            borderTop: '1px solid #d4d4d8',
+                            borderRight: '1px solid #d4d4d8',
+                            borderBottom: '1px solid #d4d4d8',
+                            borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : '1px solid #d4d4d8',
                             outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDragRef.current ? '2px dashed #3b82f6' : 'none',
                             outlineOffset: -1,
-                            background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDragRef.current ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : mergeInfo ? 'rgba(96,165,250,0.06)' : 'transparent',
+                            background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDragRef.current ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : mergeInfo ? (mergeInfo.group.direction === 'h' ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)') : assigned ? '#ffffff' : '#fafafa',
                             minHeight: 16,
                             cursor: 'pointer',
                             userSelect: 'none',
@@ -949,28 +1090,24 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             display: 'flex', flex: 1, minWidth: 0,
                             fontWeight: c.field === 'sceneNumber' ? 700 : 500,
                             textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                            color: assigned ? undefined : '#71717a',
+                            color: assigned ? undefined : '#a1a1aa',
+                            fontStyle: assigned ? undefined : 'italic',
                           }}>
                             {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
                             <RibbonCellText cell={c} span={1} style={{ flexShrink: 1, minWidth: 0 }}>
-                              {formatCellText(c.prefix, assigned ? label : 'Empty', c.suffix)}
+                              {(c.prefix ? '*' : '') + (assigned ? label : 'Empty') + (c.suffix ? '*' : '')}
                             </RibbonCellText>
                             {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
                           </div>
                           {/* Merge badges */}
                           {mergeInfo && !mergeInfo.isLead && (
-                            <div className="absolute right-0.5 top-0.5 text-blue-400 opacity-60 leading-none pointer-events-none" style={{ fontSize: '6px' }}>&#x21d5;</div>
+                            <div className={`absolute right-0.5 top-0.5 opacity-60 leading-none pointer-events-none ${mergeInfo.group.direction === 'h' ? 'text-amber-400' : 'text-emerald-400'}`} style={{ fontSize: '6px' }}>
+                              {mergeInfo.group.direction === 'h' ? '\u21D4' : '\u21D5'}
+                            </div>
                           )}
                           {mergeInfo && mergeInfo.isLead && (
-                            <div className="absolute bottom-0 right-0 px-1 bg-blue-100 text-blue-600 leading-none rounded-tl-sm z-20 pointer-events-none" style={{ fontSize: '7px', fontWeight: 700 }}>&#x21d5;{mergeInfo.group.span}</div>
-                          )}
-                          {/* Column resize handle */}
-                          {ci < numCols - 1 && (
-                            <div
-                              onMouseDown={e => startResize(ci, e)}
-                              className="absolute right-0 top-0 bottom-0 w-[6px] cursor-col-resize z-10 group/h"
-                            >
-                              <div className="absolute right-0 top-1 bottom-1 w-[2px] bg-zinc-600 group-hover/h:bg-blue-400 transition-colors rounded-full" />
+                            <div className={`absolute bottom-0 right-0 px-1 leading-none rounded-tl-sm z-20 pointer-events-none ${mergeInfo.group.direction === 'h' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`} style={{ fontSize: '7px', fontWeight: 700 }}>
+                              {mergeInfo.group.direction === 'h' ? '\u21D4' : '\u21D5'}{mergeInfo.group.span}
                             </div>
                           )}
                         </div>
@@ -1011,38 +1148,49 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             const mgroups = computeMergeGroups(rows);
                             const hiddenIds = new Set<string>();
                             for (const g of mgroups) {
-                              for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-                                const cell = rows[ri]?.cells[g.colIndex];
-                                if (cell) hiddenIds.add(cell.id);
+                              if (g.direction === 'v') {
+                                for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                                  const cell = rows[ri]?.cells[g.colIndex];
+                                  if (cell) hiddenIds.add(cell.id);
+                                }
+                              } else {
+                                for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
+                                  const cell = rows[g.rowIndex]?.cells[ci];
+                                  if (cell) hiddenIds.add(cell.id);
+                                }
                               }
                             }
-                            const items: { id: string; col: number; row: number; span: number; cell: RibbonCell }[] = [];
+                            const items: { id: string; col: number; row: number; vSpan: number; hSpan: number; cell: RibbonCell }[] = [];
                             for (let ri = 0; ri < rows.length; ri++) {
                               for (let ci = 0; ci < rows[ri].cells.length; ci++) {
                                 const cell = rows[ri].cells[ci];
                                 if (hiddenIds.has(cell.id)) continue;
                                 const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-                                items.push({ id: cell.id, col: ci, row: ri, span: g ? g.span : 1, cell });
+                                const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
+                                const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
+                                items.push({ id: cell.id, col: ci, row: ri, vSpan, hSpan, cell });
                               }
                             }
                             return items.map(p => {
                               const c = p.cell;
+                              const span = p.vSpan || 1;
                               const val = c.field === 'text' ? (c.textContent || '') : c.field === 'sceneNumber' ? sample.sceneNumber : getFieldValueFromSample(c.field);
                               const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
                               const display = val || fieldLabel;
-                              const lastVisRow = p.row + p.span - 1;
-                              const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, p.col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
+                              const lastVisRow = p.row + span - 1;
+                              const lastVisCol = (p.hSpan && p.hSpan > 1) ? p.col + p.hSpan - 1 : p.col;
+                              const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, lastVisCol >= rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
                               return (
                                 <div key={p.id} style={{
-                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPaddingV, activeDesign.cellPaddingH, p.span),
-                                  gridColumn: p.col + 1,
-                                  gridRow: `${p.row + 1} / span ${p.span}`,
-                                  padding: p.span > 1 ? `0px ${activeDesign.cellPaddingH ?? 6}px` : `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
-                                  borderRight: p.col < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
+                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPaddingV, activeDesign.cellPaddingH, span),
+                                  gridColumn: (p.hSpan && p.hSpan > 1) ? `${p.col + 1} / span ${p.hSpan}` : p.col + 1,
+                                  gridRow: span > 1 ? `${p.row + 1} / span ${span}` : p.row + 1,
+                                  padding: span > 1 ? `0px ${activeDesign.cellPaddingH ?? 6}px` : `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
+                                  borderRight: lastVisCol < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
                                   ...cellBorderStyle,
                                 }}>
-                                  <RibbonCellText cell={c} span={p.span} cellPadding={activeDesign.cellPaddingV} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
+                                  <RibbonCellText cell={c} span={span} cellPadding={activeDesign.cellPaddingV} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
                                     {formatCellText(val ? c.prefix : undefined, display, val ? c.suffix : undefined)}
                                   </RibbonCellText>
                                 </div>

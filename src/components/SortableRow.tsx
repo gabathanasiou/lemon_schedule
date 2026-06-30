@@ -116,8 +116,8 @@ const SortableRowContent: React.FC<{
   const hasViolations = sceneViolations && sceneViolations.length > 0;
   const violationBadge = hasViolations ? (
     <Tooltip content={sceneViolations.join('\n• ')}>
-      <span className="inline-flex items-center text-red-500 ml-0.5">
-        <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
+      <span className="absolute top-0 left-0 text-red-500 z-10 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
+        <Flag className="w-3 h-3 fill-red-500 text-red-500" />
       </span>
     </Tooltip>
   ) : null;
@@ -426,7 +426,7 @@ const SortableRowContent: React.FC<{
     if (!field) {
       return <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
     }
-    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: row.shootDay }) : getFieldValueFromSample(field);
+    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) }) : getFieldValueFromSample(field);
     const displayText = `${prefix || ''}${val}${suffix || ''}`;
 
     if (field === 'intExt') {
@@ -515,17 +515,15 @@ const SortableRowContent: React.FC<{
     }
     if (field === 'sceneNumber') {
       return (
-        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <div className="flex items-center gap-px">
-            <CellInput
-              value={scene!.sceneNumber}
-              onChange={val => updateScene({sceneNumber: val})}
-              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
-              readOnly={!textEditingEnabled}
-              style={{ fontSize: '8pt', lineHeight: 1.1 }}
-            />
-            {violationBadge}
-          </div>
+        <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden', position: 'relative' }}>
+          <CellInput
+            value={scene!.sceneNumber}
+            onChange={val => updateScene({sceneNumber: val})}
+            className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+            readOnly={!textEditingEnabled}
+            style={{ fontSize: '8pt', lineHeight: 1.1 }}
+          />
+          {violationBadge}
         </td>
       );
     }
@@ -612,21 +610,22 @@ const SortableRowContent: React.FC<{
     return items;
   }, [scenes, state.present.castMembers]);
 
-  const renderCellFlex = (cell: RibbonCell, isLast: boolean, isLastRow: boolean, textColor: string, col?: number, gRow?: number, span?: number) => {
+  const renderCellFlex = (cell: RibbonCell, isLast: boolean, isLastRow: boolean, textColor: string, col?: number, gRow?: number, vSpan?: number, hSpan?: number) => {
     const { field, align, prefix, suffix, wrap, id: cellId } = cell;
     const a = align || 'left';
+    const span = vSpan || 1;
     const style: React.CSSProperties = {
       ...cellFlexBase(cell, span),
       textAlign: a as any,
       ...getCellBorderProps(cellBorders, textColor, isLast, isLastRow),
     };
     if (col !== undefined && gRow !== undefined) {
-      style.gridColumn = col + 1;
-      style.gridRow = span ? `${gRow + 2} / span ${span}` : gRow + 2;
+      style.gridColumn = (hSpan && hSpan > 1) ? `${col + 1} / span ${hSpan}` : col + 1;
+      style.gridRow = span > 1 ? `${gRow + 2} / span ${span}` : gRow + 2;
     }
     if (!field) return <div key={cellId} style={style} />;
 
-    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: row.shootDay }) : getFieldValueFromSample(field);
+    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) }) : getFieldValueFromSample(field);
     const fieldLabel = fieldLabels[field] || field;
     const emptyStyle: React.CSSProperties = { fontStyle: 'italic', opacity: 0.5 };
 
@@ -689,15 +688,13 @@ const SortableRowContent: React.FC<{
       const sv = scene!.sceneNumber || '';
       const displayText = fmt(prefix, sv, suffix);
       return (
-        <div key={cellId} style={style}>
-          <div className="flex items-center gap-px">
-            {textEditingEnabled ? (
-              <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
-            ) : (
-              <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
-            )}
-            {violationBadge}
-          </div>
+        <div key={cellId} style={{ ...style, position: 'relative' }}>
+          {textEditingEnabled ? (
+            <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+          ) : (
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
+          )}
+          {violationBadge}
         </div>
       );
     }
@@ -762,21 +759,33 @@ const SortableRowContent: React.FC<{
                   const mgroups = computeMergeGroups(ribbon);
                   const hiddenIds = new Set<string>();
                   for (const g of mgroups) {
-                    for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-                      const cell = ribbon[ri]?.cells[g.colIndex];
-                      if (cell) hiddenIds.add(cell.id);
+                    if (g.direction === 'v') {
+                      for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                        const cell = ribbon[ri]?.cells[g.colIndex];
+                        if (cell) hiddenIds.add(cell.id);
+                      }
+                    } else {
+                      for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
+                        const cell = ribbon[g.rowIndex]?.cells[ci];
+                        if (cell) hiddenIds.add(cell.id);
+                      }
                     }
                   }
-                  const items: { cell: RibbonCell; col: number; row: number; span: number }[] = [];
+                  const items: { cell: RibbonCell; col: number; row: number; vSpan: number; hSpan: number }[] = [];
                   for (let ri = 0; ri < ribbon.length; ri++) {
                     for (let ci = 0; ci < ribbon[ri].cells.length; ci++) {
                       const cell = ribbon[ri].cells[ci];
                       if (hiddenIds.has(cell.id)) continue;
                       const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-                      items.push({ cell, col: ci, row: ri, span: g ? g.span : 1 });
+                      const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
+                      const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
+                      items.push({ cell, col: ci, row: ri, vSpan, hSpan });
                     }
                   }
-                  return items.map(({ cell, col, row, span }) => renderCellFlex(cell, col === ribbon[0].cells.length - 1, row + span - 1 >= ribbon.length - 1, rowStyle.color, col, row, span));
+                  return items.map(({ cell, col, row, vSpan, hSpan }) => {
+                    const isLastInRow = hSpan > 1 ? col + hSpan - 1 >= ribbon[0].cells.length - 1 : col === ribbon[0].cells.length - 1;
+                    return renderCellFlex(cell, isLastInRow, row + vSpan - 1 >= ribbon.length - 1, rowStyle.color, col, row, vSpan, hSpan);
+                  });
                 })()}
               </div>
             </div>
@@ -791,15 +800,13 @@ const SortableRowContent: React.FC<{
               <tbody>
                 <tr style={rowStyle}>
                   <td className="col-sc relative">
-                    <div className="flex items-center justify-center gap-px">
-                      <CellInput
-                        value={scene.sceneNumber}
-                        onChange={val => updateScene({sceneNumber: val})}
-                        className={`${inputClass} text-center`}
-                        readOnly
-                      />
-                      {violationBadge}
-                    </div>
+                    <CellInput
+                      value={scene.sceneNumber}
+                      onChange={val => updateScene({sceneNumber: val})}
+                      className={`${inputClass} text-center`}
+                      readOnly
+                    />
+                    {violationBadge}
                   </td>
                   <td colSpan={3} className="col-set">
                     <span className="uppercase truncate block">{scene.intExt}. {scene.set} - {scene.dayNight}</span>
@@ -847,15 +854,13 @@ const SortableRowContent: React.FC<{
             <tbody>
               <tr style={rowStyle}>
                 <td className="col-sc relative">
-                  <div className="flex items-center justify-center gap-px">
-                    <CellInput
-                      value={scene.sceneNumber}
-                      onChange={val => updateScene({sceneNumber: val})}
-                      className={`${inputClass} text-center`}
-                      readOnly={!textEditingEnabled}
-                    />
-                    {violationBadge}
-                  </div>
+                  <CellInput
+                    value={scene.sceneNumber}
+                    onChange={val => updateScene({sceneNumber: val})}
+                    className={`${inputClass} text-center`}
+                    readOnly={!textEditingEnabled}
+                  />
+                  {violationBadge}
                 </td>
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">

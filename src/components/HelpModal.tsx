@@ -73,7 +73,8 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move selection up / down through all ribbons" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>↑</Kbd>/<Kbd>↓</Kbd></>} action="Extend / contract selection range" />
           <Row keys={<><Kbd>↹</Kbd> Tab</>} action="Toggle focus between unscheduled sidebar ↔ stripboard" />
-          <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="With 1 ribbon selected: focus inline cell editor" />
+          <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="With 1 ribbon selected: focus duration / call time cell" />
+          <Row keys={<><Kbd>⇧</Kbd> + <Kbd>⏎</Kbd></>} action="With 1 note/break selected: focus inline text cell editor" />
         </Section>
 
         <Section title="Scheduling">

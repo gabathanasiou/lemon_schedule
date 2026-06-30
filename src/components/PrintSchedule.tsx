@@ -178,16 +178,17 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     formatCellText(prefix, val, suffix);
 
-  const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLastInRow?: boolean, isLastRow?: boolean, textColor?: string, col?: number, row?: number, span?: number) => {
-    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0, sheetNumber: chronoDay });
+  const renderSceneCellFlex = (cell: RibbonCell, scene: Scene, computedCallTime?: string, estimatedDuration?: number, isLastInRow?: boolean, isLastRow?: boolean, textColor?: string, col?: number, row?: number, vSpan?: number, hSpan?: number) => {
+    const span = vSpan || 1;
+    const val = cell.field === 'text' ? (cell.textContent || '') : getFieldValue(cell.field, { ...scene, computedCallTime, estimatedDuration: estimatedDuration || 0, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) });
     const display = val ? fmt(cell.prefix, val, cell.suffix) : '';
     const style: React.CSSProperties = {
       ...cellPrintStyle(cell, span),
       ...getCellBorderProps(cellBorders, textColor || '#000', isLastInRow ?? true, isLastRow ?? true),
     };
     if (col !== undefined && row !== undefined) {
-      style.gridColumn = col + 1;
-      style.gridRow = span ? `${row + 2} / span ${span}` : row + 2;
+      style.gridColumn = (hSpan && hSpan > 1) ? `${col + 1} / span ${hSpan}` : col + 1;
+      style.gridRow = span > 1 ? `${row + 2} / span ${span}` : row + 2;
     }
     return <div key={cell.id} style={style}><RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>{display || ''}</RibbonCellText></div>;
   };
@@ -407,21 +408,33 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         const mgroups = computeMergeGroups(filteredRibbon);
                         const hiddenIds = new Set<string>();
                         for (const g of mgroups) {
-                          for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-                            const cell = filteredRibbon[ri]?.cells[g.colIndex];
-                            if (cell) hiddenIds.add(cell.id);
+                          if (g.direction === 'v') {
+                            for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                              const cell = filteredRibbon[ri]?.cells[g.colIndex];
+                              if (cell) hiddenIds.add(cell.id);
+                            }
+                          } else {
+                            for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
+                              const cell = filteredRibbon[g.rowIndex]?.cells[ci];
+                              if (cell) hiddenIds.add(cell.id);
+                            }
                           }
                         }
-                        const items: { cell: RibbonCell; col: number; row: number; span: number }[] = [];
+                        const items: { cell: RibbonCell; col: number; row: number; vSpan: number; hSpan: number }[] = [];
                         for (let ri = 0; ri < filteredRibbon.length; ri++) {
                           for (let ci = 0; ci < filteredRibbon[ri].cells.length; ci++) {
                             const cell = filteredRibbon[ri].cells[ci];
                             if (hiddenIds.has(cell.id)) continue;
                             const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-                            items.push({ cell, col: ci, row: ri, span: g ? g.span : 1 });
+                            const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
+                            const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
+                            items.push({ cell, col: ci, row: ri, vSpan, hSpan });
                           }
                         }
-                        return items.map(({ cell, col, row, span }) => renderSceneCellFlex(cell, scene, r.computedCallTime, r.estimatedDuration, col === filteredRibbon[0].cells.length - 1, row + span - 1 >= filteredRibbon.length - 1, rowStyle.color, col, row, span));
+                        return items.map(({ cell, col, row, vSpan, hSpan }) => {
+                          const isLastInRow = hSpan > 1 ? col + hSpan - 1 >= filteredRibbon[0].cells.length - 1 : col === filteredRibbon[0].cells.length - 1;
+                          return renderSceneCellFlex(cell, scene, r.computedCallTime, r.estimatedDuration, isLastInRow, row + vSpan - 1 >= filteredRibbon.length - 1, rowStyle.color, col, row, vSpan, hSpan);
+                        });
                       })()}
                     </div>
                   )}

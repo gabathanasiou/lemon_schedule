@@ -24,18 +24,27 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPaddingV = 3, cell
   const mgroups = computeMergeGroups(ribbon);
   const hiddenIds = new Set<string>();
   for (const g of mgroups) {
-    for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-      const cell = ribbon[ri]?.cells[g.colIndex];
-      if (cell) hiddenIds.add(cell.id);
+    if (g.direction === 'v') {
+      for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+        const cell = ribbon[ri]?.cells[g.colIndex];
+        if (cell) hiddenIds.add(cell.id);
+      }
+    } else {
+      for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
+        const cell = ribbon[g.rowIndex]?.cells[ci];
+        if (cell) hiddenIds.add(cell.id);
+      }
     }
   }
-  const items: { cell: typeof ribbon[0]['cells'][0]; col: number; row: number; span: number }[] = [];
+  const items: { cell: typeof ribbon[0]['cells'][0]; col: number; row: number; vSpan: number; hSpan: number }[] = [];
   for (let ri = 0; ri < ribbon.length; ri++) {
     for (let ci = 0; ci < ribbon[ri].cells.length; ci++) {
       const cell = ribbon[ri].cells[ci];
       if (hiddenIds.has(cell.id)) continue;
       const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-      items.push({ cell, col: ci, row: ri, span: g ? g.span : 1 });
+      const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
+      const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
+      items.push({ cell, col: ci, row: ri, vSpan, hSpan });
     }
   }
 
@@ -66,15 +75,16 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPaddingV = 3, cell
                 gridTemplateColumns: cw.map(w => `${w}%`).join(' '),
                 gridTemplateRows: `repeat(${ribbon.length}, auto)`,
               }}>
-                {items.map(({ cell, col, row, span }) => {
+                {items.map(({ cell, col, row, vSpan, hSpan }) => {
+                  const span = vSpan || 1;
                   const style = getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
                   const val = cell.field ? getFieldValue(cell.field, scene) : '';
                   const text = cell.textContent || fmt(cell.prefix, val, cell.suffix);
                   return (
                     <div key={cell.id} style={{
                       ...style,
-                      gridColumn: col + 1,
-                      gridRow: span ? `${row + 1} / span ${span}` : row + 1,
+                      gridColumn: (hSpan && hSpan > 1) ? `${col + 1} / span ${hSpan}` : col + 1,
+                      gridRow: span > 1 ? `${row + 1} / span ${span}` : row + 1,
                     }}>
                       <RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>
                         {text}

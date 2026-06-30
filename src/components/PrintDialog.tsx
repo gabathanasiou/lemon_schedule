@@ -231,42 +231,52 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                             gridTemplateColumns: cw.map(function (w) { return w + '%'; }).join(' '),
                             gridTemplateRows: 'repeat(' + String(rows.length) + ', auto)',
                           }}>
-                            {(() => {
-                              const mgroups = computeMergeGroups(rows);
-                              const hiddenIds: Set<string> = new Set();
-                              for (var _gi = 0; _gi < mgroups.length; _gi++) {
-                                var g = mgroups[_gi];
-                                for (var _ri = g.rowIndex + 1; _ri < g.rowIndex + g.span; _ri++) {
-                                  var cell = rows[_ri] && rows[_ri].cells[g.colIndex];
-                                  if (cell) hiddenIds.add(cell.id);
-                                }
-                              }
-                              var items: { cell: RibbonCell; col: number; row: number; span: number }[] = [];
-                              for (var ri = 0; ri < rows.length; ri++) {
-                                for (var ci = 0; ci < rows[ri].cells.length; ci++) {
-                                  var cell = rows[ri].cells[ci];
-                                  if (hiddenIds.has(cell.id)) continue;
-                                  var mg = mgroups.find(function (gg) { return gg.colIndex === ci && gg.rowIndex === ri; });
-                                  items.push({ cell: cell, col: ci, row: ri, span: mg ? mg.span : 1 });
-                                }
-                              }
-                               return items.map(function (p) {
-                                 var cell = p.cell;
-                                 var col = p.col;
-                                 var row = p.row;
-                                 var span = p.span;
-                                 var hidden = (cell.field === 'callTime' && !settings.showTimes) || (cell.field === 'duration' && !settings.showDurations);
-                                 var val = hidden ? '' : (cell.field === 'text' ? (cell.textContent || '') : getFieldValueFromSample(cell.field));
-                                 var fieldLabel = hidden ? '' : (FIELD_MAP[cell.field]?.label || (project.customCategories || []).find(function (x) { return x.key === cell.field; })?.label || '');
-                                 var display = val ? formatCellText(cell.prefix, val, cell.suffix) : fieldLabel;
-                                 var lastVisRow = row + span - 1;
-                                 var cellBorderStyle = getCellBorderProps(settings.cellBorders, rowStyle.color, col === rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
-                                 return (
-                                   <div key={cell.id} style={{
-                                     gridColumn: col + 1,
-                                     gridRow: span ? (row + 1) + ' / span ' + span : row + 1,
-                                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span),
-                                     borderRight: col < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
+                             {(() => {
+                               const mgroups = computeMergeGroups(rows);
+                               const hiddenIds: Set<string> = new Set();
+                               for (var _gi = 0; _gi < mgroups.length; _gi++) {
+                                 var g = mgroups[_gi];
+                                 if (g.direction === 'v') {
+                                   for (var _ri = g.rowIndex + 1; _ri < g.rowIndex + g.span; _ri++) {
+                                     var cell = rows[_ri] && rows[_ri].cells[g.colIndex];
+                                     if (cell) hiddenIds.add(cell.id);
+                                   }
+                                 } else {
+                                   for (var _ci = g.colIndex + 1; _ci < g.colIndex + g.span; _ci++) {
+                                     var cell = rows[g.rowIndex] && rows[g.rowIndex].cells[_ci];
+                                     if (cell) hiddenIds.add(cell.id);
+                                   }
+                                 }
+                               }
+                               var items: { cell: RibbonCell; col: number; row: number; vSpan: number; hSpan: number }[] = [];
+                               for (var ri = 0; ri < rows.length; ri++) {
+                                 for (var ci = 0; ci < rows[ri].cells.length; ci++) {
+                                   var cell = rows[ri].cells[ci];
+                                   if (hiddenIds.has(cell.id)) continue;
+                                   var mg = mgroups.find(function (gg) { return gg.colIndex === ci && gg.rowIndex === ri; });
+                                   var vs = mg?.direction === 'v' ? (mg.span || 1) : 1;
+                                   var hs = mg?.direction === 'h' ? (mg.span || 1) : 1;
+                                   items.push({ cell: cell, col: ci, row: ri, vSpan: vs, hSpan: hs });
+                                 }
+                               }
+                                return items.map(function (p) {
+                                  var cell = p.cell;
+                                  var col = p.col;
+                                  var row = p.row;
+                                  var span = p.vSpan;
+                                  var hidden = (cell.field === 'callTime' && !settings.showTimes) || (cell.field === 'duration' && !settings.showDurations);
+                                  var val = hidden ? '' : (cell.field === 'text' ? (cell.textContent || '') : getFieldValueFromSample(cell.field));
+                                  var fieldLabel = hidden ? '' : (FIELD_MAP[cell.field]?.label || (project.customCategories || []).find(function (x) { return x.key === cell.field; })?.label || '');
+                                  var display = val ? formatCellText(cell.prefix, val, cell.suffix) : fieldLabel;
+                                  var lastVisRow = row + span - 1;
+                                  var lastVisCol = (p.hSpan && p.hSpan > 1) ? col + p.hSpan - 1 : col;
+                                  var cellBorderStyle = getCellBorderProps(settings.cellBorders, rowStyle.color, lastVisCol >= rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
+                                  return (
+                                    <div key={cell.id} style={{
+                                      gridColumn: (p.hSpan && p.hSpan > 1) ? (col + 1) + ' / span ' + p.hSpan : col + 1,
+                                      gridRow: span > 1 ? (row + 1) + ' / span ' + span : row + 1,
+                                      ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span),
+                                      borderRight: lastVisCol < rows[0].cells.length - 1 ? (settings.cellBorders === 'vertical' || settings.cellBorders === 'both' ? '1px solid ' + rowStyle.color : '1px solid rgba(0,0,0,0.12)') : 'none',
                                      ...cellBorderStyle,
                                    }}>
                                      <RibbonCellText cell={cell} span={span} cellPadding={cellPaddingV}>
