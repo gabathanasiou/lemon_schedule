@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
-import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
@@ -30,10 +30,12 @@ const DayHeaderRow: React.FC<{
   setSelectedRowIds: (v: Set<string>) => void;
   setContextMenu: (v: { x: number; y: number; rowId: string; shootDay: number | null } | null) => void;
 }> = ({ dayInt, dateStr, callTime, handleRowClick, selectedRowIds, setSelectedRowIds, setContextMenu }) => {
-  const { setNodeRef } = useSortable({ id: `day-header-${dayInt}`, disabled: true });
+  const { setNodeRef: setSortRef } = useSortable({ id: `day-header-${dayInt}`, disabled: true });
+  const { setNodeRef: setDropRef } = useDroppable({ id: `day-header-${dayInt}` });
+  const setRefs = (node: HTMLElement | null) => { setSortRef(node); setDropRef(node); };
   const rowId = `empty-${dayInt}`;
   return (
-    <div ref={setNodeRef}
+    <div ref={setRefs}
       className="day-header-row flex items-center justify-between bg-zinc-700 text-white text-xs px-3 py-2 font-bold border-b-2 border-black"
       data-row-id={rowId}
       data-shoot-day={dayInt}
