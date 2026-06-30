@@ -84,6 +84,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [activeCell, setActiveCell] = useState<Point | null>(null);
   const [selectionRange, setSelectionRange] = useState<{ start: Point; end: Point } | null>(null);
   const spreadsheetRef = useRef<any>(null);
+  const editingRef = useRef<{ row: number; col: number; value: string } | null>(null);
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
@@ -164,11 +165,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     );
   }, [scenes, deleteScene]);
 
-  const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
+  const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ row, column, cell, onChange, exitEditMode }) => {
     const committedRef = useRef(false);
     const handleChange = (val: string) => {
       if (committedRef.current) return;
       committedRef.current = true;
+      editingRef.current = null;
       onChange({ value: val });
       exitEditMode();
     };
@@ -176,6 +178,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       <EntityDropdown
         value={cell?.value || ''}
         onChange={handleChange}
+        onValueChange={(val) => { editingRef.current = { row, column, value: val }; }}
+        onCancel={() => { editingRef.current = null; }}
         positioning="fixed"
         defaultOpen
         autoFocus
@@ -205,7 +209,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     );
   }, []);
 
-  const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
+  const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ row, column, cell, onChange, exitEditMode }) => {
     const setItems = useMemo(() => {
       const sets = new Map<string, string>();
       for (const s of scenes) { const v = s.set.trim().toUpperCase(); if (v) sets.set(v, v); }
@@ -215,7 +219,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     return (
       <EntityDropdown
         value={cell?.value || ''}
-        onChange={val => { onChange({ value: val }); exitEditMode(); }}
+        onChange={val => { editingRef.current = null; onChange({ value: val }); exitEditMode(); }}
+        onValueChange={(val) => { editingRef.current = { row, column, value: val }; }}
+        onCancel={() => { editingRef.current = null; }}
         items={setItems}
         mode="single"
         positioning="relative"
@@ -272,7 +278,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         const key = e.id || e.name;
         if (!seen.has(key)) { items.push({ id: e.id, name: e.name }); seen.add(key); }
       }
-      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
+      const Editor: DataEditorComponent<CellBase<string>> = ({ row, column, cell, onChange, exitEditMode }) => {
         const committedRef = useRef(false);
         return (
           <EntityDropdown
@@ -280,9 +286,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             onChange={val => {
               if (committedRef.current) return;
               committedRef.current = true;
+              editingRef.current = null;
               onChange({ value: val });
               exitEditMode();
             }}
+            onValueChange={(val) => { editingRef.current = { row, column, value: val }; }}
+            onCancel={() => { editingRef.current = null; }}
             items={items}
             placeholder={allBreakdownLabels[key]}
             positioning="relative"
@@ -914,7 +923,18 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                  setSelectionRange(null);
                }
              }}
-             onActivate={(point) => setActiveCell(point)}
+              onActivate={(point) => {
+                const pending = editingRef.current;
+                if (pending && (pending.row !== point.row || pending.col !== point.column)) {
+                  editingRef.current = null;
+                  const newData = data.map(r => r.map(c => ({ ...c })));
+                  if (newData[pending.row]?.[pending.col]) {
+                    newData[pending.row][pending.col] = { ...newData[pending.row][pending.col], value: pending.value };
+                  }
+                  handleChange(newData);
+                }
+                setActiveCell(point);
+              }}
              onKeyDown={e => {
                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                  e.preventDefault();

@@ -76,6 +76,10 @@ interface EntityDropdownProps {
   autoFocus?: boolean;
   /** Display mode: 'id' (cast, default) or 'name' (non-cast). Controls checked matching and default renderer. */
   displayMode?: 'id' | 'name';
+  /** Fires on every internal val change (for tracking uncommitted edits) */
+  onValueChange?: (val: string) => void;
+  /** Fires when user cancels with Escape */
+  onCancel?: () => void;
 }
 
 /**
@@ -198,6 +202,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   defaultOpen = false,
   autoFocus: autoFocusProp = false,
   displayMode = 'name',
+  onValueChange,
+  onCancel,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -229,6 +235,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   useEffect(() => {
     if (open) { committedRef.current = false; setHighlightedIndex(-1); }
   }, [open]);
+
+  useEffect(() => {
+    if (mode === 'multi' || mode === 'select') onValueChange?.(val);
+  }, [val, mode]);
 
   useLayoutEffect(() => {
     if (highlightedIndex < 0 || !panelRef.current) return;
@@ -367,7 +377,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         placeholder={placeholder}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
-          if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
+          if (e.key === 'Escape') { committedRef.current = true; onCancel?.(); setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') { e.preventDefault(); commit(); }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
