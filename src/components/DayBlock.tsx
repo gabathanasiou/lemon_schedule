@@ -265,7 +265,17 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     const label = statusLabel || `DAY #${displayDay}`;
     const dateStr = meta?.date ? formatDateLong(meta.date) : '';
     return (
-      <div className="flex-1 min-w-0 flex flex-col" style={{ paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+      <div className="flex-1 min-w-0 flex flex-col relative" style={{ paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+        {violations.length > 0 && (
+          <div className="absolute top-0 right-0 p-1 z-10">
+            <ViolationTooltip violations={violations}>
+              <span className="inline-flex items-center gap-0.5 text-red-400">
+                <Flag className="w-3.5 h-3.5 fill-red-400" />
+                <span className="text-[10px] font-bold">{violations.length}</span>
+              </span>
+            </ViolationTooltip>
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
           {cells.map((cell, ci) => {
             if (ci === mainCellIdx) {
@@ -396,7 +406,17 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <td className="col-sc" style={{textAlign: 'left'}}>
                   <span className="font-bold" style={{paddingLeft: 4}}>{statusLabel}</span>
                 </td>
-                <td className="col-call"><span style={{visibility: 'hidden'}}>CALL</span></td>
+                <td className="col-call">
+                  {violations.length > 0 && (
+                    <ViolationTooltip violations={violations}>
+                      <span className="inline-flex items-center gap-0.5 text-red-400">
+                        <Flag className="w-3.5 h-3.5 fill-red-400" />
+                        <span className="text-[10px] font-bold">{violations.length}</span>
+                      </span>
+                    </ViolationTooltip>
+                  )}
+                  <span style={{visibility: 'hidden'}}>CALL</span>
+                </td>
                 <td className="col-dur" />
                 <td className="col-ie" />
                 <td className="col-set text-center font-semibold">
