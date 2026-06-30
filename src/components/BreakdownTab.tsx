@@ -219,6 +219,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         onChange={val => { onChange({ value: val }); exitEditMode(); }}
         items={setItems}
         mode="single"
+        keepAlphabetical
+        panelMinWidth="min-w-[220px]"
         positioning="relative"
         defaultOpen
         autoFocus

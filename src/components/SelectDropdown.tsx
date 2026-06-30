@@ -30,6 +30,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   const initialIdx = options.indexOf(value);
   const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
   const ref = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
   const handleOpen = useOpenHandler(setOpen);
@@ -39,6 +40,19 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   useDropdown(open, ref, () => setOpen(false));
 
   useFixedPosition(ref, positioning === 'fixed' && open, setPos);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!open || !el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollHeight > el.clientHeight) {
+        e.preventDefault();
+        el.scrollTop += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [open]);
 
   const commit = (val: string) => {
     onChange(val);
@@ -52,7 +66,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
     : 'bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left';
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()}>
+    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         value={value}
         readOnly
@@ -68,6 +82,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
       />
       {open && (
         <div
+          ref={scrollRef}
           className={
             positioning === 'fixed'
               ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]'

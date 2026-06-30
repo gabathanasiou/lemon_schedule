@@ -15,14 +15,14 @@ export function useDropdown(open: boolean, ref: RefObject<HTMLDivElement>, onClo
   useEffect(() => {
     if (open) {
       globalDropdownCloseRef.current = () => onClose?.();
-      const onClick = (e: MouseEvent) => {
+      const onClick = (e: PointerEvent) => {
         if (ref.current && !ref.current.contains(e.target as Node)) {
           onClose?.();
         }
       };
-      document.addEventListener('mousedown', onClick);
+      document.addEventListener('pointerdown', onClick);
       return () => {
-        document.removeEventListener('mousedown', onClick);
+        document.removeEventListener('pointerdown', onClick);
         globalDropdownCloseRef.current = undefined;
       };
     }
@@ -36,8 +36,15 @@ export function useOpenHandler(setOpen: (v: boolean) => void) {
   }, [setOpen]);
 }
 
-export function sortCastMembers(list: CastMember[], currentIds: string[]) {
+export function sortCastMembers(list: CastMember[], currentIds: string[], displayMode: 'id' | 'name' = 'id') {
   return [...list].sort((a, b) => {
+    if (displayMode === 'name') {
+      const aSel = currentIds.includes(a.name);
+      const bSel = currentIds.includes(b.name);
+      if (aSel !== bSel) return aSel ? -1 : 1;
+      if (aSel && bSel) return currentIds.indexOf(a.name) - currentIds.indexOf(b.name);
+      return a.name.localeCompare(b.name, undefined, { numeric: true });
+    }
     const aMatch = a.id || a.name;
     const bMatch = b.id || b.name;
     const aSel = currentIds.includes(aMatch);

@@ -169,6 +169,19 @@ import { getFieldItems, isMultiValue } from '../lib/categories';
 const items = getFieldItems(category, fieldValue);
 ```
 
+### EntityDropdown Sort Order
+
+Default sorting is handled by `sortCastMembers()` in `src/lib/dropdown.ts`. The function receives a `displayMode` parameter:
+
+| Mode | `displayMode` | Selected items | Non-selected items |
+|---|---|---|---|
+| Cast | `'id'` | Numeric by ID (`parseInt` then `localeCompare`) | Numeric by ID |
+| Non-cast | `'name'` | Preserved in text-box order (`currentIds` index) | Alphabetical by name |
+
+**Commit sorting:** When the drop-down commits (blur/Enter/Tab) in `displayMode="id"` multi mode, cast IDs are auto-sorted numerically (e.g. `"1, 4, 2"` → `"1, 2, 4"`). This is handled by `sortAndJoin()` in `EntityDropdown.tsx`.
+
+**Search-active:** When the user is actively typing a partial query (no exact match), a separate inline comparator runs (query matches first → selected first → numeric ID tiebreaker). This path is unaffected by `displayMode`. When the last comma-separated segment exactly matches an existing item, the search path is bypassed and the default sort is used.
+
 ### Category `multiValue` Property
 Each category (built-in via `ELEMENT_CATEGORIES` in `src/lib/categories.ts`, custom via `CustomCategoryDef.multiValue?`) has a `multiValue: boolean`. Only `set` is `multiValue: false` by default. Custom categories can toggle this in the Element Manager's Create/Edit Category modal. When adding a new built-in single-value category, set `multiValue: false` in `ELEMENT_CATEGORIES` — no other code changes needed.
 

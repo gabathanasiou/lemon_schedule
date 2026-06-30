@@ -78,6 +78,10 @@ interface EntityDropdownProps {
   displayMode?: 'id' | 'name';
   /** Show a "Press Enter to commit" hint at the bottom of the dropdown panel */
   commitHint?: boolean;
+  /** Sort items alphabetically by name without pulling selected to top. Scroll to selected item on open. */
+  keepAlphabetical?: boolean;
+  /** Override the min-width of the dropdown panel (Tailwind class, e.g. "min-w-[250px]") */
+  panelMinWidth?: string;
 }
 
 /**
@@ -201,6 +205,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   autoFocus: autoFocusProp = false,
   displayMode = 'name',
   commitHint = false,
+  keepAlphabetical = false,
+  panelMinWidth,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -228,6 +234,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   });
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) { committedRef.current = false; setHighlightedIndex(-1); }
@@ -238,6 +245,25 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     const btn = panelRef.current.querySelector(`[data-ei="${highlightedIndex}"]`) as HTMLElement;
     if (btn) btn.scrollIntoView({ block: 'nearest' });
   }, [highlightedIndex]);
+
+  useLayoutEffect(() => {
+    if (!open || !keepAlphabetical || !panelRef.current) return;
+    const checked = panelRef.current.querySelector('[data-checked="true"]') as HTMLElement;
+    if (checked) checked.scrollIntoView({ block: 'nearest' });
+  }, [open, keepAlphabetical]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!open || !el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollHeight > el.clientHeight) {
+        e.preventDefault();
+        el.scrollTop += e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [open]);
 
   const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
 
@@ -331,7 +357,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   );
   const effectiveQuery = (mode === 'multi' && hasExactMatch) ? '' : searchQuery;
   const filtered = items.filter(m => !effectiveQuery || doFilter(m, effectiveQuery));
-  const doSort = sortItems ?? sortCastMembers;
+  const doSort = sortItems ?? ((items: EntityItem[], ids: string[]) => {
+    if (keepAlphabetical) return [...items].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    return sortCastMembers(items, ids, displayMode as 'id' | 'name');
+  });
   const sorted = ((mode === 'multi' || mode === 'select') && effectiveQuery)
     ? [...items].sort((a, b) => {
         const q = searchQuery.toLowerCase();
@@ -372,7 +401,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     : (value || '');
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()}>
+    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         autoFocus={autoFocusProp}
         value={displayValue}
@@ -413,10 +442,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       {open && (
         <div
           ref={panelRef}
-          className={DD_PANEL_CLASS(positioning)}
+          className={`${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
-          <div className="overflow-y-auto max-h-48">
+          <div ref={scrollRef} className="overflow-y-auto max-h-48">
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
             const checked = currentIds.includes(itemKey(m));
             const highlighted = highlightedIndex === idx;
@@ -425,6 +454,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
               <button
                 key={isSynthetic ? '__new__' : m.id}
                 data-ei={idx}
+                data-checked={checked ? 'true' : undefined}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => toggle(itemKey(m))}
