@@ -94,7 +94,7 @@ const SortableRowContent: React.FC<{
         const items = getFieldItems(key, val);
         for (const item of items) {
           if (!existingNames.has(item.toUpperCase())) {
-            dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: { id: item, name: item } } });
+            dispatch({ type: 'ADD_ELEMENT', payload: { category: key, element: key === 'cast' ? { id: item, name: '' } : { id: item, name: item } } });
           }
         }
       }
@@ -628,7 +628,7 @@ const SortableRowContent: React.FC<{
       if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
     }
     for (const v of sceneValues) {
-      if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
+      if (!seen.has(v)) { items.push({ id: v, name: '' }); seen.add(v); }
     }
     return items;
   }, [scenes, state.present.castMembers]);

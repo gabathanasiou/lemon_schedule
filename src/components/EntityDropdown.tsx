@@ -245,17 +245,32 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     ? val.split(',').map(x => x.trim()).filter(Boolean)
     : localIds;
 
+  const sortAndJoin = useCallback((raw: string) => {
+    const ids = raw.split(',').map(x => x.trim()).filter(Boolean);
+    if (displayMode === 'id' && mode === 'multi') {
+      ids.sort((a, b) => {
+        const na = parseInt(a, 10);
+        const nb = parseInt(b, 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        if (!isNaN(na)) return -1;
+        if (!isNaN(nb)) return 1;
+        return a.localeCompare(b, undefined, { numeric: true });
+      });
+    }
+    return ids.join(', ');
+  }, [displayMode, mode]);
+
   const handleClose = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
     if (mode === 'multi' || mode === 'select') {
-      onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
+      onChange(sortAndJoin(val));
     } else {
       onChange(query || (localIds.length > 0 ? localIds[0] : ''));
     }
     setOpen(false);
     setQuery('');
-  }, [mode, val, localIds, query, onChange]);
+  }, [mode, val, localIds, query, onChange, sortAndJoin]);
 
   useDropdown(open, ref, handleClose);
 
@@ -290,13 +305,13 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (committedRef.current) return;
     committedRef.current = true;
     if (mode === 'multi' || mode === 'select') {
-      onChange(val.split(',').map(x => x.trim()).filter(Boolean).join(', '));
+      onChange(sortAndJoin(val));
     } else {
       onChange(query || (localIds.length > 0 ? localIds[0] : ''));
     }
     setOpen(false);
     setQuery('');
-  }, [mode, val, localIds, query, onChange]);
+  }, [mode, val, localIds, query, onChange, sortAndJoin]);
 
   const defaultFilter = useCallback((item: EntityItem, q: string) => {
     const lower = q.toLowerCase();
@@ -310,9 +325,14 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     ? val.split(',').map(x => x.trim()).filter(Boolean).pop() || ''
     : '';
   const searchQuery = mode === 'multi' || mode === 'select' ? lastSegment : query;
-  const filtered = items.filter(m => !searchQuery || doFilter(m, searchQuery));
+  const hasExactMatch = searchQuery.length > 0 && items.some(m =>
+    m.id.toLowerCase() === searchQuery.toLowerCase() ||
+    m.name.toLowerCase() === searchQuery.toLowerCase()
+  );
+  const effectiveQuery = (mode === 'multi' && hasExactMatch) ? '' : searchQuery;
+  const filtered = items.filter(m => !effectiveQuery || doFilter(m, effectiveQuery));
   const doSort = sortItems ?? sortCastMembers;
-  const sorted = ((mode === 'multi' || mode === 'select') && searchQuery)
+  const sorted = ((mode === 'multi' || mode === 'select') && effectiveQuery)
     ? [...items].sort((a, b) => {
         const q = searchQuery.toLowerCase();
         const aMatch = a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q);
@@ -325,12 +345,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       })
     : doSort(filtered, currentIds);
 
-  const hasExactMatch = searchQuery.length > 0 && items.some(m =>
-    m.id.toLowerCase() === searchQuery.toLowerCase() ||
-    m.name.toLowerCase() === searchQuery.toLowerCase()
-  );
   const syntheticItem: EntityItem = { id: searchQuery, name: searchQuery };
-  const dropdownItems = (searchQuery && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
+  const dropdownItems = (effectiveQuery && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
