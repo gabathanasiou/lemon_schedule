@@ -305,6 +305,20 @@ function reducer(state: State, action: Action): State {
       p.ribbonDesigns = [defaultDesign];
       p.activeRibbonId = p.activeRibbonId || defaultDesign.id;
     }
+    // Normalize old versions: add default calendar + derive dates
+    if (p.versions) {
+      p.versions = p.versions.map((v: any) => {
+        if (v.calendar) return v;
+        const cal = defaultCalendar();
+        const groups = computeDayGroups(v.rows || []);
+        const dates = deriveDayDates(cal, groups.length);
+        const dayMeta = { ...(v.dayMeta || {}) };
+        for (const [dayNum, dateStr] of dates) {
+          dayMeta[dayNum] = { ...(dayMeta[dayNum] || { shootDay: dayNum, unitCall: '08:00', date: '' }), date: dateStr };
+        }
+        return { ...v, calendar: cal, stripView: 'full', dayMeta };
+      });
+    }
     return {
       past: [],
       present: {
