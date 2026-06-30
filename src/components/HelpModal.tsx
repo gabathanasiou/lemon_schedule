@@ -102,12 +102,13 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Touch / iPad">
-          <Row keys={<>Press & hold</>} action="Drag a ribbon — hold still (~200ms) then drag" />
-          <Row keys={<>Swipe</>} action="Scroll the board — swipe on empty space (gaps, margins, day headers)" />
-          <Row keys={<>Long-press</>} action="Open context menu anywhere you'd right-click — watch the progress ring" />
-          <Row keys={<>Long-press empty</>} action="Start marquee selection — hold empty board space, then drag to draw rectangle" />
-          <Row keys={<><Kbd>⊞</Kbd> Marquee btn</>} action="Tap the floating marquee button to stay in select mode (tap again to exit)" />
-          <Row keys={<>Tap</>} action="Select a single ribbon — Tap toggles if already selected" />
+          <Row keys={<>Swipe</>} action="Scroll — swipe on ribbons, gaps, margins, or day headers" />
+          <Row keys={<>Press & hold</>} action="Drag a ribbon — hold still (~200ms) then drag. Drags full multi-selection if tapped item is selected" />
+          <Row keys={<>Long-press</>} action="Open context menu on a ribbon or day header — watch the progress ring fill (~500ms)" />
+          <Row keys={<>Tap</>} action="Select a single ribbon (deselects any others)" />
+          <Row keys={<><Kbd>⊞</Kbd> Select Mode btn</>} action="Blue float bottom-right: tap to enable Select Mode. Tap again to exit" />
+          <Row keys={<>In Select Mode</>} action="Tap ribbons to toggle them in/out of selection. Drag empty space to marquee-select. Drag is disabled" />
+          <Row keys={<>Exit Select Mode</>} action="Long-press any selected ribbon to drag the whole set; or use context menu to Cut/Delete the selection" />
           <Row keys={<>Drag edge</>} action="Resize sidebar by dragging the right edge" />
           <Row keys={<>Drag ▸◂</>} action="Resize columns by dragging the divider between any two column headers" />
         </Section>
