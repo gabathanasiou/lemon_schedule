@@ -6,10 +6,12 @@ import { getElementsFromScenes } from '../store';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
-import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check } from 'lucide-react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, CUSTOM_ICON_OPTIONS, getCustomIcon, getLabel } from '../lib/categories';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
   if (category === 'cast') {
@@ -105,10 +107,21 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   function loadRows(cat: string): LocalRow[] {
     const elems = loadCategoryElements(project, cat);
     const counts = countOccurrences(project.scenes, cat, cat === 'cast');
-    return elems.map(e => ({
+    let rows = elems.map(e => ({
       key: elementKey(e), id: e.id, name: e.name,
       occ: counts.get((cat === 'cast' ? e.id : e.name).toLowerCase()) || 0,
     }));
+    if (cat === 'cast') {
+      rows.sort((a, b) => {
+        const na = parseInt(a.id, 10);
+        const nb = parseInt(b.id, 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        if (!isNaN(na)) return -1;
+        if (!isNaN(nb)) return 1;
+        return a.id.localeCompare(b.id);
+      });
+    }
+    return rows;
   }
 
   const [rows, setRows] = useState<LocalRow[]>(() => {
@@ -157,6 +170,30 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const [newCatIcon, setNewCatIcon] = useState('Tag');
   const [newCatMultiValue, setNewCatMultiValue] = useState(true);
   const autoMergeRef = useRef(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sortMode, setSortMode] = useState<'id' | 'name' | 'occurrences'>(isCast ? 'id' : 'name');
+
+  useEffect(() => {
+    setSortMode(isCast ? 'id' : 'name');
+  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sortByIdFn = useCallback(() => {
+    setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
+  }, []);
+  const sortByNameFn = useCallback(() => {
+    setRows(prev => [...prev].sort((a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase())));
+  }, []);
+  const sortByOccurrencesFn = useCallback(() => {
+    setRows(prev => [...prev].sort((a, b) => b.occ - a.occ || (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase())));
+  }, []);
+
+  const applySort = useCallback((mode: 'id' | 'name' | 'occurrences') => {
+    setSortMode(mode);
+    setShowSortMenu(false);
+    if (mode === 'id') sortByIdFn();
+    else if (mode === 'name') sortByNameFn();
+    else sortByOccurrencesFn();
+  }, [sortByIdFn, sortByNameFn, sortByOccurrencesFn]);
 
   const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
     setRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
@@ -385,26 +422,6 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const actionBar = (
     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm flex-wrap shrink-0">
       <span className="text-[11px] text-zinc-500 font-semibold">{rows.length} {rows.length === 1 ? 'element' : 'elements'}</span>
-      {isCast && (
-        <>
-          <span className="text-zinc-300 mx-1">|</span>
-          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-            Sort by ID
-          </button>
-          <span className="text-zinc-300">·</span>
-          <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-            Auto-ID
-          </button>
-        </>
-      )}
-      {!isCast && (
-        <>
-          <span className="text-zinc-300">·</span>
-          <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="text-[11px] text-zinc-500 hover:text-zinc-900 font-medium transition-colors">
-            Merge Duplicates
-          </button>
-        </>
-      )}
     </div>
   );
 
@@ -421,15 +438,29 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       </button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
       <span className="text-[11px] text-zinc-500 font-medium">{rows.length} {rows.length === 1 ? 'elem' : 'elems'}</span>
+      <DropdownMenu open={showSortMenu} onClose={() => setShowSortMenu(false)} width="w-40" theme="light"
+        trigger={
+          <button onClick={() => setShowSortMenu(p => !p)} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+            Sort ▾
+          </button>
+        }
+      >
+        {isCast && (
+          <DropdownItem onClick={() => applySort('id')} icon={sortMode === 'id' ? <Check className="w-3.5 h-3.5" /> : undefined}>
+            By ID
+          </DropdownItem>
+        )}
+        <DropdownItem onClick={() => applySort('name')} icon={sortMode === 'name' ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          By Name
+        </DropdownItem>
+        <DropdownItem onClick={() => applySort('occurrences')} icon={sortMode === 'occurrences' ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          By Occurrences
+        </DropdownItem>
+      </DropdownMenu>
       {isCast && (
-        <>
-          <button onClick={() => setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
-            Sort by ID
-          </button>
-          <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
-            Auto-ID
-          </button>
-        </>
+        <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+          Auto-ID
+        </button>
       )}
       {!isCast && (
         <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
