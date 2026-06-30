@@ -1030,42 +1030,28 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
     if (activeId === overId) return;
 
-    // Day footer drag — reorder days
+    // Day footer drag — move the split point (day break)
     if (active.data.current?.type === 'DAY_FOOTER') {
       const activeDay = active.data.current?.dayInt as number;
-      const overDay = getDayFromId(overId);
-      
-      if (overDay !== null && activeDay !== overDay) {
-         let newRows = augmentedRows.map(r => ({ ...r }));
-         if (activeDay < overDay) {
-           newRows = newRows.map(r => {
-             if (r.shootDay === activeDay) return { ...r, shootDay: overDay };
-             if (r.shootDay > activeDay && r.shootDay <= overDay) return { ...r, shootDay: r.shootDay - 1 };
-             return r;
-           });
-         } else {
-           newRows = newRows.map(r => {
-             if (r.shootDay === activeDay) return { ...r, shootDay: overDay };
-             if (r.shootDay >= overDay && r.shootDay < activeDay) return { ...r, shootDay: r.shootDay + 1 };
-             return r;
-           });
-         }
-         
-         const newMeta = { ...activeVersion.dayMeta };
-         const moved = newMeta[activeDay] ? { ...newMeta[activeDay], shootDay: overDay } : undefined;
-         if (activeDay < overDay) {
-           for (let d = activeDay + 1; d <= overDay; d++) {
-             newMeta[d - 1] = newMeta[d] ? { ...newMeta[d], shootDay: d - 1 } : { shootDay: d - 1, unitCall: '08:00', date: '' };
-           }
-         } else {
-           for (let d = overDay; d < activeDay; d++) {
-             newMeta[d + 1] = newMeta[d] ? { ...newMeta[d], shootDay: d + 1 } : { shootDay: d + 1, unitCall: '08:00', date: '' };
-           }
-         }
-         if (moved) newMeta[overDay] = moved;
-
-         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, dayMeta: newMeta } });
+      // Remove old break: merge this day with the next
+      dispatch({ type: 'BATCH_START' });
+      dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, day: activeDay } });
+      // Create new break at drop position
+      const targetDay = getDayFromId(overId);
+      if (targetDay !== null && targetDay !== activeDay) {
+        const dayRows = scheduledRows[targetDay] || [];
+        const firstRow = dayRows[0];
+        if (firstRow) {
+          const prevDay = targetDay - 1;
+          const prevRows = scheduledRows[prevDay] || [];
+          const lastPrev = prevRows.length > 0 ? prevRows[prevRows.length - 1] : null;
+          const afterRowId = lastPrev ? lastPrev.id : activeVersion.rows.find(r => r.shootDay === targetDay)?.id;
+          if (afterRowId) {
+            dispatch({ type: 'ADD_DAY_BREAK', payload: { versionId: activeVersion.id, afterRowId } });
+          }
+        }
       }
+      dispatch({ type: 'BATCH_COMMIT' });
       return;
     }
 
@@ -1442,7 +1428,14 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeDragRow ? (
+        {activeType === 'DAY_FOOTER' ? (
+          <div className="pointer-events-none">
+            <div className="flex justify-between items-center px-2 py-1.5 border-t-2 border-zinc-400 bg-zinc-100"
+              style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b', minWidth: '300px' }}>
+              <span className="font-bold">DAY #{activeId ? activeId.replace('day-footer-', '') : ''}</span>
+            </div>
+          </div>
+        ) : activeDragRow ? (
           <div className="w-[1024px] max-w-4xl pointer-events-none relative">
             {activeDragIds.size > 1 && Array.from(activeDragIds).slice(0, 3).reverse().map((id, i, arr) => {
               const row = augmentedRows.find(r => r.id === id);
