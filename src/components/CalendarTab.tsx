@@ -9,7 +9,7 @@ import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { checkDay } from '../lib/rulesEngine';
-import { Tooltip } from './Tooltip';
+import { ViolationTooltip } from './ViolationTooltip';
 import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -40,7 +40,7 @@ function getCalendarDays(year: number, month: number) {
   return days;
 }
 
-const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: string[] }> = ({ row, scene, showDesc, violations }) => {
+const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: RuleViolation[] }> = ({ row, scene, showDesc, violations }) => {
   const { state } = useProject();
   const palette = state.present.colorPalette;
   if (!scene) {
@@ -55,9 +55,9 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
   }
   const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
   const vFlag = violations && violations.length > 0 ? (
-    <Tooltip content={violations.join('\n• ')}>
+    <ViolationTooltip violations={violations}>
       <Flag className="w-2 h-2 text-red-500 fill-red-500 shrink-0" />
-    </Tooltip>
+    </ViolationTooltip>
   ) : null;
   return (
     <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 select-none cursor-grab">
@@ -67,7 +67,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
   );
 };
 
-const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: string[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void }> = ({ row, scene, showDesc, violations, isSelected, isFaded, onToggle }) => {
+const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: boolean; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void }> = ({ row, scene, showDesc, violations, isSelected, isFaded, onToggle }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
@@ -93,7 +93,7 @@ const DayCell: React.FC<{
   isWorkingDay: boolean; shootDay: number | null; label: string | null;
   rows: ScheduleRow[]; scenes: Scene[]; showDesc: boolean;
   violations: RuleViolation[];
-  sceneViolationMap: Map<string, string[]>;
+  sceneViolationMap: Map<string, RuleViolation[]>;
   onToggle: (dateKey: string) => void;
   onDoubleClick?: (dateKey: string) => void;
   onContextMenu?: (e: React.MouseEvent, dateKey: string, shootDay: number | null) => void;
@@ -160,9 +160,9 @@ const DayCell: React.FC<{
 
 
           {violations.length > 0 && (
-            <Tooltip content={violations.map(v => v.message).join('\n• ')}>
+            <ViolationTooltip violations={violations}>
               <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
-            </Tooltip>
+            </ViolationTooltip>
           )}
         </span>
       </div>
@@ -199,7 +199,7 @@ const UnscheduledSidebar: React.FC<{
   rows: ScheduleRow[];
   scenes: Scene[];
   showDesc: boolean;
-  sceneViolationMap: Map<string, string[]>;
+  sceneViolationMap: Map<string, RuleViolation[]>;
   activeDragRows?: ScheduleRow[];
   insertBeforeId?: string | null;
   activeRowId?: string | null;
@@ -405,20 +405,20 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
     if (!activeVersion) return m;
     for (const [k] of Object.entries(activeVersion.dayMeta || {})) {
       const day = Number(k);
-      const v = checkDay(day, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta);
+      const v = checkDay(day, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta, project.castMembers || []);
       if (v.length > 0) m.set(activeVersion.dayMeta[day]?.date || '', v);
     }
     return m;
-  }, [activeVersion, project.rules, project.scenes]);
+  }, [activeVersion, project.rules, project.scenes, project.castMembers]);
 
   const sceneViolationMap = useMemo(() => {
-    const m = new Map<string, string[]>();
+    const m = new Map<string, RuleViolation[]>();
     for (const [, violations] of violationMap) {
       for (const v of violations) {
         const ids = v.sceneIds || (v.sceneId ? [v.sceneId] : []);
         for (const sid of ids) {
           if (!m.has(sid)) m.set(sid, []);
-          if (!m.get(sid)!.includes(v.message)) m.get(sid)!.push(v.message);
+          m.get(sid)!.push(v);
         }
       }
     }

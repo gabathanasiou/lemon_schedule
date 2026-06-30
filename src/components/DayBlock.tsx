@@ -5,9 +5,9 @@ import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount, formatDateLong } from '../lib/utils';
 import { SortableRow } from './SortableRow';
 import { CellInput } from './CellInput';
-import { Tooltip } from './Tooltip';
+import { ViolationTooltip } from './ViolationTooltip';
 import { Trash2, Flag } from 'lucide-react';
-import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette } from '../types';
+import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
@@ -178,15 +178,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   const violations = useMemo(() => {
     if (!activeVersion) return [];
-    return checkDay(dayInt, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta);
-  }, [dayInt, project.rules, project.scenes, activeVersion]);
-  const vMessages = violations.map(v => v.message).join('\n• ');
-  const sceneViolationMap = useMemo(() => {
-    const map = new Map<string, string[]>();
+    return checkDay(dayInt, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta, project.castMembers || []);
+  }, [dayInt, project.rules, project.scenes, project.castMembers, activeVersion]);
+    const sceneViolationMap = useMemo(() => {
+    const map = new Map<string, RuleViolation[]>();
     for (const v of violations) {
       for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
         if (!map.has(sid)) map.set(sid, []);
-        if (!map.get(sid)!.includes(v.message)) map.get(sid)!.push(v.message);
+        map.get(sid)!.push(v);
       }
     }
     return map;
@@ -430,12 +429,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 </td>
                 <td className="col-call">
                   {violations.length > 0 && (
-                    <Tooltip content={vMessages}>
+                    <ViolationTooltip violations={violations}>
                       <span className="inline-flex items-center gap-0.5 text-red-400">
                         <Flag className="w-3.5 h-3.5 fill-red-400" />
                         <span className="text-[10px] font-bold">{violations.length}</span>
                       </span>
-                    </Tooltip>
+                    </ViolationTooltip>
                   )}
                   <button 
                     onClick={() => { dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt }); }}

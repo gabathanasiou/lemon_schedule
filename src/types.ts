@@ -105,6 +105,7 @@ export interface RuleViolation {
   ruleType: 'MAX_HOURS' | 'DATE_RESTRICTION' | 'TIME_WINDOW' | 'CAST_CONFLICT' | 'CAST_SCENE_FLAG';
   castId?: string;
   message: string;
+  detail?: string;
   shootDay?: number;
   sceneId?: string;
   sceneIds?: string[];

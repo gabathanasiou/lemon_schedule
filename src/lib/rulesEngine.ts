@@ -1,5 +1,10 @@
-import { ProjectRule, RuleViolation, Scene, ScheduleRow, ShootDayMeta } from '../types';
+import { ProjectRule, RuleViolation, Scene, ScheduleRow, ShootDayMeta, CastMember } from '../types';
 import { addMinutesToTime } from './utils';
+import {
+  formatCastId, formatCastIds,
+  maxHoursDetail, dateRestrictionDetail, timeWindowLabel, timeWindowDetail,
+  castConflictMessage, castSceneFlagMessage,
+} from './violationMessages';
 
 function ordinal(n: number): string {
   const s = ['TH', 'ST', 'ND', 'RD'];
@@ -17,7 +22,8 @@ export function checkDay(
   rules: ProjectRule[],
   scenes: Scene[],
   rows: ScheduleRow[],
-  dayMeta: Record<number, ShootDayMeta>
+  dayMeta: Record<number, ShootDayMeta>,
+  castMembers: CastMember[] = [],
 ): RuleViolation[] {
   const violations: RuleViolation[] = [];
   const dayRows = rows.filter(r => r.shootDay === shootDay);
@@ -42,9 +48,11 @@ export function checkDay(
       if (exceeded) {
         const hours = totalMin / 60;
         const exceed = hours - rule.maxHours;
+        const castName = formatCastId(rule.castId, castMembers);
         violations.push({
           ruleId: rule.id, ruleType: 'MAX_HOURS', castId: rule.castId,
-          message: `${rule.castId}: ${hours.toFixed(1)}h scheduled — limit is ${rule.maxHours}h (+${exceed.toFixed(1)}h over)`,
+          message: `${castName}: ${hours.toFixed(1)}h scheduled — limit is ${rule.maxHours}h (+${exceed.toFixed(1)}h over)`,
+          detail: maxHoursDetail(rule.maxHours, exceed),
           shootDay,
           sceneIds: flaggedScenes,
         });
@@ -62,9 +70,11 @@ export function checkDay(
         affectedScenes.push(scene.id);
       }
       if (affectedScenes.length > 0) {
+        const castName = formatCastId(rule.castId, castMembers);
         violations.push({
           ruleId: rule.id, ruleType: 'DATE_RESTRICTION', castId: rule.castId,
-          message: `${rule.castId} unavailable on this date`,
+          message: `${castName} unavailable on this date`,
+          detail: dateRestrictionDetail(),
           shootDay,
           sceneIds: affectedScenes,
         });
@@ -99,18 +109,15 @@ export function checkDay(
         runningMin += dur;
       }
       if (flaggedScenes.length > 0) {
-const ws = rule.windowStart || '00:00';
-        const we = rule.windowEnd || '23:59';
-        const fullDay = ws === '00:00' && we === '23:59';
-        const desc = fullDay
-            ? 'during all day'
-            : rule.windowStart && rule.windowEnd
-            ? `${ws}–${we}`
-            : rule.windowStart ? `after ${ws}`
-            : `before ${we}`;
+        const dateSuffix = rule.dates.length > 0
+          ? ` on ${rule.dates.length === 1 ? formatDate(rule.dates[0]) : rule.dates.length + ' dates'}`
+          : '';
+        const castName = formatCastId(rule.castId, castMembers);
+        const label = timeWindowLabel(rule.windowStart, rule.windowEnd);
         violations.push({
           ruleId: rule.id, ruleType: 'TIME_WINDOW', castId: rule.castId,
-          message: `${rule.castId} only available ${desc}${rule.dates.length > 0 ? ` on ${rule.dates.length === 1 ? formatDate(rule.dates[0]) : rule.dates.length + ' dates'}` : ''}`,
+          message: `${castName} only available ${label}${dateSuffix}`,
+          detail: timeWindowDetail(rule.windowStart, rule.windowEnd) + dateSuffix,
           shootDay,
           sceneIds: flaggedScenes,
         });
@@ -143,7 +150,7 @@ const ws = rule.windowStart || '00:00';
         }
         violations.push({
           ruleId: rule.id, ruleType: 'CAST_CONFLICT',
-          message: `Cast conflict: ${groupA.join(', ')} and ${groupB.join(', ')} both scheduled this day`,
+          message: castConflictMessage(formatCastIds(groupA, castMembers), formatCastIds(groupB, castMembers)),
           shootDay, sceneIds: flaggedScenes,
         });
       }
@@ -164,7 +171,7 @@ const ws = rule.windowStart || '00:00';
       if (flaggedScenes.length > 0) {
         violations.push({
           ruleId: rule.id, ruleType: 'CAST_SCENE_FLAG',
-          message: `Scene includes flagged cast: ${rule.castIds.join(', ')}`,
+          message: castSceneFlagMessage(formatCastIds(rule.castIds, castMembers)),
           shootDay, sceneIds: flaggedScenes,
         });
       }
@@ -179,13 +186,14 @@ export function checkAllDays(
   rules: ProjectRule[],
   scenes: Scene[],
   rows: ScheduleRow[],
-  dayMeta: Record<number, ShootDayMeta>
+  dayMeta: Record<number, ShootDayMeta>,
+  castMembers: CastMember[] = [],
 ): Map<number, RuleViolation[]> {
   const result = new Map<number, RuleViolation[]>();
   const days = new Set(rows.filter(r => r.shootDay !== null).map(r => r.shootDay!));
   for (const sdk of Object.keys(dayMeta)) days.add(Number(sdk));
   for (const day of days) {
-    const v = checkDay(day, rules, scenes, rows, dayMeta);
+    const v = checkDay(day, rules, scenes, rows, dayMeta, castMembers);
     if (v.length > 0) result.set(day, v);
   }
   return result;

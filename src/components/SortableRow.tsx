@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow, RibbonRow, RibbonCell } from '../types';
+import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
@@ -9,12 +9,13 @@ import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
-import { Tooltip } from './Tooltip';
 import { Flag } from 'lucide-react';
 import { useAddMode } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
+import { createPortal } from 'react-dom';
+import { ViolationContent } from './ViolationTooltip';
 
 const ENTITY_KEYS = new Set([
   'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -52,7 +53,7 @@ const SortableRowContent: React.FC<{
   isFaded?: boolean,
   isCompact?: boolean,
   textEditingEnabled?: boolean,
-  sceneViolations?: string[],
+  sceneViolations?: RuleViolation[],
   focusedRowId?: string | null,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
@@ -114,12 +115,34 @@ const SortableRowContent: React.FC<{
   const noteBreakPadPx = `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px ${cellPaddingH ?? 6}px`;
 
   const hasViolations = sceneViolations && sceneViolations.length > 0;
+  const [showViolationTip, setShowViolationTip] = useState(false);
+  const violationRef = useRef<HTMLSpanElement>(null);
+  const violationTipPos = useRef({ x: 0, y: 0 });
   const violationBadge = hasViolations ? (
-    <Tooltip content={sceneViolations.join('\n• ')}>
-      <span className="absolute top-0 left-0 text-red-500 z-10 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
-        <Flag className="w-3 h-3 fill-red-500 text-red-500" />
+    <>
+      <span
+        ref={violationRef}
+        className="absolute text-red-500 z-10 cursor-help block"
+        style={{ top: 1, left: 2, lineHeight: 0 }}
+        onMouseEnter={() => {
+          if (violationRef.current) {
+            const r = violationRef.current.getBoundingClientRect();
+            violationTipPos.current = { x: r.left + r.width / 2, y: r.top };
+          }
+          setShowViolationTip(true);
+        }}
+        onMouseLeave={() => setShowViolationTip(false)}
+      >
+        <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
       </span>
-    </Tooltip>
+      {showViolationTip && createPortal(
+        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 8, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+          <ViolationContent violations={sceneViolations} castMembers={state.present.castMembers || []} />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
+        </div>,
+        document.body
+      )}
+    </>
   ) : null;
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
@@ -963,7 +986,7 @@ export const SortableRow: React.FC<{
   onSelectToggle?: (e: React.MouseEvent) => void,
   isCompact?: boolean,
   textEditingEnabled?: boolean,
-  sceneViolations?: string[],
+  sceneViolations?: RuleViolation[],
   focusedRowId?: string | null,
   onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
