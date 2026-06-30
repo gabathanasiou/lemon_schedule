@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
-import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection, useDroppable } from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
@@ -611,19 +611,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
         dispatch({ type: 'UPDATE_VERSION', payload: { id: version.id, rows: newRows } });
       }
     };
-  }, []);
-
-  const collisionDetection: CollisionDetection = useCallback((args) => {
-    const { droppableContainers } = args;
-    const isDraggingDay = args.active.data.current?.type === 'DAY';
-    const filtered = droppableContainers.filter((c) => {
-      const id = c.id as string;
-      if (isDraggingDay) return id.startsWith('day-wrap-');
-      if (id.startsWith('day-wrap-')) return false;
-      if (activeDragIdsRef.current.has(id)) return false;
-      return true;
-    });
-    return closestCorners({ ...args, droppableContainers: filtered });
   }, []);
 
   const ctrlOrCmdHeld = useAddMode();
@@ -1320,7 +1307,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       `}</style>
     <DndContext 
       sensors={sensors}
-      collisionDetection={collisionDetection}
+      collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
