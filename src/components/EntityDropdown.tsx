@@ -363,10 +363,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           if (!open) { standalone ? setOpen(true) : handleOpen(); }
         }}
         onFocus={() => { if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
+        onBlur={() => commit()}
         placeholder={placeholder}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
-          if (e.key === 'Escape') { setOpen(false); setQuery(''); setHighlightedIndex(-1); }
+          if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') { e.preventDefault(); commit(); }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
