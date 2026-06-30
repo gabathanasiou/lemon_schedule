@@ -125,6 +125,12 @@ const DayCell: React.FC<{
     disabled: !isWorkingDay || shootDay === null,
   });
 
+  const { setNodeRef: setEndRef } = useDroppable({
+    id: shootDay != null ? `end-${shootDay}` : `end-date-${dateKey}`,
+    data: { type: 'DAY_END', date: dateKey, shootDay },
+    disabled: isNonWorkStatus || shootDay === null,
+  });
+
   const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
   const statusBg = status === 'hold' ? 'bg-red-50' : status === 'travel' ? 'bg-purple-50' : status === 'holiday' ? 'bg-green-50' : '';
   const headerColor = status === 'hold' ? 'bg-red-600 text-white'
@@ -193,6 +199,7 @@ const DayCell: React.FC<{
             </React.Fragment>
           ))}
         </SortableContext>
+        <div ref={setEndRef} className="h-1 w-full shrink-0" />
       </div>
     </div>
   );
@@ -647,10 +654,10 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
 
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
-    if (!overId || activeType === 'DAY') { setInsertBeforeId(null); return; }
+    if (!overId || activeType !== 'SCENE_CARD') { setInsertBeforeId(null); return; }
     if (overId === 'unscheduled') { setInsertBeforeId('end-unscheduled'); return; }
-    const dayMatch = overId.startsWith('day-') ? overId.slice(4) : null;
-    if (dayMatch) { setInsertBeforeId(`day-${dayMatch}`); return; }
+    if (overId.startsWith('end-')) { setInsertBeforeId(overId); return; }
+    if (overId.startsWith('day-')) { setInsertBeforeId(overId); return; }
     setInsertBeforeId(overId);
   };
 
