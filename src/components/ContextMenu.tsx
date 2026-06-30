@@ -40,7 +40,7 @@ export const ContextMenu: React.FC<{
   return (
     <div
       ref={menuRef}
-      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg py-1 z-[9999] font-sans text-[13px] text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto"
+      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg p-1 z-[9999] font-sans text-xs text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto"
       style={{ top: y, left: x }}
     >
       {children}
@@ -56,7 +56,7 @@ export const ContextMenuItem: React.FC<{
 }> = ({ onClick, variant = 'default', icon, children }) => (
   <button
     onClick={onClick}
-    className={`w-full text-left px-4 py-2 flex items-center gap-2 transition-colors ${
+    className={`w-full text-left px-3 py-2 flex items-center gap-2 rounded transition-colors ${
       variant === 'danger'
         ? 'hover:bg-red-100 text-red-600'
         : 'hover:bg-zinc-100'
@@ -68,7 +68,7 @@ export const ContextMenuItem: React.FC<{
 );
 
 export const ContextMenuDivider: React.FC = () => (
-  <div className="h-[1px] bg-zinc-200 my-1" />
+  <div className="border-t border-zinc-200 my-1" />
 );
 
 export default ContextMenu;
