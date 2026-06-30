@@ -3,7 +3,7 @@ import { MousePointerSquareDashed } from 'lucide-react';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode, setMarqueeMode } from '../lib/useLongPressMenu';
 
-export default function MarqueeToolButton({ containerRef }: { containerRef?: React.RefObject<HTMLElement> }) {
+export default function MarqueeToolButton() {
   if (!IS_COARSE) return null;
 
   const mode = useMarqueeMode();
@@ -13,31 +13,32 @@ export default function MarqueeToolButton({ containerRef }: { containerRef?: Rea
     <button
       data-no-longpress
       aria-pressed={active}
-      aria-label={active ? 'Exit marquee select' : 'Marquee select mode'}
-      title={active ? 'Exit marquee select' : 'Marquee select'}
+      aria-label={active ? 'Exit Select mode' : 'Select mode'}
+      title={active ? 'Exit Select mode' : 'Select mode'}
       onClick={(e) => {
         e.stopPropagation();
         setMarqueeMode(active ? 'off' : 'tool');
       }}
       style={{
-        position: 'absolute',
-        bottom: 12,
-        right: 12,
+        position: 'fixed',
+        bottom: 16,
+        right: 16,
         zIndex: 100,
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        border: active ? '2px solid #000' : '1px solid #d4d4d8',
-        background: active ? '#000' : 'rgba(255,255,255,0.92)',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        border: active ? '2px solid #2563eb' : '1px solid #d4d4d8',
+        background: active ? '#2563eb' : 'rgba(255,255,255,0.94)',
         color: active ? '#fff' : '#52525b',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         boxShadow: active
-          ? '0 4px 12px rgba(0,0,0,0.3)'
-          : '0 2px 8px rgba(0,0,0,0.12)',
+          ? '0 4px 16px rgba(37,99,235,0.4)'
+          : '0 2px 8px rgba(0,0,0,0.14)',
         cursor: 'pointer',
         touchAction: 'manipulation',
+        backdropFilter: 'blur(8px)',
       }}
     >
       <MousePointerSquareDashed className="w-5 h-5" />

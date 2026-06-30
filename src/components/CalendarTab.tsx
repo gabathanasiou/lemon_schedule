@@ -882,6 +882,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
+    <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
         <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} onRowDoubleClick={handleRowDoubleClick} />
@@ -1009,7 +1010,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
               })}
               </div>
           </div>
-          <MarqueeToolButton />
         </div>
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
@@ -1172,5 +1172,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
         </Modal>
       )}
     </DndContext>
+    <MarqueeToolButton />
+    </>
   );
 };

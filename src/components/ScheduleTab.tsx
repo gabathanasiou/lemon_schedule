@@ -1341,7 +1341,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               ))}
           </div>
           <MarqueeOverlay box={marqueeBox} />
-          <MarqueeToolButton />
         </div>
       </div>
 
@@ -1500,6 +1499,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       )}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </DndContext>
+    <MarqueeToolButton />
   </div>
 );
 }
