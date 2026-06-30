@@ -183,7 +183,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         placeholder="Cast"
         className="text-xs"
         displayMode="id"
-        commitHint
         renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
       />
     );
@@ -225,7 +224,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         defaultOpen
         autoFocus
         className="text-xs"
-        commitHint
       />
     );
   }, [scenes, project.breakdownElements]);
@@ -292,7 +290,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             positioning="relative"
             defaultOpen
             autoFocus
-            commitHint
             mode={isMultiValue(key, project.customCategories) ? 'multi' : 'single'}
             renderItem={(item) => (
               <>

@@ -445,7 +445,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           className={`${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
-          <div ref={scrollRef} className="overflow-y-auto max-h-48">
+          <div ref={scrollRef} className="overflow-y-auto max-h-72">
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
             const checked = currentIds.includes(itemKey(m));
             const highlighted = highlightedIndex === idx;
