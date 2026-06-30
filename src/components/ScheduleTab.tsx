@@ -981,7 +981,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
-    if (overId && activeType === 'ROW') {
+    const dragType = e.active.data.current?.type as string | undefined;
+    if (overId && dragType === 'ROW') {
       if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
         setInsertBeforeId('end-unscheduled');
         return;
@@ -1002,7 +1003,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           setInsertBeforeId(null);
         }
       }
-    } else if (overId && activeType === 'DAY_FOOTER') {
+    } else if (overId && dragType === 'DAY_FOOTER') {
       const day = getDayFromId(overId);
       if (day !== null) {
         setInsertBeforeId(`end-${day}`);
