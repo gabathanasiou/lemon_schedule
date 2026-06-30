@@ -981,9 +981,9 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
-    if (overId && activeType === 'ROW') {
+    if (overId && (activeType === 'ROW' || activeType === 'DAY_FOOTER')) {
       if (overId === 'unscheduled_bin' || overId === 'end-unscheduled') {
-        setInsertBeforeId('end-unscheduled');
+        setInsertBeforeId(activeType === 'ROW' ? 'end-unscheduled' : null);
         return;
       }
       const day = getDayFromId(overId);
@@ -1022,7 +1022,31 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
     if (activeId === overId) return;
 
-    // Day dragging logic
+    // Day footer drag — reorder days
+    if (active.data.current?.type === 'DAY_FOOTER') {
+      const activeDay = active.data.current?.dayInt as number;
+      const overDay = getDayFromId(overId);
+      
+      if (overDay !== null && activeDay !== overDay) {
+         let newRows = augmentedRows.map(r => ({ ...r }));
+         newRows = newRows.map(r => {
+           if (r.shootDay === activeDay) return { ...r, shootDay: -1 }; 
+           if (r.shootDay === overDay) return { ...r, shootDay: activeDay };
+           return r;
+         }).map(r => r.shootDay === -1 ? { ...r, shootDay: overDay } : r);
+         
+         const newMeta = { ...activeVersion.dayMeta };
+         const tempMeta = newMeta[activeDay];
+         newMeta[activeDay] = { ...(newMeta[overDay] || {}), shootDay: activeDay };
+         newMeta[overDay] = { ...(tempMeta || {}), shootDay: overDay };
+         if (!newMeta[overDay].unitCall) newMeta[overDay] = { ...newMeta[overDay], unitCall: '08:00', date: '' };
+
+         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, dayMeta: newMeta } });
+      }
+      return;
+    }
+
+    // Day header drag — reorder days
     if (active.data.current?.type === 'DAY') {
       const activeDay = parseInt(activeId.replace('day-wrap-', ''), 10);
       const overDay = getDayFromId(overId);

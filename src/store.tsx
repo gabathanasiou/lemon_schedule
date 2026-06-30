@@ -1138,12 +1138,14 @@ function reducer(state: State, action: Action): State {
       const targetRow = version.rows.find(r => r.id === afterRowId);
       if (!targetRow) return state;
       const cal = version.calendar || defaultCalendar();
+      const oldMaxDay = version.rows.reduce((m, r) => Math.max(m, r.shootDay), 0);
       const newRows = version.rows.map(r => {
         if (r.shootDay > targetRow.shootDay) return { ...r, shootDay: r.shootDay + 1 };
         if (r.shootDay === targetRow.shootDay && r.order > targetRow.order) return { ...r, shootDay: r.shootDay + 1 };
         return r;
       });
-      const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
+      let maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
+      if (maxDay === oldMaxDay) maxDay = oldMaxDay + 1;
       const newDayMeta = { ...version.dayMeta };
       for (let d = 1; d <= maxDay; d++) {
         if (!newDayMeta[d]) newDayMeta[d] = { shootDay: d, unitCall: '08:00', date: '' };

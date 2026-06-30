@@ -150,15 +150,20 @@ const DayCell: React.FC<{
     disabled: isNonWorkStatus || shootDay === null,
   });
 
-  const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
-  const statusBg = status === 'hold' ? 'bg-red-50' : status === 'travel' ? 'bg-purple-50' : status === 'holiday' ? 'bg-green-50' : '';
+  const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : status === 'dayoff' ? 'OFF' : null;
+  const statusBg = status === 'hold' ? 'bg-red-50' : status === 'travel' ? 'bg-purple-50' : status === 'holiday' ? 'bg-green-50' : status === 'dayoff' ? 'bg-zinc-100' : '';
   const headerColor = status === 'hold' ? 'bg-red-600 text-white'
     : status === 'travel' ? 'bg-purple-600 text-white'
     : status === 'holiday' ? 'bg-green-700 text-white'
+    : status === 'dayoff' ? 'bg-zinc-400 text-white'
     : status === 'work' || (!status && isWorkingDay) ? 'bg-zinc-700 text-white'
     : 'bg-zinc-200 text-zinc-600';
 
-  const headerLabel = status === 'hold' ? `HOLD${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'travel' ? `TRAVEL${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
+  const headerLabel = status === 'hold' ? `HOLD${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}`
+    : status === 'travel' ? `TRAVEL${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}`
+    : status === 'holiday' ? (label || 'HOLIDAY')
+    : status === 'dayoff' ? (label || 'OFF')
+    : chronoDay ? `DAY #${chronoDay}` : '';
 
   return (
     <div ref={setNodeRef}
@@ -457,6 +462,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     }
     return m;
   }, [activeVersion]);
+
+  const calStatusByDate = useMemo(() => {
+    const m = new Map<string, { status: string; label?: string }>();
+    const cal = activeVersion?.calendar;
+    if (cal) {
+      for (const dk of Object.keys(cal.daysOff || {})) {
+        const off = cal.daysOff[dk];
+        m.set(dk, { status: off.type === 'holiday' ? 'holiday' : 'dayoff', label: off.label });
+      }
+      for (const dk of Object.keys(cal.statusDays || {})) {
+        const sd = cal.statusDays[dk];
+        m.set(dk, { status: sd.status, label: sd.label });
+      }
+    }
+    return m;
+  }, [activeVersion?.calendar]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -996,17 +1017,21 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
                   ? new Date(nextYear, nextMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })
                   : null;
                 const sd = workingMap.get(day.dateKey) ?? null;
+                  const cs = calStatusByDate.get(day.dateKey);
+                  const dayStatus = sd != null ? statusMap.get(sd) : undefined;
+                  const effectiveStatus = dayStatus || cs?.status;
+                  const effectiveLabel = cs?.label || workingLabels.get(day.dateKey);
                   return (
                   <DayCell key={day.dateKey}
                     dateKey={day.dateKey} date={day.date}
                     isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
                     isWorkingDay={sd !== null} shootDay={sd}
-                    status={sd != null ? statusMap.get(sd) : undefined}
+                    status={effectiveStatus}
                     chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
                     dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
                     monthSeparator={monthSeparator}
                     onDoubleClick={(day) => handleStatusDoubleClick(day)}
-                    label={workingLabels.get(day.dateKey) ?? null}
+                    label={effectiveLabel ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
                     displayField={displayField}
                     violations={violationMap.get(day.dateKey) || []}
