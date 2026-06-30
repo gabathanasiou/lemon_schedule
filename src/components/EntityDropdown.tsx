@@ -427,9 +427,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           )}
           </div>
           {commitHint && (
-            <div className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0">
+            <button
+              onClick={() => commit()}
+              className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0 hover:bg-zinc-50 transition-colors w-full cursor-pointer"
+            >
               Press Enter to commit
-            </div>
+            </button>
           )}
         </div>
       )}
