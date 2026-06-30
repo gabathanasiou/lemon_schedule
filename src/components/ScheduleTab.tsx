@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
 import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { DayBlock } from './DayBlock';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
-import { generateUUID } from '../lib/utils';
-import { ScheduleRow, Scene } from '../types';
+import { generateUUID, formatDateLong } from '../lib/utils';
+import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, SeparatorHorizontal, Archive } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
@@ -19,6 +18,7 @@ import HelpModal from './HelpModal';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
+import { checkDay } from '../lib/rulesEngine';
 
 export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
@@ -693,17 +693,45 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const stripView = activeVersion?.stripView || 'full';
 
+  const flatLayout = useMemo(() => {
+    const items: Array<{ kind: 'header'; dayInt: number } | { kind: 'row'; row: ScheduleRow }> = [];
+    for (const dayInt of existingDays) {
+      items.push({ kind: 'header', dayInt });
+      const allDayRows = (scheduledRows[dayInt] || []).sort((a, b) => a.order - b.order);
+      for (const row of allDayRows) {
+        if (row.type !== 'DAY_BREAK') items.push({ kind: 'row', row });
+      }
+      for (const row of allDayRows) {
+        if (row.type === 'DAY_BREAK') items.push({ kind: 'row', row });
+      }
+    }
+    return items;
+  }, [existingDays, scheduledRows]);
+
+  const flatIds = useMemo(() =>
+    flatLayout.map(item => item.kind === 'header' ? `day-header-${item.dayInt}` : item.row.id),
+    [flatLayout]
+  );
+
+  const sceneViolationMap = useMemo(() => {
+    const map = new Map<string, RuleViolation[]>();
+    for (const dayInt of existingDays) {
+      const violations = checkDay(dayInt, project.rules || [], project.scenes, activeVersion?.rows || [], activeVersion?.dayMeta || {}, project.castMembers || []);
+      for (const v of violations) {
+        for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
+          if (!map.has(sid)) map.set(sid, []);
+          map.get(sid)!.push(v);
+        }
+      }
+    }
+    return map;
+  }, [existingDays, project.rules, project.scenes, project.castMembers, activeVersion]);
+
   const flatRowIdsRef = useRef<string[]>([]);
-  flatRowIdsRef.current = existingDays.flatMap(dayInt => {
-    const dayRows = scheduledRows[dayInt];
-    if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
-    return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
-  });
+  flatRowIdsRef.current = flatIds;
   const getDayFromId = (id: string): number | null => {
     if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
-    if (id.startsWith('day-wrap-') || id.startsWith('day-') || id.startsWith('end-')) {
-      return parseInt(id.replace('day-wrap-', '').replace('day-', '').replace('end-', ''), 10);
-    }
+    if (id.startsWith('day-header-')) return parseInt(id.replace('day-header-', ''), 10);
     const row = augmentedRows.find(r => r.id === id);
     return row ? row.shootDay : null;
   };
@@ -1373,30 +1401,52 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
-               {existingDays.map((dayInt, i) => (
-                <DayBlock 
-                  key={dayInt} 
-                  dayInt={dayInt} 
-                  rows={scheduledRows[dayInt] || []}
-                  meta={activeVersion?.dayMeta[dayInt]}
-                  selectedIds={selectedRowIds}
-                  activeDragIds={activeDragIds}
-                  onRowClick={handleRowClick}
-                  textEditingEnabled={textEditingEnabled}
-                  insertBeforeId={insertBeforeId}
-                  activeRowId={activeId}
-                  activeDragRow={activeDragRow}
-                  activeDragRows={activeDragRows}
-                  chronoDay={chronoDayMap.get(dayInt)}
-                   focusedRowId={focusedRowId}
-                   onRowDoubleClick={handleRowDoubleClick}
+            <SortableContext items={flatIds} strategy={verticalListSortingStrategy}>
+              {flatLayout.map((item, idx) => {
+                if (item.kind === 'header') {
+                  const meta = activeVersion?.dayMeta[item.dayInt];
+                  const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+                  return (
+                    <div key={`header-${item.dayInt}`}
+                      className="day-header-row flex items-center justify-between bg-zinc-700 text-white text-xs px-3 py-2 font-bold border-b-2 border-black"
+                      data-row-id={`empty-${item.dayInt}`}
+                      data-shoot-day={item.dayInt}
+                      onClick={(e) => { e.stopPropagation(); handleRowClick(`empty-${item.dayInt}`, e as any); }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (!selectedRowIds.has(`empty-${item.dayInt}`)) setSelectedRowIds(new Set([`empty-${item.dayInt}`]));
+                        setContextMenu({ x: e.clientX, y: e.clientY, rowId: `empty-${item.dayInt}`, shootDay: item.dayInt });
+                      }}>
+                      <span>DAY #{item.dayInt}</span>
+                      {dateStr && <span className="text-zinc-300">{dateStr}</span>}
+                      <span className="text-zinc-400 text-[10px]">{meta?.unitCall || '08:00'}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <SortableRow
+                    key={item.row.id}
+                    row={item.row}
+                    scenes={project.scenes}
+                    isSelected={selectedRowIds.has(item.row.id)}
+                    isFaded={activeDragIds.has(item.row.id)}
+                    isCompact={stripView === 'compact'}
+                    textEditingEnabled={textEditingEnabled}
+                    onSelectToggle={(e) => handleRowClick(item.row.id, e)}
+                    sceneViolations={sceneViolationMap.get(item.row.sceneId || '')}
+                    focusedRowId={focusedRowId}
                     onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                      ribbon={activeRibbon}
-                      colWidths={activeColWidths}
-                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
-                     cellBorders={cellBorders}
+                    onDoubleClick={handleRowDoubleClick}
+                    ribbon={activeRibbon}
+                    colWidths={activeColWidths}
+                    cellPaddingV={cellPaddingV}
+                    cellPaddingH={cellPaddingH}
+                    edgePadding={edgePadding}
+                    cellBorders={cellBorders}
                   />
-              ))}
+                );
+              })}
+            </SortableContext>
           </div>
           <MarqueeOverlay box={marqueeBox} />
         </div>

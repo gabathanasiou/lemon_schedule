@@ -3,7 +3,7 @@ import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashIt
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
-import { deriveDayDates, defaultCalendar } from './lib/scheduling';
+import { deriveShootDays, deriveDayDates, defaultCalendar } from './lib/scheduling';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -1138,30 +1138,21 @@ function reducer(state: State, action: Action): State {
       const targetRow = version.rows.find(r => r.id === afterRowId);
       if (!targetRow) return state;
       const cal = version.calendar || defaultCalendar();
-      const oldMaxDay = version.rows.reduce((m, r) => Math.max(m, r.shootDay), 0);
-      // Increment shootDay on rows after the split point
-      const shiftedRows = version.rows.map(r => {
-        if (r.shootDay > targetRow.shootDay) return { ...r, shootDay: r.shootDay + 1 };
-        if (r.shootDay === targetRow.shootDay && r.order > targetRow.order) return { ...r, shootDay: r.shootDay + 1 };
-        return r;
-      });
-      // Insert DAY_BREAK row after the target row
       const breakRow: ScheduleRow = {
         id: generateUUID(),
         type: 'DAY_BREAK',
         shootDay: targetRow.shootDay,
         order: targetRow.order + 0.5,
       };
-      const newRows = [...shiftedRows, breakRow].sort((a, b) => a.order - b.order);
-      let maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
-      if (maxDay === oldMaxDay) maxDay = oldMaxDay + 1;
+      const rawRows = [...version.rows, breakRow].sort((a, b) => a.order - b.order);
+      const newRows = deriveShootDays(rawRows);
+      const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
       const newDayMeta = { ...version.dayMeta };
       for (let d = 1; d <= maxDay; d++) {
         if (!newDayMeta[d]) newDayMeta[d] = { shootDay: d, unitCall: '08:00', date: '' };
       }
       if (cal.startDate) {
-        const groups = Math.max(maxDay, Object.keys(newDayMeta).length);
-        const dates = deriveDayDates(cal, groups);
+        const dates = deriveDayDates(cal, maxDay);
         for (const [dayNum, dateStr] of dates) {
           if (newDayMeta[dayNum]) newDayMeta[dayNum] = { ...newDayMeta[dayNum], date: dateStr };
         }
@@ -1181,16 +1172,15 @@ function reducer(state: State, action: Action): State {
       const version = state.present.versions.find(v => v.id === versionId);
       if (!version) return state;
       const cal = version.calendar || defaultCalendar();
-      // Remove DAY_BREAK rows from the merged day, decrement shootDay
-      const newRows = version.rows
-        .filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === day))
-        .map(r => r.shootDay > day ? { ...r, shootDay: r.shootDay - 1 } : r);
+      const filtered = version.rows.filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === day));
+      const reordered = filtered.map((r, i) => ({ ...r, order: i }));
+      const newRows = deriveShootDays(reordered);
       const maxDay = Math.max(...newRows.map(r => r.shootDay), 1);
       const newDayMeta: Record<number, ShootDayMeta> = {};
       for (let d = 1; d <= maxDay; d++) {
-        newDayMeta[d] = version.dayMeta[d + 1] 
-          ? { ...version.dayMeta[d + 1], shootDay: d }
-          : (version.dayMeta[d] ? { ...version.dayMeta[d], shootDay: d } : { shootDay: d, unitCall: '08:00', date: '' });
+        newDayMeta[d] = version.dayMeta[d]
+          ? { ...version.dayMeta[d], shootDay: d }
+          : { shootDay: d, unitCall: '08:00', date: '' };
       }
       if (cal.startDate) {
         const dates = deriveDayDates(cal, maxDay);
