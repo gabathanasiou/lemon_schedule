@@ -883,11 +883,20 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   const lastClickedIdRef = useRef(lastClickedId);
   lastClickedIdRef.current = lastClickedId;
   const flatRowIdsRef = useRef<string[]>([]);
-  flatRowIdsRef.current = existingDays.flatMap(dayInt => {
-    const dayRows = scheduledRows[dayInt];
-    if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
-    return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
-  });
+  flatRowIdsRef.current = hasCalendar && stripboardLayout.length > 0
+    ? stripboardLayout.flatMap(item => {
+        if (item.kind === 'working') {
+          const dayInt = item.dayNumber;
+          if (item.rows.length === 0) return [`empty-${dayInt}`];
+          return [`empty-${dayInt}`, ...item.rows.map(r => r.id)];
+        }
+        return [];
+      })
+    : existingDays.flatMap(dayInt => {
+        const dayRows = scheduledRows[dayInt];
+        if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
+        return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
+      });
   const unscheduledFlatRef = useRef<string[]>([]);
   unscheduledFlatRef.current = unscheduledRows.map(r => r.id);
   const stripboardLastIdRef = useRef<string | null>(null);
