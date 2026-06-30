@@ -98,7 +98,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
     transform: CSS.Transform.toString(transform),
     transition,
     ...(isDragging ? { opacity: 0.3 } : {}),
-    ...(IS_COARSE ? { touchAction: 'none' } : {}),
+    userSelect: 'none' as const,
   };
     return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}

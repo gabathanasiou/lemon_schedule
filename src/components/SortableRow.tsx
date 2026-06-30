@@ -11,7 +11,6 @@ import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Flag } from 'lucide-react';
 import { useAddMode } from '../lib/useMarquee';
-import { IS_COARSE } from '../lib/device';
 import { EntityDropdown } from './EntityDropdown';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
@@ -1019,7 +1018,7 @@ export const SortableRow: React.FC<{
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging && !isOverlay ? 0.3 : undefined,
-    ...(IS_COARSE ? { touchAction: 'none' } : {}),
+    userSelect: 'none' as const,
   };
 
   return (
