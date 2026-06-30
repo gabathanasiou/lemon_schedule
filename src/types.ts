@@ -1,6 +1,6 @@
 export type IntExt = '' | 'INT' | 'EXT' | 'INT/EXT';
 export type DayNight = '' | 'DAY' | 'NIGHT' | 'MORNING' | 'EVENING' | 'DAWN' | 'DUSK';
-export type RowType = 'SCENE' | 'BREAK' | 'NOTE';
+export type RowType = 'SCENE' | 'BREAK' | 'NOTE' | 'DAY_BREAK';
 
 export interface Scene {
   id: string;
@@ -37,7 +37,8 @@ export interface ScheduleRow {
   type: RowType;
   shootDay: number;
   order: number;
-  
+  boneyard?: boolean;
+
   // SCENE specific
   sceneId?: string;
   estimatedDuration?: number; // minutes
@@ -63,6 +64,32 @@ export interface ShootDayMeta {
   castIds?: string;
 }
 
+// ─── Production Calendar (day-break system) ───
+
+export interface DayOffEntry {
+  date: string;           // "YYYY-MM-DD"
+  type: 'weekend' | 'holiday' | 'custom';
+  label?: string;         // e.g. "Christmas Day"
+}
+
+export interface StatusDayEntry {
+  date: string;           // pinned, never moves
+  status: 'hold' | 'travel';
+  castIds?: string;       // comma-separated cast IDs
+  unitCall?: string;
+  label?: string;
+}
+
+export interface ProductionCalendar {
+  startDate: string | null;              // "YYYY-MM-DD", null = not set
+  daysOff: Record<string, DayOffEntry>;  // keyed by date
+  statusDays: Record<string, StatusDayEntry>;  // keyed by date (hold/travel)
+  autoWeekends: boolean;                 // default: true
+  weekendDays: number[];                 // default: [0, 6] (Sun=0, Sat=6)
+}
+
+export type StripViewMode = 'full' | 'compact';
+
 export interface ScheduleVersion {
   id: string;
   name: string;
@@ -70,6 +97,8 @@ export interface ScheduleVersion {
   updatedAt: number;
   rows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>; // key is shootDay
+  calendar?: ProductionCalendar;         // NEW: production calendar config
+  stripView?: StripViewMode;             // NEW: 'full' | 'compact'
 }
 
 export interface TrashItem {

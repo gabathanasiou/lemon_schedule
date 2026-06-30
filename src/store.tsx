@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ProductionCalendar } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
+import { deriveShootDays, computeDayGroups, recomputeDayMeta, defaultCalendar } from './lib/scheduling';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -259,6 +260,17 @@ type Action =
   | { type: 'SET_RIBBON_CELL_PADDING_H'; payload: { id: string; cellPaddingH: number } }
   | { type: 'SET_RIBBON_EDGE_PADDING'; payload: { id: string; edgePadding: number } }
   | { type: 'SET_COLOR_PALETTE'; payload: SceneColorPalette }
+  | { type: 'ADD_DAY_BREAK'; payload: { versionId: string; afterRowId: string } }
+  | { type: 'REMOVE_DAY_BREAK'; payload: { versionId: string; breakRowId: string } }
+  | { type: 'INSERT_WORKING_DAY'; payload: { versionId: string; date: string } }
+  | { type: 'SET_PRODUCTION_START'; payload: { versionId: string; date: string | null } }
+  | { type: 'SET_DAYS_OFF'; payload: { versionId: string; date: string; entry?: { type: 'holiday' | 'custom'; label?: string } } }
+  | { type: 'SET_STATUS_DAY'; payload: { versionId: string; date: string; entry?: { status: 'hold' | 'travel'; castIds?: string; unitCall?: string; label?: string } } }
+  | { type: 'SET_AUTO_WEEKENDS'; payload: { versionId: string; value: boolean } }
+  | { type: 'SET_WEEKEND_DAYS'; payload: { versionId: string; days: number[] } }
+  | { type: 'SET_STRIP_VIEW'; payload: { versionId: string; mode: 'full' | 'compact' } }
+  | { type: 'TOGGLE_BONEYARD'; payload: { versionId: string; rowId: string } }
+  | { type: 'CONVERT_WORKING_DAY'; payload: { versionId: string; date: string; newType: 'hold' | 'travel' | 'dayoff' } }
 
 interface State {
   past: Project[];
@@ -361,6 +373,22 @@ function reducer(state: State, action: Action): State {
       future: [],
       _batchDepth: 0,
     };
+  };
+
+  const applySchedulingDerivation = (versionId: string): State => {
+    const version = state.present.versions.find(v => v.id === versionId);
+    if (!version) return state;
+    const newRows = deriveShootDays(version.rows);
+    const groups = computeDayGroups(newRows);
+    const newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
+    return applyChange({
+      ...state.present,
+      versions: state.present.versions.map(v =>
+        v.id === versionId
+          ? { ...v, rows: newRows, dayMeta: newDayMeta, updatedAt: Date.now() }
+          : v
+      ),
+    });
   };
 
   switch (action.type) {
@@ -470,7 +498,9 @@ function reducer(state: State, action: Action): State {
           createdAt: Date.now(),
           updatedAt: Date.now(),
           rows: [],
-          dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: new Date().toISOString().slice(0, 10) } }
+          dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: new Date().toISOString().slice(0, 10) } },
+          calendar: defaultCalendar(),
+          stripView: 'full',
         };
       }
       return applyChange({
@@ -1101,6 +1131,206 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         colorPalette: action.payload,
       });
+
+    case 'ADD_DAY_BREAK': {
+      const { versionId, afterRowId } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const targetRow = version.rows.find(r => r.id === afterRowId);
+      if (!targetRow) return state;
+      const newOrder = targetRow.order + 0.5;
+      const breakRow: ScheduleRow = {
+        id: generateUUID(),
+        type: 'DAY_BREAK',
+        shootDay: targetRow.shootDay,
+        order: newOrder,
+      };
+      const rawRows = [...version.rows, breakRow].sort((a, b) => a.order - b.order);
+      const newRows = deriveShootDays(rawRows);
+      const groups = computeDayGroups(newRows);
+      const newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId
+            ? { ...v, rows: newRows, dayMeta: newDayMeta, updatedAt: Date.now() }
+            : v
+        ),
+      });
+    }
+
+    case 'REMOVE_DAY_BREAK': {
+      const { versionId, breakRowId } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const filtered = version.rows.filter(r => r.id !== breakRowId);
+      const reordered = filtered.map((r, i) => ({ ...r, order: i }));
+      const newRows = deriveShootDays(reordered);
+      const groups = computeDayGroups(newRows);
+      const newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId
+            ? { ...v, rows: newRows, dayMeta: newDayMeta, updatedAt: Date.now() }
+            : v
+        ),
+      });
+    }
+
+    case 'INSERT_WORKING_DAY': {
+      const { versionId, date } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = version.calendar || defaultCalendar();
+      let newCal = { ...cal };
+      if (newCal.daysOff[date]) {
+        const { [date]: _, ...rest } = newCal.daysOff;
+        newCal.daysOff = rest;
+      }
+      if (newCal.statusDays[date]) {
+        const { [date]: _, ...rest } = newCal.statusDays;
+        newCal.statusDays = rest;
+      }
+      const breakRow: ScheduleRow = {
+        id: generateUUID(),
+        type: 'DAY_BREAK',
+        shootDay: 0,
+        order: version.rows.length,
+      };
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId
+            ? { ...v, rows: [...v.rows, breakRow], calendar: newCal, updatedAt: Date.now() }
+            : v
+        ),
+      });
+    }
+
+    case 'SET_PRODUCTION_START': {
+      const { versionId, date } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = { ...(version.calendar || defaultCalendar()), startDate: date };
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, calendar: cal, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'SET_DAYS_OFF': {
+      const { versionId, date, entry } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = { ...(version.calendar || defaultCalendar()) };
+      if (entry) {
+        cal.daysOff = { ...cal.daysOff, [date]: { date, ...entry } };
+      } else {
+        const { [date]: _, ...rest } = cal.daysOff;
+        cal.daysOff = rest;
+      }
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, calendar: cal, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'SET_STATUS_DAY': {
+      const { versionId, date, entry } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = { ...(version.calendar || defaultCalendar()) };
+      if (entry) {
+        cal.statusDays = { ...cal.statusDays, [date]: { date, ...entry } };
+      } else {
+        const { [date]: _, ...rest } = cal.statusDays;
+        cal.statusDays = rest;
+      }
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, calendar: cal, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'SET_AUTO_WEEKENDS': {
+      const { versionId, value } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = { ...(version.calendar || defaultCalendar()), autoWeekends: value };
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, calendar: cal, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'SET_WEEKEND_DAYS': {
+      const { versionId, days } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = { ...(version.calendar || defaultCalendar()), weekendDays: days };
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, calendar: cal, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'SET_STRIP_VIEW': {
+      const { versionId, mode } = action.payload;
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, stripView: mode, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'TOGGLE_BONEYARD': {
+      const { versionId, rowId } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const newRows = version.rows.map(r => {
+        if (r.id !== rowId) return r;
+        if (r.boneyard) {
+          return { ...r, boneyard: false, shootDay: null as any };
+        }
+        return { ...r, boneyard: true, shootDay: null as any };
+      });
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, rows: newRows, updatedAt: Date.now() } : v
+        ),
+      });
+    }
+
+    case 'CONVERT_WORKING_DAY': {
+      const { versionId, date, newType } = action.payload;
+      const version = state.present.versions.find(v => v.id === versionId);
+      if (!version) return state;
+      const cal = { ...(version.calendar || defaultCalendar()) };
+      if (newType === 'hold' || newType === 'travel') {
+        cal.statusDays = { ...cal.statusDays, [date]: { date, status: newType } };
+      } else if (newType === 'dayoff') {
+        cal.daysOff = { ...cal.daysOff, [date]: { date, type: 'custom' } };
+      }
+      return applyChange({
+        ...state.present,
+        versions: state.present.versions.map(v =>
+          v.id === versionId ? { ...v, calendar: cal, updatedAt: Date.now() } : v
+        ),
+      });
+    }
 
     default:
       return state;
