@@ -493,7 +493,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         </button>
       )}
       {!isCast && (
-        <button onClick={() => setRows(prev => { const seen = new Map<string, LocalRow>(); for (const r of prev) { const key = (r.name || r.id).toLowerCase(); if (!seen.has(key)) seen.set(key, r); else if (!seen.get(key)!.name && r.name) seen.set(key, r); } return [...seen.values()]; })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+        <button onClick={() => { autoMergeRef.current = true; doSave(); }} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
           Merge Duplicates
         </button>
       )}

@@ -84,6 +84,8 @@ interface EntityDropdownProps {
   panelMinWidth?: string;
   /** Called when the dropdown is dismissed by clicking outside (handleClose). Not called on Enter/Tab commit. */
   onExit?: () => void;
+  /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
+  uppercase?: boolean;
 }
 
 /**
@@ -210,6 +212,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   keepAlphabetical = false,
   panelMinWidth,
   onExit,
+  uppercase = false,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -233,11 +236,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   useEffect(() => {
     if (syntheticRef.current) { syntheticRef.current = false; return; }
     if (mode === 'multi' || mode === 'select') setVal(value);
-    if (mode === 'single') setLocalIds(value.trim() ? [value.trim()] : []);
+    if (mode === 'single') setLocalIds(value.trim() ? [uppercase ? value.trim().toUpperCase() : value.trim()] : []);
   }, [value, mode]);
   const [query, setQuery] = useState('');
   const [localIds, setLocalIds] = useState<string[]>(() => {
-    if (mode === 'single') return value.trim() ? [value.trim()] : [];
+    if (mode === 'single') return value.trim() ? [uppercase ? value.trim().toUpperCase() : value.trim()] : [];
     return (value || '').split(',').map(x => x.trim()).filter(Boolean);
   });
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -313,10 +316,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const toggle = useCallback((id: string) => {
     if (mode === 'single') {
-      setLocalIds([id]);
+      const sel = uppercase ? id.toUpperCase() : id;
+      setLocalIds([sel]);
       setQuery('');
       committedRef.current = true;
-      onChange(id);
+      onChange(sel);
       setOpen(false);
       return;
     }
@@ -415,7 +419,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         autoFocus={autoFocusProp}
         value={displayValue}
         onChange={e => {
-          if (mode === 'multi' || mode === 'select') { setVal(e.target.value); } else { setQuery(e.target.value); }
+          const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
+          if (mode === 'multi' || mode === 'select') { setVal(raw); } else { setQuery(raw); if (mode === 'single' && !raw.trim()) setLocalIds([]); }
           setHighlightedIndex(-1);
           forceOpen();
         }}

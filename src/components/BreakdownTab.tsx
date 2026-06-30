@@ -211,6 +211,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         onExit={() => exitEditMode()}
         items={setItems}
         mode="single"
+        uppercase
         keepAlphabetical
         panelMinWidth="min-w-[220px]"
         positioning="relative"
