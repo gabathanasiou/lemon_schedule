@@ -427,13 +427,27 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
 
+  const calDerivedDates = useMemo(() => {
+    const cal = activeVersion?.calendar;
+    if (!cal?.startDate) return new Map<number, string>();
+    const calGroups = computeDayGroups(activeVersion?.rows || []);
+    return deriveDayDates(cal, calGroups.length);
+  }, [activeVersion?.calendar, activeVersion?.rows]);
+
   const workingMap = useMemo(() => {
     const m = new Map<string, number>();
-    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
-      if (v.date) m.set(v.date, Number(k));
+    // Use derived dates when calendar is active; fall back to stored dates
+    if (calDerivedDates.size > 0) {
+      for (const [dayNum, dateStr] of calDerivedDates) {
+        m.set(dateStr, dayNum);
+      }
+    } else {
+      for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
+        if (v.date) m.set(v.date, Number(k));
+      }
     }
     return m;
-  }, [activeVersion]);
+  }, [activeVersion, calDerivedDates]);
 
   const statusMap = useMemo(() => {
     const m = new Map<number, string>();
@@ -444,14 +458,20 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   }, [activeVersion]);
 
   const chronoDayMap = useMemo(() => {
-    const entries = Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][];
-    const sorted = entries
-      .filter(([, v]) => v.date && (!v.status || v.status === 'work'))
-      .sort((a, b) => a[1].date.localeCompare(b[1].date));
     const m = new Map<number, number>();
-    sorted.forEach(([k], i) => m.set(Number(k), i + 1));
+    if (calDerivedDates.size > 0) {
+      for (const [dayNum] of calDerivedDates) {
+        m.set(dayNum, dayNum);
+      }
+    } else {
+      const entries = Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][];
+      const sorted = entries
+        .filter(([, v]) => v.date && (!v.status || v.status === 'work'))
+        .sort((a, b) => a[1].date.localeCompare(b[1].date));
+      sorted.forEach(([k], i) => m.set(Number(k), i + 1));
+    }
     return m;
-  }, [activeVersion]);
+  }, [activeVersion, calDerivedDates]);
 
   const dayCastIdsMap = useMemo(() => {
     const m = new Map<number, string>();

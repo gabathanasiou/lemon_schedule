@@ -265,7 +265,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const renderRibbonHeader = (statusLabel?: string) => {
     if (!cells || mainCellIdx == null) return null;
     const label = statusLabel || `DAY #${displayDay}`;
-    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    const dateStr = date ? formatDateLong(date) : (meta?.date ? formatDateLong(meta.date) : '');
     return (
       <div 
         className="flex-1 min-w-0 flex flex-col relative"
@@ -350,7 +350,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const renderRibbonFooter = () => {
     if (!cells || mainCellIdx == null) return null;
     const endTime = runningElapsed > 0 ? addMinutesToTime(meta?.unitCall || '08:00', runningElapsed) : '';
-    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    const dateStr = date ? formatDateLong(date) : (meta?.date ? formatDateLong(meta.date) : '');
     return (
       <div ref={setFooterRef} style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '1px solid var(--border, #d4d4d8)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
@@ -432,7 +432,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <td className="col-dur" />
                 <td className="col-ie" />
                 <td className="col-set text-center font-semibold">
-                  {meta?.date ? formatDateLong(meta.date) : ''}
+                  {meta?.date ? formatDateLong(meta.date) : date ? formatDateLong(date) : ''}
                 </td>
                 <td className="col-dn" />
                 <td className="col-cast" />
@@ -480,7 +480,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <td className="col-dur" />
                 <td className="col-ie" />
                 <td className="col-set text-center font-semibold">
-                  {meta?.date ? formatDateLong(meta.date) : ''}
+                  {meta?.date ? formatDateLong(meta.date) : date ? formatDateLong(date) : ''}
                 </td>
                 <td className="col-dn" />
                 <td className="col-cast">
@@ -558,7 +558,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
             </span>
             <span className="flex-1 text-center">
-              {meta?.date ? formatDateLong(meta.date) : ''}
+              {meta?.date ? formatDateLong(meta.date) : date ? formatDateLong(date) : ''}
             </span>
             <div className="flex shrink-0" style={{gap: '20pt'}}>
               <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>

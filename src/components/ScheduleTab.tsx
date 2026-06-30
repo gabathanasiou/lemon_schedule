@@ -684,6 +684,9 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   ])).sort((a, b) => {
     const dateA = activeVersion.dayMeta?.[a]?.date || '';
     const dateB = activeVersion.dayMeta?.[b]?.date || '';
+    if (!dateA && !dateB) return a - b;
+    if (!dateA) return 1;
+    if (!dateB) return -1;
     return dateA.localeCompare(dateB);
   }), [activeVersion.dayMeta]);
 

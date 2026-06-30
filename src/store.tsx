@@ -1198,11 +1198,15 @@ function reducer(state: State, action: Action): State {
         shootDay: 0,
         order: version.rows.length,
       };
+      const rawRows = [...version.rows, breakRow].sort((a, b) => a.order - b.order);
+      const newRows = deriveShootDays(rawRows);
+      const groups = computeDayGroups(newRows);
+      const newDayMeta = recomputeDayMeta(version.dayMeta, groups.length);
       return applyChange({
         ...state.present,
         versions: state.present.versions.map(v =>
           v.id === versionId
-            ? { ...v, rows: [...v.rows, breakRow], calendar: newCal, updatedAt: Date.now() }
+            ? { ...v, rows: newRows, dayMeta: newDayMeta, calendar: newCal, updatedAt: Date.now() }
             : v
         ),
       });
