@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
-import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
@@ -18,6 +18,7 @@ import HelpModal from './HelpModal';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
+import { IS_COARSE } from '../lib/device';
 
 export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
@@ -625,12 +626,17 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     !textEditingEnabled,
   );
 
+  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled;
   const sensors = useSensors(
-    useSensor(PointerSensor, { 
-      activationConstraint: { 
-        distance: ctrlOrCmdHeld || textEditingEnabled ? 999999 : 5 
-      } 
-    })
+    IS_COARSE
+      ? useSensor(TouchSensor, {
+          activationConstraint: dragDisabled
+            ? { delay: 999999, tolerance: 0 }
+            : { delay: 200, tolerance: 5 }
+        })
+      : useSensor(PointerSensor, {
+          activationConstraint: { distance: dragDisabled ? 999999 : 5 }
+        })
   );
 
   if (!activeVersion) return <div>No active version</div>;

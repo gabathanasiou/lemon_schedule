@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, DragOverEvent, PointerSensor, useSensor, useSensors, closestCorners, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, DragOverEvent, PointerSensor, TouchSensor, useSensor, useSensors, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
@@ -16,6 +16,7 @@ import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
+import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
@@ -95,6 +96,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
     transform: CSS.Transform.toString(transform),
     transition,
     ...(isDragging ? { opacity: 0.3 } : {}),
+    ...(IS_COARSE ? { touchAction: 'none' } : {}),
   };
     return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
@@ -423,7 +425,15 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld ? 999999 : 3) } })
+    IS_COARSE
+      ? useSensor(TouchSensor, {
+          activationConstraint: activeTool || ctrlOrCmdHeld
+            ? { delay: 999999, tolerance: 0 }
+            : { delay: 200, tolerance: 5 }
+        })
+      : useSensor(PointerSensor, {
+          activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld ? 999999 : 3) }
+        })
   );
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
