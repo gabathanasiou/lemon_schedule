@@ -800,7 +800,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 background: #dbeafe;
                 color: #1e40af;
               }
-               padding: 3px 8px;
+              .Spreadsheet__header-label {
+                padding: 3px 8px;
                overflow: hidden;
                text-overflow: ellipsis;
              }
