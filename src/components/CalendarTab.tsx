@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, DragOverEvent, PointerSensor, useSensor, useSensors, rectIntersection } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, DragOverlay, DragOverEvent, PointerSensor, useSensor, useSensors, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
@@ -342,6 +342,38 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   activeDragIdsRef.current = activeDragIds;
   const selectedRowIdsRef = useRef(selectedRowIds);
   selectedRowIdsRef.current = selectedRowIds;
+
+  const collisionDetection = useCallback<CollisionDetection>((args) => {
+    const { active, pointerCoordinates, droppableContainers } = args;
+    const isDraggingDay = active.data.current?.type === 'DAY';
+    const filteredContainers = droppableContainers.filter((container) => {
+      const id = container.id as string;
+      const isDayHandle = id.startsWith('day-handle-');
+      if (isDraggingDay) return isDayHandle;
+      if (isDayHandle) return false;
+      if (activeDragIdsRef.current.has(id)) return false;
+      return true;
+    });
+    if (pointerCoordinates) {
+      const collisions: { id: string; distance: number; area: number }[] = [];
+      for (const container of filteredContainers) {
+        const rect = container.rect.current;
+        if (rect) {
+          const dx = Math.max(rect.left - pointerCoordinates.x, 0, pointerCoordinates.x - rect.right);
+          const dy = Math.max(rect.top - pointerCoordinates.y, 0, pointerCoordinates.y - rect.bottom);
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const area = rect.width * rect.height;
+          collisions.push({ id: container.id as string, distance, area });
+        }
+      }
+      collisions.sort((a, b) => {
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return a.area - b.area;
+      });
+      if (collisions.length > 0) return collisions.map(c => ({ id: c.id }));
+    }
+    return closestCorners({ ...args, droppableContainers: filteredContainers });
+  }, []);
 
   const ctrlOrCmdHeld = useAddMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
@@ -707,7 +739,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
         <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} showDesc={showDesc} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} />
         <div className="flex-1 flex flex-col overflow-hidden">
