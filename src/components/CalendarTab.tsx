@@ -733,7 +733,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       let dayRows = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
       let insertIndex: number;
       if (lastInsertId?.startsWith('day-')) {
-        insertIndex = 0;
+        insertIndex = dayRows.length;
       } else if (lastInsertId?.startsWith('end-')) {
         insertIndex = dayRows.length;
       } else if (lastInsertId && dayRows.some(r => r.id === lastInsertId)) {
@@ -756,7 +756,7 @@ export const CalendarTab: React.FC<{ showDesc?: boolean; showBreaks?: boolean }>
       const dayRowsBefore = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
       let rawIndex: number;
       if (lastInsertId?.startsWith('day-')) {
-        rawIndex = 0;
+        rawIndex = dayRowsBefore.length;
       } else if (lastInsertId?.startsWith('end-')) {
         rawIndex = dayRowsBefore.length;
       } else if (lastInsertId && dayRowsBefore.some(r => r.id === lastInsertId)) {
