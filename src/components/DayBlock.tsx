@@ -351,8 +351,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     if (!cells || mainCellIdx == null) return null;
     const endTime = runningElapsed > 0 ? addMinutesToTime(meta?.unitCall || '08:00', runningElapsed) : '';
     const dateStr = date ? formatDateLong(date) : (meta?.date ? formatDateLong(meta.date) : '');
+    const footerLabel = stripView === 'compact' ? `DAY #${displayDay}` : `End of Day #${displayDay}`;
     return (
-      <div ref={setFooterRef} style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '1px solid var(--border, #d4d4d8)' }}>
+      <div ref={setFooterRef}
+        data-row-id={`empty-${dayInt}`}
+        data-shoot-day={dayInt}
+        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '2px solid var(--border, #a1a1aa)', background: '#f4f4f5' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
           {cells.map((cell, ci) => {
             if (ci === labelCellIdx) {
@@ -362,8 +366,9 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                   ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
                   textAlign: 'center', overflow: 'hidden',
                   whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                  fontWeight: 600,
                 }}>
-                  End of Day #{displayDay}
+                  {footerLabel}
                   {endTime && <span> · {endTime}</span>}
                 </div>
               );
@@ -373,7 +378,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                  textAlign: 'center',
+                  textAlign: 'center', fontWeight: 600,
                 }}>
                   {dateStr}
                 </div>
@@ -388,10 +393,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
             );
           })}
         </div>
-        <div style={{ padding: `2px ${cpv}px`, display: 'flex', justifyContent: 'flex-end', gap: 16, color: '#18181b' }}>
-          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-          <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-        </div>
+        {stripView === 'full' && (
+          <div style={{ padding: `2px ${cpv}px`, display: 'flex', justifyContent: 'flex-end', gap: 16, color: '#18181b' }}>
+            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+            <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -551,19 +558,24 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
         {ribbonActive ? renderRibbonFooter() : (
-          <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
-            style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>
-            <span className="shrink-0">
-              End of Day #{displayDay}
+          <div ref={setFooterRef}
+            data-row-id={`empty-${dayInt}`}
+            data-shoot-day={dayInt}
+            className="flex justify-between items-center px-2 py-1.5 border-t-2 border-zinc-400"
+            style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b', background: '#f4f4f5'}}>
+            <span className="shrink-0 font-bold">
+              {stripView === 'compact' ? `DAY #${displayDay}` : `End of Day #${displayDay}`}
               {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
             </span>
-            <span className="flex-1 text-center">
+            <span className="flex-1 text-center font-bold">
               {meta?.date ? formatDateLong(meta.date) : date ? formatDateLong(date) : ''}
             </span>
-            <div className="flex shrink-0" style={{gap: '20pt'}}>
-              <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-              <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-            </div>
+            {stripView === 'full' && (
+              <div className="flex shrink-0" style={{gap: '20pt'}}>
+                <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+                <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+              </div>
+            )}
           </div>
         )}
       </>
