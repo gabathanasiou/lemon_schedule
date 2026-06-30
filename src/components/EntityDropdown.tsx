@@ -34,8 +34,8 @@ export const DD_ITEM_CLASS = (active: boolean) =>
 
 export const DD_PANEL_CLASS = (positioning: string) =>
   positioning === 'fixed'
-    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-scroll min-w-[200px]'
-    : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-56 overflow-y-scroll mt-1 min-w-[180px]';
+    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col'
+    : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 mt-1 min-w-[180px] flex flex-col';
 
 export const DD_INPUT_CLASS = (standalone: boolean) =>
   standalone
@@ -400,6 +400,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           className={DD_PANEL_CLASS(positioning)}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
+          <div className="overflow-y-scroll max-h-48">
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
             const checked = currentIds.includes(itemKey(m));
             const highlighted = highlightedIndex === idx;
@@ -421,11 +422,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 )}
               </button>
             );
-           }) : (
+          }) : (
             <div className="px-2 py-1 text-xs text-zinc-400 text-center">No matches</div>
           )}
+          </div>
           {commitHint && (
-            <div className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 mt-1 pt-1">
+            <div className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0">
               Press Enter to commit
             </div>
           )}
