@@ -218,6 +218,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const committedRef = useRef(false);
+  const syntheticRef = useRef(false);
 
   const forceOpen = useCallback(() => {
     committedRef.current = false;
@@ -230,6 +231,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   // --- Single mode: query + localIds (search-then-select pattern) ---
   const [val, setVal] = useState(value);
   useEffect(() => {
+    if (syntheticRef.current) { syntheticRef.current = false; return; }
     if (mode === 'multi' || mode === 'select') setVal(value);
     if (mode === 'single') setLocalIds(value.trim() ? [value.trim()] : []);
   }, [value, mode]);
@@ -439,7 +441,17 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             e.preventDefault();
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
               const item = dropdownItems[highlightedIndex];
-              toggle(itemKey(item));
+              const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
+              if (isSynth) {
+                const key = itemKey(item);
+                const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                if (!ids.includes(key)) ids.push(key);
+                const joined = sortAndJoin(ids.join(', '));
+                setVal(joined + ', ');
+                if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+              } else {
+                toggle(itemKey(item));
+              }
               setHighlightedIndex(-1);
             } else {
               commit();
@@ -459,23 +471,42 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             const highlighted = highlightedIndex === idx;
             const isSynthetic = searchQuery && !hasExactMatch && idx === 0;
             return (
+              <>
               <button
                 key={isSynthetic ? '__new__' : m.id}
                 data-ei={idx}
                 data-checked={checked ? 'true' : undefined}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
-                onClick={() => toggle(itemKey(m))}
+                onClick={() => {
+                  if (isSynthetic) {
+                    const key = itemKey(m);
+                    const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                    if (!ids.includes(key)) ids.push(key);
+                    const joined = sortAndJoin(ids.join(', '));
+                    setVal(joined + ', ');
+                    if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                  } else {
+                    toggle(itemKey(m));
+                  }
+                }}
                 onMouseEnter={mode === 'single' ? () => setHighlightedIndex(idx) : undefined}
-                className={`${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`}
+                className={isSynthetic
+                  ? `w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-emerald-50 hover:text-emerald-700'}`
+                  : `${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`
+                }
               >
                 {isSynthetic ? (
-                  <span className="truncate flex-1 italic text-zinc-500">Add &quot;{m.name}&quot;</span>
+                  <span className="truncate flex-1 italic">Add &quot;{m.name}&quot;</span>
                 ) : (
                   renderItem ? renderItem(m, checked) : defaultRenderer(m, checked)
                 )}
               </button>
-            );
+              {isSynthetic && (
+                <hr className="border-t border-zinc-200 my-1 mx-1" />
+              )}
+              </>
+              );
           }) : (
             <div className="px-2 py-1 text-xs text-zinc-400 text-center">No matches</div>
           )}
