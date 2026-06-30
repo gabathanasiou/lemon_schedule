@@ -14,7 +14,6 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import { deriveDayDates, computeDayGroups, deriveShootDays, deriveStripboardLayout, StripboardItem } from '../lib/scheduling';
-import UnscheduledZone from './UnscheduledZone';
 import StatusDayBlock from './StatusDayBlock';
 import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
@@ -1379,7 +1378,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               }
           }}
        >
-            <UnscheduledBlock rows={hasCalendar ? boneyardRows : unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
+            <UnscheduledBlock rows={hasCalendar ? newUnscheduledRows : unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative"
@@ -1431,24 +1430,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                     );
                   }
                 })}
-                <UnscheduledZone
-                  rows={newUnscheduledRows}
-                  scenes={project.scenes}
-                  textEditingEnabled={textEditingEnabled}
-                  selectedIds={selectedRowIds}
-                  activeDragIds={activeDragIds}
-                  onRowClick={handleRowClick}
-                  insertBeforeId={insertBeforeId}
-                  activeRowId={activeId}
-                  onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }}
-                  onRowDoubleClick={handleRowDoubleClick}
-                  ribbon={activeRibbon}
-                  colWidths={activeColWidths}
-                  cellPaddingV={cellPaddingV}
-                  cellPaddingH={cellPaddingH}
-                  edgePadding={edgePadding}
-                  cellBorders={cellBorders}
-                />
               </>
             ) : (
               <>
