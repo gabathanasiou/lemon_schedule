@@ -50,7 +50,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
     return (
-      <div style={{ background: nb.background, color: nb.color }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate mb-0.5 select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div style={{ background: nb.background, color: nb.color }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate border-b border-black/10 select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
@@ -62,7 +62,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; showDesc?: b
     </ViolationTooltip>
   ) : null;
   return (
-    <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 mb-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 select-none cursor-grab">
+    <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 border-b border-black/10 select-none cursor-grab">
       <span className="truncate">{scene.sceneNumber}. {showDesc && scene.description ? scene.description : scene.set}</span>
       {vFlag}
     </div>
@@ -180,7 +180,7 @@ const DayCell: React.FC<{
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
               {activeRowId && activeDragRows.length > 0 && insertBeforeId === r.id && (
-                <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+                <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (
                     <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
                   ))}
@@ -189,7 +189,7 @@ const DayCell: React.FC<{
               )}
               <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
               {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
-                <div className="opacity-40 flex flex-col gap-0 mb-0.5">
+                <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (
                     <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
                   ))}
@@ -292,7 +292,7 @@ const UnscheduledSidebar: React.FC<{
             )}
             <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} showDesc={showDesc} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} />
             {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
-              <div className="opacity-40 flex flex-col gap-0 mt-0.5">
+              <div className="opacity-40 flex flex-col gap-0">
                 {activeDragRows.slice(0, 2).map(dr => (
                   <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} showDesc={false} />
                 ))}
