@@ -101,6 +101,17 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Delete</>} action="Permanently delete the ribbon" />
         </Section>
 
+        <Section title="Touch / iPad">
+          <Row keys={<>Press & hold</>} action="Drag a ribbon — hold still (~200ms) then drag" />
+          <Row keys={<>Swipe</>} action="Scroll the board — swipe on empty space (gaps, margins, day headers)" />
+          <Row keys={<>Long-press</>} action="Open context menu anywhere you'd right-click — watch the progress ring" />
+          <Row keys={<>Long-press empty</>} action="Start marquee selection — hold empty board space, then drag to draw rectangle" />
+          <Row keys={<><Kbd>⊞</Kbd> Marquee btn</>} action="Tap the floating marquee button to stay in select mode (tap again to exit)" />
+          <Row keys={<>Tap</>} action="Select a single ribbon — Tap toggles if already selected" />
+          <Row keys={<>Drag edge</>} action="Resize sidebar by dragging the right edge" />
+          <Row keys={<>Drag ▸◂</>} action="Resize columns by dragging the divider between any two column headers" />
+        </Section>
+
         <Section title="Unscheduled Sidebar">
           <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Unscheduled" />
           <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, or Set" />
