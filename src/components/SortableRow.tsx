@@ -160,13 +160,15 @@ const SortableRowContent: React.FC<{
           <tbody>
             <tr className="row-day-break" style={{ ...dbStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
               <td className="col-sc" />
-              {!isCompact && <><td className="col-call" /><td className="col-dur" /><td className="col-ie" /></>}
-              <td className="col-set" colSpan={isCompact ? 2 : 1} style={{ textAlign: 'center' }}>
+              <td className="col-call" />
+              <td className="col-dur" />
+              <td className="col-ie" />
+              <td className="col-set" style={{ textAlign: 'center' }}>
                 <span style={{ fontSize: '9pt', fontWeight: 600, letterSpacing: '0.05em' }}>
                   END OF DAY {row.shootDay > 0 ? row.shootDay : ''}
                 </span>
               </td>
-              {!isCompact && <td className="col-dn" />}
+              <td className="col-dn" />
               <td className="col-cast" />
             </tr>
           </tbody>

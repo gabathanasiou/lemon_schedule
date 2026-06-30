@@ -6,6 +6,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { StackedGhosts } from './DayBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID, formatDateLong } from '../lib/utils';
+import { deriveShootDays } from '../lib/scheduling';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, SeparatorHorizontal, Archive } from 'lucide-react';
@@ -776,37 +777,33 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     // Dummy rows can only add notes/breaks/day-breaks and remove day breaks
     if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_day_break' || action === 'remove_day_break')) {
       const dummyDayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
+      const firstDayRow = dummyDayRows[0];
+      const insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
       if (action === 'remove_day_break') {
-        dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, day: shootDay } });
+        const filtered = activeVersion.rows.filter(r => !(r.type === 'DAY_BREAK' && r.shootDay === shootDay));
+        const reordered = filtered.map((r, i) => ({ ...r, order: i }));
+        const derived = deriveShootDays(reordered);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: derived } });
         setContextMenu(null);
         return;
       }
+      const newId = generateUUID();
+      const newRow: ScheduleRow = action === 'add_day_break'
+        ? { id: newId, type: 'DAY_BREAK', shootDay, order: 0 }
+        : {
+            id: newId,
+            type: action === 'add_note' ? 'NOTE' : 'BREAK',
+            shootDay, order: 0,
+            ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
+          };
+      let newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
+      newRows = newRows.map((r, i) => ({ ...r, order: i }));
       if (action === 'add_day_break') {
-        const lastRow = dummyDayRows[dummyDayRows.length - 1];
-        const afterRowId = lastRow ? lastRow.id : (() => {
-          const prevDay = shootDay - 1;
-          const prevRows = activeVersion.rows.filter(r => r.shootDay === prevDay).sort((a, b) => a.order - b.order);
-          return prevRows.length > 0 ? prevRows[prevRows.length - 1].id : activeVersion.rows[0]?.id;
-        })();
-        if (afterRowId) {
-          dispatch({ type: 'ADD_DAY_BREAK', payload: { versionId: activeVersion.id, afterRowId } });
-        }
-        setContextMenu(null);
-        return;
-      }      const newId = generateUUID();
-      const newRow: ScheduleRow = {
-        id: newId,
-        type: action === 'add_note' ? 'NOTE' : 'BREAK',
-        shootDay,
-        order: 0,
-        ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
-      };
-      const dayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
-      const firstDayRow = dayRows[0];
-      const insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
-      const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
-      newRows.forEach((r, i) => r.order = i);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        const derived = deriveShootDays(newRows);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: derived } });
+      } else {
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+      }
       setSelectedRowIds(new Set([newId]));
       setFocusedRowId(newId);
       scrollToRow(newId);
@@ -869,13 +866,13 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       setContextMenu(null);
       return;
     } else if (action === 'add_day_break') {
-      dispatch({ type: 'ADD_DAY_BREAK', payload: { versionId: activeVersion.id, afterRowId: rowId } });
-      setContextMenu(null);
-      return;
+      const newId = generateUUID();
+      newRows.push({
+        id: newId, type: 'DAY_BREAK', shootDay, order: row.order + 0.5
+      });
+      newRowIds.push(newId);
     } else if (action === 'remove_day_break') {
-      dispatch({ type: 'REMOVE_DAY_BREAK', payload: { versionId: activeVersion.id, day: row.shootDay || shootDay } });
-      setContextMenu(null);
-      return;
+      newRows = newRows.filter(r => r.id !== rowId);
     } else if (action === 'send_to_boneyard') {
       dispatch({ type: 'TOGGLE_BONEYARD', payload: { versionId: activeVersion.id, rowId } });
       setContextMenu(null);
@@ -894,7 +891,10 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     });
     newRows.forEach((r, i) => r.order = i);
 
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    const hasDayBreakChange = action === 'add_day_break' || action === 'remove_day_break' || newRows.some(r => r.type === 'DAY_BREAK');
+    const persistentRows = hasDayBreakChange ? deriveShootDays(newRows) : newRows;
+
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
     if (newRowIds.length > 0) {
       setSelectedRowIds(new Set(newRowIds));
       setFocusedRowId(newRowIds[0]);
