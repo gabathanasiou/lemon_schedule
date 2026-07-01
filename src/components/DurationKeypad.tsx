@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { parseDuration, formatDuration } from '../lib/utils';
 import { CellInput } from './CellInput';
 import { useLastPointerType } from '../lib/useMarquee';
+import { IS_COARSE } from '../lib/device';
 
 interface DurationKeypadProps {
   value: number;
@@ -41,7 +42,7 @@ export default function DurationKeypad({
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   const lastPointerType = useLastPointerType();
-  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
+  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen' || (!lastPointerType && IS_COARSE);
 
   const displayText = display ?? formatDuration(value || 0);
 
