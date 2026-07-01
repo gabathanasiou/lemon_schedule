@@ -240,7 +240,7 @@ export default function DurationKeypad({
             ref={keypadRef}
             className="fixed z-[301]"
             style={{ top: pos.top, left: pos.left }}
-            onPointerDown={e => e.stopPropagation()}
+            onPointerDown={e => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); }}
           >
             <div className="bg-white/95 backdrop-blur-md border border-zinc-200 rounded-lg shadow-[0_-1px_8px_rgba(0,0,0,0.04),0_12px_40px_rgba(0,0,0,0.13)] p-4 min-w-[220px] font-sans">
               {(sceneNumber || pageCount) && (
@@ -267,7 +267,7 @@ export default function DurationKeypad({
                 <button className={`${ACT} ${pk === 'm' ? PACT : ''}`} onPointerDown={() => handleKeyPress('m')}>M</button>
                 <div />
                 <button className={`${NUM} ${pk === '0' ? PNUM : ''}`} onPointerDown={() => handleKeyPress('0')}>0</button>
-                <button className={`${CMD} col-span-2 ${pk === 'Enter' ? PCMD : ''}`} onPointerDown={handleCommit}>⏎ Enter</button>
+                <button className={`${CMD} col-span-2 ${pk === 'Enter' ? PCMD : ''}`} onPointerDown={(e) => { e.nativeEvent.stopImmediatePropagation(); e.stopPropagation(); handleCommit(); }}>⏎ Enter</button>
               </div>
             </div>
           </div>
