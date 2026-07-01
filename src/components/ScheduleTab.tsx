@@ -1300,7 +1300,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                  e.preventDefault();
                  const rowId = rowEl.getAttribute('data-row-id')!;
                  if (!selectedRowIds.has(rowId)) {
-                   setSelectedRowIds(new Set([rowId]));
+                   if (marqueeMode === 'tool') {
+                     setSelectedRowIds(prev => new Set([...prev, rowId]));
+                   } else {
+                     setSelectedRowIds(new Set([rowId]));
+                   }
                  }
                  const shootDayAttr = rowEl.getAttribute('data-shoot-day');
                  const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
