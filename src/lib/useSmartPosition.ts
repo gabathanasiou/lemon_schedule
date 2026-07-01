@@ -18,7 +18,6 @@ export function useSmartPosition(
     const wrapperRect = wrapperRef.current.getBoundingClientRect();
     const ddRect = dropdown.getBoundingClientRect();
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
 
     const overflowRight = ddRect.right - vw;
     if (overflowRight > 0) {
@@ -28,17 +27,6 @@ export function useSmartPosition(
 
     if (ddRect.left < 0) {
       dropdown.style.left = `${-wrapperRect.left + 4}px`;
-    }
-
-    if (ddRect.bottom > vh + 4) {
-      dropdown.style.top = 'auto';
-      dropdown.style.bottom = '100%';
-      const newRect = dropdown.getBoundingClientRect();
-      if (newRect.top < 0) {
-        dropdown.style.bottom = 'auto';
-        dropdown.style.top = `${-wrapperRect.top + 4}px`;
-        dropdown.style.maxHeight = `${vh - 8}px`;
-      }
     }
   }, [open, wrapperRef]);
 }
@@ -55,18 +43,14 @@ export function useFixedPosition(
     const vh = window.visualViewport?.height ?? window.innerHeight;
     const voff = window.visualViewport?.offsetTop ?? 0;
     const panelWidth = 200;
-    const panelHeight = 200;
     const gap = 4;
 
     let left = Math.max(0, rect.left);
-    let top = rect.bottom + gap;
+    let top = Math.min(rect.bottom + gap, voff + vh);
 
     if (left + panelWidth > vw) left = Math.max(0, vw - panelWidth - 8);
-    if (top + panelHeight > voff + vh && rect.top - panelHeight - gap >= voff) {
-      top = rect.top - panelHeight - gap;
-    }
-    top = Math.max(voff, Math.min(top, voff + vh - panelHeight));
-    const maxH = Math.max(120, vh - (top - voff) - 16);
+    top = Math.max(voff, top);
+    const maxH = Math.max(120, voff + vh - top - 16);
 
     setPos({ top, left, width: rect.width, maxH });
   }, [open, wrapperRef]);

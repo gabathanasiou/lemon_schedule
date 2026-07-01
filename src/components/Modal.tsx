@@ -38,6 +38,15 @@ export default function Modal({
     if (!open) { setDragPos(null); setSize(null); }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const body = document.body;
+    body.style.pointerEvents = '';
+    return () => {
+      body.style.pointerEvents = '';
+    };
+  }, [open]);
+
   const captureRect = useCallback((): { left: number; top: number; width: number; height: number } | null => {
     const el = contentRef.current;
     if (!el) return null;
@@ -95,18 +104,6 @@ export default function Modal({
 
   const onResizeUp = useCallback(() => { resizeRef.current = null; }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.isPropagationStopped()) return;
-    const target = e.target as HTMLElement;
-    const interactive = target.closest(
-      'button, a, input, select, textarea, [role="button"], [role="menuitem"], [role="option"], label, [tabindex]:not([tabindex="-1"])'
-    );
-    if (interactive && interactive !== e.currentTarget) {
-      e.preventDefault();
-      (interactive as HTMLElement).click();
-    }
-  }, []);
-
   const isDragging = dragRef.current !== null;
   const isResizing = resizeRef.current !== null;
 
@@ -160,7 +157,7 @@ export default function Modal({
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }} onTouchEnd={handleTouchEnd}>
+          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }}>
             {children}
           </div>
 

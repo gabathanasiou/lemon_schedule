@@ -14,8 +14,6 @@ import MiniTab from './MiniTab';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
-import { useMarquee, useAddMode } from '../lib/useMarquee';
-import { useMarqueeMode } from '../lib/useLongPressMenu';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -89,30 +87,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const spreadsheetRef = useRef<any>(null);
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const marqueeMode = useMarqueeMode();
-
-  useMarquee(
-    scrollRef,
-    useCallback((ids, isAddMode) => {
-      const indices = new Set<number>();
-      for (const id of ids) {
-        const sceneId = id.startsWith('scene-') ? id.slice(6) : id;
-        const idx = scenes.findIndex(s => s.id === sceneId);
-        if (idx >= 0) indices.add(idx);
-      }
-      setSelectedRows(prev => isAddMode ? new Set([...prev, ...indices]) : indices);
-    }, [scenes]),
-    IS_COARSE && subTab === 'scenes',
-  );
-
-  useEffect(() => {
-    if (!scrollRef.current || subTab !== 'scenes') return;
-    const rows = scrollRef.current.querySelectorAll('.Spreadsheet__table tbody tr');
-    for (let i = 0; i < scenes.length && i < rows.length; i++) {
-      rows[i].setAttribute('data-row-id', `scene-${scenes[i].id}`);
-    }
-  }, [scenes, subTab]);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -787,7 +761,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       />
       {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : (
         <>
-      <div ref={scrollRef} className="flex-1 overflow-auto bg-white" style={IS_COARSE && marqueeMode === 'tool' ? { touchAction: 'none' } : undefined}>
+      <div className="flex-1 overflow-auto bg-white">
       <div className="min-w-[800px]">
             <style>{`
              .Spreadsheet {
@@ -944,10 +918,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                  setSelectionRange(null);
                }
              }}
-             onActivate={(point) => {
-              if (IS_COARSE && marqueeMode === 'tool') return;
-              setActiveCell(point);
-            }}
+              onActivate={(point) => setActiveCell(point)}
              onKeyDown={e => {
                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                  e.preventDefault();
