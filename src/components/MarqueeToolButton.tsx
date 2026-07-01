@@ -7,7 +7,7 @@ export default function MarqueeToolButton() {
   if (!IS_COARSE) return null;
 
   const mode = useMarqueeMode();
-  const active = mode !== 'off';
+  const active = mode === 'tool';
 
   return (
     <button
@@ -17,7 +17,7 @@ export default function MarqueeToolButton() {
       title={active ? 'Exit Select mode' : 'Select mode'}
       onClick={(e) => {
         e.stopPropagation();
-        setMarqueeMode(active ? 'off' : 'tool');
+        setMarqueeMode(mode === 'tool' ? 'off' : 'tool');
       }}
       style={{
         position: 'fixed',
