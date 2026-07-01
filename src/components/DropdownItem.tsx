@@ -1,6 +1,9 @@
 import React from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useDropdownTheme } from './DropdownMenu';
+import { IS_COARSE } from '../lib/device';
+
+const ITEM_CLASS = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
 
 interface DropdownItemProps {
   onClick: () => void;
@@ -35,7 +38,7 @@ export default function DropdownItem({
 
   return (
     <RadixDropdownMenu.Item
-      className={`w-full text-left px-3 py-2 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
+      className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
       onSelect={(e) => { onClick(); }}
       disabled={disabled}
     >

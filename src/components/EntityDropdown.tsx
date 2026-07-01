@@ -28,9 +28,14 @@ import { Scene } from '../types';
 import { useProject } from '../store';
 import { useDropdown, sortCastMembers } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { IS_COARSE } from '../lib/device';
+
+const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
 export const DD_ITEM_CLASS = (active: boolean) =>
-  `w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+
+const DD_INPUT_TOUCH = IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm';
 
 export const DD_PANEL_CLASS = (positioning: string) =>
   positioning === 'fixed'
@@ -39,7 +44,7 @@ export const DD_PANEL_CLASS = (positioning: string) =>
 
 export const DD_INPUT_CLASS = (standalone: boolean) =>
   standalone
-    ? 'w-full border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
+    ? `w-full border border-zinc-300 rounded-md ${DD_INPUT_TOUCH} focus:outline-none focus:ring-2 focus:ring-zinc-900`
     : 'text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-left';
 
 export interface EntityItem {

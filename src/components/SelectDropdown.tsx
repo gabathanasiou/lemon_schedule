@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useDropdown, useOpenHandler } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { IS_COARSE } from '../lib/device';
+
+const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
 const DD_ITEM = (active: boolean) =>
-  `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `${DD_ITEM_BASE} rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
 
 interface SelectDropdownProps {
   value: string;
@@ -62,7 +65,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   if (readOnly) return <span className={className}>{value || '—'}</span>;
 
   const inputClasses = standalone
-    ? 'w-full border border-zinc-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left'
+    ? `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`
     : 'bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left';
 
   return (

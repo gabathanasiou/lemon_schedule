@@ -1,6 +1,9 @@
 import React, { useEffect, useLayoutEffect } from 'react';
+import { IS_COARSE } from '../lib/device';
 
 const MARGIN = 8;
+const CTX_ITEM = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
+const CTX_TEXT = IS_COARSE ? 'text-sm' : 'text-xs';
 
 export const ContextMenu: React.FC<{
   open: boolean;
@@ -44,7 +47,7 @@ export const ContextMenu: React.FC<{
   return (
     <div
       ref={menuRef}
-      className="fixed bg-white border border-zinc-200 shadow-xl rounded-lg p-1 z-[9999] font-sans text-xs text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto"
+      className={`fixed bg-white border border-zinc-200 shadow-xl rounded-lg p-1 z-[9999] font-sans ${CTX_TEXT} text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto`}
       style={{ top: y, left: x }}
     >
       {children}
@@ -61,7 +64,7 @@ export const ContextMenuItem: React.FC<{
 }> = ({ onClick, variant = 'default', icon, disabled = false, children }) => (
   <button
     onClick={disabled ? undefined : onClick}
-    className={`w-full text-left px-3 py-2 flex items-center gap-2 rounded transition-colors ${
+    className={`w-full text-left ${CTX_ITEM} flex items-center gap-2 rounded transition-colors ${
       disabled ? 'opacity-40 cursor-default' :
       variant === 'danger'
         ? 'hover:bg-red-100 text-red-600'

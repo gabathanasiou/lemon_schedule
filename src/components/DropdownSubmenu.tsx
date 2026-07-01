@@ -2,6 +2,9 @@ import React from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronRight } from 'lucide-react';
 import { useDropdownTheme } from './DropdownMenu';
+import { IS_COARSE } from '../lib/device';
+
+const SUB_ITEM = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
 
 interface DropdownSubmenuProps {
   label: string;
@@ -16,8 +19,8 @@ export default function DropdownSubmenu({ label, icon, width, side = 'right', ch
   const isLight = theme === 'light';
 
   const triggerClasses = isLight
-    ? 'w-full text-left px-3 py-2 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 justify-between hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-900'
-    : 'w-full text-left px-3 py-2 rounded flex items-center gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-300 justify-between hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white data-[state=open]:bg-zinc-800 data-[state=open]:text-white';
+    ? `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-700 justify-between hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-900`
+    : `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-300 justify-between hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white data-[state=open]:bg-zinc-800 data-[state=open]:text-white`;
 
   const contentClasses = isLight
     ? `bg-white border border-zinc-200 rounded-lg shadow-xl z-[210] text-zinc-700 p-1 flex flex-col font-sans select-none max-h-80 overflow-y-auto min-w-0 ${width || 'w-48'}`
