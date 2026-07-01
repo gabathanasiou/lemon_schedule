@@ -13,6 +13,9 @@ let _listenersInitialized = false;
 const _marqueeJustEndedRef = { current: false };
 const _addModeListeners = new Set<() => void>();
 
+let _lastPointerType: string | null = null;
+const _lastPointerTypeListeners = new Set<() => void>();
+
 export function isAddModeActive() { return _addMode; }
 
 export function useAddMode(): boolean {
@@ -23,6 +26,18 @@ export function useAddMode(): boolean {
     return () => { _addModeListeners.delete(fn); };
   }, []);
   return _addMode;
+}
+
+export function getLastPointerType(): string | null { return _lastPointerType; }
+
+export function useLastPointerType(): string | null {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const fn = () => tick(n => n + 1);
+    _lastPointerTypeListeners.add(fn);
+    return () => { _lastPointerTypeListeners.delete(fn); };
+  }, []);
+  return _lastPointerType;
 }
 
 function initKeyboardListeners() {
@@ -79,10 +94,11 @@ export function useMarquee(
     let autoScrollRaf: number | null = null;
 
     const setRowsDisabled = (v: boolean) => {
+      const isTouchInput = _lastPointerType === 'touch' || _lastPointerType === 'pen';
       if (v) {
         container.dataset.marqueeActive = '1';
         container.style.touchAction = 'none';
-        container.style.overflow = 'hidden';
+        if (isTouchInput) container.style.overflow = 'hidden';
         document.body.style.touchAction = 'none';
       } else {
         delete container.dataset.marqueeActive;
@@ -150,6 +166,9 @@ export function useMarquee(
         e.stopPropagation();
       }
 
+      _lastPointerType = e.pointerType;
+      _lastPointerTypeListeners.forEach(fn => fn());
+
       const rect = container.getBoundingClientRect();
       startX = e.clientX - rect.left + container.scrollLeft;
       startY = e.clientY - rect.top + container.scrollTop;
@@ -164,6 +183,8 @@ export function useMarquee(
 
     const onPointerMove = (e: PointerEvent) => {
       if (!active && e.pointerType === 'touch' && getTransientMarquee()) {
+        _lastPointerType = e.pointerType;
+        _lastPointerTypeListeners.forEach(fn => fn());
         const rect = container.getBoundingClientRect();
         startX = e.clientX - rect.left + container.scrollLeft;
         startY = e.clientY - rect.top + container.scrollTop;
