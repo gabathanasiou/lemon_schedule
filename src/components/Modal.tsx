@@ -121,7 +121,7 @@ export default function Modal({
         <RadixDialog.Content
           ref={contentRef}
           className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
-          style={Object.keys(combinedStyle).length > 0 ? combinedStyle : undefined}
+          style={{ touchAction: 'manipulation', ...(Object.keys(combinedStyle).length > 0 ? combinedStyle : {}) }}
         >
           <div
             className={`flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 shrink-0 select-none bg-zinc-950 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}

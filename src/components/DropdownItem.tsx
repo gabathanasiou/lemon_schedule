@@ -40,6 +40,11 @@ export default function DropdownItem({
     <RadixDropdownMenu.Item
       className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
       onSelect={(e) => { onClick(); }}
+      onPointerDown={(e) => {
+        if ((e as any).pointerType === 'pen') {
+          onClick();
+        }
+      }}
       disabled={disabled}
     >
       {icon && <span className={`${iconColor} shrink-0`}>{icon}</span>}
