@@ -18,6 +18,7 @@ export function useSmartPosition(
     const wrapperRect = wrapperRef.current.getBoundingClientRect();
     const ddRect = dropdown.getBoundingClientRect();
     const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
     const overflowRight = ddRect.right - vw;
     if (overflowRight > 0) {
@@ -27,6 +28,17 @@ export function useSmartPosition(
 
     if (ddRect.left < 0) {
       dropdown.style.left = `${-wrapperRect.left + 4}px`;
+    }
+
+    if (ddRect.bottom > vh + 4) {
+      dropdown.style.top = 'auto';
+      dropdown.style.bottom = '100%';
+      const newRect = dropdown.getBoundingClientRect();
+      if (newRect.top < 0) {
+        dropdown.style.bottom = 'auto';
+        dropdown.style.top = `${-wrapperRect.top + 4}px`;
+        dropdown.style.maxHeight = `${vh - 8}px`;
+      }
     }
   }, [open, wrapperRef]);
 }
