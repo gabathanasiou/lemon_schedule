@@ -41,10 +41,31 @@ export default function DurationKeypad({
 
   const reposition = useCallback(() => {
     if (triggerRef.current) {
+      triggerRef.current.scrollIntoView({ block: 'nearest' });
       const r = triggerRef.current.getBoundingClientRect();
       const pw = 260;
-      const left = Math.max(8, Math.min(r.left + r.width / 2 - pw / 2, window.innerWidth - pw - 8));
-      setPos({ top: r.bottom + 4, left });
+      const estHeight = 280;
+      const gap = 6;
+
+      const rightSpace = window.innerWidth - (r.right + gap);
+      const leftSpace = r.left - gap;
+
+      let left: number, top: number;
+
+      if (rightSpace >= pw) {
+        left = r.right + gap;
+        top = Math.max(8, Math.min(r.top, window.innerHeight - estHeight - 8));
+      } else if (leftSpace >= pw) {
+        left = r.left - gap - pw;
+        top = Math.max(8, Math.min(r.top, window.innerHeight - estHeight - 8));
+      } else {
+        const centerLeft = Math.max(8, Math.min(r.left + r.width / 2 - pw / 2, window.innerWidth - pw - 8));
+        const spaceBelow = window.innerHeight - r.bottom;
+        top = spaceBelow >= estHeight + 8 ? r.bottom + 8 : Math.max(8, r.top - estHeight - 8);
+        left = centerLeft;
+      }
+
+      setPos({ top, left });
     }
   }, []);
 
