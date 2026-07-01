@@ -95,6 +95,17 @@ export default function Modal({
 
   const onResizeUp = useCallback(() => { resizeRef.current = null; }, []);
 
+  const handlePenPointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'pen') return;
+    const target = e.target as HTMLElement;
+    const interactive = target.closest(
+      'button, a, input, select, textarea, [role="button"], [role="menuitem"], [role="option"], label, [tabindex]:not([tabindex="-1"])'
+    );
+    if (interactive && interactive !== e.currentTarget) {
+      (interactive as HTMLElement).click();
+    }
+  }, []);
+
   const isDragging = dragRef.current !== null;
   const isResizing = resizeRef.current !== null;
 
@@ -117,7 +128,7 @@ export default function Modal({
   return (
     <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" style={{ touchAction: 'manipulation' }} />
+        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" style={{ touchAction: 'manipulation' }} onPointerDown={(e) => { if (e.pointerType === 'pen') { e.preventDefault(); onClose(); } }} />
         <RadixDialog.Content
           ref={contentRef}
           className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
@@ -150,7 +161,7 @@ export default function Modal({
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }}>
+          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }} onPointerDown={handlePenPointerDown}>
             {children}
           </div>
 
