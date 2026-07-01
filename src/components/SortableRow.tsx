@@ -573,6 +573,8 @@ const SortableRowContent: React.FC<{
               className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
               autoFocus={focusedRowId === row.id}
               onOpen={() => onRowNavigate?.(row.id)}
+              sceneNumber={scene?.sceneNumber}
+              pageCount={scene?.pageCount}
             />
           ) : (
             <CellInput
@@ -763,6 +765,8 @@ const SortableRowContent: React.FC<{
               className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
               autoFocus={focusedRowId === row.id} 
               onOpen={() => onRowNavigate?.(row.id)}
+              sceneNumber={scene?.sceneNumber}
+              pageCount={scene?.pageCount}
             />
           ) : (
             <CellInput 
