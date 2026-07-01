@@ -81,8 +81,10 @@ export function useMarquee(
     const setRowsDisabled = (v: boolean) => {
       if (v) {
         container.dataset.marqueeActive = '1';
+        container.style.touchAction = 'none';
       } else {
         delete container.dataset.marqueeActive;
+        container.style.touchAction = '';
       }
     };
 
