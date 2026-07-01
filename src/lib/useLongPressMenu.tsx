@@ -1,20 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { IS_COARSE } from './device';
 
-type MarqueeMode = 'off' | 'tool' | 'transient';
+type MarqueeMode = 'off' | 'tool';
 
 let _marqueeMode: MarqueeMode = 'off';
-let _preTransientMode: MarqueeMode = 'off';
 let _marqueeModeListeners = new Set<() => void>();
 
 export function getMarqueeMode(): MarqueeMode { return _marqueeMode; }
-export function getPreTransientMode(): MarqueeMode { return _preTransientMode; }
 
 export function setMarqueeMode(m: MarqueeMode) {
-  if (m === 'transient') {
-    _preTransientMode = _marqueeMode;
-  }
   _marqueeMode = m;
   _marqueeModeListeners.forEach(fn => fn());
 }
@@ -27,6 +22,26 @@ export function useMarqueeMode(): MarqueeMode {
     return () => { _marqueeModeListeners.delete(fn); };
   }, []);
   return _marqueeMode;
+}
+
+let _transientMarquee = false;
+let _transientListeners = new Set<() => void>();
+
+export function getTransientMarquee(): boolean { return _transientMarquee; }
+
+export function setTransientMarquee(v: boolean) {
+  _transientMarquee = v;
+  _transientListeners.forEach(fn => fn());
+}
+
+export function useTransientMarquee(): boolean {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const fn = () => tick(n => n + 1);
+    _transientListeners.add(fn);
+    return () => { _transientListeners.delete(fn); };
+  }, []);
+  return _transientMarquee;
 }
 
 const LONG_PRESS_MS = 500;
@@ -146,7 +161,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
           });
           heldTarget.dispatchEvent(ctxEvent);
         } else {
-          setMarqueeMode('transient');
+          setTransientMarquee(true);
         }
       }, LONG_PRESS_MS);
     };

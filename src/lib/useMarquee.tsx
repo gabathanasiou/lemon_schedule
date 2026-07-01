@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getMarqueeMode, setMarqueeMode, getPreTransientMode } from './useLongPressMenu';
+import { getMarqueeMode, getTransientMarquee, setTransientMarquee } from './useLongPressMenu';
 
 interface MarqueeBox {
   left: number;
@@ -163,7 +163,7 @@ export function useMarquee(
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!active && e.pointerType === 'touch' && getMarqueeMode() === 'transient') {
+      if (!active && e.pointerType === 'touch' && getTransientMarquee()) {
         const rect = container.getBoundingClientRect();
         startX = e.clientX - rect.left + container.scrollLeft;
         startY = e.clientY - rect.top + container.scrollTop;
@@ -218,8 +218,8 @@ export function useMarquee(
 
     const onPointerUp = () => {
       if (!active) return;
-      if (getMarqueeMode() === 'transient') {
-        setMarqueeMode(getPreTransientMode());
+      if (getTransientMarquee()) {
+        setTransientMarquee(false);
       }
       stopAutoScroll();
       active = false;
