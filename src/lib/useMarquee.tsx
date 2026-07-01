@@ -75,18 +75,13 @@ export function useMarquee(
     let startX = 0, startY = 0;
     let active = false;
     let hadMovement = false;
-    let activationTimer: ReturnType<typeof setTimeout> | null = null;
-    let timerStartX = 0, timerStartY = 0;
 
-    const commitMarquee = (x: number, y: number) => {
-      const rect = container.getBoundingClientRect();
-      startX = x - rect.left + container.scrollLeft;
-      startY = y - rect.top + container.scrollTop;
-      active = true;
-      hadMovement = false;
-      document.body.style.userSelect = 'none';
-      document.body.style.webkitUserSelect = 'none';
-      setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
+    const setRowsDisabled = (v: boolean) => {
+      if (v) {
+        container.dataset.marqueeActive = '1';
+      } else {
+        delete container.dataset.marqueeActive;
+      }
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -110,32 +105,19 @@ export function useMarquee(
         e.stopPropagation();
       }
 
-      if (e.pointerType === 'touch') {
-        timerStartX = e.clientX;
-        timerStartY = e.clientY;
-        const cx = e.clientX;
-        const cy = e.clientY;
-        activationTimer = setTimeout(() => {
-          activationTimer = null;
-          commitMarquee(cx, cy);
-        }, 200);
-        return;
-      }
-
-      commitMarquee(e.clientX, e.clientY);
+      const rect = container.getBoundingClientRect();
+      startX = e.clientX - rect.left + container.scrollLeft;
+      startY = e.clientY - rect.top + container.scrollTop;
+      active = true;
+      hadMovement = false;
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+      setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
+      setRowsDisabled(true);
       e.preventDefault();
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (activationTimer) {
-        const dx = e.clientX - timerStartX;
-        const dy = e.clientY - timerStartY;
-        if (Math.sqrt(dx * dx + dy * dy) > 10) {
-          clearTimeout(activationTimer);
-          activationTimer = null;
-        }
-        return;
-      }
       if (!active) return;
       e.preventDefault();
       const rect = container.getBoundingClientRect();
@@ -169,16 +151,12 @@ export function useMarquee(
     };
 
     const onPointerUp = () => {
-      if (activationTimer) {
-        clearTimeout(activationTimer);
-        activationTimer = null;
-        return;
-      }
       if (!active) return;
       active = false;
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
       setMarqueeBox(null);
+      setRowsDisabled(false);
       if (hadMovement) {
         _marqueeJustEndedRef.current = true;
       } else {
@@ -193,6 +171,7 @@ export function useMarquee(
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      setRowsDisabled(false);
     };
   }, [containerRef, isEnabled]);
 
