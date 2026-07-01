@@ -35,7 +35,7 @@ const RING_SIZE = 88;
 const RING_STROKE = 4;
 
 function animateRing(ringEl: SVGElement, ms: number) {
-  const circle = ringEl.querySelector('circle')!;
+  const circle = ringEl.querySelectorAll('circle')[1]!;
   const total = 2 * Math.PI * 40;
   circle.style.strokeDasharray = String(total);
   circle.style.strokeDashoffset = String(total);
@@ -67,6 +67,15 @@ function LongPressIndicator({ x, y }: { x: number; y: number }) {
       }}
     >
       <svg ref={svgRef} width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
+        <circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={40}
+          fill="none"
+          stroke="rgba(0,0,0,0.45)"
+          strokeWidth={RING_STROKE + 2}
+          strokeLinecap="round"
+        />
         <circle
           cx={RING_SIZE / 2}
           cy={RING_SIZE / 2}
