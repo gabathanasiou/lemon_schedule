@@ -75,12 +75,50 @@ export function useMarquee(
     let startX = 0, startY = 0;
     let active = false;
     let hadMovement = false;
+    let mouseY = 0;
+    let autoScrollRaf: number | null = null;
 
     const setRowsDisabled = (v: boolean) => {
       if (v) {
         container.dataset.marqueeActive = '1';
       } else {
         delete container.dataset.marqueeActive;
+      }
+    };
+
+    const startAutoScroll = () => {
+      if (autoScrollRaf !== null) return;
+      let step = 0;
+      const buffer = 80;
+      const loop = () => {
+        const y = mouseY;
+        const crect = container.getBoundingClientRect();
+        if (y > crect.top + buffer && y < crect.bottom - buffer) {
+          autoScrollRaf = null;
+          return;
+        }
+        let target = container.scrollTop;
+        if (y <= crect.top + buffer) {
+          const t = 1 - (y - crect.top) / buffer;
+          const speed = 2 + t * t * 15;
+          step = step * 0.85 + speed * 0.15;
+          target = Math.max(0, container.scrollTop - step);
+        } else if (y >= crect.bottom - buffer) {
+          const t = (y - (crect.bottom - buffer)) / buffer;
+          const speed = 2 + t * t * 15;
+          step = step * 0.85 + speed * 0.15;
+          target = Math.min(container.scrollHeight - container.clientHeight, container.scrollTop + step);
+        }
+        container.scrollTop = target;
+        autoScrollRaf = requestAnimationFrame(loop);
+      };
+      autoScrollRaf = requestAnimationFrame(loop);
+    };
+
+    const stopAutoScroll = () => {
+      if (autoScrollRaf !== null) {
+        cancelAnimationFrame(autoScrollRaf);
+        autoScrollRaf = null;
       }
     };
 
@@ -120,6 +158,14 @@ export function useMarquee(
     const onPointerMove = (e: PointerEvent) => {
       if (!active) return;
       e.preventDefault();
+      mouseY = e.clientY;
+      const crect = container.getBoundingClientRect();
+      const edge = 80;
+      if (e.clientY < crect.top + edge || e.clientY > crect.bottom - edge) {
+        startAutoScroll();
+      } else {
+        stopAutoScroll();
+      }
       const rect = container.getBoundingClientRect();
       const curX = e.clientX - rect.left + container.scrollLeft;
       const curY = e.clientY - rect.top + container.scrollTop;
@@ -152,6 +198,7 @@ export function useMarquee(
 
     const onPointerUp = () => {
       if (!active) return;
+      stopAutoScroll();
       active = false;
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
@@ -168,6 +215,7 @@ export function useMarquee(
     container.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     return () => {
+      stopAutoScroll();
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
