@@ -7,6 +7,7 @@ interface DurationKeypadProps {
   onChange: (minutes: number) => void;
   display?: string;
   onExit?: () => void;
+  onOpen?: () => void;
   className?: string;
   autoFocus?: boolean;
   'data-row-id'?: string;
@@ -23,6 +24,7 @@ export default function DurationKeypad({
   onChange,
   display,
   onExit,
+  onOpen,
   className = '',
   autoFocus = false,
   ...rest
@@ -52,7 +54,8 @@ export default function DurationKeypad({
     setIsPristine(true);
     setOpen(true);
     openRef.current = true;
-  }, [reposition, displayText]);
+    onOpen?.();
+  }, [reposition, displayText, onOpen]);
 
   useEffect(() => {
     if (autoFocus) {

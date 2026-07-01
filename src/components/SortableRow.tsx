@@ -212,6 +212,7 @@ const SortableRowContent: React.FC<{
                       onChange={val => updateRow({estimatedDuration: val})}
                       display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
                       className={`${inputClass} text-center`}
+                      onOpen={() => onRowNavigate?.(row.id)}
                     />
                   </div>
                 );
@@ -256,6 +257,7 @@ const SortableRowContent: React.FC<{
                         display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
                         className={`${inputClass} text-center`}
                         autoFocus={focusedRowId === row.id}
+                        onOpen={() => onRowNavigate?.(row.id)}
                       />
                     </td>
                     <td className="col-ie" />
@@ -352,6 +354,7 @@ const SortableRowContent: React.FC<{
                       value={row.breakDuration || 0}
                       onChange={val => updateRow({breakDuration: val})}
                       className={`${inputClass} text-center`}
+                      onOpen={() => onRowNavigate?.(row.id)}
                     />
                   </div>
                 );
@@ -395,6 +398,7 @@ const SortableRowContent: React.FC<{
                         onChange={val => updateRow({breakDuration: val})}
                         className={`${inputClass} text-center`}
                         autoFocus={focusedRowId === row.id}
+                        onOpen={() => onRowNavigate?.(row.id)}
                       />
                     </td>
                     <td className="col-ie" />
@@ -516,6 +520,7 @@ const SortableRowContent: React.FC<{
             display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
             className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
             autoFocus={focusedRowId === row.id}
+            onOpen={() => onRowNavigate?.(row.id)}
           />
         </td>
       );
@@ -693,6 +698,7 @@ const SortableRowContent: React.FC<{
             display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
             className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
             autoFocus={focusedRowId === row.id} 
+            onOpen={() => onRowNavigate?.(row.id)}
           />
         </div>
       );
@@ -883,6 +889,7 @@ const SortableRowContent: React.FC<{
                     display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
                     className={`${inputClass} text-center`}
                     autoFocus={focusedRowId === row.id}
+                    onOpen={() => onRowNavigate?.(row.id)}
                   />
                 </td>}
                 <td className="col-ie">
