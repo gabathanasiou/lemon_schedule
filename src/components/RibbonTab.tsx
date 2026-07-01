@@ -1013,13 +1013,13 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                       <div key={i} className="relative h-full">
                         {i < colWidths.length - 1 && (
                           <div
-                            className={`absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center ${IS_COARSE ? '-mx-1.5 -my-1 px-1.5 py-1' : ''}`}
+                            className="absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center"
                             style={{ transform: 'translateX(50%)' }}
                             onPointerDown={e => startResize(i, e)}
                             onClick={e => e.stopPropagation()}
                           >
-                            <div className={`${IS_COARSE ? 'border-l-[7px] border-r-[7px] border-t-[8px]' : 'border-l-[5px] border-r-[5px] border-t-[6px]'} border-l-transparent border-r-transparent border-t-zinc-500/40 group-hover/tab:border-t-blue-400 group-active/tab:border-t-blue-500 transition-colors`} />
-                            <div className={`${IS_COARSE ? 'w-px h-5' : 'w-px h-3.5'} mx-auto bg-zinc-500/40 group-hover/tab:bg-blue-400 group-active/tab:bg-blue-500 transition-colors`} />
+                            <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-t-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-t-[14px]' : 'border-l-[5px] border-r-[5px] border-t-[6px] group-active/tab:border-l-[6px] group-active/tab:border-r-[6px] group-active/tab:border-t-[8px]'} border-l-transparent border-r-transparent border-t-zinc-500/40 group-hover/tab:border-t-blue-400 group-active/tab:border-t-blue-500 transition-all`} />
+                            <div className={`${IS_COARSE ? 'w-px h-5 group-active/tab:h-8' : 'w-px h-3.5 group-active/tab:h-5'} mx-auto bg-zinc-500/40 group-hover/tab:bg-blue-400 group-active/tab:bg-blue-500 transition-all`} />
                           </div>
                         )}
                       </div>
