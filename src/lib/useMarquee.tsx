@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getMarqueeMode, setMarqueeMode } from './useLongPressMenu';
+import { getMarqueeMode, setMarqueeMode, getPreTransientMode } from './useLongPressMenu';
 
 interface MarqueeBox {
   left: number;
@@ -219,7 +219,7 @@ export function useMarquee(
     const onPointerUp = () => {
       if (!active) return;
       if (getMarqueeMode() === 'transient') {
-        setMarqueeMode('tool');
+        setMarqueeMode(getPreTransientMode());
       }
       stopAutoScroll();
       active = false;

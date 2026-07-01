@@ -5,11 +5,16 @@ import { IS_COARSE } from './device';
 type MarqueeMode = 'off' | 'tool' | 'transient';
 
 let _marqueeMode: MarqueeMode = 'off';
+let _preTransientMode: MarqueeMode = 'off';
 let _marqueeModeListeners = new Set<() => void>();
 
 export function getMarqueeMode(): MarqueeMode { return _marqueeMode; }
+export function getPreTransientMode(): MarqueeMode { return _preTransientMode; }
 
 export function setMarqueeMode(m: MarqueeMode) {
+  if (m === 'transient') {
+    _preTransientMode = _marqueeMode;
+  }
   _marqueeMode = m;
   _marqueeModeListeners.forEach(fn => fn());
 }
@@ -104,9 +109,8 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       if (e.pointerType !== 'touch' || e.button !== 0) return;
       const target = e.target as HTMLElement;
       if (isInteractiveElement(target)) return;
-      if (_marqueeMode !== 'tool') return;
-
       const inRow = !!target.closest('[data-row-id]');
+      if (inRow && _marqueeMode !== 'tool') return;
 
       const x = e.clientX;
       const y = e.clientY;
