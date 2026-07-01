@@ -13,6 +13,9 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import MiniTab from './MiniTab';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
+import { IS_COARSE } from '../lib/device';
+import { useMarquee, useAddMode } from '../lib/useMarquee';
+import { useMarqueeMode } from '../lib/useLongPressMenu';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -86,6 +89,30 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const spreadsheetRef = useRef<any>(null);
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const marqueeMode = useMarqueeMode();
+
+  useMarquee(
+    scrollRef,
+    useCallback((ids, isAddMode) => {
+      const indices = new Set<number>();
+      for (const id of ids) {
+        const sceneId = id.startsWith('scene-') ? id.slice(6) : id;
+        const idx = scenes.findIndex(s => s.id === sceneId);
+        if (idx >= 0) indices.add(idx);
+      }
+      setSelectedRows(prev => isAddMode ? new Set([...prev, ...indices]) : indices);
+    }, [scenes]),
+    IS_COARSE && subTab === 'scenes',
+  );
+
+  useEffect(() => {
+    if (!scrollRef.current || subTab !== 'scenes') return;
+    const rows = scrollRef.current.querySelectorAll('.Spreadsheet__table tbody tr');
+    for (let i = 0; i < scenes.length && i < rows.length; i++) {
+      rows[i].setAttribute('data-row-id', `scene-${scenes[i].id}`);
+    }
+  }, [scenes, subTab]);
 
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
@@ -156,10 +183,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     if (!scene) return null;
     return (
       <div
-        className="flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-colors"
+        className={`flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-colors ${IS_COARSE ? 'px-2' : ''}`}
         onMouseDown={e => { e.stopPropagation(); deleteScene(scene.id); }}
       >
-        <Trash2 className="w-4 h-4 text-red-400/60 hover:text-red-600 transition-colors" />
+        <Trash2 className={`text-red-400/60 hover:text-red-600 transition-colors ${IS_COARSE ? 'w-5 h-5' : 'w-4 h-4'}`} />
       </div>
     );
   }, [scenes, deleteScene]);
@@ -294,7 +321,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     return map;
   }, [scenes, project.breakdownElements]);
 
-  const DEFAULT_WIDTHS = [28, 60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
+  const DEFAULT_WIDTHS = IS_COARSE
+    ? [44, 90, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+    : [28, 60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
   const [widthVersion, setWidthVersion] = useState(0);
 
@@ -378,10 +407,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     return rows;
   }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors]);
 
-  const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => (
+  const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => {
+    const w = IS_COARSE ? 26 : 17;
+    return (
     <td
       className={`Spreadsheet__header text-center cursor-pointer select-none transition-colors ${selected ? 'bg-blue-50' : ''}`}
-      style={{ width: 17, minWidth: 17, maxWidth: 17, fontSize: row < 0 ? 7 : 10, fontWeight: 500 }}
+      style={{ width: w, minWidth: w, maxWidth: w, fontSize: row < 0 ? (IS_COARSE ? 9 : 7) : (IS_COARSE ? 13 : 10), fontWeight: 500 }}
       onMouseDown={(e) => {
         if (row < 0) return;
         onSelect(row, e.shiftKey);
@@ -397,7 +428,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         if (row >= 0) setContextMenu({ x: e.clientX, y: e.clientY, row });
       }}
     >{row < 0 ? '#' : row + 1}</td>
-  ), [onOpenSheet, setContextMenu]);
+    );
+  }, [onOpenSheet, setContextMenu]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
     const phantomIndex = scenes.length;
@@ -755,7 +787,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       />
       {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : (
         <>
-      <div className="flex-1 overflow-auto bg-white">
+      <div ref={scrollRef} className="flex-1 overflow-auto bg-white" style={IS_COARSE && marqueeMode === 'tool' ? { touchAction: 'none' } : undefined}>
       <div className="min-w-[800px]">
             <style>{`
              .Spreadsheet {
@@ -868,8 +900,15 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
              .column-resize-handle:active {
                background: rgba(37, 99, 235, 0.3);
              }
-              ${widthStyle}
-            `}</style>
+               ${IS_COARSE ? `
+              .Spreadsheet__cell { height: 40px; }
+              .Spreadsheet__cell input { padding: 8px 10px; font-size: 14px; }
+              .Spreadsheet__cell .Spreadsheet__data-viewer { padding: 8px 10px; min-height: 40px; font-size: 14px; }
+              .Spreadsheet__header-label { padding: 6px 10px; }
+              .Spreadsheet__data-editor .uppercase { font-size: 14px; }
+             ` : ''}
+               ${widthStyle}
+             `}</style>
            <div onContextMenu={handleCellContextMenu}>
            <Spreadsheet
              ref={spreadsheetRef}
@@ -905,7 +944,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                  setSelectionRange(null);
                }
              }}
-             onActivate={(point) => setActiveCell(point)}
+             onActivate={(point) => {
+              if (IS_COARSE && marqueeMode === 'tool') return;
+              setActiveCell(point);
+            }}
              onKeyDown={e => {
                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                  e.preventDefault();

@@ -36,6 +36,9 @@ import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID } from './lib/utils';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
+import { IS_COARSE } from './lib/device';
+import SelectionModeButton from './components/SelectionModeButton';
+import KeyboardToggleButton from './components/KeyboardToggleButton';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -762,6 +765,8 @@ function AppContent() {
       )}
 
     </div>
+    {IS_COARSE && <SelectionModeButton />}
+    {IS_COARSE && <KeyboardToggleButton />}
     </LongPressMenuProvider>
   );
 }

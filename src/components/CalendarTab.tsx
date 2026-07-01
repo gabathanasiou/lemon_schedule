@@ -24,7 +24,6 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
-import MarqueeToolButton from './MarqueeToolButton';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 
@@ -1183,7 +1182,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
         </Modal>
       )}
     </DndContext>
-    <MarqueeToolButton />
     </>
   );
 };

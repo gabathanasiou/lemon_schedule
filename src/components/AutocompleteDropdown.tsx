@@ -100,6 +100,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         autoFocus={autoFocusProp}
+        readOnly={IS_COARSE}
         value={open ? val : value}
         onChange={e => { const typed = normalize(e.target.value); setVal(typed); if (showAll) { const idx = options.findIndex(opt => opt.includes(typed)); setHighlightedIndex(idx >= 0 ? idx : 0); } else { setHighlightedIndex(0); } if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
         onClick={() => { setVal(value); if (!open) { const full = showAll ? options : options.filter(opt => opt.includes(normalize(value))); const idx = full.findIndex(opt => opt === normalize(value)); setHighlightedIndex(idx >= 0 ? idx : 0); standalone ? setOpen(true) : handleOpen(); } }}

@@ -3,7 +3,7 @@ import { MousePointerSquareDashed } from 'lucide-react';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode, setMarqueeMode } from '../lib/useLongPressMenu';
 
-export default function MarqueeToolButton() {
+export default function SelectionModeButton() {
   if (!IS_COARSE) return null;
 
   const mode = useMarqueeMode();
@@ -21,7 +21,7 @@ export default function MarqueeToolButton() {
       }}
       style={{
         position: 'fixed',
-        bottom: 16,
+        bottom: 80,
         right: 16,
         zIndex: 100,
         width: 48,

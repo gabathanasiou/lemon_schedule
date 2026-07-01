@@ -43,6 +43,26 @@ export function useViewMode(): [ViewMode, (m: ViewMode) => void, number | null] 
   return [mode, setViewMode, VIEW_WIDTHS[mode]];
 }
 
+export type KeyboardMode = 'on' | 'off';
+
+const KEYBOARD_MODE_KEY = 'lemon_schedule_keyboard_mode';
+
+export function useKeyboardMode(): [KeyboardMode, (m: KeyboardMode) => void] {
+  const [mode, setMode] = useState<KeyboardMode>(() => {
+    try {
+      const stored = localStorage.getItem(KEYBOARD_MODE_KEY);
+      return stored === 'on' || stored === 'off' ? stored : 'off';
+    } catch { return 'off'; }
+  });
+
+  const setKeyboardMode = useCallback((m: KeyboardMode) => {
+    setMode(m);
+    try { localStorage.setItem(KEYBOARD_MODE_KEY, m); } catch {}
+  }, []);
+
+  return [mode, setKeyboardMode];
+}
+
 export type CellBorders = 'none' | 'vertical' | 'horizontal' | 'both';
 
 const CELL_BORDERS_KEY = 'lemon_schedule_cell_borders';

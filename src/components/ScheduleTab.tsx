@@ -15,7 +15,6 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
-import MarqueeToolButton from './MarqueeToolButton';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
@@ -1521,7 +1520,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       )}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </DndContext>
-    <MarqueeToolButton />
   </div>
 );
 }

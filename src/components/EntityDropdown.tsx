@@ -29,6 +29,7 @@ import { useProject } from '../store';
 import { useDropdown, sortCastMembers } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { IS_COARSE } from '../lib/device';
+import { useKeyboardMode } from '../lib/persist';
 
 const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
@@ -227,6 +228,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 });
   const committedRef = useRef(false);
   const syntheticRef = useRef(false);
+  const [keyboardMode] = useKeyboardMode();
 
   const forceOpen = useCallback(() => {
     committedRef.current = false;
@@ -422,6 +424,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
       <input
         autoFocus={autoFocusProp}
+        readOnly={IS_COARSE && keyboardMode === 'off'}
         value={displayValue}
         onChange={e => {
           const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
