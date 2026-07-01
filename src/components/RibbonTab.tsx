@@ -1013,12 +1013,12 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                       <div key={i} className="relative h-full">
                         {i < colWidths.length - 1 && (
                           <div
-                            className={`absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center translate-x-1/2 group-active/tab:-translate-y-2.5 transition-transform touch-none ${IS_COARSE ? 'px-2.5' : ''}`}
+                            className={`absolute right-0 bottom-0 cursor-col-resize group/tab z-10 flex flex-col items-center justify-end translate-x-1/2 group-active/tab:-translate-y-2.5 transition-transform touch-none ${IS_COARSE ? 'px-2.5' : ''}`}
                             onPointerDown={e => startResize(i, e)}
                             onClick={e => e.stopPropagation()}
                           >
-                            <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-t-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-t-[14px]' : 'border-l-[5px] border-r-[5px] border-t-[6px] group-active/tab:border-l-[6px] group-active/tab:border-r-[6px] group-active/tab:border-t-[8px]'} border-l-transparent border-r-transparent border-t-zinc-500/40 group-hover/tab:border-t-blue-400 group-active/tab:border-t-blue-500 transition-all`} />
                             <div className={`${IS_COARSE ? 'w-px h-5 group-active/tab:h-8' : 'w-px h-3.5 group-active/tab:h-5'} mx-auto bg-zinc-500/40 group-hover/tab:bg-blue-400 group-active/tab:bg-blue-500 transition-all`} />
+                            <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-b-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-b-[14px]' : 'border-l-[5px] border-r-[5px] border-b-[6px] group-active/tab:border-l-[6px] group-active/tab:border-r-[6px] group-active/tab:border-b-[8px]'} border-l-transparent border-r-transparent border-b-zinc-500/40 group-hover/tab:border-b-blue-400 group-active/tab:border-b-blue-500 transition-all`} />
                           </div>
                         )}
                       </div>
