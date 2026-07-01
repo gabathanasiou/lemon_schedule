@@ -1013,7 +1013,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                       <div key={i} className="relative h-full">
                         {i < colWidths.length - 1 && (
                           <div
-                            className="absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center translate-x-1/2 group-active/tab:-translate-y-2.5 transition-transform touch-none"
+                            className={`absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center translate-x-1/2 group-active/tab:-translate-y-2.5 transition-transform touch-none ${IS_COARSE ? 'px-2.5' : ''}`}
                             onPointerDown={e => startResize(i, e)}
                             onClick={e => e.stopPropagation()}
                           >
