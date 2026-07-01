@@ -28,6 +28,9 @@ const unscheduledBlockPropsEqual = (a: any, b: any) => {
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
+  if (a.onRowClick !== b.onRowClick) return false;
+  if (a.onSelectionChange !== b.onSelectionChange) return false;
+  if (a.onRowDoubleClick !== b.onRowDoubleClick) return false;
   return true;
 };
 

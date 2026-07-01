@@ -78,7 +78,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       setLastClickedId(id);
     } else if (marqueeMode === 'tool') {
       e.stopPropagation();
-      setSelectedRowIds(prev => new Set([...prev, id]));
+      setSelectedRowIds(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
       setLastClickedId(id);
     } else if (e.shiftKey && id.startsWith('empty-')) {
       return;
@@ -1299,12 +1303,14 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               if (rowEl) {
                  e.preventDefault();
                  const rowId = rowEl.getAttribute('data-row-id')!;
-                 if (!selectedRowIds.has(rowId)) {
-                   if (marqueeMode === 'tool') {
-                     setSelectedRowIds(prev => new Set([...prev, rowId]));
-                   } else {
-                     setSelectedRowIds(new Set([rowId]));
-                   }
+                 if (marqueeMode === 'tool') {
+                   setSelectedRowIds(prev => {
+                     const next = new Set(prev);
+                     if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
+                     return next;
+                   });
+                 } else if (!selectedRowIds.has(rowId)) {
+                   setSelectedRowIds(new Set([rowId]));
                  }
                  const shootDayAttr = rowEl.getAttribute('data-shoot-day');
                  const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);

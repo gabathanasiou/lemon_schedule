@@ -287,11 +287,15 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       e.stopPropagation();
       const rowId = rowEl.getAttribute('data-row-id')!;
       if (!selectedRowIds.has(rowId)) {
-        if (getMarqueeMode() === 'tool') {
-          setSelectedRowIds(prev => new Set([...prev, rowId]));
-        } else {
-          setSelectedRowIds(new Set([rowId]));
-        }
+      if (getMarqueeMode() === 'tool') {
+        setSelectedRowIds(prev => {
+          const next = new Set(prev);
+          if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
+          return next;
+        });
+      } else if (!selectedRowIds.has(rowId)) {
+        setSelectedRowIds(new Set([rowId]));
+      }
       }
       const shootDayAttr = rowEl.getAttribute('data-shoot-day');
       const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);

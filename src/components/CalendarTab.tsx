@@ -662,7 +662,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
       setLastClickedId(id);
     } else if (marqueeMode === 'tool') {
       e.stopPropagation();
-      setSelectedRowIds(prev => new Set([...prev, id]));
+      setSelectedRowIds(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
       setLastClickedId(id);
     } else if (e.shiftKey && lastClickedId) {
       e.stopPropagation();
