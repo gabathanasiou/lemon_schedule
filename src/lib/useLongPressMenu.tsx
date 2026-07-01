@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { IS_COARSE } from './device';
 
-type MarqueeMode = 'off' | 'tool' | 'transient';
+type MarqueeMode = 'off' | 'tool';
 
 let _marqueeMode: MarqueeMode = 'off';
 let _marqueeModeListeners = new Set<() => void>();
@@ -104,6 +104,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       if (e.pointerType !== 'touch' || e.button !== 0) return;
       const target = e.target as HTMLElement;
       if (isInteractiveElement(target)) return;
+      if (_marqueeMode !== 'tool') return;
       if (!target.closest('[data-row-id]')) return;
 
       const x = e.clientX;
@@ -130,10 +131,6 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
         });
 
         heldTarget.dispatchEvent(ctxEvent);
-
-        if (!ctxEvent.defaultPrevented) {
-          setMarqueeMode('transient');
-        }
       }, LONG_PRESS_MS);
     };
 
