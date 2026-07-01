@@ -14,6 +14,11 @@ export const RulesTab: React.FC = () => {
   const scenes = project.scenes;
   const castMembers = project.castMembers || [];
 
+  const resolveCastName = (castId: string) => {
+    const cm = castMembers.find(c => c.id === castId);
+    return cm ? `${cm.id}. ${cm.name}` : castId;
+  };
+
   const [showForm, setShowForm] = useState(false);
   const [editingRule, setEditingRule] = useState<ProjectRule | null>(null);
   const [search, setSearch] = useState('');
@@ -190,7 +195,7 @@ export const RulesTab: React.FC = () => {
                         ) : (
                           <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                         )}
-                        <span className="font-mono font-bold text-zinc-700 text-sm">Cast {castId}</span>
+                        <span className="font-mono font-bold text-zinc-700 text-sm">{resolveCastName(castId)}</span>
                         <span className="text-xs text-zinc-500">·</span>
                         <span className="text-xs text-zinc-500">
                           {castRules.length} {castRules.length === 1 ? 'rule' : 'rules'}
@@ -203,7 +208,6 @@ export const RulesTab: React.FC = () => {
                               key={rule.id}
                               rule={rule}
                               onEdit={() => handleEdit(rule)}
-                              onDelete={() => handleDelete(rule)}
                             />
                           ))}
                         </div>
@@ -224,6 +228,7 @@ export const RulesTab: React.FC = () => {
         castMembers={castMembers}
         onClose={() => { setShowForm(false); setEditingRule(null); }}
         onSave={handleSave}
+        onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
       />
     </>
   );

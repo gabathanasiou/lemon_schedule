@@ -5,7 +5,7 @@ import {
   RULE_TYPE_META, RuleFormState, RuleType, blankRuleForm, formFromRule,
 } from './ruleMeta';
 import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFields, CastSceneFlagFields } from './RuleFormFields';
-import { X, AlertCircle, Info } from 'lucide-react';
+import { X, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { EntityDropdown } from '../EntityDropdown';
 
 interface RuleFormModalProps {
@@ -15,10 +15,11 @@ interface RuleFormModalProps {
   castMembers: CastMember[];
   onClose: () => void;
   onSave: (rules: ProjectRule[]) => void;
+  onDelete?: () => void;
 }
 
 export const RuleFormModal: React.FC<RuleFormModalProps> = ({
-  open, initial, scenes, castMembers, onClose, onSave,
+  open, initial, scenes, castMembers, onClose, onSave, onDelete,
 }) => {
   const [form, setForm] = useState<RuleFormState>(blankRuleForm());
   const [error, setError] = useState('');
@@ -243,19 +244,32 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-200 bg-zinc-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
-          >
-            {initial ? 'Save Changes' : 'Add Rule'}
-          </button>
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-zinc-200 bg-zinc-50">
+          {initial && onDelete ? (
+            <button
+              onClick={onDelete}
+              className="px-3 py-2 rounded-md text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Rule
+            </button>
+          ) : (
+            <div />
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+            >
+              {initial ? 'Save Changes' : 'Add Rule'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

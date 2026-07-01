@@ -2,23 +2,25 @@ import React from 'react';
 import { ProjectRule } from '../../types';
 import { cn } from '../../lib/utils';
 import { RULE_TYPE_META, describeRule } from './ruleMeta';
-import { Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 interface RuleCardProps {
   rule: ProjectRule;
   onEdit: () => void;
-  onDelete: () => void;
 }
 
-export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, onDelete }) => {
+export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit }) => {
   const meta = RULE_TYPE_META[rule.type];
   const Icon = meta.icon;
 
   return (
-    <div className={cn(
-      'group bg-white border rounded-lg p-3 flex items-center gap-3 transition-all hover:shadow-sm',
-      meta.border
-    )}>
+    <button
+      onClick={onEdit}
+      className={cn(
+        'w-full text-left bg-white border rounded-lg p-3 flex items-center gap-3 transition-all hover:shadow-sm cursor-pointer',
+        meta.border
+      )}
+    >
       <div className={cn('w-9 h-9 rounded-md flex items-center justify-center shrink-0', meta.bg)}>
         <Icon className={cn('w-4 h-4', meta.text)} />
       </div>
@@ -32,22 +34,7 @@ export const RuleCard: React.FC<RuleCardProps> = ({ rule, onEdit, onDelete }) =>
           </span>
         </div>
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={onEdit}
-          className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors"
-          title="Edit rule"
-        >
-          <Pencil className="w-3.5 h-3.5" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="p-1.5 rounded-md text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-          title="Delete rule"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
+      <ChevronRight className="w-4 h-4 text-zinc-300 shrink-0" />
+    </button>
   );
 };
