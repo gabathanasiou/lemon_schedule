@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { IS_COARSE } from './device';
 
-type MarqueeMode = 'off' | 'tool';
+type MarqueeMode = 'off' | 'tool' | 'transient';
 
 let _marqueeMode: MarqueeMode = 'off';
 let _marqueeModeListeners = new Set<() => void>();
@@ -105,7 +105,8 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       const target = e.target as HTMLElement;
       if (isInteractiveElement(target)) return;
       if (_marqueeMode !== 'tool') return;
-      if (!target.closest('[data-row-id]')) return;
+
+      const inRow = !!target.closest('[data-row-id]');
 
       const x = e.clientX;
       const y = e.clientY;
@@ -121,16 +122,19 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
         const heldTarget = startRef.current.target as HTMLElement | null;
         if (!heldTarget) return;
 
-        const ctxEvent = new MouseEvent('contextmenu', {
-          bubbles: true,
-          cancelable: true,
-          clientX: x,
-          clientY: y,
-          button: 2,
-          view: window,
-        });
-
-        heldTarget.dispatchEvent(ctxEvent);
+        if (inRow) {
+          const ctxEvent = new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: x,
+            clientY: y,
+            button: 2,
+            view: window,
+          });
+          heldTarget.dispatchEvent(ctxEvent);
+        } else {
+          setMarqueeMode('transient');
+        }
       }, LONG_PRESS_MS);
     };
 
