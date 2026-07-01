@@ -1004,7 +1004,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               <div className="space-y-5 pb-5">
 
                 {/* Column resize tabs */}
-                <div className="h-5 select-none" style={{ paddingLeft: activeDesign.edgePadding ?? 2, paddingRight: activeDesign.edgePadding ?? 2 }}>
+                <div className={`${IS_COARSE ? 'h-10' : 'h-5'} select-none`} style={{ paddingLeft: activeDesign.edgePadding ?? 2, paddingRight: activeDesign.edgePadding ?? 2 }}>
                   <div ref={tabBarRef} className="h-full relative" style={{
                     display: 'grid',
                     gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
@@ -1013,8 +1013,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                       <div key={i} className="relative h-full">
                         {i < colWidths.length - 1 && (
                           <div
-                            className="absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center"
-                            style={{ transform: 'translateX(50%)' }}
+                            className="absolute right-0 top-0 cursor-col-resize group/tab z-10 flex flex-col items-center translate-x-1/2 group-active/tab:-translate-y-2.5 transition-transform"
                             onPointerDown={e => startResize(i, e)}
                             onClick={e => e.stopPropagation()}
                           >
