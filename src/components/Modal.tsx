@@ -117,11 +117,13 @@ export default function Modal({
   return (
     <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" />
+        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" style={{ touchAction: 'manipulation' }} />
         <RadixDialog.Content
           ref={contentRef}
           className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
           style={{ touchAction: 'manipulation', ...(Object.keys(combinedStyle).length > 0 ? combinedStyle : {}) }}
+          onPointerDownOutside={(e) => { if ((e as any).nativeEvent?.pointerType === 'pen') e.preventDefault(); }}
+          onInteractOutside={(e) => { if ((e as any).nativeEvent?.pointerType === 'pen') e.preventDefault(); }}
         >
           <div
             className={`flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 shrink-0 select-none bg-zinc-950 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
@@ -142,7 +144,7 @@ export default function Modal({
                   Reset
                 </button>
               )}
-              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0">
+              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0" onPointerDown={(e) => { if ((e as any).pointerType === 'pen') { e.preventDefault(); onClose(); } }}>
                 <X className="w-3.5 h-3.5" />
               </RadixDialog.Close>
             </div>

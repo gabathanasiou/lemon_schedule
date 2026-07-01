@@ -371,7 +371,7 @@ function AppContent() {
                 Import Screenplay (FDX, Fountain, TXT)...
               </DropdownItem>
               <DropdownDivider />
-              <DropdownSubmenu label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
+              <DropdownSubmenu id="export-file" label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
                 <DropdownItem onClick={() => { setShowFileMenu(false); handleExportCSV(); }}>
                   Breakdown to CSV
                 </DropdownItem>
@@ -379,7 +379,7 @@ function AppContent() {
                   Export Project
                 </DropdownItem>
               </DropdownSubmenu>
-              <DropdownSubmenu label="Print" icon={<Printer className="w-3.5 h-3.5" />} width="w-48">
+              <DropdownSubmenu id="print-file" label="Print" icon={<Printer className="w-3.5 h-3.5" />} width="w-48">
                 <DropdownItem onClick={() => { setShowFileMenu(false); setShowPrintDialog(true); }}>
                   Schedule...
                 </DropdownItem>

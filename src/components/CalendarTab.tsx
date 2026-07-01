@@ -917,7 +917,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
                   </button>
                 }
               >
-                <DropdownSubmenu label="Display Field" side="left" width="w-44" icon={<AlignLeft className="w-3.5 h-3.5" />}>
+                <DropdownSubmenu id="display-field" label="Display Field" side="left" width="w-44" icon={<AlignLeft className="w-3.5 h-3.5" />}>
                   {availableFields.map(f => {
                     const Icon = f.key === 'description' ? AlignLeft : CAT_ICONS[f.key] || getCustomIcon((project.customCategories || []).find(c => c.key === f.key)?.icon || 'Tag');
                     return (

@@ -1185,7 +1185,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   </button>
               }
             >
-              <DropdownSubmenu label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
+              <DropdownSubmenu id="ribbon-layout" label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
                 {project.ribbonDesigns.map(d => (
                 <DropdownItem
                     key={d.id}
@@ -1196,7 +1196,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   </DropdownItem>
                 ))}
               </DropdownSubmenu>
-              <DropdownSubmenu label="Stripboard View" icon={<Monitor className="w-3.5 h-3.5" />} width="w-44">
+              <DropdownSubmenu id="stripboard-view" label="Stripboard View" icon={<Monitor className="w-3.5 h-3.5" />} width="w-44">
                 {(['portrait', 'landscape', 'full'] as const).map(m => (
                   <DropdownItem
                     key={m}
@@ -1208,7 +1208,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                 ))}
               </DropdownSubmenu>
               <DropdownDivider />
-              <DropdownSubmenu label="Cell Borders" icon={<Table className="w-3.5 h-3.5" />} width="w-44">
+              <DropdownSubmenu id="cell-borders" label="Cell Borders" icon={<Table className="w-3.5 h-3.5" />} width="w-44">
                 {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
                   <DropdownItem
                     key={m}
