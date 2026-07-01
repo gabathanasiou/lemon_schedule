@@ -82,9 +82,11 @@ export function useMarquee(
       if (v) {
         container.dataset.marqueeActive = '1';
         container.style.touchAction = 'none';
+        document.body.style.touchAction = 'none';
       } else {
         delete container.dataset.marqueeActive;
         container.style.touchAction = '';
+        document.body.style.touchAction = '';
       }
     };
 
