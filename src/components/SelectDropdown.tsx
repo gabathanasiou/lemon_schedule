@@ -34,7 +34,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(initialIdx >= 0 ? initialIdx : 0);
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 });
 
   const handleOpen = useOpenHandler(setOpen);
 
@@ -91,7 +91,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
               ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[120px]'
               : `absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[120px]`
           }
-          style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
+          style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH } : {}}
         >
           {options.map((opt, i) => (
             <div

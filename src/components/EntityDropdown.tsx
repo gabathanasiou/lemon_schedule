@@ -224,7 +224,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const items = externalItems ?? storeItems;
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 });
   const committedRef = useRef(false);
   const syntheticRef = useRef(false);
 
@@ -475,7 +475,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           className={`${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
-          <div ref={scrollRef} className="overflow-y-auto max-h-72">
+          <div ref={scrollRef} className="overflow-y-auto max-h-72" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined}>
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
             const checked = currentIds.includes(itemKey(m));
             const highlighted = highlightedIndex === idx;
