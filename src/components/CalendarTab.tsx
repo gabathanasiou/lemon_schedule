@@ -99,6 +99,8 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
     transition,
     ...(isDragging ? { opacity: 0.3 } : {}),
     userSelect: 'none' as const,
+    WebkitUserSelect: 'none' as const,
+    WebkitTouchCallout: 'none' as const,
   };
     return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
@@ -671,6 +673,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
   };
 
   const handleRowDoubleClick = useCallback((id: string) => {
+    if (marqueeMode !== 'off') return;
     const activeEl = document.activeElement;
     if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
       const rowEl = activeEl.closest(`[data-row-id="${id}"]`);
@@ -682,7 +685,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
       onOpenScene(row.sceneId);
     }
-  }, [activeVersion, onOpenScene]);
+  }, [activeVersion, onOpenScene, marqueeMode]);
 
   const applyNoteColor = useCallback(() => {
     if (!colorPicker || !activeVersion) return;

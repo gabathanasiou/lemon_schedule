@@ -1019,6 +1019,8 @@ export const SortableRow: React.FC<{
     transition,
     opacity: isDragging && !isOverlay ? 0.3 : undefined,
     userSelect: 'none' as const,
+    WebkitUserSelect: 'none' as const,
+    WebkitTouchCallout: 'none' as const,
   };
 
   return (

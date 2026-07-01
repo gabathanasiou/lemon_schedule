@@ -43,7 +43,10 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
+  const marqueeMode = useMarqueeMode();
+
   const handleRowDoubleClick = useCallback((id: string) => {
+    if (marqueeMode !== 'off') return;
     if (textEditingEnabled) return;
     const activeEl = document.activeElement;
     if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
@@ -56,7 +59,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
       onOpenScene(row.sceneId);
     }
-  }, [activeVersion, onOpenScene]);
+  }, [activeVersion, onOpenScene, marqueeMode]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (textEditingEnabled) return;
@@ -618,7 +621,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   }, []);
 
   const ctrlOrCmdHeld = useAddMode();
-  const marqueeMode = useMarqueeMode();
 
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     scheduleScrollRef,

@@ -26,12 +26,12 @@ export function useMarqueeMode(): MarqueeMode {
 
 const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE = 5;
-const RING_SIZE = 44;
-const RING_STROKE = 3;
+const RING_SIZE = 88;
+const RING_STROKE = 4;
 
 function animateRing(ringEl: SVGElement, ms: number) {
   const circle = ringEl.querySelector('circle')!;
-  const total = 2 * Math.PI * 19;
+  const total = 2 * Math.PI * 40;
   circle.style.strokeDasharray = String(total);
   circle.style.strokeDashoffset = String(total);
   const start = performance.now();
@@ -65,7 +65,7 @@ function LongPressIndicator({ x, y }: { x: number; y: number }) {
         <circle
           cx={RING_SIZE / 2}
           cy={RING_SIZE / 2}
-          r={19}
+          r={40}
           fill="none"
           stroke="rgba(255,255,255,0.85)"
           strokeWidth={RING_STROKE}
@@ -87,7 +87,7 @@ function isInteractiveElement(el: HTMLElement): boolean {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return true;
   if (el.isContentEditable) return true;
   if (el.closest('[data-no-longpress]')) return true;
-  if (el.closest('button, input, select, textarea, [role="button"]')) return true;
+  if (el.closest('button, input, select, textarea')) return true;
   return false;
 }
 
@@ -130,6 +130,10 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
         });
 
         heldTarget.dispatchEvent(ctxEvent);
+
+        if (!ctxEvent.defaultPrevented) {
+          setMarqueeMode('transient');
+        }
       }, LONG_PRESS_MS);
     };
 
