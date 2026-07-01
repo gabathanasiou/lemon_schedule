@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronRight } from 'lucide-react';
 import { useDropdownTheme } from './DropdownMenu';
@@ -15,6 +15,7 @@ interface DropdownSubmenuProps {
 }
 
 export default function DropdownSubmenu({ label, icon, width, side = 'right', children }: DropdownSubmenuProps) {
+  const [subOpen, setSubOpen] = useState(false);
   const theme = useDropdownTheme();
   const isLight = theme === 'light';
 
@@ -29,8 +30,16 @@ export default function DropdownSubmenu({ label, icon, width, side = 'right', ch
   const chevronColor = isLight ? 'text-zinc-400' : 'text-zinc-500';
 
   return (
-    <RadixDropdownMenu.Sub>
-      <RadixDropdownMenu.SubTrigger className={triggerClasses}>
+    <RadixDropdownMenu.Sub open={subOpen} onOpenChange={setSubOpen}>
+      <RadixDropdownMenu.SubTrigger
+        className={triggerClasses}
+        onPointerDown={(e) => {
+          if (e.pointerType === 'pen') {
+            e.preventDefault();
+            setSubOpen(v => !v);
+          }
+        }}
+      >
         {side === 'left' && <ChevronRight className={`w-3 h-3 ${chevronColor} rotate-180 order-first`} />}
         <span className="flex items-center gap-2">
           {icon && <span className={`${chevronColor} shrink-0`}>{icon}</span>}
