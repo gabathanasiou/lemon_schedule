@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { parseDuration, formatDuration } from '../lib/utils';
+import { CellInput } from './CellInput';
+import { useLastPointerType } from '../lib/useMarquee';
 
 interface DurationKeypadProps {
   value: number;
@@ -37,6 +39,9 @@ export default function DurationKeypad({
   const triggerRef = useRef<HTMLDivElement>(null);
   const keypadRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const lastPointerType = useLastPointerType();
+  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
 
   const displayText = display ?? formatDuration(value || 0);
 
@@ -184,6 +189,20 @@ export default function DurationKeypad({
       window.removeEventListener('resize', reposition);
     };
   }, [open, reposition]);
+
+  if (!isTouchMode) {
+    return (
+      <CellInput
+        value={displayText}
+        onChange={val => onChange(parseDuration(val))}
+        className={className}
+        autoFocus={autoFocus}
+        onBlur={() => onExit?.()}
+        col="duration"
+        {...rest}
+      />
+    );
+  }
 
   return (
     <>
