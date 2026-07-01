@@ -32,6 +32,7 @@ export default function DurationKeypad({
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
   const [draft, setDraft] = useState('');
+  const draftRef = useRef('');
   const [isPristine, setIsPristine] = useState(true);
   const triggerRef = useRef<HTMLDivElement>(null);
   const keypadRef = useRef<HTMLDivElement>(null);
@@ -43,6 +44,8 @@ export default function DurationKeypad({
     if (triggerRef.current) {
       triggerRef.current.scrollIntoView({ block: 'nearest' });
       const r = triggerRef.current.getBoundingClientRect();
+      const rowEl = triggerRef.current.closest('[data-row-id]');
+      const rowBounds = rowEl ? rowEl.getBoundingClientRect() : r;
       const pw = 260;
       const estHeight = 280;
       const gap = 6;
@@ -52,16 +55,22 @@ export default function DurationKeypad({
 
       let left: number, top: number;
 
+      const spaceBelow = window.innerHeight - rowBounds.bottom;
+      const spaceAbove = rowBounds.top;
+
       if (rightSpace >= pw) {
         left = r.right + gap;
-        top = Math.max(8, Math.min(r.top, window.innerHeight - estHeight - 8));
+        top = spaceBelow >= estHeight + gap
+          ? rowBounds.bottom + gap
+          : Math.max(gap, rowBounds.top - estHeight - gap);
       } else if (leftSpace >= pw) {
         left = r.left - gap - pw;
-        top = Math.max(8, Math.min(r.top, window.innerHeight - estHeight - 8));
+        top = spaceBelow >= estHeight + gap
+          ? rowBounds.bottom + gap
+          : Math.max(gap, rowBounds.top - estHeight - gap);
       } else {
         const centerLeft = Math.max(8, Math.min(r.left + r.width / 2 - pw / 2, window.innerWidth - pw - 8));
-        const spaceBelow = window.innerHeight - r.bottom;
-        top = spaceBelow >= estHeight + 8 ? r.bottom + 8 : Math.max(8, r.top - estHeight - 8);
+        top = spaceBelow >= estHeight + gap ? rowBounds.bottom + gap : Math.max(gap, rowBounds.top - estHeight - gap);
         left = centerLeft;
       }
 
@@ -72,6 +81,7 @@ export default function DurationKeypad({
   const handleOpen = useCallback(() => {
     reposition();
     setDraft(displayText);
+    draftRef.current = displayText;
     setIsPristine(true);
     setOpen(true);
     openRef.current = true;
@@ -120,6 +130,7 @@ export default function DurationKeypad({
   const handleClose = useCallback(() => {
     setOpen(false);
     setDraft('');
+    draftRef.current = '';
     setIsPristine(true);
   }, []);
 
@@ -137,18 +148,20 @@ export default function DurationKeypad({
   }, [handleClose, onExit]);
 
   const handleKeyPress = useCallback((ch: string) => {
-    setDraft(prev => isPristine ? ch : prev + ch);
+    const next = isPristine ? ch : draftRef.current + ch;
+    setDraft(next);
+    draftRef.current = next;
     setIsPristine(false);
-  }, [isPristine]);
+    onChange(parseDuration(next));
+  }, [isPristine, onChange]);
 
   const backspace = useCallback(() => {
-    if (isPristine) {
-      setDraft('');
-      setIsPristine(false);
-    } else {
-      setDraft(p => p.slice(0, -1));
-    }
-  }, [isPristine]);
+    const next = isPristine ? '' : draftRef.current.slice(0, -1);
+    setDraft(next);
+    draftRef.current = next;
+    if (isPristine) setIsPristine(false);
+    onChange(parseDuration(next || '0'));
+  }, [isPristine, onChange]);
 
   useEffect(() => {
     if (!open) return;

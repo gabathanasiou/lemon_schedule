@@ -76,6 +76,13 @@ export function parseDuration(duration: string): number {
   const minsMatch = str.match(/(\d+)\s*m/);
   if (minsMatch) totalMinutes += parseInt(minsMatch[1], 10);
   
+  // If hours given but no explicit "m", treat trailing number as minutes (e.g. "1h25")
+  if (hoursMatch && !minsMatch) {
+    const afterH = str.slice(hoursMatch.index! + hoursMatch[0].length).trim();
+    const trailingNum = afterH.match(/^(\d+)/);
+    if (trailingNum) totalMinutes += parseInt(trailingNum[1], 10);
+  }
+  
   if (!hoursMatch && !minsMatch) {
     // maybe it's just a number like "45"
     const parsed = parseInt(str, 10);
