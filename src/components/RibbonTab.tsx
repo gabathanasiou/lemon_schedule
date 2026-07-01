@@ -1017,8 +1017,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                             onPointerDown={e => startResize(i, e)}
                             onClick={e => e.stopPropagation()}
                           >
+                            <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-t-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-t-[14px]' : 'border-l-[5px] border-r-[5px] border-t-[6px] group-active/tab:border-l-[6px] group-active/tab:border-r-[6px] group-active/tab:border-t-[8px]'} border-l-transparent border-r-transparent border-t-zinc-500/40 group-hover/tab:border-t-blue-400 group-active/tab:border-t-blue-500 transition-all`} />
                             <div className={`${IS_COARSE ? 'w-px h-5 group-active/tab:h-8' : 'w-px h-3.5 group-active/tab:h-5'} mx-auto bg-zinc-500/40 group-hover/tab:bg-blue-400 group-active/tab:bg-blue-500 transition-all`} />
-                            <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-b-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-b-[14px]' : 'border-l-[5px] border-r-[5px] border-b-[6px] group-active/tab:border-l-[6px] group-active/tab:border-r-[6px] group-active/tab:border-b-[8px]'} border-l-transparent border-r-transparent border-b-zinc-500/40 group-hover/tab:border-b-blue-400 group-active/tab:border-b-blue-500 transition-all`} />
                           </div>
                         )}
                       </div>
