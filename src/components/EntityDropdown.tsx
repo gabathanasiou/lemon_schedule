@@ -502,7 +502,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 }}
                 onMouseEnter={mode === 'single' ? () => setHighlightedIndex(idx) : undefined}
                 className={isSynthetic
-                  ? `w-full text-left px-2 py-1 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-emerald-50 hover:text-emerald-700'}`
+                  ? `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-emerald-50 hover:text-emerald-700'}`
                   : `${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`
                 }
               >
