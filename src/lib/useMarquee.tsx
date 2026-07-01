@@ -212,7 +212,7 @@ export function useMarquee(
             intersected.add(el.getAttribute('data-row-id')!);
           }
         });
-        onSelectionChangeRef.current(intersected, _addMode || e.shiftKey);
+        onSelectionChangeRef.current(intersected, true);
       }
     };
 

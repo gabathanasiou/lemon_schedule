@@ -68,13 +68,17 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       marqueeJustEndedRef.current = false;
       return;
     }
-    if (e.metaKey || e.ctrlKey || marqueeMode === 'tool') {
+    if (e.metaKey || e.ctrlKey) {
       e.stopPropagation();
       setSelectedRowIds(prev => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id); else next.add(id);
         return next;
       });
+      setLastClickedId(id);
+    } else if (marqueeMode === 'tool') {
+      e.stopPropagation();
+      setSelectedRowIds(prev => new Set([...prev, id]));
       setLastClickedId(id);
     } else if (e.shiftKey && id.startsWith('empty-')) {
       return;
