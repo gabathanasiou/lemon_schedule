@@ -217,7 +217,7 @@ export function useMarquee(
     const onPointerUp = () => {
       if (!active) return;
       if (getMarqueeMode() === 'transient') {
-        setMarqueeMode('off');
+        setMarqueeMode('tool');
       }
       stopAutoScroll();
       active = false;
