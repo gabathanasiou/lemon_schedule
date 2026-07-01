@@ -286,16 +286,10 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     if (rowEl) {
       e.stopPropagation();
       const rowId = rowEl.getAttribute('data-row-id')!;
-      if (!selectedRowIds.has(rowId)) {
       if (getMarqueeMode() === 'tool') {
-        setSelectedRowIds(prev => {
-          const next = new Set(prev);
-          if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
-          return next;
-        });
+        setSelectedRowIds(prev => prev.has(rowId) ? prev : new Set([...prev, rowId]));
       } else if (!selectedRowIds.has(rowId)) {
         setSelectedRowIds(new Set([rowId]));
-      }
       }
       const shootDayAttr = rowEl.getAttribute('data-shoot-day');
       const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);

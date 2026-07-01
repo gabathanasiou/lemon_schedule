@@ -1305,11 +1305,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                  e.preventDefault();
                  const rowId = rowEl.getAttribute('data-row-id')!;
                  if (getMarqueeMode() === 'tool') {
-                   setSelectedRowIds(prev => {
-                     const next = new Set(prev);
-                     if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
-                     return next;
-                   });
+                   setSelectedRowIds(prev => prev.has(rowId) ? prev : new Set([...prev, rowId]));
                  } else if (!selectedRowIds.has(rowId)) {
                    setSelectedRowIds(new Set([rowId]));
                  }
