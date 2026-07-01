@@ -160,7 +160,7 @@ export function useMarquee(
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!active && e.pointerType === 'touch' && getMarqueeMode() !== 'off') {
+      if (!active && e.pointerType === 'touch' && getMarqueeMode() === 'transient') {
         const rect = container.getBoundingClientRect();
         startX = e.clientX - rect.left + container.scrollLeft;
         startY = e.clientY - rect.top + container.scrollTop;
