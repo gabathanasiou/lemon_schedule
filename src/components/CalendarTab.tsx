@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
 import { generateUUID } from '../lib/utils';
-import { resolveSceneColor, getNoteBannerColors } from '../lib/ribbonUtils';
+import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -50,9 +50,10 @@ function getCalendarDays(year: number, month: number) {
   return days;
 }
 
-const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[] }> = ({ row, scene, displayField, violations }) => {
+const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; selBg?: string; selColor?: string }> = ({ row, scene, displayField, violations, isSelected, selBg, selColor }) => {
   const { state } = useProject();
   const palette = state.present.colorPalette;
+  const sz = IS_COARSE ? 'text-xs px-2 py-1' : 'text-[9px] px-1.5 py-0.5';
   if (!scene) {
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
     if (!label) return null;
@@ -60,7 +61,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
     const bg = row.noteColor || nb.background;
     const fg = row.noteTextColor || nb.color;
     return (
-      <div style={{ background: bg, color: fg }} className={`text-[9px] font-semibold px-1.5 py-0.5 truncate border-b border-white select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
+      <div style={{ background: bg, color: fg }} className={`${sz} font-semibold truncate border-b border-black select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
       </div>
     );
@@ -75,13 +76,15 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
     return (scene as any)[displayField] || '';
   };
   const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
+  const bg = isSelected && selBg ? selBg : c.background;
+  const fg = isSelected && selColor ? selColor : c.color;
   const vFlag = violations && violations.length > 0 ? (
     <ViolationTooltip violations={violations}>
       <Flag className="w-2 h-2 text-red-500 fill-red-500 shrink-0" />
     </ViolationTooltip>
   ) : null;
   return (
-    <div style={{ background: c.background, color: c.color }} className="text-[9px] truncate px-1.5 py-0.5 leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 border-b border-white select-none cursor-grab">
+    <div style={{ background: bg, color: fg }} className={`${sz} truncate leading-tight whitespace-nowrap font-semibold flex items-center gap-0.5 border-b border-black select-none cursor-grab`}>
       <span className="truncate">{scene.sceneNumber}. {getDisplayValue()}</span>
       {vFlag}
     </div>
@@ -89,6 +92,8 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
 };
 
 const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick }) => {
+  const { state } = useProject();
+  const sel = getSelectedStripColors(state.present.colorPalette);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
@@ -107,9 +112,8 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
       onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id); }}
       data-row-id={row.id}
       data-shoot-day={row.shootDay == null ? 'null' : row.shootDay}
-      className={`${isSelected ? 'before:absolute before:inset-0 before:bg-black/15 before:pointer-events-none before:z-10 before:content-[\'\'] relative' : ''}`}>
-      <SceneCardContent row={row} scene={scene} displayField={displayField} violations={violations} />
-      {isFaded && <div className="absolute inset-0 bg-white/50 pointer-events-none" />}
+      className={`${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
+      <SceneCardContent row={row} scene={scene} displayField={displayField} violations={violations} isSelected={isSelected} selBg={sel.background} selColor={sel.color} />
     </div>
   );
 };
