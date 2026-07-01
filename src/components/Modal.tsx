@@ -95,13 +95,14 @@ export default function Modal({
 
   const onResizeUp = useCallback(() => { resizeRef.current = null; }, []);
 
-  const handlePenPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== 'pen') return;
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.isPropagationStopped()) return;
     const target = e.target as HTMLElement;
     const interactive = target.closest(
       'button, a, input, select, textarea, [role="button"], [role="menuitem"], [role="option"], label, [tabindex]:not([tabindex="-1"])'
     );
     if (interactive && interactive !== e.currentTarget) {
+      e.preventDefault();
       (interactive as HTMLElement).click();
     }
   }, []);
@@ -128,13 +129,11 @@ export default function Modal({
   return (
     <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" style={{ touchAction: 'manipulation' }} onPointerDown={(e) => { if (e.pointerType === 'pen') { e.preventDefault(); onClose(); } }} />
+        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" style={{ touchAction: 'manipulation' }} onTouchEnd={(e) => { e.preventDefault(); onClose(); }} />
         <RadixDialog.Content
           ref={contentRef}
           className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
           style={{ touchAction: 'manipulation', ...(Object.keys(combinedStyle).length > 0 ? combinedStyle : {}) }}
-          onPointerDownOutside={(e) => { if ((e as any).nativeEvent?.pointerType === 'pen') e.preventDefault(); }}
-          onInteractOutside={(e) => { if ((e as any).nativeEvent?.pointerType === 'pen') e.preventDefault(); }}
         >
           <div
             className={`flex items-center justify-between px-5 py-2.5 border-b border-zinc-800 shrink-0 select-none bg-zinc-950 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
@@ -155,13 +154,13 @@ export default function Modal({
                   Reset
                 </button>
               )}
-              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0" onPointerDown={(e) => { if ((e as any).pointerType === 'pen') { e.preventDefault(); onClose(); } }}>
+              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0" onTouchEnd={(e) => { e.preventDefault(); onClose(); }}>
                 <X className="w-3.5 h-3.5" />
               </RadixDialog.Close>
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }} onPointerDown={handlePenPointerDown}>
+          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - 40px)` : undefined }} onTouchEnd={handleTouchEnd}>
             {children}
           </div>
 
