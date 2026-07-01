@@ -16,7 +16,7 @@ import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/useMarquee';
-import { useMarqueeMode } from '../lib/useLongPressMenu';
+import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
@@ -660,7 +660,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
         return next;
       });
       setLastClickedId(id);
-    } else if (marqueeMode === 'tool') {
+    } else if (getMarqueeMode() === 'tool') {
       e.stopPropagation();
       setSelectedRowIds(prev => {
         const next = new Set(prev);

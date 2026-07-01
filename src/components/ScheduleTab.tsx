@@ -21,6 +21,7 @@ import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
+import { getMarqueeMode } from '../lib/useLongPressMenu';
 
 export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch } = useProject();
@@ -76,7 +77,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
         return next;
       });
       setLastClickedId(id);
-    } else if (marqueeMode === 'tool') {
+    } else if (getMarqueeMode() === 'tool') {
       e.stopPropagation();
       setSelectedRowIds(prev => {
         const next = new Set(prev);
@@ -1303,7 +1304,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               if (rowEl) {
                  e.preventDefault();
                  const rowId = rowEl.getAttribute('data-row-id')!;
-                 if (marqueeMode === 'tool') {
+                 if (getMarqueeMode() === 'tool') {
                    setSelectedRowIds(prev => {
                      const next = new Set(prev);
                      if (next.has(rowId)) next.delete(rowId); else next.add(rowId);
@@ -1320,7 +1321,14 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               }
           }}
       >
-            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => addMode ? new Set([...prev, ...ids]) : ids)} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
+            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => {
+                if (addMode && getMarqueeMode() === 'tool') {
+                  const next = new Set(prev);
+                  for (const id of ids) next.has(id) ? next.delete(id) : next.add(id);
+                  return next;
+                }
+                return addMode ? new Set([...prev, ...ids]) : ids;
+              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceUnscheduledExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) onScrollChange?.(scheduleScrollRef.current.scrollTop); }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y' : undefined }}
