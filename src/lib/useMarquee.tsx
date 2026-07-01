@@ -15,6 +15,8 @@ const _addModeListeners = new Set<() => void>();
 
 let _lastPointerType: string | null = null;
 const _lastPointerTypeListeners = new Set<() => void>();
+let _marqueeActive = false;
+const _marqueeActiveListeners = new Set<() => void>();
 
 export function isAddModeActive() { return _addMode; }
 
@@ -38,6 +40,18 @@ export function useLastPointerType(): string | null {
     return () => { _lastPointerTypeListeners.delete(fn); };
   }, []);
   return _lastPointerType;
+}
+
+export function isMarqueeActive(): boolean { return _marqueeActive; }
+
+export function useMarqueeActive(): boolean {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const fn = () => tick(n => n + 1);
+    _marqueeActiveListeners.add(fn);
+    return () => { _marqueeActiveListeners.delete(fn); };
+  }, []);
+  return _marqueeActive;
 }
 
 function initKeyboardListeners() {
@@ -96,11 +110,15 @@ export function useMarquee(
     const setRowsDisabled = (v: boolean) => {
       const isTouchInput = _lastPointerType === 'touch' || _lastPointerType === 'pen';
       if (v) {
+        _marqueeActive = true;
+        _marqueeActiveListeners.forEach(fn => fn());
         container.dataset.marqueeActive = '1';
         container.style.touchAction = 'none';
         if (isTouchInput) container.style.overflow = 'hidden';
         document.body.style.touchAction = 'none';
       } else {
+        _marqueeActive = false;
+        _marqueeActiveListeners.forEach(fn => fn());
         delete container.dataset.marqueeActive;
         container.style.touchAction = '';
         container.style.overflow = '';

@@ -7,7 +7,7 @@ import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
-import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode } from '../lib/useMarquee';
+import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
@@ -640,7 +640,9 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     !textEditingEnabled,
   );
 
-  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off';
+  const isMarqueeActive = useMarqueeActive();
+
+  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off' || isMarqueeActive;
   const sensors = useSensors(
     IS_COARSE
       ? useSensor(TouchSensor, {
