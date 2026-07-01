@@ -137,6 +137,7 @@ export function useMarquee(
       if (onRibbon && e.altKey) {
         e.stopPropagation();
       } else {
+        if (e.pointerType === 'touch' && getMarqueeMode() === 'tool') return;
         if (!_addMode && onRibbon) {
           const rowId = onRibbon.getAttribute('data-row-id') || '';
           if (!rowId.startsWith('empty-')) return;
@@ -144,8 +145,6 @@ export function useMarquee(
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
         e.stopPropagation();
       }
-
-      if (e.pointerType === 'touch' && getMarqueeMode() === 'tool') return;
 
       const rect = container.getBoundingClientRect();
       startX = e.clientX - rect.left + container.scrollLeft;
