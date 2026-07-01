@@ -82,10 +82,12 @@ export function useMarquee(
       if (v) {
         container.dataset.marqueeActive = '1';
         container.style.touchAction = 'none';
+        container.style.overflow = 'hidden';
         document.body.style.touchAction = 'none';
       } else {
         delete container.dataset.marqueeActive;
         container.style.touchAction = '';
+        container.style.overflow = '';
         document.body.style.touchAction = '';
       }
     };
@@ -232,14 +234,26 @@ export function useMarquee(
       }
     };
 
+    const onTouchMove = (e: TouchEvent) => {
+      if (active) e.preventDefault();
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (active) e.preventDefault();
+    };
+
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => {
       stopAutoScroll();
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchstart', onTouchStart);
       setRowsDisabled(false);
     };
   }, [containerRef, isEnabled]);
