@@ -120,7 +120,7 @@ export default function Modal({
         <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" />
         <RadixDialog.Content
           ref={contentRef}
-          className={`fixed z-[9999] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
+          className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
           style={Object.keys(combinedStyle).length > 0 ? combinedStyle : undefined}
         >
           <div
