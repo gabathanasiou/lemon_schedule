@@ -457,11 +457,21 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
               const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
               if (isSynth) {
                 const key = itemKey(item);
-                const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                if (!ids.includes(key)) ids.push(key);
-                const joined = sortAndJoin(ids.join(', '));
-                setVal(joined + ', ');
-                if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                if (mode === 'single') {
+                  const sel = uppercase ? key.toUpperCase() : key;
+                  setVal(sel);
+                  setTimeout(() => {
+                    if (sel !== value) { syntheticRef.current = true; onChange(sel); }
+                    setOpen(false);
+                    onExit?.();
+                  }, 0);
+                } else {
+                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                  if (!ids.includes(key)) ids.push(key);
+                  const joined = sortAndJoin(ids.join(', '));
+                  setVal(joined + ', ');
+                  if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                }
               } else {
                 toggle(itemKey(item));
               }
@@ -494,11 +504,21 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 onClick={() => {
                   if (isSynthetic) {
                     const key = itemKey(m);
-                    const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                    if (!ids.includes(key)) ids.push(key);
-                    const joined = sortAndJoin(ids.join(', '));
-                    setVal(joined + ', ');
-                    if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                    if (mode === 'single') {
+                      const sel = uppercase ? key.toUpperCase() : key;
+                      setVal(sel);
+                      setTimeout(() => {
+                        if (sel !== value) { syntheticRef.current = true; onChange(sel); }
+                        setOpen(false);
+                        onExit?.();
+                      }, 0);
+                    } else {
+                      const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                      if (!ids.includes(key)) ids.push(key);
+                      const joined = sortAndJoin(ids.join(', '));
+                      setVal(joined + ', ');
+                      if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                    }
                   } else {
                     toggle(itemKey(m));
                   }
