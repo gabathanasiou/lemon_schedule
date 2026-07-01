@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { parseDuration, formatDuration } from '../lib/utils';
-import { CellInput } from './CellInput';
-import { useLastPointerType } from '../lib/useMarquee';
 
 interface DurationKeypadProps {
   value: number;
@@ -39,9 +37,6 @@ export default function DurationKeypad({
   const triggerRef = useRef<HTMLDivElement>(null);
   const keypadRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
-
-  const lastPointerType = useLastPointerType();
-  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
 
   const displayText = display ?? formatDuration(value || 0);
 
@@ -168,17 +163,31 @@ export default function DurationKeypad({
     onChange(parseDuration(next || '0'));
   }, [isPristine, onChange]);
 
+  const handleKeyPressText = useCallback((ch: string) => {
+    const next = isPristine ? ch : draftRef.current + ch;
+    setDraft(next);
+    draftRef.current = next;
+    setIsPristine(false);
+  }, [isPristine]);
+
+  const backspaceText = useCallback(() => {
+    const next = isPristine ? '' : draftRef.current.slice(0, -1);
+    setDraft(next);
+    draftRef.current = next;
+    if (isPristine) setIsPristine(false);
+  }, [isPristine]);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Enter') { e.preventDefault(); handleCommit(); return; }
       if (e.key === 'Escape') { e.preventDefault(); handleCancel(); return; }
-      if (e.key === 'Backspace') { e.preventDefault(); backspace(); return; }
-      if (/^[0-9hm]$/i.test(e.key)) { e.preventDefault(); handleKeyPress(e.key.toLowerCase()); }
+      if (e.key === 'Backspace') { e.preventDefault(); backspaceText(); return; }
+      if (/^[0-9hm]$/i.test(e.key)) { e.preventDefault(); handleKeyPressText(e.key.toLowerCase()); }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [open, handleCommit, handleCancel, backspace, handleKeyPress]);
+  }, [open, handleCommit, handleCancel, backspaceText, handleKeyPressText]);
 
   useEffect(() => {
     if (!open) return;
@@ -189,20 +198,6 @@ export default function DurationKeypad({
       window.removeEventListener('resize', reposition);
     };
   }, [open, reposition]);
-
-  if (!isTouchMode) {
-    return (
-      <CellInput
-        value={displayText}
-        onChange={val => onChange(parseDuration(val))}
-        className={className}
-        autoFocus={autoFocus}
-        onBlur={() => onExit?.()}
-        col="duration"
-        {...rest}
-      />
-    );
-  }
 
   return (
     <>

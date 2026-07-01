@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
-import { formatDuration, parsePageCount, formatPageCount } from '../lib/utils';
+import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
@@ -10,7 +10,7 @@ import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
 import { CellInput } from './CellInput';
 import { Flag } from 'lucide-react';
-import { useAddMode } from '../lib/useMarquee';
+import { useAddMode, useLastPointerType } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import DurationKeypad from './DurationKeypad';
 import { SelectDropdown } from './SelectDropdown';
@@ -66,6 +66,9 @@ const SortableRowContent: React.FC<{
 }> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
   const activeVersionId = state.present.activeVersionId;
+
+  const lastPointerType = useLastPointerType();
+  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
 
   const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
 
@@ -207,13 +210,25 @@ const SortableRowContent: React.FC<{
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
-                    <DurationKeypad
-                      value={row.estimatedDuration || 0}
-                      onChange={val => updateRow({estimatedDuration: val})}
-                      display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
-                      className={`${inputClass} text-center`}
-                      onOpen={() => onRowNavigate?.(row.id)}
-                    />
+                    {isTouchMode ? (
+                      <DurationKeypad
+                        value={row.estimatedDuration || 0}
+                        onChange={val => updateRow({estimatedDuration: val})}
+                        display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
+                        className={`${inputClass} text-center`}
+                        autoFocus={focusedRowId === row.id}
+                        onOpen={() => onRowNavigate?.(row.id)}
+                      />
+                    ) : (
+                      <CellInput
+                        value={row.estimatedDuration === 0 || !row.estimatedDuration ? '' : formatDuration(row.estimatedDuration || 0)}
+                        onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+                        clearOnType
+                        col="duration"
+                        className={`${inputClass} text-center`}
+                        onRowNavigate={onRowNavigate}
+                      />
+                    )}
                   </div>
                 );
               }
@@ -251,14 +266,26 @@ const SortableRowContent: React.FC<{
                   <>
                     <td className="col-call">{row.computedCallTime}</td>
                     <td className="col-dur">
-                      <DurationKeypad
-                        value={row.estimatedDuration || 0}
-                        onChange={val => updateRow({estimatedDuration: val})}
-                        display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
-                        className={`${inputClass} text-center`}
-                        autoFocus={focusedRowId === row.id}
-                        onOpen={() => onRowNavigate?.(row.id)}
-                      />
+                      {isTouchMode ? (
+                        <DurationKeypad
+                          value={row.estimatedDuration || 0}
+                          onChange={val => updateRow({estimatedDuration: val})}
+                          display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
+                          className={`${inputClass} text-center`}
+                          autoFocus={focusedRowId === row.id}
+                          onOpen={() => onRowNavigate?.(row.id)}
+                        />
+                      ) : (
+                        <CellInput
+                          value={row.estimatedDuration === 0 || !row.estimatedDuration ? '' : formatDuration(row.estimatedDuration || 0)}
+                          onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+                          clearOnType
+                          col="duration"
+                          className={`${inputClass} text-center`}
+                          autoFocus={focusedRowId === row.id}
+                          onRowNavigate={onRowNavigate}
+                        />
+                      )}
                     </td>
                     <td className="col-ie" />
                     <td className="col-set" style={{textAlign: 'center'}}>
@@ -350,12 +377,24 @@ const SortableRowContent: React.FC<{
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
-                    <DurationKeypad
-                      value={row.breakDuration || 0}
-                      onChange={val => updateRow({breakDuration: val})}
-                      className={`${inputClass} text-center`}
-                      onOpen={() => onRowNavigate?.(row.id)}
-                    />
+                    {isTouchMode ? (
+                      <DurationKeypad
+                        value={row.breakDuration || 0}
+                        onChange={val => updateRow({breakDuration: val})}
+                        className={`${inputClass} text-center`}
+                        autoFocus={focusedRowId === row.id}
+                        onOpen={() => onRowNavigate?.(row.id)}
+                      />
+                    ) : (
+                      <CellInput
+                        value={formatDuration(row.breakDuration || 0)}
+                        onChange={val => updateRow({breakDuration: parseDuration(val)})}
+                        clearOnType
+                        col="duration"
+                        className={`${inputClass} text-center`}
+                        onRowNavigate={onRowNavigate}
+                      />
+                    )}
                   </div>
                 );
               }
@@ -393,13 +432,25 @@ const SortableRowContent: React.FC<{
                   <>
                     <td className="col-call">{row.computedCallTime}</td>
                     <td className="col-dur">
-                      <DurationKeypad
-                        value={row.breakDuration || 0}
-                        onChange={val => updateRow({breakDuration: val})}
-                        className={`${inputClass} text-center`}
-                        autoFocus={focusedRowId === row.id}
-                        onOpen={() => onRowNavigate?.(row.id)}
-                      />
+                      {isTouchMode ? (
+                        <DurationKeypad
+                          value={row.breakDuration || 0}
+                          onChange={val => updateRow({breakDuration: val})}
+                          className={`${inputClass} text-center`}
+                          autoFocus={focusedRowId === row.id}
+                          onOpen={() => onRowNavigate?.(row.id)}
+                        />
+                      ) : (
+                        <CellInput
+                          value={formatDuration(row.breakDuration || 0)}
+                          onChange={val => updateRow({breakDuration: parseDuration(val)})}
+                          clearOnType
+                          col="duration"
+                          className={`${inputClass} text-center`}
+                          autoFocus={focusedRowId === row.id}
+                          onRowNavigate={onRowNavigate}
+                        />
+                      )}
                     </td>
                     <td className="col-ie" />
                     <td className="col-set" style={{textAlign: 'center'}}>
@@ -514,14 +565,26 @@ const SortableRowContent: React.FC<{
     if (field === 'duration') {
       return (
         <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <DurationKeypad
-            value={row.estimatedDuration || 0}
-            onChange={val => updateRow({estimatedDuration: val})}
-            display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
-            className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
-            autoFocus={focusedRowId === row.id}
-            onOpen={() => onRowNavigate?.(row.id)}
-          />
+          {isTouchMode ? (
+            <DurationKeypad
+              value={row.estimatedDuration || 0}
+              onChange={val => updateRow({estimatedDuration: val})}
+              display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
+              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+              autoFocus={focusedRowId === row.id}
+              onOpen={() => onRowNavigate?.(row.id)}
+            />
+          ) : (
+            <CellInput
+              value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
+              onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+              clearOnType
+              col="duration"
+              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
+              autoFocus={focusedRowId === row.id}
+              onRowNavigate={onRowNavigate}
+            />
+          )}
         </td>
       );
     }
@@ -692,14 +755,26 @@ const SortableRowContent: React.FC<{
     if (field === 'duration') {
       return (
         <div key={cellId} style={style}>
-          <DurationKeypad 
-            value={row.estimatedDuration || 0} 
-            onChange={val => updateRow({estimatedDuration: val})} 
-            display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
-            className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
-            autoFocus={focusedRowId === row.id} 
-            onOpen={() => onRowNavigate?.(row.id)}
-          />
+          {isTouchMode ? (
+            <DurationKeypad 
+              value={row.estimatedDuration || 0} 
+              onChange={val => updateRow({estimatedDuration: val})} 
+              display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
+              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
+              autoFocus={focusedRowId === row.id} 
+              onOpen={() => onRowNavigate?.(row.id)}
+            />
+          ) : (
+            <CellInput 
+              value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
+              onChange={val => updateRow({estimatedDuration: parseDuration(val)})} 
+              clearOnType
+              col="duration"
+              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
+              autoFocus={focusedRowId === row.id} 
+              onRowNavigate={onRowNavigate}
+            />
+          )}
         </div>
       );
     }
@@ -883,14 +958,26 @@ const SortableRowContent: React.FC<{
                 </td>
                 {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
                 {!isCompact && <td className="col-dur">
-                  <DurationKeypad
-                    value={row.estimatedDuration || 0}
-                    onChange={val => updateRow({estimatedDuration: val})}
-                    display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
-                    className={`${inputClass} text-center`}
-                    autoFocus={focusedRowId === row.id}
-                    onOpen={() => onRowNavigate?.(row.id)}
-                  />
+                  {isTouchMode ? (
+                    <DurationKeypad
+                      value={row.estimatedDuration || 0}
+                      onChange={val => updateRow({estimatedDuration: val})}
+                      display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
+                      className={`${inputClass} text-center`}
+                      autoFocus={focusedRowId === row.id}
+                      onOpen={() => onRowNavigate?.(row.id)}
+                    />
+                  ) : (
+                    <CellInput
+                      value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
+                      onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
+                      clearOnType
+                      col="duration"
+                      className={`${inputClass} text-center`}
+                      autoFocus={focusedRowId === row.id}
+                      onRowNavigate={onRowNavigate}
+                    />
+                  )}
                 </td>}
                 <td className="col-ie">
                   <SelectDropdown
