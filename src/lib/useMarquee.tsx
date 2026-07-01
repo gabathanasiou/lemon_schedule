@@ -164,6 +164,10 @@ export function useMarquee(
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+
+      _lastPointerType = e.pointerType;
+      _lastPointerTypeListeners.forEach(fn => fn());
+
       const target = e.target as HTMLElement;
       const onRibbon = target.closest('[data-row-id]');
 
@@ -183,9 +187,6 @@ export function useMarquee(
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
         e.stopPropagation();
       }
-
-      _lastPointerType = e.pointerType;
-      _lastPointerTypeListeners.forEach(fn => fn());
 
       const rect = container.getBoundingClientRect();
       startX = e.clientX - rect.left + container.scrollLeft;
