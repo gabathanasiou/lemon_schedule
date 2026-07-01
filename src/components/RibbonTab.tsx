@@ -87,6 +87,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const gridRef = useRef<HTMLDivElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
   const previewSectionRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
@@ -410,6 +411,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     if (!gridEl) return;
     gridEl.style.touchAction = 'none';
     document.body.style.touchAction = 'none';
+    const canvasEl = canvasRef.current;
+    if (canvasEl) canvasEl.style.touchAction = 'none';
     const startX = e.clientX;
     const gridWidth = gridEl.offsetWidth;
     const initial = colWidthsRef.current;
@@ -462,6 +465,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       document.removeEventListener('pointerup', onUp);
       gridEl.style.touchAction = '';
       document.body.style.touchAction = '';
+      if (canvasEl) canvasEl.style.touchAction = '';
       saveToStore(rowsRef.current, [...colWidthsRef.current]);
     };
 
@@ -769,7 +773,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         </aside>
 
         {/* ── Canvas ── */}
-        <div className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
+        <div ref={canvasRef} className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
           {/* Toolbar */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none" onClick={e => e.stopPropagation()}>
             {/* Structure */}
