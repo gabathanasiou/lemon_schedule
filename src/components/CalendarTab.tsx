@@ -395,9 +395,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     const isDraggingDay = active.data.current?.type === 'DAY';
     const filteredContainers = droppableContainers.filter((container) => {
       const id = container.id as string;
-      const isDayHandle = id.startsWith('day-handle-');
-      if (isDraggingDay) return isDayHandle;
-      if (isDayHandle) return false;
+      const isDayDrop = container.data.current?.type === 'DAY_CELL';
+      if (isDraggingDay) return isDayDrop;
       if (activeDragIdsRef.current.has(id)) return false;
       return true;
     });
@@ -765,6 +764,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     const lastInsertId = insertBeforeId;
     setActiveId(null);
     setActiveDragRow(null);
+    setActiveDragDay(null);
     setActiveDragIds(new Set());
     setInsertBeforeId(null);
     if (!over || !activeVersion) return;
