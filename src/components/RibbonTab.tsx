@@ -408,6 +408,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const gridEl = gridRef.current;
     if (!gridEl) return;
+    gridEl.style.touchAction = 'none';
+    document.body.style.touchAction = 'none';
     const startX = e.clientX;
     const gridWidth = gridEl.offsetWidth;
     const initial = colWidthsRef.current;
@@ -458,6 +460,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     const onUp = () => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
+      gridEl.style.touchAction = '';
+      document.body.style.touchAction = '';
       saveToStore(rowsRef.current, [...colWidthsRef.current]);
     };
 
