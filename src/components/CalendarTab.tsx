@@ -775,9 +775,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
       const sourceDay = activeData.shootDay as number;
       const sourceDate = activeData.date as string;
       const overData = over.data.current as any;
-      let targetDate: string | null = null;
-      if (overData?.type === 'DAY_CELL' && typeof overData.date === 'string') targetDate = overData.date;
-      else if (typeof over.id === 'string' && over.id.startsWith('day-')) targetDate = over.id.slice(4);
+      const targetDate: string | null = overData?.date ?? null;
       if (!targetDate || sourceDate === targetDate) return;
       const targetEntry = (Object.entries(activeVersion.dayMeta) as [string, ShootDayMeta][]).find(([, m]) => m.date === targetDate);
       const newDayMeta = { ...activeVersion.dayMeta };
