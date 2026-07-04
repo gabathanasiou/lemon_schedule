@@ -298,7 +298,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           if (ci === 0) text = statusLabel;
           else if (cell.field === 'callTime') text = callStr;
           else if (ci === mainCellIdx) text = dateStr;
-          return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center' } };
+          return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center', valign: 'middle' } };
         });
 
         doc.autoTable({
@@ -376,7 +376,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         if (ci === 0 && chronoDay !== undefined) text = `DAY #${chronoDay}`;
         else if (cell.field === 'callTime') text = callStr;
         else if (ci === mainCellIdx) text = dateStr;
-        return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center' } };
+        return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center', valign: 'middle' } };
       });
 
       doc.autoTable({
@@ -421,7 +421,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
             if (cell.field === 'callTime') text = r.computedCallTime || '';
             else if (cell.field === 'duration') text = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
             else if (ci === mainCellIdx) text = label;
-            return { content: text || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: ci === mainCellIdx ? 'center' : getAlign(cell) } };
+            return { content: text || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: ci === mainCellIdx ? 'center' : getAlign(cell), valign: 'middle' } };
           });
 
           doc.autoTable({
