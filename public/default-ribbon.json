@@ -1,0 +1,117 @@
+{
+  "name": "Default — Portrait",
+  "colWidths": [
+    8.34,
+    6.18,
+    8.73,
+    6.06,
+    27.9,
+    21.99,
+    20.8
+  ],
+  "rows": [
+    {
+      "id": "row-cflni4",
+      "name": "Row 1",
+      "cells": [
+        {
+          "id": "c5q5qv",
+          "field": "sceneNumber",
+          "prefix": "Scene:",
+          "align": "left",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "ci9pzi",
+          "field": "callTime",
+          "align": "center",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "cnf6ci",
+          "field": "duration",
+          "align": "center",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "cbpbf4",
+          "field": "intExt",
+          "align": "left"
+        },
+        {
+          "id": "c2grr7",
+          "field": "set",
+          "align": "left",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "ccof1p",
+          "field": "cast",
+          "align": "left",
+          "verticalAlign": "top",
+          "wrap": true
+        },
+        {
+          "id": "ck0f4e",
+          "field": "notes",
+          "align": "left",
+          "verticalAlign": "top",
+          "wrap": true
+        }
+      ]
+    },
+    {
+      "id": "row-cgve0s",
+      "name": "Row 2",
+      "cells": [
+        {
+          "id": "c5pi4c",
+          "field": "pageCount",
+          "suffix": "pgs",
+          "align": "left",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "ca6f41",
+          "field": "callTime",
+          "align": "center",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "cvinzh",
+          "field": "duration",
+          "align": "center",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "cw3f3h",
+          "field": "dayNight",
+          "align": "left"
+        },
+        {
+          "id": "co6qww",
+          "field": "description",
+          "align": "left",
+          "verticalAlign": "middle"
+        },
+        {
+          "id": "ctih9a",
+          "field": "cast",
+          "align": "left",
+          "verticalAlign": "top",
+          "wrap": true
+        },
+        {
+          "id": "cpk1hh",
+          "field": "notes",
+          "align": "left",
+          "verticalAlign": "top",
+          "wrap": true
+        }
+      ]
+    }
+  ],
+  "cellPaddingV": 3,
+  "cellPaddingH": 3,
+  "edgePadding": 3
+}
