@@ -247,13 +247,13 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   doc.setFontSize(FONT_SIZE);
   doc.setFont('Helvetica', 'bold');
   doc.text(project.title || 'Production Schedule', PAGE_MARGIN, y);
-  y += 6;
+  y += 10;
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(82, 82, 91);
   let subtitle = `Schedule Version: ${activeVersion.name}`;
   if (showExportDate) subtitle += ` ${formatExportDate()}`;
   doc.text(subtitle, PAGE_MARGIN, y);
-  y += 6;
+  y += 10;
   // Bottom border line
   doc.setDrawColor(24, 24, 27);
   doc.setLineWidth(2);
