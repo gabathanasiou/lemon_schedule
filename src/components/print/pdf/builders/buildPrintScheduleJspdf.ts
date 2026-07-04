@@ -872,7 +872,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       // End-of-day + totals (single row)
       doc.autoTable({
         body: [[
-          { content: `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u2014 ${endTime}` : ''}  |  ${dateStr}`,
+          { content: `End of Day #${chronoDay}${runningElapsed > 0 ? `  |  ${endTime}` : ''}  |  ${dateStr}`,
             styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: 'left', valign: 'middle' } },
           { content: `Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`,
             styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: 4, bottom: 4, left: 12, right: 12 }, halign: 'right', valign: 'middle' } },
@@ -888,7 +888,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
     } else {
       doc.autoTable({
         body: [[
-          { content: `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u2014 ${endTime}` : ''}  |  ${dateStr}`,
+          { content: `End of Day #${chronoDay}${runningElapsed > 0 ? `  |  ${endTime}` : ''}  |  ${dateStr}`,
             styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'left', cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, valign: 'middle' } },
           { content: '',
             styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'center', cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH } } },
