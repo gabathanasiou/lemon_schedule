@@ -422,17 +422,20 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         const fgColor = isBreak ? '#ffffff' : ((r as any).noteTextColor || '#ffffff');
 
         if (cells && filteredWidths.length > 0) {
-          const mainCellIdx = (() => {
-            const nonSpecial = cells!.map((c, i) => ({ i, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
-            return nonSpecial.length > 0 ? nonSpecial.reduce((a, b) => a.i >= b.i ? a : b).i : 0;
-          })();
-
-          const noteRow: any[] = cells.map((cell, ci) => {
-            if (ci === mainCellIdx) return { content: label, styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: 'center' } };
-            if (cell.field === 'callTime') return { content: r.computedCallTime || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: getAlign(cell) } };
-            if (cell.field === 'duration') return { content: r.estimatedDuration ? formatDuration(r.estimatedDuration) : '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: getAlign(cell) } };
-            return { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE } };
-          });
+          const nCols = cells.length;
+          const noteRow: any[] = [];
+          for (let ci = 0; ci < nCols; ci++) {
+            if (ci === 0) {
+              noteRow.push({ content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE } });
+            } else if (ci === 1) {
+              noteRow.push({ content: r.computedCallTime || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: getAlign(cells[ci]) } });
+            } else if (ci === 2) {
+              noteRow.push({ content: r.estimatedDuration ? formatDuration(r.estimatedDuration) : '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: getAlign(cells[ci]) } });
+            } else if (ci === 3) {
+              noteRow.push({ content: label, colSpan: nCols - 3, styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: 'center' } });
+              break;
+            }
+          }
 
           doc.autoTable({
             body: [noteRow],
