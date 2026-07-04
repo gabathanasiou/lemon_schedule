@@ -882,7 +882,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         if (ci === 0) text = `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u00b7 ${endTime}` : ''}`;
         else if (ci === mainCellIdx) text = dateStr;
         else if (ci === statsCellIdx) text = `Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`;
-        return { content: text || '', styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: ci === 0 ? 'left' : ci === statsCellIdx ? 'right' : 'center', valign: 'middle' } };
+        return { content: text || '', styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: ci === 0 ? 'right' : ci === statsCellIdx ? 'right' : 'center', valign: 'middle' } };
       });
 
       doc.autoTable({
