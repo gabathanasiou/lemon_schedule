@@ -1,0 +1,91 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - button "File" [ref=e7] [cursor=pointer]:
+          - generic [ref=e8]: File
+          - img [ref=e9]
+        - textbox [ref=e11]: Untitled Project
+      - generic [ref=e12]:
+        - button "Breakdown" [ref=e13]
+        - button "Schedule" [active] [ref=e14]
+        - button "Calendar" [ref=e15]
+        - button "Design" [ref=e16]
+        - button "Rules" [ref=e17]
+        - button "Reports" [ref=e18]
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - button "Undo (Cmd+Z)" [disabled] [ref=e21]:
+          - img [ref=e22]
+        - button "Redo (Cmd+Shift+Z)" [disabled] [ref=e25]:
+          - img [ref=e26]
+      - 'button "Version: v01" [ref=e29] [cursor=pointer]':
+        - generic [ref=e30]:
+          - text: "Version:"
+          - strong [ref=e31]: v01
+        - img [ref=e32]
+  - main [ref=e34]:
+    - generic [ref=e182]:
+      - generic [ref=e183]:
+        - generic [ref=e184]: Stripboard
+        - generic [ref=e185]:
+          - generic [ref=e186]: Version v01
+          - generic [ref=e187]: ·
+          - generic [ref=e188]: 1 days
+          - button "View" [ref=e190] [cursor=pointer]:
+            - text: View
+            - img [ref=e191]
+          - button "Keyboard Shortcuts & Help" [ref=e193] [cursor=pointer]:
+            - img [ref=e194]
+          - button "Edit" [ref=e197] [cursor=pointer]:
+            - img [ref=e198]
+            - text: Edit
+          - button "Print" [ref=e201]:
+            - img [ref=e202]
+            - text: Print
+      - generic [ref=e206]:
+        - generic [ref=e208]:
+          - generic [ref=e209]:
+            - generic [ref=e210]:
+              - generic [ref=e211]:
+                - heading "UNSCHEDULED" [level=2] [ref=e212]
+                - paragraph [ref=e213]: 1 Items
+              - generic [ref=e214]:
+                - button "Sort ▾" [ref=e216] [cursor=pointer]
+                - button "Collapse Sidebar" [ref=e217] [cursor=pointer]:
+                  - img [ref=e218]
+            - generic [ref=e220]:
+              - button "NOTE" [ref=e221] [cursor=pointer]:
+                - img [ref=e222]
+                - text: NOTE
+              - button "BREAK" [ref=e223] [cursor=pointer]:
+                - img [ref=e224]
+                - text: BREAK
+          - button ". - —" [ref=e227]:
+            - table [ref=e229]:
+              - rowgroup [ref=e230]:
+                - row ". - —" [ref=e231]:
+                  - cell [ref=e232]
+                  - cell ". -" [ref=e233]:
+                    - generic [ref=e234]: . -
+                  - cell "—" [ref=e235]
+        - generic [ref=e239]:
+          - generic [ref=e242]:
+            - generic [ref=e244]: "DAY #1"
+            - generic [ref=e245]:
+              - generic [ref=e246]: CALL
+              - textbox [ref=e248]: 08:00
+            - strong [ref=e252]: SATURDAY 4TH JULY 2026
+          - generic [ref=e256]: No scenes in this day · right-click for options
+          - generic [ref=e257]:
+            - generic [ref=e258]:
+              - generic [ref=e259]: "End of Day #1"
+              - generic [ref=e263]: SATURDAY 4TH JULY 2026
+            - generic [ref=e266]:
+              - generic [ref=e267]:
+                - text: "Total Pages:"
+                - strong [ref=e268]: 0 pgs
+              - generic [ref=e269]:
+                - text: "EST. TIME:"
+                - strong [ref=e270]: 0m
+      - status [ref=e271]

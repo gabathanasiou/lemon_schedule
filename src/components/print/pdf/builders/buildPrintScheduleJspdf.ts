@@ -296,7 +296,6 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         const headerRow: any[] = cells.map((cell, ci) => {
           let text = '';
           if (ci === 0) text = statusLabel;
-          else if (cell.field === 'callTime') text = callStr;
           else if (ci === mainCellIdx) text = dateStr;
           return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center', valign: 'middle' } };
         });

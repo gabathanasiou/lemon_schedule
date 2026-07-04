@@ -1,0 +1,919 @@
+- generic:
+  - generic:
+    - generic:
+      - banner:
+        - generic:
+          - generic:
+            - button:
+              - generic: File
+              - img
+            - textbox: ALBOH - NOT BUGGED
+          - generic:
+            - button: Breakdown
+            - button: Schedule
+            - button: Calendar
+            - button: Design
+            - button: Rules
+            - button: Reports
+        - generic:
+          - generic:
+            - button [disabled]:
+              - img
+            - button [disabled]:
+              - img
+          - button:
+            - generic:
+              - text: "Version:"
+              - strong: V16
+            - img
+      - main:
+        - generic:
+          - generic:
+            - generic: Stripboard
+            - generic:
+              - generic: Version V16
+              - generic: ·
+              - generic: 4 days
+              - button:
+                - text: View
+                - img
+              - button:
+                - img
+              - button:
+                - img
+                - text: Edit
+              - button:
+                - img
+                - text: Print
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - heading [level=2]: UNSCHEDULED
+                      - paragraph: 24 Items
+                    - generic:
+                      - generic:
+                        - button: Sort ▾
+                      - button:
+                        - img
+                  - generic:
+                    - button:
+                      - img
+                      - text: NOTE
+                    - button:
+                      - img
+                      - text: BREAK
+                - generic:
+                  - generic:
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "1"
+                              - cell:
+                                - generic: INT. RESTAURANT - EVENING
+                                - generic: Nikos works slow, deliberately, during rush hour.
+                              - cell: 1, 3, 4, 6
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "2"
+                              - cell:
+                                - generic: EXT. RESTAURANT - EVENING
+                                - generic: Nikos beaten up by Ronnie & Reggie. Brooks rescues then fires him.
+                              - cell: 1, 5, 7, 8
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "3"
+                              - cell:
+                                - generic: EXT. NIKOS APARTMENT - EVENING
+                                - generic: Nikos walks through the council estate.
+                              - cell: "1"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "6"
+                              - cell:
+                                - generic: EXT. HOUSE - NIGHT
+                                - generic: Nikos meets Melissa & Alex at the front door.
+                              - cell: 1, 2, 3
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "8"
+                              - cell:
+                                - generic: INT. HOUSE, KITCHEN - NIGHT
+                                - generic: Alex tells Nikos he wants the particular cereal box on the top shelf.
+                              - cell: 1, 2
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "18"
+                              - cell:
+                                - generic: EXT. HOUSE - NIGHT
+                                - generic: Door opens; Nikos hands Rosie £100; shuts door again.
+                              - cell: 1, 3, 6
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "20"
+                              - cell:
+                                - generic: INT. OMITTED - NIGHT
+                                - generic: Nikos races downstairs, calls Melissa, sprints out.
+                              - cell: "1"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 19A
+                              - cell:
+                                - generic: INT. ALEX'S ROOM - NIGHT
+                                - generic: "OWED SHOT: Long lens looking up to Nikos in Alex's bedroom window."
+                              - cell: "1"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 21B
+                              - cell:
+                                - generic: EXT. STREET - NIGHT - DAY
+                                - generic: MONTAGE. Nikos walks streets searching for Alex.
+                              - cell: "1"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 21C
+                              - cell:
+                                - generic: EXT. STREET - NIGHT - NIGHT
+                                - generic: MONTAGE. Nikos walks streets searching for Alex.
+                              - cell: "1"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "22"
+                              - cell:
+                                - generic: EXT. STREET - A BLOCK AWAY - NIGHT
+                                - generic: Nikos scans the road; spots Alex in chicken shop.
+                              - cell: 1, 2
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 22A
+                              - cell:
+                                - generic: EXT. STREET - A BLOCK AWAY - NIGHT
+                                - generic: Nikos stands outside hospital; looks across the road.
+                              - cell: 1, 2, 4, 8
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "23"
+                              - cell:
+                                - generic: INT. CHICKEN SHOP - NIGHT
+                                - generic: Nikos and Alex reconcile and bond. Superman vs Batman.
+                              - cell: 1, 2
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "25"
+                              - cell:
+                                - generic: INT. HOUSE, LIVING ROOM - NIGHT
+                                - generic: Alex lies on Nikos' lap. They chat; Alex falls asleep.
+                              - cell: 1, 2
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "26"
+                              - cell:
+                                - generic: EXT. ALEX HOUSE - DAY
+                                - generic: Melissa walks towards the house.
+                              - cell: "3"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "27"
+                              - cell:
+                                - generic: INT. HOUSE, LIVING ROOM - DAY
+                                - generic: Melissa stands over a sleeping Nikos & Alex.
+                              - cell: 1, 2, 3
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "28"
+                              - cell:
+                                - generic: INT. NIKOS KITCHEN - DAY
+                                - generic: Nikos on the phone to his mum. 'Love you.'
+                              - cell: "1"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 21D
+                              - cell:
+                                - generic: EXT. STREET - NIGHT - NIGHT
+                                - generic: MONTAGE. Nikos walks streets searching for Alex.
+                              - cell: 1, 2, 3, 4, 5, 6, 7, 8
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 21E
+                              - cell:
+                                - generic: EXT. MY OWN PLACE - NIGHT
+                                - generic: MONTAGE. Nikos walks streets searching for Alex.
+                              - cell: 1, 2, 3, 4, 5, 6, 7, 8
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: 21F
+                              - cell:
+                                - generic: EXT. MY OWN PLACE, PERIOD - NIGHT
+                                - generic: MONTAGE. Nikos walks streets searching for Alex.
+                              - cell: 1, 2, 3, 4, 5, 6, 7, 8
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell
+                              - cell:
+                                - generic: . -
+                              - cell: —
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "11"
+                              - cell:
+                                - generic: INT. HOUSE, KITCHEN - NIGHT
+                                - generic: Nikos & Alex argue; Alex destroys the cereal boxes.
+                              - cell: 1, 2
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "14"
+                              - cell:
+                                - generic: INT. HOUSE - NIGHT
+                                - generic: Alex sneaks downstairs and heads out. Nikos chats on phone to Rosie.
+                              - cell: "2"
+                    - button:
+                      - generic:
+                        - table:
+                          - rowgroup:
+                            - row:
+                              - cell:
+                                - generic:
+                                  - generic: "13"
+                              - cell:
+                                - generic: INT. HOUSE, KITCHEN - NIGHT
+                                - generic: Nikos finds Rosie's number on paper; calls her while hoovering.
+                              - cell: "1"
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: "DAY #1"
+                        - generic:
+                          - generic: CALL
+                          - generic:
+                            - textbox: 08:00
+                        - generic:
+                          - strong: TUESDAY 30TH JUNE 2026
+                  - generic:
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 5"
+                            - generic:
+                              - generic: 08:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: NIKO'S APARTMENT, BATHROOM
+                            - generic:
+                              - generic: "1"
+                            - generic:
+                              - generic: "Cotton wool/antiseptic. Phone screen: 'Mom'. Greek dialogue."
+                            - generic:
+                              - generic: 6/8 pgs
+                            - generic:
+                              - generic: EVENING
+                            - generic:
+                              - generic: Nikos tends injury; ignores phone; finally answers – it's Mum.
+                    - button
+                  - generic:
+                    - generic:
+                      - generic:
+                        - text: "End of Day #1"
+                        - generic: · 08:30
+                      - generic: TUESDAY 30TH JUNE 2026
+                    - generic:
+                      - generic:
+                        - text: "Total Pages:"
+                        - strong: 6/8 pgs
+                      - generic:
+                        - text: "EST. TIME:"
+                        - strong: 30m
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                            - generic: "1"
+                      - generic:
+                        - generic:
+                          - generic: "DAY #2"
+                        - generic:
+                          - generic: CALL
+                          - generic:
+                            - textbox: 08:00
+                        - generic:
+                          - strong: WEDNESDAY 1ST JULY 2026
+                  - generic:
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 19"
+                            - generic:
+                              - generic: 08:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT/EXT
+                            - generic:
+                              - generic: ALEX'S ROOM
+                            - generic:
+                              - generic: 1, 2
+                            - generic:
+                              - generic: "iPad: A&E search screen. Insert shot."
+                            - generic:
+                              - generic: 6/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Nikos opens door calmly… Alex is gone!
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 10"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 08:30
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT/EXT
+                            - generic:
+                              - generic: HOUSE, BACKYARD
+                            - generic:
+                              - generic: 1, 2
+                            - generic:
+                              - generic: "STUNT: child fall. Child stunt coord. required."
+                            - generic:
+                              - generic: 2/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Nikos smokes; Alex sneaks in and tries to grab cereal box; Alex falls.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 21A"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 09:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: EXT
+                            - generic:
+                              - generic: STREET - NIGHT
+                            - generic:
+                              - generic: "1"
+                            - generic:
+                              - generic: Notes
+                            - generic:
+                              - generic: 4/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: MONTAGE. Nikos walks streets searching for Alex.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 4"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 09:30
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: NIKOS APARTMENT
+                            - generic:
+                              - generic: "1"
+                            - generic:
+                              - generic: Beer. Father photo on fridge (hero prop).
+                            - generic:
+                              - generic: 2/8 pgs
+                            - generic:
+                              - generic: EVENING
+                            - generic:
+                              - generic: Nikos cares for bruise; opens a beer.
+                  - generic:
+                    - generic:
+                      - generic:
+                        - text: "End of Day #2"
+                        - generic: · 10:00
+                      - generic: WEDNESDAY 1ST JULY 2026
+                    - generic:
+                      - generic:
+                        - text: "Total Pages:"
+                        - strong: 1 6/8 pgs
+                      - generic:
+                        - text: "EST. TIME:"
+                        - strong: 2h
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic: TRAVEL
+                        - generic:
+                          - strong: THURSDAY 2ND JULY 2026
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - img
+                            - generic: "1"
+                      - generic:
+                        - generic:
+                          - generic: "DAY #3"
+                        - generic:
+                          - generic: CALL
+                          - generic:
+                            - textbox: 08:00
+                        - generic:
+                          - strong: FRIDAY 3RD JULY 2026
+                  - generic:
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 23A"
+                            - generic:
+                              - generic: 08:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: CHICKEN SHOP
+                            - generic:
+                              - generic: 1, 2
+                            - generic:
+                              - generic: Superman figurine (hero prop). Chicken shop food tray.
+                            - generic:
+                              - generic: 2 2/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Nikos and Alex reconcile and bond. Superman vs Batman.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 12"
+                            - generic:
+                              - generic: 08:30
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: ALEX'S ROOM
+                            - generic:
+                              - generic: "2"
+                            - generic:
+                              - generic: "iPad: A&E search. Insert shot required."
+                            - generic:
+                              - generic: 1/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Alex slams door; wipes eyes; types on iPad.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 17"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 09:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: HOUSE
+                            - generic:
+                              - generic: 1, 2, 5
+                            - generic:
+                              - generic: Notes
+                            - generic:
+                              - generic: 1 2/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Nikos stands behind door listening to Rosie & Hugh arguing.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 7"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 09:30
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: HOUSE
+                            - generic:
+                              - generic: 1, 2
+                            - generic:
+                              - generic: Notes
+                            - generic:
+                              - generic: 2/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Alex leads Nikos into the house.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 15"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 10:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: HOUSE, KITCHEN
+                            - generic:
+                              - generic: 1, 2, 3
+                            - generic:
+                              - generic: Notes
+                            - generic:
+                              - generic: 3/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Rosie tells Nikos she'll be ten minutes.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 9"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 10:30
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: ALEX HOUSE
+                            - generic:
+                              - generic: 1, 2
+                            - generic:
+                              - generic: Notes
+                            - generic:
+                              - generic: 5/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Nikos tries to engage; Alex storms off to his room.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 16"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 11:00
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: HOUSE
+                            - generic:
+                              - generic: 1, 4, 6
+                            - generic:
+                              - generic: Nothing to note here.
+                            - generic:
+                              - generic: 4/8 pgs
+                            - generic:
+                              - generic: DAY
+                            - generic:
+                              - generic: Rosie apologises for being late. Nikos shuts door in their faces.
+                    - button:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic: "Scene: 24"
+                              - generic:
+                                - img
+                            - generic:
+                              - generic: 11:30
+                            - generic:
+                              - generic:
+                                - textbox: 30m
+                            - generic:
+                              - generic: INT
+                            - generic:
+                              - generic: ALEX'S ROOM
+                            - generic:
+                              - generic: "1"
+                            - generic:
+                              - generic: Framed crayon drawing (hero prop).
+                            - generic:
+                              - generic: 2/8 pgs
+                            - generic:
+                              - generic: NIGHT
+                            - generic:
+                              - generic: Nikos grabs blanket from foot of bed.
+                  - generic:
+                    - generic:
+                      - generic:
+                        - text: "End of Day #3"
+                        - generic: · 12:00
+                      - generic: FRIDAY 3RD JULY 2026
+                    - generic:
+                      - generic:
+                        - text: "Total Pages:"
+                        - strong: 5 5/8 pgs
+                      - generic:
+                        - text: "EST. TIME:"
+                        - strong: 4h
+          - status
+  - dialog "Print Schedule" [ref=e1032]:
+    - generic [ref=e1033]:
+      - generic [ref=e1034]:
+        - img [ref=e1036]
+        - heading "Print Schedule" [level=2] [ref=e1040]
+      - generic [ref=e1041]:
+        - button "Reset" [active] [ref=e1042]:
+          - img [ref=e1043]
+          - text: Reset
+        - button [ref=e1046]:
+          - img [ref=e1047]
+    - generic [ref=e1051]:
+      - generic [ref=e1052]:
+        - generic [ref=e1053]:
+          - generic [ref=e1054]:
+            - generic [ref=e1055]: Ribbon Layout
+            - button "Default" [ref=e1056]:
+              - generic [ref=e1057]: Default
+              - img [ref=e1058]
+          - generic [ref=e1060]:
+            - generic [ref=e1061]: Engine
+            - button "Browser" [ref=e1062]:
+              - generic [ref=e1063]: Browser
+              - img [ref=e1064]
+            - generic [ref=e1066]:
+              - generic [ref=e1067]: Page Size
+              - button "Portrait" [ref=e1068]:
+                - generic [ref=e1069]: Portrait
+                - img [ref=e1070]
+        - generic [ref=e1072]:
+          - generic [ref=e1075]:
+            - generic [ref=e1077]: "Scene: 5"
+            - generic [ref=e1079]: 08:00
+            - generic [ref=e1081]: 2h 30m
+            - generic [ref=e1083]: INT
+            - generic [ref=e1085]: KITCHEN
+            - generic [ref=e1087]: 1, 2, 4
+            - generic [ref=e1089]: Need breakfast props — call crafty.
+            - generic [ref=e1091]: 2 3/8 pgs
+            - generic [ref=e1093]: DAY
+            - generic [ref=e1095]: John makes breakfast while arguing with Mary about the party.
+          - generic [ref=e1098]:
+            - generic [ref=e1100]: "Scene: 5"
+            - generic [ref=e1102]: 08:00
+            - generic [ref=e1104]: 2h 30m
+            - generic [ref=e1106]: INT
+            - generic [ref=e1108]: KITCHEN
+            - generic [ref=e1110]: 1, 2, 4
+            - generic [ref=e1112]: Need breakfast props — call crafty.
+            - generic [ref=e1114]: 2 3/8 pgs
+            - generic [ref=e1116]: DAY
+            - generic [ref=e1118]: John makes breakfast while arguing with Mary about the party.
+          - generic [ref=e1121]:
+            - generic [ref=e1123]: "Scene: 5"
+            - generic [ref=e1125]: 08:00
+            - generic [ref=e1127]: 2h 30m
+            - generic [ref=e1129]: INT
+            - generic [ref=e1131]: KITCHEN
+            - generic [ref=e1133]: 1, 2, 4
+            - generic [ref=e1135]: Need breakfast props — call crafty.
+            - generic [ref=e1137]: 2 3/8 pgs
+            - generic [ref=e1139]: DAY
+            - generic [ref=e1141]: John makes breakfast while arguing with Mary about the party.
+      - generic [ref=e1142]:
+        - heading "Cell Borders" [level=3] [ref=e1143]
+        - generic [ref=e1144]:
+          - button "None" [ref=e1145]
+          - button "Vertical" [ref=e1146]
+          - button "Horizontal" [ref=e1147]
+          - button "Both" [ref=e1148]
+      - generic [ref=e1149]:
+        - generic [ref=e1150]:
+          - generic [ref=e1151]:
+            - heading "Stripboard" [level=3] [ref=e1152]
+            - generic [ref=e1153]:
+              - generic [ref=e1154] [cursor=pointer]:
+                - checkbox "Call Times" [checked] [ref=e1155]
+                - generic [ref=e1156]: Call Times
+              - generic [ref=e1157] [cursor=pointer]:
+                - checkbox "Durations" [checked] [ref=e1158]
+                - generic [ref=e1159]: Durations
+              - generic [ref=e1160] [cursor=pointer]:
+                - checkbox "Hold / Travel / Holiday days" [checked] [ref=e1161]
+                - generic [ref=e1162]: Hold / Travel / Holiday days
+          - generic [ref=e1163]:
+            - heading "Page Style" [level=3] [ref=e1164]
+            - generic [ref=e1165]:
+              - generic [ref=e1166] [cursor=pointer]:
+                - checkbox "Cast List" [checked] [ref=e1167]
+                - generic [ref=e1168]: Cast List
+              - generic [ref=e1169] [cursor=pointer]:
+                - checkbox "Export date on title" [checked] [ref=e1170]
+                - generic [ref=e1171]: Export date on title
+              - generic [ref=e1172] [cursor=pointer]:
+                - checkbox "Page numbers" [checked] [ref=e1173]
+                - generic [ref=e1174]: Page numbers
+        - generic [ref=e1175]:
+          - generic [ref=e1176]:
+            - heading "Days to Print" [level=3] [ref=e1177]
+            - button "Deselect all" [ref=e1178]
+          - generic [ref=e1179]:
+            - button "Day 1 Tuesday, 30th" [ref=e1180]:
+              - img [ref=e1182]
+              - generic [ref=e1184]: Day 1
+              - generic [ref=e1185]: Tuesday, 30th
+            - button "Day 2 Wednesday, 1st" [ref=e1186]:
+              - img [ref=e1188]
+              - generic [ref=e1190]: Day 2
+              - generic [ref=e1191]: Wednesday, 1st
+            - button "Day 3 Thursday, 2nd" [ref=e1192]:
+              - img [ref=e1194]
+              - generic [ref=e1196]: Day 3
+              - generic [ref=e1197]: Thursday, 2nd
+            - button "Day 4 Friday, 3rd" [ref=e1198]:
+              - img [ref=e1200]
+              - generic [ref=e1202]: Day 4
+              - generic [ref=e1203]: Friday, 3rd
+    - generic [ref=e1205]:
+      - button "Cancel" [ref=e1206]
+      - button "Print / Save PDF" [ref=e1207]:
+        - img [ref=e1208]
+        - text: Print / Save PDF

@@ -1,0 +1,37 @@
+- generic [ref=e39]:
+  - banner [ref=e40]:
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - button "File" [ref=e43] [cursor=pointer]:
+          - generic [ref=e44]: File
+          - img [ref=e45]
+        - textbox [ref=e47]: Untitled Project
+      - generic [ref=e48]:
+        - button "Breakdown" [ref=e49]
+        - button "Schedule" [ref=e50]
+        - button "Calendar" [ref=e51]
+        - button "Design" [ref=e52]
+        - button "Rules" [ref=e53]
+        - button "Reports" [ref=e54]
+    - generic [ref=e55]:
+      - generic [ref=e56]:
+        - button "Undo (Cmd+Z)" [disabled] [ref=e57]:
+          - img [ref=e58]
+        - button "Redo (Cmd+Shift+Z)" [disabled] [ref=e61]:
+          - img [ref=e62]
+      - 'button "Version: v01" [ref=e65] [cursor=pointer]':
+        - generic [ref=e66]:
+          - text: "Version:"
+          - strong [ref=e67]: v01
+        - img [ref=e68]
+  - main [ref=e70]:
+    - generic [ref=e71]:
+      - generic [ref=e73]:
+        - button "Sheet" [ref=e74]
+        - button "Element Manager" [ref=e75]
+        - button "Scene Breakdown" [ref=e76]
+      - generic [ref=e77]:
+        - paragraph [ref=e78]: No scenes defined yet.
+        - button "Create First Scene" [ref=e79]:
+          - img [ref=e80]
+          - text: Create First Scene

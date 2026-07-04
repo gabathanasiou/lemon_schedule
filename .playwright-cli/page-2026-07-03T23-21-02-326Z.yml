@@ -1,0 +1,18 @@
+- dialog "Projects" [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e6]
+      - heading "Projects" [level=2] [ref=e8]
+    - button [active] [ref=e10]:
+      - img [ref=e11]
+  - generic [ref=e16]:
+    - img [ref=e17]
+    - paragraph [ref=e19]: No projects yet
+    - paragraph [ref=e20]: Create a new project or import one to get started.
+  - generic [ref=e22]:
+    - button "Import" [ref=e23]:
+      - img [ref=e24]
+      - text: Import
+    - button "New Project" [ref=e27]:
+      - img [ref=e28]
+      - text: New Project
