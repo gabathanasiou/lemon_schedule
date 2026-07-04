@@ -279,11 +279,13 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
     const dayRows = fullScheduledRows[dayInt] || [];
 
     const isStatusDay = meta?.status && meta.status !== 'work';
+    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    const callStr = meta?.unitCall ? `CALL ${meta.unitCall}` : '';
+    const chronoDay = chronoDayMap.get(dayInt);
 
     // Status day with no rows: minimal header
     if (isStatusDay && (!dayRows || dayRows.length === 0)) {
       const statusLabel = meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY';
-      const dateStr = meta?.date ? formatDateLong(meta.date) : '';
 
       if (cells && cells.length > 0) {
         const mainCellIdx = (() => {
@@ -360,9 +362,6 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       return { ...r, computedCallTime: callTime };
     });
 
-    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
-    const callStr = meta?.unitCall ? `CALL ${meta.unitCall}` : '';
-    const chronoDay = chronoDayMap.get(dayInt);
 
     // Find the widest non-special cell (matches browser PrintSchedule.tsx mainCellIdx)
     const mainCellIdx = cells ? (() => {
