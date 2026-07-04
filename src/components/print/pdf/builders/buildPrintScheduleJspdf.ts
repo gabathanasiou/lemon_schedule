@@ -554,7 +554,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
                 fontSize: FONT_SIZE,
                 fontStyle: cell.field === 'sceneNumber' ? 'bold' : 'normal',
                 halign: align,
-                valign: 'top',
+                valign: cell.verticalAlign || 'middle',
                 overflow: cell.wrap ? 'linebreak' : 'hidden',
               },
             };
