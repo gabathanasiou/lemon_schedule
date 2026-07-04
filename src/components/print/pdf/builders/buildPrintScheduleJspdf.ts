@@ -205,11 +205,11 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       doc.setFontSize(FONT_SIZE);
       doc.setFont('Helvetica', 'bold');
       doc.text('CAST LIST', PAGE_MARGIN, y);
-      y += 4;
+      y += 6;
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(1);
       doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
-      y += 8;
+      y += 12;
 
       const ROWS = 10;
       const COLS = 3;
