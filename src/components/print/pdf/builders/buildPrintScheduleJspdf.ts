@@ -365,18 +365,25 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
     // ── Day Header ──
     if (cells && cells.length > 0) {
-      const mainCellIdx = (() => {
-        const nonSpecial = cells!.map((c, i) => ({ i, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
-        return nonSpecial.length > 0 ? nonSpecial.reduce((a, b) => a.i >= b.i ? a : b).i : 0;
-      })();
-
-      const headerRow: any[] = cells.map((cell, ci) => {
+      const nCols = cells.length;
+      const headerRow: any[] = [];
+      for (let ci = 0; ci < nCols; ci++) {
         let text = '';
-        if (ci === mainCellIdx) text = dateStr;
-        else if (ci === 0 && chronoDay !== undefined) text = `DAY #${chronoDay}`;
-        else if (cell.field === 'callTime') text = callStr;
-        return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center' } };
-      });
+        let colSpan = 1;
+        let hAlign: string | undefined;
+        if (ci === 0) {
+          text = chronoDay !== undefined ? `DAY #${chronoDay}` : '';
+          hAlign = 'center';
+        } else if (ci === 1) {
+          text = callStr;
+        } else if (ci === 2) {
+          text = dateStr;
+          colSpan = nCols - 2;
+          hAlign = 'center';
+        }
+        headerRow.push({ content: text || '', colSpan: colSpan > 1 ? colSpan : undefined, styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: hAlign || 'center' } });
+        if (colSpan > 1) break;
+      }
 
       doc.autoTable({
         body: [headerRow],
