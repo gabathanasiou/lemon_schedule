@@ -3,7 +3,7 @@ import { applyPlugin } from 'jspdf-autotable';
 applyPlugin(jsPDF);
 import type { Project, ScheduleRow, RibbonCell, RibbonRow } from '../../../../types';
 import type { CellBorders } from '../../../../lib/persist';
-import { getFieldValue, resolveSceneColor, computeMergeGroups, getNoteBreakPad, formatCellText, getAlign } from '../../../../lib/ribbonUtils';
+import { getFieldValue, resolveSceneColor, computeMergeGroups, formatCellText, getAlign } from '../../../../lib/ribbonUtils';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../../../../lib/utils';
 import { getRibbonColumnWidthsPt } from '../conf/pdfLayout';
 
@@ -64,9 +64,9 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   const design = selectedRibbonId ? project.ribbonDesigns.find(d => d.id === selectedRibbonId) : undefined;
   const ribbon = design?.rows;
   const colWidths = design?.colWidths;
-  const cellPaddingV = design?.cellPaddingV ?? 6;
-  const cellPaddingH = design?.cellPaddingH ?? 6;
-  const edgePadding = design?.edgePadding ?? 2;
+  const cellPaddingV = (design?.cellPaddingV ?? 6) * 72 / 96;
+  const cellPaddingH = (design?.cellPaddingH ?? 6) * 72 / 96;
+  const edgePadding = (design?.edgePadding ?? 2) * 72 / 96;
   const sceneColors = project.colorPalette?.sceneColors;
 
   // Build scheduled rows per day
@@ -185,7 +185,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   }
 
   const ribbonLen = ribbon?.length || 1;
-  const noteBreakPad = getNoteBreakPad(cellPaddingV ?? 6, ribbonLen);
+  const noteBreakPad = cellPaddingV * ribbonLen + 4.5 * (ribbonLen - 1);
 
   let y = PAGE_MARGIN;
 
@@ -442,14 +442,14 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         } else {
           doc.autoTable({
             body: [[
-              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: r.computedCallTime || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: r.estimatedDuration ? formatDuration(r.estimatedDuration) : '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: label, styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: 'center', cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
-              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), bottom: getNoteBreakPad(cellPaddingV ?? 6, ribbonLen), left: 1, right: 1 } } },
+              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: r.computedCallTime || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: r.estimatedDuration ? formatDuration(r.estimatedDuration) : '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: label, styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: 'center', cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
+              { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
             ]],
             tableWidth: availW,
             margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
@@ -476,18 +476,116 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
       if (cells && filteredRibbon && filteredWidths.length > 0) {
         const mgroups = computeMergeGroups(filteredRibbon);
+
+        // Pre-compute v-merge groups: use rowSpan→didDrawCell when single-line+middle, distribute otherwise
+        const vUseRowSpan = new Map<string, boolean>();
+        const isSingleLine = new Map<string, boolean>();
+        for (const g of mgroups) {
+          if (g.direction !== 'v' || g.span <= 1) continue;
+          const topCell = filteredRibbon[g.rowIndex]?.cells[g.colIndex];
+          if (!topCell) continue;
+          let val = '';
+          const vFields: any = scene ? { ...scene, computedCallTime: r.computedCallTime, estimatedDuration: r.estimatedDuration || 0, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) } : {};
+          if (topCell.field === 'text') val = topCell.textContent || '';
+          else if (topCell.field === 'callTime') val = r.computedCallTime || '';
+          else if (topCell.field === 'duration') val = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
+          else val = getFieldValue(topCell.field, vFields);
+          if (topCell.field === 'set') val = val.toUpperCase();
+          const fullDisplay = formatCellText(topCell.prefix, val, topCell.suffix);
+          if (!fullDisplay) continue;
+          let availW = colWidthsPt[g.colIndex] || 50;
+          const hG = mgroups.find(gg => gg.direction !== 'v' && gg.rowIndex === g.rowIndex && gg.colIndex === g.colIndex);
+          if (hG && hG.span > 1) {
+            for (let si = 1; si < hG.span; si++) availW += colWidthsPt[g.colIndex + si] || 50;
+          }
+          availW -= 2 * cellPaddingH;
+          doc.setFontSize(FONT_SIZE);
+          const key = `${g.rowIndex}_${g.colIndex}`;
+          const single = doc.getTextWidth(fullDisplay) <= availW;
+          isSingleLine.set(key, single);
+          const valign = topCell.verticalAlign || 'middle';
+          vUseRowSpan.set(key, single && valign === 'middle');
+        }
+
+        // Skip cells hidden by h-merges (always) and v-merges (rowSpan groups only)
         const hiddenIds = new Set<string>();
         for (const g of mgroups) {
           if (g.direction === 'v') {
-            for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-              const cell = filteredRibbon[ri]?.cells[g.colIndex];
-              if (cell) hiddenIds.add(cell.id);
+            const key = `${g.rowIndex}_${g.colIndex}`;
+            if (vUseRowSpan.get(key) === true) {
+              for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
+                const cell = filteredRibbon[ri]?.cells[g.colIndex];
+                if (cell) hiddenIds.add(cell.id);
+              }
             }
           } else {
             for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
               const cell = filteredRibbon[g.rowIndex]?.cells[ci];
               if (cell) hiddenIds.add(cell.id);
             }
+          }
+        }
+
+        // Pre-compute distributed text for non-rowSpan v-merge groups
+        const mergeTexts = new Map<string, string[]>();
+        for (const g of mgroups) {
+          if (g.direction !== 'v' || g.span <= 1) continue;
+          const key = `${g.rowIndex}_${g.colIndex}`;
+          if (vUseRowSpan.get(key) === true) continue;
+          const topCell = filteredRibbon[g.rowIndex]?.cells[g.colIndex];
+          if (!topCell) continue;
+          let val = '';
+          const vFields: any = scene ? { ...scene, computedCallTime: r.computedCallTime, estimatedDuration: r.estimatedDuration || 0, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) } : {};
+          if (topCell.field === 'text') val = topCell.textContent || '';
+          else if (topCell.field === 'callTime') val = r.computedCallTime || '';
+          else if (topCell.field === 'duration') val = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
+          else val = getFieldValue(topCell.field, vFields);
+          if (topCell.field === 'set') val = val.toUpperCase();
+          const fullDisplay = formatCellText(topCell.prefix, val, topCell.suffix);
+          if (!fullDisplay) continue;
+          let availW = colWidthsPt[g.colIndex] || 50;
+          const hG = mgroups.find(gg => gg.direction !== 'v' && gg.rowIndex === g.rowIndex && gg.colIndex === g.colIndex);
+          if (hG && hG.span > 1) {
+            for (let si = 1; si < hG.span; si++) availW += colWidthsPt[g.colIndex + si] || 50;
+          }
+          availW -= 2 * cellPaddingH;
+          doc.setFontSize(FONT_SIZE);
+          const span = g.span;
+          const valign = topCell.verticalAlign || 'middle';
+          const single = isSingleLine.get(key) === true;
+
+          if (single && valign === 'top') {
+            const texts = Array(span).fill('');
+            texts[0] = fullDisplay;
+            mergeTexts.set(key, texts);
+          } else if (single && valign === 'bottom') {
+            const texts = Array(span).fill('');
+            texts[span - 1] = fullDisplay;
+            mergeTexts.set(key, texts);
+          } else {
+            const allLines = doc.splitTextToSize(fullDisplay, availW);
+            const linesPerRow = Math.ceil(allLines.length / span);
+            const texts: string[] = [];
+            for (let ri = 0; ri < span; ri++) {
+              const start = ri * linesPerRow;
+              const end = Math.min(start + linesPerRow, allLines.length);
+              let rowText = allLines.slice(start, end).join('\n');
+              if (!topCell.wrap && ri === span - 1 && end <= allLines.length) {
+                const lastLine = allLines[end - 1];
+                const availW2 = availW - doc.getTextWidth('…');
+                let lo = 0, hi = lastLine.length;
+                while (lo < hi) {
+                  const mid = Math.ceil((lo + hi) / 2);
+                  if (doc.getTextWidth(lastLine.slice(0, mid)) <= availW2) lo = mid;
+                  else hi = mid - 1;
+                }
+                rowText = allLines.slice(start, end - 1).join('\n');
+                if (rowText) rowText += '\n';
+                rowText += lastLine.slice(0, lo) + '…';
+              }
+              texts.push(rowText);
+            }
+            mergeTexts.set(key, texts);
           }
         }
 
@@ -498,7 +596,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           for (let ci = 0; ci < filteredRibbon[ri].cells.length; ci++) {
             const cell = filteredRibbon[ri].cells[ci];
             const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-            const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
+            const vGroup = mgroups.find(gg => gg.direction === 'v' && gg.colIndex === ci && gg.rowIndex <= ri && gg.rowIndex + gg.span > ri);
             const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
             const isHidden = hiddenIds.has(cell.id);
 
@@ -506,60 +604,81 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
               continue;
             }
 
-            let val = '';
-            let valFields: any = scene ? { ...scene, computedCallTime: r.computedCallTime, estimatedDuration: r.estimatedDuration || 0, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) } : {};
-            if (cell.field === 'text') {
-              val = cell.textContent || '';
-            } else if (cell.field === 'callTime') {
-              val = r.computedCallTime || '';
-            } else if (cell.field === 'duration') {
-              val = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
-            } else {
-              val = getFieldValue(cell.field, valFields);
-            }
-            if (cell.field === 'set') val = val.toUpperCase();
-            let display = formatCellText(cell.prefix, val, cell.suffix);
-
-            const multiRow = vSpan > 1;
             const align = getAlign(cell);
-
-            let overflowMode = cell.wrap ? 'linebreak' : 'hidden';
+            let display: string;
+            let overflowMode: string;
             let mergeLines: string[] | null = null;
             let mergeLineH = 0;
+            let useRowSpan = false;
+            let vSpan = 1;
 
-            // Truncate/process display based on wrap mode
-            if (!cell.wrap && display) {
-              let availCellW = colWidthsPt[ci] || 50;
-              if (hSpan > 1) {
-                for (let si = 1; si < hSpan; si++) {
-                  availCellW += colWidthsPt[ci + si] || 50;
-                }
+            // Check if this cell is part of a multi-line v-merge group
+            const vMergeKey = vGroup ? `${vGroup.rowIndex}_${vGroup.colIndex}` : null;
+            const inMultiV = vMergeKey && vUseRowSpan.get(vMergeKey) === false;
+
+            if (inMultiV) {
+              // Multi-line v-merge: use distributed text from pre-computed data
+              display = mergeTexts.get(vMergeKey!)?.[ri - vGroup!.rowIndex] || '';
+              overflowMode = 'linebreak';
+            } else {
+              // Normal cell: compute value from its own field
+              let val = '';
+              const valFields: any = scene ? { ...scene, computedCallTime: r.computedCallTime, estimatedDuration: r.estimatedDuration || 0, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) } : {};
+              if (cell.field === 'text') {
+                val = cell.textContent || '';
+              } else if (cell.field === 'callTime') {
+                val = r.computedCallTime || '';
+              } else if (cell.field === 'duration') {
+                val = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
+              } else {
+                val = getFieldValue(cell.field, valFields);
               }
-              availCellW -= 2 * cellPaddingH;
+              if (cell.field === 'set') val = val.toUpperCase();
+              display = formatCellText(cell.prefix, val, cell.suffix);
+
+              const multiRow = g?.direction === 'v' && g.span > 1;
+              overflowMode = cell.wrap ? 'linebreak' : 'hidden';
 
               if (multiRow) {
-                // Multi-row non-wrap: wrap text up to vSpan lines (browser uses -webkit-line-clamp)
-                doc.setFontSize(FONT_SIZE);
-                const lines = doc.splitTextToSize(display, availCellW);
-                if (lines.length > vSpan) {
-                  const lastLine = lines[vSpan - 1];
-                  const availW2 = availCellW - doc.getTextWidth('…');
-                  let lo = 0, hi = lastLine.length;
-                  while (lo < hi) {
-                    const mid = Math.ceil((lo + hi) / 2);
-                    if (doc.getTextWidth(lastLine.slice(0, mid)) <= availW2) {
-                      lo = mid;
-                    } else {
-                      hi = mid - 1;
+                // Single-line v-merge: current rowSpan + didDrawCell behavior
+                useRowSpan = true;
+                vSpan = g!.span;
+                if (!cell.wrap && display) {
+                  let availCellW = colWidthsPt[ci] || 50;
+                  if (hSpan > 1) {
+                    for (let si = 1; si < hSpan; si++) {
+                      availCellW += colWidthsPt[ci + si] || 50;
                     }
                   }
-                  lines[vSpan - 1] = lastLine.slice(0, lo) + '…';
+                  availCellW -= 2 * cellPaddingH;
+                  doc.setFontSize(FONT_SIZE);
+                  const lines = doc.splitTextToSize(display, availCellW);
+                  if (lines.length > vSpan) {
+                    const lastLine = lines[vSpan - 1];
+                    const availW2 = availCellW - doc.getTextWidth('…');
+                    let lo = 0, hi = lastLine.length;
+                    while (lo < hi) {
+                      const mid = Math.ceil((lo + hi) / 2);
+                      if (doc.getTextWidth(lastLine.slice(0, mid)) <= availW2) {
+                        lo = mid;
+                      } else {
+                        hi = mid - 1;
+                      }
+                    }
+                    lines[vSpan - 1] = lastLine.slice(0, lo) + '…';
+                  }
+                  mergeLines = lines;
+                  mergeLineH = FONT_SIZE * 1.1 + cellPaddingV * 2;
+                  display = '';
                 }
-                mergeLines = lines;
-                mergeLineH = FONT_SIZE * 1.1 + cellPaddingV * (2 * 72 / 96);
-                display = '';
-              } else {
-                // Single row: truncate to fit width (single line, no wrap)
+              } else if (!cell.wrap && display) {
+                let availCellW = colWidthsPt[ci] || 50;
+                if (hSpan > 1) {
+                  for (let si = 1; si < hSpan; si++) {
+                    availCellW += colWidthsPt[ci + si] || 50;
+                  }
+                }
+                availCellW -= 2 * cellPaddingH;
                 if (doc.getTextWidth(display) > availCellW) {
                   let lo = 0, hi = display.length;
                   while (lo < hi) {
@@ -590,7 +709,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
               _mergeLineH: mergeLineH,
             };
 
-            if (multiRow) {
+            if (useRowSpan) {
               cellObj.rowSpan = vSpan;
               const mTop = (ri === 0) ? cellPaddingV + edgePadding : cellPaddingV;
               const mBottom = (ri + vSpan >= numRows) ? cellPaddingV + edgePadding : cellPaddingV;
