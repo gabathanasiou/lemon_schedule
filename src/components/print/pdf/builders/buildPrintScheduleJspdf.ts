@@ -724,9 +724,20 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
               cellObj.colSpan = hSpan;
             }
 
-            // Horizontal border (right side, for vertical | both modes)
+            // Cell borders (controlled by print menu)
             if (borderEnabled && hasVertBorder && ci < filteredRibbon[ri].cells.length - 1) {
               (cellObj as any)._rightBorder = true;
+            }
+            if (borderEnabled && hasHorizBorder && ri < numRows - 1) {
+              let drawBottom = false;
+              if (useRowSpan) {
+                drawBottom = true;
+              } else if (inMultiV) {
+                drawBottom = (ri - vGroup!.rowIndex) === vGroup!.span - 1;
+              } else {
+                drawBottom = true;
+              }
+              if (drawBottom) (cellObj as any)._bottomBorder = true;
             }
 
             row.push(cellObj);
@@ -741,6 +752,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
           styles: {
             fontSize: FONT_SIZE,
+            lineWidth: 0,
           },
           tableLineColor: [0, 0, 0],
           tableLineWidth: 0,
@@ -795,6 +807,15 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
                   doc.setDrawColor(textColor);
                   doc.setLineWidth(0.5);
                   doc.line(x + width, cy, x + width, cy + height);
+                }
+              }
+              if (borderEnabled && hasHorizBorder) {
+                const cellRaw3 = data.row?.raw?.[data.column.index];
+                if (cellRaw3 && cellRaw3._bottomBorder) {
+                  const { x, y: cy, width, height } = data.cell;
+                  doc.setDrawColor(textColor);
+                  doc.setLineWidth(0.5);
+                  doc.line(x, cy + height, x + width, cy + height);
                 }
               }
             }
