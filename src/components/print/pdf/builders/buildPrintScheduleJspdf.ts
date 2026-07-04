@@ -189,26 +189,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
   let y = PAGE_MARGIN;
 
-  // ── Title Section ──
-  doc.setFontSize(14);
-  doc.setFont('Helvetica', 'bold');
-  doc.text(project.title || 'Production Schedule', PAGE_MARGIN, y);
-  y += 16;
-  doc.setFontSize(FONT_SIZE);
-  doc.setFont('Helvetica', 'normal');
-  doc.setTextColor(82, 82, 91);
-  let subtitle = `Schedule Version: ${activeVersion.name}`;
-  if (showExportDate) subtitle += ` ${formatExportDate()}`;
-  doc.text(subtitle, PAGE_MARGIN, y);
-  y += 6;
-  // Bottom border line
-  doc.setDrawColor(24, 24, 27);
-  doc.setLineWidth(2);
-  doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
-  y += 10;
-  doc.setTextColor(0, 0, 0);
-
-  // ── Cast List Page ──
+  // ── Cast List Page (first, on its own) ──
   if (showCastList) {
     const sorted = (project.castMembers || [])
       .filter(m => printedCastIds.has(m.id))
@@ -220,7 +201,6 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       });
 
     if (sorted.length > 0) {
-      doc.addPage();
       y = PAGE_MARGIN;
       doc.setFontSize(FONT_SIZE);
       doc.setFont('Helvetica', 'bold');
@@ -258,9 +238,29 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           xOff += availW / COLS;
         }
       }
-      y = PAGE_MARGIN + ROWS * 12 + 20;
+      doc.addPage();
     }
   }
+
+  // ── Title Section ──
+  y = PAGE_MARGIN;
+  doc.setFontSize(14);
+  doc.setFont('Helvetica', 'bold');
+  doc.text(project.title || 'Production Schedule', PAGE_MARGIN, y);
+  y += 16;
+  doc.setFontSize(FONT_SIZE);
+  doc.setFont('Helvetica', 'normal');
+  doc.setTextColor(82, 82, 91);
+  let subtitle = `Schedule Version: ${activeVersion.name}`;
+  if (showExportDate) subtitle += ` ${formatExportDate()}`;
+  doc.text(subtitle, PAGE_MARGIN, y);
+  y += 6;
+  // Bottom border line
+  doc.setDrawColor(24, 24, 27);
+  doc.setLineWidth(2);
+  doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+  y += 10;
+  doc.setTextColor(0, 0, 0);
 
   // ── Build per-column columnStyles ──
   const columnStyles: Record<string, any> = {};
@@ -776,7 +776,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
                 } else if (vAlign === 'bottom') {
                   startY = cell.y + cell.height - padBot - textH + lineH / 2;
                 } else {
-                  startY = cell.y + padTop + (contentH - textH) / 2 + lineH / 2;
+                  startY = cell.y + padTop + (contentH - textH) / 2 + lineH / 2 + FONT_SIZE * 0.3;
                 }
                 const hAlign = cell.styles.halign || 'left';
                 doc.setFontSize(FONT_SIZE);
