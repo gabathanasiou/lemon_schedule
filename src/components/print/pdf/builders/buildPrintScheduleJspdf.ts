@@ -869,37 +869,22 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
     const textColorFooter = '#18181b';
 
     if (cells && cells.length > 0) {
-      // End-of-day + date row (with ribbon columns)
+      // End-of-day + totals (single row)
       doc.autoTable({
         body: [[
           { content: `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u00b7 ${endTime}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: 'center' } },
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: 'left' } },
+          { content: `Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`,
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: 'right' } },
         ]],
         tableWidth: availW,
+        columnStyles: { 0: { cellWidth: availW * 0.5 }, 1: { cellWidth: availW * 0.5 } },
         margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
         tableLineColor: [212, 212, 216],
         tableLineWidth: 1,
         startY: y,
       });
       y = (doc as any).lastAutoTable?.finalY || y + 30;
-
-      // Totals row (full width)
-      doc.autoTable({
-        body: [[
-          { content: `Total Pages: ${formatPageCount(totalPages)} pgs`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'left' } },
-          { content: `EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'right' } },
-        ]],
-        tableWidth: availW,
-        columnStyles: { 0: { cellWidth: availW * 0.5 }, 1: { cellWidth: availW * 0.5 } },
-        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
-        styles: { cellPadding: { top: 2, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH } },
-        tableLineColor: [0, 0, 0],
-        tableLineWidth: 0,
-        startY: y,
-      });
-      y = (doc as any).lastAutoTable?.finalY || y + 20;
     } else {
       doc.autoTable({
         body: [[
