@@ -561,8 +561,8 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
             if (multiRow) {
               cellObj.rowSpan = vSpan;
-              const mTop = (ri === 0) ? edgePadding : 0;
-              const mBottom = (ri + vSpan >= numRows) ? edgePadding : 0;
+              const mTop = (ri === 0) ? cellPaddingV + edgePadding : cellPaddingV;
+              const mBottom = (ri + vSpan >= numRows) ? cellPaddingV + edgePadding : cellPaddingV;
               cellObj.styles.cellPadding = { top: mTop, bottom: mBottom, left: cellPaddingH, right: cellPaddingH };
             } else {
               const nTop = (ri === 0) ? cellPaddingV + edgePadding : cellPaddingV;
