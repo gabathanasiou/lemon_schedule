@@ -520,7 +520,14 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
             if (cell.field === 'set') val = val.toUpperCase();
             let display = formatCellText(cell.prefix, val, cell.suffix);
 
-            // Truncate with ellipsis when wrap is off and text exceeds cell width
+            const multiRow = vSpan > 1;
+            const align = getAlign(cell);
+
+            let overflowMode = cell.wrap ? 'linebreak' : 'hidden';
+            let mergeLines: string[] | null = null;
+            let mergeLineH = 0;
+
+            // Truncate/process display based on wrap mode
             if (!cell.wrap && display) {
               let availCellW = colWidthsPt[ci] || 50;
               if (hSpan > 1) {
@@ -529,22 +536,44 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
                 }
               }
               availCellW -= 2 * cellPaddingH;
-              if (doc.getTextWidth(display) > availCellW) {
-                let lo = 0, hi = display.length;
-                while (lo < hi) {
-                  const mid = Math.ceil((lo + hi) / 2);
-                  if (doc.getTextWidth(display.slice(0, mid) + '…') <= availCellW) {
-                    lo = mid;
-                  } else {
-                    hi = mid - 1;
+
+              if (multiRow) {
+                // Multi-row non-wrap: wrap text up to vSpan lines (browser uses -webkit-line-clamp)
+                doc.setFontSize(FONT_SIZE);
+                const lines = doc.splitTextToSize(display, availCellW);
+                if (lines.length > vSpan) {
+                  const lastLine = lines[vSpan - 1];
+                  const availW2 = availCellW - doc.getTextWidth('…');
+                  let lo = 0, hi = lastLine.length;
+                  while (lo < hi) {
+                    const mid = Math.ceil((lo + hi) / 2);
+                    if (doc.getTextWidth(lastLine.slice(0, mid)) <= availW2) {
+                      lo = mid;
+                    } else {
+                      hi = mid - 1;
+                    }
                   }
+                  lines[vSpan - 1] = lastLine.slice(0, lo) + '…';
                 }
-                display = display.slice(0, lo) + '…';
+                mergeLines = lines;
+                mergeLineH = FONT_SIZE * 1.1 + cellPaddingV * (2 * 72 / 96);
+                display = '';
+              } else {
+                // Single row: truncate to fit width (single line, no wrap)
+                if (doc.getTextWidth(display) > availCellW) {
+                  let lo = 0, hi = display.length;
+                  while (lo < hi) {
+                    const mid = Math.ceil((lo + hi) / 2);
+                    if (doc.getTextWidth(display.slice(0, mid) + '…') <= availCellW) {
+                      lo = mid;
+                    } else {
+                      hi = mid - 1;
+                    }
+                  }
+                  display = display.slice(0, lo) + '…';
+                }
               }
             }
-
-            const multiRow = vSpan > 1;
-            const align = getAlign(cell);
 
             const cellObj: any = {
               content: display || '',
@@ -555,8 +584,10 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
                 fontStyle: cell.field === 'sceneNumber' ? 'bold' : 'normal',
                 halign: align,
                 valign: cell.verticalAlign || 'middle',
-                overflow: cell.wrap ? 'linebreak' : 'hidden',
+                overflow: overflowMode,
               },
+              _mergeLines: mergeLines,
+              _mergeLineH: mergeLineH,
             };
 
             if (multiRow) {
@@ -597,13 +628,55 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           rowPageBreak: 'avoid',
           startY: y,
           didDrawCell: (data: any) => {
-            if (borderEnabled && hasVertBorder && data.section === 'body') {
+            if (data.section === 'body') {
               const cellRaw = data.row?.raw?.[data.column.index];
-              if (cellRaw && cellRaw._rightBorder) {
-                const { x, y: cy, width, height } = data.cell;
-                doc.setDrawColor(textColor);
-                doc.setLineWidth(0.5);
-                doc.line(x + width, cy, x + width, cy + height);
+              if (cellRaw && cellRaw._mergeLines) {
+                const lines = cellRaw._mergeLines;
+                const lineH = cellRaw._mergeLineH;
+                const cell = data.cell;
+                const padTop = cell.padding('top');
+                const padBot = cell.padding('bottom');
+                const contentH = cell.height - padTop - padBot;
+                const textH = lines.length * lineH;
+                const vAlign = cell.styles.valign || 'middle';
+                let startY: number;
+                if (vAlign === 'top') {
+                  startY = cell.y + padTop + lineH / 2;
+                } else if (vAlign === 'bottom') {
+                  startY = cell.y + cell.height - padBot - textH + lineH / 2;
+                } else {
+                  startY = cell.y + padTop + (contentH - textH) / 2 + lineH / 2;
+                }
+                const hAlign = cell.styles.halign || 'left';
+                doc.setFontSize(FONT_SIZE);
+                const tc = cell.styles.textColor;
+                if (typeof tc === 'string') {
+                  doc.setTextColor(tc);
+                } else if (Array.isArray(tc)) {
+                  doc.setTextColor(tc[0], tc[1], tc[2]);
+                }
+                const leftPad = cell.padding('left');
+                const rightPad = cell.padding('right');
+                let yPos = startY;
+                for (const line of lines) {
+                  let lx = cell.x + leftPad;
+                  if (hAlign === 'center') {
+                    lx = cell.x + leftPad + (cell.width - leftPad - rightPad) / 2;
+                  } else if (hAlign === 'right') {
+                    lx = cell.x + cell.width - rightPad;
+                  }
+                  doc.text(line, lx, yPos, { align: hAlign });
+                  yPos += lineH;
+                }
+              }
+              if (borderEnabled && hasVertBorder) {
+                const cellRaw2 = data.row?.raw?.[data.column.index];
+                if (cellRaw2 && cellRaw2._rightBorder) {
+                  const { x, y: cy, width, height } = data.cell;
+                  doc.setDrawColor(textColor);
+                  doc.setLineWidth(0.5);
+                  doc.line(x + width, cy, x + width, cy + height);
+                }
               }
             }
           },
