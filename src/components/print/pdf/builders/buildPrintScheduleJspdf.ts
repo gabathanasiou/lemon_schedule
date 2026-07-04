@@ -7,7 +7,7 @@ import { getFieldValue, resolveSceneColor, computeMergeGroups, formatCellText, g
 import { addMinutesToTime, formatDuration, formatPageCount } from '../../../../lib/utils';
 import { getRibbonColumnWidthsPt } from '../conf/pdfLayout';
 
-const PAGE_MARGIN = 40;
+const pageMargin = 40;
 const FONT_SIZE = 8;
 
 function formatDateLong(dateStr: string): string {
@@ -51,12 +51,16 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   const [pw, ph] = PAGE_SIZES[paperSize];
   const isLandscape = orientation === 'landscape';
   const pageW = isLandscape ? ph : pw;
-  const availW = pageW - PAGE_MARGIN * 2;
+
+  // Match stripboard preview widths (730px portrait / 1060px landscape)
+  const viewWidthPx = isLandscape ? 1060 : 730;
+  const availW = viewWidthPx * 72 / 96;
+  const pageMargin = Math.max((pageW - availW) / 2, 40);
 
   const doc = new jsPDF({ orientation: isLandscape ? 'l' : 'p', unit: 'pt', format: paperSize });
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) {
-    doc.text('No active schedule version.', PAGE_MARGIN, PAGE_MARGIN);
+    doc.text('No active schedule version.', pageMargin, pageMargin);
     return doc;
   }
 
@@ -187,7 +191,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   const ribbonLen = ribbon?.length || 1;
   const noteBreakPad = cellPaddingV * ribbonLen + 4.5 * (ribbonLen - 1);
 
-  let y = PAGE_MARGIN;
+  let y = pageMargin;
 
   // ── Cast List Page (first, on its own) ──
   if (showCastList) {
@@ -201,14 +205,14 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       });
 
     if (sorted.length > 0) {
-      y = PAGE_MARGIN;
+      y = pageMargin;
       doc.setFontSize(FONT_SIZE);
       doc.setFont('Helvetica', 'bold');
-      doc.text('CAST LIST', PAGE_MARGIN, y);
+      doc.text('CAST LIST', pageMargin, y);
       y += 6;
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(1);
-      doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+      doc.line(pageMargin, y, pageMargin + availW, y);
       y += 12;
 
       const ROWS = 10;
@@ -224,8 +228,8 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       doc.setTextColor(0, 0, 0);
       for (let ri = 0; ri < ROWS; ri++) {
         const rowY = y + ri * 12;
-        if (rowY > pageW - PAGE_MARGIN) break;
-        let xOff = PAGE_MARGIN;
+        if (rowY > pageW - pageMargin) break;
+        let xOff = pageMargin;
         for (let ci = 0; ci < COLS; ci++) {
           const m = grid[ri][ci];
           if (m) {
@@ -243,21 +247,21 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   }
 
   // ── Title Section ──
-  y = PAGE_MARGIN;
+  y = pageMargin;
   doc.setFontSize(FONT_SIZE);
   doc.setFont('Helvetica', 'bold');
-  doc.text(project.title || 'Production Schedule', PAGE_MARGIN, y);
+  doc.text(project.title || 'Production Schedule', pageMargin, y);
   y += 10;
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(82, 82, 91);
   let subtitle = `Schedule Version: ${activeVersion.name}`;
   if (showExportDate) subtitle += ` ${formatExportDate()}`;
-  doc.text(subtitle, PAGE_MARGIN, y);
+  doc.text(subtitle, pageMargin, y);
   y += 10;
   // Bottom border line
   doc.setDrawColor(24, 24, 27);
   doc.setLineWidth(2);
-  doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+  doc.line(pageMargin, y, pageMargin + availW, y);
   y += 10;
   doc.setTextColor(0, 0, 0);
 
@@ -304,7 +308,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           body: [headerRow],
           columnStyles,
           tableWidth: availW,
-          margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+          margin: { left: pageMargin, right: pageMargin },
           styles: { cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: cellPaddingH, right: cellPaddingH }, fontSize: FONT_SIZE },
           tableLineColor: [0, 0, 0],
           tableLineWidth: 0,
@@ -319,7 +323,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
             { content: '', styles: { fillColor: '#000000', textColor: '#ffffff', fontSize: FONT_SIZE } },
           ]],
           tableWidth: availW,
-          margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+          margin: { left: pageMargin, right: pageMargin },
           styles: { cellPadding: 8, fontSize: FONT_SIZE },
           tableLineColor: [0, 0, 0],
           tableLineWidth: 0,
@@ -332,7 +336,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       doc.setDrawColor(161, 161, 170);
       doc.setLineWidth(1);
       doc.setLineDashPattern([2, 2], 0);
-      doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+      doc.line(pageMargin, y, pageMargin + availW, y);
       doc.setLineDashPattern([], 0);
       y += 6;
       continue;
@@ -382,7 +386,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         body: [headerRow],
         columnStyles,
         tableWidth: availW,
-        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        margin: { left: pageMargin, right: pageMargin },
         styles: { cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: cellPaddingH, right: cellPaddingH }, fontSize: FONT_SIZE },
         tableLineColor: [0, 0, 0],
         tableLineWidth: 0,
@@ -397,7 +401,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           { content: callStr, styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, cellPadding: 8 } },
         ]],
         tableWidth: availW,
-        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        margin: { left: pageMargin, right: pageMargin },
         styles: { fontSize: FONT_SIZE },
         tableLineColor: [0, 0, 0],
         tableLineWidth: 0,
@@ -427,7 +431,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
             body: [noteRow],
             columnStyles,
             tableWidth: availW,
-            margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+            margin: { left: pageMargin, right: pageMargin },
             styles: { cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: cellPaddingH, right: cellPaddingH }, fontSize: FONT_SIZE },
             tableLineColor: [0, 0, 0],
             tableLineWidth: 0,
@@ -447,7 +451,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
               { content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE, cellPadding: { top: noteBreakPad, bottom: noteBreakPad, left: 1, right: 1 } } },
             ]],
             tableWidth: availW,
-            margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+            margin: { left: pageMargin, right: pageMargin },
             tableLineColor: [0, 0, 0],
             tableLineWidth: 0,
             startY: y,
@@ -458,7 +462,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         // Strip bottom border (2pt)
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(2);
-        doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+        doc.line(pageMargin, y, pageMargin + availW, y);
         continue;
       }
 
@@ -742,7 +746,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           body: bodyRows,
           columnStyles,
           tableWidth: availW,
-          margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+          margin: { left: pageMargin, right: pageMargin },
           styles: {
             fontSize: FONT_SIZE,
             lineWidth: 0,
@@ -820,7 +824,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         // Strip bottom border (2pt)
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(2);
-        doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+        doc.line(pageMargin, y, pageMargin + availW, y);
       } else {
         // No-ribbon fallback
         const noRibbonRow0: any[] = [
@@ -845,7 +849,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         doc.autoTable({
           body: [noRibbonRow0, noRibbonRow1],
           tableWidth: availW,
-          margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+          margin: { left: pageMargin, right: pageMargin },
           styles: { fontSize: FONT_SIZE },
           tableLineColor: [0, 0, 0],
           tableLineWidth: 0, // Outer borders handled by strip line
@@ -857,7 +861,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         // Strip bottom border (2pt)
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(2);
-        doc.line(PAGE_MARGIN, y, PAGE_MARGIN + availW, y);
+        doc.line(pageMargin, y, pageMargin + availW, y);
       }
     }
 
@@ -877,7 +881,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         ]],
         tableWidth: availW,
         columnStyles: { 0: { cellWidth: availW * 0.5 }, 1: { cellWidth: availW * 0.5 } },
-        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        margin: { left: pageMargin, right: pageMargin },
         tableLineColor: [212, 212, 216],
         tableLineWidth: 1,
         startY: y,
@@ -894,7 +898,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
             styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'right', cellPadding: { top: 4, bottom: 4, left: 12, right: 12 }, valign: 'middle' } },
         ]],
         tableWidth: availW,
-        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        margin: { left: pageMargin, right: pageMargin },
         tableLineColor: [212, 212, 216],
         tableLineWidth: 1,
         startY: y,
