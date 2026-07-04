@@ -869,16 +869,18 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
     const textColorFooter = '#18181b';
 
     if (cells && cells.length > 0) {
-      // End-of-day + totals (single row)
+      // End-of-day footer with ribbon column layout
+      const footerRow: any[] = cells.map((cell, ci) => {
+        let text = '';
+        if (ci === 0) text = `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u00b7 ${endTime}` : ''}  |  Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`;
+        else if (ci === mainCellIdx) text = dateStr;
+        return { content: text || '', styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: ci === 0 ? 'left' : 'center', valign: 'middle' } };
+      });
+
       doc.autoTable({
-        body: [[
-          { content: `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u00b7 ${endTime}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV, bottom: cellPaddingV, left: cellPaddingH, right: cellPaddingH }, halign: 'left', valign: 'middle' } },
-          { content: `Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: 4, bottom: 4, left: 12, right: 12 }, halign: 'right', valign: 'middle' } },
-        ]],
+        body: [footerRow],
+        columnStyles,
         tableWidth: availW,
-        columnStyles: { 0: { cellWidth: availW * 0.5 }, 1: { cellWidth: availW * 0.5 } },
         margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
         tableLineColor: [212, 212, 216],
         tableLineWidth: 1,
