@@ -363,27 +363,21 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
     const callStr = meta?.unitCall ? `CALL ${meta.unitCall}` : '';
     const chronoDay = chronoDayMap.get(dayInt);
 
+    // Find the widest non-special cell (matches browser PrintSchedule.tsx mainCellIdx)
+    const mainCellIdx = cells ? (() => {
+      const nonSpecial = cells.map((c, i) => ({ i, w: Number(filteredWidths[i]) || 0, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
+      return nonSpecial.length > 0 ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i : 0;
+    })() : -1;
+
     // ── Day Header ──
     if (cells && cells.length > 0) {
-      const nCols = cells.length;
-      const headerRow: any[] = [];
-      for (let ci = 0; ci < nCols; ci++) {
+      const headerRow: any[] = cells.map((cell, ci) => {
         let text = '';
-        let colSpan = 1;
-        let hAlign: string | undefined;
-        if (ci === 0) {
-          text = chronoDay !== undefined ? `DAY #${chronoDay}` : '';
-          hAlign = 'center';
-        } else if (ci === 1) {
-          text = callStr;
-        } else if (ci === 2) {
-          text = dateStr;
-          colSpan = nCols - 2;
-          hAlign = 'center';
-        }
-        headerRow.push({ content: text || '', colSpan: colSpan > 1 ? colSpan : undefined, styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: hAlign || 'center' } });
-        if (colSpan > 1) break;
-      }
+        if (ci === 0 && chronoDay !== undefined) text = `DAY #${chronoDay}`;
+        else if (cell.field === 'callTime') text = callStr;
+        else if (ci === mainCellIdx) text = dateStr;
+        return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center' } };
+      });
 
       doc.autoTable({
         body: [headerRow],
@@ -422,20 +416,13 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         const fgColor = isBreak ? '#ffffff' : ((r as any).noteTextColor || '#ffffff');
 
         if (cells && filteredWidths.length > 0) {
-          const nCols = cells.length;
-          const noteRow: any[] = [];
-          for (let ci = 0; ci < nCols; ci++) {
-            if (ci === 0) {
-              noteRow.push({ content: '', styles: { fillColor: bgColor, fontSize: FONT_SIZE } });
-            } else if (ci === 1) {
-              noteRow.push({ content: r.computedCallTime || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: getAlign(cells[ci]) } });
-            } else if (ci === 2) {
-              noteRow.push({ content: r.estimatedDuration ? formatDuration(r.estimatedDuration) : '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: getAlign(cells[ci]) } });
-            } else if (ci === 3) {
-              noteRow.push({ content: label, colSpan: nCols - 3, styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: 'center' } });
-              break;
-            }
-          }
+          const noteRow: any[] = cells.map((cell, ci) => {
+            let text = '';
+            if (cell.field === 'callTime') text = r.computedCallTime || '';
+            else if (cell.field === 'duration') text = r.estimatedDuration ? formatDuration(r.estimatedDuration) : '';
+            else if (ci === mainCellIdx) text = label;
+            return { content: text || '', styles: { fillColor: bgColor, textColor: fgColor, fontSize: FONT_SIZE, halign: ci === mainCellIdx ? 'center' : getAlign(cell) } };
+          });
 
           doc.autoTable({
             body: [noteRow],
