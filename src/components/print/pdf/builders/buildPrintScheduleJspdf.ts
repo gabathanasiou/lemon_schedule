@@ -52,10 +52,11 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
   const isLandscape = orientation === 'landscape';
   const pageW = isLandscape ? ph : pw;
 
-  // Match stripboard preview widths (730px portrait / 1060px landscape)
+  // Match stripboard preview widths (730px portrait / 1060px landscape), capped to page
   const viewWidthPx = isLandscape ? 1060 : 730;
-  const availW = viewWidthPx * 72 / 96;
-  const pageMargin = Math.max((pageW - availW) / 2, 40);
+  const viewWidthPt = viewWidthPx * 72 / 96;
+  const availW = Math.min(viewWidthPt, pageW - 80);
+  const pageMargin = (pageW - availW) / 2;
 
   const doc = new jsPDF({ orientation: isLandscape ? 'l' : 'p', unit: 'pt', format: paperSize });
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -527,6 +528,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
         // Pre-compute distributed text for non-rowSpan v-merge groups
         const mergeTexts = new Map<string, string[]>();
+        const wrapLines = new Map<string, { lines: string[]; colIndex: number; rowIndex: number; span: number }>();
         for (const g of mgroups) {
           if (g.direction !== 'v' || g.span <= 1) continue;
           const key = `${g.rowIndex}_${g.colIndex}`;
@@ -552,6 +554,17 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           const span = g.span;
           const valign = topCell.verticalAlign || 'middle';
           const single = isSingleLine.get(key) === true;
+
+          // Wrap-enabled v-merge groups: keep lines for row-by-row distribution
+          if (topCell.wrap) {
+            const allLines = doc.splitTextToSize(fullDisplay, availW);
+            const rowLines: string[] = [];
+            for (let ri = 0; ri < Math.max(span, allLines.length); ri++) {
+              rowLines.push(allLines[ri] || '');
+            }
+            wrapLines.set(key, { lines: rowLines, colIndex: g.colIndex, rowIndex: g.rowIndex, span });
+            continue;
+          }
 
           if (single && valign === 'top') {
             const texts = Array(span).fill('');
@@ -587,9 +600,19 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
         }
 
         const bodyRows: any[][] = [];
-        const numRows = filteredRibbon.length;
+        const maxExtraRows = (() => {
+          let max = 0;
+          for (const [, wl] of wrapLines) {
+            const extra = wl.lines.length - wl.span;
+            if (extra > max) max = extra;
+          }
+          return max;
+        })();
+        const numRows = filteredRibbon.length + maxExtraRows;
+        const nCols = filteredRibbon[0]?.cells.length || 0;
         for (let ri = 0; ri < numRows; ri++) {
           const row: any[] = [];
+          if (ri < filteredRibbon.length) {
           for (let ci = 0; ci < filteredRibbon[ri].cells.length; ci++) {
             const cell = filteredRibbon[ri].cells[ci];
             const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
@@ -611,9 +634,15 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
             // Check if this cell is part of a multi-line v-merge group
             const vMergeKey = vGroup ? `${vGroup.rowIndex}_${vGroup.colIndex}` : null;
-            const inMultiV = vMergeKey && vUseRowSpan.get(vMergeKey) === false;
+            const inMultiV = vMergeKey && vUseRowSpan.get(vMergeKey) === false && !wrapLines.has(vMergeKey);
+            const inWrapV = vMergeKey && wrapLines.has(vMergeKey) && !useRowSpan;
 
-            if (inMultiV) {
+            if (inWrapV) {
+              const wl = wrapLines.get(vMergeKey!)!;
+              const lineIdx = ri - vGroup!.rowIndex;
+              display = wl.lines[lineIdx] || '';
+              overflowMode = 'linebreak';
+            } else if (inMultiV) {
               // Multi-line v-merge: use distributed text from pre-computed data
               display = mergeTexts.get(vMergeKey!)?.[ri - vGroup!.rowIndex] || '';
               overflowMode = 'linebreak';
@@ -738,6 +767,31 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
             }
 
             row.push(cellObj);
+          }
+          } else {
+            // Extra rows for wrap-enabled v-merge overflow
+            for (let ci = 0; ci < nCols; ci++) {
+              let display = '';
+              for (const [, wl] of wrapLines) {
+                const lineIdx = ri - wl.rowIndex;
+                if (wl.colIndex === ci && lineIdx >= wl.span && lineIdx < wl.lines.length) {
+                  display = wl.lines[lineIdx] || '';
+                  break;
+                }
+              }
+              row.push({
+                content: display,
+                styles: {
+                  fillColor: bgColor,
+                  textColor,
+                  fontSize: FONT_SIZE,
+                  halign: 'left' as const,
+                  valign: 'middle' as const,
+                  overflow: 'linebreak' as const,
+                  cellPadding: { top: cellPaddingV, bottom: ri === numRows - 1 ? cellPaddingV + edgePadding : cellPaddingV, left: cellPaddingH, right: cellPaddingH },
+                },
+              });
+            }
           }
           bodyRows.push(row);
         }
