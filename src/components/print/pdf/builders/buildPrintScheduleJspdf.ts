@@ -597,6 +597,16 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           }
           return max;
         })();
+        const extendedVSpans = new Map<string, number>();
+        if (maxExtraRows > 0) {
+          for (const g of mgroups) {
+            if (g.direction !== 'v' || g.span <= 1) continue;
+            const key = `${g.rowIndex}_${g.colIndex}`;
+            if (vUseRowSpan.get(key) === true && g.rowIndex + g.span === filteredRibbon.length) {
+              extendedVSpans.set(key, g.span + maxExtraRows);
+            }
+          }
+        }
         const numRows = filteredRibbon.length + maxExtraRows;
         const nCols = filteredRibbon[0]?.cells.length || 0;
         for (let ri = 0; ri < numRows; ri++) {
@@ -657,7 +667,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
               if (multiRow) {
                 // Single-line v-merge: current rowSpan + didDrawCell behavior
                 useRowSpan = true;
-                vSpan = g!.span;
+                vSpan = extendedVSpans.get(`${g!.rowIndex}_${g!.colIndex}`) ?? g!.span;
                 if (!cell.wrap && display) {
                   let availCellW = colWidthsPt[ci] || 50;
                   if (hSpan > 1) {
@@ -760,6 +770,17 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
           } else {
             // Extra rows for wrap-enabled v-merge overflow
             for (let ci = 0; ci < nCols; ci++) {
+              // Skip columns covered by an extended v-merge rowSpan (autotable handles the position)
+              let coveredBySpan = false;
+              for (const g of mgroups) {
+                if (g.direction !== 'v' || g.span <= 1 || g.colIndex !== ci) continue;
+                const key = `${g.rowIndex}_${g.colIndex}`;
+                if (extendedVSpans.has(key) && ri >= g.rowIndex + g.span && ri < g.rowIndex + g.span + maxExtraRows) {
+                  coveredBySpan = true;
+                  break;
+                }
+              }
+              if (coveredBySpan) continue;
               let display = '';
               for (const [, wl] of wrapLines) {
                 const lineIdx = ri - wl.rowIndex;
@@ -768,18 +789,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
                   break;
                 }
               }
-              row.push({
-                content: display,
-                styles: {
-                  fillColor: bgColor,
-                  textColor,
-                  fontSize: FONT_SIZE,
-                  halign: 'left' as const,
-                  valign: 'middle' as const,
-                  overflow: 'linebreak' as const,
-                  cellPadding: { top: cellPaddingV, bottom: ri === numRows - 1 ? cellPaddingV + edgePadding : cellPaddingV, left: cellPaddingH, right: cellPaddingH },
-                },
-              });
+              row.push({ content: display, styles: { fillColor: bgColor, textColor, fontSize: FONT_SIZE, halign: 'left' as const, valign: 'middle' as const, overflow: 'linebreak' as const, cellPadding: { top: cellPaddingV, bottom: ri === numRows - 1 ? cellPaddingV + edgePadding : cellPaddingV, left: cellPaddingH, right: cellPaddingH } } });
             }
           }
           bodyRows.push(row);
