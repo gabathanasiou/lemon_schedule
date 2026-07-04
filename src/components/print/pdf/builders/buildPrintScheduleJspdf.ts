@@ -581,18 +581,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
               if (ri < span - 1) {
                 texts.push(allLines[ri] || '');
               } else {
-                let lastText = allLines.slice(ri).join('\n');
-                if (!topCell.wrap && lastText) {
-                  const availW2 = availW - doc.getTextWidth('…');
-                  let lo = 0, hi = lastText.length;
-                  while (lo < hi) {
-                    const mid = Math.ceil((lo + hi) / 2);
-                    if (doc.getTextWidth(lastText.slice(0, mid)) <= availW2) lo = mid;
-                    else hi = mid - 1;
-                  }
-                  lastText = lastText.slice(0, lo) + '…';
-                }
-                texts.push(lastText);
+                texts.push(allLines.slice(ri).join('\n'));
               }
             }
             mergeTexts.set(key, texts);
