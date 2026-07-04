@@ -244,11 +244,10 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
   // ── Title Section ──
   y = PAGE_MARGIN;
-  doc.setFontSize(14);
+  doc.setFontSize(FONT_SIZE);
   doc.setFont('Helvetica', 'bold');
   doc.text(project.title || 'Production Schedule', PAGE_MARGIN, y);
-  y += 16;
-  doc.setFontSize(FONT_SIZE);
+  y += 6;
   doc.setFont('Helvetica', 'normal');
   doc.setTextColor(82, 82, 91);
   let subtitle = `Schedule Version: ${activeVersion.name}`;
