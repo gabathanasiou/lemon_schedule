@@ -287,15 +287,16 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
       if (cells && cells.length > 0) {
         const mainCellIdx = (() => {
-          const nonSpecial = cells!.map((c, i) => ({ i, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
-          return nonSpecial.length > 0 ? nonSpecial.reduce((a, b) => a.i >= b.i ? a : b).i : 0;
+          const nonSpecial = cells!.map((c, i) => ({ i, w: colWidthsPt[i] || 0, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
+          return nonSpecial.length > 0 ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i : 0;
         })();
 
         const headerRow: any[] = cells.map((cell, ci) => {
           let text = '';
-          if (ci === mainCellIdx) text = dateStr;
-          else if (ci === 0) text = statusLabel;
-          return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontSize: FONT_SIZE } };
+          if (ci === 0) text = statusLabel;
+          else if (cell.field === 'callTime') text = callStr;
+          else if (ci === mainCellIdx) text = dateStr;
+          return { content: text || '', styles: { fillColor: '#000000', textColor: '#ffffff', fontStyle: 'bold', fontSize: FONT_SIZE, halign: 'center' } };
         });
 
         doc.autoTable({
@@ -365,7 +366,7 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
 
     // Find the widest non-special cell (matches browser PrintSchedule.tsx mainCellIdx)
     const mainCellIdx = cells ? (() => {
-      const nonSpecial = cells.map((c, i) => ({ i, w: Number(filteredWidths[i]) || 0, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
+      const nonSpecial = cells.map((c, i) => ({ i, w: colWidthsPt[i] || 0, f: c.field })).filter(x => x.f !== 'duration' && x.f !== 'callTime');
       return nonSpecial.length > 0 ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i : 0;
     })() : -1;
 
