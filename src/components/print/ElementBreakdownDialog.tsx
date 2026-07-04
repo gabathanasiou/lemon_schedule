@@ -5,6 +5,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
+import EngineOptionsGrid, { EngineOptions } from '../print/pdf/EngineOptionsGrid';
 
 export interface ElementBreakdownOptions {
   category: string;
@@ -40,6 +41,21 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
     try { localStorage.removeItem(storageKey); } catch {}
   }, [storageKey, initialCategory]);
 
+  const defaultEngine: EngineOptions = { engine: 'browser', pdfOrientation: 'landscape', pdfPaperSize: 'a4' };
+  const engineStorageKey = `${storageKey}_engine`;
+  const [engineOpts, setEngineOpts] = useState<EngineOptions>(() => {
+    try {
+      const stored = localStorage.getItem(engineStorageKey);
+      return stored ? { ...defaultEngine, ...JSON.parse(stored) } : defaultEngine;
+    } catch { return defaultEngine; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(engineStorageKey, JSON.stringify(engineOpts)); } catch {}
+  }, [engineStorageKey, engineOpts]);
+  const updateEngine = useCallback((patch: Partial<EngineOptions>) => {
+    setEngineOpts(prev => ({ ...prev, ...patch }));
+  }, []);
+
   const selectedCategory = settings.selectedCategory;
   const setSelectedCategory = (c: string) => update({ selectedCategory: c });
   const [showCategories, setShowCategories] = useState(false);
@@ -68,16 +84,17 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
             Cancel
           </button>
           <button
-            onClick={() => onPrint({ category: selectedCategory })}
+            onClick={() => onPrint({ category: selectedCategory, ...(engineOpts as any) })}
             className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
           >
             <Printer className="w-3.5 h-3.5" />
-            Print
+            {engineOpts.engine === 'pdf' ? 'Generate PDF' : 'Print'}
           </button>
         </ModalFooter>
       }
     >
       <div className="px-6 py-4 space-y-5">
+        <EngineOptionsGrid options={engineOpts} onChange={updateEngine} />
         <div>
           <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">
             Category

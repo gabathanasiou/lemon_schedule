@@ -8,6 +8,7 @@ import { ModalFooter } from './Modal';
 import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
+import { EngineOptions } from './print/pdf/EngineOptionsGrid';
 
 function formatDayDateShort(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -36,6 +37,9 @@ export interface PrintOptions {
   selectedRibbonId?: string;
   cellBorders?: CellBorders;
   viewMode?: import('../lib/persist').ViewMode;
+  engine?: 'browser' | 'pdf';
+  pdfOrientation?: 'portrait' | 'landscape';
+  pdfPaperSize?: 'a4' | 'letter';
 }
 
 export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: PrintOptions) => void; onClose: () => void }) {
@@ -71,6 +75,21 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     } catch { return defaultSettings; }
   });
 
+  const defaultEngine: EngineOptions = { engine: 'browser', pdfOrientation: 'landscape', pdfPaperSize: 'a4' };
+  const engineStorageKey = `${storageKey}_engine`;
+  const [engineOpts, setEngineOpts] = useState<EngineOptions>(() => {
+    try {
+      const stored = localStorage.getItem(engineStorageKey);
+      return stored ? { ...defaultEngine, ...JSON.parse(stored) } : defaultEngine;
+    } catch { return defaultEngine; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(engineStorageKey, JSON.stringify(engineOpts)); } catch {}
+  }, [engineStorageKey, engineOpts]);
+  const updateEngine = useCallback((patch: Partial<EngineOptions>) => {
+    setEngineOpts((prev: EngineOptions) => ({ ...prev, ...patch }));
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch {}
   }, [storageKey, settings]);
@@ -94,8 +113,9 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const resetSettings = useCallback(() => {
     setSettings(defaultSettings);
     setSelectedDays(new Set(allDayInts));
-    try { localStorage.removeItem(storageKey); localStorage.removeItem(`${storageKey}_days`); } catch {}
-  }, [allDayInts, defaultSettings, storageKey]);
+    setEngineOpts(defaultEngine);
+    try { localStorage.removeItem(storageKey); localStorage.removeItem(`${storageKey}_days`); localStorage.removeItem(engineStorageKey); } catch {}
+  }, [allDayInts, defaultSettings, defaultEngine, storageKey, engineStorageKey]);
 
   const updateSelectedDays = useCallback((fn: (prev: Set<number>) => Set<number>) => {
     setSelectedDays(prev => {
@@ -133,12 +153,12 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             Cancel
           </button>
           <button
-            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId, cellBorders: settings.cellBorders, viewMode })}
+            onClick={() => onPrint({ showTimes: settings.showTimes, showDurations: settings.showDurations, showCastList: settings.showCastList, showExportDate: settings.showExportDate, showPageNumbers: settings.showPageNumbers, includeStatusDays: settings.includeStatusDays, selectedDays: [...selectedDays].sort((a, b) => a - b), selectedRibbonId: settings.selectedRibbonId, cellBorders: settings.cellBorders, viewMode, engine: engineOpts.engine, pdfOrientation: engineOpts.pdfOrientation, pdfPaperSize: engineOpts.pdfPaperSize })}
             disabled={selectedDays.size === 0}
             className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
-            Print / Save PDF
+            {engineOpts.engine === 'pdf' ? 'Generate PDF' : 'Print / Save PDF'}
           </button>
         </ModalFooter>
       }
@@ -177,37 +197,140 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   </RadixDropdownMenu.Portal>
                 </RadixDropdownMenu.Root>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Engine</span>
                 <RadixDropdownMenu.Root>
                   <RadixDropdownMenu.Trigger asChild>
-                    <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
-                      <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
-                      <ChevronDown className="w-3 h-3 text-zinc-500" />
+                    <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5 min-w-[80px]">
+                      <span>{engineOpts.engine === 'browser' ? 'Browser' : 'PDF'}</span>
+                      <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                     </button>
                   </RadixDropdownMenu.Trigger>
                   <RadixDropdownMenu.Portal>
                     <RadixDropdownMenu.Content
-                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
+                      className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[140px]"
                       align="end"
                       sideOffset={4}
                       collisionPadding={8}
                     >
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('portrait')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
-                        <span className="flex-1">Portrait</span>
-                        {viewMode === 'portrait' && <Check className="w-3 h-3 shrink-0" />}
+                      <RadixDropdownMenu.Item
+                        onSelect={() => updateEngine({ engine: 'browser' })}
+                        className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${engineOpts.engine === 'browser' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                      >
+                        <span className="flex-1">Browser</span>
+                        {engineOpts.engine === 'browser' && <Check className="w-3 h-3 shrink-0" />}
                       </RadixDropdownMenu.Item>
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('landscape')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
-                        <span className="flex-1">Landscape</span>
-                        {viewMode === 'landscape' && <Check className="w-3 h-3 shrink-0" />}
-                      </RadixDropdownMenu.Item>
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('full')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'full' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
-                        <span className="flex-1">Full Width</span>
-                        {viewMode === 'full' && <Check className="w-3 h-3 shrink-0" />}
+                      <RadixDropdownMenu.Item
+                        onSelect={() => updateEngine({ engine: 'pdf' })}
+                        className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${engineOpts.engine === 'pdf' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                      >
+                        <span className="flex-1">PDF</span>
+                        {engineOpts.engine === 'pdf' && <Check className="w-3 h-3 shrink-0" />}
                       </RadixDropdownMenu.Item>
                     </RadixDropdownMenu.Content>
                   </RadixDropdownMenu.Portal>
                 </RadixDropdownMenu.Root>
+                {engineOpts.engine === 'pdf' ? (
+                  <>
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Orient</span>
+                    <RadixDropdownMenu.Root>
+                      <RadixDropdownMenu.Trigger asChild>
+                        <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5 min-w-[80px]">
+                          <span>{engineOpts.pdfOrientation === 'portrait' ? 'Portrait' : 'Landscape'}</span>
+                          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                        </button>
+                      </RadixDropdownMenu.Trigger>
+                      <RadixDropdownMenu.Portal>
+                        <RadixDropdownMenu.Content
+                          className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[140px]"
+                          align="end"
+                          sideOffset={4}
+                          collisionPadding={8}
+                        >
+                          <RadixDropdownMenu.Item
+                            onSelect={() => updateEngine({ pdfOrientation: 'portrait' })}
+                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${engineOpts.pdfOrientation === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                          >
+                            <span className="flex-1">Portrait</span>
+                            {engineOpts.pdfOrientation === 'portrait' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                          <RadixDropdownMenu.Item
+                            onSelect={() => updateEngine({ pdfOrientation: 'landscape' })}
+                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${engineOpts.pdfOrientation === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                          >
+                            <span className="flex-1">Landscape</span>
+                            {engineOpts.pdfOrientation === 'landscape' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                        </RadixDropdownMenu.Content>
+                      </RadixDropdownMenu.Portal>
+                    </RadixDropdownMenu.Root>
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Paper</span>
+                    <RadixDropdownMenu.Root>
+                      <RadixDropdownMenu.Trigger asChild>
+                        <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5 min-w-[60px]">
+                          <span>{engineOpts.pdfPaperSize === 'a4' ? 'A4' : 'Letter'}</span>
+                          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                        </button>
+                      </RadixDropdownMenu.Trigger>
+                      <RadixDropdownMenu.Portal>
+                        <RadixDropdownMenu.Content
+                          className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[140px]"
+                          align="end"
+                          sideOffset={4}
+                          collisionPadding={8}
+                        >
+                          <RadixDropdownMenu.Item
+                            onSelect={() => updateEngine({ pdfPaperSize: 'a4' })}
+                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${engineOpts.pdfPaperSize === 'a4' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                          >
+                            <span className="flex-1">A4</span>
+                            {engineOpts.pdfPaperSize === 'a4' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                          <RadixDropdownMenu.Item
+                            onSelect={() => updateEngine({ pdfPaperSize: 'letter' })}
+                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${engineOpts.pdfPaperSize === 'letter' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                          >
+                            <span className="flex-1">Letter</span>
+                            {engineOpts.pdfPaperSize === 'letter' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                        </RadixDropdownMenu.Content>
+                      </RadixDropdownMenu.Portal>
+                    </RadixDropdownMenu.Root>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
+                    <RadixDropdownMenu.Root>
+                      <RadixDropdownMenu.Trigger asChild>
+                        <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                          <span className="tabular-nums">{viewMode === 'portrait' ? 'Portrait' : viewMode === 'landscape' ? 'Landscape' : 'Full'}</span>
+                          <ChevronDown className="w-3 h-3 text-zinc-500" />
+                        </button>
+                      </RadixDropdownMenu.Trigger>
+                      <RadixDropdownMenu.Portal>
+                        <RadixDropdownMenu.Content
+                          className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
+                          align="end"
+                          sideOffset={4}
+                          collisionPadding={8}
+                        >
+                          <RadixDropdownMenu.Item onSelect={() => setViewMode('portrait')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                            <span className="flex-1">Portrait</span>
+                            {viewMode === 'portrait' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                          <RadixDropdownMenu.Item onSelect={() => setViewMode('landscape')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                            <span className="flex-1">Landscape</span>
+                            {viewMode === 'landscape' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                          <RadixDropdownMenu.Item onSelect={() => setViewMode('full')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'full' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                            <span className="flex-1">Full Width</span>
+                            {viewMode === 'full' && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                        </RadixDropdownMenu.Content>
+                      </RadixDropdownMenu.Portal>
+                    </RadixDropdownMenu.Root>
+                  </div>
+                )}
               </div>
             </div>
             {(() => {

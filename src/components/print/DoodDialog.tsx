@@ -6,6 +6,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
+import EngineOptionsGrid, { EngineOptions } from '../print/pdf/EngineOptionsGrid';
 
 export interface DoodOptions {
   castIds: string[];
@@ -99,6 +100,21 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
     try { localStorage.removeItem(storageKey); } catch {}
   }, [storageKey, initialCategory]);
 
+  const defaultEngine: EngineOptions = { engine: 'browser', pdfOrientation: 'landscape', pdfPaperSize: 'a4' };
+  const engineStorageKey = `${storageKey}_engine`;
+  const [engineOpts, setEngineOpts] = useState<EngineOptions>(() => {
+    try {
+      const stored = localStorage.getItem(engineStorageKey);
+      return stored ? { ...defaultEngine, ...JSON.parse(stored) } : defaultEngine;
+    } catch { return defaultEngine; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(engineStorageKey, JSON.stringify(engineOpts)); } catch {}
+  }, [engineStorageKey, engineOpts]);
+  const updateEngine = useCallback((patch: Partial<EngineOptions>) => {
+    setEngineOpts(prev => ({ ...prev, ...patch }));
+  }, []);
+
   const category = settings.category;
   const setCategory = (c: string) => update({ category: c });
   const includeNonShooting = settings.includeNonShooting;
@@ -182,6 +198,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
       dayInts: [...selectedDayInts].sort((a, b) => a - b),
       includeNonShooting,
       showTotals,
+      ...(engineOpts as any),
     };
     onPrint(opts);
   };
@@ -201,12 +218,13 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
             className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
-            Print / Save PDF
+            {engineOpts.engine === 'pdf' ? 'Generate PDF' : 'Print / Save PDF'}
           </button>
         </ModalFooter>
       }
     >
       <div className="px-6 py-4 space-y-5">
+        <EngineOptionsGrid options={engineOpts} onChange={updateEngine} />
         <div>
           <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">
             Category

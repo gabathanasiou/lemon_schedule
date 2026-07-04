@@ -21,6 +21,13 @@ import BreakdownSheetDialog, { BreakdownSheetOptions } from './components/print/
 import BreakdownSheet from './components/print/BreakdownSheet';
 import ElementBreakdownDialog, { ElementBreakdownOptions } from './components/print/ElementBreakdownDialog';
 import ElementBreakdown from './components/print/ElementBreakdown';
+import PdfPreviewModal from './components/print/pdf/PdfPreviewModal';
+import { initPdfMake, pdfMake } from './components/print/pdf/conf/pdfMakeSetup';
+import { buildPrintScheduleDoc } from './components/print/pdf/builders/buildPrintScheduleDoc';
+import { buildPrintScheduleJspdf } from './components/print/pdf/builders/buildPrintScheduleJspdf';
+import { buildDoodDoc } from './components/print/pdf/builders/buildDoodDoc';
+import { buildBreakdownSheetDoc } from './components/print/pdf/builders/buildBreakdownSheetDoc';
+import { buildElementBreakdownDoc } from './components/print/pdf/builders/buildElementBreakdownDoc';
 import ReportsTab from './components/ReportsTab';
 import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
@@ -158,6 +165,7 @@ function AppContent() {
 
   useEffect(() => {
   if (printOptions) {
+      if (printOptions.engine === 'pdf') return;
       const vNum = (version?.name?.match(/\d+/) || ['1'])[0].padStart(2, '0');
       const vName = `V${vNum}`;
       const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
@@ -198,6 +206,7 @@ function AppContent() {
 
   useEffect(() => {
     if (!doodOptions) return;
+    if ((doodOptions as any).engine === 'pdf') return;
     const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
     const fileName = `${title}_DOOD`;
     const oldTitle = document.title;
@@ -211,8 +220,23 @@ function AppContent() {
     return () => window.removeEventListener('afterprint', onAfterPrint);
   }, [doodOptions, project.title]);
 
-  useEffect(() => { if (!breakdownSheetOptions) return; const onAP = () => setBreakdownSheetOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [breakdownSheetOptions]);
-  useEffect(() => { if (!elementBreakdownOptions) return; const onAP = () => setElementBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [elementBreakdownOptions]);
+  useEffect(() => {
+    if (!breakdownSheetOptions) return;
+    if ((breakdownSheetOptions as any).engine === 'pdf') return;
+    const onAP = () => setBreakdownSheetOptions(null);
+    window.addEventListener('afterprint', onAP);
+    setTimeout(() => window.print(), 200);
+    return () => window.removeEventListener('afterprint', onAP);
+  }, [breakdownSheetOptions]);
+
+  useEffect(() => {
+    if (!elementBreakdownOptions) return;
+    if ((elementBreakdownOptions as any).engine === 'pdf') return;
+    const onAP = () => setElementBreakdownOptions(null);
+    window.addEventListener('afterprint', onAP);
+    setTimeout(() => window.print(), 200);
+    return () => window.removeEventListener('afterprint', onAP);
+  }, [elementBreakdownOptions]);
 
   useEffect(() => {
     if (!storage.handle || !currentProjectId) return;
@@ -234,6 +258,29 @@ function AppContent() {
   }, [state.present, storage.handle, currentProjectId]);
 
   if (doodOptions) {
+    if ((doodOptions as any).engine === 'pdf') {
+      const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+      return (
+        <PdfPreviewModal
+          generate={async () => {
+            await initPdfMake();
+            const docDef = buildDoodDoc(project, {
+              castIds: doodOptions.castIds,
+              elementIds: doodOptions.elementIds,
+              selectedCategory: doodOptions.selectedCategory,
+              dayInts: doodOptions.dayInts,
+              includeNonShooting: doodOptions.includeNonShooting,
+              showTotals: doodOptions.showTotals,
+              orientation: (doodOptions as any).pdfOrientation || 'landscape',
+              paperSize: (doodOptions as any).pdfPaperSize || 'a4',
+            });
+            return pdfMake.createPdf(docDef).getBlob();
+          }}
+          fileName={`${title}_DOOD.pdf`}
+          onClose={() => setDoodOptions(null)}
+        />
+      );
+    }
     const elementIds = doodOptions.elementIds || doodOptions.castIds;
     const category = doodOptions.selectedCategory || 'cast';
     return (
@@ -255,6 +302,25 @@ function AppContent() {
   }
 
   if (breakdownSheetOptions) {
+    if ((breakdownSheetOptions as any).engine === 'pdf') {
+      const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+      return (
+        <PdfPreviewModal
+          generate={async () => {
+            await initPdfMake();
+            const docDef = buildBreakdownSheetDoc(project, {
+              sortOrder: breakdownSheetOptions.sortOrder,
+              sceneIds: breakdownSheetOptions.sceneIds,
+              orientation: (breakdownSheetOptions as any).pdfOrientation || 'landscape',
+              paperSize: (breakdownSheetOptions as any).pdfPaperSize || 'a4',
+            });
+            return pdfMake.createPdf(docDef).getBlob();
+          }}
+          fileName={`${title}_BreakdownSheet.pdf`}
+          onClose={() => setBreakdownSheetOptions(null)}
+        />
+      );
+    }
     return (
       <div>
         <BreakdownSheet
@@ -273,6 +339,24 @@ function AppContent() {
   }
 
   if (elementBreakdownOptions) {
+    if ((elementBreakdownOptions as any).engine === 'pdf') {
+      const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+      return (
+        <PdfPreviewModal
+          generate={async () => {
+            await initPdfMake();
+            const docDef = buildElementBreakdownDoc(project, {
+              category: elementBreakdownOptions.category,
+              orientation: (elementBreakdownOptions as any).pdfOrientation || 'landscape',
+              paperSize: (elementBreakdownOptions as any).pdfPaperSize || 'a4',
+            });
+            return pdfMake.createPdf(docDef).getBlob();
+          }}
+          fileName={`${title}_ElementBreakdown.pdf`}
+          onClose={() => setElementBreakdownOptions(null)}
+        />
+      );
+    }
     return (
       <div>
         <ElementBreakdown
@@ -289,6 +373,37 @@ function AppContent() {
   }
 
   if (printOptions) {
+    if (printOptions.engine === 'pdf') {
+      const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
+      const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+      const times = printOptions.showTimes ? 'Timed' : 'NoTimes';
+      const days = printOptions.selectedDays.length === 0 ? 'None'
+        : printOptions.selectedDays.length === 1 ? `Day${printOptions.selectedDays[0]}`
+        : `Days${printOptions.selectedDays.length}`;
+      const fileName = `${title}_${vName}_${times}_${days}`;
+      return (
+        <PdfPreviewModal
+          generate={async () => {
+            const doc = buildPrintScheduleJspdf(project, {
+              showTimes: printOptions.showTimes,
+              showDurations: printOptions.showDurations,
+              showCastList: printOptions.showCastList,
+              showExportDate: printOptions.showExportDate,
+              showPageNumbers: printOptions.showPageNumbers,
+              selectedDays: printOptions.selectedDays,
+              includeStatusDays: printOptions.includeStatusDays ?? true,
+              selectedRibbonId: printOptions.selectedRibbonId,
+              cellBorders: printOptions.cellBorders,
+              orientation: printOptions.pdfOrientation || 'landscape',
+              paperSize: printOptions.pdfPaperSize || 'a4',
+            });
+            return doc.output('blob');
+          }}
+          fileName={`${fileName}.pdf`}
+          onClose={() => setPrintOptions(null)}
+        />
+      );
+    }
     const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
     const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
     const times = printOptions.showTimes ? 'Timed' : 'NoTimes';

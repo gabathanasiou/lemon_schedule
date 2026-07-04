@@ -3,6 +3,7 @@ import { useProject } from '../../store';
 import { Printer } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import EngineOptionsGrid, { EngineOptions } from '../print/pdf/EngineOptionsGrid';
 
 export interface BreakdownSheetOptions {
   sortOrder: 'sheet' | 'scene';
@@ -39,6 +40,21 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
     try { localStorage.removeItem(storageKey); } catch {}
   }, [defaultSettings, storageKey]);
 
+  const defaultEngine: EngineOptions = { engine: 'browser', pdfOrientation: 'landscape', pdfPaperSize: 'a4' };
+  const engineStorageKey = `${storageKey}_engine`;
+  const [engineOpts, setEngineOpts] = useState<EngineOptions>(() => {
+    try {
+      const stored = localStorage.getItem(engineStorageKey);
+      return stored ? { ...defaultEngine, ...JSON.parse(stored) } : defaultEngine;
+    } catch { return defaultEngine; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(engineStorageKey, JSON.stringify(engineOpts)); } catch {}
+  }, [engineStorageKey, engineOpts]);
+  const updateEngine = useCallback((patch: Partial<EngineOptions>) => {
+    setEngineOpts(prev => ({ ...prev, ...patch }));
+  }, []);
+
   const sortOrder = settings.sortOrder;
   const selectedSceneIds = settings.selectedSceneIds;
 
@@ -56,17 +72,18 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
             Cancel
           </button>
           <button
-            onClick={() => onPrint({ sortOrder, sceneIds: selectedSceneIds })}
+            onClick={() => onPrint({ sortOrder, sceneIds: selectedSceneIds, ...(engineOpts as any) })}
             disabled={selectedSceneIds.length === 0}
             className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
-            Print / Save PDF
+            {engineOpts.engine === 'pdf' ? 'Generate PDF' : 'Print / Save PDF'}
           </button>
         </ModalFooter>
       }
     >
       <div className="px-6 py-4 space-y-5">
+        <EngineOptionsGrid options={engineOpts} onChange={updateEngine} />
         <div className="space-y-4">
           <div>
             <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">
