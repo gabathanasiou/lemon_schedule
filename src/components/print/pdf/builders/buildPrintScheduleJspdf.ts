@@ -873,9 +873,9 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       doc.autoTable({
         body: [[
           { content: `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u00b7 ${endTime}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV + edgePadding, bottom: cellPaddingV + edgePadding, left: 12, right: 12 }, halign: 'left' } },
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: 4, bottom: 4, left: 12, right: 12 }, halign: 'left' } },
           { content: `Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: cellPaddingV + edgePadding, bottom: cellPaddingV + edgePadding, left: 12, right: 12 }, halign: 'right' } },
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, cellPadding: { top: 4, bottom: 4, left: 12, right: 12 }, halign: 'right' } },
         ]],
         tableWidth: availW,
         columnStyles: { 0: { cellWidth: availW * 0.5 }, 1: { cellWidth: availW * 0.5 } },
@@ -889,11 +889,11 @@ export function buildPrintScheduleJspdf(project: Project, opts: JspdfPrintOption
       doc.autoTable({
         body: [[
           { content: `End of Day #${chronoDay}${runningElapsed > 0 ? ` \u00b7 ${endTime}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'left', cellPadding: { top: cellPaddingV + edgePadding, bottom: cellPaddingV + edgePadding, left: 12, right: 12 } } },
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'left', cellPadding: { top: 4, bottom: 4, left: 12, right: 12 } } },
           { content: dateStr,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'center', cellPadding: { top: cellPaddingV + edgePadding, bottom: cellPaddingV + edgePadding, left: 12, right: 12 } } },
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'center', cellPadding: { top: 4, bottom: 4, left: 12, right: 12 } } },
           { content: `Total Pages: ${formatPageCount(totalPages)} pgs  |  EST. TIME: ${formatDuration(workTime)}${totalBreakTime > 0 ? ` + ${formatDuration(totalBreakTime)}` : ''}`,
-            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'right', cellPadding: { top: cellPaddingV + edgePadding, bottom: cellPaddingV + edgePadding, left: 12, right: 12 } } },
+            styles: { fillColor: '#ffffff', textColor: textColorFooter, fontSize: FONT_SIZE, halign: 'right', cellPadding: { top: 4, bottom: 4, left: 12, right: 12 } } },
         ]],
         tableWidth: availW,
         margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
