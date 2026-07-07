@@ -88,9 +88,23 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
+  // Stable refs for mutable data — lets editor components stay referentially stable
+  const scenesRef = useRef(scenes);
+  scenesRef.current = scenes;
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const breakdownElementsRef = useRef(project.breakdownElements);
+  breakdownElementsRef.current = project.breakdownElements;
+  const allBreakdownLabelsRef = useRef(allBreakdownLabels);
+  allBreakdownLabelsRef.current = allBreakdownLabels;
+  const customCategoriesRef = useRef(project.customCategories);
+  customCategoriesRef.current = project.customCategories;
+
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
   }, [dispatch]);
+  const deleteSceneRef = useRef(deleteScene);
+  deleteSceneRef.current = deleteScene;
 
   const insertSceneAt = (index: number) => {
     const newScene: Scene = {
@@ -153,17 +167,17 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   };
 
   const DeleteViewer: DataViewerComponent<CellBase<string>> = useCallback(({ row }) => {
-    const scene = scenes[row];
+    const scene = scenesRef.current[row];
     if (!scene) return null;
     return (
       <div
         className={`flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-colors ${IS_COARSE ? 'px-2' : ''}`}
-        onMouseDown={e => { e.stopPropagation(); deleteScene(scene.id); }}
+        onMouseDown={e => { e.stopPropagation(); deleteSceneRef.current(scene.id); }}
       >
         <Trash2 className={`text-red-400/60 hover:text-red-600 transition-colors ${IS_COARSE ? 'w-5 h-5' : 'w-4 h-4'}`} />
       </div>
     );
-  }, [scenes, deleteScene]);
+  }, []);
 
   const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
     <EntityDropdown
@@ -198,19 +212,22 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     );
   }, []);
 
+  const setItems = useMemo(() => {
+    const sets = new Map<string, string>();
+    for (const s of scenes) { const v = s.set.trim().toUpperCase(); if (v) sets.set(v, v); }
+    for (const e of project.breakdownElements?.['set'] || []) { const v = e.name.toUpperCase(); if (v) sets.set(v, v); }
+    return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
+  }, [scenes, project.breakdownElements]);
+  const setItemsRef = useRef(setItems);
+  setItemsRef.current = setItems;
+
   const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
-    const setItems = useMemo(() => {
-      const sets = new Map<string, string>();
-      for (const s of scenes) { const v = s.set.trim().toUpperCase(); if (v) sets.set(v, v); }
-      for (const e of project.breakdownElements?.['set'] || []) { const v = e.name.toUpperCase(); if (v) sets.set(v, v); }
-      return [...sets.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.id.localeCompare(b.id));
-    }, [scenes, project.breakdownElements]);
     return (
       <EntityDropdown
         value={cell?.value || ''}
         onChange={val => onChange({ value: val })}
         onExit={() => exitEditMode()}
-        items={setItems}
+        items={setItemsRef.current}
         mode="single"
         uppercase
         keepAlphabetical
@@ -221,7 +238,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         className="text-xs"
       />
     );
-  }, [scenes, project.breakdownElements]);
+  }, []);
 
   const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
     <AutocompleteDropdown
@@ -249,11 +266,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     />
   ), []);
 
-  const breakdownEditors = useMemo(() => {
-    const map = new Map<string, DataEditorComponent<CellBase<string>>>();
+  const breakdownEditorItems = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }[]>();
     for (const key of allBreakdownCategories) {
       const sceneValues: string[] = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => getFieldItems(key, v)) as string[])];
-      const storedElements: { id: string; name: string }[] = (project as any).breakdownElements?.[key] || [];
+      const storedElements: { id: string; name: string }[] = project.breakdownElements?.[key] || [];
       const nameMap = new Map<string, { id: string; name: string }>(storedElements.map(e => [e.name.toLowerCase(), e]));
       const seen = new Set<string>();
       const items: { id: string; name: string }[] = [];
@@ -261,27 +278,39 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         const lc = v.toLowerCase();
         const matched = nameMap.get(lc);
         if (matched) {
-          const key = matched.id || matched.name;
-          if (!seen.has(key)) { items.push({ id: matched.id, name: matched.name }); seen.add(key); }
+          const k = matched.id || matched.name;
+          if (!seen.has(k)) { items.push({ id: matched.id, name: matched.name }); seen.add(k); }
         } else {
           if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
         }
       }
       for (const e of storedElements) {
-        const key = e.id || e.name;
-        if (!seen.has(key)) { items.push({ id: e.id, name: e.name }); seen.add(key); }
+        const k = e.id || e.name;
+        if (!seen.has(k)) { items.push({ id: e.id, name: e.name }); seen.add(k); }
       }
-      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => (
+      map.set(key, items);
+    }
+    return map;
+  }, [scenes, project.breakdownElements, allBreakdownCategories]);
+  const breakdownEditorItemsRef = useRef(breakdownEditorItems);
+  breakdownEditorItemsRef.current = breakdownEditorItems;
+
+  const breakdownEditors = useMemo(() => {
+    const map = new Map<string, DataEditorComponent<CellBase<string>>>();
+    for (const key of allBreakdownCategories) {
+      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
+        const items = breakdownEditorItemsRef.current.get(key) || [];
+        return (
           <EntityDropdown
             value={cell?.value || ''}
             onChange={val => onChange({ value: val })}
             onExit={() => exitEditMode()}
             items={items}
-            placeholder={allBreakdownLabels[key]}
+            placeholder={allBreakdownLabelsRef.current[key]}
             positioning="relative"
             defaultOpen
             autoFocus
-            mode={isMultiValue(key, project.customCategories) ? 'multi' : 'single'}
+            mode={isMultiValue(key, customCategoriesRef.current) ? 'multi' : 'single'}
             renderItem={(item) => (
               <>
                 {item.id && item.id !== item.name && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
@@ -290,10 +319,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             )}
           />
         );
+      };
       map.set(key, Editor);
     }
     return map;
-  }, [scenes, project.breakdownElements]);
+  }, [allBreakdownCategories]);
 
   const DEFAULT_WIDTHS = IS_COARSE
     ? [44, 90, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
@@ -379,7 +409,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       return { value: '' };
     }));
     return rows;
-  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors]);
+  }, [scenes, breakdownEditors]);
 
   const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => {
     const w = IS_COARSE ? 26 : 17;
@@ -406,7 +436,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [onOpenSheet, setContextMenu]);
 
   const handleChange = useCallback((newData: CellBase[][]) => {
-    const phantomIndex = scenes.length;
+    const currentScenes = scenesRef.current;
+    const currentProject = projectRef.current;
+    const phantomIndex = currentScenes.length;
 
     // Process all pasted/extra rows beyond existing scenes
     let createdAny = false;
@@ -439,7 +471,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         const val = String(newScene[category] ?? '');
         if (!val.trim()) continue;
         const isCast = category === 'cast';
-        const existing = (project.breakdownElements || {})[category] || [];
+        const existing = (currentProject.breakdownElements || {})[category] || [];
         const existingSet = new Set(
           isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
         );
@@ -462,11 +494,11 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     }
     if (hasPastedRows) dispatch({ type: 'BATCH_COMMIT' });
 
-    for (let row = 0; row < Math.min(scenes.length, newData.length); row++) {
+    for (let row = 0; row < Math.min(currentScenes.length, newData.length); row++) {
       for (let col = 0; col < COLUMNS.length; col++) {
         if (col === ACTIONS_COL) continue;
         const colDef = COLUMNS[col];
-        const oldVal = String((scenes as any)[row][colDef.key] ?? '');
+        const oldVal = String((currentScenes as any)[row][colDef.key] ?? '');
         const newVal = String(newData[row]?.[col]?.value ?? '');
           if (newVal !== oldVal) {
             const updates: any = { [colDef.key]: newVal };
@@ -496,7 +528,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
             }
             if (colDef.key === 'cast' || allBreakdownCategories.includes(colDef.key)) {
               const isCast = colDef.key === 'cast';
-              const existing = (project.breakdownElements || {})[colDef.key] || [];
+              const existing = (currentProject.breakdownElements || {})[colDef.key] || [];
               const existingSet = new Set(
                 isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
               );
@@ -509,11 +541,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 } });
               }
             }
-            dispatch({ type: 'UPDATE_SCENE', payload: { id: scenes[row].id, ...updates } });
+            dispatch({ type: 'UPDATE_SCENE', payload: { id: currentScenes[row].id, ...updates } });
+            break; // single cell edit — no need to scan remaining columns
         }
       }
     }
-  }, [scenes, dispatch, project, COLUMNS, allBreakdownCategories]);
+  }, [dispatch, COLUMNS, allBreakdownCategories]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -616,7 +649,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     });
   };
 
-  const totalPagesDecimal = scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0);
+  const totalPagesDecimal = useMemo(() => scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0), [scenes]);
 
   const handleCopy = useCallback(async () => {
     const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
