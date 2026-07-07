@@ -373,19 +373,18 @@ function AppContent() {
           footer={
             <ModalFooter>
               <button
-                onClick={handleRetryConnection}
-                disabled={!navigator.onLine}
-                className="px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+                onClick={() => setShowOfflineModal(false)}
+                className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors"
               >
-                Try Again
+                OK
               </button>
             </ModalFooter>
           }
         >
-          <p className="text-sm text-zinc-300 leading-relaxed">
+          <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
             This feature requires an internet connection. You can continue to browse your project,
             but all editing controls are currently disabled.
-          </p>
+          </div>
         </Modal>
       )}
 
