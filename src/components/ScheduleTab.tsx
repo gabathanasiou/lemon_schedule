@@ -304,7 +304,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
         const isUnscheduled = currentIds.some(id => {
           const row = activeVersion.rows.find(r => r.id === id);
           return row && (row.shootDay === null || row.shootDay === -1);
-        });
+        }) || (currentIds.length === 0 && unscheduledLastIdRef.current !== null);
         const flat = isUnscheduled ? unscheduledFlatRef.current : flatRowIdsRef.current;
         if (flat.length === 0) return;
           if (isShift) {
@@ -349,6 +349,13 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           scrollToRow(shiftFlat[scrollTarget]);
         } else {
           if (currentIds.length === 0) {
+            if (unscheduledLastIdRef.current !== null && unscheduledFlatRef.current.length > 0) {
+              const firstUnscheduled = unscheduledFlatRef.current[0];
+              setSelectedRowIds(new Set([firstUnscheduled]));
+              setLastClickedId(firstUnscheduled);
+              scrollToRow(firstUnscheduled);
+              return;
+            }
             const firstReal = flatRowIdsRef.current.find(id => !id.startsWith('empty-'));
             if (!firstReal) return;
             setSelectedRowIds(new Set([firstReal]));
