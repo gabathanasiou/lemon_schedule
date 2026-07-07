@@ -1035,7 +1035,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 </div>
 
                 {/* Single CSS Grid */}
-                <div ref={gridRef} className="-mt-5" onClick={() => setSelId(null)} style={{
+                <div ref={gridRef} className="-mt-5" onClick={() => { if (!readOnly) setSelId(null); }} style={{
                   display: 'grid',
                   gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
                   gridTemplateRows: `repeat(${rows.length}, auto)`,
@@ -1062,19 +1062,21 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                         <div key={c.id}
                           data-cell-id={c.id}
                           ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}
-                           onClick={e => { e.stopPropagation(); setSelId(c.id); }}
-                           onDoubleClick={e => { e.stopPropagation(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                           onContextMenu={e => { e.stopPropagation(); e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                          draggable
-                          onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'cell'); const val = { rowId: row.id, cellId: c.id }; cellDragRef.current = val; setCellDrag(val); }}
-                          onDragEnd={() => { cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null); }}
+                           onClick={e => { if (readOnly) return; e.stopPropagation(); setSelId(c.id); }}
+                           onDoubleClick={e => { if (readOnly) return; e.stopPropagation(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
+                           onContextMenu={e => { if (readOnly) return; e.stopPropagation(); e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
+                          draggable={!readOnly}
+                          onDragStart={e => { if (readOnly) return; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'cell'); const val = { rowId: row.id, cellId: c.id }; cellDragRef.current = val; setCellDrag(val); }}
+                          onDragEnd={() => { if (readOnly) return; cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null); }}
                           onDragOver={e => {
+                            if (readOnly) return;
                             const d = cellDragRef.current;
                             if (d && d.cellId !== c.id) { e.preventDefault(); setCellDropTarget(c.id); e.dataTransfer.dropEffect = 'move'; }
                             else if (!d) { e.preventDefault(); setDropHover(c.id); }
                           }}
-                          onDragLeave={() => { setCellDropTarget(null); setDropHover(null); }}
+                          onDragLeave={() => { if (readOnly) return; setCellDropTarget(null); setDropHover(null); }}
                           onDrop={e => {
+                            if (readOnly) return;
                             e.preventDefault();
                             const d = cellDragRef.current;
                             if (d) {
