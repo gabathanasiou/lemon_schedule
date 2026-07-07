@@ -82,6 +82,7 @@ function AppContent() {
   useEffect(() => {
     if (readOnly) {
       setShowOfflineModal(true);
+      setShowRestoredBanner(false);
       wasOfflineRef.current = true;
     } else if (wasOfflineRef.current) {
       wasOfflineRef.current = false;
