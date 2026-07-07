@@ -9,12 +9,12 @@ import { ViolationTooltip } from './ViolationTooltip';
 import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
 import { checkDay } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
-  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
+  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors, getFallbackStripColors(palette));
 }
 
 const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ row, scenes, compact, ribbon, colWidths, palette }) => {

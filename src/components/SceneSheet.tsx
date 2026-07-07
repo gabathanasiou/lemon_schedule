@@ -7,7 +7,7 @@ import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
 import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
-import { sceneStyle, INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
+import { sceneStyle, INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, getFallbackStripColors } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 
 const BREAKDOWN_CATS = [
@@ -312,7 +312,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {
-        const colors = sceneStyle(scene, project.colorPalette?.sceneColors);
+        const colors = sceneStyle(scene, project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette));
         return (
           <div
             className="shrink-0 w-full flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none"

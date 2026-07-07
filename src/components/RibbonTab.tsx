@@ -5,7 +5,7 @@ import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
   getFieldValueFromSample, getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
-  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, formatCellText, resolveSceneColor, getCellBorderProps,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, formatCellText, resolveSceneColor, getCellBorderProps, getFallbackStripColors,
   computeMergeGroups, getMergeLookup, mergeSiblingIds, normalizeColWidths,
 } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
@@ -1135,7 +1135,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 marginBottom: '20px',
               }}>
                 {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
-                  const rowStyle = resolveSceneColor(sample.intExt || '', sample.dayNight || '', project.colorPalette?.sceneColors);
+                  const rowStyle = resolveSceneColor(sample.intExt || '', sample.dayNight || '', project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette));
                   return (
                     <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                       <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2) }}>

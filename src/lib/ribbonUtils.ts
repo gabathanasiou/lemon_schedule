@@ -140,19 +140,20 @@ const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string 
 
 const DEFAULT_FALLBACK = { background: '#ffffff', color: '#18181b' };
 
-export function resolveSceneColor(intExt: string, dayNight: string, colorEntries?: SceneColorEntry[]): { background: string; color: string } {
+export function resolveSceneColor(intExt: string, dayNight: string, colorEntries?: SceneColorEntry[], fallbackOverride?: { background: string; color: string }): { background: string; color: string } {
   const ie = intExt.toUpperCase();
   const dn = dayNight.toUpperCase();
   if (colorEntries) {
     const match = colorEntries.find(e => e.intExt.toUpperCase() === ie && e.dayNight.toUpperCase() === dn);
     if (match) return { background: match.background, color: match.text };
   }
+  if (fallbackOverride) return fallbackOverride;
   return SCENE_COLOR_FALLBACKS[`${ie}|${dn}`] || DEFAULT_FALLBACK;
 }
 
-export function sceneStyle(scene?: Scene | null, colorEntries?: SceneColorEntry[]): React.CSSProperties {
-  if (!scene) return DEFAULT_FALLBACK;
-  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', colorEntries);
+export function sceneStyle(scene?: Scene | null, colorEntries?: SceneColorEntry[], fallbackOverride?: { background: string; color: string }): React.CSSProperties {
+  if (!scene) return fallbackOverride || DEFAULT_FALLBACK;
+  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', colorEntries, fallbackOverride);
 }
 
 export function getDefaultSceneColors(): SceneColorEntry[] {
@@ -175,7 +176,15 @@ export const DEFAULT_COLOR_PALETTE: SceneColorPalette = {
   dayHeaderText: '#ffffff',
   noteBg: '#3f0000',
   noteText: '#ffffff',
+  fallbackStripBg: '#a77b00',
+  fallbackStripText: '#ffffff',
 };
+
+export function getFallbackStripColors(palette?: SceneColorPalette): { background: string; color: string } {
+  return palette?.fallbackStripBg
+    ? { background: palette.fallbackStripBg, color: palette.fallbackStripText || '#ffffff' }
+    : { background: '#a77b00', color: '#ffffff' };
+}
 
 export function getSelectedStripColors(palette?: SceneColorPalette): { background: string; color: string } {
   return palette ? { background: palette.selectedStripBg, color: palette.selectedStripText } : { background: '#b20000', color: '#ffffff' };

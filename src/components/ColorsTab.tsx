@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject } from '../store';
 import { SceneColorEntry, SceneColorPalette } from '../types';
-import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
+import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors } from '../lib/ribbonUtils';
 import { RotateCcw, Download, Upload, Palette, Sun } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -234,6 +234,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
               ['Selected Strip', palette.selectedStripBg, palette.selectedStripText, (bg: string, text: string) => handleMetaChange({ selectedStripBg: bg, selectedStripText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.selectedStripBg, text: DEFAULT_COLOR_PALETTE.selectedStripText })],
               ['Day Header', palette.dayHeaderBg, palette.dayHeaderText, (bg: string, text: string) => handleMetaChange({ dayHeaderBg: bg, dayHeaderText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.dayHeaderBg, text: DEFAULT_COLOR_PALETTE.dayHeaderText })],
               ['Note Banner', palette.noteBg, palette.noteText, (bg: string, text: string) => handleMetaChange({ noteBg: bg, noteText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.noteBg, text: DEFAULT_COLOR_PALETTE.noteText })],
+              ['Fallback', getFallbackStripColors(palette).background, getFallbackStripColors(palette).color, (bg: string, text: string) => handleMetaChange({ fallbackStripBg: bg, fallbackStripText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.fallbackStripBg!, text: DEFAULT_COLOR_PALETTE.fallbackStripText! })],
             ] as const).map(([label, bg, text, commit, resetDefaults]) => (
               <button
                 key={label}

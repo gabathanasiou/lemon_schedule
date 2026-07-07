@@ -7,7 +7,7 @@ function fmt(prefix: string | undefined, val: string, suffix: string | undefined
   return formatCellText(prefix, val, suffix);
 }
 
-export function RibbonPreview({ scene, ribbon, colWidths, cellPaddingV = 3, cellPaddingH = 6, edgePadding = 2, onDoubleClick }: {
+export function RibbonPreview({ scene, ribbon, colWidths, cellPaddingV = 3, cellPaddingH = 6, edgePadding = 2, onDoubleClick, fallbackOverride }: {
   scene: Scene;
   ribbon: RibbonRow[];
   colWidths?: number[];
@@ -15,11 +15,12 @@ export function RibbonPreview({ scene, ribbon, colWidths, cellPaddingV = 3, cell
   cellPaddingH?: number;
   edgePadding?: number;
   onDoubleClick?: () => void;
+  fallbackOverride?: { background: string; color: string };
 }) {
   if (!ribbon || ribbon.length === 0) return null;
 
   const cw = colWidths ?? [];
-  const rowBg = sceneStyle(scene);
+  const rowBg = sceneStyle(scene, undefined, fallbackOverride);
 
   const mgroups = computeMergeGroups(ribbon);
   const hiddenIds = new Set<string>();

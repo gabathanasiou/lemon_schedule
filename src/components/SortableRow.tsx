@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -836,7 +836,7 @@ const SortableRowContent: React.FC<{
   };
 
   if (scene) {
-    const rowStyle = sceneStyle(scene, state.present.colorPalette?.sceneColors);
+    const rowStyle = sceneStyle(scene, state.present.colorPalette?.sceneColors, getFallbackStripColors(state.present.colorPalette));
     if (isSelected && !isFaded) {
       rowStyle.background = sel.background;
       rowStyle.color = sel.color;

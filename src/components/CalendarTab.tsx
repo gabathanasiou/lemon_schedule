@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
 import { generateUUID } from '../lib/utils';
-import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors } from '../lib/ribbonUtils';
+import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -75,7 +75,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
     }
     return (scene as any)[displayField] || '';
   };
-  const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors);
+  const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors, getFallbackStripColors(palette));
   const bg = isSelected && selBg ? selBg : c.background;
   const fg = isSelected && selColor ? selColor : c.color;
   const vFlag = violations && violations.length > 0 ? (

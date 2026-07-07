@@ -126,6 +126,8 @@ export interface SceneColorPalette {
   dayHeaderText: string;
   noteBg: string;
   noteText: string;
+  fallbackStripBg?: string;
+  fallbackStripText?: string;
 }
 
 export interface CastMember {

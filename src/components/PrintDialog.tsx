@@ -5,7 +5,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 
@@ -222,7 +222,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                   fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000', overflow: 'hidden', maxWidth: viewWidth || undefined, margin: '0 auto',
                 }}>
                   {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
-                    const rowStyle = resolveSceneColor(sample.intExt, sample.dayNight, project.colorPalette?.sceneColors);
+                    const rowStyle = resolveSceneColor(sample.intExt, sample.dayNight, project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette));
                     return (
                       <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
                         <div className="flex-1 min-w-0 flex flex-col" style={{ background: rowStyle.background, color: rowStyle.color, paddingTop: design?.edgePadding ?? 2, paddingBottom: design?.edgePadding ?? 2, paddingLeft: design?.edgePadding ?? 2, paddingRight: design?.edgePadding ?? 2 }}>

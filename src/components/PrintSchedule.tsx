@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
@@ -76,6 +76,7 @@ interface DaySectionProps {
   edgePadding?: number;
   cellBorders?: CellBorders;
   sceneColors?: SceneColorEntry[];
+  fallbackOverride?: { background: string; color: string };
 }
 
 const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
@@ -119,7 +120,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -391,7 +392,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             }
             const scene = scenes.find(s => s.id === r.sceneId);
             if (!scene) return null;
-            const rowStyle = sceneStyle(scene, sceneColors);
+            const rowStyle = sceneStyle(scene, sceneColors, fallbackOverride);
             const bgColor = rowStyle.background || '#ffffff';
 
             if (cells) {
@@ -803,6 +804,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 edgePadding={edgePadding}
                 cellBorders={cellBorders}
                 sceneColors={project.colorPalette?.sceneColors}
+                fallbackOverride={getFallbackStripColors(project.colorPalette)}
               />
             ))}
           </div>
