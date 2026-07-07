@@ -89,7 +89,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       return;
     } else if (e.shiftKey && lastClickedId && !lastClickedId.startsWith('empty-')) {
       e.stopPropagation();
-      const allIds = flatRowIdsRef.current;
+      const clickedRow = activeVersion?.rows.find(r => r.id === id);
+      const anchorRow = activeVersion?.rows.find(r => r.id === lastClickedId);
+      const isUnscheduled = (clickedRow && (clickedRow.shootDay === null || clickedRow.shootDay === -1)) ||
+        (anchorRow && (anchorRow.shootDay === null || anchorRow.shootDay === -1));
+      const allIds = isUnscheduled ? unscheduledFlatRef.current : flatRowIdsRef.current;
       const idxA = allIds.indexOf(lastClickedId);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) {
