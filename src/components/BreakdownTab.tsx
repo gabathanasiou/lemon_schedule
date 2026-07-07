@@ -100,6 +100,14 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const customCategoriesRef = useRef(project.customCategories);
   customCategoriesRef.current = project.customCategories;
 
+  // Stable row cache — reuse cell objects for unchanged scenes to prevent full-grid re-render
+  const prevScenesRef = useRef<Scene[]>([]);
+  const dataRef = useRef<CellBase[][]>([]);
+
+  // Debounced edit commit — prevents store round-trip on every keystroke
+  const editTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (editTimerRef.current) clearTimeout(editTimerRef.current); }, []);
+
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
   }, [dispatch]);
@@ -269,29 +277,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const breakdownEditorItems = useMemo(() => {
     const map = new Map<string, { id: string; name: string }[]>();
     for (const key of allBreakdownCategories) {
-      const sceneValues: string[] = [...new Set(scenes.map(s => (s as any)[key] as string).filter(Boolean).flatMap(v => getFieldItems(key, v)) as string[])];
       const storedElements: { id: string; name: string }[] = project.breakdownElements?.[key] || [];
-      const nameMap = new Map<string, { id: string; name: string }>(storedElements.map(e => [e.name.toLowerCase(), e]));
-      const seen = new Set<string>();
-      const items: { id: string; name: string }[] = [];
-      for (const v of sceneValues) {
-        const lc = v.toLowerCase();
-        const matched = nameMap.get(lc);
-        if (matched) {
-          const k = matched.id || matched.name;
-          if (!seen.has(k)) { items.push({ id: matched.id, name: matched.name }); seen.add(k); }
-        } else {
-          if (!seen.has(v)) { items.push({ id: v, name: v }); seen.add(v); }
-        }
-      }
-      for (const e of storedElements) {
-        const k = e.id || e.name;
-        if (!seen.has(k)) { items.push({ id: e.id, name: e.name }); seen.add(k); }
-      }
+      const items: { id: string; name: string }[] = storedElements.map(e => ({ id: e.id, name: e.name }));
       map.set(key, items);
     }
     return map;
-  }, [scenes, project.breakdownElements, allBreakdownCategories]);
+  }, [project.breakdownElements, allBreakdownCategories]);
   const breakdownEditorItemsRef = useRef(breakdownEditorItems);
   breakdownEditorItemsRef.current = breakdownEditorItems;
 
@@ -385,19 +376,31 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [widthVersion, COLUMNS]);
 
   const data = useMemo((): CellBase[][] => {
-    const rows = scenes.map(scene => [
-      { value: '', readOnly: true, DataViewer: DeleteViewer },
-      { value: scene.sceneNumber },
-      { value: scene.pageCount, DataEditor: PageCountEditor },
-      { value: scene.scriptDay },
-      { value: scene.intExt, DataEditor: IntExtEditor },
-      { value: scene.set, DataEditor: SetEditor },
-      { value: scene.dayNight, DataEditor: DayNightEditor },
-      { value: scene.description },
-      { value: scene.cast, DataEditor: CastEditor },
-      { value: scene.notes },
-      ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
-    ]);
+    const prevData = dataRef.current;
+    const prevScenes = prevScenesRef.current;
+    const rows: CellBase[][] = [];
+
+    for (let i = 0; i < scenes.length; i++) {
+      if (scenes[i] === prevScenes[i] && prevData[i]) {
+        rows[i] = prevData[i];
+      } else {
+        const scene = scenes[i];
+        rows[i] = [
+          { value: '', readOnly: true, DataViewer: DeleteViewer },
+          { value: scene.sceneNumber },
+          { value: scene.pageCount, DataEditor: PageCountEditor },
+          { value: scene.scriptDay },
+          { value: scene.intExt, DataEditor: IntExtEditor },
+          { value: scene.set, DataEditor: SetEditor },
+          { value: scene.dayNight, DataEditor: DayNightEditor },
+          { value: scene.description },
+          { value: scene.cast, DataEditor: CastEditor },
+          { value: scene.notes },
+          ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
+        ];
+      }
+    }
+
     rows.push(COLUMNS.map((c, i) => {
       if (i === ACTIONS_COL) return { value: '', readOnly: true };
       if (i === 2) return { value: '', DataEditor: PageCountEditor };
@@ -408,6 +411,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       if (allBreakdownCategories.includes(c.key)) return { value: '', DataEditor: breakdownEditors.get(c.key)! };
       return { value: '' };
     }));
+
+    prevScenesRef.current = scenes;
+    dataRef.current = rows;
     return rows;
   }, [scenes, breakdownEditors]);
 
@@ -435,118 +441,128 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     );
   }, [onOpenSheet, setContextMenu]);
 
+  const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string) => {
+    const project = projectRef.current;
+    const updates: any = { [colKey]: newVal };
+    if (colKey === 'pageCount') {
+      if (newVal === '') {
+        updates.pageCount = '';
+        updates.pageCountDecimal = 0;
+      } else {
+        const decimal = parsePageCount(newVal);
+        updates.pageCountDecimal = decimal;
+        updates.pageCount = formatPageCount(decimal);
+      }
+    } else if (colKey === 'scriptDay') {
+      updates.scriptDay = newVal.replace(/[^0-9]/g, '');
+    } else if (colKey === 'set') {
+      updates.set = newVal.toUpperCase();
+    } else if (colKey === 'intExt') {
+      const match = INT_EXT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
+      if (match) updates.intExt = match;
+    } else if (colKey === 'dayNight') {
+      const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
+      if (match) updates.dayNight = match;
+    }
+    if (colKey === 'cast' || allBreakdownCategories.includes(colKey)) {
+      const isCast = colKey === 'cast';
+      const existing = (project.breakdownElements || {})[colKey] || [];
+      const existingSet = new Set(
+        isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
+      );
+      const newItems = getFieldItems(colKey, newVal)
+        .filter(v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()));
+      for (const item of newItems) {
+        dispatch({ type: 'ADD_ELEMENT', payload: {
+          category: colKey,
+          element: isCast ? { id: item, name: '' } : { id: item, name: item }
+        } });
+      }
+    }
+    dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
+  }, [dispatch, allBreakdownCategories]);
+
   const handleChange = useCallback((newData: CellBase[][]) => {
     const currentScenes = scenesRef.current;
     const currentProject = projectRef.current;
     const phantomIndex = currentScenes.length;
 
-    // Process all pasted/extra rows beyond existing scenes
-    let createdAny = false;
-    const hasPastedRows = newData.length > phantomIndex;
-    if (hasPastedRows) dispatch({ type: 'BATCH_START' });
-    for (let row = phantomIndex; row < newData.length; row++) {
-      const row_data = newData[row];
-      if (!row_data) continue;
-      const hasContent = row_data.some((c, i) => {
-        if (i === ACTIONS_COL) return false;
-        const v = c?.value;
-        return v !== undefined && v !== null && String(v).trim() !== '';
-      });
-      if (!hasContent) continue;
-      const newScene: Partial<Record<string, any>> = { shootDay: null };
-      for (let col = 0; col < COLUMNS.length; col++) {
-        if (col === ACTIONS_COL) continue;
-        const val = row_data[col]?.value ?? '';
-        newScene[COLUMNS[col].key] = val;
-      }
-      newScene.id = generateUUID();
-      const decimal = parsePageCount(newScene.pageCount || '0');
-      newScene.pageCount = formatPageCount(decimal);
-      newScene.pageCountDecimal = decimal;
-      newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
-      newScene.set = String(newScene.set || '').toUpperCase();
-      dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
-      const entityCategories = ['cast', ...allBreakdownCategories];
-      for (const category of entityCategories) {
-        const val = String(newScene[category] ?? '');
-        if (!val.trim()) continue;
-        const isCast = category === 'cast';
-        const existing = (currentProject.breakdownElements || {})[category] || [];
-        const existingSet = new Set(
-          isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
-        );
-        const items = getFieldItems(category, val);
-        for (const item of items) {
-          if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
-            dispatch({ type: 'ADD_ELEMENT', payload: {
-              category,
-              element: isCast ? { id: item, name: '' } : { id: item, name: item }
-            } });
+    // Check if phantom row has content (user adding a new scene)
+    const phantomRow = newData[phantomIndex];
+    const phantomHasContent = phantomRow?.some((c, i) => {
+      if (i === ACTIONS_COL) return false;
+      const v = c?.value;
+      return v !== undefined && v !== null && String(v).trim() !== '';
+    });
+
+    // Check for pasted rows beyond the phantom row
+    const extraCount = newData.length - (phantomIndex + 1);
+
+    if (phantomHasContent || extraCount > 0) {
+      if (editTimerRef.current) { clearTimeout(editTimerRef.current); editTimerRef.current = null; }
+      dispatch({ type: 'BATCH_START' });
+      const rowsToProcess = newData.slice(phantomIndex);
+      for (const rowData of rowsToProcess) {
+        if (!rowData) continue;
+        const hasContent = rowData.some((c, i) => {
+          if (i === ACTIONS_COL) return false;
+          const v = c?.value;
+          return v !== undefined && v !== null && String(v).trim() !== '';
+        });
+        if (!hasContent) continue;
+        const newScene: Partial<Record<string, any>> = { shootDay: null };
+        for (let col = 0; col < COLUMNS.length; col++) {
+          if (col === ACTIONS_COL) continue;
+          newScene[COLUMNS[col].key] = rowData[col]?.value ?? '';
+        }
+        newScene.id = generateUUID();
+        const decimal = parsePageCount(newScene.pageCount || '0');
+        newScene.pageCount = formatPageCount(decimal);
+        newScene.pageCountDecimal = decimal;
+        newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
+        newScene.set = String(newScene.set || '').toUpperCase();
+        dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
+        const entityCategories = ['cast', ...allBreakdownCategories];
+        for (const category of entityCategories) {
+          const val = String(newScene[category] ?? '');
+          if (!val.trim()) continue;
+          const isCast = category === 'cast';
+          const existing = (currentProject.breakdownElements || {})[category] || [];
+          const existingSet = new Set(
+            isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
+          );
+          const items = getFieldItems(category, val);
+          for (const item of items) {
+            if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
+              dispatch({ type: 'ADD_ELEMENT', payload: {
+                category,
+                element: isCast ? { id: item, name: '' } : { id: item, name: item }
+              } });
+            }
           }
         }
       }
-      createdAny = true;
-    }
-
-    if (createdAny) {
       dispatch({ type: 'BATCH_COMMIT' });
       return;
     }
-    if (hasPastedRows) dispatch({ type: 'BATCH_COMMIT' });
 
+    // Normal single-cell edit: debounce store dispatch
+    if (editTimerRef.current) clearTimeout(editTimerRef.current);
     for (let row = 0; row < Math.min(currentScenes.length, newData.length); row++) {
       for (let col = 0; col < COLUMNS.length; col++) {
         if (col === ACTIONS_COL) continue;
         const colDef = COLUMNS[col];
         const oldVal = String((currentScenes as any)[row][colDef.key] ?? '');
         const newVal = String(newData[row]?.[col]?.value ?? '');
-          if (newVal !== oldVal) {
-            const updates: any = { [colDef.key]: newVal };
-            if (colDef.key === 'pageCount') {
-              if (newVal === '') {
-                updates.pageCount = '';
-                updates.pageCountDecimal = 0;
-              } else {
-                const decimal = parsePageCount(newVal);
-                updates.pageCountDecimal = decimal;
-                updates.pageCount = formatPageCount(decimal);
-              }
-            }
-            if (colDef.key === 'scriptDay') {
-              updates.scriptDay = newVal.replace(/[^0-9]/g, '');
-            }
-            if (colDef.key === 'set') {
-              updates.set = newVal.toUpperCase();
-            }
-            if (colDef.key === 'intExt') {
-              const match = INT_EXT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
-              if (match) updates.intExt = match;
-            }
-            if (colDef.key === 'dayNight') {
-              const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
-              if (match) updates.dayNight = match;
-            }
-            if (colDef.key === 'cast' || allBreakdownCategories.includes(colDef.key)) {
-              const isCast = colDef.key === 'cast';
-              const existing = (currentProject.breakdownElements || {})[colDef.key] || [];
-              const existingSet = new Set(
-                isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
-              );
-              const newItems = getFieldItems(colDef.key, newVal)
-                .filter(v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()));
-              for (const item of newItems) {
-                dispatch({ type: 'ADD_ELEMENT', payload: {
-                  category: colDef.key,
-                  element: isCast ? { id: item, name: '' } : { id: item, name: item }
-                } });
-              }
-            }
-            dispatch({ type: 'UPDATE_SCENE', payload: { id: currentScenes[row].id, ...updates } });
-            break; // single cell edit — no need to scan remaining columns
+        if (newVal !== oldVal) {
+          const sceneId = currentScenes[row].id;
+          const key = colDef.key;
+          editTimerRef.current = setTimeout(() => commitEdit(sceneId, key, newVal), 300);
+          return;
         }
       }
     }
-  }, [dispatch, COLUMNS, allBreakdownCategories]);
+  }, [dispatch, COLUMNS, allBreakdownCategories, commitEdit]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
