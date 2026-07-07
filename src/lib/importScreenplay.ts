@@ -446,8 +446,8 @@ export function commitImport({
     const sceneBase: any = {
       id: generateUUID(),
       sceneNumber: ps.sceneNumber,
-      pageCount: ps.pageCount ?? '1',
-      pageCountDecimal: ps.pageCountDecimal ?? 1,
+      pageCount: ps.pageCount ?? '0',
+      pageCountDecimal: ps.pageCountDecimal ?? 0,
       scriptDay: breakdownFields.scriptDay || '',
       intExt: ps.intExt,
       set: setName || ps.set.toUpperCase(),

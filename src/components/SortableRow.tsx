@@ -547,8 +547,7 @@ const SortableRowContent: React.FC<{
               value={scene!.pageCount}
               suffix="pgs"
               onChange={val => {
-                const decimal = parsePageCount(val);
-                updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
+                if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }
               }}
               className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
               readOnly={!textEditingEnabled}
@@ -747,7 +746,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+            <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); } }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
           )}
@@ -1034,8 +1033,7 @@ const SortableRowContent: React.FC<{
                     value={scene.pageCount}
                     suffix="pgs"
                     onChange={val => {
-                      const decimal = parsePageCount(val);
-                      updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal });
+                      if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }
                     }}
                     className={`${inputClass} text-left`}
                     readOnly={!textEditingEnabled}

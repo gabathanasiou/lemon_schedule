@@ -428,7 +428,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         newScene[COLUMNS[col].key] = val;
       }
       newScene.id = generateUUID();
-      const decimal = parsePageCount(newScene.pageCount || '1');
+      const decimal = parsePageCount(newScene.pageCount || '0');
       newScene.pageCount = formatPageCount(decimal);
       newScene.pageCountDecimal = decimal;
       newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
@@ -471,9 +471,14 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           if (newVal !== oldVal) {
             const updates: any = { [colDef.key]: newVal };
             if (colDef.key === 'pageCount') {
-              const decimal = parsePageCount(newVal);
-              updates.pageCountDecimal = decimal;
-              updates.pageCount = formatPageCount(decimal);
+              if (newVal === '') {
+                updates.pageCount = '';
+                updates.pageCountDecimal = 0;
+              } else {
+                const decimal = parsePageCount(newVal);
+                updates.pageCountDecimal = decimal;
+                updates.pageCount = formatPageCount(decimal);
+              }
             }
             if (colDef.key === 'scriptDay') {
               updates.scriptDay = newVal.replace(/[^0-9]/g, '');
@@ -521,8 +526,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         const imported: Scene[] = results.data.map((row: any) => ({
           id: generateUUID(),
           sceneNumber: typeof row['Scene #'] === 'string' ? row['Scene #'] : typeof row['Scene'] === 'string' ? row['Scene'] : String(row['Scene'] || row['Scene #'] || ''),
-          pageCount: formatPageCount(parsePageCount(row['Pages'] || '1')),
-          pageCountDecimal: parsePageCount(row['Pages'] || '1'),
+          pageCount: formatPageCount(parsePageCount(row['Pages'] || '0')),
+          pageCountDecimal: parsePageCount(row['Pages'] || '0'),
           scriptDay: row['Script Day'] || '',
           intExt: (row['I/E'] || 'INT') as any,
           set: (row['Set'] || '').toUpperCase(),

@@ -504,7 +504,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             );
           })}
           <div style={{ gridColumn: `1 / -1`, padding: `2px ${cellPaddingV ?? 6}px`, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+            {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>}
             <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
           </div>
         </div>
@@ -516,7 +516,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
           </span>
           {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
           <div className="print-footer-stats">
-            <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+            {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>}
             <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
           </div>
         </div>
