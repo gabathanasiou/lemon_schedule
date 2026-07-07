@@ -57,6 +57,7 @@ function AppContent() {
   const [scheduleTargetScene, setScheduleTargetScene] = useState<string | null>(null);
   const [scheduleScrollTop, setScheduleScrollTop] = useState(0);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+  const [showRestoredBanner, setShowRestoredBanner] = useState(false);
 
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setActiveTab('breakdown');
@@ -76,8 +77,18 @@ function AppContent() {
 
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
 
+  const wasOfflineRef = useRef(false);
+
   useEffect(() => {
-    if (readOnly) setShowOfflineModal(true);
+    if (readOnly) {
+      setShowOfflineModal(true);
+      wasOfflineRef.current = true;
+    } else if (wasOfflineRef.current) {
+      wasOfflineRef.current = false;
+      setShowRestoredBanner(true);
+      const timer = setTimeout(() => setShowRestoredBanner(false), 5000);
+      return () => clearTimeout(timer);
+    }
   }, [readOnly]);
 
   const handleRetryConnection = useCallback(() => {
@@ -356,6 +367,12 @@ function AppContent() {
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
       <input ref={importFileRef} type="file" accept=".fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
+      {/* RESTORED BANNER */}
+      {showRestoredBanner && (
+        <div className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center text-xs shrink-0 print:hidden">
+          <span className="font-medium">Connection restored</span>
+        </div>
+      )}
       {/* OFFLINE BANNER */}
       {readOnly && (
         <div className="bg-red-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
@@ -382,7 +399,7 @@ function AppContent() {
           }
         >
           <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
-            This feature requires an internet connection. You can continue to browse your project,
+            Lemon Schedule requires an internet connection. You can continue to browse your project,
             but all editing controls are currently disabled.
           </div>
         </Modal>
