@@ -42,7 +42,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   onOpenSheet?: (rowIndex: number) => void;
   onOpenSchedule?: (sceneId: string) => void;
 }) {
-  const { state, dispatch } = useProject();
+  const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const scenes = project.scenes;
 
@@ -380,42 +380,43 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     const prevScenes = prevScenesRef.current;
     const rows: CellBase[][] = [];
 
+    const rowFromScene = (scene: Scene): CellBase[] => [
+      { value: '', readOnly: true, ...(!readOnly && { DataViewer: DeleteViewer }) },
+      { value: scene.sceneNumber },
+      { value: scene.pageCount, ...(!readOnly && { DataEditor: PageCountEditor }) },
+      { value: scene.scriptDay },
+      { value: scene.intExt, ...(!readOnly && { DataEditor: IntExtEditor }) },
+      { value: scene.set, ...(!readOnly && { DataEditor: SetEditor }) },
+      { value: scene.dayNight, ...(!readOnly && { DataEditor: DayNightEditor }) },
+      { value: scene.description },
+      { value: scene.cast, ...(!readOnly && { DataEditor: CastEditor }) },
+      { value: scene.notes },
+      ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', ...(!readOnly && { DataEditor: breakdownEditors.get(key) }) })),
+    ];
+
     for (let i = 0; i < scenes.length; i++) {
-      if (scenes[i] === prevScenes[i] && prevData[i]) {
+      if (!readOnly && scenes[i] === prevScenes[i] && prevData[i]) {
         rows[i] = prevData[i];
       } else {
-        const scene = scenes[i];
-        rows[i] = [
-          { value: '', readOnly: true, DataViewer: DeleteViewer },
-          { value: scene.sceneNumber },
-          { value: scene.pageCount, DataEditor: PageCountEditor },
-          { value: scene.scriptDay },
-          { value: scene.intExt, DataEditor: IntExtEditor },
-          { value: scene.set, DataEditor: SetEditor },
-          { value: scene.dayNight, DataEditor: DayNightEditor },
-          { value: scene.description },
-          { value: scene.cast, DataEditor: CastEditor },
-          { value: scene.notes },
-          ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', DataEditor: breakdownEditors.get(key) })),
-        ];
+        rows[i] = rowFromScene(scenes[i]);
       }
     }
 
     rows.push(COLUMNS.map((c, i) => {
       if (i === ACTIONS_COL) return { value: '', readOnly: true };
-      if (i === 2) return { value: '', DataEditor: PageCountEditor };
-      if (i === 4) return { value: '', DataEditor: IntExtEditor };
-      if (i === 5) return { value: '', DataEditor: SetEditor };
-      if (i === 6) return { value: '', DataEditor: DayNightEditor };
-      if (i === CAST_COL) return { value: '', DataEditor: CastEditor };
-      if (allBreakdownCategories.includes(c.key)) return { value: '', DataEditor: breakdownEditors.get(c.key)! };
+      if (i === 2) return { value: '', ...(!readOnly && { DataEditor: PageCountEditor }) };
+      if (i === 4) return { value: '', ...(!readOnly && { DataEditor: IntExtEditor }) };
+      if (i === 5) return { value: '', ...(!readOnly && { DataEditor: SetEditor }) };
+      if (i === 6) return { value: '', ...(!readOnly && { DataEditor: DayNightEditor }) };
+      if (i === CAST_COL) return { value: '', ...(!readOnly && { DataEditor: CastEditor }) };
+      if (allBreakdownCategories.includes(c.key)) return { value: '', ...(!readOnly && { DataEditor: breakdownEditors.get(c.key)! }) };
       return { value: '' };
     }));
 
     prevScenesRef.current = scenes;
     dataRef.current = rows;
     return rows;
-  }, [scenes, breakdownEditors]);
+  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors, readOnly]);
 
   const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => {
     const w = IS_COARSE ? 26 : 17;
@@ -937,8 +938,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
              ` : ''}
                ${widthStyle}
              `}</style>
-           <div onContextMenu={handleCellContextMenu}>
-           <Spreadsheet
+            <div onContextMenu={handleCellContextMenu} className={readOnly ? 'opacity-60' : ''}>
+            <Spreadsheet
              ref={spreadsheetRef}
              data={data}
              onChange={handleChange}

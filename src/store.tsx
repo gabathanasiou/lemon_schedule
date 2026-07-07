@@ -1134,6 +1134,7 @@ interface ProjectContextType {
   projectList: ProjectMeta[];
   currentProjectId: string | null;
   initialized: boolean;
+  readOnly: boolean;
   createProject: (title?: string) => string;
   openProject: (id: string) => void;
   deleteProject: (id: string) => void;
@@ -1157,6 +1158,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     future: [],
     _batchDepth: 0,
   });
+
+  // Offline detection — block all mutations when offline
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const goOffline = () => setIsOnline(false);
+    const goOnline = () => setIsOnline(true);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
+    };
+  }, []);
+  const guardedDispatch = useCallback((action: Action) => {
+    if (!isOnline && action.type !== 'LOAD') return;
+    dispatch(action);
+  }, [isOnline]);
 
   // On mount: migrate legacy data or load most recent project
   useEffect(() => {
@@ -1371,10 +1389,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   return (
     <ProjectContext.Provider value={{
       state,
-      dispatch,
+      dispatch: guardedDispatch,
       projectList,
       currentProjectId,
       initialized,
+      readOnly: !isOnline,
       createProject,
       openProject,
       deleteProject,

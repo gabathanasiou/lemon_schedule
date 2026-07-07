@@ -34,7 +34,7 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID } from './lib/utils';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
@@ -45,7 +45,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -56,6 +56,7 @@ function AppContent() {
   const [reportsCategory, setReportsCategory] = useState('cast');
   const [scheduleTargetScene, setScheduleTargetScene] = useState<string | null>(null);
   const [scheduleScrollTop, setScheduleScrollTop] = useState(0);
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
 
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setActiveTab('breakdown');
@@ -74,6 +75,16 @@ function AppContent() {
   }, []);
 
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
+
+  useEffect(() => {
+    if (readOnly) setShowOfflineModal(true);
+  }, [readOnly]);
+
+  const handleRetryConnection = useCallback(() => {
+    if (navigator.onLine) {
+      setShowOfflineModal(false);
+    }
+  }, []);
 
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
@@ -344,6 +355,39 @@ function AppContent() {
       {showElementBreakdownDialog && <ElementBreakdownDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); setElementBreakdownOptions(opts); }} onClose={() => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); }} />}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
       <input ref={importFileRef} type="file" accept=".fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
+
+      {/* OFFLINE BANNER */}
+      {readOnly && (
+        <div className="bg-red-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
+          <span className="font-medium">No Internet Connection - editing is disabled</span>
+          <button
+            onClick={handleRetryConnection}
+            className="ml-3 px-2.5 py-1 rounded bg-red-700 hover:bg-red-500 transition-colors font-semibold"
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
+      {showOfflineModal && (
+        <Modal open={showOfflineModal} onClose={() => setShowOfflineModal(false)} title="You're offline" icon={<WifiOff className="w-5 h-5 text-zinc-400" />} width="max-w-md"
+          footer={
+            <ModalFooter>
+              <button
+                onClick={handleRetryConnection}
+                disabled={!navigator.onLine}
+                className="px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+              >
+                Try Again
+              </button>
+            </ModalFooter>
+          }
+        >
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            This feature requires an internet connection. You can continue to browse your project,
+            but all editing controls are currently disabled.
+          </p>
+        </Modal>
+      )}
 
       {/* HEADER */}
       <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden">

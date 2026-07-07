@@ -23,7 +23,7 @@ import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 
 export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
-  const { state, dispatch } = useProject();
+  const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const [viewMode, setViewMode, viewWidth] = useViewMode();
@@ -38,6 +38,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
+  const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
   const [forceUnscheduledExpanded, setForceUnscheduledExpanded] = useState(false);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
@@ -641,7 +642,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const isMarqueeActive = useMarqueeActive();
 
-  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off' || isMarqueeActive;
+  const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off' || isMarqueeActive || readOnly;
   const sensors = useSensors(
     IS_COARSE
       ? useSensor(TouchSensor, {
@@ -1227,8 +1228,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               <HelpCircle className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setTextEditingEnabled(p => !p)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+              onClick={() => !readOnly && setTextEditingEnabled(p => !p)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
             >
               <Pencil className="w-3.5 h-3.5 shrink-0" />
               Edit
@@ -1318,7 +1319,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               }
           }}
       >
-            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={textEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => {
+            <UnscheduledBlock rows={unscheduledRows} projectScenes={project.scenes} textEditingEnabled={effectiveTextEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => {
                 if (addMode && getMarqueeMode() === 'tool') {
                   const next = new Set(prev);
                   for (const id of ids) next.has(id) ? next.delete(id) : next.add(id);
@@ -1345,7 +1346,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                   selectedIds={selectedRowIds}
                   activeDragIds={activeDragIds}
                   onRowClick={handleRowClick}
-                  textEditingEnabled={textEditingEnabled}
+                  textEditingEnabled={effectiveTextEditingEnabled}
                   insertBeforeId={insertBeforeId}
                   activeRowId={activeId}
                   activeDragRow={activeDragRow}
@@ -1376,12 +1377,12 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
               const opacity = isTop ? 1 : 1 - (arr.length - 1 - i) * 0.2;
               return (
                 <div key={id} style={{ position: isTop ? 'relative' : 'absolute', top: offset, left: 0, right: 0, opacity, zIndex: isTop ? 10 : 5 - i }}>
-                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} />
+                  <SortableRow row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={effectiveTextEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} />
                 </div>
               );
             })}
             {activeDragIds.size === 1 && activeDragIds.has(activeId as string) && (
-              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={textEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} />
+              <SortableRow row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={effectiveTextEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} />
             )}
             {activeDragIds.size > 1 && (
                <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white z-20">
