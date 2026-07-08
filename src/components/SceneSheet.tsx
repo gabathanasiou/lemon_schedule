@@ -352,7 +352,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         );
       })()}
 
-      <div className="max-w-4xl mx-auto w-full flex flex-col h-full px-4 py-3 gap-3">
+      <div className="max-w-4xl mx-auto w-full flex flex-col px-4 py-3 gap-3">
         {!headerTarget && navBar}
 
         {/* Header table — matches print layout */}
