@@ -49,7 +49,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
     rule?.override?.type === 'single' ? rule.override.background : '#ffffff'
   );
   const [singleText, setSingleText] = useState(
-    rule?.override?.type === 'single' ? rule.override.text : '#18181b'
+    rule?.override?.type === 'single' ? rule.override.text : '#000000'
   );
   const [matrixColors, setMatrixColors] = useState<SceneColorEntry[]>(() => {
     if (rule?.override?.type === 'matrix') return rule.override.sceneColors.map(c => ({ ...c }));
@@ -60,7 +60,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
           intExt: ie,
           dayNight: dn,
           background: idx >= 0 ? palette.sceneColors[idx].background : '#ffffff',
-          text: idx >= 0 ? palette.sceneColors[idx].text : '#18181b',
+          text: idx >= 0 ? palette.sceneColors[idx].text : '#000000',
         };
       })
     );
@@ -68,7 +68,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
   const [cellEdit, setCellEdit] = useState<{ ie: string; dn: string } | null>(null);
   const [cellBg, setCellBg] = useState('#ffffff');
-  const [cellText, setCellText] = useState('#18181b');
+  const [cellText, setCellText] = useState('#000000');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null); // 'cat-{idx}' | 'el-{idx}' | null
 
   const categoryLabelLookup = useMemo(() => {
@@ -131,7 +131,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
       setCellText(matrixColors[idx].text);
     } else {
       setCellBg('#ffffff');
-      setCellText('#18181b');
+      setCellText('#000000');
     }
     setCellEdit({ ie, dn });
   };
@@ -291,7 +291,14 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                       >
                         {elements.length === 0 ? (
                           <div className="px-3 py-2 text-xs text-zinc-500">No elements</div>
-                        ) : elements.map(el => {
+                        ) : elements.slice().sort((a, b) => {
+                          if (isCast) {
+                            const ia = parseInt(a.id) ?? 0;
+                            const ib = parseInt(b.id) ?? 0;
+                            return ia - ib;
+                          }
+                          return (a.name || a.id).localeCompare(b.name || b.id);
+                        }).map(el => {
                           const active = (el.id || el.name) === cond.elementId;
                           return (
                             <RadixDropdownMenu.Item
@@ -379,7 +386,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                       </td>
                       {ieOptions.map(ie => {
                         const idx = findEntryIdx(matrixColors, ie, dn);
-                        const entry = idx >= 0 ? matrixColors[idx] : { background: '#ffffff', text: '#18181b' };
+                        const entry = idx >= 0 ? matrixColors[idx] : { background: '#ffffff', text: '#000000' };
                         return (
                           <td key={ie} className="px-0.5 py-0.5">
                             <button

@@ -141,7 +141,7 @@ const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string 
   'INT/EXT|EVENING': { background: '#00af2f', color: '#000000' },
 };
 
-const DEFAULT_FALLBACK = { background: '#ffffff', color: '#18181b' };
+const DEFAULT_FALLBACK = { background: '#ffffff', color: '#000000' };
 
 export function sceneMatchesRule(scene: Scene, rule: ColorRule): boolean {
   for (const condition of rule.conditions) {

@@ -106,7 +106,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
     return (intExt: string, dayNight: string): SceneColorEntry => {
       const key = `${intExt.toUpperCase()}|${dayNight.toUpperCase()}`;
       const found = map.get(key);
-      return found || { intExt, dayNight, background: '#ffffff', text: '#18181b' };
+      return found || { intExt, dayNight, background: '#ffffff', text: '#000000' };
     };
   }, [palette.sceneColors]);
 
@@ -131,11 +131,11 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           const isDefaultDN = DAY_NIGHT_OPTIONS.includes(dn);
           if (isDefaultIE && isDefaultDN) {
             const fb = DEFAULT_COLOR_PALETTE.sceneColors.find(e => e.intExt === ie && e.dayNight === dn);
-            entries.push(fb ? { ...fb } : { intExt: ie, dayNight: dn, background: '#ffffff', text: '#18181b' });
+            entries.push(fb ? { ...fb } : { intExt: ie, dayNight: dn, background: '#ffffff', text: '#000000' });
           } else if (existing) {
             entries.push({ ...existing });
           } else {
-            entries.push({ intExt: ie, dayNight: dn, background: '#ffffff', text: '#18181b' });
+            entries.push({ intExt: ie, dayNight: dn, background: '#ffffff', text: '#000000' });
           }
         }
       }
@@ -268,14 +268,14 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       next.intExtOptions = [...ieOptions, newVal];
       for (const dn of dnOptions) {
         if (findEntry(next.sceneColors, newVal, dn) < 0) {
-          next.sceneColors.push({ intExt: newVal, dayNight: dn, background: '#ffffff', text: '#18181b' });
+          next.sceneColors.push({ intExt: newVal, dayNight: dn, background: '#ffffff', text: '#000000' });
         }
       }
     } else {
       next.dayNightOptions = [...dnOptions, newVal];
       for (const ie of ieOptions) {
         if (findEntry(next.sceneColors, ie, newVal) < 0) {
-          next.sceneColors.push({ intExt: ie, dayNight: newVal, background: '#ffffff', text: '#18181b' });
+          next.sceneColors.push({ intExt: ie, dayNight: newVal, background: '#ffffff', text: '#000000' });
         }
       }
     }
@@ -604,7 +604,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                               (bg, text) => handleCellEdit(ie, dn, bg, text),
                               () => {
                                 const d = findEntry(DEFAULT_COLOR_PALETTE.sceneColors, ie, dn);
-                                return d >= 0 ? { bg: DEFAULT_COLOR_PALETTE.sceneColors[d].background, text: DEFAULT_COLOR_PALETTE.sceneColors[d].text } : { bg: '#ffffff', text: '#18181b' };
+                                return d >= 0 ? { bg: DEFAULT_COLOR_PALETTE.sceneColors[d].background, text: DEFAULT_COLOR_PALETTE.sceneColors[d].text } : { bg: '#ffffff', text: '#000000' };
                               },
                             )}
                             className={`w-full h-14 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${CELL} font-semibold cursor-pointer`}
