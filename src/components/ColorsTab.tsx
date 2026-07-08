@@ -171,7 +171,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-6 pr-12 bg-zinc-950 space-y-5">
+      <div className="flex-1 overflow-y-auto p-6 pr-12 pb-20 bg-zinc-950 space-y-5">
 
         {/* Scene Color Matrix Section */}
         <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
@@ -229,7 +229,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
             <Sun className="w-3.5 h-3.5 text-zinc-500" />
             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Interface Colors</span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             {([
               ['Selected Strip', palette.selectedStripBg, palette.selectedStripText, (bg: string, text: string) => handleMetaChange({ selectedStripBg: bg, selectedStripText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.selectedStripBg, text: DEFAULT_COLOR_PALETTE.selectedStripText })],
               ['Day Header', palette.dayHeaderBg, palette.dayHeaderText, (bg: string, text: string) => handleMetaChange({ dayHeaderBg: bg, dayHeaderText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.dayHeaderBg, text: DEFAULT_COLOR_PALETTE.dayHeaderText })],
