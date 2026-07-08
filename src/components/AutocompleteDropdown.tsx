@@ -125,6 +125,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             <div
               key={opt}
               className={`${DD_ITEM(i === highlightedIndex)} uppercase`}
+              onTouchStart={() => {}}
               onPointerDown={e => { if (e.pointerType === 'pen') { const el = e.currentTarget; el.classList.add('pen-pulse'); setTimeout(() => el.classList.remove('pen-pulse'), 350); } }}
               onMouseDown={e => { e.preventDefault(); commit(opt); }}
             >
