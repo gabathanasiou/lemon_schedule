@@ -134,7 +134,15 @@ export default function Modal({
   return (
     <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-[9999] bg-black/20" style={{ touchAction: 'manipulation' }} onTouchEnd={(e) => { e.preventDefault(); onClose(); }} />
+        <RadixDialog.Overlay
+          className="fixed inset-0 z-[9999] bg-black/20"
+          style={{ touchAction: 'manipulation' }}
+          onTouchEnd={(e) => {
+            if (document.querySelector('[data-radix-menu-content][data-state="open"], [data-radix-popper-content-wrapper][data-state="open"]')) return;
+            e.preventDefault();
+            onClose();
+          }}
+        />
         <RadixDialog.Content
           ref={contentRef}
           className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
@@ -159,7 +167,7 @@ export default function Modal({
                   Reset
                 </button>
               )}
-              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0" onTouchEnd={(e) => { e.preventDefault(); onClose(); }}>
+              <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors shrink-0">
                 <X className="w-3.5 h-3.5" />
               </RadixDialog.Close>
             </div>
