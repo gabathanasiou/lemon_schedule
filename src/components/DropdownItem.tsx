@@ -13,6 +13,7 @@ interface DropdownItemProps {
   className?: string;
   children: React.ReactNode;
   key?: string;
+  keepOpen?: boolean;
 }
 
 export default function DropdownItem({
@@ -22,6 +23,7 @@ export default function DropdownItem({
   variant = 'default',
   className = '',
   children,
+  keepOpen = false,
 }: DropdownItemProps) {
   const theme = useDropdownTheme();
   const isLight = theme === 'light';
@@ -39,7 +41,7 @@ export default function DropdownItem({
   return (
     <RadixDropdownMenu.Item
       className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
-      onSelect={(e) => { onClick(); }}
+      onSelect={(e) => { if (keepOpen) e.preventDefault(); onClick(); }}
       onPointerDown={(e) => {
         if ((e as any).pointerType === 'pen') {
           onClick();
