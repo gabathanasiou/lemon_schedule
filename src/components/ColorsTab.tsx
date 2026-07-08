@@ -2,8 +2,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject } from '../store';
 import { SceneColorEntry, SceneColorPalette } from '../types';
-import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors } from '../lib/ribbonUtils';
-import { RotateCcw, Download, Upload, Palette, Sun } from 'lucide-react';
+import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
+import { RotateCcw, Download, Upload, Palette, Sun, Plus, X } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 
@@ -16,6 +16,8 @@ function findEntry(entries: SceneColorEntry[], intExt: string, dayNight: string)
 function clonePalette(p: SceneColorPalette): SceneColorPalette {
   return {
     ...p,
+    intExtOptions: [...p.intExtOptions],
+    dayNightOptions: [...p.dayNightOptions],
     sceneColors: p.sceneColors.map(c => ({ ...c })),
   };
 }
@@ -42,10 +44,14 @@ interface EditState {
 export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ headerTarget }) => {
   const { state, dispatch } = useProject();
   const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
+  const ieOptions = getIntExtOptions(palette);
+  const dnOptions = getDayNightOptions(palette);
   const importRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState<EditState | null>(null);
   const [editBg, setEditBg] = useState('');
   const [editText, setEditText] = useState('');
+  const [editingHeader, setEditingHeader] = useState<{ type: 'ie' | 'dn'; idx: number } | null>(null);
+  const [headerText, setHeaderText] = useState('');
 
   const openEditor = (label: string, bg: string, text: string, commit: (bg: string, text: string) => void, resetDefaults: () => { bg: string; text: string }) => {
     setEditBg(bg);
@@ -80,7 +86,41 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   };
 
   const handleReset = () => {
-    dispatch({ type: 'SET_COLOR_PALETTE', payload: DEFAULT_COLOR_PALETTE });
+    const mergedIE = [...new Set([...INT_EXT_OPTIONS, ...ieOptions])];
+    const mergedDN = [...new Set([...DAY_NIGHT_OPTIONS, ...dnOptions])];
+    const defaultSceneColors = (() => {
+      const entries: SceneColorEntry[] = [];
+      for (const ie of mergedIE) {
+        for (const dn of mergedDN) {
+          const key = `${ie}|${dn}`;
+          const existing = palette.sceneColors.find(e => e.intExt === ie && e.dayNight === dn);
+          const isDefaultIE = INT_EXT_OPTIONS.includes(ie);
+          const isDefaultDN = DAY_NIGHT_OPTIONS.includes(dn);
+          if (isDefaultIE && isDefaultDN) {
+            const fb = DEFAULT_COLOR_PALETTE.sceneColors.find(e => e.intExt === ie && e.dayNight === dn);
+            entries.push(fb ? { ...fb } : { intExt: ie, dayNight: dn, background: '#ffffff', text: '#18181b' });
+          } else if (existing) {
+            entries.push({ ...existing });
+          } else {
+            entries.push({ intExt: ie, dayNight: dn, background: '#ffffff', text: '#18181b' });
+          }
+        }
+      }
+      return entries;
+    })();
+    dispatch({ type: 'SET_COLOR_PALETTE', payload: {
+      intExtOptions: mergedIE,
+      dayNightOptions: mergedDN,
+      sceneColors: defaultSceneColors,
+      selectedStripBg: DEFAULT_COLOR_PALETTE.selectedStripBg,
+      selectedStripText: DEFAULT_COLOR_PALETTE.selectedStripText,
+      dayHeaderBg: DEFAULT_COLOR_PALETTE.dayHeaderBg,
+      dayHeaderText: DEFAULT_COLOR_PALETTE.dayHeaderText,
+      noteBg: DEFAULT_COLOR_PALETTE.noteBg,
+      noteText: DEFAULT_COLOR_PALETTE.noteText,
+      fallbackStripBg: DEFAULT_COLOR_PALETTE.fallbackStripBg,
+      fallbackStripText: DEFAULT_COLOR_PALETTE.fallbackStripText,
+    }});
   };
 
   const handleExport = () => {
@@ -109,13 +149,118 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           alert('Invalid palette file: missing sceneColors array.');
           return;
         }
-        dispatch({ type: 'SET_COLOR_PALETTE', payload: data as SceneColorPalette });
+        const imported: SceneColorPalette = {
+          intExtOptions: (data.intExtOptions || INT_EXT_OPTIONS).map((s: string) => s.toUpperCase()),
+          dayNightOptions: (data.dayNightOptions || DAY_NIGHT_OPTIONS).map((s: string) => s.toUpperCase()),
+          sceneColors: data.sceneColors.map((c: SceneColorEntry) => ({
+            ...c,
+            intExt: c.intExt.toUpperCase(),
+            dayNight: c.dayNight.toUpperCase(),
+          })),
+          selectedStripBg: data.selectedStripBg || DEFAULT_COLOR_PALETTE.selectedStripBg,
+          selectedStripText: data.selectedStripText || DEFAULT_COLOR_PALETTE.selectedStripText,
+          dayHeaderBg: data.dayHeaderBg || DEFAULT_COLOR_PALETTE.dayHeaderBg,
+          dayHeaderText: data.dayHeaderText || DEFAULT_COLOR_PALETTE.dayHeaderText,
+          noteBg: data.noteBg || DEFAULT_COLOR_PALETTE.noteBg,
+          noteText: data.noteText || DEFAULT_COLOR_PALETTE.noteText,
+          fallbackStripBg: data.fallbackStripBg,
+          fallbackStripText: data.fallbackStripText,
+        };
+        dispatch({ type: 'SET_COLOR_PALETTE', payload: imported });
       } catch {
         alert('Failed to parse palette file.');
       }
     };
     reader.readAsText(file);
     if (importRef.current) importRef.current.value = '';
+  };
+
+  const startRenameHeader = (type: 'ie' | 'dn', idx: number) => {
+    setEditingHeader({ type, idx });
+    const options = type === 'ie' ? ieOptions : dnOptions;
+    setHeaderText(options[idx]);
+  };
+
+  const commitHeaderRename = () => {
+    if (!editingHeader) return;
+    const { type, idx } = editingHeader;
+    const trimmed = headerText.trim().toUpperCase();
+    if (!trimmed) {
+      setEditingHeader(null);
+      return;
+    }
+    if (type === 'ie') {
+      const next = [...ieOptions];
+      const oldVal = next[idx];
+      if (trimmed === oldVal) { setEditingHeader(null); return; }
+      next[idx] = trimmed;
+      const sceneColors = palette.sceneColors.map(c =>
+        c.intExt === oldVal ? { ...c, intExt: trimmed } : c
+      );
+      const oldUpper = oldVal.toUpperCase();
+      dispatch({ type: 'BATCH_START' });
+      dispatch({ type: 'SET_COLOR_PALETTE', payload: { ...palette, intExtOptions: next, sceneColors } });
+      for (const scene of state.present.scenes) {
+        if (scene.intExt && scene.intExt.toUpperCase() === oldUpper && scene.intExt !== trimmed) {
+          dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, intExt: trimmed } });
+        }
+      }
+      dispatch({ type: 'BATCH_COMMIT' });
+    } else {
+      const next = [...dnOptions];
+      const oldVal = next[idx];
+      if (trimmed === oldVal) { setEditingHeader(null); return; }
+      next[idx] = trimmed;
+      const sceneColors = palette.sceneColors.map(c =>
+        c.dayNight === oldVal ? { ...c, dayNight: trimmed } : c
+      );
+      const oldUpper = oldVal.toUpperCase();
+      dispatch({ type: 'BATCH_START' });
+      dispatch({ type: 'SET_COLOR_PALETTE', payload: { ...palette, dayNightOptions: next, sceneColors } });
+      for (const scene of state.present.scenes) {
+        if (scene.dayNight && scene.dayNight.toUpperCase() === oldUpper && scene.dayNight !== trimmed) {
+          dispatch({ type: 'UPDATE_SCENE', payload: { id: scene.id, dayNight: trimmed } });
+        }
+      }
+      dispatch({ type: 'BATCH_COMMIT' });
+    }
+    setEditingHeader(null);
+  };
+
+  const addOption = (type: 'ie' | 'dn') => {
+    const next = clonePalette(palette);
+    if (type === 'ie') {
+      const newVal = 'NEW';
+      next.intExtOptions = [...ieOptions, newVal];
+      for (const dn of dnOptions) {
+        if (findEntry(next.sceneColors, newVal, dn) < 0) {
+          next.sceneColors.push({ intExt: newVal, dayNight: dn, background: '#ffffff', text: '#18181b' });
+        }
+      }
+    } else {
+      const newVal = 'NEW';
+      next.dayNightOptions = [...dnOptions, newVal];
+      for (const ie of ieOptions) {
+        if (findEntry(next.sceneColors, ie, newVal) < 0) {
+          next.sceneColors.push({ intExt: ie, dayNight: newVal, background: '#ffffff', text: '#18181b' });
+        }
+      }
+    }
+    dispatch({ type: 'SET_COLOR_PALETTE', payload: next });
+  };
+
+  const removeOption = (type: 'ie' | 'dn', idx: number) => {
+    const next = clonePalette(palette);
+    if (type === 'ie') {
+      const removed = ieOptions[idx];
+      next.intExtOptions = ieOptions.filter((_, i) => i !== idx);
+      next.sceneColors = next.sceneColors.filter(c => c.intExt !== removed);
+    } else {
+      const removed = dnOptions[idx];
+      next.dayNightOptions = dnOptions.filter((_, i) => i !== idx);
+      next.sceneColors = next.sceneColors.filter(c => c.dayNight !== removed);
+    }
+    dispatch({ type: 'SET_COLOR_PALETTE', payload: next });
   };
 
   return (
@@ -184,19 +329,69 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
               <thead>
                 <tr>
                   <th className="w-20" />
-                  {INT_EXT_OPTIONS.map(ie => (
-                    <th key={ie} className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider px-1 pb-2 text-center min-w-[120px]">{ie}</th>
+                  {ieOptions.map((ie, i) => (
+                    <th key={i} className="px-1 pb-2 text-center min-w-[120px]">
+                      <div className="flex items-center justify-center gap-1">
+                        {editingHeader?.type === 'ie' && editingHeader.idx === i ? (
+                          <input
+                            autoFocus
+                            value={headerText}
+                            onChange={e => setHeaderText(e.target.value)}
+                            onBlur={commitHeaderRename}
+                            onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
+                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 w-20 text-center outline-none"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => startRenameHeader('ie', i)}
+                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors"
+                          >{ie}</button>
+                        )}
+                        <button onClick={() => removeOption('ie', i)} className="text-zinc-600 hover:text-red-400 transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </th>
                   ))}
+                  <th className="px-1 pb-2 text-center">
+                    <button
+                      onClick={() => addOption('ie')}
+                      className="text-[9px] font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {DAY_NIGHT_OPTIONS.map(dn => (
-                  <tr key={dn}>
-                    <td className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider pr-3 py-1 align-middle text-right">{dn}</td>
-                    {INT_EXT_OPTIONS.map(ie => {
+                {dnOptions.map((dn, di) => (
+                  <tr key={di}>
+                    <td className="pr-3 py-1 align-middle text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => removeOption('dn', di)} className="text-zinc-600 hover:text-red-400 transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                        {editingHeader?.type === 'dn' && editingHeader.idx === di ? (
+                          <input
+                            autoFocus
+                            value={headerText}
+                            onChange={e => setHeaderText(e.target.value)}
+                            onBlur={commitHeaderRename}
+                            onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
+                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 w-20 text-right outline-none"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => startRenameHeader('dn', di)}
+                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors"
+                          >{dn}</button>
+                        )}
+                      </div>
+                    </td>
+                    {ieOptions.map((ie, ii) => {
                       const c = sceneColor(ie, dn);
                       return (
-                        <td key={`${ie}-${dn}`} className="px-1 py-1">
+                        <td key={ii} className="px-1 py-1">
                           <button
                             onClick={() => openEditor(
                               `${ie} ${dn}`, c.background, c.text,
@@ -216,8 +411,19 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                         </td>
                       );
                     })}
+                    <td className="px-1 py-1" />
                   </tr>
                 ))}
+                <tr>
+                  <td className="pr-3 py-1 text-right">
+                    <button
+                      onClick={() => addOption('dn')}
+                      className="text-[9px] font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add
+                    </button>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

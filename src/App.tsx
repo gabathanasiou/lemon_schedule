@@ -78,28 +78,16 @@ function AppContent() {
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
 
   useEffect(() => {
-    if (IS_COARSE && typeof document !== 'undefined') {
-      // const meta = document.querySelector('meta[name=viewport]');
-      // if (meta) {
-      //   const cur = meta.getAttribute('content') || '';
-      //   const parts = [cur];
-      //   if (!cur.includes('viewport-fit')) parts.push('viewport-fit=cover');
-      //   if (!cur.includes('user-scalable')) parts.push('user-scalable=no');
-      //   meta.setAttribute('content', parts.join(', '));
-      // }
-      // const style = document.createElement('style');
-      // style.textContent = '* { touch-action: manipulation }';
-      // document.head.appendChild(style);
-      // const opts: AddEventListenerOptions = { passive: false };
-      // document.addEventListener('gesturestart', e => e.preventDefault(), opts);
-      // document.addEventListener('gesturechange', e => e.preventDefault(), opts);
-      // document.addEventListener('gestureend', e => e.preventDefault(), opts);
-      // let lastTouchEnd = 0;
-      // document.addEventListener('touchend', e => {
-      //   const now = Date.now();
-      //   if (now - lastTouchEnd <= 300) e.preventDefault();
-      //   lastTouchEnd = now;
-      // }, opts);
+    if (typeof document === 'undefined') return;
+    // Enable :hover on iPadOS Safari (Magic Keyboard cursor etc.)
+    // Without this, Safari suppresses :hover even when a mouse pointer is connected
+    document.addEventListener('touchstart', () => {}, { passive: true });
+    if (IS_COARSE) {
+      // Prevent gesture zoom on touch devices
+      const opts: AddEventListenerOptions = { passive: false };
+      document.addEventListener('gesturestart', e => e.preventDefault(), opts);
+      document.addEventListener('gesturechange', e => e.preventDefault(), opts);
+      document.addEventListener('gestureend', e => e.preventDefault(), opts);
     }
   }, []);
 
@@ -382,6 +370,22 @@ function AppContent() {
 
   return (
     <LongPressMenuProvider>
+    <style>{`
+      @keyframes pen-flash-light {
+        0% { background-color: rgba(0,0,0,0.08); }
+        100% { background-color: transparent; }
+      }
+      @keyframes pen-flash-dark {
+        0% { background-color: rgba(255,255,255,0.12); }
+        100% { background-color: transparent; }
+      }
+      .pen-pulse {
+        animation: pen-flash-light 0.35s ease-out;
+      }
+      .pen-pulse-dark {
+        animation: pen-flash-dark 0.35s ease-out;
+      }
+    `}</style>
     <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} />

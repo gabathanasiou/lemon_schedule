@@ -11,7 +11,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import MiniTab from './MiniTab';
-import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
+import { getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
 import DropdownMenu from './DropdownMenu';
@@ -107,6 +107,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   projectRef.current = project;
   const breakdownElementsRef = useRef(project.breakdownElements);
   breakdownElementsRef.current = project.breakdownElements;
+  const intExtOptionsRef = useRef(getIntExtOptions(project.colorPalette));
+  intExtOptionsRef.current = getIntExtOptions(project.colorPalette);
+  const dayNightOptionsRef = useRef(getDayNightOptions(project.colorPalette));
+  dayNightOptionsRef.current = getDayNightOptions(project.colorPalette);
   const prevEditingEnabledRef = useRef(editingEnabled);
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
@@ -266,7 +270,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       value={cell?.value || ''}
       onChange={val => onChange({ value: val })}
       onExit={() => exitEditMode()}
-      options={INT_EXT_OPTIONS}
+      options={intExtOptionsRef.current}
       positioning="relative"
       defaultOpen
       autoFocus
@@ -279,7 +283,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       value={cell?.value || ''}
       onChange={val => onChange({ value: val })}
       onExit={() => exitEditMode()}
-      options={DAY_NIGHT_OPTIONS}
+      options={dayNightOptionsRef.current}
       positioning="relative"
       defaultOpen
       autoFocus
@@ -497,10 +501,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     } else if (colKey === 'set') {
       updates.set = newVal.toUpperCase();
     } else if (colKey === 'intExt') {
-      const match = INT_EXT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
+      const match = intExtOptionsRef.current.find(opt => opt.toLowerCase() === newVal.toLowerCase());
       if (match) updates.intExt = match;
     } else if (colKey === 'dayNight') {
-      const match = DAY_NIGHT_OPTIONS.find(opt => opt.toLowerCase() === newVal.toLowerCase());
+      const match = dayNightOptionsRef.current.find(opt => opt.toLowerCase() === newVal.toLowerCase());
       if (match) updates.dayNight = match;
     }
     if (colKey === 'cast' || allBreakdownCategories.includes(colKey)) {

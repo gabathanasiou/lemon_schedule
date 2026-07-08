@@ -1,8 +1,11 @@
 import { useEffect, useCallback, type RefObject } from 'react';
 import { CastMember } from '../types';
+import { IS_COARSE } from './device';
+
+const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
 export const DD_ITEM = (active: boolean) =>
-  `px-2 py-1 text-xs rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `${DD_ITEM_BASE} rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors active:transition-none ${active ? 'bg-blue-50 text-blue-700 active:bg-blue-200' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 active:text-zinc-900'}`;
 
 export const DD_CONTAINER =
   "absolute top-full z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1";

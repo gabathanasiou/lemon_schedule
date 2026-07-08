@@ -114,8 +114,16 @@ export function mergeSiblingIds(cellId: string, rows: RibbonRow[]): string[] {
   return [cellId];
 }
 
-export const INT_EXT_OPTIONS: IntExt[] = ['INT', 'EXT', 'INT/EXT'];
-export const DAY_NIGHT_OPTIONS: DayNight[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+export const INT_EXT_OPTIONS: string[] = ['INT', 'EXT', 'INT/EXT'];
+export const DAY_NIGHT_OPTIONS: string[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+
+export function getIntExtOptions(palette?: SceneColorPalette): string[] {
+  return palette?.intExtOptions || INT_EXT_OPTIONS;
+}
+
+export function getDayNightOptions(palette?: SceneColorPalette): string[] {
+  return palette?.dayNightOptions || DAY_NIGHT_OPTIONS;
+}
 
 const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string }> = {
   'INT|DAY':    { background: '#ffffff', color: '#000000' },
@@ -156,10 +164,12 @@ export function sceneStyle(scene?: Scene | null, colorEntries?: SceneColorEntry[
   return resolveSceneColor(scene.intExt || '', scene.dayNight || '', colorEntries, fallbackOverride);
 }
 
-export function getDefaultSceneColors(): SceneColorEntry[] {
+export function getDefaultSceneColors(intExtOptions?: string[], dayNightOptions?: string[]): SceneColorEntry[] {
+  const ieOpts = intExtOptions || INT_EXT_OPTIONS;
+  const dnOpts = dayNightOptions || DAY_NIGHT_OPTIONS;
   const entries: SceneColorEntry[] = [];
-  for (const ie of INT_EXT_OPTIONS) {
-    for (const dn of DAY_NIGHT_OPTIONS) {
+  for (const ie of ieOpts) {
+    for (const dn of dnOpts) {
       const key = `${ie}|${dn}`;
       const fb = SCENE_COLOR_FALLBACKS[key] || DEFAULT_FALLBACK;
       entries.push({ intExt: ie, dayNight: dn, background: fb.background, text: fb.color });
@@ -169,6 +179,8 @@ export function getDefaultSceneColors(): SceneColorEntry[] {
 }
 
 export const DEFAULT_COLOR_PALETTE: SceneColorPalette = {
+  intExtOptions: [...INT_EXT_OPTIONS],
+  dayNightOptions: [...DAY_NIGHT_OPTIONS],
   sceneColors: getDefaultSceneColors(),
   selectedStripBg: '#b20000',
   selectedStripText: '#ffffff',

@@ -293,6 +293,10 @@ function reducer(state: State, action: Action): State {
       p.ribbonDesigns = [defaultDesign];
       p.activeRibbonId = p.activeRibbonId || defaultDesign.id;
     }
+    if (p.colorPalette) {
+      if (!p.colorPalette.intExtOptions) p.colorPalette.intExtOptions = ['INT', 'EXT', 'INT/EXT'];
+      if (!p.colorPalette.dayNightOptions) p.colorPalette.dayNightOptions = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+    }
     return {
       past: [],
       present: {

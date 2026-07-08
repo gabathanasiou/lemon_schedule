@@ -34,7 +34,7 @@ import { useKeyboardMode } from '../lib/persist';
 const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
 export const DD_ITEM_CLASS = (active: boolean) =>
-  `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
+  `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 active:text-zinc-900'}`;
 
 const DD_INPUT_TOUCH = IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm';
 
@@ -501,6 +501,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 data-checked={checked ? 'true' : undefined}
                 type="button"
                 onMouseDown={e => e.preventDefault()}
+                onPointerDown={e => { if (e.pointerType === 'pen') { const btn = e.currentTarget; btn.classList.add('pen-pulse'); setTimeout(() => btn.classList.remove('pen-pulse'), 350); } }}
                 onClick={() => {
                   if (isSynthetic) {
                     const key = itemKey(m);
@@ -524,10 +525,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                   }
                 }}
                 onMouseEnter={mode === 'single' ? () => setHighlightedIndex(idx) : undefined}
-                className={isSynthetic
-                  ? `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-emerald-50 hover:text-emerald-700'}`
-                  : `${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`
-                }
+className={isSynthetic
+  ? `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2 text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-emerald-50 hover:text-emerald-700'} active:bg-emerald-200 active:text-emerald-700`
+  : `${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`
+}
               >
                 {isSynthetic ? (
                   <span className="truncate flex-1 italic">Add &quot;{m.name}&quot;</span>
@@ -547,7 +548,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           {commitHint && (
             <button
               onClick={() => commit()}
-              className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0 hover:bg-zinc-50 transition-colors w-full cursor-pointer"
+              onPointerDown={e => { if (e.pointerType === 'pen') { const btn = e.currentTarget; btn.classList.add('pen-pulse'); setTimeout(() => btn.classList.remove('pen-pulse'), 350); } }}
+              className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0 hover:bg-zinc-50 active:bg-zinc-100 transition-colors active:transition-none w-full cursor-pointer"
             >
               Press Enter to commit
             </button>

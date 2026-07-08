@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -500,7 +500,7 @@ const SortableRowContent: React.FC<{
           <SelectDropdown
             value={scene!.intExt}
             onChange={val => updateScene({intExt: val as any})}
-            options={['INT', 'EXT', 'INT/EXT']}
+            options={getIntExtOptions(state.present.colorPalette)}
             className="text-left w-full"
             readOnly={!textEditingEnabled}
             style={{ fontSize: '8pt', lineHeight: 1.1 }}
@@ -514,7 +514,7 @@ const SortableRowContent: React.FC<{
           <SelectDropdown
             value={scene!.dayNight}
             onChange={val => updateScene({dayNight: val as any})}
-            options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']}
+            options={getDayNightOptions(state.present.colorPalette)}
             className="text-left w-full"
             readOnly={!textEditingEnabled}
             style={{ fontSize: '8pt', lineHeight: 1.1 }}
@@ -710,7 +710,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={['INT', 'EXT', 'INT/EXT']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
+            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(state.present.colorPalette)} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -722,7 +722,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
+            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(state.present.colorPalette)} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -986,7 +986,7 @@ const SortableRowContent: React.FC<{
                   <SelectDropdown
                     value={scene.intExt}
                     onChange={val => updateScene({intExt: val as any})}
-                    options={['INT', 'EXT', 'INT/EXT']}
+                    options={getIntExtOptions(state.present.colorPalette)}
                     className="text-left w-full"
                     readOnly={!textEditingEnabled}
                   />
@@ -1010,7 +1010,7 @@ const SortableRowContent: React.FC<{
                   <SelectDropdown
                     value={scene.dayNight}
                     onChange={val => updateScene({dayNight: val as any})}
-                    options={['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK']}
+                    options={getDayNightOptions(state.present.colorPalette)}
                     className="text-left w-full"
                     readOnly={!textEditingEnabled}
                   />

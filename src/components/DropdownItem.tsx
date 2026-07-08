@@ -30,20 +30,23 @@ export default function DropdownItem({
 
   const variantStyles = variant === 'danger'
     ? isLight
-      ? 'text-red-600 hover:bg-red-100 focus-visible:bg-red-100'
-      : 'text-red-400 hover:bg-red-900/30 hover:text-red-300 focus-visible:bg-red-900/30 focus-visible:text-red-300'
+      ? 'text-red-600 hover:bg-red-100 focus-visible:bg-red-100 active:bg-red-200'
+      : 'text-red-400 hover:bg-red-900/30 hover:text-red-300 focus-visible:bg-red-900/30 focus-visible:text-red-300 active:bg-red-900/50 active:text-red-200'
     : isLight
-      ? 'text-zinc-700 hover:bg-zinc-100 focus-visible:bg-zinc-100'
-      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white';
+      ? 'text-zinc-700 hover:bg-zinc-100 focus-visible:bg-zinc-100 active:bg-zinc-200'
+      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white active:bg-zinc-700 active:text-white';
 
   const iconColor = isLight ? 'text-zinc-500' : 'text-zinc-400';
 
   return (
     <RadixDropdownMenu.Item
-      className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
+      className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
       onSelect={(e) => { if (keepOpen) e.preventDefault(); onClick(); }}
       onPointerDown={(e) => {
         if ((e as any).pointerType === 'pen') {
+          const el = e.currentTarget;
+          el.classList.add(isLight ? 'pen-pulse' : 'pen-pulse-dark');
+          setTimeout(() => el.classList.remove(isLight ? 'pen-pulse' : 'pen-pulse-dark'), 350);
           onClick();
         }
       }}

@@ -7,7 +7,7 @@ import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
 import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
-import { sceneStyle, INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, getFallbackStripColors } from '../lib/ribbonUtils';
+import { sceneStyle, getIntExtOptions, getDayNightOptions, getFallbackStripColors } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 
 const BREAKDOWN_CATS = [
@@ -367,9 +367,9 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Int/Ext</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><AutocompleteDropdown value={val('intExt')} onChange={v => update('intExt', v)} options={INT_EXT_OPTIONS} showAll /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><AutocompleteDropdown value={val('intExt')} onChange={v => update('intExt', v)} options={getIntExtOptions(project.colorPalette)} showAll /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Day/Night</td>
-                <td className="px-2.5 py-1.5"><AutocompleteDropdown value={val('dayNight')} onChange={v => update('dayNight', v)} options={DAY_NIGHT_OPTIONS} showAll /></td>
+                <td className="px-2.5 py-1.5"><AutocompleteDropdown value={val('dayNight')} onChange={v => update('dayNight', v)} options={getDayNightOptions(project.colorPalette)} showAll /></td>
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>

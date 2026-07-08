@@ -1,12 +1,9 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
-import { useDropdown, useOpenHandler } from '../lib/dropdown';
+import { useDropdown, useOpenHandler, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { IS_COARSE } from '../lib/device';
 
-const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 
-const DD_ITEM = (active: boolean) =>
-  `${DD_ITEM_BASE} rounded cursor-pointer font-[Helvetica,sans-serif] font-normal transition-colors ${active ? 'bg-blue-50 text-blue-700' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'}`;
 
 interface AutocompleteDropdownProps {
   value: string;
@@ -128,6 +125,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             <div
               key={opt}
               className={`${DD_ITEM(i === highlightedIndex)} uppercase`}
+              onPointerDown={e => { if (e.pointerType === 'pen') { const el = e.currentTarget; el.classList.add('pen-pulse'); setTimeout(() => el.classList.remove('pen-pulse'), 350); } }}
               onMouseDown={e => { e.preventDefault(); commit(opt); }}
             >
               {opt}

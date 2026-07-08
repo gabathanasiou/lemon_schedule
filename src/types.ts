@@ -1,5 +1,5 @@
-export type IntExt = '' | 'INT' | 'EXT' | 'INT/EXT';
-export type DayNight = '' | 'DAY' | 'NIGHT' | 'MORNING' | 'EVENING' | 'DAWN' | 'DUSK';
+export type IntExt = string;
+export type DayNight = string;
 export type RowType = 'SCENE' | 'BREAK' | 'NOTE';
 
 export interface Scene {
@@ -119,6 +119,8 @@ export interface SceneColorEntry {
 }
 
 export interface SceneColorPalette {
+  intExtOptions: string[];
+  dayNightOptions: string[];
   sceneColors: SceneColorEntry[];
   selectedStripBg: string;
   selectedStripText: string;

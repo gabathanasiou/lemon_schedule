@@ -22,8 +22,8 @@ export default function DropdownSubmenu({ id, label, icon, width, side = 'right'
   const isLight = theme === 'light';
 
   const triggerClasses = isLight
-    ? `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-700 justify-between hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-900`
-    : `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-300 justify-between hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white data-[state=open]:bg-zinc-800 data-[state=open]:text-white`;
+    ? `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none text-zinc-700 justify-between hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 active:bg-zinc-200 active:text-zinc-900 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-900`
+    : `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none text-zinc-300 justify-between hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white active:bg-zinc-700 active:text-white data-[state=open]:bg-zinc-800 data-[state=open]:text-white`;
 
   const contentClasses = isLight
     ? `bg-white border border-zinc-200 rounded-lg shadow-xl z-[210] text-zinc-700 p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 ${width || 'w-48'}`
@@ -37,6 +37,9 @@ export default function DropdownSubmenu({ id, label, icon, width, side = 'right'
           className={triggerClasses}
           onPointerDown={(e) => {
             if (e.pointerType === 'pen') {
+              const el = e.currentTarget;
+              el.classList.add(isLight ? 'pen-pulse' : 'pen-pulse-dark');
+              setTimeout(() => el.classList.remove(isLight ? 'pen-pulse' : 'pen-pulse-dark'), 350);
               e.preventDefault();
               setActiveSub(subOpen ? null : id);
             }
