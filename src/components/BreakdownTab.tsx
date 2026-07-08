@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection, Point } from 'react-spreadsheet';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection, Point, HeaderRowComponent, CornerIndicatorComponent } from 'react-spreadsheet';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
@@ -18,7 +18,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
-import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
+import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useKeyboardMode } from '../lib/persist';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -96,6 +96,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [viewOpen, setViewOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
+  const [keyboardMode] = useKeyboardMode();
+  const textEditingEnabled = keyboardMode === 'on' || !IS_COARSE;
+  const editingEnabled = !readOnly && textEditingEnabled;
 
   // Stable refs for mutable data — lets editor components stay referentially stable
   const scenesRef = useRef(scenes);
@@ -104,6 +107,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   projectRef.current = project;
   const breakdownElementsRef = useRef(project.breakdownElements);
   breakdownElementsRef.current = project.breakdownElements;
+  const prevEditingEnabledRef = useRef(editingEnabled);
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
   const customCategoriesRef = useRef(project.customCategories);
@@ -333,13 +337,27 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
 
+  const CustomHeaderRow: HeaderRowComponent = ({ children, ...rest }) => (
+    <tr {...rest} className="Spreadsheet__header-row">{children}</tr>
+  );
+
+  const CustomCornerIndicator: CornerIndicatorComponent = useCallback(({ selected, onSelect }) => (
+    <th
+      className={`Spreadsheet__header${selected ? ' Spreadsheet__header--selected' : ''}`}
+      onClick={onSelect}
+      tabIndex={0}
+    >
+      <div className="Spreadsheet__header-label">Sheet</div>
+    </th>
+  ), []);
+
   const CustomColIndicator: ColumnIndicatorComponent = useCallback(({ column, label, selected, onSelect }) => {
     const width = colWidths.current[column] || DEFAULT_WIDTHS[column] || 100;
     const isResizing = resizeRef.current?.col === column;
     return (
       <th
         className={`Spreadsheet__header${selected ? ' Spreadsheet__header--selected' : ''}`}
-        style={{ width, maxWidth: width, minWidth: width, position: 'relative', overflow: 'visible' }}
+        style={{ width, maxWidth: width, minWidth: width, overflow: 'visible' }}
         onMouseDown={(e) => {
           if ((e.target as HTMLElement).closest('.column-resize-handle')) return;
           onSelect(column, e.shiftKey);
@@ -391,20 +409,20 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
     const rowFromScene = (scene: Scene): CellBase[] => [
       { value: '', readOnly: true, ...(!readOnly && { DataViewer: DeleteViewer }) },
-      { value: scene.sceneNumber },
-      { value: scene.pageCount, ...(!readOnly && { DataEditor: PageCountEditor }) },
-      { value: scene.scriptDay },
+      { value: scene.sceneNumber, ...(editingEnabled ? {} : { readOnly: true }) },
+      { value: scene.pageCount, ...(editingEnabled ? { DataEditor: PageCountEditor } : { readOnly: true }) },
+      { value: scene.scriptDay, ...(editingEnabled ? {} : { readOnly: true }) },
       { value: scene.intExt, ...(!readOnly && { DataEditor: IntExtEditor }) },
       { value: scene.set, ...(!readOnly && { DataEditor: SetEditor }) },
       { value: scene.dayNight, ...(!readOnly && { DataEditor: DayNightEditor }) },
-      { value: scene.description },
+      { value: scene.description, ...(editingEnabled ? {} : { readOnly: true }) },
       { value: scene.cast, ...(!readOnly && { DataEditor: CastEditor }) },
-      { value: scene.notes },
+      { value: scene.notes, ...(editingEnabled ? {} : { readOnly: true }) },
       ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', ...(!readOnly && { DataEditor: breakdownEditors.get(key) }) })),
     ];
 
     for (let i = 0; i < scenes.length; i++) {
-      if (!readOnly && scenes[i] === prevScenes[i] && prevData[i]) {
+      if (!readOnly && scenes[i] === prevScenes[i] && prevData[i] && editingEnabled === prevEditingEnabledRef.current) {
         rows[i] = prevData[i];
       } else {
         rows[i] = rowFromScene(scenes[i]);
@@ -413,22 +431,25 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
     rows.push(COLUMNS.map((c, i) => {
       if (i === ACTIONS_COL) return { value: '', readOnly: true };
-      if (i === 2) return { value: '', ...(!readOnly && { DataEditor: PageCountEditor }) };
+      if (i === 2) return { value: '', ...(editingEnabled ? { DataEditor: PageCountEditor } : { readOnly: true }) };
       if (i === 4) return { value: '', ...(!readOnly && { DataEditor: IntExtEditor }) };
       if (i === 5) return { value: '', ...(!readOnly && { DataEditor: SetEditor }) };
       if (i === 6) return { value: '', ...(!readOnly && { DataEditor: DayNightEditor }) };
       if (i === CAST_COL) return { value: '', ...(!readOnly && { DataEditor: CastEditor }) };
       if (allBreakdownCategories.includes(c.key)) return { value: '', ...(!readOnly && { DataEditor: breakdownEditors.get(c.key)! }) };
-      return { value: '' };
+      return { value: '', ...(editingEnabled ? {} : { readOnly: true }) };
     }));
 
+    prevEditingEnabledRef.current = editingEnabled;
     prevScenesRef.current = scenes;
     dataRef.current = rows;
     return rows;
-  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors, readOnly]);
+  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors, readOnly, editingEnabled]);
+
+  const ROW_INDICATOR_W = IS_COARSE ? 80 : 70;
 
   const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => {
-    const w = IS_COARSE ? 26 : 17;
+    const w = ROW_INDICATOR_W;
     return (
     <td
       className={`Spreadsheet__header text-center cursor-pointer select-none transition-colors ${selected ? 'bg-blue-50' : ''}`}
@@ -874,12 +895,10 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 border-spacing: 0;
                 width: 100%;
               }
-              .Spreadsheet__header-row {
+              .Spreadsheet__header-row th {
                 position: sticky;
                 top: 0;
                 z-index: 10;
-              }
-              .Spreadsheet__header-row th {
                 padding: 0;
                 font-size: ${fontSize}px;
                font-weight: 500;
@@ -888,9 +907,23 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                border-bottom: 1px solid #d4d4d8;
                color: #71717a;
                white-space: nowrap;
-               position: relative;
-               user-select: none;
-                background: #fafafa;
+                user-select: none;
+                background: white;
+              }
+              .Spreadsheet__header-row th:first-child {
+                position: sticky;
+                top: 0;
+                left: 0;
+                z-index: 15;
+                width: ${ROW_INDICATOR_W}px;
+                min-width: ${ROW_INDICATOR_W}px;
+                max-width: ${ROW_INDICATOR_W}px;
+              }
+              tbody tr td.Spreadsheet__header {
+                position: sticky;
+                left: 0;
+                z-index: 5;
+                background: white;
               }
               th.Spreadsheet__header--selected {
                 background: #dbeafe;
@@ -948,13 +981,16 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                width: 100%;
                height: 100%;
              }
-             tr:hover .Spreadsheet__cell {
-               background: #fafafa;
-             }
-             tr:hover .Spreadsheet__cell--selected,
-             tr:hover .Spreadsheet__cell--active {
-               background: transparent;
-             }
+              tr:hover .Spreadsheet__cell {
+                background: #fafafa;
+              }
+              tr:hover .Spreadsheet__cell--selected,
+              tr:hover .Spreadsheet__cell--active {
+                background: transparent;
+              }
+              tr:hover td.Spreadsheet__header {
+                background: #fafafa;
+              }
              .Spreadsheet__cell--readonly {
                background: white;
              }
@@ -982,13 +1018,15 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                ${widthStyle}
              `}</style>
             <div onContextMenu={handleCellContextMenu} className={readOnly ? 'opacity-60' : ''}>
-            <Spreadsheet
-             ref={spreadsheetRef}
-             data={data}
-             onChange={handleChange}
-             columnLabels={COLUMNS.map(c => c.label)}
-             RowIndicator={RowIndicator}
-             ColumnIndicator={CustomColIndicator}
+             <Spreadsheet
+              ref={spreadsheetRef}
+              data={data}
+              onChange={handleChange}
+              columnLabels={COLUMNS.map(c => c.label)}
+              RowIndicator={RowIndicator}
+              ColumnIndicator={CustomColIndicator}
+              HeaderRow={CustomHeaderRow}
+              CornerIndicator={CustomCornerIndicator}
              onSelect={(sel) => {
                if (sel instanceof EntireRowsSelection) {
                  const range = sel.toRange(data);

@@ -79,19 +79,27 @@ function AppContent() {
 
   useEffect(() => {
     if (IS_COARSE && typeof document !== 'undefined') {
-      const meta = document.querySelector('meta[name=viewport]');
-      if (meta) {
-        const cur = meta.getAttribute('content') || '';
-        const parts = [cur];
-        if (!cur.includes('viewport-fit')) parts.push('viewport-fit=cover');
-        if (!cur.includes('user-scalable')) parts.push('user-scalable=no');
-        meta.setAttribute('content', parts.join(', '));
-      }
-      document.documentElement.style.touchAction = 'manipulation';
-      const opts: AddEventListenerOptions = { passive: false };
-      document.addEventListener('gesturestart', e => e.preventDefault(), opts);
-      document.addEventListener('gesturechange', e => e.preventDefault(), opts);
-      document.addEventListener('gestureend', e => e.preventDefault(), opts);
+      // const meta = document.querySelector('meta[name=viewport]');
+      // if (meta) {
+      //   const cur = meta.getAttribute('content') || '';
+      //   const parts = [cur];
+      //   if (!cur.includes('viewport-fit')) parts.push('viewport-fit=cover');
+      //   if (!cur.includes('user-scalable')) parts.push('user-scalable=no');
+      //   meta.setAttribute('content', parts.join(', '));
+      // }
+      // const style = document.createElement('style');
+      // style.textContent = '* { touch-action: manipulation }';
+      // document.head.appendChild(style);
+      // const opts: AddEventListenerOptions = { passive: false };
+      // document.addEventListener('gesturestart', e => e.preventDefault(), opts);
+      // document.addEventListener('gesturechange', e => e.preventDefault(), opts);
+      // document.addEventListener('gestureend', e => e.preventDefault(), opts);
+      // let lastTouchEnd = 0;
+      // document.addEventListener('touchend', e => {
+      //   const now = Date.now();
+      //   if (now - lastTouchEnd <= 300) e.preventDefault();
+      //   lastTouchEnd = now;
+      // }, opts);
     }
   }, []);
 

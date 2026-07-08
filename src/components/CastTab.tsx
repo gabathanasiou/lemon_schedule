@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState, useRef } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent } from 'react-spreadsheet';
+import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, HeaderRowComponent } from 'react-spreadsheet';
 import { useProject } from '../store';
 import { CastMember } from '../types';
 import { Trash2 } from 'lucide-react';
@@ -59,11 +59,15 @@ export const CastTab: React.FC = () => {
   const [widthVersion, setWidthVersion] = useState(0);
   const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
 
+  const CustomHeaderRow: HeaderRowComponent = ({ children, ...rest }) => (
+    <tr {...rest} className="Spreadsheet__header-row">{children}</tr>
+  );
+
   const CustomColIndicator: ColumnIndicatorComponent = useCallback(({ column, label }) => {
     const width = colWidths.current[column];
     return (
       <th className="Spreadsheet__header"
-        style={{ width, maxWidth: width, minWidth: width, position: 'relative', overflow: 'visible' }}>
+        style={{ width, maxWidth: width, minWidth: width, overflow: 'visible' }}>
         <div className="Spreadsheet__header-label">{label !== null ? label : ''}</div>
         <div className="column-resize-handle"
           onMouseDown={e => {
@@ -166,11 +170,11 @@ export const CastTab: React.FC = () => {
             .Spreadsheet__header-row {
               background: white;
               border-bottom: 2px solid #0a0a0a;
+            }
+            .Spreadsheet__header-row th {
               position: sticky;
               top: 0;
               z-index: 10;
-            }
-            .Spreadsheet__header-row th {
               padding: 0;
               font-family: ui-monospace, monospace;
               font-size: 12px;
@@ -248,6 +252,7 @@ export const CastTab: React.FC = () => {
             columnLabels={COLUMNS.map(c => c.label)}
             hideRowIndicators
             ColumnIndicator={CustomColIndicator}
+            HeaderRow={CustomHeaderRow}
           />
         </div>
       </div>
