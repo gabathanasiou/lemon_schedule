@@ -359,7 +359,7 @@ export const UnscheduledBlock: React.FC<{
               </>
             )}
             {rows.length > 0 && (
-              <div ref={setEndRef}>
+              <div ref={setEndRef} className="pb-20">
                 {showGhosts && insertBeforeId === `end-unscheduled` && (
                   <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
                 )}

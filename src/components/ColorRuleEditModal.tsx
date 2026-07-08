@@ -69,7 +69,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   const [cellEdit, setCellEdit] = useState<{ ie: string; dn: string } | null>(null);
   const [cellBg, setCellBg] = useState('#ffffff');
   const [cellText, setCellText] = useState('#18181b');
-  const [elementOpenIdx, setElementOpenIdx] = useState<number | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null); // 'cat-{idx}' | 'el-{idx}' | null
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -215,7 +215,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
               return (
                 <div key={idx} className="flex items-center gap-2">
-                  <RadixDropdownMenu.Root modal={true}>
+                  <RadixDropdownMenu.Root modal={true} open={openDropdown === `cat-${idx}`} onOpenChange={(o) => setOpenDropdown(o ? `cat-${idx}` : null)}>
                     <RadixDropdownMenu.Trigger asChild>
                       <button className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-[120px] justify-between">
                         <span className="truncate">{catLabel}</span>
@@ -254,49 +254,45 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
                   <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
 
-                  <div className="relative flex-1 min-w-0">
-                    <button
-                      type="button"
-                      onMouseDown={(e) => { e.preventDefault(); setElementOpenIdx(elementOpenIdx === idx ? null : idx); }}
-                      className="flex-1 w-full flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-0 justify-between"
-                    >
-                      <span className="truncate">
-                        {cond.elementId
-                          ? (isCast ? `${cond.elementId}. ${getElementName(cond.category, cond.elementId)}` : getElementName(cond.category, cond.elementId))
-                          : 'Select...'}
-                      </span>
-                      <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-                    </button>
-                    {elementOpenIdx === idx && (
-                      <>
-                        <div className="fixed inset-0 z-[10000]" onMouseDown={(e) => { e.preventDefault(); setElementOpenIdx(null); }} />
-                        <div
-                          className="absolute top-full left-0 mt-1 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[160px]"
-                          onKeyDown={(e) => { if (e.key === 'Escape') setElementOpenIdx(null); }}
-                        >
-                          {elements.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-zinc-500">No elements</div>
-                          ) : elements.map(el => {
-                            const active = (el.id || el.name) === cond.elementId;
-                            return (
-                              <button
-                                key={el.id || el.name}
-                                type="button"
-                                onMouseDown={(e) => { e.preventDefault(); setConditionElement(idx, el.id || el.name); setElementOpenIdx(null); }}
-                                className={`w-full flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer whitespace-nowrap ${
-                                  active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                                }`}
-                              >
-                                {isCast && <span className="text-zinc-400 shrink-0">{el.id}.</span>}
-                                <span className="truncate">{el.name || el.id}</span>
-                                {active && <Check className="w-3 h-3 shrink-0 ml-auto" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <RadixDropdownMenu.Root modal={true} open={openDropdown === `el-${idx}`} onOpenChange={(o) => setOpenDropdown(o ? `el-${idx}` : null)}>
+                    <RadixDropdownMenu.Trigger asChild>
+                      <button className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-0 justify-between">
+                        <span className="truncate">
+                          {cond.elementId
+                            ? (isCast ? `${cond.elementId}. ${getElementName(cond.category, cond.elementId)}` : getElementName(cond.category, cond.elementId))
+                            : 'Select...'}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+                      </button>
+                    </RadixDropdownMenu.Trigger>
+                    <RadixDropdownMenu.Portal>
+                      <RadixDropdownMenu.Content
+                        className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[160px]"
+                        align="start"
+                        sideOffset={4}
+                        collisionPadding={8}
+                      >
+                        {elements.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-zinc-500">No elements</div>
+                        ) : elements.map(el => {
+                          const active = (el.id || el.name) === cond.elementId;
+                          return (
+                            <RadixDropdownMenu.Item
+                              key={el.id || el.name}
+                              onSelect={() => setConditionElement(idx, el.id || el.name)}
+                              className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none whitespace-nowrap ${
+                                active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                              }`}
+                            >
+                              {isCast && <span className="text-zinc-400 shrink-0">{el.id}.</span>}
+                              <span className="truncate">{el.name || el.id}</span>
+                              {active && <Check className="w-3 h-3 shrink-0 ml-auto" />}
+                            </RadixDropdownMenu.Item>
+                          );
+                        })}
+                      </RadixDropdownMenu.Content>
+                    </RadixDropdownMenu.Portal>
+                  </RadixDropdownMenu.Root>
 
                   <button onClick={() => removeCondition(idx)} className="text-zinc-600 hover:text-red-400 transition-colors p-0.5 shrink-0">
                     <X className={XSZ} />
