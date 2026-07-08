@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection, Point, HeaderRowComponent, CornerIndicatorComponent } from 'react-spreadsheet';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
@@ -19,6 +19,10 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useKeyboardMode } from '../lib/persist';
+
+type CellValue = { value: string };
+type CellEditor = React.FC<{ cell?: CellValue; onChange: (cell: CellValue) => void; exitEditMode: () => void }>;
+type CellViewer = React.FC<{ cell?: CellValue; row?: number }>;
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -87,10 +91,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, [subTab]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
-  const [activeCell, setActiveCell] = useState<Point | null>(null);
-  const [selectionRange, setSelectionRange] = useState<{ start: Point; end: Point } | null>(null);
-  const spreadsheetRef = useRef<any>(null);
-  const portalTargetRef = useRef<HTMLDivElement>(null);
+  const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
+  const [editCell, setEditCell] = useState<{ row: number; col: number } | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{ start: { row: number; col: number }; end: { row: number; col: number } } | null>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -107,25 +110,14 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   projectRef.current = project;
   const breakdownElementsRef = useRef(project.breakdownElements);
   breakdownElementsRef.current = project.breakdownElements;
-  const prevEditingEnabledRef = useRef(editingEnabled);
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
   const customCategoriesRef = useRef(project.customCategories);
   customCategoriesRef.current = project.customCategories;
 
-  // Stable row cache — reuse cell objects for unchanged scenes to prevent full-grid re-render
-  const prevScenesRef = useRef<Scene[]>([]);
-  const dataRef = useRef<CellBase[][]>([]);
-
-  // Debounced edit commit — prevents store round-trip on every keystroke
-  const editTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (editTimerRef.current) clearTimeout(editTimerRef.current); }, []);
-
   const deleteScene = useCallback((id: string) => {
     dispatch({ type: 'DELETE_SCENE', payload: id });
   }, [dispatch]);
-  const deleteSceneRef = useRef(deleteScene);
-  deleteSceneRef.current = deleteScene;
 
   const insertSceneAt = (index: number) => {
     const newScene: Scene = {
@@ -187,20 +179,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     for (const id of toDelete) dispatch({ type: 'DELETE_SCENE', payload: id });
   };
 
-  const DeleteViewer: DataViewerComponent<CellBase<string>> = useCallback(({ row }) => {
-    const scene = scenesRef.current[row];
-    if (!scene) return null;
-    return (
-      <div
-        className={`flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-colors ${IS_COARSE ? 'px-2' : ''}`}
-        onMouseDown={e => { e.stopPropagation(); deleteSceneRef.current(scene.id); }}
-      >
-        <Trash2 className={`text-red-400/60 hover:text-red-600 transition-colors ${IS_COARSE ? 'w-5 h-5' : 'w-4 h-4'}`} />
-      </div>
-    );
-  }, []);
-
-  const CastEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
+  const CastEditor: CellEditor = useCallback(({ cell, onChange, exitEditMode }) => (
     <EntityDropdown
       value={cell?.value || ''}
       onChange={val => onChange({ value: val })}
@@ -216,7 +195,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     />
   ), []);
 
-  const PageCountEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
+  const PageCountEditor: CellEditor = useCallback(({ cell, onChange, exitEditMode }) => {
     const [val, setVal] = useState(cell?.value || '');
     return (
       <input
@@ -242,7 +221,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const setItemsRef = useRef(setItems);
   setItemsRef.current = setItems;
 
-  const SetEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => {
+  const SetEditor: CellEditor = useCallback(({ cell, onChange, exitEditMode }) => {
     return (
       <EntityDropdown
         value={cell?.value || ''}
@@ -261,7 +240,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     );
   }, []);
 
-  const IntExtEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
+  const IntExtEditor: CellEditor = useCallback(({ cell, onChange, exitEditMode }) => (
     <AutocompleteDropdown
       value={cell?.value || ''}
       onChange={val => onChange({ value: val })}
@@ -274,7 +253,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     />
   ), []);
 
-  const DayNightEditor: DataEditorComponent<CellBase<string>> = useCallback(({ cell, onChange, exitEditMode }) => (
+  const DayNightEditor: CellEditor = useCallback(({ cell, onChange, exitEditMode }) => (
     <AutocompleteDropdown
       value={cell?.value || ''}
       onChange={val => onChange({ value: val })}
@@ -300,9 +279,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   breakdownEditorItemsRef.current = breakdownEditorItems;
 
   const breakdownEditors = useMemo(() => {
-    const map = new Map<string, DataEditorComponent<CellBase<string>>>();
+    const map = new Map<string, CellEditor>();
     for (const key of allBreakdownCategories) {
-      const Editor: DataEditorComponent<CellBase<string>> = ({ cell, onChange, exitEditMode }) => {
+      const Editor: CellEditor = ({ cell, onChange, exitEditMode }) => {
         const items = breakdownEditorItemsRef.current.get(key) || [];
         return (
           <EntityDropdown
@@ -345,140 +324,39 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   }, []);
   const [widthVersion, setWidthVersion] = useState(0);
 
-  const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
+  const ROW_HEIGHT = Math.round(fontSize * (IS_COARSE ? 3.2 : 2.55));
 
-  const CustomHeaderRow: HeaderRowComponent = ({ children, ...rest }) => (
-    <tr {...rest} className="Spreadsheet__header-row">{children}</tr>
-  );
+  const getColWidth = useCallback((colIndex: number) => {
+    return colWidths.current[colIndex + 1] || DEFAULT_WIDTHS[colIndex + 1] || 100;
+  }, []);
 
-  const CustomCornerIndicator: CornerIndicatorComponent = useCallback(({ selected, onSelect }) => (
-    <th
-      className={`Spreadsheet__header${selected ? ' Spreadsheet__header--selected' : ''}`}
-      onClick={onSelect}
-      tabIndex={0}
-    >
-      <div className="Spreadsheet__header-label">Sheet</div>
-    </th>
-  ), []);
+  const totalWidth = useMemo(() => {
+    let w = ROW_INDICATOR_W;
+    for (let i = 0; i < COLUMNS.length; i++) w += getColWidth(i);
+    return w;
+  }, [COLUMNS, widthVersion, getColWidth]);
 
-  const CustomColIndicator: ColumnIndicatorComponent = useCallback(({ column, label, selected, onSelect }) => {
-    const width = colWidths.current[column] || DEFAULT_WIDTHS[column] || 100;
-    const isResizing = resizeRef.current?.col === column;
-    return (
-      <th
-        className={`Spreadsheet__header${selected ? ' Spreadsheet__header--selected' : ''}`}
-        style={{ width, maxWidth: width, minWidth: width, overflow: 'visible' }}
-        onMouseDown={(e) => {
-          if ((e.target as HTMLElement).closest('.column-resize-handle')) return;
-          onSelect(column, e.shiftKey);
-        }}
-      >
-        <div className="Spreadsheet__header-label">{label !== null ? label : ''}</div>
-        <div
-          className="column-resize-handle"
-          onMouseDown={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            resizeRef.current = { col: column, startX: e.clientX, startW: width };
-            const handleMouseMove = (ev: MouseEvent) => {
-              if (!resizeRef.current) return;
-              const diff = ev.clientX - resizeRef.current.startX;
-              const newW = Math.max(30, resizeRef.current.startW + diff);
-              colWidths.current[resizeRef.current.col] = newW;
-              setWidthVersion(v => v + 1);
-            };
-            const handleMouseUp = () => {
-              resizeRef.current = null;
-              document.removeEventListener('mousemove', handleMouseMove);
-              document.removeEventListener('mouseup', handleMouseUp);
-              document.body.style.cursor = '';
-              document.body.style.userSelect = '';
-            };
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-          }}
-        />
-      </th>
-    );
-  }, [widthVersion]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const totalRows = scenes.length + 1;
+  const virtualizer = useVirtualizer({
+    count: totalRows,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: IS_COARSE ? 3 : 5,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const virtualTotalHeight = virtualizer.getTotalSize();
 
-  const widthStyle = useMemo(() => {
-    const cols = COLUMNS.map((_, i) => {
-      const w = colWidths.current[i] || DEFAULT_WIDTHS[i] || 100;
-      return `.Spreadsheet th:nth-child(${i + 1}), .Spreadsheet td:nth-child(${i + 1}) { width: ${w}px; min-width: ${w}px; max-width: ${w}px; }`;
-    }).join('\n');
-    return cols;
-  }, [widthVersion, COLUMNS]);
-
-  const data = useMemo((): CellBase[][] => {
-    const prevData = dataRef.current;
-    const prevScenes = prevScenesRef.current;
-    const rows: CellBase[][] = [];
-
-    const rowFromScene = (scene: Scene): CellBase[] => [
-      { value: '', readOnly: true, ...(!readOnly && { DataViewer: DeleteViewer }) },
-      { value: scene.sceneNumber, ...(editingEnabled ? {} : { readOnly: true }) },
-      { value: scene.pageCount, ...(editingEnabled ? { DataEditor: PageCountEditor } : { readOnly: true }) },
-      { value: scene.scriptDay, ...(editingEnabled ? {} : { readOnly: true }) },
-      { value: scene.intExt, ...(!readOnly && { DataEditor: IntExtEditor }) },
-      { value: scene.set, ...(!readOnly && { DataEditor: SetEditor }) },
-      { value: scene.dayNight, ...(!readOnly && { DataEditor: DayNightEditor }) },
-      { value: scene.description, ...(editingEnabled ? {} : { readOnly: true }) },
-      { value: scene.cast, ...(!readOnly && { DataEditor: CastEditor }) },
-      { value: scene.notes, ...(editingEnabled ? {} : { readOnly: true }) },
-      ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({ value: (scene as any)[key] || '', ...(!readOnly && { DataEditor: breakdownEditors.get(key) }) })),
-    ];
-
-    for (let i = 0; i < scenes.length; i++) {
-      if (!readOnly && scenes[i] === prevScenes[i] && prevData[i] && editingEnabled === prevEditingEnabledRef.current) {
-        rows[i] = prevData[i];
-      } else {
-        rows[i] = rowFromScene(scenes[i]);
-      }
+  const isCellReadOnly = useCallback((row: number, col: number) => {
+    if (col === ACTIONS_COL) return true;
+    if (readOnly) return true;
+    if (!editingEnabled) {
+      const colKey = COLUMNS[col]?.key;
+      if (colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey)) return false;
+      return true;
     }
-
-    rows.push(COLUMNS.map((c, i) => {
-      if (i === ACTIONS_COL) return { value: '', readOnly: true };
-      if (i === 2) return { value: '', ...(editingEnabled ? { DataEditor: PageCountEditor } : { readOnly: true }) };
-      if (i === 4) return { value: '', ...(!readOnly && { DataEditor: IntExtEditor }) };
-      if (i === 5) return { value: '', ...(!readOnly && { DataEditor: SetEditor }) };
-      if (i === 6) return { value: '', ...(!readOnly && { DataEditor: DayNightEditor }) };
-      if (i === CAST_COL) return { value: '', ...(!readOnly && { DataEditor: CastEditor }) };
-      if (allBreakdownCategories.includes(c.key)) return { value: '', ...(!readOnly && { DataEditor: breakdownEditors.get(c.key)! }) };
-      return { value: '', ...(editingEnabled ? {} : { readOnly: true }) };
-    }));
-
-    prevEditingEnabledRef.current = editingEnabled;
-    prevScenesRef.current = scenes;
-    dataRef.current = rows;
-    return rows;
-  }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors, readOnly, editingEnabled]);
-
-  const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => {
-    const w = ROW_INDICATOR_W;
-    return (
-    <td
-      className={`Spreadsheet__header text-center cursor-pointer select-none transition-colors ${selected ? 'bg-blue-50' : ''}`}
-      style={{ width: w, minWidth: w, maxWidth: w, fontSize: row < 0 ? (IS_COARSE ? 9 : 7) : (IS_COARSE ? 13 : 10), fontWeight: 500 }}
-      onMouseDown={(e) => {
-        if (row < 0) return;
-        onSelect(row, e.shiftKey);
-        setContextMenu({ x: e.clientX, y: e.clientY, row });
-      }}
-      onDoubleClick={(e) => {
-        e.preventDefault();
-        if (row >= 0 && onOpenSheet) onOpenSheet(row);
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (row >= 0) setContextMenu({ x: e.clientX, y: e.clientY, row });
-      }}
-    >{row < 0 ? '#' : row + 1}</td>
-    );
-  }, [onOpenSheet, setContextMenu]);
+    return false;
+  }, [readOnly, editingEnabled, COLUMNS, allBreakdownCategories]);
 
   const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string) => {
     const project = projectRef.current;
@@ -521,87 +399,97 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
   }, [dispatch, allBreakdownCategories]);
 
-  const handleChange = useCallback((newData: CellBase[][]) => {
-    const currentScenes = scenesRef.current;
+  const commitPhantomCell = useCallback((colKey: string, value: string) => {
+    if (!value.trim()) return;
     const currentProject = projectRef.current;
-    const phantomIndex = currentScenes.length;
-
-    // Check if phantom row has content (user adding a new scene)
-    const phantomRow = newData[phantomIndex];
-    const phantomHasContent = phantomRow?.some((c, i) => {
-      if (i === ACTIONS_COL) return false;
-      const v = c?.value;
-      return v !== undefined && v !== null && String(v).trim() !== '';
-    });
-
-    // Check for pasted rows beyond the phantom row
-    const extraCount = newData.length - (phantomIndex + 1);
-
-    if (phantomHasContent || extraCount > 0) {
-      if (editTimerRef.current) { clearTimeout(editTimerRef.current); editTimerRef.current = null; }
-      dispatch({ type: 'BATCH_START' });
-      const rowsToProcess = newData.slice(phantomIndex);
-      for (const rowData of rowsToProcess) {
-        if (!rowData) continue;
-        const hasContent = rowData.some((c, i) => {
-          if (i === ACTIONS_COL) return false;
-          const v = c?.value;
-          return v !== undefined && v !== null && String(v).trim() !== '';
-        });
-        if (!hasContent) continue;
-        const newScene: Partial<Record<string, any>> = { shootDay: null };
-        for (let col = 0; col < COLUMNS.length; col++) {
-          if (col === ACTIONS_COL) continue;
-          newScene[COLUMNS[col].key] = rowData[col]?.value ?? '';
-        }
-        newScene.id = generateUUID();
-        const decimal = parsePageCount(newScene.pageCount || '0');
-        newScene.pageCount = formatPageCount(decimal);
-        newScene.pageCountDecimal = decimal;
-        newScene.scriptDay = (newScene.scriptDay || '').replace(/[^0-9]/g, '');
-        newScene.set = String(newScene.set || '').toUpperCase();
-        dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
-        const entityCategories = ['cast', ...allBreakdownCategories];
-        for (const category of entityCategories) {
-          const val = String(newScene[category] ?? '');
-          if (!val.trim()) continue;
-          const isCast = category === 'cast';
-          const existing = (currentProject.breakdownElements || {})[category] || [];
-          const existingSet = new Set(
-            isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase())
-          );
-          const items = getFieldItems(category, val);
-          for (const item of items) {
-            if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
-              dispatch({ type: 'ADD_ELEMENT', payload: {
-                category,
-                element: isCast ? { id: item, name: '' } : { id: item, name: item }
-              } });
-            }
-          }
-        }
-      }
-      dispatch({ type: 'BATCH_COMMIT' });
-      return;
+    const newScene: Record<string, any> = { shootDay: null, id: generateUUID() };
+    newScene[colKey] = value;
+    if (colKey === 'pageCount') {
+      const decimal = parsePageCount(value);
+      newScene.pageCount = formatPageCount(decimal);
+      newScene.pageCountDecimal = decimal;
+    } else if (colKey === 'scriptDay') {
+      newScene.scriptDay = value.replace(/[^0-9]/g, '');
+    } else if (colKey === 'set') {
+      newScene.set = value.toUpperCase();
     }
-
-    // Normal single-cell edit: debounce store dispatch
-    if (editTimerRef.current) clearTimeout(editTimerRef.current);
-    for (let row = 0; row < Math.min(currentScenes.length, newData.length); row++) {
-      for (let col = 0; col < COLUMNS.length; col++) {
-        if (col === ACTIONS_COL) continue;
-        const colDef = COLUMNS[col];
-        const oldVal = String((currentScenes as any)[row][colDef.key] ?? '');
-        const newVal = String(newData[row]?.[col]?.value ?? '');
-        if (newVal !== oldVal) {
-          const sceneId = currentScenes[row].id;
-          const key = colDef.key;
-          editTimerRef.current = setTimeout(() => commitEdit(sceneId, key, newVal), 300);
-          return;
+    for (const k of ['sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight', 'description', 'cast', 'notes', ...allBreakdownCategories]) {
+      if (!(k in newScene)) newScene[k] = '';
+    }
+    dispatch({ type: 'BATCH_START' });
+    dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
+    const entityCategories = ['cast', ...allBreakdownCategories];
+    for (const category of entityCategories) {
+      const val = String(newScene[category] ?? '');
+      if (!val.trim()) continue;
+      const isCast = category === 'cast';
+      const existing = (currentProject.breakdownElements || {})[category] || [];
+      const existingSet = new Set(isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase()));
+      const items = getFieldItems(category, val);
+      for (const item of items) {
+        if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
+          dispatch({ type: 'ADD_ELEMENT', payload: { category, element: isCast ? { id: item, name: '' } : { id: item, name: item } } });
         }
       }
     }
-  }, [dispatch, COLUMNS, allBreakdownCategories, commitEdit]);
+    dispatch({ type: 'BATCH_COMMIT' });
+  }, [dispatch, allBreakdownCategories]);
+
+  const commitCellValue = useCallback((rowIndex: number, colIndex: number, value: string) => {
+    if (colIndex === ACTIONS_COL) return;
+    const colKey = COLUMNS[colIndex]?.key;
+    if (!colKey) return;
+    if (rowIndex >= scenes.length) {
+      commitPhantomCell(colKey, value);
+    } else {
+      commitEdit(scenes[rowIndex].id, colKey, value);
+    }
+  }, [scenes, commitEdit, COLUMNS, commitPhantomCell]);
+
+  const handleCellClick = useCallback((row: number, col: number, e: React.MouseEvent) => {
+    if (e.shiftKey && activeCell) {
+      setSelectionRange({
+        start: { row: Math.min(activeCell.row, row), column: Math.min(activeCell.col, col) },
+        end: { row: Math.max(activeCell.row, row), column: Math.max(activeCell.col, col) },
+      });
+    } else {
+      setActiveCell({ row, col });
+      setSelectionRange(null);
+    }
+    if (editCell && (editCell.row !== row || editCell.col !== col)) {
+      setEditCell(null);
+    }
+  }, [activeCell, editCell]);
+
+  const handleCellDoubleClick = useCallback((row: number, col: number) => {
+    if (col === ACTIONS_COL) return;
+    if (!isCellReadOnly(row, col)) {
+      setActiveCell({ row, col });
+      setEditCell({ row, col });
+    }
+  }, [isCellReadOnly]);
+
+  const handleCellContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const cell = (e.target as HTMLElement).closest('[data-row]');
+    let row = -1, col = -1;
+    if (cell) {
+      row = parseInt(cell.getAttribute('data-row') || '-1');
+      col = parseInt(cell.getAttribute('data-col') || '-1');
+    } else if (activeCell) {
+      row = activeCell.row;
+      col = activeCell.col;
+    }
+    if (row < 0) return;
+    setContextMenu(null);
+    setContextMenu({ x: e.clientX, y: e.clientY, row, col: col >= 0 ? col : undefined });
+  }, [activeCell]);
+
+  const isInSelection = useCallback((row: number, col: number) => {
+    if (!selectionRange) return false;
+    const { start, end } = selectionRange;
+    return row >= start.row && row <= end.row && col >= start.column && col <= end.column;
+  }, [selectionRange]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -714,13 +602,33 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     for (let r = start.row; r <= end.row; r++) {
       const cols: string[] = [];
       for (let c = start.column; c <= end.column; c++) {
-        cols.push(data[r]?.[c]?.value ?? '');
+        if (c === ACTIONS_COL) continue;
+        const colKey = COLUMNS[c]?.key;
+        const val = r < scenes.length && colKey ? String((scenes[r] as any)[colKey] ?? '') : '';
+        cols.push(val);
       }
       rows.push(cols.join('\t'));
     }
     await navigator.clipboard.writeText(rows.join('\n'));
     setContextMenu(null);
-  }, [selectionRange, activeCell, data]);
+  }, [selectionRange, activeCell, scenes, COLUMNS]);
+
+  const handleClear = useCallback(() => {
+    const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
+    if (!range) return;
+    const { start, end } = range;
+    let needsBatch = false;
+    for (let r = start.row; r <= end.row; r++) {
+      if (r >= scenes.length) continue;
+      for (let c = start.column; c <= end.column; c++) {
+        if (c === ACTIONS_COL) continue;
+        if (!needsBatch) { needsBatch = true; dispatch({ type: 'BATCH_START' }); }
+        commitEdit(scenes[r].id, COLUMNS[c].key, '');
+      }
+    }
+    if (needsBatch) dispatch({ type: 'BATCH_COMMIT' });
+    setContextMenu(null);
+  }, [selectionRange, activeCell, scenes, commitEdit, COLUMNS, dispatch]);
 
   const handleCut = useCallback(async () => {
     const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
@@ -730,78 +638,183 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     for (let r = start.row; r <= end.row; r++) {
       const cols: string[] = [];
       for (let c = start.column; c <= end.column; c++) {
-        cols.push(data[r]?.[c]?.value ?? '');
+        if (c === ACTIONS_COL) continue;
+        const colKey = COLUMNS[c]?.key;
+        const val = r < scenes.length && colKey ? String((scenes[r] as any)[colKey] ?? '') : '';
+        cols.push(val);
       }
       rows.push(cols.join('\t'));
     }
     await navigator.clipboard.writeText(rows.join('\n'));
-    const newData = data.map(row => row.map(cell => ({ ...cell })));
+    let needsBatch = false;
     for (let r = start.row; r <= end.row; r++) {
+      if (r >= scenes.length) continue;
       for (let c = start.column; c <= end.column; c++) {
-        newData[r][c] = { ...newData[r][c], value: '' };
+        if (c === ACTIONS_COL) continue;
+        if (!needsBatch) { needsBatch = true; dispatch({ type: 'BATCH_START' }); }
+        commitEdit(scenes[r].id, COLUMNS[c].key, '');
       }
     }
-    handleChange(newData);
+    if (needsBatch) dispatch({ type: 'BATCH_COMMIT' });
     setContextMenu(null);
-  }, [selectionRange, activeCell, data, handleChange]);
+  }, [selectionRange, activeCell, scenes, commitEdit, COLUMNS, dispatch]);
 
   const handlePaste = useCallback(async () => {
     if (!activeCell) return;
+    setContextMenu(null);
     const text = await navigator.clipboard.readText();
     if (!text) return;
     const pastedRows = text.split(/\r\n|\n|\r/);
     const pastedData = pastedRows.map(r => r.split('\t'));
-    const newData = data.map(row => row.map(cell => ({ ...cell })));
+    let needsBatch = false;
+    const currentProject = projectRef.current;
+    const phantomData: Record<number, Record<string, string>> = {};
     for (let r = 0; r < pastedData.length; r++) {
       for (let c = 0; c < pastedData[r].length; c++) {
-        const targetR = activeCell.row + r;
-        const targetC = activeCell.column + c;
-        if (targetR < newData.length && targetC < newData[targetR].length) {
-          newData[targetR][targetC] = { ...newData[targetR][targetC], value: pastedData[r][c] };
+        if (c === ACTIONS_COL) continue;
+        if (c >= COLUMNS.length) continue;
+        const targetRow = activeCell.row + r;
+        const targetCol = activeCell.column + c;
+        const value = pastedData[r][c];
+        if (!value.trim()) continue;
+        if (targetRow < scenes.length) {
+          if (!needsBatch) { needsBatch = true; dispatch({ type: 'BATCH_START' }); }
+          commitEdit(scenes[targetRow].id, COLUMNS[targetCol].key, value);
+        } else {
+          if (!phantomData[targetRow]) phantomData[targetRow] = {};
+          phantomData[targetRow][COLUMNS[targetCol].key] = value;
         }
       }
     }
-    handleChange(newData);
-    setContextMenu(null);
-  }, [activeCell, data, handleChange]);
-
-  const handleClear = useCallback(() => {
-    const range = selectionRange ?? (activeCell ? { start: activeCell, end: activeCell } : null);
-    if (!range) return;
-    const { start, end } = range;
-    const newData = data.map(row => row.map(cell => ({ ...cell })));
-    for (let r = start.row; r <= end.row; r++) {
-      for (let c = start.column; c <= end.column; c++) {
-        if (c === 0) continue;
-        newData[r][c] = { ...newData[r][c], value: '' };
+    const phantomIndices = Object.keys(phantomData).map(Number).sort();
+    for (const rowIdx of phantomIndices) {
+      if (!needsBatch) { needsBatch = true; dispatch({ type: 'BATCH_START' }); }
+      const data = phantomData[rowIdx];
+      const newScene: Record<string, any> = { shootDay: null, id: generateUUID() };
+      for (const [k, v] of Object.entries(data)) newScene[k] = v;
+      for (const k of ['sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight', 'description', 'cast', 'notes', ...allBreakdownCategories]) {
+        if (!(k in newScene)) newScene[k] = '';
+      }
+      if (newScene.pageCount && typeof newScene.pageCount === 'string') {
+        const decimal = parsePageCount(newScene.pageCount);
+        newScene.pageCount = formatPageCount(decimal);
+        newScene.pageCountDecimal = decimal;
+      }
+      if (newScene.scriptDay) newScene.scriptDay = String(newScene.scriptDay).replace(/[^0-9]/g, '');
+      if (newScene.set) newScene.set = String(newScene.set).toUpperCase();
+      dispatch({ type: 'ADD_SCENE', payload: newScene as Scene });
+      for (const category of ['cast', ...allBreakdownCategories]) {
+        const val = String(newScene[category] ?? '');
+        if (!val.trim()) continue;
+        const isCast = category === 'cast';
+        const existing = (currentProject.breakdownElements || {})[category] || [];
+        const existingSet = new Set(isCast ? existing.map(e => e.id) : existing.map(e => e.name.toLowerCase()));
+        const items = getFieldItems(category, val);
+        for (const item of items) {
+          if (isCast ? !existingSet.has(item) : !existingSet.has(item.toLowerCase())) {
+            dispatch({ type: 'ADD_ELEMENT', payload: { category, element: isCast ? { id: item, name: '' } : { id: item, name: item } } });
+          }
+        }
       }
     }
-    handleChange(newData);
-    setContextMenu(null);
-  }, [selectionRange, activeCell, data, handleChange]);
+    if (needsBatch) dispatch({ type: 'BATCH_COMMIT' });
+  }, [activeCell, scenes, commitEdit, COLUMNS, allBreakdownCategories, dispatch]);
 
-  const handleCellContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    const td = (e.target as HTMLElement).closest('td');
-    let row = -1;
-    let col = -1;
-    if (td) {
-      const tr = td.parentElement as HTMLTableRowElement;
-      const tbody = tr.parentElement as HTMLTableSectionElement;
-      if (tbody && tbody.parentElement) {
-        const trs = Array.from(tbody.querySelectorAll(':scope > tr'));
-        row = trs.indexOf(tr);
-        const tds = Array.from(tr.querySelectorAll(':scope > td, :scope > th'));
-        col = tds.indexOf(td) - 1;
-      }
-    } else if (activeCell) {
-      row = activeCell.row;
-      col = activeCell.column;
+  const renderCellValue = useCallback((value: string, colKey: string) => {
+    return value;
+  }, []);
+
+  const renderCellEditor = useCallback((rowIndex: number, colIndex: number, value: string, colKey: string) => {
+    const commit = (newVal: string) => {
+      commitCellValue(rowIndex, colIndex, newVal);
+      setEditCell(null);
+    };
+    const cancel = () => setEditCell(null);
+
+    if (colKey === 'cast') {
+      return <CastEditor cell={{ value }} onChange={c => commit(c.value)} exitEditMode={cancel} />;
     }
-    if (row < 0) return;
-    setContextMenu(null);
-    setContextMenu({ x: e.clientX, y: e.clientY, row, col: col >= 0 ? col : undefined });
-  }, [activeCell]);
+    if (colKey === 'set') {
+      return <SetEditor cell={{ value }} onChange={c => commit(c.value)} exitEditMode={cancel} />;
+    }
+    if (colKey === 'intExt') {
+      return <IntExtEditor cell={{ value }} onChange={c => commit(c.value)} exitEditMode={cancel} />;
+    }
+    if (colKey === 'dayNight') {
+      return <DayNightEditor cell={{ value }} onChange={c => commit(c.value)} exitEditMode={cancel} />;
+    }
+    if (colKey === 'pageCount') {
+      return <PageCountEditor cell={{ value }} onChange={c => commit(c.value)} exitEditMode={cancel} />;
+    }
+    const breakdownEditor = breakdownEditors.get(colKey);
+    if (breakdownEditor) {
+      return <breakdownEditor cell={{ value }} onChange={c => commit(c.value)} exitEditMode={cancel} />;
+    }
+    return (
+      <input
+        type="text"
+        defaultValue={value}
+        autoFocus
+        style={{ width: '100%', height: '100%', border: 'none', outline: 'none', padding: IS_COARSE ? '8px 10px' : '4px 8px', fontSize, fontFamily: 'inherit', background: 'transparent' }}
+        onBlur={e => commit(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
+          if (e.key === 'Escape') cancel();
+        }}
+      />
+    );
+  }, [CastEditor, SetEditor, IntExtEditor, DayNightEditor, PageCountEditor, breakdownEditors, commitCellValue, fontSize]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (editCell) {
+      if (e.key === 'Escape') { setEditCell(null); e.preventDefault(); }
+      return;
+    }
+    if (!activeCell) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Tab') {
+        setActiveCell({ row: 0, col: 1 });
+        e.preventDefault();
+      }
+      return;
+    }
+    const { row, col } = activeCell;
+    switch (e.key) {
+      case 'ArrowUp':
+        if (row > 0) setActiveCell({ row: row - 1, col });
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        if (row < totalRows - 1) setActiveCell({ row: row + 1, col });
+        e.preventDefault();
+        break;
+      case 'ArrowLeft':
+        if (col > 0) setActiveCell({ row, col: col - 1 });
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+        if (col < COLUMNS.length - 1) setActiveCell({ row, col: col + 1 });
+        e.preventDefault();
+        break;
+      case 'Tab':
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (col > 0) setActiveCell({ row, col: col - 1 });
+          else if (row > 0) setActiveCell({ row: row - 1, col: COLUMNS.length - 1 });
+        } else {
+          if (col < COLUMNS.length - 1) setActiveCell({ row, col: col + 1 });
+          else if (row < totalRows - 1) setActiveCell({ row: row + 1, col: 0 });
+        }
+        break;
+      case 'Enter':
+        if (!isCellReadOnly(row, col)) setEditCell({ row, col });
+        e.preventDefault();
+        break;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      addScene();
+      e.preventDefault();
+    }
+  }, [activeCell, editCell, totalRows, COLUMNS, isCellReadOnly, addScene]);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
@@ -882,210 +895,161 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 </DropdownMenu>
               </>
             )}
-            <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className={subTab === 'scenes' ? 'hidden' : 'flex items-center gap-2'} />
+            <div ref={el => { setPortalTarget(el); }} className={subTab === 'scenes' ? 'hidden' : 'flex items-center gap-2'} />
           </>
         }
       />
       {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : (
         <>
-      <div className="flex-1 overflow-auto bg-white pb-40">
-      <div className="min-w-[800px]">
-             <style>{`
-              .Spreadsheet {
-                border-collapse: separate;
-                border-spacing: 0;
-                width: 100%;
-                font-family: inherit;
-                font-size: ${fontSize}px;
-              }
-              .Spreadsheet__table {
-                border-collapse: separate;
-                border-spacing: 0;
-                width: 100%;
-              }
-              .Spreadsheet__header-row th {
-                position: sticky;
-                top: 0;
-                z-index: 10;
-                padding: 0;
-                font-size: ${fontSize}px;
-               font-weight: 500;
-               text-align: left;
-               border-right: 1px solid #e4e4e7;
-               border-bottom: 1px solid #d4d4d8;
-               color: #71717a;
-               white-space: nowrap;
-                user-select: none;
-                background: white;
-              }
-              .Spreadsheet__header-row th:first-child {
-                position: sticky;
-                top: 0;
-                left: 0;
-                z-index: 15;
-                width: ${ROW_INDICATOR_W}px;
-                min-width: ${ROW_INDICATOR_W}px;
-                max-width: ${ROW_INDICATOR_W}px;
-              }
-              .Spreadsheet__header-row th:nth-child(2) {
-                left: ${ROW_INDICATOR_W}px;
-                z-index: 11;
-              }
-              tbody tr td.Spreadsheet__header {
-                position: sticky;
-                left: 0;
-                z-index: 5;
-                background: white;
-              }
-              tbody tr td:nth-child(2) {
-                position: sticky;
-                left: ${ROW_INDICATOR_W}px;
-                z-index: 5;
-                background: white;
-              }
-              th.Spreadsheet__header--selected {
-                background: #dbeafe;
-                color: #1e40af;
-              }
-              .Spreadsheet__header-label {
-                padding: 3px 8px;
-               overflow: hidden;
-               text-overflow: ellipsis;
-             }
-             .Spreadsheet__cell {
-                border: none;
-                border-right: 1px solid #f4f4f5;
-                border-bottom: 1px solid #f4f4f5;
-                padding: 0;
-                height: ${Math.round(fontSize * 2.55)}px;
-                overflow: hidden;
-              }
-             .Spreadsheet__cell--selected {
-               outline: 2px solid #2563eb;
-               outline-offset: -2px;
-               z-index: 2;
-               position: relative;
-             }
-              .Spreadsheet__cell--active {
-                outline: 2px solid #2563eb;
-                outline-offset: -2px;
-                z-index: 2;
-                position: relative;
-              }
-               .Spreadsheet__floating-rect--selected {
-                 z-index: 15;
-               }
-             .Spreadsheet__cell input {
-                width: 100%;
-                height: 100%;
-                border: none;
-                outline: none;
-                padding: 4px 8px;
-                font-size: ${fontSize}px;
-                font-family: inherit;
-                background: transparent;
-              }
-              .Spreadsheet__cell .Spreadsheet__data-viewer {
-                padding: 4px 8px;
-                min-height: 28px;
-                display: flex;
-                align-items: center;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                font-size: ${fontSize}px;
-              }
-             .Spreadsheet__data-editor {
-               width: 100%;
-               height: 100%;
-             }
-              tr:hover .Spreadsheet__cell {
-                background: #fafafa;
-              }
-              tr:hover .Spreadsheet__cell--selected,
-              tr:hover .Spreadsheet__cell--active {
-                background: transparent;
-              }
-               tr:hover td.Spreadsheet__header {
-                 background: #fafafa;
-               }
-               tr:hover td:nth-child(2) {
-                 background: #fafafa;
-               }
-             .Spreadsheet__cell--readonly {
-               background: white;
-             }
-             .column-resize-handle {
-               position: absolute;
-               top: 0;
-               right: -3px;
-               width: 6px;
-               height: 100%;
-               cursor: col-resize;
-               z-index: 20;
-               background: transparent;
-             }
-             .column-resize-handle:hover,
-             .column-resize-handle:active {
-               background: rgba(37, 99, 235, 0.3);
-             }
-                ${IS_COARSE ? `
-               .Spreadsheet__cell { height: ${Math.round(fontSize * 3.2)}px; }
-               .Spreadsheet__cell input { padding: 8px 10px; font-size: ${fontSize}px; }
-               .Spreadsheet__cell .Spreadsheet__data-viewer { padding: 8px 10px; min-height: ${Math.round(fontSize * 3.2)}px; font-size: ${fontSize}px; }
-               .Spreadsheet__header-label { padding: 6px 10px; }
-               .Spreadsheet__data-editor .uppercase { font-size: ${fontSize}px; }
-              ` : ''}
-               ${widthStyle}
-             `}</style>
-            <div onContextMenu={handleCellContextMenu} className={readOnly ? 'opacity-60' : ''}>
-             <Spreadsheet
-              ref={spreadsheetRef}
-              data={data}
-              onChange={handleChange}
-              columnLabels={COLUMNS.map(c => c.label)}
-              RowIndicator={RowIndicator}
-              ColumnIndicator={CustomColIndicator}
-              HeaderRow={CustomHeaderRow}
-              CornerIndicator={CustomCornerIndicator}
-             onSelect={(sel) => {
-               if (sel instanceof EntireRowsSelection) {
-                 const range = sel.toRange(data);
-                 if (range) {
-                   const rows = new Set<number>();
-                   for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
-                   setSelectedRows(rows);
-                   setSelectionRange(range);
-                 }
-               } else if (sel instanceof EntireColumnsSelection) {
-                 const range = sel.toRange(data);
-                 if (range) {
-                   const rows = new Set<number>();
-                   for (let r = range.start.row; r <= range.end.row; r++) rows.add(r);
-                   setSelectedRows(rows);
-                   setSelectionRange(range);
-                 }
-               } else if (sel instanceof RangeSelection) {
-                 const rows = new Set<number>();
-                 for (let r = sel.range.start.row; r <= sel.range.end.row; r++) rows.add(r);
-                 setSelectedRows(rows);
-                 setSelectionRange(sel.range);
-               } else {
-                 setSelectedRows(new Set());
-                 setSelectionRange(null);
-               }
-             }}
-              onActivate={(point) => setActiveCell(point)}
-             onKeyDown={e => {
-               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                 e.preventDefault();
-                 addScene();
-               }
-             }}
-           />
-           </div>
-        </div>
-      </div>
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative" onContextMenu={handleCellContextMenu}>
+            <div
+              ref={scrollRef}
+              tabIndex={0}
+              className="flex-1 overflow-auto outline-none"
+              style={{ opacity: readOnly ? 0.6 : 1 }}
+              onKeyDown={handleKeyDown}
+            >
+              <div style={{ width: totalWidth, height: ROW_HEIGHT + virtualTotalHeight, position: 'relative' }}>
+                {/* Sticky header row */}
+                <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', height: ROW_HEIGHT, background: 'white', borderBottom: '1px solid #d4d4d8' }}>
+                  <div style={{ width: ROW_INDICATOR_W, flexShrink: 0, position: 'sticky', left: 0, zIndex: 25, background: 'white', borderRight: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize, fontWeight: 500, color: '#71717a', userSelect: 'none' }}>
+                    #
+                  </div>
+                  {COLUMNS.map((col, i) => (
+                    <div key={col.key} style={{ width: getColWidth(i), flexShrink: 0, position: 'relative', borderRight: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', padding: '3px 8px', fontSize, fontWeight: 500, color: '#71717a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', userSelect: 'none' }}>
+                      <span className="truncate">{col.label}</span>
+                      <div
+                        className="column-resize-handle"
+                        onMouseDown={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const startX = e.clientX;
+                          const startW = getColWidth(i);
+                          const handleMouseMove = (ev: MouseEvent) => {
+                            const diff = ev.clientX - startX;
+                            const newW = Math.max(30, startW + diff);
+                            colWidths.current[i + 1] = newW;
+                            setWidthVersion(v => v + 1);
+                          };
+                          const handleMouseUp = () => {
+                            document.removeEventListener('mousemove', handleMouseMove);
+                            document.removeEventListener('mouseup', handleMouseUp);
+                            document.body.style.cursor = '';
+                            document.body.style.userSelect = '';
+                          };
+                          document.addEventListener('mousemove', handleMouseMove);
+                          document.addEventListener('mouseup', handleMouseUp);
+                          document.body.style.cursor = 'col-resize';
+                          document.body.style.userSelect = 'none';
+                        }}
+                        style={{ position: 'absolute', top: 0, right: -3, width: 6, height: '100%', cursor: 'col-resize', zIndex: 30, background: 'transparent' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Virtual rows */}
+                {virtualItems.map(virtualItem => {
+                  const rowIndex = virtualItem.index;
+                  const isPhantom = rowIndex >= scenes.length;
+                  const scene = isPhantom ? null : scenes[rowIndex];
+                  const isSelected = selectionRange && rowIndex >= selectionRange.start.row && rowIndex <= selectionRange.end.row;
+                  const isActive = activeCell?.row === rowIndex;
+
+                  return (
+                    <div
+                      key={virtualItem.key}
+                      data-row={rowIndex}
+                      style={{ position: 'absolute', top: ROW_HEIGHT + virtualItem.start, height: ROW_HEIGHT, left: 0, right: 0, display: 'flex', borderBottom: '1px solid #f4f4f5', background: isSelected ? '#eff6ff' : undefined }}
+                      className={!isPhantom ? 'hover:bg-zinc-50' : ''}
+                    >
+                      {/* Row indicator */}
+                      <div
+                        data-row={rowIndex}
+                        style={{ width: ROW_INDICATOR_W, flexShrink: 0, position: 'sticky', left: 0, zIndex: 5, background: isSelected ? '#eff6ff' : 'white', borderRight: '1px solid #f4f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isPhantom ? (IS_COARSE ? 9 : 7) : (IS_COARSE ? 13 : 10), fontWeight: 500, color: '#71717a', cursor: 'pointer', userSelect: 'none' }}
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          if (isPhantom) return;
+                          setContextMenu({ x: e.clientX, y: e.clientY, row: rowIndex });
+                        }}
+                        onDoubleClick={e => {
+                          e.preventDefault();
+                          if (!isPhantom && onOpenSheet) onOpenSheet(rowIndex);
+                        }}
+                        onContextMenu={e => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!isPhantom) setContextMenu({ x: e.clientX, y: e.clientY, row: rowIndex });
+                        }}
+                      >
+                        {isPhantom ? '' : rowIndex + 1}
+                      </div>
+
+                      {/* Data cells */}
+                      {COLUMNS.map((col, colIndex) => {
+                        if (colIndex === ACTIONS_COL && !isPhantom) {
+                          return (
+                            <div key={col.key} data-row={rowIndex} data-col={colIndex}
+                              style={{ width: getColWidth(colIndex), flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: activeCell?.row === rowIndex && activeCell?.col === colIndex ? '2px solid #2563eb' : undefined, outlineOffset: -2 }}
+                            >
+                              <Trash2
+                                className={`${IS_COARSE ? 'w-5 h-5' : 'w-4 h-4'} text-red-400/60 hover:text-red-600 cursor-pointer`}
+                                onMouseDown={e => { e.stopPropagation(); deleteScene(scene!.id); }}
+                              />
+                            </div>
+                          );
+                        }
+                        if (colIndex === ACTIONS_COL) return <div key={col.key} style={{ width: getColWidth(colIndex), flexShrink: 0 }} />;
+
+                        const value = scene ? String((scene as any)[col.key] ?? '') : '';
+                        const isEditing = editCell?.row === rowIndex && editCell?.col === colIndex;
+                        const cellReadOnly = isCellReadOnly(rowIndex, colIndex);
+                        const cellActive = activeCell?.row === rowIndex && activeCell?.col === colIndex;
+                        const inSelection = isInSelection(rowIndex, colIndex);
+
+                        return (
+                          <div
+                            key={col.key}
+                            data-row={rowIndex}
+                            data-col={colIndex}
+                            style={{
+                              width: getColWidth(colIndex),
+                              flexShrink: 0,
+                              borderRight: '1px solid #f4f4f5',
+                              overflow: 'hidden',
+                              padding: IS_COARSE ? '8px 10px' : '4px 8px',
+                              fontSize,
+                              cursor: cellReadOnly ? 'default' : 'pointer',
+                              outline: cellActive ? '2px solid #2563eb' : undefined,
+                              outlineOffset: -2,
+                              background: inSelection ? '#dbeafe' : (cellActive ? '#f0f7ff' : undefined),
+                            }}
+                            onDoubleClick={() => handleCellDoubleClick(rowIndex, colIndex)}
+                            onClick={e => handleCellClick(rowIndex, colIndex, e)}
+                          >
+                            {isEditing ? (
+                              renderCellEditor(rowIndex, colIndex, value, col.key)
+                            ) : (
+                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minHeight: IS_COARSE ? 24 : 18, display: 'flex', alignItems: 'center', color: cellReadOnly ? '#a1a1aa' : undefined }}>
+                                {renderCellValue(value, col.key)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+
+                {/* Empty state */}
+                {scenes.length === 0 && !virtualItems.length && (
+                  <div style={{ position: 'absolute', top: ROW_HEIGHT, left: 0, right: 0, padding: 32, textAlign: 'center', color: '#a1a1aa', fontSize }}>
+                    Click "Add Scene" or type into the empty row below to get started.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </>
       )}
 
