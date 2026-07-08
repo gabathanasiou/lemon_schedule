@@ -34,7 +34,7 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
@@ -129,6 +129,14 @@ function AppContent() {
     }
   }, [dialog]);
   const [showFileMenu, setShowFileMenu] = useState(false);
+  const [compactTabs, setCompactTabs] = useState(window.innerWidth < 900);
+  const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setCompactTabs(window.innerWidth < 900);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
   const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
@@ -492,6 +500,34 @@ function AppContent() {
             />
           </div>
           <div ref={topTabContainerRef} className="relative flex items-center gap-1">
+            {compactTabs ? (
+              <div className="flex-1 flex justify-center">
+              <DropdownMenu
+                open={tabDropdownOpen}
+                onOpenChange={setTabDropdownOpen}
+                width="w-44"
+                trigger={
+                  <button className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans text-xs font-semibold">
+                    <span>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
+                    <ChevronDown className="w-3 h-3 text-zinc-400" />
+                  </button>
+                }
+              >
+                {(['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'] as const).map(tab => {
+                  const Icon = tab === 'breakdown' ? ClipboardList : tab === 'schedule' ? CalendarClock : tab === 'calendar' ? CalendarDays : tab === 'design' ? Layout : tab === 'rules' ? Gavel : FileText;
+                  return (
+                    <DropdownItem
+                      key={tab}
+                      onClick={() => { setActiveTab(tab); setTabDropdownOpen(false); }}
+                      icon={<Icon className="w-3.5 h-3.5" />}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </DropdownItem>
+                  );
+                })}
+              </DropdownMenu>
+              </div>
+            ) : (<>
             <span
               className="absolute top-0.5 -bottom-4 bg-white rounded-t-md pointer-events-none"
               style={{ ...topTabOverlayStyle, transition: 'none' }}
@@ -556,6 +592,7 @@ function AppContent() {
             >
               <span className="relative">Reports</span>
             </button>
+            </>)}
           </div>
         </div>
 

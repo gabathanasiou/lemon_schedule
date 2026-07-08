@@ -116,7 +116,7 @@ export function mergeSiblingIds(cellId: string, rows: RibbonRow[]): string[] {
 }
 
 export const INT_EXT_OPTIONS: string[] = ['INT', 'EXT', 'INT/EXT'];
-export const DAY_NIGHT_OPTIONS: string[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING', 'DAWN', 'DUSK'];
+export const DAY_NIGHT_OPTIONS: string[] = ['DAY', 'NIGHT', 'MORNING', 'EVENING'];
 
 export function getIntExtOptions(palette?: SceneColorPalette): string[] {
   return palette?.intExtOptions || INT_EXT_OPTIONS;
@@ -139,12 +139,6 @@ const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string 
   'INT|EVENING':  { background: '#ff9d25', color: '#000000' },
   'EXT|EVENING':  { background: '#ff9d25', color: '#000000' },
   'INT/EXT|EVENING': { background: '#00af2f', color: '#000000' },
-  'INT|DAWN':   { background: '#ffffff', color: '#18181b' },
-  'EXT|DAWN':   { background: '#ffffff', color: '#18181b' },
-  'INT/EXT|DAWN':  { background: '#ffffff', color: '#18181b' },
-  'INT|DUSK':   { background: '#ffffff', color: '#18181b' },
-  'EXT|DUSK':   { background: '#ffffff', color: '#18181b' },
-  'INT/EXT|DUSK':  { background: '#ffffff', color: '#18181b' },
 };
 
 const DEFAULT_FALLBACK = { background: '#ffffff', color: '#18181b' };
@@ -412,7 +406,7 @@ export const SAMPLE: Record<string, string> = {
 };
 
 export const INT_EXT: Record<string, string> = { INT: 'INT', EXT: 'EXT', 'INT/EXT': 'INT/EXT' };
-export const DAY_NIGHT: Record<string, string> = { DAY: 'DAY', NIGHT: 'NIGHT', MORNING: 'MORNING', EVENING: 'EVENING', DAWN: 'DAWN', DUSK: 'DUSK' };
+export const DAY_NIGHT: Record<string, string> = { DAY: 'DAY', NIGHT: 'NIGHT', MORNING: 'MORNING', EVENING: 'EVENING' };
 
 export const MIN_PCT = 2.5;
 

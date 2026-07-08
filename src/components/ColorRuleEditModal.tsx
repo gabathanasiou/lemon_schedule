@@ -54,12 +54,15 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   const [matrixColors, setMatrixColors] = useState<SceneColorEntry[]>(() => {
     if (rule?.override?.type === 'matrix') return rule.override.sceneColors.map(c => ({ ...c }));
     return ieOptions.flatMap(ie =>
-      dnOptions.map(dn => ({
-        intExt: ie,
-        dayNight: dn,
-        background: '#ffffff',
-        text: '#18181b',
-      }))
+      dnOptions.map(dn => {
+        const idx = findEntryIdx(palette.sceneColors, ie, dn);
+        return {
+          intExt: ie,
+          dayNight: dn,
+          background: idx >= 0 ? palette.sceneColors[idx].background : '#ffffff',
+          text: idx >= 0 ? palette.sceneColors[idx].text : '#18181b',
+        };
+      })
     );
   });
 
@@ -248,6 +251,8 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                       </RadixDropdownMenu.Content>
                     </RadixDropdownMenu.Portal>
                   </RadixDropdownMenu.Root>
+
+                  <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
 
                   <div className="relative flex-1 min-w-0">
                     <button
