@@ -228,6 +228,14 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                         align="start"
                         sideOffset={4}
                         collisionPadding={8}
+                        onOpenAutoFocus={(e) => {
+                          e.preventDefault();
+                          const content = e.currentTarget as HTMLElement;
+                          requestAnimationFrame(() => {
+                            const active = content.querySelector(`[data-cat="${cond.category}"]`) as HTMLElement | null;
+                            if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+                          });
+                        }}
                       >
                         {allCategoryKeys.map(({ key, isCustom }) => {
                           const Icon = isCustom
@@ -237,6 +245,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                           return (
                             <RadixDropdownMenu.Item
                               key={key}
+                              data-cat={key}
                               onSelect={() => setConditionCategory(idx, key)}
                               className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
                                 active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
@@ -271,6 +280,14 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                         align="start"
                         sideOffset={4}
                         collisionPadding={8}
+                        onOpenAutoFocus={(e) => {
+                          e.preventDefault();
+                          const content = e.currentTarget as HTMLElement;
+                          requestAnimationFrame(() => {
+                            const active = content.querySelector(`[data-el="${cond.elementId}"]`) as HTMLElement | null;
+                            if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+                          });
+                        }}
                       >
                         {elements.length === 0 ? (
                           <div className="px-3 py-2 text-xs text-zinc-500">No elements</div>
@@ -279,6 +296,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                           return (
                             <RadixDropdownMenu.Item
                               key={el.id || el.name}
+                              data-el={el.id || el.name}
                               onSelect={() => setConditionElement(idx, el.id || el.name)}
                               className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none whitespace-nowrap ${
                                 active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
