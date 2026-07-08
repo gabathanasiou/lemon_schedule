@@ -328,7 +328,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   ) : null;
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(120px + env(safe-area-inset-bottom, 0px))' }}>
+    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-y-auto" style={{ paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))' }}>
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {
