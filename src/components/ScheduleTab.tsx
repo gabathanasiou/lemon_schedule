@@ -5,7 +5,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
 import { UnscheduledBlock } from './UnscheduledBlock';
 import { SortableRow } from './SortableRow';
-import { generateUUID } from '../lib/utils';
+import { generateUUID, formatDuration } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table } from 'lucide-react';
@@ -15,6 +15,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import HelpModal from './HelpModal';
+import { FloatingTooltip } from './FloatingTooltip';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
@@ -727,6 +728,23 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     return m;
   }, [existingDays, activeVersion]);
 
+  const selectionSummary = useMemo(() => {
+    if (selectedRowIds.size < 2) return null;
+    const sceneRows = augmentedRows.filter(
+      r => selectedRowIds.has(r.id) && r.type === 'SCENE' && !r.id.startsWith('empty-')
+    );
+    if (sceneRows.length === 0) return null;
+    const totalMinutes = sceneRows.reduce((sum, r) => sum + (r.estimatedDuration || 0), 0);
+    return { count: sceneRows.length, totalMinutes };
+  }, [selectedRowIds, augmentedRows]);
+
+  const bufferSummary = useMemo(() => {
+    const bufferRows = augmentedRows.filter(r => r.shootDay === -1);
+    if (bufferRows.length === 0) return null;
+    const totalMinutes = bufferRows.reduce((sum, r) => sum + (r.estimatedDuration || 0), 0);
+    return { count: bufferRows.length, totalMinutes };
+  }, [augmentedRows]);
+
   const getDayFromId = (id: string): number | null => {
     if (id === 'end-unscheduled' || id === 'unscheduled_bin') return null;
     if (id.startsWith('day-wrap-') || id.startsWith('day-') || id.startsWith('end-')) {
@@ -1174,15 +1192,23 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       <div className="flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
         <span className="text-xs font-semibold text-zinc-500">Stripboard</span>
         <div className="flex items-center gap-2">
+            {selectionSummary && (
+              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span>{selectionSummary.count} strip{selectionSummary.count > 1 ? 's' : ''}</span>
+                <span className="text-amber-500/60">·</span>
+                <span>{formatDuration(selectionSummary.totalMinutes)}</span>
+              </span>
+            )}
+            {bufferSummary && (
+              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                {bufferSummary.count} in buffer
+              </span>
+            )}
             <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
             <span className="text-zinc-300 select-none">·</span>
             <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
-            {augmentedRows.filter(r => r.shootDay === -1).length > 0 && (
-              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                {augmentedRows.filter(r => r.shootDay === -1).length} unscheduled
-              </span>
-            )}
             <div className="w-px h-4 bg-zinc-200" />
             <DropdownMenu
               open={ribbonMenuOpen}
@@ -1415,6 +1441,21 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
           </div>
         </div>
       )}
+
+      <FloatingTooltip open={!!selectionSummary || !!bufferSummary}>
+        <div className="bg-zinc-900 text-white text-[10px] rounded shadow-xl whitespace-nowrap leading-relaxed">
+          {selectionSummary && (
+            <>
+              <div className="px-2.5 py-1.5">{selectionSummary.count} strip{selectionSummary.count > 1 ? 's' : ''} selected</div>
+              <div className="border-t border-zinc-700 px-2.5 py-1.5">{formatDuration(selectionSummary.totalMinutes)}</div>
+            </>
+          )}
+          {selectionSummary && bufferSummary && <div className="border-t border-zinc-700" />}
+          {bufferSummary && (
+            <div className="px-2.5 py-1.5">{bufferSummary.count} strip{bufferSummary.count > 1 ? 's' : ''} in buffer</div>
+          )}
+        </div>
+      </FloatingTooltip>
 
       <style>{`
         @keyframes shrink {
