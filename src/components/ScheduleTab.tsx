@@ -534,8 +534,8 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
       scheduleScrollRef.current.scrollTop = savedScrollTop;
     }
     return () => {
-      if (onScrollChange && scheduleScrollRef.current) {
-        onScrollChange(scheduleScrollRef.current.scrollTop);
+      if (onScrollChange) {
+        onScrollChange(savedScrollTopRef.current);
       }
     };
   }, []);
