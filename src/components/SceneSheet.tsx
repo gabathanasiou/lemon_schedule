@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene } from '../types';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Copy, Trash2 } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { CellInput } from './CellInput';
@@ -143,6 +143,19 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     onIndexChange?.(newIdx);
   }, [dispatch, scenes.length, onIndexChange]);
 
+  const duplicateScene = useCallback(() => {
+    if (!scene) return;
+    if (Object.keys(editsRef.current).length > 0) {
+      saveRef.current();
+    }
+    const dup: Scene = { ...scene, id: generateUUID() };
+    dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: dup } });
+    const newIdx = index + 1;
+    setIndex(newIdx);
+    setSheetInput(String(newIdx + 1));
+    onIndexChange?.(newIdx);
+  }, [scene, index, dispatch, onIndexChange]);
+
   const deleteCurrentScene = useCallback(() => {
     if (!scene) return;
     if (Object.keys(editsRef.current).length > 0) {
@@ -282,6 +295,10 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           <Plus className="w-3.5 h-3.5" />
           New
         </button>
+        <button onClick={duplicateScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors" title="Duplicate Scene Sheet">
+          <Copy className="w-3.5 h-3.5" />
+          Duplicate
+        </button>
       </div>
       <button onClick={deleteCurrentScene} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors" title="Delete Scene Sheet">
         <Trash2 className="w-3.5 h-3.5" />
@@ -301,6 +318,9 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <button onClick={createNewScene} className="bg-zinc-900 text-white px-2.5 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors flex items-center gap-1">
         <Plus className="w-3 h-3" /> New
       </button>
+      <button onClick={duplicateScene} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors flex items-center gap-1">
+        <Copy className="w-3 h-3" /> Duplicate
+      </button>
       <button onClick={deleteCurrentScene} className="bg-white border border-zinc-300 px-2.5 py-1 text-rose-600 rounded text-[11px] font-medium hover:bg-rose-50 transition-colors flex items-center gap-1">
         <Trash2 className="w-3 h-3" /> Delete
       </button>
@@ -308,7 +328,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   ) : null;
 
   return (
-    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
+    <div ref={containerRef} className="flex-1 flex flex-col h-full bg-zinc-100 overflow-y-auto pb-20">
       {headerTarget && headerContent ? createPortal(headerContent, headerTarget) : null}
 
       {scene && (() => {
@@ -376,8 +396,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         </div>
 
         {/* Category grid — 3 columns, each box has header + body, matches print */}
-        <div className="flex-1 overflow-auto tab-scroll">
-          <div className="grid grid-cols-3 gap-2 pr-0.5">
+        <div className="grid grid-cols-3 gap-2 pr-0.5">
             {allBreakdownCats.filter(c => c !== 'set').map(cat => (
               <div key={cat} className="bg-white border border-zinc-300 rounded overflow-hidden">
                 <div className="bg-zinc-100 px-2.5 py-1.5 border-b border-zinc-300 text-[10px] font-bold text-zinc-700 uppercase leading-tight">{allBreakdownLabel[cat]}</div>
@@ -395,7 +414,6 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
               </div>
             ))}
           </div>
-        </div>
 
         {/* Notes */}
       </div>

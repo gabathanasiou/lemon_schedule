@@ -77,6 +77,18 @@ function AppContent() {
 
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
 
+  useEffect(() => {
+    if (IS_COARSE && typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name=viewport]');
+      if (meta) {
+        const cur = meta.getAttribute('content') || '';
+        if (!cur.includes('user-scalable')) {
+          meta.setAttribute('content', `${cur}, user-scalable=no`);
+        }
+      }
+    }
+  }, []);
+
   const wasOfflineRef = useRef(false);
 
   useEffect(() => {

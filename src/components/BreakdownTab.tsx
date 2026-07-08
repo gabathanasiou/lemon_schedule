@@ -816,7 +816,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       />
       {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : (
         <>
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-white pb-40">
       <div className="min-w-[800px]">
             <style>{`
              .Spreadsheet {
