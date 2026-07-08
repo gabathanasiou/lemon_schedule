@@ -329,10 +329,20 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     return map;
   }, [allBreakdownCategories]);
 
-  const DEFAULT_WIDTHS = IS_COARSE
-    ? [44, 90, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
-    : [28, 60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
-  const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
+  const ROW_INDICATOR_W = IS_COARSE ? 65 : 55;
+
+  const colWidths = useRef<number[]>((() => {
+    const arr = IS_COARSE
+      ? [44, 90, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+      : [28, 60, 80, 80, 80, 180, 90, 300, 120, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
+    arr[0] = ROW_INDICATOR_W;
+    return arr;
+  })());
+  const DEFAULT_WIDTHS = useMemo(() => {
+    const arr = [...colWidths.current];
+    arr[0] = ROW_INDICATOR_W;
+    return arr;
+  }, []);
   const [widthVersion, setWidthVersion] = useState(0);
 
   const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
@@ -445,8 +455,6 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     dataRef.current = rows;
     return rows;
   }, [scenes, IntExtEditor, DayNightEditor, DeleteViewer, PageCountEditor, SetEditor, CastEditor, breakdownEditors, readOnly, editingEnabled]);
-
-  const ROW_INDICATOR_W = IS_COARSE ? 80 : 70;
 
   const RowIndicator: React.FC<{ row: number; label?: React.ReactNode; selected: boolean; onSelect: (row: number, extend: boolean) => void }> = useCallback(({ row, selected, onSelect }) => {
     const w = ROW_INDICATOR_W;
@@ -919,9 +927,19 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 min-width: ${ROW_INDICATOR_W}px;
                 max-width: ${ROW_INDICATOR_W}px;
               }
+              .Spreadsheet__header-row th:nth-child(2) {
+                left: ${ROW_INDICATOR_W}px;
+                z-index: 11;
+              }
               tbody tr td.Spreadsheet__header {
                 position: sticky;
                 left: 0;
+                z-index: 5;
+                background: white;
+              }
+              tbody tr td:nth-child(2) {
+                position: sticky;
+                left: ${ROW_INDICATOR_W}px;
                 z-index: 5;
                 background: white;
               }
@@ -988,9 +1006,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
               tr:hover .Spreadsheet__cell--active {
                 background: transparent;
               }
-              tr:hover td.Spreadsheet__header {
-                background: #fafafa;
-              }
+               tr:hover td.Spreadsheet__header {
+                 background: #fafafa;
+               }
+               tr:hover td:nth-child(2) {
+                 background: #fafafa;
+               }
              .Spreadsheet__cell--readonly {
                background: white;
              }
