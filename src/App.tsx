@@ -33,7 +33,7 @@ import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/ru
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
-import { generateUUID } from './lib/utils';
+import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
@@ -340,14 +340,7 @@ function AppContent() {
   }
 
   const handleExportJSON = () => {
-    const data = JSON.stringify(project, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${project.title || 'Export'}.lemon`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportProjectFromStorage(currentProjectId, project.title || 'Export');
   };
   
   const handleExportCSV = () => {

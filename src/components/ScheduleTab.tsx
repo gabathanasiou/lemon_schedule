@@ -531,7 +531,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   useEffect(() => {
     if (savedScrollTop && scheduleScrollRef.current && !targetSceneId) {
-      scheduleScrollRef.current.scrollTop = savedScrollTop;
+      requestAnimationFrame(() => {
+        if (scheduleScrollRef.current) {
+          scheduleScrollRef.current.scrollTop = savedScrollTop;
+        }
+      });
     }
     return () => {
       if (onScrollChange) {

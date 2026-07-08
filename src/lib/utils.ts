@@ -144,6 +144,19 @@ export function generateUUID(): string {
   });
 }
 
+export function exportProjectFromStorage(projectId: string, title: string): void {
+  const key = `lemon_schedule_project_v1_${projectId}`;
+  const stored = localStorage.getItem(key);
+  if (!stored) return;
+  const blob = new Blob([stored], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title}.lemon`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function getUniqueCastIds(scenes: Scene[]): string[] {
   const ids = new Set<string>();
   for (const scene of scenes) {

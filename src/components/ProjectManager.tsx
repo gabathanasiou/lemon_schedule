@@ -2,6 +2,7 @@ import React, { useRef, useState, useMemo } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject, ProjectMeta } from '../store';
 import { Project } from '../types';
+import { exportProjectFromStorage } from '../lib/utils';
 import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal from './Modal';
@@ -85,16 +86,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
 
   const handleExportJSON = (e: React.MouseEvent, p: ProjectMeta) => {
     e.stopPropagation();
-    const key = `lemon_schedule_project_v1_${p.id}`;
-    const stored = localStorage.getItem(key);
-    if (!stored) return;
-    const blob = new Blob([stored], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${p.title}.lemon`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportProjectFromStorage(p.id, p.title);
   };
 
   const handleCardClick = (p: ProjectMeta) => {
