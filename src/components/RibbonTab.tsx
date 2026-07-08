@@ -718,7 +718,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       <div className="flex-1 flex overflow-hidden">
         {/* ── Left: Palette ── */}
         <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
-          <div className="p-3">
+          <div className="p-3 pb-20">
             <div className="flex items-center gap-1.5 mb-3">
               <Eye className="w-3.5 h-3.5 text-zinc-500" />
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Fields</span>

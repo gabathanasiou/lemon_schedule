@@ -504,9 +504,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     <div className="flex-1 flex overflow-hidden">
       {headerTarget ? createPortal(headerContent, headerTarget) : null}
       <aside className="w-[188px] shrink-0 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
-        <div className="p-3">
-          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider px-1">Categories</span>
-          <div className="mt-2 space-y-0.5">
+        <div className="sticky top-0 z-10 bg-zinc-50 px-3 pt-3 pb-1.5">
+          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Categories</span>
+        </div>
+        <div className="px-3 pb-20">
+          <div className="space-y-0.5">
             {allCategoryKeys.map(({ key, isCustom, isHidden }) => {
               const Icon = isCustom ? getCustomIcon(project.customCategories.find(c => c.key === key)?.icon || 'Tag') : CAT_ICONS[key];
               const isActive = key === category;
