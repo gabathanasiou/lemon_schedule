@@ -322,7 +322,7 @@ export const UnscheduledBlock: React.FC<{
             </div>
           </div>
           
-          <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y' : undefined }}>
+          <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
              <MarqueeOverlay box={marqueeBox} />
             <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
             <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>

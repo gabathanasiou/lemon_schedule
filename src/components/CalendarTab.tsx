@@ -973,7 +973,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
               >{t.label}</button>
             ))}
           </div>
-          <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y' : undefined }}>
+          <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
