@@ -164,8 +164,6 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
     onClose();
   };
 
-  const INP = IS_COARSE ? 'text-xs px-2 py-1' : 'text-[10px] px-2 py-0.5';
-  const BTN = IS_COARSE ? 'text-sm px-3 py-1.5' : 'text-xs px-2 py-1';
   const XSZ = IS_COARSE ? 'w-4 h-4' : 'w-3 h-3';
 
   return (
@@ -186,18 +184,20 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
         </ModalFooter>
       }
     >
-      <div className="p-6 space-y-6" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
+      <div className="p-6 space-y-5" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
         {/* Enabled toggle */}
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="rounded bg-zinc-800 border-zinc-600" />
-          <span className="text-[10px] font-medium text-zinc-400">Enabled</span>
-        </label>
+        <button onClick={() => setEnabled(!enabled)} className="flex items-center gap-3 cursor-pointer">
+          <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${enabled ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
+            {enabled && <Check className="w-3 h-3 text-zinc-200" />}
+          </span>
+          <span className="text-xs text-zinc-300">Enabled</span>
+        </button>
 
         {/* Conditions */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Conditions (AND)</span>
-            <button onClick={addCondition} className={`${BTN} rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors`}>
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
+            <span className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">Conditions (AND)</span>
+            <button onClick={addCondition} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1" style={{ padding: 0, background: 'none', border: 'none' }}>
               <Plus className={XSZ} /> Add
             </button>
           </div>
@@ -209,7 +209,6 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
               return (
                 <div key={idx} className="flex items-center gap-2">
-                  {/* Category selector — RadixDropdownMenu */}
                   <RadixDropdownMenu.Root modal={true}>
                     <RadixDropdownMenu.Trigger asChild>
                       <button className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-[120px] justify-between">
@@ -247,7 +246,6 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                     </RadixDropdownMenu.Portal>
                   </RadixDropdownMenu.Root>
 
-                  {/* Element selector — RadixDropdownMenu */}
                   <RadixDropdownMenu.Root modal={true}>
                     <RadixDropdownMenu.Trigger asChild>
                       <button className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-0 justify-between">
@@ -296,44 +294,45 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
             })}
           </div>
           {conditions.length === 0 && (
-            <p className="text-[10px] text-zinc-600 italic mt-1">No conditions — rule will match all scenes.</p>
+            <p className="text-[10px] text-zinc-600 italic mt-2">No conditions — rule will match all scenes.</p>
           )}
         </div>
 
-        {/* Override Type */}
+        {/* Override */}
         <div>
-          <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Override</span>
-          <div className="flex gap-3">
-            <label className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer ${overrideType === 'single' ? 'border-zinc-500 bg-zinc-800' : 'border-zinc-700'}`}>
-              <input type="radio" name="oType" checked={overrideType === 'single'} onChange={() => setOverrideType('single')} className="sr-only" />
-              <span className="text-[10px] text-zinc-300 font-medium">Single Color</span>
-            </label>
-            <label className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer ${overrideType === 'matrix' ? 'border-zinc-500 bg-zinc-800' : 'border-zinc-700'}`}>
-              <input type="radio" name="oType" checked={overrideType === 'matrix'} onChange={() => setOverrideType('matrix')} className="sr-only" />
-              <span className="text-[10px] text-zinc-300 font-medium">Custom Matrix</span>
-            </label>
+          <span className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">Override</span>
+          <div className="flex gap-1.5 mb-4">
+            <button
+              onClick={() => setOverrideType('single')}
+              className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${overrideType === 'single' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+            >
+              Single Color
+            </button>
+            <button
+              onClick={() => setOverrideType('matrix')}
+              className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${overrideType === 'matrix' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+            >
+              Custom Matrix
+            </button>
           </div>
-        </div>
 
-        {/* Override Content */}
-        {overrideType === 'single' ? (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-zinc-400">BG:</span>
-              <input type="color" value={singleBg} onChange={e => setSingleBg(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-              <input type="text" readOnly value={singleBg} className="w-[4.5rem] text-[10px] text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none" />
+          {overrideType === 'single' ? (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-400">BG:</span>
+                <input type="color" value={singleBg} onChange={e => setSingleBg(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
+                <input type="text" readOnly value={singleBg} className="w-[4.5rem] text-[10px] text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-zinc-400">Text:</span>
+                <input type="color" value={singleText} onChange={e => setSingleText(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
+                <input type="text" readOnly value={singleText} className="w-[4.5rem] text-[10px] text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none" />
+              </div>
+              <div className="w-10 h-10 rounded border border-zinc-700 flex items-center justify-center text-[9px] font-bold" style={{ background: singleBg, color: singleText }}>
+                Aa
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-zinc-400">Text:</span>
-              <input type="color" value={singleText} onChange={e => setSingleText(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-              <input type="text" readOnly value={singleText} className="w-[4.5rem] text-[10px] text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none" />
-            </div>
-            <div className="w-10 h-10 rounded border border-zinc-700 flex items-center justify-center text-[9px] font-bold" style={{ background: singleBg, color: singleText }}>
-              Aa
-            </div>
-          </div>
-        ) : (
-          <div>
+          ) : (
             <div className="overflow-x-auto">
               <table className="border-collapse">
                 <thead>
@@ -372,8 +371,8 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Cell color editor for matrix */}

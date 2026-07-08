@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ColorRule } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ColorRule, ColorRuleTrashItem } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
@@ -67,6 +67,9 @@ function loadProjectFromStorage(id: string): Project | null {
           return Date.now() - t.deletedAt < thirtyDays;
         });
         parsed.categoryTrash = (parsed.categoryTrash || []).filter((t: CategoryTrashItem) => {
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
+        parsed.colorRulesTrash = (parsed.colorRulesTrash || []).filter((t: ColorRuleTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
 
@@ -186,6 +189,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     trash: [],
     versionTrash: [],
     rulesTrash: [],
+    colorRulesTrash: [],
     ribbonTrash: [],
     rules: [],
     castMembers: [],
@@ -262,6 +266,7 @@ type Action =
   | { type: 'ADD_COLOR_RULE'; payload: ColorRule }
   | { type: 'UPDATE_COLOR_RULE'; payload: ColorRule }
   | { type: 'DELETE_COLOR_RULE'; payload: string }
+  | { type: 'RESTORE_COLOR_RULE_FROM_TRASH'; payload: string }
   | { type: 'REORDER_COLOR_RULES'; payload: ColorRule[] }
 
 interface State {
@@ -429,6 +434,7 @@ function reducer(state: State, action: Action): State {
         trash: [],
         versionTrash: [],
         rulesTrash: [],
+        colorRulesTrash: [],
         ribbonTrash: [],
         elementsTrash: [],
         categoryTrash: [],
@@ -1130,14 +1136,34 @@ function reducer(state: State, action: Action): State {
         },
       });
 
-    case 'DELETE_COLOR_RULE':
+    case 'DELETE_COLOR_RULE': {
+      const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
+      const rule = (palette.colorRules || []).find(r => r.id === action.payload);
+      if (!rule) return state;
+      const trashItem: ColorRuleTrashItem = { rule: { ...rule }, deletedAt: Date.now() };
       return applyChange({
         ...state.present,
+        colorRulesTrash: [...(state.present.colorRulesTrash || []), trashItem],
         colorPalette: {
-          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
-          colorRules: (state.present.colorPalette?.colorRules || []).filter(r => r.id !== action.payload),
+          ...palette,
+          colorRules: (palette.colorRules || []).filter(r => r.id !== action.payload),
         },
       });
+    }
+
+    case 'RESTORE_COLOR_RULE_FROM_TRASH': {
+      const item = (state.present.colorRulesTrash || []).find(t => t.rule.id === action.payload);
+      if (!item) return state;
+      const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
+      return applyChange({
+        ...state.present,
+        colorRulesTrash: (state.present.colorRulesTrash || []).filter(t => t.rule.id !== action.payload),
+        colorPalette: {
+          ...palette,
+          colorRules: [...(palette.colorRules || []), item.rule],
+        },
+      });
+    }
 
     case 'REORDER_COLOR_RULES':
       return applyChange({

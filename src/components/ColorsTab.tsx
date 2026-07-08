@@ -6,11 +6,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { SceneColorEntry, SceneColorPalette, ColorRule } from '../types';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
-import { ELEMENT_CATEGORIES } from '../lib/categories';
+import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
-import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2 } from 'lucide-react';
+import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown, Copy } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
 import { ColorRuleEditModal } from './ColorRuleEditModal';
 
 function findEntry(entries: SceneColorEntry[], intExt: string, dayNight: string): number {
@@ -61,7 +63,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   const needsScroll = useRef(false);
 
   const [editRule, setEditRule] = useState<ColorRule | null | undefined>(undefined);
-  const importColorRulesRef = useRef<HTMLInputElement>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const colorRules = palette.colorRules || [];
 
@@ -77,7 +79,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
 
   const LBL = IS_COARSE ? 'text-xs font-bold py-1' : 'text-[9px] font-bold';
   const INP = IS_COARSE ? 'text-xs px-2 py-1 w-24' : 'text-[9px] px-2 py-0.5 w-20';
-  const XSZ = IS_COARSE ? 'w-4 h-4 p-1' : 'w-3 h-3';
+  const XSZ = IS_COARSE ? 'w-5 h-5' : 'w-4 h-4';
   const ADD = IS_COARSE ? 'text-xs gap-1.5 py-1' : 'text-[9px] gap-1';
   const CELL = IS_COARSE ? 'text-[10px]' : 'text-[9px]';
   const SEC_ICO = IS_COARSE ? 'w-4 h-4' : 'w-3.5 h-3.5';
@@ -143,6 +145,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       intExtOptions: mergedIE,
       dayNightOptions: mergedDN,
       sceneColors: defaultSceneColors,
+      colorRules: palette.colorRules,
       selectedStripBg: DEFAULT_COLOR_PALETTE.selectedStripBg,
       selectedStripText: DEFAULT_COLOR_PALETTE.selectedStripText,
       dayHeaderBg: DEFAULT_COLOR_PALETTE.dayHeaderBg,
@@ -163,11 +166,9 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
     a.download = `${state.present.title || 'SceneColors'}_palette.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setDropdownOpen(false);
   };
 
-  const handleImport = () => {
-    importRef.current?.click();
-  };
 
   const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,6 +189,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
             intExt: c.intExt.toUpperCase(),
             dayNight: c.dayNight.toUpperCase(),
           })),
+          colorRules: data.colorRules,
           selectedStripBg: data.selectedStripBg || DEFAULT_COLOR_PALETTE.selectedStripBg,
           selectedStripText: data.selectedStripText || DEFAULT_COLOR_PALETTE.selectedStripText,
           dayHeaderBg: data.dayHeaderBg || DEFAULT_COLOR_PALETTE.dayHeaderBg,
@@ -323,46 +325,19 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
     dispatch({ type: 'DELETE_COLOR_RULE', payload: id });
   };
 
+  const handleDuplicateRule = (rule: ColorRule) => {
+    const newRule: ColorRule = {
+      ...rule,
+      id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: `${rule.name} - Copy`,
+    };
+    dispatch({ type: 'ADD_COLOR_RULE', payload: newRule });
+  };
+
   const handleToggleRule = (id: string) => {
     const rule = colorRules.find(r => r.id === id);
     if (!rule) return;
     dispatch({ type: 'UPDATE_COLOR_RULE', payload: { ...rule, enabled: !rule.enabled } });
-  };
-
-  const handleExportColorRules = () => {
-    const data = JSON.stringify(colorRules, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.present.title || 'ColorRules'}.colorrules`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportColorRules = () => {
-    importColorRulesRef.current?.click();
-  };
-
-  const handleColorRulesFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target?.result as string);
-        if (!Array.isArray(data)) {
-          alert('Invalid .colorrules file: expected an array of rules.');
-          return;
-        }
-        const imported: ColorRule[] = data;
-        dispatch({ type: 'SET_COLOR_PALETTE', payload: { ...palette, colorRules: imported } });
-      } catch {
-        alert('Failed to parse .colorrules file.');
-      }
-    };
-    reader.readAsText(file);
-    if (importColorRulesRef.current) importColorRulesRef.current.value = '';
   };
 
   const getElementName = (cat: string, elementId: string): string => {
@@ -383,6 +358,13 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
     ).join('  AND  ');
   };
 
+  const getCatIcon = (cat: string) => {
+    const custom = (state.present.customCategories || []).find(c => c.key === cat);
+    if (custom) return getCustomIcon(custom.icon || 'Tag');
+    const Icon = CAT_ICONS[cat] || null;
+    return Icon ? <Icon className="w-3 h-3 shrink-0 text-zinc-500" /> : null;
+  };
+
   const RuleCard: React.FC<{ rule: ColorRule }> = ({ rule }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id });
     const style: React.CSSProperties = {
@@ -390,7 +372,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       transition,
       opacity: isDragging ? 0.5 : 1,
     };
-    const SECO = IS_COARSE ? 'w-3.5 h-3.5' : 'w-3 h-3';
+    const SECO = IS_COARSE ? 'w-4 h-4' : 'w-3.5 h-3.5';
 
     return (
       <div
@@ -401,28 +383,54 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         <button {...attributes} {...listeners} className="text-zinc-600 hover:text-zinc-400 mt-0.5 cursor-grab active:cursor-grabbing shrink-0">
           <GripVertical className="w-3.5 h-3.5" />
         </button>
-        <label className="cursor-pointer mt-0.5 shrink-0">
-          <input type="checkbox" checked={rule.enabled} onChange={() => handleToggleRule(rule.id)} className="rounded bg-zinc-800 border-zinc-600" />
-        </label>
+        <button onClick={() => handleToggleRule(rule.id)} className="cursor-pointer mt-0.5 shrink-0">
+          <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${rule.enabled ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
+            {rule.enabled && <Check className="w-3 h-3 text-zinc-200" />}
+          </span>
+        </button>
         <div className="flex-1 min-w-0" onClick={() => setEditRule(rule)} style={{ cursor: 'pointer' }}>
-          <div className="text-[11px] font-medium text-zinc-200 truncate">{rule.name}</div>
-          <div className="text-[9px] text-zinc-500 mt-0.5">{describeRule(rule)}</div>
-          <div className="flex items-center gap-1.5 mt-1">
-            {rule.override.type === 'single' ? (
-              <div className="w-4 h-4 rounded border border-zinc-600 shrink-0" style={{ background: rule.override.background }} />
-            ) : (
-              <span className="text-[9px] text-zinc-500">Custom Matrix ({rule.override.sceneColors.length})</span>
-            )}
-            <span className="text-[9px] text-zinc-500">&#8594;</span>
-            <span className="text-[9px] text-zinc-500 capitalize">{rule.override.type}</span>
+          <div className="space-y-0.5">
+            {rule.conditions.map((c, i) => {
+              const catLabel = getCategoryLabel(c.category);
+              const elName = getElementName(c.category, c.elementId);
+              const isCast = c.category === 'cast';
+              const isLast = i === rule.conditions.length - 1;
+              return (
+                <div key={i} className="flex items-center gap-1 text-xs leading-snug">
+                  {getCatIcon(c.category)}
+                  <span className="font-medium text-zinc-300">{catLabel} <span className="text-zinc-500">=</span></span>
+                  <span className="text-zinc-200 truncate">
+                    {isCast ? `${c.elementId}. ${elName}` : elName}
+                  </span>
+                  {isLast && (
+                    <span className="flex items-center gap-1 ml-2 shrink-0">
+                      {rule.override.type === 'single' ? (
+                        <span className="w-3 h-3 rounded-sm border border-zinc-600 shrink-0" style={{ background: rule.override.background }} />
+                      ) : (
+                        <span className="text-[9px] text-zinc-500">M</span>
+                      )}
+                      <span className="text-[9px] text-zinc-500 capitalize">{rule.override.type}</span>
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); handleDeleteRule(rule.id); }}
-          className="text-zinc-600 hover:text-red-400 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
-        >
-          <X className={SECO} />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDuplicateRule(rule); }}
+            className="text-zinc-600 hover:text-zinc-300 transition-colors opacity-0 group-hover:opacity-100 p-1.5"
+          >
+            <Copy className={SECO} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDeleteRule(rule.id); }}
+            className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1.5"
+          >
+            <X className={SECO} />
+          </button>
+        </div>
       </div>
     );
   };
@@ -430,20 +438,21 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
       <input ref={importRef} type="file" accept=".json" onChange={handleFileChosen} className="hidden" />
-      <input ref={importColorRulesRef} type="file" accept=".colorrules" onChange={handleColorRulesFileChosen} className="hidden" />
 
       {headerTarget && createPortal(
-        <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
-            <Download className="w-3 h-3" /> Export
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen} width="w-44" trigger={
+          <button className="flex items-center gap-1.5 rounded px-2 py-1 hover:bg-zinc-800 transition-colors">
+            <span className="text-xs font-semibold text-zinc-400">Edit</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
           </button>
-          <button onClick={handleImport} className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
-            <Upload className="w-3 h-3" /> Import
-          </button>
-          <button onClick={handleReset} className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1.5 transition-colors">
-            <RotateCcw className="w-3 h-3" /> Reset All
-          </button>
-        </div>,
+        }>
+          <DropdownItem onClick={handleExport} icon={<Download className="w-3.5 h-3.5" />}>
+            Export Palette & Rules
+          </DropdownItem>
+          <DropdownItem onClick={() => { importRef.current?.click(); setDropdownOpen(false); }} icon={<Upload className="w-3.5 h-3.5" />}>
+            Import Palette & Rules
+          </DropdownItem>
+        </DropdownMenu>,
         headerTarget
       )}
 
@@ -484,11 +493,41 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       <div className="flex-1 overflow-y-auto p-6 pr-12 pb-20 bg-zinc-950 space-y-5">
 
         {/* Scene Color Matrix Section */}
+        {/* Color Rules Section */}
+        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Wand2 className={`${SEC_ICO} text-zinc-500`} />
+            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Color Rules</span>
+            <div className="flex-1" />
+            <button onClick={() => setEditRule(null)} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+              <Plus className="w-3 h-3" /> New Rule
+            </button>
+          </div>
+          {colorRules.length === 0 ? (
+            <p className="text-[10px] text-zinc-500 italic py-3 leading-relaxed">Override strip colors based on scene conditions. For example, make all Stills Unit scenes blue, or flag Hero Costume scenes with a custom color.</p>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={colorRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {colorRules.map(rule => (
+                    <RuleCard key={rule.id} rule={rule} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </section>
+
         <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Palette className={`${SEC_ICO} text-zinc-500`} />
             <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Scene Strip Colors</span>
+            <div className="flex-1" />
+            <button onClick={handleReset} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+              <RotateCcw className="w-3 h-3" /> Reset
+            </button>
           </div>
+          <p className="text-[10px] text-zinc-500 leading-relaxed mb-4 max-w-md">Click any cell to change its color. Rename row/column labels inline. Add or delete rows and columns using the buttons below.</p>
           <div className="overflow-x-auto">
             <table className="border-collapse">
               <thead>
@@ -513,7 +552,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                             className={`${LBL} text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors`}
                           >{ie}</button>
                         )}
-                        <button onClick={() => removeOption('ie', i)} className={`text-zinc-600 hover:text-red-400 transition-colors ${XSZ}`}>
+                        <button onClick={() => removeOption('ie', i)} className="text-zinc-600 hover:text-red-400 transition-colors p-1.5">
                           <X className={XSZ} />
                         </button>
                       </div>
@@ -534,7 +573,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                   <tr key={di}>
                     <td className="pr-3 py-1 align-middle text-right">
                       <div className={`flex items-center justify-end ${GAP}`}>
-                        <button onClick={() => removeOption('dn', di)} className={`text-zinc-600 hover:text-red-400 transition-colors ${XSZ}`}>
+                        <button onClick={() => removeOption('dn', di)} className="text-zinc-600 hover:text-red-400 transition-colors p-1.5">
                           <X className={XSZ} />
                         </button>
                         {editingHeader?.type === 'dn' && editingHeader.idx === di ? (
@@ -619,37 +658,6 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
               </button>
             ))}
           </div>
-        </section>
-
-        {/* Color Rules Section */}
-        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Wand2 className={`${SEC_ICO} text-zinc-500`} />
-            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Color Rules</span>
-            <div className="flex-1" />
-            <button onClick={handleExportColorRules} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
-              <Download className="w-3 h-3" /> Export
-            </button>
-            <button onClick={handleImportColorRules} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
-              <Upload className="w-3 h-3" /> Import
-            </button>
-            <button onClick={() => setEditRule(null)} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
-              <Plus className="w-3 h-3" /> New Rule
-            </button>
-          </div>
-          {colorRules.length === 0 ? (
-            <p className="text-[10px] text-zinc-600 italic py-3">No color rules defined.</p>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={colorRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1">
-                  {colorRules.map(rule => (
-                    <RuleCard key={rule.id} rule={rule} />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
         </section>
 
       </div>
