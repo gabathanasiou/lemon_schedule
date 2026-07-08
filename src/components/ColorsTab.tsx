@@ -342,7 +342,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
 
   const getElementName = (cat: string, elementId: string): string => {
     const elements = state.present.breakdownElements[cat] || [];
-    const el = elements.find(e => e.id === elementId);
+    const el = elements.find(e => (e.id || e.name) === elementId);
     return el?.name || elementId;
   };
 
