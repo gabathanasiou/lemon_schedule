@@ -617,14 +617,14 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
           {/* Table card */}
           <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
-            <div className="h-full overflow-auto tab-scroll">
+            <div className="h-full overflow-auto tab-scroll pb-10">
               <table className="w-full border-collapse">
                 <thead>
-                  <tr className="bg-zinc-50 border-b border-zinc-200 sticky top-0">
-                    {isCast && <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-16">ID</th>}
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
-                    <th className="px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">Occ</th>
-                    <th className="px-3 py-2 text-center w-10" />
+                  <tr className="bg-zinc-50 border-b border-zinc-200">
+                    {isCast && <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-16">ID</th>}
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">Occ</th>
+                    <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-10" />
                   </tr>
                 </thead>
                 <tbody>

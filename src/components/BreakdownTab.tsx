@@ -94,6 +94,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
 
   // Stable refs for mutable data — lets editor components stay referentially stable
@@ -831,17 +832,25 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                     Reset
                   </DropdownItem>
                 </DropdownMenu>
-                <div className="w-px h-5 bg-zinc-200" />
-                <div className="flex items-center gap-3 text-[11px]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Scenes</span>
-                    <span className="text-zinc-800 font-semibold">{scenes.length}</span>
+                <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
+                  trigger={
+                    <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+                      Info
+                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                    </button>
+                  }
+                >
+                  <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
+                    <div className="flex items-center justify-between gap-6">
+                      <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Scenes</span>
+                      <span className="font-semibold text-zinc-800">{scenes.length}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-6">
+                      <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Pages</span>
+                      <span className="font-semibold text-zinc-800">{formatPageCount(totalPagesDecimal)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-zinc-400 font-medium uppercase tracking-wider text-[10px]">Pages</span>
-                    <span className="text-zinc-800 font-semibold">{formatPageCount(totalPagesDecimal)} <span className="text-zinc-400 font-normal">({totalPagesDecimal.toFixed(3)})</span></span>
-                  </div>
-                </div>
+                </DropdownMenu>
               </>
             )}
             <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className={subTab === 'scenes' ? 'hidden' : 'flex items-center gap-2'} />
@@ -963,13 +972,13 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
              .column-resize-handle:active {
                background: rgba(37, 99, 235, 0.3);
              }
-               ${IS_COARSE ? `
-              .Spreadsheet__cell { height: 40px; }
-              .Spreadsheet__cell input { padding: 8px 10px; font-size: 14px; }
-              .Spreadsheet__cell .Spreadsheet__data-viewer { padding: 8px 10px; min-height: 40px; font-size: 14px; }
-              .Spreadsheet__header-label { padding: 6px 10px; }
-              .Spreadsheet__data-editor .uppercase { font-size: 14px; }
-             ` : ''}
+                ${IS_COARSE ? `
+               .Spreadsheet__cell { height: ${Math.round(fontSize * 3.2)}px; }
+               .Spreadsheet__cell input { padding: 8px 10px; font-size: ${fontSize}px; }
+               .Spreadsheet__cell .Spreadsheet__data-viewer { padding: 8px 10px; min-height: ${Math.round(fontSize * 3.2)}px; font-size: ${fontSize}px; }
+               .Spreadsheet__header-label { padding: 6px 10px; }
+               .Spreadsheet__data-editor .uppercase { font-size: ${fontSize}px; }
+              ` : ''}
                ${widthStyle}
              `}</style>
             <div onContextMenu={handleCellContextMenu} className={readOnly ? 'opacity-60' : ''}>

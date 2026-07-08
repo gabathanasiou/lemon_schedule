@@ -82,10 +82,16 @@ function AppContent() {
       const meta = document.querySelector('meta[name=viewport]');
       if (meta) {
         const cur = meta.getAttribute('content') || '';
-        if (!cur.includes('user-scalable')) {
-          meta.setAttribute('content', `${cur}, user-scalable=no`);
-        }
+        const parts = [cur];
+        if (!cur.includes('viewport-fit')) parts.push('viewport-fit=cover');
+        if (!cur.includes('user-scalable')) parts.push('user-scalable=no');
+        meta.setAttribute('content', parts.join(', '));
       }
+      document.documentElement.style.touchAction = 'manipulation';
+      const opts: AddEventListenerOptions = { passive: false };
+      document.addEventListener('gesturestart', e => e.preventDefault(), opts);
+      document.addEventListener('gesturechange', e => e.preventDefault(), opts);
+      document.addEventListener('gestureend', e => e.preventDefault(), opts);
     }
   }, []);
 
@@ -678,7 +684,7 @@ function AppContent() {
       </header>
 
       {/* CONTENT */}
-      <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px">
+      <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
       </main>
 
