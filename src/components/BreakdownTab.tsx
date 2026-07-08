@@ -3,7 +3,7 @@ import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, Column
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
-import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye } from 'lucide-react';
+import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye, ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search } from 'lucide-react';
 import Papa from 'papaparse';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
@@ -14,6 +14,11 @@ import MiniTab from './MiniTab';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
+import DropdownDivider from './DropdownDivider';
+import DropdownSubmenu from './DropdownSubmenu';
+import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -87,6 +92,9 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   const spreadsheetRef = useRef<any>(null);
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [fontSize, setFontSize] = useSpreadsheetFontSize();
 
   // Stable refs for mutable data — lets editor components stay referentially stable
   const scenesRef = useRef(scenes);
@@ -785,18 +793,44 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                 <button onClick={addScene} className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors">
                   + Add Scene
                 </button>
-                <button onClick={() => dispatch({type: 'SORT_SCENES'})} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
-                  Sort by #
-                </button>
-                <button onClick={cleanEmptyRows} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors">
-                  Clean Empty
-                </button>
-                <div className="relative">
-                  <input type="file" accept=".csv" ref={fileInputRef} onChange={handleImport} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] hover:bg-zinc-50 transition-colors">
+                <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
+                  trigger={
+                    <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+                      Edit
+                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                    </button>
+                  }
+                >
+                  <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />}>
+                    Sort by #
+                  </DropdownItem>
+                  <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
+                    Clean Empty
+                  </DropdownItem>
+                  <DropdownDivider />
+                  <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />}>
                     Import CSV
-                  </button>
-                </div>
+                  </DropdownItem>
+                </DropdownMenu>
+                <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
+                  trigger={
+                    <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+                      View
+                      <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+                    </button>
+                  }
+                >
+                  <DropdownItem onClick={() => { setViewOpen(false); setFontSize(fontSize + 1); }} icon={<ZoomIn className="w-3.5 h-3.5" />}>
+                    Bigger
+                  </DropdownItem>
+                  <DropdownItem onClick={() => { setViewOpen(false); setFontSize(fontSize - 1); }} icon={<ZoomOut className="w-3.5 h-3.5" />}>
+                    Smaller
+                  </DropdownItem>
+                  <DropdownDivider />
+                  <DropdownItem onClick={() => { setViewOpen(false); setFontSize(SS_FONT_SIZE_DEFAULT); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
+                    Reset
+                  </DropdownItem>
+                </DropdownMenu>
                 <div className="w-px h-5 bg-zinc-200" />
                 <div className="flex items-center gap-3 text-[11px]">
                   <div className="flex items-center gap-1.5">
@@ -818,27 +852,27 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         <>
       <div className="flex-1 overflow-auto bg-white pb-40">
       <div className="min-w-[800px]">
-            <style>{`
-             .Spreadsheet {
-               border-collapse: separate;
-               border-spacing: 0;
-               width: 100%;
-               font-family: inherit;
-               font-size: 11px;
-             }
-             .Spreadsheet__table {
-               border-collapse: separate;
-               border-spacing: 0;
-               width: 100%;
-             }
-             .Spreadsheet__header-row {
-               position: sticky;
-               top: 0;
-               z-index: 10;
-             }
-             .Spreadsheet__header-row th {
-               padding: 0;
-               font-size: 11px;
+             <style>{`
+              .Spreadsheet {
+                border-collapse: separate;
+                border-spacing: 0;
+                width: 100%;
+                font-family: inherit;
+                font-size: ${fontSize}px;
+              }
+              .Spreadsheet__table {
+                border-collapse: separate;
+                border-spacing: 0;
+                width: 100%;
+              }
+              .Spreadsheet__header-row {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+              }
+              .Spreadsheet__header-row th {
+                padding: 0;
+                font-size: ${fontSize}px;
                font-weight: 500;
                text-align: left;
                border-right: 1px solid #e4e4e7;
@@ -859,13 +893,13 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                text-overflow: ellipsis;
              }
              .Spreadsheet__cell {
-               border: none;
-               border-right: 1px solid #f4f4f5;
-               border-bottom: 1px solid #f4f4f5;
-               padding: 0;
-               height: 28px;
-               overflow: hidden;
-             }
+                border: none;
+                border-right: 1px solid #f4f4f5;
+                border-bottom: 1px solid #f4f4f5;
+                padding: 0;
+                height: ${Math.round(fontSize * 2.55)}px;
+                overflow: hidden;
+              }
              .Spreadsheet__cell--selected {
                outline: 2px solid #2563eb;
                outline-offset: -2px;
@@ -882,25 +916,25 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
                  z-index: 15;
                }
              .Spreadsheet__cell input {
-               width: 100%;
-               height: 100%;
-               border: none;
-               outline: none;
-               padding: 4px 8px;
-               font-size: 11px;
-               font-family: inherit;
-               background: transparent;
-             }
-             .Spreadsheet__cell .Spreadsheet__data-viewer {
-               padding: 4px 8px;
-               min-height: 28px;
-               display: flex;
-               align-items: center;
-               overflow: hidden;
-               text-overflow: ellipsis;
-               white-space: nowrap;
-               font-size: 11px;
-             }
+                width: 100%;
+                height: 100%;
+                border: none;
+                outline: none;
+                padding: 4px 8px;
+                font-size: ${fontSize}px;
+                font-family: inherit;
+                background: transparent;
+              }
+              .Spreadsheet__cell .Spreadsheet__data-viewer {
+                padding: 4px 8px;
+                min-height: 28px;
+                display: flex;
+                align-items: center;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: ${fontSize}px;
+              }
              .Spreadsheet__data-editor {
                width: 100%;
                height: 100%;

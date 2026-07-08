@@ -98,3 +98,26 @@ export function useCellBorders(): [CellBorders, (m: CellBorders) => void] {
 
   return [mode, setBorders];
 }
+
+export const SS_FONT_SIZE_MIN = 8;
+export const SS_FONT_SIZE_MAX = 20;
+export const SS_FONT_SIZE_DEFAULT = 11;
+const SS_FONT_SIZE_KEY = 'lemon_schedule_ss_font_size';
+
+export function useSpreadsheetFontSize(): [number, (n: number) => void] {
+  const [size, setSize] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(SS_FONT_SIZE_KEY);
+      const n = parseInt(stored || '', 10);
+      return n >= SS_FONT_SIZE_MIN && n <= SS_FONT_SIZE_MAX ? n : SS_FONT_SIZE_DEFAULT;
+    } catch { return SS_FONT_SIZE_DEFAULT; }
+  });
+
+  const setFontSize = useCallback((n: number) => {
+    const clamped = Math.max(SS_FONT_SIZE_MIN, Math.min(SS_FONT_SIZE_MAX, n));
+    setSize(clamped);
+    try { localStorage.setItem(SS_FONT_SIZE_KEY, String(clamped)); } catch {}
+  }, []);
+
+  return [size, setFontSize];
+}
