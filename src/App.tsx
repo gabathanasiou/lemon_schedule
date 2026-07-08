@@ -604,7 +604,7 @@ function AppContent() {
                   return (
                     <div 
                       key={v.id} 
-                      className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? 'bg-zinc-900 text-white font-medium' : 'hover:bg-zinc-900/60'}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? 'bg-blue-600 text-white font-semibold' : 'hover:bg-zinc-800'}`}
                     >
                       {isEditing ? (
                         <div className="flex items-center space-x-1 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
@@ -781,7 +781,7 @@ function AppContent() {
                       </div>
                       <button
                         onClick={() => dispatch({ type: actionType as any, payload: item.id })}
-                        className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-white p-1 rounded transition-all"
+                        className="hover-reveal text-zinc-400 hover:text-white p-1 rounded transition-all"
                         title="Restore"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />

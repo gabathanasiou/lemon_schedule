@@ -54,3 +54,15 @@ input, textarea, [contenteditable] {
 [data-marquee-active="1"] [data-row-id] {
   pointer-events: none;
 }
+
+.hover-reveal {
+  opacity: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .hover-reveal {
+    opacity: 0;
+  }
+  .group:hover .hover-reveal {
+    opacity: 1;
+  }
+}

@@ -1,12 +1,17 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
-import { SceneColorEntry, SceneColorPalette } from '../types';
+import { SceneColorEntry, SceneColorPalette, ColorRule } from '../types';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
-import { RotateCcw, Download, Upload, Palette, Sun, Plus, X } from 'lucide-react';
+import { ELEMENT_CATEGORIES } from '../lib/categories';
 import { IS_COARSE } from '../lib/device';
+import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2 } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import { ColorRuleEditModal } from './ColorRuleEditModal';
 
 function findEntry(entries: SceneColorEntry[], intExt: string, dayNight: string): number {
   const ie = intExt.toUpperCase();
@@ -54,6 +59,11 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   const [editingHeader, setEditingHeader] = useState<{ type: 'ie' | 'dn'; idx: number } | null>(null);
   const [headerText, setHeaderText] = useState('');
   const needsScroll = useRef(false);
+
+  const [editRule, setEditRule] = useState<ColorRule | null | undefined>(undefined);
+  const importColorRulesRef = useRef<HTMLInputElement>(null);
+
+  const colorRules = palette.colorRules || [];
 
   useEffect(() => {
     if (!editingHeader || !needsScroll.current) return;
@@ -287,9 +297,140 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
     dispatch({ type: 'SET_COLOR_PALETTE', payload: next });
   };
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = colorRules.findIndex(r => r.id === active.id);
+    const newIndex = colorRules.findIndex(r => r.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    dispatch({ type: 'REORDER_COLOR_RULES', payload: arrayMove(colorRules, oldIndex, newIndex) });
+  };
+
+  const handleSaveRule = (rule: ColorRule) => {
+    const existing = colorRules.find(r => r.id === rule.id);
+    if (existing) {
+      dispatch({ type: 'UPDATE_COLOR_RULE', payload: rule });
+    } else {
+      dispatch({ type: 'ADD_COLOR_RULE', payload: rule });
+    }
+  };
+
+  const handleDeleteRule = (id: string) => {
+    dispatch({ type: 'DELETE_COLOR_RULE', payload: id });
+  };
+
+  const handleToggleRule = (id: string) => {
+    const rule = colorRules.find(r => r.id === id);
+    if (!rule) return;
+    dispatch({ type: 'UPDATE_COLOR_RULE', payload: { ...rule, enabled: !rule.enabled } });
+  };
+
+  const handleExportColorRules = () => {
+    const data = JSON.stringify(colorRules, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${state.present.title || 'ColorRules'}.colorrules`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportColorRules = () => {
+    importColorRulesRef.current?.click();
+  };
+
+  const handleColorRulesFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        if (!Array.isArray(data)) {
+          alert('Invalid .colorrules file: expected an array of rules.');
+          return;
+        }
+        const imported: ColorRule[] = data;
+        dispatch({ type: 'SET_COLOR_PALETTE', payload: { ...palette, colorRules: imported } });
+      } catch {
+        alert('Failed to parse .colorrules file.');
+      }
+    };
+    reader.readAsText(file);
+    if (importColorRulesRef.current) importColorRulesRef.current.value = '';
+  };
+
+  const getElementName = (cat: string, elementId: string): string => {
+    const elements = state.present.breakdownElements[cat] || [];
+    const el = elements.find(e => e.id === elementId);
+    return el?.name || elementId;
+  };
+
+  const getCategoryLabel = (cat: string): string => {
+    const builtin = ELEMENT_CATEGORIES.find(c => c.key === cat);
+    const custom = (state.present.customCategories || []).find(c => c.key === cat);
+    return state.present.categoryLabels[cat] || builtin?.label || custom?.label || cat;
+  };
+
+  const describeRule = (rule: ColorRule): string => {
+    return rule.conditions.map(c =>
+      `${getCategoryLabel(c.category)} = ${getElementName(c.category, c.elementId)}`
+    ).join('  AND  ');
+  };
+
+  const RuleCard: React.FC<{ rule: ColorRule }> = ({ rule }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id });
+    const style: React.CSSProperties = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+    const SECO = IS_COARSE ? 'w-3.5 h-3.5' : 'w-3 h-3';
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="flex items-start gap-2 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-600/70 transition-colors group"
+      >
+        <button {...attributes} {...listeners} className="text-zinc-600 hover:text-zinc-400 mt-0.5 cursor-grab active:cursor-grabbing shrink-0">
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+        <label className="cursor-pointer mt-0.5 shrink-0">
+          <input type="checkbox" checked={rule.enabled} onChange={() => handleToggleRule(rule.id)} className="rounded bg-zinc-800 border-zinc-600" />
+        </label>
+        <div className="flex-1 min-w-0" onClick={() => setEditRule(rule)} style={{ cursor: 'pointer' }}>
+          <div className="text-[11px] font-medium text-zinc-200 truncate">{rule.name}</div>
+          <div className="text-[9px] text-zinc-500 mt-0.5">{describeRule(rule)}</div>
+          <div className="flex items-center gap-1.5 mt-1">
+            {rule.override.type === 'single' ? (
+              <div className="w-4 h-4 rounded border border-zinc-600 shrink-0" style={{ background: rule.override.background }} />
+            ) : (
+              <span className="text-[9px] text-zinc-500">Custom Matrix ({rule.override.sceneColors.length})</span>
+            )}
+            <span className="text-[9px] text-zinc-500">&#8594;</span>
+            <span className="text-[9px] text-zinc-500 capitalize">{rule.override.type}</span>
+          </div>
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); handleDeleteRule(rule.id); }}
+          className="text-zinc-600 hover:text-red-400 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+        >
+          <X className={SECO} />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
       <input ref={importRef} type="file" accept=".json" onChange={handleFileChosen} className="hidden" />
+      <input ref={importColorRulesRef} type="file" accept=".colorrules" onChange={handleColorRulesFileChosen} className="hidden" />
 
       {headerTarget && createPortal(
         <div className="flex items-center gap-2">
@@ -480,7 +621,47 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           </div>
         </section>
 
+        {/* Color Rules Section */}
+        <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Wand2 className={`${SEC_ICO} text-zinc-500`} />
+            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Color Rules</span>
+            <div className="flex-1" />
+            <button onClick={handleExportColorRules} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+              <Download className="w-3 h-3" /> Export
+            </button>
+            <button onClick={handleImportColorRules} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+              <Upload className="w-3 h-3" /> Import
+            </button>
+            <button onClick={() => setEditRule(null)} className="h-6 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 flex items-center gap-1 transition-colors">
+              <Plus className="w-3 h-3" /> New Rule
+            </button>
+          </div>
+          {colorRules.length === 0 ? (
+            <p className="text-[10px] text-zinc-600 italic py-3">No color rules defined.</p>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={colorRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {colorRules.map(rule => (
+                    <RuleCard key={rule.id} rule={rule} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+        </section>
+
       </div>
+
+      {editRule !== undefined && (
+        <ColorRuleEditModal
+          rule={editRule}
+          onSave={handleSaveRule}
+          onDelete={editRule ? handleDeleteRule : undefined}
+          onClose={() => setEditRule(undefined)}
+        />
+      )}
     </div>
   );
 };

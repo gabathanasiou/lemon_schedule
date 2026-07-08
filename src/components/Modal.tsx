@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { X, RotateCcw } from 'lucide-react';
 
@@ -33,9 +33,17 @@ export default function Modal({
   const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const resizeRef = useRef<{ dir: ResizeDir; startX: number; startY: number; startL: number; startT: number; startW: number; startH: number } | null>(null);
+  const initRef = useRef(false);
 
   useEffect(() => {
-    if (!open) { setDragPos(null); setSize(null); }
+    if (!open) { setDragPos(null); setSize(null); initRef.current = false; }
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || initRef.current || !contentRef.current) return;
+    initRef.current = true;
+    const r = contentRef.current.getBoundingClientRect();
+    setDragPos({ left: r.left, top: r.top });
   }, [open]);
 
   useEffect(() => {

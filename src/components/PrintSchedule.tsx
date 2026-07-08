@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry } from '../types';
+import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule } from '../types';
 import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
@@ -77,6 +77,7 @@ interface DaySectionProps {
   cellBorders?: CellBorders;
   sceneColors?: SceneColorEntry[];
   fallbackOverride?: { background: string; color: string };
+  colorRules?: ColorRule[];
 }
 
 const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
@@ -120,7 +121,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -392,7 +393,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             }
             const scene = scenes.find(s => s.id === r.sceneId);
             if (!scene) return null;
-            const rowStyle = sceneStyle(scene, sceneColors, fallbackOverride);
+            const rowStyle = sceneStyle(scene, sceneColors, fallbackOverride, colorRules);
             const bgColor = rowStyle.background || '#ffffff';
 
             if (cells) {
@@ -805,6 +806,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 cellBorders={cellBorders}
                 sceneColors={project.colorPalette?.sceneColors}
                 fallbackOverride={getFallbackStripColors(project.colorPalette)}
+                colorRules={project.colorPalette?.colorRules}
               />
             ))}
           </div>

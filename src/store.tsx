@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef } from 'react';
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette } from './types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ColorRule } from './types';
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
@@ -259,6 +259,10 @@ type Action =
   | { type: 'SET_RIBBON_CELL_PADDING_H'; payload: { id: string; cellPaddingH: number } }
   | { type: 'SET_RIBBON_EDGE_PADDING'; payload: { id: string; edgePadding: number } }
   | { type: 'SET_COLOR_PALETTE'; payload: SceneColorPalette }
+  | { type: 'ADD_COLOR_RULE'; payload: ColorRule }
+  | { type: 'UPDATE_COLOR_RULE'; payload: ColorRule }
+  | { type: 'DELETE_COLOR_RULE'; payload: string }
+  | { type: 'REORDER_COLOR_RULES'; payload: ColorRule[] }
 
 interface State {
   past: Project[];
@@ -1104,6 +1108,44 @@ function reducer(state: State, action: Action): State {
       return applyChange({
         ...state.present,
         colorPalette: action.payload,
+      });
+
+    case 'ADD_COLOR_RULE':
+      return applyChange({
+        ...state.present,
+        colorPalette: {
+          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
+          colorRules: [...(state.present.colorPalette?.colorRules || []), action.payload],
+        },
+      });
+
+    case 'UPDATE_COLOR_RULE':
+      return applyChange({
+        ...state.present,
+        colorPalette: {
+          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
+          colorRules: (state.present.colorPalette?.colorRules || []).map(r =>
+            r.id === action.payload.id ? action.payload : r
+          ),
+        },
+      });
+
+    case 'DELETE_COLOR_RULE':
+      return applyChange({
+        ...state.present,
+        colorPalette: {
+          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
+          colorRules: (state.present.colorPalette?.colorRules || []).filter(r => r.id !== action.payload),
+        },
+      });
+
+    case 'REORDER_COLOR_RULES':
+      return applyChange({
+        ...state.present,
+        colorPalette: {
+          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
+          colorRules: action.payload,
+        },
       });
 
     default:

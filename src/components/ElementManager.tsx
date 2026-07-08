@@ -533,7 +533,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   >
                     {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : isHidden ? 'text-zinc-300' : 'text-zinc-400'}`} />}
                     <span className={`truncate flex-1 ${hasLabelOverride ? 'italic' : ''}`}>{label}</span>
-                    <span className={`flex items-center gap-0.5 shrink-0 ${isHidden ? '' : 'opacity-0 group-hover:opacity-100'}`} onClick={e => e.stopPropagation()}>
+                    <span className={`flex items-center gap-0.5 shrink-0 ${isHidden ? '' : 'hover-reveal'}`} onClick={e => e.stopPropagation()}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

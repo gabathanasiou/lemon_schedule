@@ -118,10 +118,28 @@ export interface SceneColorEntry {
   text: string;
 }
 
+export interface ColorRuleCondition {
+  category: string;
+  elementId: string;
+}
+
+export type ColorOverride =
+  | { type: 'single'; background: string; text: string }
+  | { type: 'matrix'; sceneColors: SceneColorEntry[] };
+
+export interface ColorRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  conditions: ColorRuleCondition[];
+  override: ColorOverride;
+}
+
 export interface SceneColorPalette {
   intExtOptions: string[];
   dayNightOptions: string[];
   sceneColors: SceneColorEntry[];
+  colorRules?: ColorRule[];
   selectedStripBg: string;
   selectedStripText: string;
   dayHeaderBg: string;

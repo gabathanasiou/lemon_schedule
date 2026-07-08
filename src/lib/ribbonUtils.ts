@@ -1,7 +1,8 @@
 import React from 'react';
-import { Scene, RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef, SceneColorEntry, SceneColorPalette, IntExt, DayNight } from '../types';
+import { Scene, RibbonCell, RibbonRow, RibbonDesign, CustomCategoryDef, SceneColorEntry, SceneColorPalette, IntExt, DayNight, ColorRule } from '../types';
 import { formatDuration } from './utils';
 import type { CellBorders } from './persist';
+import { isMultiValue } from './categories';
 
 export interface MergeGroup {
   colIndex: number;
@@ -148,7 +149,51 @@ const SCENE_COLOR_FALLBACKS: Record<string, { background: string; color: string 
 
 const DEFAULT_FALLBACK = { background: '#ffffff', color: '#18181b' };
 
-export function resolveSceneColor(intExt: string, dayNight: string, colorEntries?: SceneColorEntry[], fallbackOverride?: { background: string; color: string }): { background: string; color: string } {
+export function sceneMatchesRule(scene: Scene, rule: ColorRule): boolean {
+  for (const condition of rule.conditions) {
+    const cat = condition.category;
+    const search = condition.elementId.trim().toLowerCase();
+    if (!search) return false;
+
+    if (cat === 'cast') {
+      const items = (scene.cast || '').split(',').map(x => x.trim().toLowerCase());
+      if (!items.includes(search)) return false;
+    } else if (!isMultiValue(cat)) {
+      const val = (String((scene as any)[cat] ?? '')).trim().toLowerCase();
+      if (val !== search) return false;
+    } else {
+      const val = String((scene as any)[cat] ?? '');
+      const items = val.split(',').map(x => x.trim().toLowerCase());
+      if (!items.includes(search)) return false;
+    }
+  }
+  return true;
+}
+
+export function resolveSceneColor(
+  intExt: string,
+  dayNight: string,
+  colorEntries?: SceneColorEntry[],
+  fallbackOverride?: { background: string; color: string },
+  scene?: Scene,
+  colorRules?: ColorRule[],
+): { background: string; color: string } {
+  if (scene && colorRules && colorRules.length > 0) {
+    for (const rule of colorRules) {
+      if (!rule.enabled) continue;
+      if (!sceneMatchesRule(scene, rule)) continue;
+      if (rule.override.type === 'single') {
+        return { background: rule.override.background, color: rule.override.text };
+      }
+      const ie = (intExt || '').toUpperCase();
+      const dn = (dayNight || '').toUpperCase();
+      const match = rule.override.sceneColors.find(e => e.intExt.toUpperCase() === ie && e.dayNight.toUpperCase() === dn);
+      if (match) {
+        return { background: match.background, color: match.text };
+      }
+    }
+  }
+
   const ie = intExt.toUpperCase();
   const dn = dayNight.toUpperCase();
   if (colorEntries) {
@@ -159,9 +204,14 @@ export function resolveSceneColor(intExt: string, dayNight: string, colorEntries
   return SCENE_COLOR_FALLBACKS[`${ie}|${dn}`] || DEFAULT_FALLBACK;
 }
 
-export function sceneStyle(scene?: Scene | null, colorEntries?: SceneColorEntry[], fallbackOverride?: { background: string; color: string }): React.CSSProperties {
+export function sceneStyle(
+  scene?: Scene | null,
+  colorEntries?: SceneColorEntry[],
+  fallbackOverride?: { background: string; color: string },
+  colorRules?: ColorRule[],
+): React.CSSProperties {
   if (!scene) return fallbackOverride || DEFAULT_FALLBACK;
-  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', colorEntries, fallbackOverride);
+  return resolveSceneColor(scene.intExt || '', scene.dayNight || '', colorEntries, fallbackOverride, scene, colorRules);
 }
 
 export function getDefaultSceneColors(intExtOptions?: string[], dayNightOptions?: string[]): SceneColorEntry[] {

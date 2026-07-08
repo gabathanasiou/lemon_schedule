@@ -75,7 +75,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
     }
     return (scene as any)[displayField] || '';
   };
-  const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors, getFallbackStripColors(palette));
+  const c = resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors, getFallbackStripColors(palette), scene, palette?.colorRules);
   const bg = isSelected && selBg ? selBg : c.background;
   const fg = isSelected && selColor ? selColor : c.color;
   const vFlag = violations && violations.length > 0 ? (

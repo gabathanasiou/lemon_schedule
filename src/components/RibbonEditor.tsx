@@ -95,7 +95,7 @@ export function RibbonEditor() {
                     className="w-14 border border-zinc-200 rounded px-1.5 py-0.5 text-[10px] text-right"
                     title="Width (px)"
                   />
-                  <button onClick={() => removeColumn(col.key)} className="p-0.5 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => removeColumn(col.key)} className="p-0.5 text-zinc-400 hover:text-red-500 hover-reveal transition-opacity">
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>

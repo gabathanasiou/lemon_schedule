@@ -232,7 +232,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 shrink-0 hover-reveal transition-opacity" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => startRenaming(p)}
                           className="p-1.5 rounded-md transition-colors hover:bg-zinc-700"

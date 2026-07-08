@@ -835,7 +835,7 @@ const SortableRowContent: React.FC<{
   };
 
   if (scene) {
-    const rowStyle = sceneStyle(scene, state.present.colorPalette?.sceneColors, getFallbackStripColors(state.present.colorPalette));
+    const rowStyle = sceneStyle(scene, state.present.colorPalette?.sceneColors, getFallbackStripColors(state.present.colorPalette), state.present.colorPalette?.colorRules);
     if (isSelected && !isFaded) {
       rowStyle.background = sel.background;
       rowStyle.color = sel.color;

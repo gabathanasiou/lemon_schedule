@@ -763,7 +763,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                           {inUse ? (
                             <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                           ) : (
-                            <GripHorizontal className="w-2.5 h-2.5 text-zinc-700 ml-auto opacity-0 group-hover:opacity-100 shrink-0" />
+                            <GripHorizontal className="w-2.5 h-2.5 text-zinc-700 ml-auto hover-reveal shrink-0" />
                           )}
                         </button>
                       );
