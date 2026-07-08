@@ -48,7 +48,7 @@ export const ContextMenu: React.FC<{
     <div
       ref={menuRef}
       className={`fixed bg-white border border-zinc-200 shadow-xl rounded-lg p-1 z-[9999] font-sans ${CTX_TEXT} text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto`}
-      style={{ top: y, left: x }}
+      style={{ top: y, left: x, touchAction: 'manipulation' }}
     >
       {children}
     </div>
@@ -64,7 +64,8 @@ export const ContextMenuItem: React.FC<{
 }> = ({ onClick, variant = 'default', icon, disabled = false, children }) => (
   <button
     onClick={disabled ? undefined : onClick}
-    className={`w-full text-left ${CTX_ITEM} flex items-center gap-2 rounded transition-colors ${
+  onTouchStart={() => {}}
+    className={`w-full text-left ${CTX_ITEM} flex items-center gap-2 rounded transition-colors cursor-pointer ${
       disabled ? 'opacity-40 cursor-default' :
       variant === 'danger'
         ? 'hover:bg-red-100 text-red-600'

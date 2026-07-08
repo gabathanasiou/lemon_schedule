@@ -78,12 +78,7 @@ function AppContent() {
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    // Enable :hover on iPadOS Safari (Magic Keyboard cursor etc.)
-    // Without this, Safari suppresses :hover even when a mouse pointer is connected
-    document.addEventListener('touchstart', () => {}, { passive: true });
-    if (IS_COARSE) {
-      // Prevent gesture zoom on touch devices
+    if (IS_COARSE && typeof document !== 'undefined') {
       const opts: AddEventListenerOptions = { passive: false };
       document.addEventListener('gesturestart', e => e.preventDefault(), opts);
       document.addEventListener('gesturechange', e => e.preventDefault(), opts);

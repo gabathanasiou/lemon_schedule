@@ -1,9 +1,10 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject } from '../store';
 import { SceneColorEntry, SceneColorPalette } from '../types';
 import { INT_EXT_OPTIONS, DAY_NIGHT_OPTIONS, DEFAULT_COLOR_PALETTE, getFallbackStripColors, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RotateCcw, Download, Upload, Palette, Sun, Plus, X } from 'lucide-react';
+import { IS_COARSE } from '../lib/device';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 
@@ -52,6 +53,26 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
   const [editText, setEditText] = useState('');
   const [editingHeader, setEditingHeader] = useState<{ type: 'ie' | 'dn'; idx: number } | null>(null);
   const [headerText, setHeaderText] = useState('');
+  const needsScroll = useRef(false);
+
+  useEffect(() => {
+    if (!editingHeader || !needsScroll.current) return;
+    needsScroll.current = false;
+    const raf = requestAnimationFrame(() => {
+      const input = document.querySelector('input[autoFocus]') as HTMLElement;
+      if (input) input.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [editingHeader]);
+
+  const LBL = IS_COARSE ? 'text-xs font-bold py-1' : 'text-[9px] font-bold';
+  const INP = IS_COARSE ? 'text-xs px-2 py-1 w-24' : 'text-[9px] px-2 py-0.5 w-20';
+  const XSZ = IS_COARSE ? 'w-4 h-4 p-1' : 'w-3 h-3';
+  const ADD = IS_COARSE ? 'text-xs gap-1.5 py-1' : 'text-[9px] gap-1';
+  const CELL = IS_COARSE ? 'text-[10px]' : 'text-[9px]';
+  const SEC_ICO = IS_COARSE ? 'w-4 h-4' : 'w-3.5 h-3.5';
+  const SEC_TXT = IS_COARSE ? 'text-xs' : 'text-[10px]';
+  const GAP = IS_COARSE ? 'gap-2' : 'gap-1';
 
   const openEditor = (label: string, bg: string, text: string, commit: (bg: string, text: string) => void, resetDefaults: () => { bg: string; text: string }) => {
     setEditBg(bg);
@@ -229,8 +250,9 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
 
   const addOption = (type: 'ie' | 'dn') => {
     const next = clonePalette(palette);
+    const newIdx = type === 'ie' ? ieOptions.length : dnOptions.length;
+    const newVal = 'NEW';
     if (type === 'ie') {
-      const newVal = 'NEW';
       next.intExtOptions = [...ieOptions, newVal];
       for (const dn of dnOptions) {
         if (findEntry(next.sceneColors, newVal, dn) < 0) {
@@ -238,7 +260,6 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         }
       }
     } else {
-      const newVal = 'NEW';
       next.dayNightOptions = [...dnOptions, newVal];
       for (const ie of ieOptions) {
         if (findEntry(next.sceneColors, ie, newVal) < 0) {
@@ -247,6 +268,9 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       }
     }
     dispatch({ type: 'SET_COLOR_PALETTE', payload: next });
+    needsScroll.current = true;
+    setHeaderText(newVal);
+    setEditingHeader({ type, idx: newIdx });
   };
 
   const removeOption = (type: 'ie' | 'dn', idx: number) => {
@@ -321,8 +345,8 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         {/* Scene Color Matrix Section */}
         <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Palette className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Scene Strip Colors</span>
+            <Palette className={`${SEC_ICO} text-zinc-500`} />
+            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Scene Strip Colors</span>
           </div>
           <div className="overflow-x-auto">
             <table className="border-collapse">
@@ -331,34 +355,35 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                   <th className="w-20" />
                   {ieOptions.map((ie, i) => (
                     <th key={i} className="px-1 pb-2 text-center min-w-[120px]">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className={`flex items-center justify-center ${GAP}`}>
                         {editingHeader?.type === 'ie' && editingHeader.idx === i ? (
                           <input
                             autoFocus
                             value={headerText}
                             onChange={e => setHeaderText(e.target.value)}
+                            onFocus={e => e.target.select()}
                             onBlur={commitHeaderRename}
                             onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
-                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 w-20 text-center outline-none"
+                            className={`${INP} font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded text-center outline-none`}
                           />
                         ) : (
                           <button
                             onClick={() => startRenameHeader('ie', i)}
-                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors"
+                            className={`${LBL} text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors`}
                           >{ie}</button>
                         )}
-                        <button onClick={() => removeOption('ie', i)} className="text-zinc-600 hover:text-red-400 transition-colors">
-                          <X className="w-3 h-3" />
+                        <button onClick={() => removeOption('ie', i)} className={`text-zinc-600 hover:text-red-400 transition-colors ${XSZ}`}>
+                          <X className={XSZ} />
                         </button>
                       </div>
                     </th>
                   ))}
-                  <th className="px-1 pb-2 text-center">
+                    <th className="px-1 pb-2 text-center">
                     <button
                       onClick={() => addOption('ie')}
-                      className="text-[9px] font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center gap-1"
+                      className={`${ADD} text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center font-bold`}
                     >
-                      <Plus className="w-3 h-3" /> Add
+                      <Plus className={XSZ} /> Add
                     </button>
                   </th>
                 </tr>
@@ -367,15 +392,16 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                 {dnOptions.map((dn, di) => (
                   <tr key={di}>
                     <td className="pr-3 py-1 align-middle text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => removeOption('dn', di)} className="text-zinc-600 hover:text-red-400 transition-colors">
-                          <X className="w-3 h-3" />
+                      <div className={`flex items-center justify-end ${GAP}`}>
+                        <button onClick={() => removeOption('dn', di)} className={`text-zinc-600 hover:text-red-400 transition-colors ${XSZ}`}>
+                          <X className={XSZ} />
                         </button>
                         {editingHeader?.type === 'dn' && editingHeader.idx === di ? (
                           <input
                             autoFocus
                             value={headerText}
                             onChange={e => setHeaderText(e.target.value)}
+                            onFocus={e => e.target.select()}
                             onBlur={commitHeaderRename}
                             onKeyDown={e => { if (e.key === 'Enter') commitHeaderRename(); if (e.key === 'Escape') setEditingHeader(null); }}
                             className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 w-20 text-right outline-none"
@@ -383,7 +409,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                         ) : (
                           <button
                             onClick={() => startRenameHeader('dn', di)}
-                            className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors"
+                            className={`${LBL} text-zinc-400 uppercase tracking-wider hover:text-zinc-200 transition-colors`}
                           >{dn}</button>
                         )}
                       </div>
@@ -401,7 +427,7 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                                 return d >= 0 ? { bg: DEFAULT_COLOR_PALETTE.sceneColors[d].background, text: DEFAULT_COLOR_PALETTE.sceneColors[d].text } : { bg: '#ffffff', text: '#18181b' };
                               },
                             )}
-                            className="w-full h-14 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center text-[9px] font-semibold cursor-pointer"
+                            className={`w-full h-14 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${CELL} font-semibold cursor-pointer`}
                             style={{ background: c.background, color: c.text }}
                           >
                             <span className="text-center leading-tight px-1">
@@ -418,9 +444,9 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
                   <td className="pr-3 py-1 text-right">
                     <button
                       onClick={() => addOption('dn')}
-                      className="text-[9px] font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center gap-1"
+                      className={`${ADD} text-zinc-600 hover:text-zinc-400 uppercase tracking-wider transition-colors inline-flex items-center font-bold`}
                     >
-                      <Plus className="w-3 h-3" /> Add
+                      <Plus className={XSZ} /> Add
                     </button>
                   </td>
                 </tr>
@@ -432,8 +458,8 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
         {/* Interface Colors Section */}
         <section className="bg-zinc-900 rounded-lg border border-zinc-800 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Sun className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Interface Colors</span>
+            <Sun className={`${SEC_ICO} text-zinc-500`} />
+            <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Interface Colors</span>
           </div>
           <div className="grid grid-cols-4 gap-3">
             {([

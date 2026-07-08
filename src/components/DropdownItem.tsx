@@ -42,6 +42,7 @@ export default function DropdownItem({
     <RadixDropdownMenu.Item
       className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
       onSelect={(e) => { if (keepOpen) e.preventDefault(); onClick(); }}
+      onTouchStart={() => {}}
       onPointerDown={(e) => {
         if ((e as any).pointerType === 'pen') {
           const el = e.currentTarget;

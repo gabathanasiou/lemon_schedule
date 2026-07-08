@@ -17,6 +17,10 @@ html {
   user-select: none;
 }
 
+button, a, [role="button"], [role="menuitem"], [role="option"] {
+  touch-action: manipulation;
+}
+
 input, textarea, [contenteditable] {
   -webkit-touch-callout: default;
   -webkit-user-select: text;

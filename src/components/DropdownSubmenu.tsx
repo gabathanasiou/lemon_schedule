@@ -35,6 +35,7 @@ export default function DropdownSubmenu({ id, label, icon, width, side = 'right'
       <RadixDropdownMenu.Sub open={subOpen} onOpenChange={(o) => setActiveSub(o ? id : null)}>
         <RadixDropdownMenu.SubTrigger
           className={triggerClasses}
+          onTouchStart={() => {}}
           onPointerDown={(e) => {
             if (e.pointerType === 'pen') {
               const el = e.currentTarget;
