@@ -11,6 +11,10 @@ export default defineConfig(() => {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+      dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+      exclude: ['react', 'react-dom', '@glideapps/glide-data-grid'],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
