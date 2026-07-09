@@ -110,6 +110,7 @@ export function GlideBreakdownTab({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
   });
+  const editingCellRef = useRef<Item>([-1, -1]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -199,9 +200,102 @@ export function GlideBreakdownTab({
     return textCell(val);
   }, [scenes, COLUMNS]);
 
-  const provideEditor: any = useCallback((cell: GridCell) => {
-    return undefined;
+  const GlideAutocompleteEditor = useCallback((optionsRef: React.MutableRefObject<string[]>): React.FC<any> => {
+    return ({ onChange, onFinishedEditing, value }: any) => {
+      const val = value?.data ?? '';
+      return React.createElement(AutocompleteDropdown, {
+        value: val,
+        onChange: (newVal: string) => {
+          onChange({ kind: GridCellKind.Text, data: newVal, displayData: newVal, allowOverlay: true });
+        },
+        onExit: () => onFinishedEditing(undefined, [0, 0]),
+        options: optionsRef.current,
+        positioning: 'relative',
+        defaultOpen: true,
+        autoFocus: true,
+        showAll: true,
+      });
+    };
   }, []);
+
+  const GlideSetEditor: React.FC<any> = useCallback(({ onChange, onFinishedEditing, value }: any) => {
+    const val = value?.data ?? '';
+    return React.createElement(EntityDropdown, {
+      value: val,
+      onChange: (newVal: string) => {
+        onChange({ kind: GridCellKind.Text, data: newVal, displayData: newVal, allowOverlay: true });
+      },
+      onExit: () => onFinishedEditing(undefined, [0, 0]),
+      items: setItemsRef.current,
+      mode: 'single',
+      uppercase: true,
+      keepAlphabetical: true,
+      panelMinWidth: 'min-w-[220px]',
+      positioning: 'relative',
+      defaultOpen: true,
+      autoFocus: true,
+      className: 'text-xs',
+    });
+  }, []);
+
+  const GlideCastEditor: React.FC<any> = useCallback(({ onChange, onFinishedEditing, value }: any) => {
+    const val = value?.data ?? '';
+    return React.createElement(EntityDropdown, {
+      value: val,
+      onChange: (newVal: string) => {
+        onChange({ kind: GridCellKind.Text, data: newVal, displayData: newVal, allowOverlay: true });
+      },
+      onExit: () => onFinishedEditing(undefined, [0, 0]),
+      positioning: 'relative',
+      defaultOpen: true,
+      autoFocus: true,
+      mode: 'multi',
+      placeholder: 'Cast',
+      className: 'text-xs',
+      displayMode: 'id',
+      renderItem: (item: any) => React.createElement(React.Fragment, null,
+        React.createElement('span', { className: 'text-zinc-400 shrink-0' }, item.id + '.'),
+        React.createElement('span', { className: 'truncate flex-1' }, item.name && item.name !== item.id ? item.name : '—')
+      ),
+    });
+  }, []);
+
+  const GlideBreakdownEditor = useCallback((categoryKey: string): React.FC<any> => {
+    return ({ onChange, onFinishedEditing, value }: any) => {
+      const val = value?.data ?? '';
+      const items = breakdownEditorItemsRef.current.get(categoryKey) || [];
+      const isMulti = isMultiValue(categoryKey, customCategoriesRef.current);
+      return React.createElement(EntityDropdown, {
+        value: val,
+        onChange: (newVal: string) => {
+          onChange({ kind: GridCellKind.Text, data: newVal, displayData: newVal, allowOverlay: true });
+        },
+        onExit: () => onFinishedEditing(undefined, [0, 0]),
+        items,
+        placeholder: allBreakdownLabelsRef.current[categoryKey],
+        positioning: 'relative',
+        defaultOpen: true,
+        autoFocus: true,
+        mode: isMulti ? 'multi' : 'single',
+        renderItem: (item: any) => React.createElement(React.Fragment, null,
+          item.id && item.id !== item.name && React.createElement('span', { className: 'text-zinc-400 shrink-0' }, item.id + '.'),
+          React.createElement('span', { className: 'truncate flex-1' }, item.name)
+        ),
+      });
+    };
+  }, []);
+
+  const provideEditor: any = useCallback((cell: GridCell) => {
+    const col = editingCellRef.current[0];
+    if (col < 0) return undefined;
+    if (col === INT_EXT_COL) return GlideAutocompleteEditor(intExtOptionsRef);
+    if (col === DAY_NIGHT_COL) return GlideAutocompleteEditor(dayNightOptionsRef);
+    if (col === SET_COL) return GlideSetEditor;
+    if (col === CAST_COL) return GlideCastEditor;
+    const colDef = COLUMNS[col];
+    if (colDef && allBreakdownCategories.includes(colDef.key)) return GlideBreakdownEditor(colDef.key);
+    return undefined;
+  }, [COLUMNS, allBreakdownCategories, GlideAutocompleteEditor, GlideSetEditor, GlideCastEditor, GlideBreakdownEditor]);
 
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
     if (row >= scenes.length) return;
@@ -425,6 +519,7 @@ export function GlideBreakdownTab({
   }, [scenes.length]);
 
   const handleCellActivated = useCallback((cell: Item) => {
+    editingCellRef.current = cell;
     const [, row] = cell;
     if (row >= 0 && row < scenes.length && onOpenSheet) {
       onOpenSheet(row);
@@ -576,6 +671,7 @@ export function GlideBreakdownTab({
           onPaste={handlePaste}
           onDelete={onDelete}
           onKeyDown={handleKeyDown}
+          onCellClicked={(cell: Item) => { editingCellRef.current = cell; }}
           onCellContextMenu={handleCellContextMenu}
           onCellActivated={handleCellActivated}
           getCellsForSelection={true}

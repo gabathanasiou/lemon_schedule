@@ -49,7 +49,7 @@ function AppContent() {
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
-  const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet'>('sheet');
+  const [brSubTab, setBrSubTab] = useState<'scenes' | 'elements' | 'sheet' | 'glide'>('sheet');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
   const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
