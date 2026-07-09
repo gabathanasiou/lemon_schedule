@@ -19,6 +19,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useKeyboardMode } from '../lib/persist';
+import { GlideBreakdownTab } from './BreakdownTabGlide';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -38,8 +39,8 @@ const DAY_NIGHT_COL = 5;
 const CAST_COL = 8;
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule }: {
- subTab: 'scenes' | 'elements' | 'sheet';
- onSubTabChange: (t: 'scenes' | 'elements' | 'sheet') => void;
+  subTab: 'scenes' | 'elements' | 'sheet' | 'glide';
+  onSubTabChange: (t: 'scenes' | 'elements' | 'sheet' | 'glide') => void;
   savedCat: string;
   onCategoryChange: (c: string) => void;
   savedSheetIdx: number;
@@ -814,11 +815,12 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           { id: 'sheet', label: 'Sheet' },
           { id: 'elements', label: 'Element Manager' },
           { id: 'scenes', label: 'Scene Breakdown' },
+          { id: 'glide', label: 'Glide Breakdown' },
         ]}
         activeTab={subTab}
         onChange={(id) => {
           scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0;
-          onSubTabChange(id as 'scenes' | 'elements' | 'sheet');
+          onSubTabChange(id as 'scenes' | 'elements' | 'sheet' | 'glide');
         }}
         rightContent={
           <>
@@ -890,7 +892,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           </>
         }
       />
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : (
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : subTab === 'glide' ? <GlideBreakdownTab onOpenSheet={onOpenSheet} /> : (
         <>
       <div className="flex-1 overflow-auto bg-white pb-40">
       <div className="min-w-[800px]">
