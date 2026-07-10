@@ -6,6 +6,7 @@ import DataEditor, {
   type Item,
   type GridSelection,
   type EditableGridCell,
+  type DataEditorRef,
   CompactSelection,
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
@@ -101,6 +102,7 @@ export function GlideBreakdownTab({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
   });
+  const gridRef = useRef<DataEditorRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -279,6 +281,7 @@ export function GlideBreakdownTab({
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (!sel.current) return false;
+    dispatch({ type: 'BATCH_START' });
     const { range } = sel.current;
     for (let r = range.y; r <= range.y + range.height; r++) {
       if (r >= scenesRef.current.length) continue;
@@ -288,13 +291,17 @@ export function GlideBreakdownTab({
         commitEdit(scenesRef.current[r].id, colDef.key, '');
       }
     }
+    dispatch({ type: 'BATCH_COMMIT' });
+    gridRef.current?.updateCells();
     return false;
-  }, [COLUMNS, commitEdit]);
+  }, [COLUMNS, commitEdit, dispatch]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]): boolean => {
     const currentScenes = scenesRef.current;
     const newScenes: Scene[] = [];
-    const editRows: { col: number; row: number; colKey: string; val: string }[] = [];
+    const editRows: { row: number; colKey: string; val: string }[] = [];
+
+    dispatch({ type: 'BATCH_START' });
 
     for (let r = 0; r < values.length; r++) {
       const targetRow = target[1] + r;
@@ -302,43 +309,45 @@ export function GlideBreakdownTab({
         for (let c = 0; c < values[r].length; c++) {
           const targetCol = target[0] + c;
           if (targetCol < COLUMNS.length) {
-            editRows.push({ col: targetCol, row: targetRow, colKey: COLUMNS[targetCol].key, val: values[r][c] });
+            editRows.push({ row: targetRow, colKey: COLUMNS[targetCol].key, val: values[r][c] });
           }
         }
       } else {
         const newScene: any = {};
         for (let c = 0; c < values[r].length && c < COLUMNS.length; c++) {
-          newScene[COLUMNS[c].key] = values[r][c];
+          const colIndex = target[0] + c;
+          if (colIndex < COLUMNS.length) {
+            newScene[COLUMNS[colIndex].key] = values[r][c];
+          }
         }
         newScenes.push(newScene);
       }
     }
 
-    if (newScenes.length > 0) {
-      dispatch({ type: 'BATCH_START' });
-      for (const s of newScenes) {
-        const scene = {
-          id: generateUUID(), sceneNumber: s.sceneNumber || '', pageCount: '', pageCountDecimal: 0,
-          scriptDay: (s.scriptDay || '').replace(/[^0-9]/g, ''),
-          intExt: s.intExt || '', set: (s.set || '').toUpperCase(), dayNight: s.dayNight || '',
-          description: s.description || '', cast: s.cast || '', notes: s.notes || '',
-          backgroundActors: s.backgroundActors || '', stunts: s.stunts || '', vehicles: s.vehicles || '',
-          props: s.props || '', wardrobe: s.wardrobe || '', makeup: s.makeup || '',
-          sfx: s.sfx || '', vfx: s.vfx || '', sound: s.sound || '', music: s.music || '',
-          animalsAndWranglers: s.animalsAndWranglers || '', weapons: s.weapons || '', greenery: s.greenery || '', artDept: s.artDept || '',
-          shootDay: null,
-        };
-        const decimal = parsePageCount(scene.pageCount || '0');
-        scene.pageCount = formatPageCount(decimal);
-        scene.pageCountDecimal = decimal;
-        dispatch({ type: 'ADD_SCENE', payload: scene as Scene });
-      }
-      dispatch({ type: 'BATCH_COMMIT' });
+    for (const s of newScenes) {
+      const scene = {
+        id: generateUUID(), sceneNumber: s.sceneNumber || '', pageCount: '', pageCountDecimal: 0,
+        scriptDay: (s.scriptDay || '').replace(/[^0-9]/g, ''),
+        intExt: s.intExt || '', set: (s.set || '').toUpperCase(), dayNight: s.dayNight || '',
+        description: s.description || '', cast: s.cast || '', notes: s.notes || '',
+        backgroundActors: s.backgroundActors || '', stunts: s.stunts || '', vehicles: s.vehicles || '',
+        props: s.props || '', wardrobe: s.wardrobe || '', makeup: s.makeup || '',
+        sfx: s.sfx || '', vfx: s.vfx || '', sound: s.sound || '', music: s.music || '',
+        animalsAndWranglers: s.animalsAndWranglers || '', weapons: s.weapons || '', greenery: s.greenery || '', artDept: s.artDept || '',
+        shootDay: null,
+      };
+      const decimal = parsePageCount(scene.pageCount || '0');
+      scene.pageCount = formatPageCount(decimal);
+      scene.pageCountDecimal = decimal;
+      dispatch({ type: 'ADD_SCENE', payload: scene as Scene });
     }
 
     for (const edit of editRows) {
       commitEdit(currentScenes[edit.row].id, edit.colKey, edit.val);
     }
+
+    dispatch({ type: 'BATCH_COMMIT' });
+    gridRef.current?.updateCells();
     return false;
   }, [COLUMNS, dispatch, commitEdit]);
 
@@ -417,10 +426,13 @@ export function GlideBreakdownTab({
     }
     if (rows.length > 0) {
       await navigator.clipboard.writeText(rows.join('\n'));
+      dispatch({ type: 'BATCH_START' });
       for (const c of committers) commitEdit(scenes[c.row].id, c.colKey, '');
+      dispatch({ type: 'BATCH_COMMIT' });
+      gridRef.current?.updateCells();
     }
     setContextMenu(null);
-  }, [gridSelection, scenes, COLUMNS, commitEdit]);
+  }, [gridSelection, scenes, COLUMNS, commitEdit, dispatch]);
 
   const handlePasteFromMenu = useCallback(async () => {
     if (!gridSelection.current?.cell) return;
@@ -433,6 +445,7 @@ export function GlideBreakdownTab({
 
   const handleClear = useCallback(() => {
     if (!gridSelection.current?.range) return;
+    dispatch({ type: 'BATCH_START' });
     const { x, y, width, height } = gridSelection.current.range;
     for (let r = y; r <= y + height; r++) {
       if (r >= scenes.length) continue;
@@ -442,8 +455,10 @@ export function GlideBreakdownTab({
         commitEdit(scenes[r].id, key, '');
       }
     }
+    dispatch({ type: 'BATCH_COMMIT' });
+    gridRef.current?.updateCells();
     setContextMenu(null);
-  }, [gridSelection, scenes, COLUMNS, commitEdit]);
+  }, [gridSelection, scenes, COLUMNS, commitEdit, dispatch]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -452,10 +467,13 @@ export function GlideBreakdownTab({
     }
   }, [addScene]);
 
-  const onCellContextMenu = useCallback((cell: Item, _event: any) => {
+  const onCellContextMenu = useCallback((cell: Item, e: any) => {
+    e.preventDefault();
     const [col, row] = cell;
     if (row < 0 || row >= scenes.length) return;
-    setContextMenu({ x: 0, y: 0, row, col });
+    const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+    const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+    setContextMenu({ x, y, row, col });
   }, [scenes.length]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -580,10 +598,12 @@ export function GlideBreakdownTab({
       {/* Grid */}
       <div style={{ flex: 1, minHeight: 0 }}>
         <DataEditor
+          ref={gridRef}
           columns={glideColumns}
           rows={scenes.length}
           getCellContent={getCellContent}
           onCellEdited={onCellEdited}
+          getCellsForSelection={true}
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
           theme={theme}
