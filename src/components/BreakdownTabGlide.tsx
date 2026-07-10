@@ -228,18 +228,21 @@ export function GlideBreakdownTab({
     const editor = (p: any) => {
       const { value: cellValue, onChange, onFinishedEditing } = p;
       const currentVal = cellValue?.data ?? '';
+      const latestRef = useRef(cellValue);
 
       const handleChange = (newVal: string) => {
-        onChange({
+        const next = {
           kind: GridCellKind.Text,
           data: newVal,
           displayData: newVal,
           allowOverlay: true,
-        });
+        };
+        latestRef.current = next;
+        onChange(next);
       };
 
       const handleClose = () => {
-        onFinishedEditing();
+        onFinishedEditing(latestRef.current);
       };
 
       if (colKey === 'intExt') {
