@@ -1,5 +1,4 @@
 import React, { useRef, useMemo, useCallback, useState } from 'react';
-import { createPortal } from 'react-dom';
 import DataEditor, {
   GridCellKind,
   type GridCell,
@@ -225,47 +224,40 @@ export function GlideBreakdownTab({
     const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
     if (!isEntity) return undefined;
 
-    return {
-      editor: (p: any) => {
-        const { value: cellValue, onChange, onFinishedEditing } = p;
-        const currentVal = cellValue?.data ?? '';
+    const editor = (p: any) => {
+      const { value: cellValue, onChange, onFinishedEditing } = p;
+      const currentVal = cellValue?.data ?? '';
 
-        const handleChange = (newVal: string) => {
-          onChange({
-            kind: GridCellKind.Text,
-            data: newVal,
-            displayData: newVal,
-            allowOverlay: true,
-          });
-        };
+      const handleChange = (newVal: string) => {
+        onChange({
+          kind: GridCellKind.Text,
+          data: newVal,
+          displayData: newVal,
+          allowOverlay: true,
+        });
+      };
 
-        const handleClose = () => {
-          onFinishedEditing();
-        };
+      const handleClose = () => {
+        onFinishedEditing();
+      };
 
-        return createPortal(
-          <div className="fixed inset-0 z-[99999]" onClick={handleClose}>
-            <div className="fixed inset-0 bg-black/20" />
-            <div
-              className="fixed top-16 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-2xl border border-zinc-200 p-4 min-w-[320px] z-10"
-              onClick={e => e.stopPropagation()}
-              onKeyDown={e => { if (e.key === 'Escape') handleClose(); }}
-            >
-              {colKey === 'intExt' && <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={intExtOptions} positioning="fixed" defaultOpen autoFocus showAll placeholder="INT, EXT, D/E..." />}
-              {colKey === 'dayNight' && <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={dayNightOptions} positioning="fixed" defaultOpen autoFocus showAll placeholder="DAY, NIGHT, MORNING..." />}
-              {colKey === 'set' && <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="fixed" defaultOpen autoFocus placeholder="Set" className="text-xs" />}
-              {colKey === 'cast' && <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} mode="multi" displayMode="id" positioning="fixed" defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />}
-              {colKey !== 'intExt' && colKey !== 'dayNight' && colKey !== 'set' && colKey !== 'cast' && (
-                <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={breakdownEditorItems.get(colKey) || []} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} positioning="fixed" defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />
-              )}
-            </div>
-          </div>,
-          document.getElementById('portal')!
-        );
-      },
-      disablePadding: true,
-      disableStyling: true,
+      if (colKey === 'intExt') {
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={intExtOptions} positioning="relative" defaultOpen autoFocus showAll placeholder="INT, EXT, D/E..." />;
+      }
+      if (colKey === 'dayNight') {
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={dayNightOptions} positioning="relative" defaultOpen autoFocus showAll placeholder="DAY, NIGHT, MORNING..." />;
+      }
+      if (colKey === 'set') {
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="relative" defaultOpen autoFocus placeholder="Set" className="text-xs" />;
+      }
+      if (colKey === 'cast') {
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} mode="multi" displayMode="id" positioning="relative" defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
+      }
+      const categoryItems = breakdownEditorItems.get(colKey) || [];
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} positioning="relative" defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
     };
+    editor.disablePadding = true;
+    return editor;
   }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
 
   const onRowAppended = useCallback(async () => {
