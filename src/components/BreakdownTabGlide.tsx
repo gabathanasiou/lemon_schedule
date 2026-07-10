@@ -602,7 +602,7 @@ export function GlideBreakdownTab({
           }}
           freezeColumns={1}
           editOnType
-          cellActivationBehavior="single-click"
+          cellActivationBehavior="double-click"
         />
       </div>
 
