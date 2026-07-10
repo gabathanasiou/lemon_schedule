@@ -93,6 +93,10 @@ export function GlideBreakdownTab({
     COLUMNS.map(c => ({ title: c.label, width: c.width })),
   [COLUMNS]);
 
+  const breakdownColKeys = useMemo(() =>
+    new Set(COLUMNS.slice(FIXED_COLS.length).map(c => c.key)),
+  [COLUMNS]);
+
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
   const theme = useMemo(() => createGlideTheme(fontSize), [fontSize]);
 
@@ -154,7 +158,7 @@ export function GlideBreakdownTab({
     } else if (colKey === 'set') {
       updates.set = newVal.toUpperCase();
     }
-    if (colKey === 'cast' || allBreakdownCategories.includes(colKey)) {
+    if (colKey === 'cast' || breakdownColKeys.has(colKey)) {
       const isCast = colKey === 'cast';
       const existing = (currentProject.breakdownElements || {})[colKey] || [];
       const existingSet = new Set(isCast ? existing.map((e: any) => e.id) : existing.map((e: any) => e.name.toLowerCase()));
@@ -166,7 +170,7 @@ export function GlideBreakdownTab({
       }
     }
     dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, ...updates } });
-  }, [dispatch, allBreakdownCategories]);
+  }, [dispatch, breakdownColKeys]);
 
   const getSceneValue = useCallback((scene: Scene, colKey: string): string => {
     if (colKey === 'intExt' || colKey === 'dayNight') return (scene as any)[colKey] || '';
@@ -221,7 +225,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return undefined;
     const colKey = colDef.key;
-    const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
+    const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || breakdownColKeys.has(colKey);
     if (!isEntity) return undefined;
 
     return {
@@ -260,7 +264,7 @@ export function GlideBreakdownTab({
       disablePadding: true,
       styleOverride: { overflow: 'visible' },
     };
-  }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
+  }, [COLUMNS, breakdownColKeys, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
 
   const onRowAppended = useCallback(async () => {
     const newScene: Scene = {
