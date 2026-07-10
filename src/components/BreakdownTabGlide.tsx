@@ -24,6 +24,8 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
 import { createGlideTheme } from '../lib/glideTheme';
+import { AutocompleteDropdown } from './AutocompleteDropdown';
+import { EntityDropdown } from './EntityDropdown';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -48,12 +50,6 @@ const FIXED_COLS = [
   { key: 'cast', label: 'Cast', width: 120 },
   { key: 'notes', label: 'Notes', width: 200 },
 ];
-
-const INT_EXT_COL = 3;
-const DAY_NIGHT_COL = 5;
-const SET_COL = 4;
-const CAST_COL = 7;
-const PAGES_COL = 1;
 
 function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string }>): GridCell {
   return {
@@ -110,6 +106,36 @@ export function GlideBreakdownTab({
   const [viewOpen, setViewOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
+  const setItems = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of scenes) {
+      const v = s.set.trim().toUpperCase();
+      if (v) map.set(v, v);
+    }
+    for (const e of project.breakdownElements?.set || []) {
+      const v = e.name.toUpperCase();
+      if (v) map.set(v, v);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [scenes, project.breakdownElements]);
+
+  const breakdownEditorItems = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }[]>();
+    for (const key of allBreakdownCategories) {
+      const stored = project.breakdownElements?.[key] || [];
+      map.set(key, stored.map(e => ({ id: e.id, name: e.name })));
+    }
+    return map;
+  }, [project.breakdownElements, allBreakdownCategories]);
+
+  const intExtOptions = useMemo(() =>
+    project.colorPalette?.intExtOptions || ['INT', 'EXT', 'D/E', 'EXT/INT'],
+  [project.colorPalette]);
+
+  const dayNightOptions = useMemo(() =>
+    project.colorPalette?.dayNightOptions || ['DAY', 'NIGHT', 'MORNING', 'EVENING'],
+  [project.colorPalette]);
+
   const scenesRef = useRef(scenes);
   scenesRef.current = scenes;
   const projectRef = useRef(project);
@@ -160,7 +186,20 @@ export function GlideBreakdownTab({
     }
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
-    const val = getSceneValue(scene, colDef.key);
+    const colKey = colDef.key;
+    const val = getSceneValue(scene, colKey);
+    if (colKey === 'cast') {
+      const members = projectRef.current.castMembers || [];
+      const displayValue = val
+        ? val.split(',').map((id: string) => {
+            const trimmed = id.trim();
+            if (!trimmed) return '';
+            const member = members.find((m: any) => m.id === trimmed);
+            return member ? `${member.id}. ${member.name || trimmed}` : trimmed;
+          }).filter(Boolean).join(', ')
+        : '';
+      return textCell(val, { displayData: displayValue });
+    }
     return textCell(val);
   }, [COLUMNS, getSceneValue]);
 
@@ -174,6 +213,52 @@ export function GlideBreakdownTab({
       commitEdit(scene.id, colDef.key, newValue.data);
     }
   }, [COLUMNS, commitEdit]);
+
+  const provideEditor = useCallback((cellData: any & { location?: Item }): any => {
+    const loc = cellData.location;
+    if (!loc || cellData.kind !== GridCellKind.Text) return undefined;
+    const [col] = loc;
+    const colDef = COLUMNS[col];
+    if (!colDef) return undefined;
+    const colKey = colDef.key;
+    const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
+    if (!isEntity) return undefined;
+
+    const editor = (p: any) => {
+      const { value: cellValue, onChange, onFinishedEditing } = p;
+      const currentVal = cellValue?.data ?? '';
+
+      const handleChange = (newVal: string) => {
+        onChange({
+          kind: GridCellKind.Text,
+          data: newVal,
+          displayData: newVal,
+          allowOverlay: true,
+        });
+      };
+
+      const handleClose = () => {
+        onFinishedEditing();
+      };
+
+      if (colKey === 'intExt') {
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={intExtOptions} positioning="relative" defaultOpen autoFocus showAll placeholder="INT, EXT, D/E..." />;
+      }
+      if (colKey === 'dayNight') {
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={dayNightOptions} positioning="relative" defaultOpen autoFocus showAll placeholder="DAY, NIGHT, MORNING..." />;
+      }
+      if (colKey === 'set') {
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="relative" defaultOpen autoFocus placeholder="Set" className="text-xs" />;
+      }
+      if (colKey === 'cast') {
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} mode="multi" displayMode="id" positioning="relative" defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
+      }
+      const categoryItems = breakdownEditorItems.get(colKey) || [];
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} positioning="relative" defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
+    };
+    editor.disablePadding = true;
+    return editor;
+  }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
 
   const onRowAppended = useCallback(async () => {
     const newScene: Scene = {
@@ -412,8 +497,6 @@ export function GlideBreakdownTab({
 
   const totalPagesDecimal = useMemo(() => scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0), [scenes]);
 
-  const contextMenuRow = contextMenu?.row ?? -1;
-  const contextMenuCol = contextMenu?.col;
   const hasSelection = gridSelection.current?.range !== undefined;
   const hasActiveCell = gridSelection.current?.cell !== undefined;
 
@@ -505,6 +588,7 @@ export function GlideBreakdownTab({
           onDelete={onDelete}
           onPaste={handlePaste}
           onCellContextMenu={onCellContextMenu}
+          provideEditor={provideEditor}
           rowMarkers={2}
           trailingRowOptions={{
             hint: 'New scene...',
