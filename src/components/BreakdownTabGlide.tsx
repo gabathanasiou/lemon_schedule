@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useCallback, useState } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import DataEditor, {
   GridCellKind,
   type GridCell,
@@ -103,6 +103,22 @@ export function GlideBreakdownTab({
     rows: CompactSelection.empty(),
   });
   const gridRef = useRef<DataEditorRef>(null);
+  const prevScenesLen = useRef(scenes.length);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; prevScenesLen.current = scenes.length; return; }
+    if (scenes.length !== prevScenesLen.current || !gridRef.current) {
+      prevScenesLen.current = scenes.length;
+      return;
+    }
+    const all: { cell: Item }[] = [];
+    for (let r = 0; r < scenes.length; r++)
+      for (let c = 0; c < COLUMNS.length; c++)
+        all.push({ cell: [c, r] });
+    setTimeout(() => gridRef.current?.updateCells(all), 0);
+  }, [scenes, COLUMNS]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -283,16 +299,18 @@ export function GlideBreakdownTab({
     if (!sel.current) return false;
     dispatch({ type: 'BATCH_START' });
     const { range } = sel.current;
+    const damageList: { cell: Item }[] = [];
     for (let r = range.y; r <= range.y + range.height; r++) {
       if (r >= scenesRef.current.length) continue;
       for (let c = range.x; c <= range.x + range.width; c++) {
         const colDef = COLUMNS[c];
         if (!colDef) continue;
         commitEdit(scenesRef.current[r].id, colDef.key, '');
+        damageList.push({ cell: [c, r] });
       }
     }
     dispatch({ type: 'BATCH_COMMIT' });
-    gridRef.current?.updateCells();
+    setTimeout(() => gridRef.current?.updateCells(damageList), 0);
     return false;
   }, [COLUMNS, commitEdit, dispatch]);
 
@@ -347,7 +365,13 @@ export function GlideBreakdownTab({
     }
 
     dispatch({ type: 'BATCH_COMMIT' });
-    gridRef.current?.updateCells();
+    const damageList: { cell: Item }[] = [];
+    for (const edit of editRows) {
+      for (let c = 0; c < COLUMNS.length; c++) {
+        if (COLUMNS[c].key === edit.colKey) { damageList.push({ cell: [c, edit.row] }); break; }
+      }
+    }
+    gridRef.current?.updateCells(damageList);
     return false;
   }, [COLUMNS, dispatch, commitEdit]);
 
@@ -429,7 +453,10 @@ export function GlideBreakdownTab({
       dispatch({ type: 'BATCH_START' });
       for (const c of committers) commitEdit(scenes[c.row].id, c.colKey, '');
       dispatch({ type: 'BATCH_COMMIT' });
-      gridRef.current?.updateCells();
+      gridRef.current?.updateCells(committers.map(c => {
+        const colIndex = COLUMNS.findIndex(col => col.key === c.colKey);
+        return { cell: [Math.max(0, colIndex), c.row] as Item };
+      }));
     }
     setContextMenu(null);
   }, [gridSelection, scenes, COLUMNS, commitEdit, dispatch]);
@@ -447,16 +474,18 @@ export function GlideBreakdownTab({
     if (!gridSelection.current?.range) return;
     dispatch({ type: 'BATCH_START' });
     const { x, y, width, height } = gridSelection.current.range;
+    const damageList: { cell: Item }[] = [];
     for (let r = y; r <= y + height; r++) {
       if (r >= scenes.length) continue;
       for (let c = x; c <= x + width; c++) {
         const key = COLUMNS[c]?.key;
         if (!key) continue;
         commitEdit(scenes[r].id, key, '');
+        damageList.push({ cell: [c, r] });
       }
     }
     dispatch({ type: 'BATCH_COMMIT' });
-    gridRef.current?.updateCells();
+    setTimeout(() => gridRef.current?.updateCells(damageList), 0);
     setContextMenu(null);
   }, [gridSelection, scenes, COLUMNS, commitEdit, dispatch]);
 
