@@ -329,6 +329,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       committedRef.current = true;
       onChange(sel);
       setOpen(false);
+      onExit?.();
       return;
     }
     if (mode === 'select') {
@@ -336,6 +337,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       committedRef.current = true;
       onChange(id);
       setOpen(false);
+      onExit?.();
       return;
     }
     setVal(prev => {
@@ -345,7 +347,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       else ids.push(id);
       return ids.join(', ');
     });
-  }, [mode, onChange]);
+  }, [mode, onChange, onExit, uppercase]);
 
   const commit = useCallback(() => {
     if (committedRef.current) return;
