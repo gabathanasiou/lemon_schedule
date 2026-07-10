@@ -218,7 +218,8 @@ export function GlideBreakdownTab({
     const loc = cellData.location;
     if (!loc || cellData.kind !== GridCellKind.Text) return undefined;
     const [col] = loc;
-    const colDef = COLUMNS[col];
+    const dataCol = col - 1;
+    const colDef = COLUMNS[dataCol];
     if (!colDef) return undefined;
     const colKey = colDef.key;
     const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
