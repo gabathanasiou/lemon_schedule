@@ -730,6 +730,8 @@ export function GlideBreakdownTab({
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
           theme={createGlideTheme(fontSize)}
+          rowHeight={Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
+          headerHeight={Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT)}
           onRowAppended={onRowAppended}
           onKeyDown={onKeyDown}
           onDelete={onDelete}
