@@ -227,7 +227,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
-    if (colKey === 'actions') return textCell('', { readonly: true, displayData: '✕', allowOverlay: false, align: 'center' });
+    if (colKey === 'actions') return textCell('', { readonly: true, displayData: '🗑', allowOverlay: false, align: 'center' });
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
