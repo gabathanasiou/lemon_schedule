@@ -319,22 +319,21 @@ export function GlideBreakdownTab({
       };
 
       if (colKey === 'intExt') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={intExtOptions} positioning="relative" defaultOpen autoFocus showAll placeholder="INT, EXT, D/E..." />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={intExtOptions} positioning="fixed" defaultOpen autoFocus showAll placeholder="INT, EXT, D/E..." />;
       }
       if (colKey === 'dayNight') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={dayNightOptions} positioning="relative" defaultOpen autoFocus showAll placeholder="DAY, NIGHT, MORNING..." />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} options={dayNightOptions} positioning="fixed" defaultOpen autoFocus showAll placeholder="DAY, NIGHT, MORNING..." />;
       }
       if (colKey === 'set') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="relative" defaultOpen autoFocus placeholder="Set" className="text-xs" />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="fixed" defaultOpen autoFocus placeholder="Set" className="text-xs" />;
       }
       if (colKey === 'cast') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} mode="multi" displayMode="id" positioning="relative" defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} mode="multi" displayMode="id" positioning="fixed" defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
       }
       const categoryItems = breakdownEditorItems.get(colKey) || [];
-      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} positioning="relative" defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} positioning="fixed" defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
     };
-    editor.disablePadding = true;
-    return editor;
+    return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
 
   const onRowAppended = useCallback(async () => {
