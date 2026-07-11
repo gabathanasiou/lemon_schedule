@@ -32,7 +32,7 @@ export function createGlideTheme(fontSize: number): Theme {
     headerFontStyle: `500 ${fontSize}px`,
     baseFontStyle: `${fontSize}px`,
     markerFontStyle: `500 ${fontSize}px`,
-    fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontFamily: 'Inter, Roboto, -apple-system, BlinkMacSystemFont, avenir next, avenir, segoe ui, helvetica neue, helvetica, Ubuntu, noto, arial, sans-serif',
     editorFontSize: `${fontSize}px`,
     lineHeight: 1.4,
   };
