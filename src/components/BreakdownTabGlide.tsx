@@ -325,10 +325,10 @@ export function GlideBreakdownTab({
       };
 
       if (colKey === 'intExt') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={intExtOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus showAll placeholder="INT, EXT, D/E..." />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={intExtOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="INT, EXT, D/E..." />;
       }
       if (colKey === 'dayNight') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus showAll placeholder="DAY, NIGHT, MORNING..." />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="DAY, NIGHT, MORNING..." />;
       }
       if (colKey === 'set') {
         return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
