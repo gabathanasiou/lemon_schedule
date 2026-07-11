@@ -524,6 +524,18 @@ export function GlideBreakdownTab({
     setContextMenu({ x, y, row, col });
   }, [scenes.length]);
 
+  const onCellClicked = useCallback((cell: Item, e: any) => {
+    const [col, row] = cell;
+    if (col >= 0 || row < 0 || row >= scenes.length) return;
+    if (e.isDoubleClick) {
+      onOpenSheet?.(row);
+      return;
+    }
+    const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+    const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+    setContextMenu({ x, y, row, col });
+  }, [scenes.length, onOpenSheet]);
+
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -661,6 +673,7 @@ export function GlideBreakdownTab({
           onPaste={handlePaste}
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
+          onCellClicked={onCellClicked}
           provideEditor={provideEditor}
           rowMarkers="clickable-number"
           trailingRowOptions={{
