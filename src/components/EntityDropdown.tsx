@@ -23,7 +23,7 @@
  * **Never mix ID-based matching with name-based matching for the same category.**
  */
 
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Scene } from '../types';
 import { useProject } from '../store';
@@ -309,9 +309,16 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
 
-  const currentIds = mode === 'multi' || mode === 'select'
-    ? val.split(',').map(x => x.trim()).filter(Boolean)
-    : localIds;
+  const currentIds = useMemo(() => {
+    if (mode === 'multi' || mode === 'select') {
+      const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+      if (mode === 'multi' && ids.length > 0 && val.trim().at(-1) !== ',') {
+        return ids.slice(0, -1);
+      }
+      return ids;
+    }
+    return localIds;
+  }, [val, mode, localIds]);
 
   const sortAndJoin = useCallback((raw: string) => {
     const ids = raw.split(',').map(x => x.trim()).filter(Boolean);
