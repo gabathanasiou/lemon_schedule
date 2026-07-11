@@ -686,10 +686,10 @@ export function GlideBreakdownTab({
             </button>
           }
         >
-          <DropdownItem onClick={() => { setFontSize(fontSize + 3); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
             Bigger
           </DropdownItem>
-          <DropdownItem onClick={() => { setFontSize(fontSize - 3); }} keepOpen icon={<ZoomOut className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { setFontSize(fontSize - 1.5); }} keepOpen icon={<ZoomOut className="w-3.5 h-3.5" />}>
             Smaller
           </DropdownItem>
           <DropdownDivider />
