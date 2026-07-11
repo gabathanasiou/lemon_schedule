@@ -92,6 +92,11 @@ export function GlideBreakdownTab({
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
   });
 
+  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize();
+  const [fontVersion, setFontVersion] = useState(0);
+  const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
+  const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
+
   const COLUMNS = useMemo(() => [
     ...FIXED_COLS.map(c => ({ ...c, width: columnWidths[c.key] ?? c.width })),
     ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({
@@ -109,17 +114,18 @@ export function GlideBreakdownTab({
   const onColumnResize = useCallback((_col: any, w: number, ci: number) => {
     const key = COLUMNSRef.current[ci]?.key;
     if (!key) return;
-    setColumnWidths(prev => ({ ...prev, [key]: Math.max(40, w) }));
-  }, []);
+    const scale = fontSize / SS_FONT_SIZE_DEFAULT;
+    setColumnWidths(prev => ({ ...prev, [key]: Math.max(40, Math.round(w / scale)) }));
+  }, [fontSize]);
 
-  const glideColumns: GridColumn[] = useMemo(() =>
-    COLUMNS.map(c => c.key === 'actions' ? { title: '', width: c.width, themeOverride: { textDark: '#ef4444' } } as GridColumn : { title: c.label, width: c.width }),
-  [COLUMNS]);
-
-  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize();
-  const [fontVersion, setFontVersion] = useState(0);
-  const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
-  const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
+  const glideColumns: GridColumn[] = useMemo(() => {
+    const scale = fontSize / SS_FONT_SIZE_DEFAULT;
+    return COLUMNS.map(c =>
+      c.key === 'actions'
+        ? { title: '', width: Math.round(c.width * scale), themeOverride: { textDark: '#ef4444' } } as GridColumn
+        : { title: c.label, width: Math.round(c.width * scale) }
+    );
+  }, [COLUMNS, fontSize]);
 
   const trashImg = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
