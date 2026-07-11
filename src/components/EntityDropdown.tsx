@@ -445,7 +445,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
         onKeyDown={e => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
-          if (e.key === 'Tab') { e.preventDefault(); commit(); }
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            const newVal = mode === 'multi' || mode === 'select'
+              ? sortAndJoin(val)
+              : (query || (localIds.length > 0 ? localIds[0] : ''));
+            if (newVal !== value) { committedRef.current = true; onChange(newVal); }
+            setOpen(false);
+            setQuery('');
+          }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
             if (dropdownItems.length === 0) return;
@@ -458,6 +466,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           }
           if (e.key === 'Enter') {
             e.preventDefault();
+            e.stopPropagation();
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
               const item = dropdownItems[highlightedIndex];
               const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
