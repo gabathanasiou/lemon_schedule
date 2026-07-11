@@ -14,7 +14,7 @@ import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import {
-  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye, Check,
+  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye, Square, CheckSquare,
   ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search,
 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -690,7 +690,7 @@ export function GlideBreakdownTab({
             Reset
           </DropdownItem>
           <DropdownDivider />
-          <DropdownItem onClick={() => { setSmoothScroll(p => !p); }} keepOpen icon={smoothScroll ? <Check className="w-3.5 h-3.5" /> : <span className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { setSmoothScroll(p => !p); }} keepOpen icon={smoothScroll ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}>
             Smooth scroll
           </DropdownItem>
         </DropdownMenu>
