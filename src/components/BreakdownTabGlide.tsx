@@ -87,34 +87,6 @@ export function GlideBreakdownTab({
   }, [project.customCategories, project.categoryLabels]);
 
   const STORAGE_KEY = `lemon_schedule_glide_cols_${project.id}`;
-  const SCROLL_KEY = STORAGE_KEY + '_scroll';
-
-  const scrollSaveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const restoringRef = useRef(false);
-  const needsRestore = useRef(localStorage.getItem(SCROLL_KEY) !== null);
-
-  const onVisibleRegionChanged = useCallback((region: { x: number; y: number }) => {
-    if (needsRestore.current) {
-      needsRestore.current = false;
-      restoringRef.current = true;
-      const saved = localStorage.getItem(SCROLL_KEY);
-      if (saved) {
-        const { x, y } = JSON.parse(saved);
-        gridRef.current?.scrollTo(x, y);
-      }
-      setTimeout(() => { restoringRef.current = false; }, 500);
-      return;
-    }
-    if (restoringRef.current) return;
-    clearTimeout(scrollSaveTimer.current);
-    scrollSaveTimer.current = setTimeout(() => {
-      try { localStorage.setItem(SCROLL_KEY, JSON.stringify({ x: region.x, y: region.y })); } catch {}
-    }, 300);
-  }, [SCROLL_KEY]);
-
-  useEffect(() => {
-    return () => clearTimeout(scrollSaveTimer.current);
-  }, []);
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
@@ -773,7 +745,6 @@ export function GlideBreakdownTab({
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
-          onVisibleRegionChanged={onVisibleRegionChanged}
           drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
