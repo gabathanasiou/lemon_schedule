@@ -92,7 +92,7 @@ export function GlideBreakdownTab({
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
   });
 
-  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize();
+  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 14 : undefined);
   const [fontVersion, setFontVersion] = useState(0);
   const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
   const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);

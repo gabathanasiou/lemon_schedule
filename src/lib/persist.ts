@@ -104,13 +104,14 @@ export const SS_FONT_SIZE_MAX = 20;
 export const SS_FONT_SIZE_DEFAULT = 11;
 const SS_FONT_SIZE_KEY = 'lemon_schedule_ss_font_size';
 
-export function useSpreadsheetFontSize(): [number, (n: number) => void] {
+export function useSpreadsheetFontSize(defaultSize?: number): [number, (n: number) => void] {
+  const fallback = defaultSize ?? SS_FONT_SIZE_DEFAULT;
   const [size, setSize] = useState<number>(() => {
     try {
       const stored = localStorage.getItem(SS_FONT_SIZE_KEY);
       const n = parseInt(stored || '', 10);
-      return n >= SS_FONT_SIZE_MIN && n <= SS_FONT_SIZE_MAX ? n : SS_FONT_SIZE_DEFAULT;
-    } catch { return SS_FONT_SIZE_DEFAULT; }
+      return n >= SS_FONT_SIZE_MIN && n <= SS_FONT_SIZE_MAX ? n : fallback;
+    } catch { return fallback; }
   });
 
   const setFontSize = useCallback((n: number) => {
