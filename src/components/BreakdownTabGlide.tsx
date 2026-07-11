@@ -91,12 +91,7 @@ export function GlideBreakdownTab({
 
   const scrollSaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const restoringRef = useRef(false);
-  const needsRestore = useRef(false);
-
-  useEffect(() => {
-    needsRestore.current = localStorage.getItem(SCROLL_KEY) !== null;
-    return () => clearTimeout(scrollSaveTimer.current);
-  }, [SCROLL_KEY]);
+  const needsRestore = useRef(localStorage.getItem(SCROLL_KEY) !== null);
 
   const onVisibleRegionChanged = useCallback((region: { x: number; y: number }) => {
     if (needsRestore.current) {
