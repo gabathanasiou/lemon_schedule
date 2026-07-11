@@ -23,7 +23,7 @@ import { getFieldItems, isMultiValue } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
-import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
+import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -87,6 +87,33 @@ export function GlideBreakdownTab({
   }, [project.customCategories, project.categoryLabels]);
 
   const STORAGE_KEY = `lemon_schedule_glide_cols_${project.id}`;
+  const SCROLL_KEY = STORAGE_KEY + '_scroll';
+
+  const scrollSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const onVisibleRegionChanged = useCallback((region: { x: number; y: number }) => {
+    clearTimeout(scrollSaveTimer.current);
+    scrollSaveTimer.current = setTimeout(() => {
+      try { localStorage.setItem(SCROLL_KEY, JSON.stringify({ x: region.x, y: region.y })); } catch {}
+    }, 300);
+  }, [SCROLL_KEY]);
+
+  useEffect(() => {
+    return () => clearTimeout(scrollSaveTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(SCROLL_KEY);
+        if (saved) {
+          const { x, y } = JSON.parse(saved);
+          gridRef.current?.scrollTo(x, y);
+        }
+      } catch {}
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [SCROLL_KEY]);
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
@@ -95,7 +122,7 @@ export function GlideBreakdownTab({
   const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
   const [fontVersion, setFontVersion] = useState(0);
   const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
-  const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
+  const [smoothScroll, setSmoothScroll] = useGlideSmoothScroll(IS_COARSE);
 
   const COLUMNS = useMemo(() => [
     ...FIXED_COLS.map(c => ({ ...c, width: columnWidths[c.key] ?? c.width })),
@@ -697,7 +724,7 @@ export function GlideBreakdownTab({
             Reset
           </DropdownItem>
           <DropdownDivider />
-          <DropdownItem onClick={() => { setSmoothScroll(p => !p); }} keepOpen icon={smoothScroll ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { setSmoothScroll(!smoothScroll); }} keepOpen icon={smoothScroll ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}>
             Smooth scroll
           </DropdownItem>
         </DropdownMenu>
@@ -745,6 +772,7 @@ export function GlideBreakdownTab({
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
+          onVisibleRegionChanged={onVisibleRegionChanged}
           drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}

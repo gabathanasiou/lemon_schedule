@@ -122,3 +122,21 @@ export function useSpreadsheetFontSize(defaultSize?: number): [number, (n: numbe
 
   return [size, setFontSize];
 }
+
+const GLIDE_SMOOTH_SCROLL_KEY = 'lemon_schedule_glide_smooth_scroll';
+
+export function useGlideSmoothScroll(isCoarse: boolean): [boolean, (v: boolean) => void] {
+  const [mode, setMode] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(GLIDE_SMOOTH_SCROLL_KEY);
+      return stored !== null ? stored === 'true' : isCoarse;
+    } catch { return isCoarse; }
+  });
+
+  const setSmooth = useCallback((v: boolean) => {
+    setMode(v);
+    try { localStorage.setItem(GLIDE_SMOOTH_SCROLL_KEY, String(v)); } catch {}
+  }, []);
+
+  return [mode, setSmooth];
+}
