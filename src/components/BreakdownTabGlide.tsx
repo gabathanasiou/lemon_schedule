@@ -118,7 +118,6 @@ export function GlideBreakdownTab({
 
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
   const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
-  const theme = useMemo(() => createGlideTheme(fontSize), [fontSize]);
 
   const trashImg = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
@@ -152,17 +151,6 @@ export function GlideBreakdownTab({
   const gridRef = useRef<DataEditorRef>(null);
   const prevScenesLen = useRef(scenes.length);
   const mountedRef = useRef(false);
-
-  useEffect(() => {
-    if (!mountedRef.current) return;
-    const len = scenesRef.current.length;
-    const cols = COLUMNSRef.current;
-    const all: { cell: Item }[] = [];
-    for (let r = 0; r < len; r++)
-      for (let c = 0; c < cols.length; c++)
-        all.push({ cell: [c, r] });
-    setTimeout(() => gridRef.current?.updateCells(all), 0);
-  }, [fontSize]);
 
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; prevScenesLen.current = scenes.length; return; }
@@ -730,6 +718,7 @@ export function GlideBreakdownTab({
       {/* Grid */}
       <div style={{ flex: 1, minHeight: 0, paddingBottom: 24, touchAction: 'none' }}>
         <DataEditor
+          key={fontSize}
           ref={gridRef}
           columns={glideColumns}
           rows={scenes.length}
@@ -738,7 +727,7 @@ export function GlideBreakdownTab({
           getCellsForSelection={true}
           gridSelection={gridSelection}
           onGridSelectionChange={setGridSelection}
-          theme={theme}
+          theme={createGlideTheme(fontSize)}
           onRowAppended={onRowAppended}
           onKeyDown={onKeyDown}
           onDelete={onDelete}
