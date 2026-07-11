@@ -92,7 +92,7 @@ export function GlideBreakdownTab({
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
   });
 
-  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 14 : undefined);
+  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
   const [fontVersion, setFontVersion] = useState(0);
   const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
   const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
@@ -693,7 +693,7 @@ export function GlideBreakdownTab({
             Smaller
           </DropdownItem>
           <DropdownDivider />
-          <DropdownItem onClick={() => { setFontSize(IS_COARSE ? 14 : SS_FONT_SIZE_DEFAULT); }} keepOpen icon={<RotateCcw className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { setFontSize(IS_COARSE ? 12.5 : SS_FONT_SIZE_DEFAULT); }} keepOpen icon={<RotateCcw className="w-3.5 h-3.5" />}>
             Reset
           </DropdownItem>
           <DropdownDivider />
