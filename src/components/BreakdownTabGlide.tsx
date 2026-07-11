@@ -693,7 +693,7 @@ export function GlideBreakdownTab({
             Smaller
           </DropdownItem>
           <DropdownDivider />
-          <DropdownItem onClick={() => { setViewOpen(false); setFontSize(SS_FONT_SIZE_DEFAULT); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
+          <DropdownItem onClick={() => { setFontSize(SS_FONT_SIZE_DEFAULT); }} keepOpen icon={<RotateCcw className="w-3.5 h-3.5" />}>
             Reset
           </DropdownItem>
           <DropdownDivider />
