@@ -662,7 +662,7 @@ export function GlideBreakdownTab({
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           provideEditor={provideEditor}
-          rowMarkers={2}
+          rowMarkers="clickable-number"
           trailingRowOptions={{
             hint: '',
             add: 'add',
