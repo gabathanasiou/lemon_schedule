@@ -435,9 +435,21 @@ export function GlideBreakdownTab({
     dispatch({ type: 'DELETE_SCENE', payload: id });
   }, [dispatch]);
 
+  const getEffectiveRange = useCallback((): { x: number; y: number; width: number; height: number } | null => {
+    const sel = gridSelection.current;
+    if (sel?.range) return sel.range;
+    if (gridSelection.rows.length > 0) {
+      const selectedRows = Array.from({ length: scenes.length }, (_, i) => i).filter(i => gridSelection.rows.hasIndex(i));
+      if (selectedRows.length === 0) return null;
+      return { x: 0, y: selectedRows[0], width: COLUMNS.length, height: selectedRows.length };
+    }
+    return null;
+  }, [gridSelection, scenes.length, COLUMNS.length]);
+
   const handleCopy = useCallback(async () => {
-    if (!gridSelection.current?.range) return;
-    const { x, y, width, height } = gridSelection.current.range;
+    const range = getEffectiveRange();
+    if (!range) return;
+    const { x, y, width, height } = range;
     const rows: string[] = [];
     for (let r = y; r < y + height; r++) {
       if (r >= scenes.length) break;
@@ -449,11 +461,12 @@ export function GlideBreakdownTab({
     }
     if (rows.length > 0) await navigator.clipboard.writeText(rows.join('\n'));
     setContextMenu(null);
-  }, [gridSelection, scenes, COLUMNS]);
+  }, [scenes, COLUMNS, getEffectiveRange]);
 
   const handleCut = useCallback(async () => {
-    if (!gridSelection.current?.range) return;
-    const { x, y, width, height } = gridSelection.current.range;
+    const range = getEffectiveRange();
+    if (!range) return;
+    const { x, y, width, height } = range;
     const rows: string[] = [];
     const committers: { row: number; colKey: string }[] = [];
     for (let r = y; r < y + height; r++) {
@@ -478,7 +491,7 @@ export function GlideBreakdownTab({
       }));
     }
     setContextMenu(null);
-  }, [gridSelection, scenes, COLUMNS, commitEdit, dispatch]);
+  }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
 
   const handlePasteFromMenu = useCallback(async () => {
     if (!gridSelection.current?.cell) return;
@@ -490,9 +503,10 @@ export function GlideBreakdownTab({
   }, [gridSelection, handlePaste]);
 
   const handleClear = useCallback(() => {
-    if (!gridSelection.current?.range) return;
+    const range = getEffectiveRange();
+    if (!range) return;
     dispatch({ type: 'BATCH_START' });
-    const { x, y, width, height } = gridSelection.current.range;
+    const { x, y, width, height } = range;
     const damageList: { cell: Item }[] = [];
     for (let r = y; r < y + height; r++) {
       if (r >= scenes.length) continue;
@@ -506,7 +520,7 @@ export function GlideBreakdownTab({
     dispatch({ type: 'BATCH_COMMIT' });
     setTimeout(() => gridRef.current?.updateCells(damageList), 0);
     setContextMenu(null);
-  }, [gridSelection, scenes, COLUMNS, commitEdit, dispatch]);
+  }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -579,7 +593,7 @@ export function GlideBreakdownTab({
 
   const totalPagesDecimal = useMemo(() => scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0), [scenes]);
 
-  const hasSelection = gridSelection.current?.range !== undefined;
+  const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
   const hasActiveCell = gridSelection.current?.cell !== undefined;
 
   return (
