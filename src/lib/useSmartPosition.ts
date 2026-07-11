@@ -50,20 +50,23 @@ export function useFixedPosition(
 ) {
   useLayoutEffect(() => {
     if (!open || !wrapperRef.current) return;
-    const rect = wrapperRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.visualViewport?.height ?? window.innerHeight;
-    const voff = window.visualViewport?.offsetTop ?? 0;
-    const panelWidth = 200;
-    const gap = 4;
+    const el = wrapperRef.current;
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      const voff = window.visualViewport?.offsetTop ?? 0;
+      const panelWidth = 200;
+      const gap = 4;
 
-    let left = Math.max(0, rect.left);
-    let top = Math.min(rect.bottom + gap, voff + vh);
+      let left = Math.max(0, rect.left);
+      let top = Math.min(rect.bottom + gap, voff + vh);
 
-    if (left + panelWidth > vw) left = Math.max(0, vw - panelWidth - 8);
-    top = Math.max(voff, top);
-    const maxH = Math.max(120, voff + vh - top - 16);
+      if (left + panelWidth > vw) left = Math.max(0, vw - panelWidth - 8);
+      top = Math.max(voff, top);
+      const maxH = Math.max(120, voff + vh - top - 16);
 
-    setPos({ top, left, width: rect.width, maxH });
+      setPos({ top, left, width: rect.width, maxH });
+    });
   }, [open, wrapperRef]);
 }
