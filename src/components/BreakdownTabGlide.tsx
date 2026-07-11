@@ -54,13 +54,14 @@ const FIXED_COLS = [
   { key: 'notes', label: 'Notes', width: 200 },
 ];
 
-function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean }>): GridCell {
+function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center' }>): GridCell {
   return {
     kind: GridCellKind.Text,
     data,
     displayData: opts?.displayData ?? data,
     allowOverlay: opts?.allowOverlay ?? true,
     readonly: opts?.readonly ?? false,
+    contentAlign: opts?.align,
   } as GridCell;
 }
 
@@ -226,7 +227,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
-    if (colKey === 'actions') return textCell('', { readonly: true, displayData: '✕', allowOverlay: false });
+    if (colKey === 'actions') return textCell('', { readonly: true, displayData: '✕', allowOverlay: false, align: 'center' });
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
