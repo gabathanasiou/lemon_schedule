@@ -63,7 +63,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     onExit?.();
     setOpen(false);
     setVal(value);
-  });
+  }, scrollRef);
 
   useFixedPosition(ref, positioning === 'fixed' && open, setPos);
 

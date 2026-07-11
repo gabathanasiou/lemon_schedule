@@ -321,7 +321,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     onExit?.();
   }, [mode, val, localIds, query, onChange, sortAndJoin, onExit, value]);
 
-  useDropdown(open, ref, handleClose);
+  useDropdown(open, ref, handleClose, panelRef);
 
   useFixedPosition(ref, positioning === 'fixed' && open, setPos);
 
