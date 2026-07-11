@@ -116,7 +116,9 @@ export function GlideBreakdownTab({
     COLUMNS.map(c => c.key === 'actions' ? { title: '', width: c.width, themeOverride: { textDark: '#ef4444' } } as GridColumn : { title: c.label, width: c.width }),
   [COLUMNS]);
 
-  const [fontSize, setFontSize] = useSpreadsheetFontSize();
+  const [fontSize, setFontSizeBase] = useSpreadsheetFontSize();
+  const [fontVersion, setFontVersion] = useState(0);
+  const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
   const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
 
   const trashImg = useRef<HTMLImageElement | null>(null);
@@ -718,7 +720,7 @@ export function GlideBreakdownTab({
       {/* Grid */}
       <div style={{ flex: 1, minHeight: 0, paddingBottom: 24, touchAction: 'none' }}>
         <DataEditor
-          key={fontSize}
+          key={fontVersion}
           ref={gridRef}
           columns={glideColumns}
           rows={scenes.length}
