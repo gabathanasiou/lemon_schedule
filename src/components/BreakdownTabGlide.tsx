@@ -625,7 +625,7 @@ export function GlideBreakdownTab({
       </div>
 
       {/* Grid */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, paddingBottom: 24 }}>
         <DataEditor
           ref={gridRef}
           columns={glideColumns}
