@@ -49,6 +49,50 @@ Two complementary tab patterns that fit together seamlessly:
 
 Both use padding-ignoring container margins to let tabs reach edges while keeping controls comfortably spaced.
 
+### MiniTab Header Portal Pattern
+When a child component rendered below a MiniTab bar needs to place toolbar controls (dropdowns, buttons) **inside** the MiniTab's `rightContent` area, use the portal pattern:
+
+1. **Parent** (`BreakdownTab.tsx`) provides a portal div in `rightContent`:
+   ```tsx
+   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+   <MiniTab
+     rightContent={
+       <>
+         {/* direct controls for Scene Breakdown when subTab === 'scenes' */}
+         <div
+           ref={el => { portalTargetRef.current = el; setPortalTarget(el); }}
+           className={subTab === 'scenes' ? 'hidden' : 'flex items-center gap-2'}
+         />
+       </>
+     }
+   />
+   ```
+
+2. **Child component** accepts `headerTarget?: HTMLElement | null`, renders toolbar via `createPortal`:
+   ```tsx
+   import { createPortal } from 'react-dom';
+
+   const headerContent = (<div className="flex items-center justify-end gap-1">...</div>);
+
+   return (
+     <div>
+       {headerTarget ? createPortal(headerContent, headerTarget) : (
+         <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
+           {headerContent}
+         </div>
+       )}
+       {/* component body */}
+     </div>
+   );
+   ```
+
+3. **Parent passes** `headerTarget={portalTarget}` to the child.
+
+**Components using this pattern:** `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
+
+**Why:** When `headerTarget` is null (component used standalone), the toolbar renders inline. When portaled, it sits in the MiniTab bar, avoiding a redundant second toolbar below.
+
 ## UI Component Library (`src/components/`)
 
 ### Shared Primitives (use these instead of raw HTML)

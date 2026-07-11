@@ -1,4 +1,5 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import DataEditor, {
   GridCellKind,
   type GridCell,
@@ -67,8 +68,10 @@ function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData:
 
 export function GlideBreakdownTab({
   onOpenSheet,
+  headerTarget,
 }: {
   onOpenSheet?: (rowIndex: number) => void;
+  headerTarget?: HTMLElement | null;
 }) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
@@ -673,82 +676,95 @@ export function GlideBreakdownTab({
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
   const hasActiveCell = gridSelection.current?.cell !== undefined || gridSelection.rows.length > 0;
 
+  const headerContent = (
+    <div className="flex items-center justify-end gap-1">
+      <button
+        onClick={addScene}
+        className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors"
+      >
+        + Add Scene
+      </button>
+      <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
+        trigger={
+          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+            Edit
+            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          </button>
+        }
+      >
+        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />}>
+          Sort by #
+        </DropdownItem>
+        <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
+          Clean Empty
+        </DropdownItem>
+        <DropdownDivider />
+        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />}>
+          Import CSV
+        </DropdownItem>
+      </DropdownMenu>
+
+      <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
+        trigger={
+          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+            View
+            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          </button>
+        }
+      >
+        <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
+          Bigger
+        </DropdownItem>
+        <DropdownItem onClick={() => { setFontSize(fontSize - 1.5); }} keepOpen icon={<ZoomOut className="w-3.5 h-3.5" />}>
+          Smaller
+        </DropdownItem>
+        <DropdownDivider />
+        <DropdownItem onClick={() => { setFontSize(IS_COARSE ? 12.5 : SS_FONT_SIZE_DEFAULT); }} keepOpen icon={<RotateCcw className="w-3.5 h-3.5" />}>
+          Reset
+        </DropdownItem>
+        <DropdownDivider />
+        <DropdownItem onClick={() => { setSmoothScroll(!smoothScroll); }} keepOpen icon={smoothScroll ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}>
+          Smooth scroll
+        </DropdownItem>
+      </DropdownMenu>
+
+      <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
+        trigger={
+          <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
+            Info
+            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          </button>
+        }
+      >
+        <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
+          <div className="flex items-center justify-between gap-6">
+            <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Scenes</span>
+            <span className="font-semibold text-zinc-800">{scenes.length}</span>
+          </div>
+          <div className="flex items-center justify-between gap-6">
+            <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Pages</span>
+            <span className="font-semibold text-zinc-800">{formatPageCount(totalPagesDecimal)}</span>
+          </div>
+        </div>
+      </DropdownMenu>
+    </div>
+  );
+
   return (
     <div className="flex-1 flex flex-col min-h-0 w-full">
-      {/* Toolbar */}
-      <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
-        <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
-          trigger={
-            <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
-              Edit
-              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-            </button>
-          }
-        >
-          <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />}>
-            Sort by #
-          </DropdownItem>
-          <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
-            Clean Empty
-          </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />}>
-            Import CSV
-          </DropdownItem>
-        </DropdownMenu>
-
-        <DropdownMenu open={viewOpen} onOpenChange={setViewOpen} width="w-44" theme="light"
-          trigger={
-            <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
-              View
-              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-            </button>
-          }
-        >
-          <DropdownItem onClick={() => { setFontSize(fontSize + 1.5); }} keepOpen icon={<ZoomIn className="w-3.5 h-3.5" />}>
-            Bigger
-          </DropdownItem>
-          <DropdownItem onClick={() => { setFontSize(fontSize - 1.5); }} keepOpen icon={<ZoomOut className="w-3.5 h-3.5" />}>
-            Smaller
-          </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem onClick={() => { setFontSize(IS_COARSE ? 12.5 : SS_FONT_SIZE_DEFAULT); }} keepOpen icon={<RotateCcw className="w-3.5 h-3.5" />}>
-            Reset
-          </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem onClick={() => { setSmoothScroll(!smoothScroll); }} keepOpen icon={smoothScroll ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}>
-            Smooth scroll
-          </DropdownItem>
-        </DropdownMenu>
-
-        <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
-          trigger={
-            <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
-              Info
-              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-            </button>
-          }
-        >
-          <div className="px-4 py-2.5 text-xs text-zinc-500 space-y-1.5">
-            <div className="flex items-center justify-between gap-6">
-              <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Scenes</span>
-              <span className="font-semibold text-zinc-800">{scenes.length}</span>
-            </div>
-            <div className="flex items-center justify-between gap-6">
-              <span className="font-medium text-zinc-400 uppercase tracking-wider text-[10px]">Pages</span>
-              <span className="font-semibold text-zinc-800">{formatPageCount(totalPagesDecimal)}</span>
-            </div>
-          </div>
-        </DropdownMenu>
-      </div>
+      {headerTarget ? createPortal(headerContent, headerTarget) : (
+        <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
+          {headerContent}
+        </div>
+      )}
 
       {/* Grid */}
-      <div style={{ flex: 1, minHeight: 0, paddingBottom: 24, touchAction: 'none' }}>
+      <div style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
         <DataEditor
           key={fontVersion}
           ref={gridRef}
           columns={glideColumns}
-          rows={scenes.length + 1}
+          rows={scenes.length + 5}
           getCellContent={getCellContent}
           onCellEdited={onCellEdited}
           getCellsForSelection={true}
