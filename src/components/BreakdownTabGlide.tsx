@@ -42,6 +42,7 @@ const BREAKDOWN_LABELS: Record<string, string> = {
 };
 
 const FIXED_COLS = [
+  { key: 'actions', label: '', width: IS_COARSE ? 48 : 36 },
   { key: 'sceneNumber', label: 'Scene #', width: 60 },
   { key: 'pageCount', label: 'Pages', width: 80 },
   { key: 'scriptDay', label: 'Script Day', width: 80 },
@@ -53,12 +54,12 @@ const FIXED_COLS = [
   { key: 'notes', label: 'Notes', width: 200 },
 ];
 
-function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string }>): GridCell {
+function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean }>): GridCell {
   return {
     kind: GridCellKind.Text,
     data,
     displayData: opts?.displayData ?? data,
-    allowOverlay: true,
+    allowOverlay: opts?.allowOverlay ?? true,
     readonly: opts?.readonly ?? false,
   } as GridCell;
 }
@@ -111,7 +112,7 @@ export function GlideBreakdownTab({
   }, []);
 
   const glideColumns: GridColumn[] = useMemo(() =>
-    COLUMNS.map(c => ({ title: c.label, width: c.width })),
+    COLUMNS.map(c => c.key === 'actions' ? { title: '', width: c.width, themeOverride: { textDark: '#ef4444' } } as GridColumn : { title: c.label, width: c.width }),
   [COLUMNS]);
 
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
@@ -225,6 +226,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
+    if (colKey === 'actions') return textCell('', { readonly: true, displayData: '✕', allowOverlay: false });
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
@@ -246,7 +248,7 @@ export function GlideBreakdownTab({
     const scene = scenesRef.current[row];
     if (!scene) return;
     const colDef = COLUMNS[col];
-    if (!colDef) return;
+    if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind === GridCellKind.Text) {
       commitEdit(scene.id, colDef.key, newValue.data);
     }
@@ -325,6 +327,7 @@ export function GlideBreakdownTab({
       for (let c = range.x; c < range.x + range.width; c++) {
         const colDef = COLUMNS[c];
         if (!colDef) continue;
+        if (colDef.key === 'actions') continue;
         commitEdit(scenesRef.current[r].id, colDef.key, '');
         damageList.push({ cell: [c, r] });
       }
@@ -346,7 +349,7 @@ export function GlideBreakdownTab({
       if (targetRow < currentScenes.length) {
         for (let c = 0; c < values[r].length; c++) {
           const targetCol = target[0] + c;
-          if (targetCol < COLUMNS.length) {
+          if (targetCol < COLUMNS.length && COLUMNS[targetCol].key !== 'actions') {
             editRows.push({ row: targetRow, colKey: COLUMNS[targetCol].key, val: values[r][c] });
           }
         }
@@ -456,7 +459,9 @@ export function GlideBreakdownTab({
       if (r >= scenes.length) break;
       const cols: string[] = [];
       for (let c = x; c < x + width; c++) {
-        cols.push(String((scenes[r] as any)[COLUMNS[c]?.key] ?? ''));
+        const key = COLUMNS[c]?.key;
+        if (key === 'actions') continue;
+        cols.push(String((scenes[r] as any)[key] ?? ''));
       }
       rows.push(cols.join('\t'));
     }
@@ -475,7 +480,7 @@ export function GlideBreakdownTab({
       const cols: string[] = [];
       for (let c = x; c < x + width; c++) {
         const key = COLUMNS[c]?.key;
-        if (!key) continue;
+        if (!key || key === 'actions') continue;
         cols.push(String((scenes[r] as any)[key] ?? ''));
         committers.push({ row: r, colKey: key });
       }
@@ -519,7 +524,7 @@ export function GlideBreakdownTab({
       if (r >= scenes.length) continue;
       for (let c = x; c < x + width; c++) {
         const key = COLUMNS[c]?.key;
-        if (!key) continue;
+        if (!key || key === 'actions') continue;
         commitEdit(scenes[r].id, key, '');
         damageList.push({ cell: [c, r] });
       }
@@ -547,7 +552,12 @@ export function GlideBreakdownTab({
 
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
-    if (col >= 0 || row < 0 || row >= scenes.length) return;
+    if (row < 0 || row >= scenes.length) return;
+    if (col === 0) {
+      deleteScene(scenesRef.current[row]?.id);
+      return;
+    }
+    if (col >= 0) return;
     if (e.isDoubleClick) {
       onOpenSheet?.(row);
       return;
