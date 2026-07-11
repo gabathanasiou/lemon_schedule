@@ -50,11 +50,17 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   const [val, setVal] = useState(value);
   const [highlightedIndex, setHighlightedIndex] = useState(() => {
     const idx = options.findIndex(opt => opt === normalize(value));
-    return idx >= 0 ? idx : 0;
+    if (idx >= 0) return idx;
+    if (showAll && value) {
+      const partialIdx = options.findIndex(opt => opt.includes(normalize(value)));
+      return partialIdx >= 0 ? partialIdx : 0;
+    }
+    return 0;
   });
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 });
+  const highlightTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const handleOpen = useOpenHandler(setOpen);
 
@@ -68,6 +74,10 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   }, scrollRef);
 
   useFixedPosition(ref, positioning === 'fixed' && open, setPos);
+
+  useEffect(() => {
+    return () => { if (highlightTimer.current) clearTimeout(highlightTimer.current); };
+  }, []);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -105,7 +115,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE}
         value={open ? val : value}
-        onChange={e => { const typed = normalize(e.target.value); setVal(typed); if (showAll) { const idx = options.findIndex(opt => opt.includes(typed)); setHighlightedIndex(idx >= 0 ? idx : 0); } else { setHighlightedIndex(0); } if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
+        onChange={e => { const typed = normalize(e.target.value); setVal(typed); if (highlightTimer.current) clearTimeout(highlightTimer.current); if (showAll) { highlightTimer.current = setTimeout(() => { const idx = options.findIndex(opt => opt.includes(typed)); setHighlightedIndex(idx >= 0 ? idx : 0); }, 150); } else { setHighlightedIndex(0); } if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
         onClick={() => { setVal(value); if (!open) { const full = showAll ? options : options.filter(opt => opt.includes(normalize(value))); const idx = full.findIndex(opt => opt === normalize(value)); setHighlightedIndex(idx >= 0 ? idx : 0); standalone ? setOpen(true) : handleOpen(); } }}
         onFocus={() => { if (!open) { standalone ? setOpen(true) : undefined; } }}
         placeholder={placeholder}

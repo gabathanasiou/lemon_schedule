@@ -138,6 +138,7 @@ export function GlideBreakdownTab({
   const drawCell = useCallback((args: any, draw: (a: any) => boolean) => {
     if (args.col === 0) {
       draw(args);
+      if (args.row >= scenesRef.current.length) return true;
       const img = trashImg.current;
       if (img && img.complete) {
         const { ctx, rect } = args;
@@ -250,6 +251,12 @@ export function GlideBreakdownTab({
   const getCellContent = useCallback(([col, row]: Item): GridCell => {
     const scene = scenesRef.current[row];
     if (!scene) {
+      if (row === scenesRef.current.length) {
+        const colDef = COLUMNS[col];
+        if (!colDef) return textCell('', { readonly: true });
+        if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false });
+        return textCell('');
+      }
       return {
         kind: GridCellKind.Text,
         data: '',
@@ -279,6 +286,30 @@ export function GlideBreakdownTab({
   }, [COLUMNS, getSceneValue]);
 
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
+    if (row === scenesRef.current.length) {
+      const colDef = COLUMNS[col];
+      if (!colDef || colDef.key === 'actions') return;
+      if (newValue.kind !== GridCellKind.Text || !newValue.data.trim()) return;
+      const val = colDef.key === 'pageCount'
+        ? formatPageCount(parsePageCount(newValue.data))
+        : colDef.key === 'scriptDay'
+          ? newValue.data.replace(/[^0-9]/g, '')
+          : colDef.key === 'set'
+            ? newValue.data.toUpperCase()
+            : newValue.data;
+      const newScene: Scene = {
+        id: generateUUID(), sceneNumber: '', pageCount: '', pageCountDecimal: 0,
+        scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
+        description: '', cast: '', notes: '',
+        backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
+        makeup: '', sfx: '', vfx: '', sound: '', music: '',
+        animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
+        shootDay: null,
+        [colDef.key]: val,
+      };
+      dispatch({ type: 'ADD_SCENE', payload: newScene });
+      return;
+    }
     if (row >= scenesRef.current.length) return;
     const scene = scenesRef.current[row];
     if (!scene) return;
@@ -287,7 +318,7 @@ export function GlideBreakdownTab({
     if (newValue.kind === GridCellKind.Text) {
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, commitEdit]);
+  }, [COLUMNS, dispatch, commitEdit]);
 
   const provideEditor = useCallback((cellData: any & { location?: Item }): any => {
     const loc = cellData.location;
@@ -328,10 +359,10 @@ export function GlideBreakdownTab({
       };
 
       if (colKey === 'intExt') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={intExtOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="INT, EXT, D/E..." />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={intExtOptions} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="INT, EXT, D/E..." />;
       }
       if (colKey === 'dayNight') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="DAY, NIGHT, MORNING..." />;
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="DAY, NIGHT, MORNING..." />;
       }
       if (colKey === 'set') {
         return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
@@ -344,19 +375,6 @@ export function GlideBreakdownTab({
     };
     return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
-
-  const onRowAppended = useCallback(async () => {
-    const newScene: Scene = {
-      id: generateUUID(), sceneNumber: '', pageCount: '', pageCountDecimal: 0,
-      scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
-      description: '', cast: '', notes: '',
-      backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
-      makeup: '', sfx: '', vfx: '', sound: '', music: '',
-      animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-      shootDay: null,
-    };
-    dispatch({ type: 'ADD_SCENE', payload: newScene });
-  }, [dispatch]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (!sel.current) return false;
@@ -593,7 +611,8 @@ export function GlideBreakdownTab({
 
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
-    if (row < 0 || row >= scenes.length) return;
+    if (row < 0 || row > scenes.length) return;
+    if (row === scenes.length) return;
     if (col === 0) {
       deleteScene(scenesRef.current[row]?.id);
       return;
@@ -658,14 +677,6 @@ export function GlideBreakdownTab({
     <div className="flex-1 flex flex-col min-h-0 w-full">
       {/* Toolbar */}
       <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
-        <div className="flex-1" />
-        <button
-          onClick={addScene}
-          className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors"
-        >
-          + Add Scene
-        </button>
-
         <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen} width="w-44" theme="light"
           trigger={
             <button className="flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600 border border-transparent hover:border-zinc-300">
@@ -737,7 +748,7 @@ export function GlideBreakdownTab({
           key={fontVersion}
           ref={gridRef}
           columns={glideColumns}
-          rows={scenes.length}
+          rows={scenes.length + 1}
           getCellContent={getCellContent}
           onCellEdited={onCellEdited}
           getCellsForSelection={true}
@@ -746,7 +757,6 @@ export function GlideBreakdownTab({
           theme={createGlideTheme(fontSize)}
           rowHeight={Math.round(34 * fontSize / SS_FONT_SIZE_DEFAULT)}
           headerHeight={Math.round(36 * fontSize / SS_FONT_SIZE_DEFAULT)}
-          onRowAppended={onRowAppended}
           onKeyDown={onKeyDown}
           onDelete={onDelete}
           onPaste={handlePaste}
@@ -756,12 +766,6 @@ export function GlideBreakdownTab({
           drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
-          trailingRowOptions={{
-            hint: '',
-            add: 'add',
-            sticky: true,
-            tint: true,
-          }}
           freezeColumns={1}
           editOnType
           rangeSelect={IS_COARSE ? "cell" : "rect"}
@@ -811,9 +815,6 @@ export function GlideBreakdownTab({
               );
             })()}
           </>
-        )}
-        {contextMenu && contextMenu.row >= scenes.length && (
-          <ContextMenuItem onClick={() => { addScene(); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />}>Add Scene</ContextMenuItem>
         )}
       </ContextMenu>
 
