@@ -247,7 +247,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   // --- Multi mode: val = full comma-separated text (like CastEditor) ---
   // --- Single mode: query + localIds (search-then-select pattern) ---
   const [val, setVal] = useState(() => {
-    if (mode === 'multi' && value.trim().length > 0 && value.trimEnd().at(-1) !== ',') {
+    const hasExisting = value.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(value.trim()));
+    if (mode === 'multi' && hasExisting && value.trimEnd().at(-1) !== ',') {
       return value.trimEnd() + ', ';
     }
     return value;
@@ -256,7 +257,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (syntheticRef.current) { syntheticRef.current = false; return; }
     if (mode === 'multi' || mode === 'select') {
       let v = value;
-      if (mode === 'multi' && v.trim().length > 0 && v.trimEnd().at(-1) !== ',') {
+      const hasExisting = v.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(v.trim()));
+      if (mode === 'multi' && hasExisting && v.trimEnd().at(-1) !== ',') {
         v = v.trimEnd() + ', ';
       }
       setVal(v);
