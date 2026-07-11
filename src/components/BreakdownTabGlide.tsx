@@ -83,12 +83,31 @@ export function GlideBreakdownTab({
     return labels;
   }, [project.customCategories, project.categoryLabels]);
 
+  const STORAGE_KEY = `lemon_schedule_glide_cols_${project.id}`;
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+  });
+
   const COLUMNS = useMemo(() => [
-    ...FIXED_COLS,
+    ...FIXED_COLS.map(c => ({ ...c, width: columnWidths[c.key] ?? c.width })),
     ...allBreakdownCategories.filter(k => k !== 'set').map(key => ({
-      key, label: allBreakdownLabels[key], width: 100,
+      key, label: allBreakdownLabels[key], width: columnWidths[key] ?? 100,
     })),
-  ], [allBreakdownCategories, allBreakdownLabels]);
+  ], [allBreakdownCategories, allBreakdownLabels, columnWidths]);
+
+  const COLUMNSRef = useRef(COLUMNS);
+  COLUMNSRef.current = COLUMNS;
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(columnWidths));
+  }, [STORAGE_KEY, columnWidths]);
+
+  const onColumnResize = useCallback((_col: any, w: number, ci: number) => {
+    const key = COLUMNSRef.current[ci]?.key;
+    if (!key) return;
+    setColumnWidths(prev => ({ ...prev, [key]: Math.max(40, w) }));
+  }, []);
 
   const glideColumns: GridColumn[] = useMemo(() =>
     COLUMNS.map(c => ({ title: c.label, width: c.width })),
@@ -640,6 +659,7 @@ export function GlideBreakdownTab({
           onKeyDown={onKeyDown}
           onDelete={onDelete}
           onPaste={handlePaste}
+          onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           provideEditor={provideEditor}
           rowMarkers={2}
