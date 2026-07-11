@@ -447,42 +447,38 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {
             e.preventDefault();
-            let newVal: string;
+            let selectedValue: string | null = null;
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
               const item = dropdownItems[highlightedIndex];
               const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
+              const key = itemKey(item);
               if (isSynth) {
-                const key = itemKey(item);
                 if (mode === 'single') {
-                  newVal = uppercase ? key.toUpperCase() : key;
+                  selectedValue = uppercase ? key.toUpperCase() : key;
                 } else {
                   const ids = val.split(',').map(x => x.trim()).filter(Boolean);
                   if (!ids.includes(key)) ids.push(key);
-                  newVal = sortAndJoin(ids.join(', '));
+                  selectedValue = sortAndJoin(ids.join(', '));
                 }
+              } else if (mode === 'multi') {
+                const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                const idx = ids.indexOf(key);
+                if (idx >= 0) ids.splice(idx, 1);
+                else ids.push(key);
+                selectedValue = sortAndJoin(ids.join(', '));
               } else {
-                const key = itemKey(item);
-                if (mode === 'single') {
-                  newVal = uppercase ? key.toUpperCase() : key;
-                } else if (mode === 'select') {
-                  newVal = key;
-                } else {
-                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                  const idx = ids.indexOf(key);
-                  if (idx >= 0) ids.splice(idx, 1);
-                  else ids.push(key);
-                  newVal = sortAndJoin(ids.join(', '));
-                }
+                selectedValue = uppercase ? key.toUpperCase() : key;
               }
-            } else {
-              newVal = mode === 'multi' || mode === 'select'
+              setHighlightedIndex(-1);
+            }
+            const newVal = selectedValue !== null
+              ? selectedValue
+              : mode === 'multi' || mode === 'select'
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
-            }
             if (newVal !== value) { committedRef.current = true; onChange(newVal); }
             setOpen(false);
             setQuery('');
-            setHighlightedIndex(-1);
           }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
