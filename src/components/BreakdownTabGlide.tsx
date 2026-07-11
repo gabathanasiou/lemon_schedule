@@ -742,6 +742,8 @@ export function GlideBreakdownTab({
           freezeColumns={1}
           editOnType
           cellActivationBehavior="double-click"
+          smoothScrollX
+          smoothScrollY
         />
       </div>
 
