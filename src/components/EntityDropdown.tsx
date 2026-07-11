@@ -246,10 +246,21 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   // --- Multi mode: val = full comma-separated text (like CastEditor) ---
   // --- Single mode: query + localIds (search-then-select pattern) ---
-  const [val, setVal] = useState(value);
+  const [val, setVal] = useState(() => {
+    if (mode === 'multi' && value.trim().length > 0 && value.trimEnd().at(-1) !== ',') {
+      return value.trimEnd() + ', ';
+    }
+    return value;
+  });
   useEffect(() => {
     if (syntheticRef.current) { syntheticRef.current = false; return; }
-    if (mode === 'multi' || mode === 'select') setVal(value);
+    if (mode === 'multi' || mode === 'select') {
+      let v = value;
+      if (mode === 'multi' && v.trim().length > 0 && v.trimEnd().at(-1) !== ',') {
+        v = v.trimEnd() + ', ';
+      }
+      setVal(v);
+    }
     if (mode === 'single') setLocalIds(value.trim() ? [uppercase ? value.trim().toUpperCase() : value.trim()] : []);
   }, [value, mode]);
   const [query, setQuery] = useState('');
@@ -352,7 +363,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       const idx = ids.indexOf(id);
       if (idx >= 0) ids.splice(idx, 1);
       else ids.push(id);
-      return ids.join(', ');
+      return ids.join(', ') + (ids.length > 0 ? ', ' : '');
     });
   }, [mode, onChange, onExit, uppercase]);
 
@@ -450,6 +461,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {
             e.preventDefault();
+            let forceCommit = false;
             let selectedValue: string | null = null;
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
               const item = dropdownItems[highlightedIndex];
@@ -459,16 +471,29 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 if (mode === 'single') {
                   selectedValue = uppercase ? key.toUpperCase() : key;
                 } else {
-                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                  if (!ids.includes(key)) ids.push(key);
-                  selectedValue = sortAndJoin(ids.join(', '));
+                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                  const committedIds = segments.slice(0, -1);
+                  if (!committedIds.includes(key)) committedIds.push(key);
+                  selectedValue = sortAndJoin(committedIds.join(', '));
+                  forceCommit = true;
                 }
               } else if (mode === 'multi') {
-                const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                const idx = ids.indexOf(key);
-                if (idx >= 0) ids.splice(idx, 1);
-                else ids.push(key);
-                selectedValue = sortAndJoin(ids.join(', '));
+                const trimmed = val.trim();
+                const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
+                if (hasQuery) {
+                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                  const committedIds = segments.slice(0, -1);
+                  const idx = committedIds.indexOf(key);
+                  if (idx >= 0) committedIds.splice(idx, 1);
+                  else committedIds.push(key);
+                  selectedValue = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
+                } else {
+                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                  const idx = ids.indexOf(key);
+                  if (idx >= 0) ids.splice(idx, 1);
+                  else ids.push(key);
+                  selectedValue = sortAndJoin(ids.join(', '));
+                }
               } else {
                 selectedValue = uppercase ? key.toUpperCase() : key;
               }
@@ -479,7 +504,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
               : mode === 'multi' || mode === 'select'
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
-            if (newVal !== value) { committedRef.current = true; onChange(newVal); }
+            if (newVal !== value || forceCommit) { committedRef.current = true; onChange(newVal); }
             (onTabExit || onExit)?.();
             setOpen(false);
             setQuery('');
@@ -500,8 +525,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
               const item = dropdownItems[highlightedIndex];
               const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
+              const key = itemKey(item);
               if (isSynth) {
-                const key = itemKey(item);
                 if (mode === 'single') {
                   const sel = uppercase ? key.toUpperCase() : key;
                   setVal(sel);
@@ -511,14 +536,31 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                     onExit?.();
                   }, 0);
                 } else {
-                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                  if (!ids.includes(key)) ids.push(key);
-                  const joined = sortAndJoin(ids.join(', '));
+                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                  const committedIds = segments.slice(0, -1);
+                  if (!committedIds.includes(key)) committedIds.push(key);
+                  const joined = sortAndJoin(committedIds.join(', '));
                   setVal(joined + ', ');
-                  if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                  syntheticRef.current = true;
+                  onChange(joined);
+                }
+              } else if (mode === 'multi') {
+                const trimmed = val.trim();
+                const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
+                if (hasQuery) {
+                  const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                  const committedIds = segments.slice(0, -1);
+                  const idx = committedIds.indexOf(key);
+                  if (idx >= 0) committedIds.splice(idx, 1);
+                  else committedIds.push(key);
+                  const joined = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
+                  setVal(joined + ', ');
+                  if (joined !== value) onChange(joined);
+                } else {
+                  toggle(key);
                 }
               } else {
-                toggle(itemKey(item));
+                toggle(key);
               }
               setHighlightedIndex(-1);
             } else {
@@ -561,11 +603,29 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                         onExit?.();
                       }, 0);
                     } else {
-                      const ids = val.split(',').map(x => x.trim()).filter(Boolean);
-                      if (!ids.includes(key)) ids.push(key);
-                      const joined = sortAndJoin(ids.join(', '));
+                      const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                      const committedIds = segments.slice(0, -1);
+                      if (!committedIds.includes(key)) committedIds.push(key);
+                      const joined = sortAndJoin(committedIds.join(', '));
                       setVal(joined + ', ');
-                      if (joined !== value) { syntheticRef.current = true; onChange(joined); }
+                      syntheticRef.current = true;
+                      onChange(joined);
+                    }
+                  } else if (mode === 'multi') {
+                    const trimmed = val.trim();
+                    const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
+                    if (hasQuery) {
+                      const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                      const committedIds = segments.slice(0, -1);
+                      const key = itemKey(m);
+                      const idx = committedIds.indexOf(key);
+                      if (idx >= 0) committedIds.splice(idx, 1);
+                      else committedIds.push(key);
+                      const joined = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
+                      setVal(joined + ', ');
+                      if (joined !== value) onChange(joined);
+                    } else {
+                      toggle(itemKey(m));
                     }
                   } else {
                     toggle(itemKey(m));
