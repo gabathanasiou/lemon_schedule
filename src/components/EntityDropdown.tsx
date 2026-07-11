@@ -492,7 +492,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         const panel = (
         <div
           ref={panelRef}
-          className={`${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
+          className={`click-outside-ignore ${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
         >
           <div ref={scrollRef} className="overflow-y-auto max-h-72" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined}>

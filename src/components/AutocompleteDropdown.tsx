@@ -117,12 +117,12 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
       />
       {open && filtered.length > 0 && (() => {
         const panel = (
-        <div
+         <div
           ref={scrollRef}
           className={
             positioning === 'fixed'
-              ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]'
-              : `absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[160px]`
+              ? 'click-outside-ignore z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]'
+              : `click-outside-ignore absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[160px]`
           }
           style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH } : {}}
         >
