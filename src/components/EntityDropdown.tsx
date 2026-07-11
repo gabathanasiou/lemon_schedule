@@ -97,6 +97,8 @@ interface EntityDropdownProps {
   uppercase?: boolean;
   /** Portal target element for the dropdown panel (escapes clipping containers) */
   portalTarget?: HTMLElement | null;
+  /** Skip the auto-append of ', ' when opening a cell — used when a key press replaced the cell value */
+  skipComma?: boolean;
 }
 
 /**
@@ -226,6 +228,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   onTabExit,
   uppercase = false,
   portalTarget,
+  skipComma = false,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -247,7 +250,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   // --- Multi mode: val = full comma-separated text (like CastEditor) ---
   // --- Single mode: query + localIds (search-then-select pattern) ---
   const [val, setVal] = useState(() => {
-    const hasExisting = value.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(value.trim()));
+    const hasExisting = !skipComma && (value.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(value.trim())));
     if (mode === 'multi' && hasExisting && value.trimEnd().at(-1) !== ',') {
       return value.trimEnd() + ', ';
     }
@@ -257,7 +260,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     if (syntheticRef.current) { syntheticRef.current = false; return; }
     if (mode === 'multi' || mode === 'select') {
       let v = value;
-      const hasExisting = v.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(v.trim()));
+      const hasExisting = !skipComma && (v.trim().length > 1 || (displayMode === 'id' && /^\d+$/.test(v.trim())));
       if (mode === 'multi' && hasExisting && v.trimEnd().at(-1) !== ',') {
         v = v.trimEnd() + ', ';
       }
@@ -398,6 +401,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     m.name.toLowerCase() === searchQuery.toLowerCase()
   );
   const effectiveQuery = (mode === 'multi' && hasExactMatch) ? '' : searchQuery;
+  useEffect(() => {
+    if (open && effectiveQuery && !hasExactMatch) {
+      setHighlightedIndex(0);
+    }
+  }, [open, effectiveQuery, hasExactMatch]);
   const filtered = items.filter(m => !effectiveQuery || doFilter(m, effectiveQuery));
   const doSort = sortItems ?? ((items: EntityItem[], ids: string[]) => {
     if (keepAlphabetical) return [...items].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));

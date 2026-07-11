@@ -292,13 +292,16 @@ export function GlideBreakdownTab({
   const provideEditor = useCallback((cellData: any & { location?: Item }): any => {
     const loc = cellData.location;
     if (!loc || cellData.kind !== GridCellKind.Text) return undefined;
-    const [col] = loc;
+    const [col, row] = loc;
     const dataCol = col - 1;
     const colDef = COLUMNS[dataCol];
     if (!colDef) return undefined;
     const colKey = colDef.key;
     const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
     if (!isEntity) return undefined;
+
+    const storedVal = String(scenesRef.current[row]?.[colKey] ?? '');
+    const skipComma = storedVal !== (cellData.data ?? '');
 
     const editor = (p: any) => {
       const { value: cellValue, onChange, onFinishedEditing } = p;
@@ -331,13 +334,13 @@ export function GlideBreakdownTab({
         return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="DAY, NIGHT, MORNING..." />;
       }
       if (colKey === 'set') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
       }
       if (colKey === 'cast') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} mode="multi" displayMode="id" positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} mode="multi" displayMode="id" skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
       }
       const categoryItems = breakdownEditorItems.get(colKey) || [];
-      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
     };
     return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
