@@ -477,6 +477,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
             if (newVal !== value) { committedRef.current = true; onChange(newVal); }
+            onExit?.();
             setOpen(false);
             setQuery('');
           }

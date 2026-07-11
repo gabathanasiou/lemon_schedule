@@ -122,6 +122,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             const match = filtered[highlightedIndex] || filtered[0];
             const opt = match || normalize(val);
             if (opt !== value) onChange(opt);
+            onExit?.();
             setOpen(false);
             setVal(value);
           }
