@@ -300,9 +300,9 @@ export function GlideBreakdownTab({
     dispatch({ type: 'BATCH_START' });
     const { range } = sel.current;
     const damageList: { cell: Item }[] = [];
-    for (let r = range.y; r <= range.y + range.height; r++) {
+    for (let r = range.y; r < range.y + range.height; r++) {
       if (r >= scenesRef.current.length) continue;
-      for (let c = range.x; c <= range.x + range.width; c++) {
+      for (let c = range.x; c < range.x + range.width; c++) {
         const colDef = COLUMNS[c];
         if (!colDef) continue;
         commitEdit(scenesRef.current[r].id, colDef.key, '');
@@ -420,10 +420,10 @@ export function GlideBreakdownTab({
     if (!gridSelection.current?.range) return;
     const { x, y, width, height } = gridSelection.current.range;
     const rows: string[] = [];
-    for (let r = y; r <= y + height; r++) {
+    for (let r = y; r < y + height; r++) {
       if (r >= scenes.length) break;
       const cols: string[] = [];
-      for (let c = x; c <= x + width; c++) {
+      for (let c = x; c < x + width; c++) {
         cols.push(String((scenes[r] as any)[COLUMNS[c]?.key] ?? ''));
       }
       rows.push(cols.join('\t'));
@@ -437,10 +437,10 @@ export function GlideBreakdownTab({
     const { x, y, width, height } = gridSelection.current.range;
     const rows: string[] = [];
     const committers: { row: number; colKey: string }[] = [];
-    for (let r = y; r <= y + height; r++) {
+    for (let r = y; r < y + height; r++) {
       if (r >= scenes.length) continue;
       const cols: string[] = [];
-      for (let c = x; c <= x + width; c++) {
+      for (let c = x; c < x + width; c++) {
         const key = COLUMNS[c]?.key;
         if (!key) continue;
         cols.push(String((scenes[r] as any)[key] ?? ''));
@@ -475,9 +475,9 @@ export function GlideBreakdownTab({
     dispatch({ type: 'BATCH_START' });
     const { x, y, width, height } = gridSelection.current.range;
     const damageList: { cell: Item }[] = [];
-    for (let r = y; r <= y + height; r++) {
+    for (let r = y; r < y + height; r++) {
       if (r >= scenes.length) continue;
-      for (let c = x; c <= x + width; c++) {
+      for (let c = x; c < x + width; c++) {
         const key = COLUMNS[c]?.key;
         if (!key) continue;
         commitEdit(scenes[r].id, key, '');
