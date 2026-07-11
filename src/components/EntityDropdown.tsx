@@ -91,6 +91,8 @@ interface EntityDropdownProps {
   panelMinWidth?: string;
   /** Called when the dropdown is dismissed by clicking outside (handleClose). Not called on Enter/Tab commit. */
   onExit?: () => void;
+  /** Called when Tab is pressed — allows passing movement to Glide's onFinishedEditing */
+  onTabExit?: () => void;
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
   uppercase?: boolean;
   /** Portal target element for the dropdown panel (escapes clipping containers) */
@@ -221,6 +223,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   keepAlphabetical = false,
   panelMinWidth,
   onExit,
+  onTabExit,
   uppercase = false,
   portalTarget,
 }) => {
@@ -477,7 +480,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
             if (newVal !== value) { committedRef.current = true; onChange(newVal); }
-            onExit?.();
+            (onTabExit || onExit)?.();
             setOpen(false);
             setQuery('');
           }

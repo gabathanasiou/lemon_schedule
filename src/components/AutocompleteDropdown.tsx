@@ -24,7 +24,8 @@ interface AutocompleteDropdownProps {
   showAll?: boolean;
   /** Called when the dropdown is dismissed by clicking outside or committing. Not called on Escape. */
   onExit?: () => void;
-  /** Portal target element for the dropdown panel (escapes clipping containers) */
+  /** Called when Tab is pressed — allows passing movement to Glide's onFinishedEditing */
+  onTabExit?: () => void;
   portalTarget?: HTMLElement | null;
 }
 
@@ -42,6 +43,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   autoFocus: autoFocusProp = false,
   showAll = false,
   onExit,
+  onTabExit,
   portalTarget,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -122,7 +124,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             const match = filtered[highlightedIndex] || filtered[0];
             const opt = match || normalize(val);
             if (opt !== value) onChange(opt);
-            onExit?.();
+            (onTabExit || onExit)?.();
             setOpen(false);
             setVal(value);
           }
