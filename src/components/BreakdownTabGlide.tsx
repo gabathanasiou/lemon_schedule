@@ -154,6 +154,17 @@ export function GlideBreakdownTab({
   const mountedRef = useRef(false);
 
   useEffect(() => {
+    if (!mountedRef.current) return;
+    const len = scenesRef.current.length;
+    const cols = COLUMNSRef.current;
+    const all: { cell: Item }[] = [];
+    for (let r = 0; r < len; r++)
+      for (let c = 0; c < cols.length; c++)
+        all.push({ cell: [c, r] });
+    setTimeout(() => gridRef.current?.updateCells(all), 0);
+  }, [fontSize]);
+
+  useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; prevScenesLen.current = scenes.length; return; }
     if (scenes.length !== prevScenesLen.current || !gridRef.current) {
       prevScenesLen.current = scenes.length;
