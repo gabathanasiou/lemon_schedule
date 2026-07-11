@@ -244,17 +244,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   useSmartPosition(ref, positioning === 'relative' && open);
 
-  // --- Multi mode: committed[] + query (two-state model) ---
-  // --- Select mode: val = single value ---
+  // --- Multi mode: val = full comma-separated text (like CastEditor) ---
   // --- Single mode: query + localIds (search-then-select pattern) ---
-  const [val, setVal] = useState(mode === 'select' ? value : '');
-  const [committed, setCommitted] = useState<string[]>(
-    mode === 'multi' ? (value || '').split(',').map(x => x.trim()).filter(Boolean) : []
-  );
+  const [val, setVal] = useState(value);
   useEffect(() => {
     if (syntheticRef.current) { syntheticRef.current = false; return; }
-    if (mode === 'multi') setCommitted((value || '').split(',').map(x => x.trim()).filter(Boolean));
-    if (mode === 'select') setVal(value);
+    if (mode === 'multi' || mode === 'select') setVal(value);
     if (mode === 'single') setLocalIds(value.trim() ? [uppercase ? value.trim().toUpperCase() : value.trim()] : []);
   }, [value, mode]);
   const [query, setQuery] = useState('');
@@ -298,9 +293,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   const itemKey = useCallback((m: EntityItem) => displayMode === 'name' ? m.name : (m.id || m.name), [displayMode]);
 
-  const currentIds = mode === 'multi'
-    ? committed
-    : mode === 'select'
+  const currentIds = mode === 'multi' || mode === 'select'
     ? val.split(',').map(x => x.trim()).filter(Boolean)
     : localIds;
 
@@ -322,16 +315,14 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const handleClose = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
-    const newVal = mode === 'multi'
-      ? sortAndJoin([...committed, query].filter(Boolean).join(', '))
-      : mode === 'select'
+    const newVal = mode === 'multi' || mode === 'select'
       ? sortAndJoin(val)
       : (query || (localIds.length > 0 ? localIds[0] : ''));
     if (newVal !== value) onChange(newVal);
     setOpen(false);
     setQuery('');
     onExit?.();
-  }, [mode, committed, val, localIds, query, onChange, sortAndJoin, onExit, value]);
+  }, [mode, val, localIds, query, onChange, sortAndJoin, onExit, value]);
 
   useDropdown(open, ref, handleClose, panelRef);
 
@@ -356,28 +347,26 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
       onExit?.();
       return;
     }
-    // multi mode: toggle item in committed, clear query
-    setCommitted(prev => {
-      const idx = prev.indexOf(id);
-      if (idx >= 0) return prev.filter(x => x !== id);
-      return [...prev, id];
+    setVal(prev => {
+      const ids = prev.split(',').map(x => x.trim()).filter(Boolean);
+      const idx = ids.indexOf(id);
+      if (idx >= 0) ids.splice(idx, 1);
+      else ids.push(id);
+      return ids.join(', ');
     });
-    setQuery('');
   }, [mode, onChange, onExit, uppercase]);
 
   const commit = useCallback(() => {
     if (committedRef.current) return;
     committedRef.current = true;
-    const newVal = mode === 'multi'
-      ? sortAndJoin([...committed, query].filter(Boolean).join(', '))
-      : mode === 'select'
+    const newVal = mode === 'multi' || mode === 'select'
       ? sortAndJoin(val)
       : (query || (localIds.length > 0 ? localIds[0] : ''));
     if (newVal !== value) onChange(newVal);
     onExit?.();
     setOpen(false);
     setQuery('');
-  }, [mode, committed, val, localIds, query, onChange, sortAndJoin, value, onExit]);
+  }, [mode, val, localIds, query, onChange, sortAndJoin, value, onExit]);
 
   const defaultFilter = useCallback((item: EntityItem, q: string) => {
     const lower = q.toLowerCase();
@@ -388,7 +377,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const lastSegment = mode === 'select'
     ? val.trim()
     : mode === 'multi'
-    ? query
+    ? val.split(',').map(x => x.trim()).filter(Boolean).pop() || ''
     : '';
   const searchQuery = mode === 'multi' || mode === 'select' ? lastSegment : query;
   const hasExactMatch = searchQuery.length > 0 && items.some(m =>
@@ -437,11 +426,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   }
 
   const displayValue = open
-    ? (mode === 'multi' 
-        ? committed.join(', ') + (query ? ', ' + query : ', ')
-        : mode === 'select' 
-        ? val 
-        : (standalone ? query : (query || localIds.join(', '))))
+    ? (mode === 'multi' || mode === 'select' ? val : (standalone ? query : (query || localIds.join(', '))))
     : (value || '');
 
   return (
@@ -452,13 +437,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         value={displayValue}
         onChange={e => {
           const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
-          if (mode === 'multi') {
-            const endsWithComma = raw.endsWith(',');
-            const parts = raw.split(',').map(x => x.trim()).filter(Boolean);
-            setCommitted(endsWithComma ? parts : parts.slice(0, -1));
-            setQuery(endsWithComma ? '' : (parts[parts.length - 1] || ''));
-          } else if (mode === 'select') { setVal(raw); }
-          else { setQuery(raw); if (mode === 'single' && !raw.trim()) setLocalIds([]); }
+          if (mode === 'multi' || mode === 'select') { setVal(raw); } else { setQuery(raw); if (mode === 'single' && !raw.trim()) setLocalIds([]); }
           setHighlightedIndex(-1);
           forceOpen();
         }}
@@ -479,18 +458,17 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
               if (isSynth) {
                 if (mode === 'single') {
                   selectedValue = uppercase ? key.toUpperCase() : key;
-                } else if (mode === 'multi') {
-                  if (!committed.includes(key)) {
-                    selectedValue = sortAndJoin([...committed, key].join(', '));
-                  }
                 } else {
-                  selectedValue = sortAndJoin(key);
+                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                  if (!ids.includes(key)) ids.push(key);
+                  selectedValue = sortAndJoin(ids.join(', '));
                 }
               } else if (mode === 'multi') {
-                const newCommitted = committed.includes(key)
-                  ? committed.filter(x => x !== key)
-                  : [...committed, key];
-                selectedValue = sortAndJoin([...newCommitted, query].filter(Boolean).join(', '));
+                const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                const idx = ids.indexOf(key);
+                if (idx >= 0) ids.splice(idx, 1);
+                else ids.push(key);
+                selectedValue = sortAndJoin(ids.join(', '));
               } else {
                 selectedValue = uppercase ? key.toUpperCase() : key;
               }
@@ -498,9 +476,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
             }
             const newVal = selectedValue !== null
               ? selectedValue
-              : mode === 'multi'
-                ? sortAndJoin([...committed, query].filter(Boolean).join(', '))
-                : mode === 'select'
+              : mode === 'multi' || mode === 'select'
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
             if (newVal !== value) { committedRef.current = true; onChange(newVal); }
@@ -535,17 +511,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                     onExit?.();
                   }, 0);
                 } else {
-                    if (!committed.includes(key)) {
-                      const newCommitted = [...committed, key];
-                      const joined = sortAndJoin(newCommitted.join(', '));
-                      setCommitted(newCommitted);
-                      setQuery('');
-                      if (joined !== value) { syntheticRef.current = true; onChange(joined); }
-                    }
-                  }
-                } else {
-                  toggle(itemKey(item));
+                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                  if (!ids.includes(key)) ids.push(key);
+                  const joined = sortAndJoin(ids.join(', '));
+                  setVal(joined + ', ');
+                  if (joined !== value) { syntheticRef.current = true; onChange(joined); }
                 }
+              } else {
+                toggle(itemKey(item));
+              }
               setHighlightedIndex(-1);
             } else {
               commit();
@@ -586,20 +560,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                         setOpen(false);
                         onExit?.();
                       }, 0);
-                    } else if (mode === 'multi') {
-                      if (!committed.includes(key)) {
-                        const newCommitted = [...committed, key];
-                        const joined = sortAndJoin(newCommitted.join(', '));
-                        setCommitted(newCommitted);
-                        setQuery('');
-                        if (joined !== value) { syntheticRef.current = true; onChange(joined); }
-                      }
                     } else {
-                      setVal(key);
-                      committedRef.current = true;
-                      onChange(key);
-                      setOpen(false);
-                      onExit?.();
+                      const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                      if (!ids.includes(key)) ids.push(key);
+                      const joined = sortAndJoin(ids.join(', '));
+                      setVal(joined + ', ');
+                      if (joined !== value) { syntheticRef.current = true; onChange(joined); }
                     }
                   } else {
                     toggle(itemKey(m));
