@@ -91,8 +91,25 @@ export function GlideBreakdownTab({
 
   const scrollSaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const restoringRef = useRef(false);
+  const needsRestore = useRef(false);
+
+  useEffect(() => {
+    needsRestore.current = localStorage.getItem(SCROLL_KEY) !== null;
+    return () => clearTimeout(scrollSaveTimer.current);
+  }, [SCROLL_KEY]);
 
   const onVisibleRegionChanged = useCallback((region: { x: number; y: number }) => {
+    if (needsRestore.current) {
+      needsRestore.current = false;
+      restoringRef.current = true;
+      const saved = localStorage.getItem(SCROLL_KEY);
+      if (saved) {
+        const { x, y } = JSON.parse(saved);
+        gridRef.current?.scrollTo(x, y);
+      }
+      setTimeout(() => { restoringRef.current = false; }, 500);
+      return;
+    }
     if (restoringRef.current) return;
     clearTimeout(scrollSaveTimer.current);
     scrollSaveTimer.current = setTimeout(() => {
@@ -103,15 +120,6 @@ export function GlideBreakdownTab({
   useEffect(() => {
     return () => clearTimeout(scrollSaveTimer.current);
   }, []);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(SCROLL_KEY);
-    if (!saved) return;
-    const { x, y } = JSON.parse(saved);
-    restoringRef.current = true;
-    gridRef.current?.scrollTo(x, y);
-    setTimeout(() => { restoringRef.current = false; }, 500);
-  }, [SCROLL_KEY]);
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
