@@ -644,7 +644,7 @@ export function GlideBreakdownTab({
           provideEditor={provideEditor}
           rowMarkers={2}
           trailingRowOptions={{
-            hint: 'New scene...',
+            hint: '',
             add: 'add',
             sticky: true,
             tint: true,
