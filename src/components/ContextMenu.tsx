@@ -47,7 +47,7 @@ export const ContextMenu: React.FC<{
   return (
     <div
       ref={menuRef}
-      className={`fixed bg-white border border-zinc-200 shadow-xl rounded-lg p-1 z-[9999] font-sans ${CTX_TEXT} text-zinc-700 min-w-[180px] max-h-80 overflow-y-auto`}
+      className={`fixed bg-white border border-zinc-200 shadow-xl rounded-lg p-1 z-[9999] font-sans ${CTX_TEXT} text-zinc-700 min-w-[180px] max-h-[85vh] overflow-y-auto`}
       style={{ top: y, left: x, touchAction: 'manipulation' }}
     >
       {children}
