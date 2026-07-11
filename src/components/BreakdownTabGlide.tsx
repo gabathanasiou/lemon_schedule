@@ -119,6 +119,30 @@ export function GlideBreakdownTab({
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
   const theme = useMemo(() => createGlideTheme(fontSize), [fontSize]);
 
+  const trashImg = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+    const img = new Image();
+    img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+    trashImg.current = img;
+  }, []);
+
+  const drawCell = useCallback((args: any, draw: (a: any) => boolean) => {
+    if (args.col === 0) {
+      draw(args);
+      const img = trashImg.current;
+      if (img && img.complete) {
+        const { ctx, rect } = args;
+        const size = Math.min(14, rect.width - 4, rect.height - 4);
+        const x = rect.x + (rect.width - size) / 2;
+        const y = rect.y + (rect.height - size) / 2;
+        ctx.drawImage(img, x, y, size, size);
+      }
+      return true;
+    }
+    return draw(args);
+  }, []);
+
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
   const [gridSelection, setGridSelection] = useState<GridSelection>({
     columns: CompactSelection.empty(),
@@ -227,7 +251,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
-    if (colKey === 'actions') return textCell('', { readonly: true, displayData: '🗑', allowOverlay: false, align: 'center' });
+    if (colKey === 'actions') return textCell('', { readonly: true, allowOverlay: false });
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
@@ -706,6 +730,7 @@ export function GlideBreakdownTab({
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
+          drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
           trailingRowOptions={{
