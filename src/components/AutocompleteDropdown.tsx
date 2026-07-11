@@ -59,7 +59,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   });
   const ref = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number });
   const highlightTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const handleOpen = useOpenHandler(setOpen);
@@ -150,7 +150,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
               ? 'click-outside-ignore z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 max-h-48 overflow-y-auto min-w-[160px]'
               : `click-outside-ignore absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1 min-w-[160px]`
           }
-          style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxH } : {}}
+          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, maxHeight: pos.maxH, ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
         >
           {filtered.map((opt, i) => (
             <div

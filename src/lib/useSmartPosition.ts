@@ -46,7 +46,7 @@ export function useSmartPosition(
 export function useFixedPosition(
   wrapperRef: RefObject<HTMLElement>,
   open: boolean,
-  setPos: (p: { top: number; left: number; width: number; maxH: number }) => void,
+  setPos: (p: { top: number; left: number; width: number; maxH: number; bottom?: number }) => void,
 ) {
   useLayoutEffect(() => {
     if (!open || !wrapperRef.current) return;
@@ -58,15 +58,23 @@ export function useFixedPosition(
       const voff = window.visualViewport?.offsetTop ?? 0;
       const panelWidth = 200;
       const gap = 4;
+      const minH = 120;
 
       let left = Math.max(0, rect.left);
-      let top = Math.min(rect.bottom + gap, voff + vh);
-
       if (left + panelWidth > vw) left = Math.max(0, vw - panelWidth - 8);
-      top = Math.max(voff, top);
-      const maxH = Math.max(120, voff + vh - top - 16);
 
-      setPos({ top, left, width: rect.width, maxH });
+      const spaceBelow = voff + vh - rect.bottom - gap - 16;
+      const spaceAbove = rect.top - voff - gap - 16;
+
+      if (spaceBelow >= minH || spaceBelow >= spaceAbove) {
+        const top = Math.min(rect.bottom + gap, voff + vh);
+        const maxH = Math.max(minH, voff + vh - top - 16);
+        setPos({ top, left, width: rect.width, maxH });
+      } else {
+        const maxH = Math.max(minH, Math.min(spaceAbove, 360));
+        const bottom = voff + vh - (rect.top - gap);
+        setPos({ top: 0, left, width: rect.width, maxH, bottom: Math.max(0, bottom) });
+      }
     });
   }, [open, wrapperRef]);
 }

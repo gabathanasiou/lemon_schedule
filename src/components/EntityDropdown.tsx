@@ -235,7 +235,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const items = externalItems ?? storeItems;
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number });
   const committedRef = useRef(false);
   const syntheticRef = useRef(false);
   const [keyboardMode] = useKeyboardMode();
@@ -591,7 +591,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         <div
           ref={panelRef}
           className={`click-outside-ignore ${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
-          style={positioning === 'fixed' ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width } : {}}
+          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
         >
           <div ref={scrollRef} className="overflow-y-auto max-h-72" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined}>
           {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
