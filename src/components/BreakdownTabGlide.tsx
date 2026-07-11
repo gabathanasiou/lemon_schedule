@@ -14,7 +14,7 @@ import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import {
-  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye,
+  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye, EyeOff,
   ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search,
 } from 'lucide-react';
 import Papa from 'papaparse';
@@ -117,6 +117,7 @@ export function GlideBreakdownTab({
   [COLUMNS]);
 
   const [fontSize, setFontSize] = useSpreadsheetFontSize();
+  const [smoothScroll, setSmoothScroll] = useState(IS_COARSE);
   const theme = useMemo(() => createGlideTheme(fontSize), [fontSize]);
 
   const trashImg = useRef<HTMLImageElement | null>(null);
@@ -688,6 +689,10 @@ export function GlideBreakdownTab({
           <DropdownItem onClick={() => { setViewOpen(false); setFontSize(SS_FONT_SIZE_DEFAULT); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
             Reset
           </DropdownItem>
+          <DropdownDivider />
+          <DropdownItem onClick={() => { setSmoothScroll(p => !p); }} keepOpen icon={smoothScroll ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}>
+            {smoothScroll ? 'Smooth scroll: On' : 'Smooth scroll: Off'}
+          </DropdownItem>
         </DropdownMenu>
 
         <DropdownMenu open={infoOpen} onOpenChange={setInfoOpen} width="w-48" theme="light"
@@ -742,8 +747,8 @@ export function GlideBreakdownTab({
           freezeColumns={1}
           editOnType
           cellActivationBehavior="double-click"
-          smoothScrollX
-          smoothScrollY
+          smoothScrollX={smoothScroll}
+          smoothScrollY={smoothScroll}
         />
       </div>
 
