@@ -24,6 +24,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT } from '../lib/persist';
+import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
@@ -695,7 +696,7 @@ export function GlideBreakdownTab({
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
           provideEditor={provideEditor}
-          rowMarkers="clickable-number"
+          rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
           trailingRowOptions={{
             hint: '',
             add: 'add',
