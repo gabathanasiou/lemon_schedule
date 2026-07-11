@@ -764,6 +764,7 @@ export function GlideBreakdownTab({
           }}
           freezeColumns={1}
           editOnType
+          rangeSelect={IS_COARSE ? "cell" : "rect"}
           cellActivationBehavior="double-click"
           smoothScrollX={smoothScroll}
           smoothScrollY={smoothScroll}
