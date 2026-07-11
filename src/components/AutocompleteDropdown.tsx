@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useDropdown, useOpenHandler, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { IS_COARSE } from '../lib/device';
@@ -23,6 +24,8 @@ interface AutocompleteDropdownProps {
   showAll?: boolean;
   /** Called when the dropdown is dismissed by clicking outside or committing. Not called on Escape. */
   onExit?: () => void;
+  /** Portal target element for the dropdown panel (escapes clipping containers) */
+  portalTarget?: HTMLElement | null;
 }
 
 export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
@@ -39,6 +42,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   autoFocus: autoFocusProp = false,
   showAll = false,
   onExit,
+  portalTarget,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const [val, setVal] = useState(value);
@@ -111,7 +115,8 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
           if (e.key === 'Escape') { setOpen(false); setVal(value); }
         }}
       />
-      {open && filtered.length > 0 && (
+      {open && filtered.length > 0 && (() => {
+        const panel = (
         <div
           ref={scrollRef}
           className={
@@ -133,7 +138,11 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             </div>
           ))}
         </div>
-      )}
+        );
+        return portalTarget && positioning === 'fixed'
+          ? createPortal(panel, portalTarget)
+          : panel;
+      })()}
     </div>
   );
 };

@@ -24,6 +24,7 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Scene } from '../types';
 import { useProject } from '../store';
 import { useDropdown, sortCastMembers } from '../lib/dropdown';
@@ -92,6 +93,8 @@ interface EntityDropdownProps {
   onExit?: () => void;
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
   uppercase?: boolean;
+  /** Portal target element for the dropdown panel (escapes clipping containers) */
+  portalTarget?: HTMLElement | null;
 }
 
 /**
@@ -219,6 +222,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   panelMinWidth,
   onExit,
   uppercase = false,
+  portalTarget,
 }) => {
   const { state } = useProject();
   const storeItems = state.present.castMembers ?? [];
@@ -484,7 +488,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           }
         }}
       />
-      {open && (
+      {open && (() => {
+        const panel = (
         <div
           ref={panelRef}
           className={`${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
@@ -559,7 +564,11 @@ className={isSynthetic
             </button>
           )}
         </div>
-      )}
+        );
+        return portalTarget && positioning === 'fixed'
+          ? createPortal(panel, portalTarget)
+          : panel;
+      })()}
     </div>
   );
 };
