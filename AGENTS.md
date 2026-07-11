@@ -38,7 +38,7 @@ A reusable sub-tab bar used in Breakdown, Schedule, and Reports tabs. It's the *
 - Right controls: centered vertically via parent's `items-center`
 
 **Usages:**
-- `BreakdownTab` — `theme="light"` (default), tabs: Scene Breakdown / Elements / Sheet. Controls sent via `rightContent` or portaled into the bar
+- `BreakdownTab` — `theme="light"` (default), tabs: Scene Breakdown / Glide Breakdown / Elements / Sheet. Controls sent via `rightContent` or portaled into the bar
 - `ScheduleTab` — `theme="light"` when on Stripboard, `theme="dark"` when in Ribbon Designer
 - `ReportsTab` — `theme="dark"`, tabs: Day Out of Days / Element Breakdown
 
@@ -338,6 +338,156 @@ When checking if an element already exists:
 - **All other categories** → compare by `e.name || e.id`
 
 This rule applies to `SortableRow.tsx:updateScene` (the auto-register check), `store.tsx:ADD_ELEMENT` (deduplication), and EntityDropdown's `displayMode` (always use `"id"` for cast).
+
+## Glide Breakdown Tab (`src/components/BreakdownTabGlide.tsx`)
+
+Canvas-based spreadsheet using `@glideapps/glide-data-grid` v6.0.4-alpha24. Renders as the "Glide Breakdown" MiniTab under the Breakdown tab.
+
+### Column Indexing & `rowMarkerOffset`
+
+Glide internally shifts column indices by `+1` when row markers are present (`rowMarkerOffset = 1`). The grid passes **adjusted** (0-based) indices to most callbacks, but **NOT** to `provideEditor`:
+
+| Callback | Receives | Adjustment needed? |
+|---|---|---|
+| `getCellContent([col, row])` | 0-based data index | No (Glide wraps via `getMangledCellContent`) |
+| `onCellEdited([col, row])` | 0-based data index | No (Glide wraps via `mangledOnCellsEdited`) |
+| `onCellClicked`, `onCellContextMenu` | 0-based data index | No (Glide adjusts via `adjustedCol = col - rowMarkerOffset`) |
+| `provideEditor(cell.location)` | Raw internal index (includes marker) | **Yes — `const dataCol = col - 1`** |
+
+**Always use `COLUMNS[col].key`** to identify columns by key, never by hardcoded index.
+
+### Column Structure
+
+```tsx
+const FIXED_COLS = [
+  { key: 'actions', label: '', width: IS_COARSE ? 48 : 36 },  // delete icon column
+  { key: 'sceneNumber', label: 'Scene #', width: 60 },
+  // ... 9 more fixed columns
+];
+
+const COLUMNS = [...FIXED_COLS, ...dynamicCategories];
+```
+
+- `actions` column (index 0): drawn via `drawCell` canvas callback (Trash2 SVG), `readonly + allowOverlay: false` prevents editing, click handled in `onCellClicked` to delete row
+- Column widths are persisted per-project in `localStorage` (`lemon_schedule_glide_cols_{id}`), editable via column resize drag (Glide native `onColumnResize`)
+- `freezeColumns={1}` freezes the first data column (actions — delete icon)
+- `glideColumns` maps `COLUMNS` to Glide's `GridColumn[]`; the `actions` column uses `themeOverride: { textDark: '#ef4444' }` for red color
+
+### Inline Entity Editing (`provideEditor`)
+
+Editors are rendered via Glide's overlay system. Pattern:
+
+```tsx
+const editor = (p: any) => {
+  const { value, onChange, onFinishedEditing } = p;
+  const latestRef = useRef(cellValue);
+
+  const handleChange = (newVal: string) => {
+    const next = { kind: GridCellKind.Text, data: newVal, ... };
+    latestRef.current = next;
+    onChange(next);
+  };
+
+  const handleClose = () => {
+    onFinishedEditing(latestRef.current);
+  };
+
+  return <EntityDropdown value={...} onChange={handleChange} onExit={handleClose} ... />;
+};
+return editor;
+```
+
+**Critical:** `handleClose` MUST pass the latest value to `onFinishedEditing(latestRef.current)`. Calling `onFinishedEditing()` without arguments passes `undefined`, which Glide treats as **cancel** (discards changes). Use a `useRef` to track the last `onChange` value.
+
+Single/select mode in EntityDropdown calls `onExit?.()` in `toggle()` — this correctly flows through `handleClose` → `onFinishedEditing(latestRef.current)` → commit.
+
+### Repaint After Programmatic Mutations
+
+Glide's canvas doesn't auto-repaint when data changes outside its edit flow (delete, paste, undo/redo). Two mechanisms:
+
+1. **Bulk operations** (delete, paste, cut, clear): Build a `damageList: { cell: Item }[]` and call `gridRef.current?.updateCells(damageList)` wrapped in `setTimeout(0)` to ensure React re-renders first.
+
+2. **Undo/redo**: A `useEffect` watching `scenes` triggers a full grid repaint:
+   ```tsx
+   useEffect(() => {
+     const all = scenes.flatMap((_, r) => COLUMNS.map((_, c) => ({ cell: [c, r] })));
+     setTimeout(() => gridRef.current?.updateCells(all), 0);
+   }, [scenes, COLUMNS]);
+   ```
+
+### Batching for Undo/Redo
+
+All bulk operations (`onDelete`, `handlePaste`, `handleCut`, `handleClear`) wrap their dispatches in `BATCH_START` / `BATCH_COMMIT` to produce a single undoable unit. Example:
+
+```tsx
+dispatch({ type: 'BATCH_START' });
+for (...) { commitEdit(scene.id, colKey, val); }
+dispatch({ type: 'BATCH_COMMIT' });
+```
+
+### Range Iteration — Off-By-One Gotcha
+
+Glide's `Rectangle` uses **exclusive** upper bounds: `width`/`height` are counts, not inclusive ends. Always use `<` not `<=`:
+
+```tsx
+// CORRECT
+for (let r = range.y; r < range.y + range.height; r++)
+for (let c = range.x; c < range.x + range.width; c++)
+
+// WRONG — includes one extra row and column
+for (let r = range.y; r <= range.y + range.height; r++)
+```
+
+### Selection Handling
+
+When row markers are clicked, Glide selects rows via `gridSelection.rows` but doesn't set `gridSelection.current.range`. Use a helper to resolve the effective range:
+
+```tsx
+const getEffectiveRange = () => {
+  if (sel?.range) return sel.range;
+  if (gridSelection.rows.length > 0)
+    return { x: 0, y: firstSelected, width: COLUMNS.length, height: count };
+  return null;
+};
+```
+
+### Row Markers
+
+```tsx
+rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa' } }}
+```
+
+- Single tap → selects row + shows context menu
+- Double tap → opens sheet page
+- Right-click/long-press → context menu
+
+### Smooth Scrolling
+
+Glide defaults to cell-snapped scrolling. Enable smooth pixel-level scrolling:
+
+```tsx
+smoothScrollX  // default: false
+smoothScrollY  // default: false
+```
+
+### Context Menu Positioning
+
+Right-click events carry `bounds` (cell page coords) + `localEventX`/`localEventY` (offset from cell edge). Page position = `bounds.x + localEventX`, `bounds.y + localEventY`. Always call `e.preventDefault()` to suppress browser context menu.
+
+### Custom Cell Drawing
+
+Use `drawCell` callback for custom canvas rendering. Preload SVG icons via `new Image()` with a data URL:
+
+```tsx
+const drawCell = (args, draw) => {
+  if (args.col === 0) {  // actions column
+    draw(args);           // default background
+    ctx.drawImage(img, x, y, size, size);
+    return true;
+  }
+  return draw(args);
+};
+```
 
 ## Types (`src/types.ts`)
 - `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
