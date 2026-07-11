@@ -117,7 +117,14 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
             const match = filtered[highlightedIndex] || filtered[0];
             if (match) commit(match);
           }
-          if (e.key === 'Tab') { e.preventDefault(); commit(filtered[0] ? filtered[highlightedIndex] : normalize(val)); }
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            const match = filtered[highlightedIndex] || filtered[0];
+            const opt = match || normalize(val);
+            if (opt !== value) onChange(opt);
+            setOpen(false);
+            setVal(value);
+          }
           if (e.key === 'Escape') { setOpen(false); setVal(value); }
         }}
       />

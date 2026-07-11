@@ -447,12 +447,42 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {
             e.preventDefault();
-            const newVal = mode === 'multi' || mode === 'select'
-              ? sortAndJoin(val)
-              : (query || (localIds.length > 0 ? localIds[0] : ''));
+            let newVal: string;
+            if (highlightedIndex >= 0 && highlightedIndex < dropdownItems.length) {
+              const item = dropdownItems[highlightedIndex];
+              const isSynth = effectiveQuery && !hasExactMatch && highlightedIndex === 0;
+              if (isSynth) {
+                const key = itemKey(item);
+                if (mode === 'single') {
+                  newVal = uppercase ? key.toUpperCase() : key;
+                } else {
+                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                  if (!ids.includes(key)) ids.push(key);
+                  newVal = sortAndJoin(ids.join(', '));
+                }
+              } else {
+                const key = itemKey(item);
+                if (mode === 'single') {
+                  newVal = uppercase ? key.toUpperCase() : key;
+                } else if (mode === 'select') {
+                  newVal = key;
+                } else {
+                  const ids = val.split(',').map(x => x.trim()).filter(Boolean);
+                  const idx = ids.indexOf(key);
+                  if (idx >= 0) ids.splice(idx, 1);
+                  else ids.push(key);
+                  newVal = sortAndJoin(ids.join(', '));
+                }
+              }
+            } else {
+              newVal = mode === 'multi' || mode === 'select'
+                ? sortAndJoin(val)
+                : (query || (localIds.length > 0 ? localIds[0] : ''));
+            }
             if (newVal !== value) { committedRef.current = true; onChange(newVal); }
             setOpen(false);
             setQuery('');
+            setHighlightedIndex(-1);
           }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
