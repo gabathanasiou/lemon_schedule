@@ -640,13 +640,18 @@ export function GlideBreakdownTab({
     const [col, row] = cell;
     if (row < 0 || row > scenes.length) return;
     if (col < 0 && row < scenes.length) {
+      const savedRows = gridSelectionRef.current?.rows;
+      const rowIsSelected = savedRows?.hasIndex(row);
+      const effectiveRows = rowIsSelected ? savedRows! : CompactSelection.fromSingleSelection(row);
+      const selectedRowCount = effectiveRows.length;
+      const firstSelectedRow = effectiveRows.first() ?? row;
       setTimeout(() => {
         setGridSelection({
           columns: CompactSelection.empty(),
-          rows: CompactSelection.fromSingleSelection(row),
+          rows: effectiveRows,
           current: {
             cell: [0, row] as Item,
-            range: { x: 0, y: row, width: COLUMNS.length, height: 1 },
+            range: { x: 0, y: firstSelectedRow, width: COLUMNS.length, height: selectedRowCount },
             rangeStack: [],
           },
         });
@@ -661,7 +666,7 @@ export function GlideBreakdownTab({
     const [col, row] = cell;
     if (row < 0 || row > scenes.length) return;
     if (row === scenes.length) {
-      if (col < 0) {
+      if (col < 0 && (e.isTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
         setContextMenu({ x, y, row, col });
@@ -677,9 +682,11 @@ export function GlideBreakdownTab({
       onOpenSheet?.(row);
       return;
     }
-    const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
-    const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
-    setContextMenu({ x, y, row, col });
+    if (e.isTouch || e.button === 2) {
+      const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+      const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+      setContextMenu({ x, y, row, col });
+    }
   }, [scenes.length, onOpenSheet]);
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
