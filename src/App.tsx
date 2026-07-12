@@ -34,7 +34,13 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText } from 'lucide-react';
+import { GoogleSignIn } from './components/GoogleSignIn';
+import { SyncStatusIcon } from './components/SyncStatusIcon';
+import { SaveIndicator } from './components/SaveIndicator';
+import { DriveConflictModal } from './components/DriveConflictModal';
+import { useGoogleAuth } from './lib/googleDriveAuth';
+import type { Conflict } from './lib/syncManager';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
@@ -143,6 +149,9 @@ function AppContent() {
   const [elementBreakdownOptions, setElementBreakdownOptions] = useState<ElementBreakdownOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [pendingConflicts, setPendingConflicts] = useState<Conflict[]>([]);
+  const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ background: '#ffffff' });
@@ -392,6 +401,23 @@ function AppContent() {
       {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
       {showElementBreakdownDialog && <ElementBreakdownDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); setElementBreakdownOptions(opts); }} onClose={() => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); }} />}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
+      {showConflictModal && (
+        <DriveConflictModal
+          conflicts={pendingConflicts}
+          onResolve={(resolutions) => {
+            setShowConflictModal(false);
+            for (const resolution of resolutions) {
+              const ctxResolved = ctx as any;
+              if (resolution.action === 'keep_local') {
+                ctxResolved.syncProjectToDrive?.();
+              } else if (resolution.action === 'keep_drive' || resolution.action === 'keep_both') {
+                dialog.alert({ title: 'Import from Drive', message: `Project "${resolution.projectId}" will be imported from Drive.` });
+              }
+            }
+          }}
+          onClose={() => setShowConflictModal(false)}
+        />
+      )}
       <input ref={importFileRef} type="file" accept=".fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
       {/* RESTORED BANNER */}
@@ -487,6 +513,9 @@ function AppContent() {
               <DropdownItem onClick={() => { setShowFileMenu(false); storage.handle ? storage.setStatus('saving') : null; }} icon={<HardDrive className="w-3.5 h-3.5" />}>
                 Save Folder...
               </DropdownItem>
+              <DropdownItem onClick={async () => { setShowFileMenu(false); try { const result = await ctx.pullDriveProjects(); if (result.conflicts.length > 0) { setPendingConflicts(result.conflicts); setShowConflictModal(true); } } catch (e: any) { dialog.alert({ title: 'Drive Sync', message: e?.message || 'Failed to sync with Drive' }); } }} icon={<Cloud className="w-3.5 h-3.5" />}>
+                Sync with Google Drive
+              </DropdownItem>
               <DropdownDivider />
               <DropdownItem onClick={() => { setShowFileMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
                 Trash...
@@ -498,6 +527,7 @@ function AppContent() {
               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
+            <SaveIndicator />
           </div>
           <div ref={topTabContainerRef} className="relative flex items-center gap-1">
             {compactTabs ? (
@@ -597,6 +627,9 @@ function AppContent() {
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
+          <SyncStatusIcon syncState={ctx.driveSyncState} onRetry={() => ctx.syncProjectToDrive()} />
+          <GoogleSignIn />
+          <div className="w-px h-4 bg-zinc-700" />
           <div className="flex items-center gap-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
             <button
               onClick={() => dispatch({ type: 'UNDO' })}

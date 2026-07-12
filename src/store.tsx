@@ -3,6 +3,10 @@ import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashIt
 import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
+import { useGoogleAuth } from './lib/googleDriveAuth';
+import { pushProjectAndUpdateIndex, pullFromDrive } from './lib/syncManager';
+import type { SyncState } from './components/SyncStatusIcon';
+import type { Conflict } from './lib/syncManager';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -14,6 +18,8 @@ export interface ProjectMeta {
   title: string;
   lastModified: number;
   createdAt: number;
+  driveFileId?: string;
+  driveModifiedTime?: number;
 }
 
 function getProjectStorageKey(id: string): string {
@@ -1213,6 +1219,14 @@ interface ProjectContextType {
   renameProject: (id: string, title: string) => void;
   duplicateProject: (id: string) => void;
   importProjectFromData: (data: Project) => string;
+  syncProjectToDrive: () => Promise<void>;
+  pullDriveProjects: () => Promise<{
+    newProjects: { project: Project; driveFileId: string }[];
+    updatedProjects: { project: Project; driveFileId: string }[];
+    conflicts: Conflict[];
+  }>;
+  driveSyncState: SyncState;
+  isDriveSignedIn: boolean;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -1221,6 +1235,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [projectList, setProjectList] = useState<ProjectMeta[]>(() => loadProjectListFromStorage());
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const auth = useGoogleAuth();
+  const [driveSyncState, setDriveSyncState] = useState<SyncState>('idle');
+  const driveFileIdRef = useRef<string | undefined>(undefined);
 
   const blank = makeBlankProject();
 
@@ -1312,6 +1329,74 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, 400);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [state.present, currentProjectId]);
+
+  const driveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!currentProjectId || !auth.isSignedIn || !auth.accessToken) return;
+    if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
+
+    driveSyncTimerRef.current = setTimeout(async () => {
+      try {
+        setDriveSyncState('syncing');
+        const fileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
+        const newFileId = await pushProjectAndUpdateIndex(
+          auth.accessToken!,
+          state.present,
+          fileId,
+        );
+        driveFileIdRef.current = newFileId;
+        setProjectList(prev => {
+          const updated = prev.map(p =>
+            p.id === currentProjectId
+              ? { ...p, driveFileId: newFileId, driveModifiedTime: Date.now() }
+              : p
+          );
+          saveProjectListToStorage(updated);
+          return updated;
+        });
+        setDriveSyncState('synced');
+      } catch (err) {
+        console.error('Drive sync failed:', err);
+        setDriveSyncState('error');
+      }
+    }, 2000);
+    return () => { if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current); };
+  }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken]);
+
+  const syncProjectToDrive = useCallback(async () => {
+    if (!auth.isSignedIn || !auth.accessToken || !currentProjectId) return;
+    setDriveSyncState('syncing');
+    try {
+      const fileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
+      const newFileId = await pushProjectAndUpdateIndex(
+        auth.accessToken,
+        state.present,
+        fileId,
+      );
+      driveFileIdRef.current = newFileId;
+      setProjectList(prev => {
+        const updated = prev.map(p =>
+          p.id === currentProjectId
+            ? { ...p, driveFileId: newFileId, driveModifiedTime: Date.now() }
+            : p
+        );
+        saveProjectListToStorage(updated);
+        return updated;
+      });
+      setDriveSyncState('synced');
+    } catch (err) {
+      console.error('Drive sync failed:', err);
+      setDriveSyncState('error');
+    }
+  }, [auth.isSignedIn, auth.accessToken, currentProjectId, state.present, projectList]);
+
+  const pullDriveProjects = useCallback(async () => {
+    if (!auth.accessToken) throw new Error('Not signed in');
+    setDriveSyncState('syncing');
+    const result = await pullFromDrive(auth.accessToken, projectList);
+    setDriveSyncState('synced');
+    return result;
+  }, [auth.accessToken, projectList]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1471,7 +1556,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       deleteProject,
       renameProject,
       duplicateProject,
-      importProjectFromData
+      importProjectFromData,
+      syncProjectToDrive,
+      pullDriveProjects,
+      driveSyncState,
+      isDriveSignedIn: auth.isSignedIn,
     }}>
       {children}
     </ProjectContext.Provider>

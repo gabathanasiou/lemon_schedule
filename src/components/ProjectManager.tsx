@@ -3,7 +3,7 @@ import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject, ProjectMeta } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
-import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -223,6 +223,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold truncate text-xs">{p.title}</h3>
+                          {p.driveFileId && (
+                            <Cloud className="w-3 h-3 text-zinc-500 shrink-0" title="Synced to Drive" />
+                          )}
                           {isActive && (
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                           )}
