@@ -47,9 +47,15 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setUser({ name: data.name, email: data.email, picture: data.picture });
+      } else if (res.status === 401) {
+        accessTokenRef.current = null;
+        setIsSignedIn(false);
+        setUser(null);
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(SESSION_KEY);
       }
     } catch {
-      // userinfo is non-critical
+      // network error — keep token for retry
     }
   }, []);
 

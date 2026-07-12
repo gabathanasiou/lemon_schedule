@@ -56,7 +56,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const hasFetchedCloudRef = useRef(false);
   const hasDefaultedRef = useRef(false);
 
   useEffect(() => {
@@ -66,15 +65,12 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     }
   }, [auth.isSignedIn]);
 
+  // Fresh fetch on every open + every time sign-in state changes to true
   useEffect(() => {
-    if (activeTab === 'cloud' && auth.isSignedIn && !hasFetchedCloudRef.current) {
-      hasFetchedCloudRef.current = true;
+    if (auth.isSignedIn) {
       pullDriveProjects().catch(() => {});
     }
-    if (activeTab !== 'cloud') {
-      hasFetchedCloudRef.current = false;
-    }
-  }, [activeTab, auth.isSignedIn]);
+  }, [auth.isSignedIn]);
 
   const { localProjects, cloudProjects } = useMemo(() => {
     const local: ProjectMeta[] = [];
@@ -219,7 +215,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
               </button>
               <button
-                onClick={() => { createProject(); onClose?.(); }}
+                onClick={async () => { await createProject('', true); onClose?.(); }}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
                 <Plus className="w-3.5 h-3.5" /> New Cloud Project

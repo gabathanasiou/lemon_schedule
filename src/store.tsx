@@ -1235,7 +1235,7 @@ interface ProjectContextType {
   currentProjectId: string | null;
   initialized: boolean;
   readOnly: boolean;
-  createProject: (title?: string) => string;
+  createProject: (title?: string, cloud?: boolean) => Promise<string>;
   openProject: (id: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
@@ -1482,6 +1482,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [auth.accessToken, projectList, importDriveProject, currentProjectId]);
 
+  // Auto-fetch cloud projects on sign-in
+  const wasSignedInRef = useRef(auth.isSignedIn);
+  useEffect(() => {
+    if (auth.isSignedIn && !wasSignedInRef.current) {
+      pullDriveProjects().catch(() => {});
+    }
+    wasSignedInRef.current = auth.isSignedIn;
+  }, [auth.isSignedIn, pullDriveProjects]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1522,7 +1531,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentProjectId, state.present]);
 
-  const createProject = useCallback((title?: string): string => {
+  const createProject = useCallback(async (title?: string, cloud?: boolean): Promise<string> => {
     flushCurrentProject();
 
     const id = generateUUID();
@@ -1539,8 +1548,24 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     dispatch({ type: 'LOAD', payload: newProject });
     setCurrentProjectId(id);
+
+    if (cloud && auth.isSignedIn && auth.accessToken) {
+      try {
+        const newFileId = await pushProjectAndUpdateIndex(auth.accessToken, newProject);
+        setProjectList(prev => {
+          const updated = prev.map(p =>
+            p.id === id ? { ...p, driveFileId: newFileId, driveModifiedTime: Date.now() } : p
+          );
+          saveProjectListToStorage(updated);
+          return updated;
+        });
+      } catch (e) {
+        console.error('Failed to upload new project to Drive:', e);
+      }
+    }
+
     return id;
-  }, [flushCurrentProject]);
+  }, [flushCurrentProject, auth.isSignedIn, auth.accessToken]);
 
   const openProject = useCallback((id: string) => {
     flushCurrentProject();

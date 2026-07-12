@@ -25,27 +25,30 @@ export async function pullFromDrive(
   updatedProjects: { project: Project; driveFileId: string }[];
   conflicts: Conflict[];
 }> {
-  const { projects: driveProjects } = await listDriveProjects(accessToken);
+  const { index: driveIndex, projects: driveProjects, fileIds } = await listDriveProjects(accessToken);
 
   const newProjects: { project: Project; driveFileId: string }[] = [];
   const updatedProjects: { project: Project; driveFileId: string }[] = [];
   const conflicts: Conflict[] = [];
 
   const localMap = new Map(localProjects.map(p => [p.id, p]));
+  const driveIndexMap = new Map(driveIndex.map(i => [i.id, i]));
 
   for (const [projectId, driveProject] of driveProjects) {
     const localMeta = localMap.get(projectId);
+    const driveFileId = fileIds.get(projectId) ?? projectId;
 
     if (!localMeta) {
-      newProjects.push({ project: driveProject, driveFileId: projectId });
+      newProjects.push({ project: driveProject, driveFileId });
       continue;
     }
 
-    const driveModified = driveProject.versions?.[0]?.createdAt ?? 0;
+    const driveIndexEntry = driveIndexMap.get(projectId);
+    const driveModified = driveIndexEntry?.lastModified ?? 0;
 
     if (driveModified > localMeta.lastModified) {
-      if (localMeta.driveFileId === projectId || !localMeta.driveFileId) {
-        updatedProjects.push({ project: driveProject, driveFileId: projectId });
+      if (!localMeta.driveFileId || localMeta.driveFileId === driveFileId) {
+        updatedProjects.push({ project: driveProject, driveFileId });
       } else {
         conflicts.push({
           projectId,

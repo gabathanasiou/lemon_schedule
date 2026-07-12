@@ -35,6 +35,7 @@ import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
+import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { DriveConflictModal } from './components/DriveConflictModal';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import type { Conflict } from './lib/syncManager';
@@ -49,7 +50,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, pendingConflict, resolveDriveConflict } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, pendingConflict, resolveDriveConflict, driveSyncState, syncProjectToDrive } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -553,6 +554,12 @@ function AppContent() {
               </DropdownItem>
             </DropdownMenu>
             <SaveIndicator isCloudProject={isCloudProject} />
+            {isCloudProject && (
+              <SyncStatusIcon
+                syncState={driveSyncState}
+                onRetry={() => syncProjectToDrive()}
+              />
+            )}
             <input 
               value={project.title} 
               onChange={e => dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}})}

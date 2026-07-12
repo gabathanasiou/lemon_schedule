@@ -99,10 +99,11 @@ async function deleteFile(accessToken: string, fileId: string): Promise<void> {
 
 export async function listDriveProjects(
   accessToken: string,
-): Promise<{ index: DriveProjectMeta[]; projects: Map<string, Project> }> {
+): Promise<{ index: DriveProjectMeta[]; projects: Map<string, Project>; fileIds: Map<string, string> }> {
   const files = await listAppDataFiles(accessToken);
 
   const projects = new Map<string, Project>();
+  const fileIds = new Map<string, string>();
   const index: DriveProjectMeta[] = [];
 
   for (const file of files) {
@@ -122,13 +123,14 @@ export async function listDriveProjects(
         const raw = await downloadFile(accessToken, file.id);
         const project: Project = JSON.parse(raw);
         projects.set(project.id, project);
+        fileIds.set(project.id, file.id);
       } catch (e) {
         console.error(`Failed to parse Drive project ${file.name}:`, e);
       }
     }
   }
 
-  return { index, projects };
+  return { index, projects, fileIds };
 }
 
 export async function readDriveProject(
