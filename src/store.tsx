@@ -1236,7 +1236,7 @@ interface ProjectContextType {
   createProject: (title?: string, cloud?: boolean) => Promise<string>;
   openProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  renameProject: (id: string, title: string) => void;
+  renameProject: (id: string, title: string, driveFileId?: string) => void;
   duplicateProject: (id: string) => void;
   importProjectFromData: (data: Project) => string;
   updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
@@ -1260,6 +1260,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     future: [],
     _batchDepth: 0,
   });
+  const presentRef = useRef(state.present);
+  presentRef.current = state.present;
 
   // Offline detection — block all mutations when offline
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1450,6 +1452,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (driveFileId && auth.accessToken) {
       try {
         const project = await readDriveProject(auth.accessToken, driveFileId);
+        if (meta && meta.title !== project.title) {
+          project.title = meta.title;
+        }
         setProjectList(prev => {
           if (prev.find(p => p.id === project.id)) return prev;
           return [...prev, {
@@ -1504,16 +1509,40 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentProjectId, openProject, projectList, auth.isSignedIn, auth.accessToken]);
 
-  const renameProject = useCallback((id: string, title: string) => {
+  const renameProject = useCallback((id: string, title: string, driveFileId?: string) => {
     if (currentProjectId === id) {
       dispatch({ type: 'UPDATE_PROJECT', payload: { title } });
     }
+    let existingMeta: ProjectMeta | undefined;
     setProjectList(prev => {
-      const updated = prev.map(p => p.id === id ? { ...p, title } : p);
+      const idx = prev.findIndex(p => p.id === id);
+      if (idx >= 0) {
+        existingMeta = prev[idx];
+        const updated = [...prev];
+        updated[idx] = { ...updated[idx], title };
+        saveProjectListToStorage(updated);
+        return updated;
+      }
+      if (!driveFileId) return prev;
+      const updated = [...prev, { id, title, lastModified: Date.now(), createdAt: Date.now(), driveFileId }];
       saveProjectListToStorage(updated);
       return updated;
     });
-  }, [currentProjectId]);
+    if (driveFileId && auth.accessToken) {
+      if (currentProjectId === id) {
+        pushProjectAndUpdateIndex(auth.accessToken, { ...presentRef.current, title }, driveFileId)
+          .catch(e => console.error('Failed to push rename to Drive:', e));
+      } else {
+        readDriveProject(auth.accessToken, driveFileId)
+          .then(project => {
+            project.title = title;
+            pushProjectAndUpdateIndex(auth.accessToken, project, driveFileId)
+              .catch(e => console.error('Failed to push rename to Drive:', e));
+          })
+          .catch(e => console.error('Failed to read project for rename:', e));
+      }
+    }
+  }, [currentProjectId, auth.accessToken]);
 
   const duplicateProject = useCallback((id: string) => {
     const meta = projectList.find(p => p.id === id);

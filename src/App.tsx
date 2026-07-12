@@ -47,7 +47,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, registerPostSaveHandler } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -498,7 +498,10 @@ function AppContent() {
             <SaveIndicator />
             <input 
               value={project.title} 
-              onChange={e => dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}})}
+              onChange={e => {
+                dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}});
+                renameProject(currentProjectId!, e.target.value);
+              }}
               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
