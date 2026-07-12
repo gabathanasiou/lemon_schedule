@@ -4,8 +4,8 @@ import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils'
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { pushProjectAndUpdateIndex, pullFromDrive } from './lib/syncManager';
-import { readDriveProject } from './lib/googleDriveStorage';
+import { pushProjectAndUpdateIndex, pullFromDrive, removeFromDrive } from './lib/syncManager';
+import { readDriveProject, removeFromDriveIndex } from './lib/googleDriveStorage';
 import type { SyncState } from './components/SyncStatusIcon';
 import type { Conflict } from './lib/syncManager';
 import Papa from 'papaparse';
@@ -1237,7 +1237,7 @@ interface ProjectContextType {
   readOnly: boolean;
   createProject: (title?: string, cloud?: boolean) => Promise<string>;
   openProject: (id: string) => void;
-  deleteProject: (id: string) => void;
+  deleteProject: (id: string) => Promise<void>;
   renameProject: (id: string, title: string) => void;
   duplicateProject: (id: string) => void;
   importProjectFromData: (data: Project) => string;
@@ -1482,14 +1482,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [auth.accessToken, projectList, importDriveProject, currentProjectId]);
 
-  // Auto-fetch cloud projects on sign-in
-  const wasSignedInRef = useRef(auth.isSignedIn);
+  // Auto-fetch cloud projects when access token becomes available (sign-in or refresh)
+  const fetchedTokenRef = useRef<string | null>(null);
   useEffect(() => {
-    if (auth.isSignedIn && !wasSignedInRef.current) {
+    if (auth.accessToken && auth.accessToken !== fetchedTokenRef.current) {
+      fetchedTokenRef.current = auth.accessToken;
       pullDriveProjects().catch(() => {});
     }
-    wasSignedInRef.current = auth.isSignedIn;
-  }, [auth.isSignedIn, pullDriveProjects]);
+  }, [auth.accessToken, pullDriveProjects]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1577,7 +1577,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [flushCurrentProject]);
 
-  const deleteProject = useCallback((id: string) => {
+  const deleteProject = useCallback(async (id: string) => {
+    const meta = projectList.find(p => p.id === id);
+    if (meta?.driveFileId && auth.isSignedIn && auth.accessToken) {
+      try {
+        await removeFromDrive(auth.accessToken, meta.driveFileId);
+        await removeFromDriveIndex(auth.accessToken, id);
+      } catch (e) {
+        console.error('Failed to delete project from Drive:', e);
+      }
+    }
+
     localStorage.removeItem(getProjectStorageKey(id));
 
     const currentIndex = loadProjectListFromStorage();
@@ -1592,7 +1602,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setCurrentProjectId(null);
       }
     }
-  }, [currentProjectId, openProject]);
+  }, [currentProjectId, openProject, projectList, auth.isSignedIn, auth.accessToken]);
 
   const renameProject = useCallback((id: string, title: string) => {
     if (currentProjectId === id) {

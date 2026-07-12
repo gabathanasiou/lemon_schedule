@@ -17,8 +17,10 @@ async function uploadJson(
   const metadata: Record<string, unknown> = {
     name,
     mimeType: 'application/json',
-    parents: ['appDataFolder'],
   };
+  if (!existingFileId) {
+    metadata.parents = ['appDataFolder'];
+  }
 
   const formData = new FormData();
   formData.append(
@@ -187,4 +189,14 @@ export async function updateDriveIndexForProject(
     index.push(meta);
   }
   return saveDriveIndex(accessToken, index);
+}
+
+export async function removeFromDriveIndex(
+  accessToken: string,
+  projectId: string,
+): Promise<void> {
+  const { index } = await listDriveProjects(accessToken);
+  const filtered = index.filter(i => i.id !== projectId);
+  if (filtered.length === index.length) return;
+  await saveDriveIndex(accessToken, filtered);
 }
