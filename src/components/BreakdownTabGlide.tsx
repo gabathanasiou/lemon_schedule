@@ -55,7 +55,7 @@ const FIXED_COLS = [
   { key: 'notes', label: 'Notes', width: 200 },
 ];
 
-function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center'; cursor?: React.CSSProperties['cursor'] }>): GridCell {
+function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center'; cursor?: React.CSSProperties['cursor']; themeOverride?: { bgCell?: string } }>): GridCell {
   return {
     kind: GridCellKind.Text,
     data,
@@ -64,6 +64,7 @@ function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData:
     readonly: opts?.readonly ?? false,
     contentAlign: opts?.align,
     cursor: opts?.cursor,
+    themeOverride: opts?.themeOverride,
   } as GridCell;
 }
 
@@ -132,18 +133,24 @@ export function GlideBreakdownTab({
   }, [COLUMNS, fontSize]);
 
   const trashImg = useRef<HTMLImageElement | null>(null);
+  const plusImg = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
-    const img = new Image();
-    img.src = 'data:image/svg+xml;base64,' + btoa(svg);
-    trashImg.current = img;
+    const trashSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>';
+    const plusSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>';
+    const tImg = new Image();
+    tImg.src = 'data:image/svg+xml;base64,' + btoa(trashSvg);
+    trashImg.current = tImg;
+    const pImg = new Image();
+    pImg.src = 'data:image/svg+xml;base64,' + btoa(plusSvg);
+    plusImg.current = pImg;
   }, []);
 
   const drawCell = useCallback((args: any, draw: (a: any) => boolean) => {
     if (args.col === 0) {
       draw(args);
-      if (args.row >= scenesRef.current.length) return true;
-      const img = trashImg.current;
+      if (args.row > scenesRef.current.length) return true;
+      const isAddRow = args.row === scenesRef.current.length;
+      const img = isAddRow ? plusImg.current : trashImg.current;
       if (img && img.complete) {
         const { ctx, rect } = args;
         const size = Math.min(14, rect.width - 4, rect.height - 4);
@@ -260,7 +267,7 @@ export function GlideBreakdownTab({
       if (row === scenesRef.current.length) {
         const colDef = COLUMNS[col];
         if (!colDef) return textCell('', { readonly: true });
-        if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer' });
+        if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: '#f3f4f6' } });
         return textCell('');
       }
       return {
@@ -275,7 +282,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
-    if (colKey === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer' });
+    if (colKey === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: '#fef2f2' } });
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
@@ -443,7 +450,7 @@ export function GlideBreakdownTab({
 
     for (const s of newScenes) {
       const scene = {
-        id: generateUUID(), sceneNumber: s.sceneNumber || '', pageCount: '', pageCountDecimal: 0,
+        id: generateUUID(), sceneNumber: s.sceneNumber || '', pageCount: s.pageCount || '', pageCountDecimal: 0,
         scriptDay: (s.scriptDay || '').replace(/[^0-9]/g, ''),
         intExt: s.intExt || '', set: (s.set || '').toUpperCase(), dayNight: s.dayNight || '',
         description: s.description || '', cast: s.cast || '', notes: s.notes || '',
@@ -670,6 +677,9 @@ export function GlideBreakdownTab({
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
         setContextMenu({ x, y, row, col });
+      }
+      if (col === 0) {
+        addScene();
       }
       return;
     }
