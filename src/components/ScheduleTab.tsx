@@ -458,7 +458,6 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const savedScrollTopRef = useRef(savedScrollTop);
-  savedScrollTopRef.current = savedScrollTop;
   const mousePosRef = useRef({ y: 0 });
   const autoScrollRafRef = useRef<number | null>(null);
 
