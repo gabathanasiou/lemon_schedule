@@ -4,10 +4,8 @@ import { generateUUID, parsePageCount, normalizePunctuation } from './lib/utils'
 import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE } from './lib/ribbonUtils';
 import { isMultiValue, getFieldItems } from './lib/categories';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { pushProjectAndUpdateIndex, pullFromDrive, removeFromDrive } from './lib/syncManager';
+import { pushProjectAndUpdateIndex, removeFromDrive } from './lib/syncManager';
 import { readDriveProject, removeFromDriveIndex } from './lib/googleDriveStorage';
-import type { SyncState } from './components/SyncStatusIcon';
-import type { Conflict } from './lib/syncManager';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
@@ -20,7 +18,6 @@ export interface ProjectMeta {
   lastModified: number;
   createdAt: number;
   driveFileId?: string;
-  driveModifiedTime?: number;
 }
 
 function getProjectStorageKey(id: string): string {
@@ -41,7 +38,8 @@ function loadProjectListFromStorage(): ProjectMeta[] {
 }
 
 function saveProjectListToStorage(list: ProjectMeta[]) {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(list));
+  const localOnly = list.filter(p => !p.driveFileId);
+  localStorage.setItem(INDEX_KEY, JSON.stringify(localOnly));
 }
 
 export function loadProjectFromStorage(id: string): Project | null {
@@ -1236,22 +1234,13 @@ interface ProjectContextType {
   initialized: boolean;
   readOnly: boolean;
   createProject: (title?: string, cloud?: boolean) => Promise<string>;
-  openProject: (id: string) => void;
+  openProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   renameProject: (id: string, title: string) => void;
   duplicateProject: (id: string) => void;
   importProjectFromData: (data: Project) => string;
   updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
-  syncProjectToDrive: () => Promise<void>;
-  pullDriveProjects: () => Promise<{
-    newProjects: { project: Project; driveFileId: string }[];
-    updatedProjects: { project: Project; driveFileId: string }[];
-    conflicts: Conflict[];
-  }>;
-  driveSyncState: SyncState;
-  isDriveSignedIn: boolean;
-  pendingConflict: Conflict | null;
-  resolveDriveConflict: (action: 'keep_local' | 'keep_drive' | 'keep_both') => Promise<void>;
+  registerPostSaveHandler: (handler: ((project: Project) => Promise<void>) | null) => void;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -1261,8 +1250,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const auth = useGoogleAuth();
-  const [driveSyncState, setDriveSyncState] = useState<SyncState>('idle');
-  const [pendingConflict, setPendingConflict] = useState<Conflict | null>(null);
   const driveFileIdRef = useRef<string | undefined>(undefined);
 
   const blank = makeBlankProject();
@@ -1291,7 +1278,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     dispatch(action);
   }, [isOnline]);
 
-  // On mount: migrate legacy data or load most recent project
+  // On mount: migrate legacy data or load project list (no auto-open)
   useEffect(() => {
     const legacyData = localStorage.getItem(LEGACY_KEY);
     if (legacyData) {
@@ -1301,11 +1288,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           const id = generateUUID();
           localStorage.setItem(getProjectStorageKey(id), legacyData);
           localStorage.removeItem(LEGACY_KEY);
-
           const meta: ProjectMeta = { id, title: parsed.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
           saveProjectListToStorage([meta]);
           setProjectList([meta]);
-
           dispatch({ type: 'LOAD', payload: parsed });
           setCurrentProjectId(id);
           setInitialized(true);
@@ -1319,177 +1304,68 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const list = loadProjectListFromStorage();
     if (list.length > 0) {
       setProjectList(list);
-      const sorted = [...list].sort((a, b) => b.lastModified - a.lastModified);
-      const latest = sorted[0];
-      const project = loadProjectFromStorage(latest.id);
-      if (project) {
-        dispatch({ type: 'LOAD', payload: project });
-        setCurrentProjectId(latest.id);
-      }
     }
 
     setInitialized(true);
   }, []);
 
-  // Auto-save current project to its storage key (debounced)
+  // Post-save hook for File System Access (registered by App.tsx)
+  const postSaveHandlerRef = useRef<((project: Project) => Promise<void>) | null>(null);
+  const registerPostSaveHandler = useCallback((handler: ((project: Project) => Promise<void>) | null) => {
+    postSaveHandlerRef.current = handler;
+  }, []);
+
+  // Consolidated save pipeline — localStorage for local projects, Drive for cloud projects
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveProjectRef = useRef(state.present);
   saveProjectRef.current = state.present;
   useEffect(() => {
     if (!currentProjectId) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
+    saveTimerRef.current = setTimeout(async () => {
       const project = saveProjectRef.current;
-      localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(project));
-      setProjectList(prev => {
-        const existing = prev.find(p => p.id === currentProjectId);
-        if (!existing) return prev;
-        const updated = prev.map(p =>
-          p.id === currentProjectId
-            ? { ...p, title: project.title, lastModified: Date.now() }
-            : p
-        );
-        saveProjectListToStorage(updated);
-        return updated;
-      });
-    }, 400);
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [state.present, currentProjectId]);
+      const meta = projectList.find(p => p.id === currentProjectId);
+      const isCloud = !!meta?.driveFileId;
 
-  const driveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!currentProjectId || !auth.isSignedIn || !auth.accessToken) return;
-    const currentFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
-    if (!currentFileId) { setDriveSyncState('idle'); return; }
-    if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
-
-    driveSyncTimerRef.current = setTimeout(async () => {
-      try {
-        setDriveSyncState('syncing');
-        const newFileId = await pushProjectAndUpdateIndex(
-          auth.accessToken!,
-          state.present,
-          currentFileId,
-        );
-        driveFileIdRef.current = newFileId;
+      if (isCloud) {
+        if (skipSaveRef.current) { skipSaveRef.current = false; return; }
+        if (auth.isSignedIn && auth.accessToken && isOnline && meta?.driveFileId) {
+          try {
+            const newFileId = await pushProjectAndUpdateIndex(
+              auth.accessToken, project, meta.driveFileId,
+            );
+            driveFileIdRef.current = newFileId;
+            setProjectList(prev => {
+              const updated = prev.map(p =>
+                p.id === currentProjectId
+                  ? { ...p, title: project.title, driveFileId: newFileId, lastModified: Date.now() }
+                  : p
+              );
+              saveProjectListToStorage(updated);
+              return updated;
+            });
+          } catch (err) {
+            console.error('Drive save failed:', err);
+          }
+        }
+      } else {
+        localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(project));
         setProjectList(prev => {
+          const existing = prev.find(p => p.id === currentProjectId);
+          if (!existing) return prev;
           const updated = prev.map(p =>
             p.id === currentProjectId
-              ? { ...p, driveFileId: newFileId, driveModifiedTime: Date.now() }
+              ? { ...p, title: project.title, lastModified: Date.now() }
               : p
           );
           saveProjectListToStorage(updated);
           return updated;
         });
-        setDriveSyncState('synced');
-      } catch (err) {
-        console.error('Drive sync failed:', err);
-        setDriveSyncState('error');
+        postSaveHandlerRef.current?.(project).catch(() => {});
       }
-    }, 2000);
-    return () => { if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current); };
-  }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken]);
-
-  const syncProjectToDrive = useCallback(async () => {
-    if (!auth.isSignedIn || !auth.accessToken || !currentProjectId) return;
-    setDriveSyncState('syncing');
-    try {
-      const fileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
-      const newFileId = await pushProjectAndUpdateIndex(
-        auth.accessToken,
-        state.present,
-        fileId,
-      );
-      driveFileIdRef.current = newFileId;
-      setProjectList(prev => {
-        const updated = prev.map(p =>
-          p.id === currentProjectId
-            ? { ...p, driveFileId: newFileId, driveModifiedTime: Date.now() }
-            : p
-        );
-        saveProjectListToStorage(updated);
-        return updated;
-      });
-      setDriveSyncState('synced');
-    } catch (err) {
-      console.error('Drive sync failed:', err);
-      setDriveSyncState('error');
-    }
-  }, [auth.isSignedIn, auth.accessToken, currentProjectId, state.present, projectList]);
-
-  const resolveDriveConflict = useCallback(async (action: 'keep_local' | 'keep_drive' | 'keep_both') => {
-    if (!pendingConflict || !auth.accessToken || !currentProjectId) return;
-
-    if (action === 'keep_local') {
-      await syncProjectToDrive();
-    } else {
-      const driveProject = await readDriveProject(auth.accessToken, pendingConflict.projectId);
-
-      if (action === 'keep_drive') {
-        localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(driveProject));
-        dispatch({ type: 'LOAD', payload: driveProject });
-      } else if (action === 'keep_both') {
-        const newProject = { ...driveProject, title: `${driveProject.title} (from Drive)` };
-        importProjectFromData(newProject);
-      }
-    }
-
-    setPendingConflict(null);
-  }, [pendingConflict, auth.accessToken, currentProjectId, syncProjectToDrive, dispatch]);
-
-  const importDriveProject = useCallback((project: Project, driveFileId: string) => {
-    localStorage.setItem(getProjectStorageKey(project.id), JSON.stringify(project));
-    setProjectList(prev => {
-      const existing = prev.find(p => p.id === project.id);
-      if (existing) {
-        const updated = prev.map(p =>
-          p.id === project.id
-            ? { ...p, title: project.title, lastModified: Date.now(), driveFileId }
-            : p
-        );
-        saveProjectListToStorage(updated);
-        return updated;
-      }
-      const meta: ProjectMeta = {
-        id: project.id,
-        title: project.title,
-        lastModified: project.versions?.[0]?.createdAt ?? Date.now(),
-        createdAt: project.versions?.[0]?.createdAt ?? Date.now(),
-        driveFileId,
-      };
-      const updated = [...prev, meta];
-      saveProjectListToStorage(updated);
-      return updated;
-    });
-  }, []);
-
-  const pullDriveProjects = useCallback(async () => {
-    if (!auth.accessToken) throw new Error('Not signed in');
-    setDriveSyncState('syncing');
-    const result = await pullFromDrive(auth.accessToken, projectList);
-    setDriveSyncState('synced');
-
-    for (const { project, driveFileId } of result.newProjects) {
-      importDriveProject(project, driveFileId);
-    }
-    for (const { project, driveFileId } of result.updatedProjects) {
-      importDriveProject(project, driveFileId);
-    }
-
-    const currentConflict = result.conflicts.find(c => c.projectId === currentProjectId) ?? null;
-    setPendingConflict(currentConflict);
-
-    return result;
-  }, [auth.accessToken, projectList, importDriveProject, currentProjectId]);
-
-  // Auto-fetch cloud projects when access token becomes available (sign-in or refresh)
-  const fetchedTokenRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (auth.accessToken && auth.accessToken !== fetchedTokenRef.current) {
-      fetchedTokenRef.current = auth.accessToken;
-      pullDriveProjects().catch(() => {});
-    }
-  }, [auth.accessToken, pullDriveProjects]);
+    }, 500);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken, isOnline]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1497,7 +1373,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       if (!currentProjectId) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         dispatch({ type: 'UNDO' });
@@ -1514,9 +1389,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentProjectId]);
 
-  // Save current project state to localStorage immediately
+  // Flush current project to localStorage immediately (local projects only)
   const flushCurrentProject = useCallback(() => {
     if (!currentProjectId) return;
+    const meta = projectList.find(p => p.id === currentProjectId);
+    if (!meta || meta.driveFileId) return;
     localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
     setProjectList(prev => {
       const existing = prev.find(p => p.id === currentProjectId);
@@ -1529,53 +1406,74 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       saveProjectListToStorage(updated);
       return updated;
     });
-  }, [currentProjectId, state.present]);
+  }, [currentProjectId, state.present, projectList]);
+
+  // Guard to skip the save-pipeline push right after creating a cloud project
+  const skipSaveRef = useRef(false);
 
   const createProject = useCallback(async (title?: string, cloud?: boolean): Promise<string> => {
     flushCurrentProject();
-
     const id = generateUUID();
     const newProject = makeBlankProject(title);
-
-    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(newProject));
-
-    const meta: ProjectMeta = { id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
-    setProjectList(prev => {
-      const updated = [...prev, meta];
-      saveProjectListToStorage(updated);
-      return updated;
-    });
-
-    dispatch({ type: 'LOAD', payload: newProject });
-    setCurrentProjectId(id);
 
     if (cloud && auth.isSignedIn && auth.accessToken) {
       try {
         const newFileId = await pushProjectAndUpdateIndex(auth.accessToken, newProject);
-        setProjectList(prev => {
-          const updated = prev.map(p =>
-            p.id === id ? { ...p, driveFileId: newFileId, driveModifiedTime: Date.now() } : p
-          );
-          saveProjectListToStorage(updated);
-          return updated;
-        });
+        const meta: ProjectMeta = {
+          id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now(),
+          driveFileId: newFileId,
+        };
+        setProjectList(prev => { const u = [...prev, meta]; return u; });
+        dispatch({ type: 'LOAD', payload: newProject });
+        setCurrentProjectId(id);
+        driveFileIdRef.current = newFileId;
+        skipSaveRef.current = true;
+        return id;
       } catch (e) {
         console.error('Failed to upload new project to Drive:', e);
       }
     }
 
+    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(newProject));
+    const meta: ProjectMeta = { id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
+    setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
+    dispatch({ type: 'LOAD', payload: newProject });
+    setCurrentProjectId(id);
     return id;
   }, [flushCurrentProject, auth.isSignedIn, auth.accessToken]);
 
-  const openProject = useCallback((id: string) => {
+  const openProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
     flushCurrentProject();
+    const meta = projectList.find(p => p.id === id);
+    const driveFileId = meta?.driveFileId || cloudDriveFileId;
 
-    const project = loadProjectFromStorage(id);
-    if (project) {
-      dispatch({ type: 'LOAD', payload: project });
-      setCurrentProjectId(id);
+    if (driveFileId && auth.accessToken) {
+      try {
+        const project = await readDriveProject(auth.accessToken, driveFileId);
+        setProjectList(prev => {
+          if (prev.find(p => p.id === project.id)) return prev;
+          return [...prev, {
+            id: project.id,
+            title: project.title,
+            lastModified: Date.now(),
+            createdAt: Date.now(),
+            driveFileId,
+          }];
+        });
+        dispatch({ type: 'LOAD', payload: project });
+        setCurrentProjectId(project.id);
+        driveFileIdRef.current = driveFileId;
+      } catch (e) {
+        console.error('Failed to open cloud project:', e);
+      }
+    } else {
+      const project = loadProjectFromStorage(id);
+      if (project) {
+        dispatch({ type: 'LOAD', payload: project });
+        setCurrentProjectId(id);
+      }
     }
-  }, [flushCurrentProject]);
+  }, [flushCurrentProject, auth.accessToken, projectList]);
 
   const deleteProject = useCallback(async (id: string) => {
     const meta = projectList.find(p => p.id === id);
@@ -1588,12 +1486,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    localStorage.removeItem(getProjectStorageKey(id));
+    if (!meta?.driveFileId) {
+      localStorage.removeItem(getProjectStorageKey(id));
+    }
 
     const currentIndex = loadProjectListFromStorage();
     const remaining = currentIndex.filter(p => p.id !== id);
     saveProjectListToStorage(remaining);
-    setProjectList(remaining);
+    setProjectList(prev => prev.filter(p => p.id !== id));
 
     if (currentProjectId === id) {
       if (remaining.length > 0) {
@@ -1616,8 +1516,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [currentProjectId]);
 
   const duplicateProject = useCallback((id: string) => {
-    flushCurrentProject();
+    const meta = projectList.find(p => p.id === id);
+    if (meta?.driveFileId) return;
 
+    flushCurrentProject();
     const original = id === currentProjectId ? state.present : loadProjectFromStorage(id);
     if (!original) return;
 
@@ -1635,28 +1537,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
 
     localStorage.setItem(getProjectStorageKey(newId), JSON.stringify(newProject));
-
-    const meta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
-    setProjectList(prev => {
-      const updated = [...prev, meta];
-      saveProjectListToStorage(updated);
-      return updated;
-    });
-  }, [flushCurrentProject, currentProjectId, state.present]);
+    const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
+    setProjectList(prev => { const u = [...prev, newMeta]; saveProjectListToStorage(u); return u; });
+  }, [flushCurrentProject, currentProjectId, state.present, projectList]);
 
   const importProjectFromData = useCallback((data: Project): string => {
     flushCurrentProject();
-
     const id = generateUUID();
     localStorage.setItem(getProjectStorageKey(id), JSON.stringify(data));
-
     const meta: ProjectMeta = { id, title: data.title || 'Imported Project', lastModified: Date.now(), createdAt: Date.now() };
-    setProjectList(prev => {
-      const updated = [...prev, meta];
-      saveProjectListToStorage(updated);
-      return updated;
-    });
-
+    setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
     dispatch({ type: 'LOAD', payload: data });
     setCurrentProjectId(id);
     return id;
@@ -1688,12 +1578,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       duplicateProject,
       importProjectFromData,
       updateProjectMeta,
-      syncProjectToDrive,
-      pullDriveProjects,
-      driveSyncState,
-      isDriveSignedIn: auth.isSignedIn,
-      pendingConflict,
-      resolveDriveConflict,
+      registerPostSaveHandler,
     }}>
       {children}
     </ProjectContext.Provider>

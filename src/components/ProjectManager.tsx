@@ -4,8 +4,8 @@ import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
-import { deleteDriveProject } from '../lib/googleDriveStorage';
-import { Plus, Download, Upload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive } from 'lucide-react';
+import { listDriveProjectMetas, deleteDriveProject, clearAllDriveData } from '../lib/googleDriveStorage';
+import { Plus, Download, Upload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
@@ -32,6 +32,8 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString();
 }
 
+const MAX_DRIVE_ENTRIES = 5000;
+
 export function ProjectManager({ onClose }: ProjectManagerProps) {
   const {
     projectList,
@@ -43,7 +45,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     renameProject,
     duplicateProject,
     importProjectFromData,
-    pullDriveProjects,
     updateProjectMeta,
   } = useProject();
   const dialog = useDialog();
@@ -58,32 +59,126 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [importing, setImporting] = useState(false);
   const hasDefaultedRef = useRef(false);
 
+  // Drive state
+  const [driveMetas, setDriveMetas] = useState<ProjectMeta[]>([]);
+  const [driveLoading, setDriveLoading] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
+  const [driveCorrupt, setDriveCorrupt] = useState(false);
+  const [driveTotalCount, setDriveTotalCount] = useState<number | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+
   useEffect(() => {
-    if (auth.isSignedIn && !hasDefaultedRef.current) {
+    if (auth.isSignedIn) {
       setActiveTab('cloud');
       hasDefaultedRef.current = true;
     }
   }, [auth.isSignedIn]);
 
-  // Fresh fetch on every open + every time sign-in state changes to true
+  // Fetch Drive index on mount
   useEffect(() => {
-    if (auth.isSignedIn) {
-      pullDriveProjects().catch(() => {});
+    if (!auth.isSignedIn || !auth.accessToken) {
+      setDriveMetas([]);
+      setDriveError(null);
+      setDriveCorrupt(false);
+      setDriveTotalCount(null);
+      return;
     }
-  }, [auth.isSignedIn]);
+    setDriveLoading(true);
+    setDriveError(null);
+    setDriveCorrupt(false);
+    setDriveTotalCount(null);
+    listDriveProjectMetas(auth.accessToken)
+      .then(metas => {
+        setDriveTotalCount(metas.length);
+        if (metas.length > MAX_DRIVE_ENTRIES) {
+          setDriveCorrupt(true);
+          setDriveError(`Drive data is corrupted: ${metas.length.toLocaleString()} entries found (limit is ${MAX_DRIVE_ENTRIES.toLocaleString()}). Use the debug cleanup below to wipe and start fresh.`);
+          setDriveMetas([]);
+        } else {
+          setDriveMetas(metas.map(m => ({
+            id: m.id,
+            title: m.title,
+            lastModified: m.lastModified,
+            createdAt: m.createdAt,
+            driveFileId: m.driveFileId,
+          })));
+        }
+        setDriveLoading(false);
+      })
+      .catch(e => {
+        setDriveError(e?.message || 'Failed to load cloud projects');
+        setDriveLoading(false);
+      });
+  }, [auth.isSignedIn, auth.accessToken]);
 
-  const { localProjects, cloudProjects } = useMemo(() => {
-    const local: ProjectMeta[] = [];
-    const cloud: ProjectMeta[] = [];
-    for (const p of projectList) {
-      if (p.driveFileId) {
-        cloud.push(p);
-      } else {
-        local.push(p);
-      }
+  const refetchDrive = () => {
+    if (!auth.accessToken) return;
+    setDriveLoading(true);
+    setDriveError(null);
+    setDriveCorrupt(false);
+    setDriveTotalCount(null);
+    listDriveProjectMetas(auth.accessToken)
+      .then(metas => {
+        setDriveTotalCount(metas.length);
+        if (metas.length > MAX_DRIVE_ENTRIES) {
+          setDriveCorrupt(true);
+          setDriveError(`Drive data is corrupted: ${metas.length.toLocaleString()} entries found. Use the debug cleanup to wipe and start fresh.`);
+          setDriveMetas([]);
+        } else {
+          setDriveMetas(metas.map(m => ({
+            id: m.id,
+            title: m.title,
+            lastModified: m.lastModified,
+            createdAt: m.createdAt,
+            driveFileId: m.driveFileId,
+          })));
+        }
+        setDriveLoading(false);
+      })
+      .catch(e => {
+        setDriveError(e?.message || 'Failed to load cloud projects');
+        setDriveLoading(false);
+      });
+  };
+
+  const handleDeleteAllDrive = async () => {
+    if (!auth.accessToken) return;
+    const ok = await dialog.confirm({
+      title: 'Delete ALL Drive data?',
+      message: `This will permanently delete all ${driveTotalCount?.toLocaleString() ?? 'unknown'} files in your Google Drive app data. This cannot be undone.`,
+      danger: true,
+    });
+    if (!ok) return;
+    setDeletingAll(true);
+    try {
+      const count = await clearAllDriveData(auth.accessToken);
+      dialog.alert({ title: 'Drive Wiped', message: `Deleted ${count} file${count !== 1 ? 's' : ''} from Google Drive.` });
+      setDriveMetas([]);
+      setDriveError(null);
+      setDriveCorrupt(false);
+      setDriveTotalCount(0);
+    } catch (e: any) {
+      dialog.alert({ title: 'Wipe Failed', message: e?.message || 'Could not delete all Drive files.' });
+    } finally {
+      setDeletingAll(false);
     }
-    return { localProjects: local, cloudProjects: cloud };
-  }, [projectList]);
+  };
+
+  const localProjects = useMemo(
+    () => projectList.filter(p => !p.driveFileId),
+    [projectList]
+  );
+
+  const cloudProjects = useMemo(() => {
+    const merged = new Map<string, ProjectMeta>();
+    for (const p of driveMetas) merged.set(p.id, p);
+    for (const p of projectList) {
+      if (p.driveFileId) merged.set(p.id, p);
+    }
+    console.log('[PM] cloudProjects merge:', { driveMetas: driveMetas.length, fromProjectList: projectList.filter(p => p.driveFileId).length, merged: merged.size });
+    return [...merged.values()];
+  }, [projectList, driveMetas]);
 
   const sortedList = useMemo(() => {
     const source = activeTab === 'local' ? localProjects : cloudProjects;
@@ -125,17 +220,22 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
 
   const handleExportJSON = (e: React.MouseEvent, p: ProjectMeta) => {
     e.stopPropagation();
+    if (p.driveFileId) return;
     exportProjectFromStorage(p.id, p.title);
   };
 
   const handleCardClick = (p: ProjectMeta) => {
     if (renamingId) return;
-    if (p.id === currentProjectId) {
+    if (p.driveFileId) {
+      openProject(p.id, p.driveFileId).then(() => onClose?.());
+    } else {
+      if (p.id === currentProjectId) {
+        onClose?.();
+        return;
+      }
+      openProject(p.id);
       onClose?.();
-      return;
     }
-    openProject(p.id);
-    onClose?.();
   };
 
   const startRenaming = (p: ProjectMeta) => {
@@ -160,7 +260,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       const project = p.id === currentProjectId ? { ...state.present } : loadProjectFromStorage(p.id);
       if (!project) { dialog.alert({ title: 'Error', message: 'Could not load project data.' }); return; }
       const newFileId = await pushProjectAndUpdateIndex(auth.accessToken!, project);
-      updateProjectMeta(p.id, { driveFileId: newFileId, driveModifiedTime: Date.now() });
+      updateProjectMeta(p.id, { driveFileId: newFileId });
     } catch (e: any) {
       dialog.alert({ title: 'Upload Failed', message: e?.message || 'Could not upload to Drive.' });
     } finally {
@@ -169,20 +269,36 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   };
 
   const handleMoveToLocal = async (p: ProjectMeta) => {
-    const ok = await dialog.confirm({ title: `Remove "${p.title}" from Drive?`, message: 'This will delete the project from Google Drive. Local data will not be affected.', danger: true });
+    const ok = await dialog.confirm({ title: `Remove "${p.title}" from Drive?`, message: 'This will delete the project from Google Drive. A local copy will be saved.', danger: true });
     if (!ok) return;
     setMovingId(p.id);
     try {
+      const project = p.id === currentProjectId ? { ...state.present } : null;
+      if (project) {
+        localStorage.setItem(`lemon_schedule_project_v1_${p.id}`, JSON.stringify(project));
+      }
       if (p.driveFileId) {
         await deleteDriveProject(auth.accessToken!, p.driveFileId);
       }
-      updateProjectMeta(p.id, { driveFileId: undefined, driveModifiedTime: undefined });
+      updateProjectMeta(p.id, { driveFileId: undefined });
     } catch (e: any) {
       dialog.alert({ title: 'Remove Failed', message: e?.message || 'Could not remove from Drive.' });
     } finally {
       setMovingId(null);
     }
   };
+
+  // Listen for Shift key to show debug panel
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShowDebug(true); };
+    const onKeyUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShowDebug(false); };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
 
   return (
     <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
@@ -215,7 +331,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
               </button>
               <button
-                onClick={async () => { await createProject('', true); onClose?.(); }}
+                onClick={async () => { await createProject(undefined, true); onClose?.(); }}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
                 <Plus className="w-3.5 h-3.5" /> New Cloud Project
@@ -256,9 +372,60 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           >
             <Cloud className="w-3 h-3" />
             Cloud
-            <span className="text-[10px] text-zinc-500 ml-0.5">{cloudProjects.length}</span>
+            {driveLoading
+              ? <Loader2 className="w-3 h-3 text-zinc-400 animate-spin ml-0.5" />
+              : <span className="text-[10px] text-zinc-500 ml-0.5">{cloudProjects.length}</span>
+            }
           </button>
         </div>
+
+        {/* Debug panel (Shift to reveal) */}
+        {showDebug && activeTab === 'cloud' && (
+          <div className="mb-3 p-2 rounded-md border border-rose-800 bg-rose-950/50">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-semibold text-rose-400 flex items-center gap-1">
+                <Skull className="w-3 h-3" /> DEBUG PANEL
+              </span>
+              {driveTotalCount !== null && (
+                <span className="text-[10px] text-zinc-400">{driveTotalCount.toLocaleString()} files in Drive</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={refetchDrive}
+                disabled={driveLoading}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-40"
+              >
+                <RefreshCw className={`w-3 h-3 ${driveLoading ? 'animate-spin' : ''}`} /> Refetch
+              </button>
+              <button
+                onClick={handleDeleteAllDrive}
+                disabled={deletingAll}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-rose-800 text-white hover:bg-rose-700 transition-colors disabled:opacity-40"
+              >
+                <Trash2 className="w-3 h-3" /> {deletingAll ? 'Deleting...' : 'Delete ALL Drive Data'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Corrupted Drive warning */}
+        {activeTab === 'cloud' && driveCorrupt && (
+          <div className="mb-3 p-3 rounded-md border border-amber-800 bg-amber-950/50">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span className="text-xs font-semibold text-amber-300">Drive Data Corrupted</span>
+            </div>
+            <p className="text-[10px] text-amber-400/80 mb-3">{driveError}</p>
+            <button
+              onClick={handleDeleteAllDrive}
+              disabled={deletingAll}
+              className="flex items-center gap-1 px-3 py-1.5 rounded text-[10px] font-bold bg-rose-800 text-white hover:bg-rose-700 transition-colors disabled:opacity-40"
+            >
+              <Trash2 className="w-3 h-3" /> {deletingAll ? 'Deleting...' : 'Wipe & Start Fresh'}
+            </button>
+          </div>
+        )}
 
         {activeTab === 'cloud' && auth.isSignedIn && auth.user && (
           <div className="flex items-center gap-2 px-1 pb-2">
@@ -272,6 +439,23 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <p className="text-sm font-medium text-zinc-400">Sign in required</p>
             <p className="text-xs mt-1 text-zinc-600">Connect to Google Drive to access your cloud projects.</p>
           </div>
+        ) : activeTab === 'cloud' && driveLoading ? (
+          <div className="text-center py-12 text-zinc-500">
+            <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
+            <p className="text-xs text-zinc-500">Loading cloud projects...</p>
+          </div>
+        ) : activeTab === 'cloud' && driveError && !driveCorrupt ? (
+          <div className="text-center py-12 text-zinc-500">
+            <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
+            <p className="text-sm font-medium text-zinc-400">Failed to load</p>
+            <p className="text-xs mt-1 text-zinc-600 mb-3">{driveError}</p>
+            <button
+              onClick={refetchDrive}
+              className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+            >
+              <RefreshCw className="w-3 h-3" /> Retry
+            </button>
+          </div>
         ) : !hasProjects ? (
           <div className="text-center py-12 text-zinc-500">
             {activeTab === 'local' ? (
@@ -284,7 +468,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <>
                 <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
                 <p className="text-sm font-medium text-zinc-400">No cloud projects</p>
-                <p className="text-xs mt-1 text-zinc-600">Sync a local project to Google Drive to see it here.</p>
+                <p className="text-xs mt-1 text-zinc-600">Create a new cloud project to see it here.</p>
               </>
             )}
           </div>
@@ -371,7 +555,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold truncate text-xs">{p.title}</h3>
                           {p.driveFileId && (
-                            <Cloud className="w-3 h-3 text-zinc-500 shrink-0" title="Synced to Drive" />
+                            <Cloud className="w-3 h-3 text-zinc-500 shrink-0" title="Cloud project" />
                           )}
                           {isActive && (
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -390,13 +574,15 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         >
                           <Pencil className="w-3.5 h-3.5 text-zinc-400" />
                         </button>
-                        <button
-                          onClick={() => duplicateProject(p.id)}
-                          className="p-1.5 rounded-md transition-colors hover:bg-zinc-700"
-                          title="Duplicate"
-                        >
-                          <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                        </button>
+                        {!p.driveFileId && (
+                          <button
+                            onClick={() => duplicateProject(p.id)}
+                            className="p-1.5 rounded-md transition-colors hover:bg-zinc-700"
+                            title="Duplicate"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                        )}
                         <button
                           onClick={e => handleExportJSON(e, p)}
                           className="p-1.5 rounded-md transition-colors hover:bg-zinc-700"

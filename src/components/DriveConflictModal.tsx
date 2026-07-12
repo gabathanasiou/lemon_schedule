@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import type { Conflict } from '../lib/syncManager';
+
+interface DriveConflict {
+  projectId: string;
+  localTitle: string;
+  localModified: number;
+  driveTitle: string;
+  driveModified: number;
+  resolution: string;
+}
 
 interface DriveConflictModalProps {
-  conflicts: Conflict[];
+  conflicts: DriveConflict[];
   onResolve: (resolutions: { projectId: string; action: 'keep_local' | 'keep_drive' | 'keep_both' }[]) => void;
   onClose: () => void;
 }

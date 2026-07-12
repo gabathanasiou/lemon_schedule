@@ -35,10 +35,7 @@ import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
-import { SyncStatusIcon } from './components/SyncStatusIcon';
-import { DriveConflictModal } from './components/DriveConflictModal';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import type { Conflict } from './lib/syncManager';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
@@ -50,7 +47,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, pendingConflict, resolveDriveConflict, driveSyncState, syncProjectToDrive } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, registerPostSaveHandler } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -155,8 +152,6 @@ function AppContent() {
   const [elementBreakdownOptions, setElementBreakdownOptions] = useState<ElementBreakdownOptions | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
-  const [showConflictModal, setShowConflictModal] = useState(false);
-  const [pendingConflicts, setPendingConflicts] = useState<Conflict[]>([]);
   const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
   const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -209,7 +204,6 @@ function AppContent() {
   };
 
   const storage = useStorage();
-  const autosaveTimerRef = useRef<number | null>(null);
   const ctx = useProject();
   const importProjectFromData = ctx.importProjectFromData;
 
@@ -272,10 +266,7 @@ function AppContent() {
   useEffect(() => { if (!elementBreakdownOptions) return; const onAP = () => setElementBreakdownOptions(null); window.addEventListener('afterprint', onAP); setTimeout(() => window.print(), 200); return () => window.removeEventListener('afterprint', onAP); }, [elementBreakdownOptions]);
 
   useEffect(() => {
-    if (!storage.handle || !currentProjectId) return;
-    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
-    storage.setStatus('saving');
-    autosaveTimerRef.current = window.setTimeout(async () => {
+    registerPostSaveHandler(storage.handle && currentProjectId ? async (project: Project) => {
       try {
         await writeProjectToFolder(storage.handle!, project);
         storage.setStatus('saved');
@@ -284,11 +275,8 @@ function AppContent() {
         const isPerm = /permission/i.test(msg);
         storage.setStatus(isPerm ? 'no-permission' : 'error', msg);
       }
-    }, 800);
-    return () => {
-      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
-    };
-  }, [state.present, storage.handle, currentProjectId]);
+    } : null);
+  }, [storage.handle, currentProjectId, registerPostSaveHandler]);
 
   if (doodOptions) {
     const elementIds = doodOptions.elementIds || doodOptions.castIds;
@@ -374,6 +362,7 @@ function AppContent() {
 
   return (
     <LongPressMenuProvider>
+    <>
     <style>{`
       @keyframes pen-flash-light {
         0% { background-color: rgba(0,0,0,0.08); }
@@ -400,27 +389,6 @@ function AppContent() {
       {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
       {showElementBreakdownDialog && <ElementBreakdownDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); setElementBreakdownOptions(opts); }} onClose={() => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); }} />}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
-      {showConflictModal && (
-        <DriveConflictModal
-          conflicts={pendingConflicts}
-          onResolve={async (resolutions) => {
-            setShowConflictModal(false);
-            for (const r of resolutions) {
-              if (r.projectId === ctx.currentProjectId && ctx.resolveDriveConflict) {
-                await ctx.resolveDriveConflict(r.action);
-              } else {
-                const meta = ctx.projectList.find(p => p.id === r.projectId);
-                if (r.action === 'keep_local' && meta?.driveFileId && ctx.syncProjectToDrive) {
-                  await ctx.syncProjectToDrive();
-                } else if (r.action === 'keep_drive' || r.action === 'keep_both') {
-                  dialog.alert({ title: 'Import from Drive', message: `Project "${r.projectId}" change will be applied on next sync.` });
-                }
-              }
-            }
-          }}
-          onClose={() => setShowConflictModal(false)}
-        />
-      )}
       <input ref={importFileRef} type="file" accept=".csv,.fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
       {/* RESTORED BANNER */}
@@ -439,32 +407,6 @@ function AppContent() {
           >
             Retry Connection
           </button>
-        </div>
-      )}
-      {/* CONFLICT BANNER */}
-      {pendingConflict && (
-        <div className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
-          <span className="font-medium">This project was also edited on another device</span>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={async () => { await resolveDriveConflict('keep_local'); }}
-              className="px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
-            >
-              Keep my changes
-            </button>
-            <button
-              onClick={async () => { await resolveDriveConflict('keep_drive'); }}
-              className="px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
-            >
-              Use Drive version
-            </button>
-            <button
-              onClick={async () => { await resolveDriveConflict('keep_both'); }}
-              className="px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
-            >
-              Keep both
-            </button>
-          </div>
         </div>
       )}
       {showOfflineModal && (
@@ -553,13 +495,7 @@ function AppContent() {
                 Trash...
               </DropdownItem>
             </DropdownMenu>
-            <SaveIndicator isCloudProject={isCloudProject} />
-            {isCloudProject && (
-              <SyncStatusIcon
-                syncState={driveSyncState}
-                onRetry={() => syncProjectToDrive()}
-              />
-            )}
+            <SaveIndicator />
             <input 
               value={project.title} 
               onChange={e => dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}})}
@@ -958,6 +894,7 @@ function AppContent() {
     </div>
     {IS_COARSE && <SelectionModeButton />}
     {IS_COARSE && <KeyboardToggleButton />}
+    </>
     </LongPressMenuProvider>
   );
 }

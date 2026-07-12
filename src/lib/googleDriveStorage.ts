@@ -6,6 +6,7 @@ export interface DriveProjectMeta {
   title: string;
   lastModified: number;
   createdAt: number;
+  driveFileId: string;
 }
 
 async function uploadJson(
@@ -99,40 +100,41 @@ async function deleteFile(accessToken: string, fileId: string): Promise<void> {
   }
 }
 
-export async function listDriveProjects(
+export async function listDriveProjectMetas(
   accessToken: string,
-): Promise<{ index: DriveProjectMeta[]; projects: Map<string, Project>; fileIds: Map<string, string> }> {
+): Promise<DriveProjectMeta[]> {
   const files = await listAppDataFiles(accessToken);
+  const indexFile = files.find(f => f.name === '_lemon_schedule_index.json');
+  if (!indexFile) return [];
 
-  const projects = new Map<string, Project>();
-  const fileIds = new Map<string, string>();
-  const index: DriveProjectMeta[] = [];
-
-  for (const file of files) {
-    if (file.name === '_lemon_schedule_index.json') {
-      try {
-        const raw = await downloadFile(accessToken, file.id);
-        const parsed: DriveProjectMeta[] = JSON.parse(raw);
-        index.push(...parsed);
-      } catch (e) {
-        console.error('Failed to parse Drive index file:', e);
-      }
-      continue;
-    }
-
-    if (file.name.endsWith('.json')) {
-      try {
-        const raw = await downloadFile(accessToken, file.id);
-        const project: Project = JSON.parse(raw);
-        projects.set(project.id, project);
-        fileIds.set(project.id, file.id);
-      } catch (e) {
-        console.error(`Failed to parse Drive project ${file.name}:`, e);
-      }
+  const fileIdByName = new Map<string, string>();
+  for (const f of files) {
+    if (f.name.endsWith('.json') && f.name !== '_lemon_schedule_index.json') {
+      fileIdByName.set(f.name, f.id);
     }
   }
 
-  return { index, projects, fileIds };
+  try {
+    const raw = await downloadFile(accessToken, indexFile.id);
+    const parsed: DriveProjectMeta[] = JSON.parse(raw);
+    const result: DriveProjectMeta[] = [];
+    for (const entry of parsed) {
+      if (!entry.driveFileId) {
+        const resolved = fileIdByName.get(`${entry.id}.json`);
+        if (!resolved) {
+          console.warn('[Drive] Skipping ghost index entry (no file found):', entry.id, entry.title);
+          continue;
+        }
+        entry.driveFileId = resolved;
+      }
+      result.push(entry);
+    }
+    console.log('[Drive] listDriveProjectMetas result:', result.map(e => ({ id: e.id, title: e.title, driveFileId: e.driveFileId })));
+    return result;
+  } catch (e) {
+    console.error('Failed to parse Drive index file:', e);
+    return [];
+  }
 }
 
 export async function readDriveProject(
@@ -161,6 +163,10 @@ export async function deleteDriveProject(
 
 let _cachedIndexFileId: string | null = null;
 
+export function invalidateDriveIndexCache() {
+  _cachedIndexFileId = null;
+}
+
 export async function saveDriveIndex(
   accessToken: string,
   index: DriveProjectMeta[],
@@ -181,22 +187,51 @@ export async function updateDriveIndexForProject(
   accessToken: string,
   meta: DriveProjectMeta,
 ): Promise<string> {
-  const { index } = await listDriveProjects(accessToken);
-  const existing = index.findIndex(i => i.id === meta.id);
-  if (existing >= 0) {
-    index[existing] = meta;
-  } else {
-    index.push(meta);
+  try {
+    const index = await listDriveProjectMetas(accessToken);
+    const existing = index.findIndex(i => i.id === meta.id);
+    if (existing >= 0) {
+      index[existing] = meta;
+    } else {
+      index.push(meta);
+    }
+    return saveDriveIndex(accessToken, index);
+  } catch (e: any) {
+    if (e?.message?.includes('404') || e?.message?.includes('410')) {
+      invalidateDriveIndexCache();
+    }
+    const index = await listDriveProjectMetas(accessToken);
+    const existing = index.findIndex(i => i.id === meta.id);
+    if (existing >= 0) {
+      index[existing] = meta;
+    } else {
+      index.push(meta);
+    }
+    return saveDriveIndex(accessToken, index);
   }
-  return saveDriveIndex(accessToken, index);
 }
 
 export async function removeFromDriveIndex(
   accessToken: string,
   projectId: string,
 ): Promise<void> {
-  const { index } = await listDriveProjects(accessToken);
+  const index = await listDriveProjectMetas(accessToken);
   const filtered = index.filter(i => i.id !== projectId);
   if (filtered.length === index.length) return;
   await saveDriveIndex(accessToken, filtered);
+}
+
+export async function clearAllDriveData(accessToken: string): Promise<number> {
+  const files = await listAppDataFiles(accessToken);
+  let deleted = 0;
+  for (const file of files) {
+    try {
+      await deleteFile(accessToken, file.id);
+      deleted++;
+    } catch (e) {
+      console.error(`Failed to delete ${file.name}:`, e);
+    }
+  }
+  invalidateDriveIndexCache();
+  return deleted;
 }
