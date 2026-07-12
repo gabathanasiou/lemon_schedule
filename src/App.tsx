@@ -170,6 +170,7 @@ function AppContent() {
 
   const topTabIsDark = activeTab === 'reports' || activeTab === 'design';
   const topTabOverlayReady = 'left' in topTabOverlayStyle;
+  const inactiveTabText = isCloudProject ? 'text-white' : 'text-zinc-400 hover:text-zinc-200';
 
   const measureTopOverlay = () => {
     const el = topTabRefs.current.get(activeTab);
@@ -603,7 +604,7 @@ function AppContent() {
               onClick={() => setActiveTab('breakdown')} 
               onMouseEnter={() => updateTopHover('breakdown')}
               onMouseLeave={() => updateTopHover(null)}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Breakdown</span>
             </button>
@@ -612,7 +613,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('schedule')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('schedule')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Schedule</span>
             </button>
@@ -621,7 +622,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('calendar')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('calendar')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Calendar</span>
             </button>
@@ -630,7 +631,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('design')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('design')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Design</span>
             </button>
@@ -639,7 +640,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('rules')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('rules')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Rules</span>
             </button>
@@ -648,7 +649,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('reports')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('reports')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : 'text-zinc-400 hover:text-zinc-200'}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Reports</span>
             </button>
