@@ -48,6 +48,8 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
   const [showTooltip, setShowTooltip] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
+  const iconColor = isCloudProject ? 'text-white' : 'text-zinc-500';
+
   if (status === 'idle') return null;
 
   if (status === 'offline') {
@@ -57,7 +59,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <WifiOff className="w-3.5 h-3.5 text-zinc-500" />
+        <WifiOff className={`w-3.5 h-3.5 ${iconColor}`} />
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
             Saved locally
@@ -74,7 +76,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
       >
-        <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" />
+        <Loader2 className={`w-3.5 h-3.5 animate-spin ${iconColor}`} />
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
             Saving...
@@ -122,9 +124,9 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
       onMouseLeave={() => setShowTooltip(false)}
     >
       {isCloudProject ? (
-        <Cloud className="w-3.5 h-3.5 text-zinc-500" />
+        <Cloud className={`w-3.5 h-3.5 ${iconColor}`} />
       ) : (
-        <Save className="w-3.5 h-3.5 text-zinc-500" />
+        <Save className={`w-3.5 h-3.5 ${iconColor}`} />
       )}
       {showTooltip && (
         <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">

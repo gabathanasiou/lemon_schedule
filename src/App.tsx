@@ -166,7 +166,7 @@ function AppContent() {
 
   const topTabIsDark = activeTab === 'reports' || activeTab === 'design';
   const topTabOverlayReady = 'left' in topTabOverlayStyle;
-  const inactiveTabText = isCloudProject ? 'text-white' : 'text-zinc-400 hover:text-zinc-200';
+  const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white' : 'text-zinc-400 hover:text-zinc-200';
 
   const measureTopOverlay = () => {
     const el = topTabRefs.current.get(activeTab);
@@ -440,7 +440,7 @@ function AppContent() {
               align="left"
               trigger={
                 <button
-                  className="flex items-center space-x-1.5 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-white px-3 py-1.5 font-sans cursor-pointer select-none"
+                  className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
                 >
                   <span>File</span>
                   <ChevronDown className="w-3.5 h-3.5" />
@@ -503,7 +503,7 @@ function AppContent() {
                 renameProject(currentProjectId!, e.target.value);
               }}
               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
+              className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
             />
           </div>
           <div ref={topTabContainerRef} className="relative flex items-center gap-1">
@@ -514,7 +514,7 @@ function AppContent() {
                 onOpenChange={setTabDropdownOpen}
                 width="w-44"
                 trigger={
-                  <button className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans text-xs font-semibold">
+                  <button className={`flex items-center gap-1.5 border transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans text-xs font-semibold ${isCloudProject ? 'bg-blue-900 border-blue-800 hover:bg-blue-800' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>
                     <span>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
                     <ChevronDown className="w-3 h-3 text-zinc-400" />
                   </button>
@@ -541,7 +541,7 @@ function AppContent() {
             />
             {hoveredTopTab && hoveredTopTab !== activeTab && (
               <span
-                className="absolute top-0.5 -bottom-4 bg-zinc-700/70 rounded-t-md pointer-events-none"
+                className={`absolute top-0.5 -bottom-4 rounded-t-md pointer-events-none ${isCloudProject ? 'bg-blue-900/70' : 'bg-zinc-700/70'}`}
                 style={{ ...hoverTopTabStyle, transition: 'none' }}
               />
             )}
@@ -550,7 +550,7 @@ function AppContent() {
               onClick={() => setActiveTab('breakdown')} 
               onMouseEnter={() => updateTopHover('breakdown')}
               onMouseLeave={() => updateTopHover(null)}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Breakdown</span>
             </button>
@@ -559,7 +559,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('schedule')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('schedule')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Schedule</span>
             </button>
@@ -568,7 +568,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('calendar')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('calendar')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Calendar</span>
             </button>
@@ -577,7 +577,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('design')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('design')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Design</span>
             </button>
@@ -586,7 +586,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('rules')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('rules')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Rules</span>
             </button>
@@ -595,7 +595,7 @@ function AppContent() {
               onMouseEnter={() => updateTopHover('reports')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('reports')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Reports</span>
             </button>
@@ -604,11 +604,11 @@ function AppContent() {
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
-          <div className="flex items-center gap-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
+          <div className={`flex items-center gap-1 rounded-md p-0.5 border ${isCloudProject ? 'bg-blue-900 border-blue-800' : 'bg-zinc-900 border-zinc-800'}`}>
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
               disabled={state.past.length === 0}
-              className="p-1.5 rounded-sm hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className={`p-1.5 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'hover:bg-blue-800' : 'hover:bg-zinc-800'}`}
               title="Undo (Cmd+Z)"
             >
               <Undo2 className="w-3.5 h-3.5" />
@@ -616,7 +616,7 @@ function AppContent() {
             <button
               onClick={() => dispatch({ type: 'REDO' })}
               disabled={state.future.length === 0}
-              className="p-1.5 rounded-sm hover:bg-zinc-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className={`p-1.5 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'hover:bg-blue-800' : 'hover:bg-zinc-800'}`}
               title="Redo (Cmd+Shift+Z)"
             >
               <Redo2 className="w-3.5 h-3.5" />
@@ -629,10 +629,10 @@ function AppContent() {
               width="w-80"
               trigger={
                 <button 
-                  className="flex items-center space-x-1.5 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium"
+                  className={`flex items-center space-x-1.5 border transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium ${isCloudProject ? 'bg-blue-900 border-blue-800 hover:bg-blue-800' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}
                 >
-                  <span>Version: <strong className="text-zinc-300 font-semibold">{version?.name || 'Select Version'}</strong></span>
-                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                   <span>Version: <strong className={`font-semibold ${isCloudProject ? 'text-white' : 'text-zinc-300'}`}>{version?.name || 'Select Version'}</strong></span>
+                  <ChevronDown className={`w-3.5 h-3.5 ${isCloudProject ? 'text-blue-300' : 'text-zinc-400'}`} />
                 </button>
               }
             >
