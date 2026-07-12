@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
-import { parseFDX, parseFountain, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
+import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
 import { Upload, Loader2, GripVertical } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
@@ -24,6 +24,7 @@ interface ImportDialogProps {
   initialResult?: ImportResult;
   initialFileName?: string;
   onClose: () => void;
+  fileFilter?: string;
 }
 
 function SortableCastRow({ character, index, startId }: { character: ImportCharacter; index: number; startId: number; key?: string }) {
@@ -61,7 +62,7 @@ function SortableCastRow({ character, index, startId }: { character: ImportChara
   );
 }
 
-export default function ImportDialog({ initialResult, initialFileName, onClose }: ImportDialogProps) {
+export default function ImportDialog({ initialResult, initialFileName, onClose, fileFilter }: ImportDialogProps) {
   const { state, dispatch } = useProject();
   const project = state.present;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +147,8 @@ export default function ImportDialog({ initialResult, initialFileName, onClose }
 
       if (ext === 'fdx') {
         parsed = await parseFDX(file);
+      } else if (ext === 'csv') {
+        parsed = await parseCSV(file, project.castMembers || [], project.customCategories || [], project.categoryLabels || {});
       } else {
         parsed = await parseFountain(file);
       }
@@ -236,7 +239,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose }
   ) : undefined;
 
   return (
-    <Modal open onClose={onClose} title="Import Screenplay" icon={<Upload className="w-4 h-4" />} width="max-w-2xl" footer={footer}>
+    <Modal open onClose={onClose} title={fileFilter === '.csv' ? 'Import CSV' : 'Import Screenplay / CSV'} icon={<Upload className="w-4 h-4" />} width="max-w-2xl" footer={footer}>
       <div className="px-5 py-4 space-y-4">
           {stage === 'select' && (
             <>
@@ -248,11 +251,11 @@ export default function ImportDialog({ initialResult, initialFileName, onClose }
               >
                 <Upload className="w-8 h-8 text-zinc-500 mx-auto mb-3" />
                 <p className="text-zinc-400 text-sm font-medium">Drop a screenplay file here</p>
-                <p className="text-zinc-600 text-xs mt-1">.fdx, .fountain, .txt</p>
+                <p className="text-zinc-600 text-xs mt-1">{fileFilter === '.csv' ? '.csv' : '.fdx, .fountain, .txt, .csv'}</p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".fdx,.fountain,.txt"
+                      accept={fileFilter || ".csv,.fdx,.fountain,.txt"}
                   onChange={handleFileChange}
                   className="hidden"
                 />

@@ -1,6 +1,8 @@
-import { Scene, IntExt, DayNight, CastMember } from '../types';
+import { Scene, IntExt, DayNight, CastMember, CustomCategoryDef, Project } from '../types';
 import { Fountain } from 'fountain-js';
 import { generateUUID, parsePageCount, normalizePunctuation } from './utils';
+import { ELEMENT_CATEGORIES } from './categories';
+import Papa from 'papaparse';
 
 export interface ParsedScene {
   sceneNumber: string;
@@ -12,6 +14,7 @@ export interface ParsedScene {
   description: string;
   characters: string[];
   taggedElements: Record<string, string[]>;
+  rawCast?: string;
 }
 
 export interface ImportCharacter {
@@ -64,6 +67,189 @@ export const FDX_CATEGORY_MAP: Record<string, string | null> = {
   'Cast Members': null,
   'Notes': 'notes',
 };
+
+function buildCSVLabelToKeyMap(customCategories: CustomCategoryDef[], categoryLabels: Record<string, string>): Map<string, string> {
+  const map = new Map<string, string>();
+
+  const core: Record<string, string> = {
+    'scene': 'sceneNumber', 'scene #': 'sceneNumber',
+    'pages': 'pageCount',
+    'script day': 'scriptDay',
+    'i/e': 'intExt', 'int/ext': 'intExt',
+    'set': 'set',
+    'd/n': 'dayNight',
+    'description': 'description',
+    'cast': 'cast',
+    'notes': 'notes',
+  };
+  for (const [label, key] of Object.entries(core)) map.set(label.toLowerCase(), key);
+
+  for (const cat of ELEMENT_CATEGORIES) {
+    if (cat.key !== 'cast') map.set(cat.label.toLowerCase(), cat.key);
+  }
+
+  for (const cc of customCategories) {
+    if (cc.key !== 'cast') map.set(cc.label.toLowerCase(), cc.key);
+    if (cc.label) map.set(cc.label.toLowerCase(), cc.key);
+  }
+
+  for (const [key, label] of Object.entries(categoryLabels)) {
+    if (label && key !== 'cast') map.set(label.toLowerCase(), key);
+  }
+
+  for (const [label, key] of Object.entries(FDX_CATEGORY_MAP)) {
+    if (key !== null) map.set(label.toLowerCase(), key);
+  }
+
+  return map;
+}
+
+function looksLikeIds(values: string[]): boolean {
+  const nonEmpty = values.filter(v => v.trim());
+  if (nonEmpty.length === 0) return false;
+  return nonEmpty.every(v => /^[\d,\s]+$/.test(v) && /^\d/.test(v.trim()));
+}
+
+export async function parseCSV(
+  file: File,
+  castMembers: CastMember[],
+  customCategories: CustomCategoryDef[],
+  categoryLabels: Record<string, string>,
+): Promise<ImportResult> {
+  const text = await file.text();
+
+  return new Promise((resolve, reject) => {
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = results.data as Record<string, string>[];
+        if (!rows.length) { resolve({ scenes: [], characters: [], unknownCategories: [] }); return; }
+
+        const headers = Object.keys(rows[0]);
+        const labelToKey = buildCSVLabelToKeyMap(customCategories, categoryLabels);
+        const unknownCategories = new Set<string>();
+
+        const headerMap = new Map<string, { key: string; isUnknown: boolean }>();
+        for (const h of headers) {
+          const lower = h.trim().toLowerCase();
+          const mapped = labelToKey.get(lower);
+          if (mapped) {
+            headerMap.set(h, { key: mapped, isUnknown: false });
+          } else {
+            unknownCategories.add(h);
+            headerMap.set(h, { key: categoryNameToKey(h), isUnknown: true });
+          }
+        }
+
+        const sceneCharacters = new Set<string>();
+        const scenes: ParsedScene[] = [];
+        const characterMap = new Map<string, Set<number>>();
+        let allCastLooksLikeIds = false;
+
+        const allCastVals: string[] = [];
+        for (const row of rows) {
+          const castHeader = headers.find(h => h.trim().toLowerCase() === 'cast');
+          if (castHeader) allCastVals.push((row[castHeader] || '') as string);
+        }
+        allCastLooksLikeIds = looksLikeIds(allCastVals);
+
+        for (const row of rows) {
+          let sceneNumber = '';
+          let pageCountStr: string | undefined;
+          let pageCountDec: number | undefined;
+          let intExt: IntExt = 'INT';
+          let set = '';
+          let dayNight: DayNight = 'DAY';
+          let description = '';
+          let rawCast: string | undefined;
+          const characters: string[] = [];
+          const taggedElements: Record<string, string[]> = {};
+
+          for (const h of headers) {
+            const val = (row[h] || '').trim();
+            if (!val) continue;
+            const info = headerMap.get(h);
+            if (!info) continue;
+
+            if (info.isUnknown) {
+              taggedElements[info.key] = val.split(',').map(x => x.trim()).filter(Boolean);
+              continue;
+            }
+
+            switch (info.key) {
+              case 'sceneNumber':
+                sceneNumber = val;
+                break;
+              case 'pageCount': {
+                const parsed = parsePageCount(val);
+                pageCountDec = parsed;
+                pageCountStr = val;
+                break;
+              }
+              case 'scriptDay':
+                taggedElements.scriptDay = [val];
+                break;
+              case 'intExt':
+                intExt = val.toUpperCase() as IntExt;
+                break;
+              case 'set':
+                set = val.toUpperCase();
+                break;
+              case 'dayNight':
+                dayNight = val.toUpperCase() as DayNight;
+                break;
+              case 'description':
+                description = val;
+                break;
+              case 'cast':
+                if (allCastLooksLikeIds) {
+                  rawCast = val;
+                } else {
+                  const names = val.split(',').map(n => n.trim().toUpperCase()).filter(Boolean);
+                  for (const n of names) {
+                    characters.push(n);
+                    if (!characterMap.has(n)) characterMap.set(n, new Set());
+                    characterMap.get(n)!.add(scenes.length);
+                  }
+                }
+                break;
+              case 'notes':
+                taggedElements.notes = [val];
+                break;
+              default:
+                taggedElements[info.key] = val.split(',').map(x => x.trim()).filter(Boolean);
+                break;
+            }
+          }
+
+          if (!sceneNumber) sceneNumber = String(scenes.length + 1);
+
+          scenes.push({
+            sceneNumber,
+            pageCount: pageCountStr,
+            pageCountDecimal: pageCountDec,
+            intExt,
+            set,
+            dayNight,
+            description,
+            characters,
+            taggedElements,
+            rawCast,
+          });
+        }
+
+        const characters: ImportCharacter[] = [];
+        for (const [name, sceneNums] of characterMap) {
+          characters.push({ name, scenes: [...sceneNums] });
+        }
+
+        resolve({ scenes, characters, unknownCategories: [...unknownCategories] });
+      },
+      error: (err: any) => { reject(err); },
+    });
+  });
+}
 
 export function categoryNameToKey(name: string): string {
   return name.replace(/\s+/g, '').replace(/^[A-Z]/, l => l.toLowerCase()).replace(/\/[a-z]/g, m => m.charAt(1).toUpperCase());
@@ -363,6 +549,7 @@ export interface CommitImportParams {
   existingCastMembers: CastMember[];
   projectTitle?: string;
   reEnableCategories?: string[];
+  existingCustomCategoryKeys?: string[];
 }
 
 export function commitImport({
@@ -373,6 +560,7 @@ export function commitImport({
   existingCastMembers,
   projectTitle,
   reEnableCategories = [],
+  existingCustomCategoryKeys = [],
 }: CommitImportParams): void {
   dispatch({ type: 'BATCH_START' });
   try {
@@ -405,12 +593,14 @@ export function commitImport({
     Object.values(FDX_CATEGORY_MAP).filter((v): v is string => v !== null && !SCENE_FIELD_KEYS.has(v))
   );
   const selectedCustomKeys = new Set(newCustomCategories.map(categoryNameToKey));
+  const existingCustomKeys = new Set(existingCustomCategoryKeys);
+  const allCategoryKeys = new Set([...BUILTIN_BREAKDOWN_KEYS, ...selectedCustomKeys, ...existingCustomKeys]);
 
   const allElements = new Map<string, Set<string>>();
   for (const ps of result.scenes) {
     for (const [cat, items] of Object.entries(ps.taggedElements)) {
       if (SCENE_FIELD_KEYS.has(cat)) continue;
-      if (!BUILTIN_BREAKDOWN_KEYS.has(cat) && !selectedCustomKeys.has(cat)) continue;
+      if (!allCategoryKeys.has(cat)) continue;
       if (!allElements.has(cat)) allElements.set(cat, new Set());
       const set = allElements.get(cat)!;
       for (const item of items) set.add(item);
@@ -453,7 +643,7 @@ export function commitImport({
       set: setName || ps.set.toUpperCase(),
       dayNight: ps.dayNight,
       description: breakdownFields.description || '',
-      cast: castIds,
+      cast: castIds || ps.rawCast || '',
       notes: breakdownFields.notes || '',
       location: breakdownFields.location || '',
       backgroundActors: breakdownFields.backgroundActors || '',
@@ -477,6 +667,18 @@ export function commitImport({
       const key = categoryNameToKey(catName);
       if (breakdownFields[key]) sceneBase[key] = breakdownFields[key];
     }
+    const BUILTIN_SCENE_KEYS = new Set([
+      'id', 'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay',
+      'intExt', 'set', 'dayNight', 'description', 'cast', 'notes', 'location',
+      'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+      'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
+      'shootDay',
+    ]);
+    for (const [key, val] of Object.entries(breakdownFields)) {
+      if (!BUILTIN_SCENE_KEYS.has(key)) {
+        sceneBase[key] = val;
+      }
+    }
 
     dispatch({ type: 'ADD_SCENE', payload: sceneBase });
   }
@@ -486,4 +688,51 @@ export function commitImport({
   } finally {
     dispatch({ type: 'BATCH_COMMIT' });
   }
+}
+
+export function exportBreakdownCSV(project: Project): void {
+  const hiddenSet = new Set(project.hiddenCategories || []);
+
+  const BREAKDOWN_KEYS = [
+    'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
+    'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
+  ];
+
+  const FALLBACK_LABELS: Record<string, string> = {
+    sceneNumber: 'Scene #', pageCount: 'Pages', scriptDay: 'Script Day',
+    intExt: 'I/E', set: 'Set', dayNight: 'D/N', description: 'Description',
+    cast: 'Cast', notes: 'Notes',
+    backgroundActors: 'Background Actors', stunts: 'Stunts', vehicles: 'Vehicles',
+    props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
+    sfx: 'SFX', vfx: 'VFX', sound: 'Sound', music: 'Music',
+    animalsAndWranglers: 'Animals & Wranglers', weapons: 'Weapons', greenery: 'Greenery',
+    artDept: 'Art Dept',
+  };
+
+  const colLabel = (key: string): string => project.categoryLabels?.[key] || FALLBACK_LABELS[key] || key;
+
+  const fixedCols = ['sceneNumber', 'pageCount', 'scriptDay', 'intExt', 'set', 'dayNight', 'description', 'cast', 'notes'];
+  const breakdownCols = [
+    ...BREAKDOWN_KEYS.filter(k => !hiddenSet.has(k) && k !== 'set'),
+    ...(project.customCategories || []).filter(c => !hiddenSet.has(c.key)).map(c => c.key),
+  ];
+
+  const cols = [...fixedCols, ...breakdownCols];
+  const headers = cols.map(colLabel);
+
+  const esc = (v: string) => `"${(v ?? '').replace(/"/g, '""')}"`;
+
+  const lines = [headers.map(esc).join(',')];
+  for (const s of project.scenes) {
+    const row = cols.map(k => esc((s as any)[k] ?? ''));
+    lines.push(row.join(','));
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${project.title || 'Breakdown'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

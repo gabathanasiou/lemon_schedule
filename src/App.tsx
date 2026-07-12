@@ -32,7 +32,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
-import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
+import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SaveIndicator } from './components/SaveIndicator';
@@ -127,12 +127,19 @@ function AppContent() {
   const handleImportFile = useCallback(async (file: File) => {
     try {
       const ext = file.name.split('.').pop()?.toLowerCase();
-      const result = ext === 'fdx' ? await parseFDX(file) : await parseFountain(file);
+      let result: ImportResult;
+      if (ext === 'fdx') {
+        result = await parseFDX(file);
+      } else if (ext === 'csv') {
+        result = await parseCSV(file, state.present.castMembers || [], state.present.customCategories || [], state.present.categoryLabels || {});
+      } else {
+        result = await parseFountain(file);
+      }
       setPendingImport({ result, fileName: file.name });
     } catch (e: any) {
       dialog.alert({ title: 'Import Error', message: e.message || 'Failed to parse file' });
     }
-  }, [dialog]);
+  }, [dialog, state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [compactTabs, setCompactTabs] = useState(window.innerWidth < 900);
   const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
@@ -360,16 +367,7 @@ function AppContent() {
   };
   
   const handleExportCSV = () => {
-    const lines = ["Scene,Pages,ScriptDay,I/E,Set,D/N,Description,Cast,Notes"];
-    for(const s of project.scenes) {
-      lines.push(`${s.sceneNumber},"${s.pageCount}",${s.scriptDay},${s.intExt},"${s.set}",${s.dayNight},"${s.description}","${s.cast}","${s.notes}"`);
-    }
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${project.title || 'Breakdown'}.csv`;
-    a.click();
+    exportBreakdownCSV(project);
   };
 
   return (
@@ -417,7 +415,7 @@ function AppContent() {
           onClose={() => setShowConflictModal(false)}
         />
       )}
-      <input ref={importFileRef} type="file" accept=".fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
+      <input ref={importFileRef} type="file" accept=".csv,.fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
       {/* RESTORED BANNER */}
       {showRestoredBanner && (
@@ -483,7 +481,7 @@ function AppContent() {
               </DropdownItem>
               <DropdownDivider />
               <DropdownItem onClick={() => { setShowFileMenu(false); importFileRef.current?.click(); }} icon={<FileUp className="w-3.5 h-3.5" />}>
-                Import Screenplay (FDX, Fountain, TXT)...
+                Import Screenplay (FDX, Fountain, TXT, CSV)...
               </DropdownItem>
               <DropdownDivider />
               <DropdownSubmenu id="export-file" label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
@@ -508,10 +506,6 @@ function AppContent() {
                   Element Breakdown...
                 </DropdownItem>
               </DropdownSubmenu>
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setShowFileMenu(false); storage.handle ? storage.setStatus('saving') : null; }} icon={<HardDrive className="w-3.5 h-3.5" />}>
-                Save Folder...
-              </DropdownItem>
               <DropdownDivider />
               {driveCtx.isSignedIn ? (
                 <>

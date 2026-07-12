@@ -3,16 +3,18 @@ import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject, ProjectMeta } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
-import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud } from 'lucide-react';
+import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import { useGoogleAuth } from '../lib/googleDriveAuth';
 
 interface ProjectManagerProps {
   onClose?: () => void;
 }
 
 type SortKey = 'lastModified' | 'createdAt' | 'title';
+type ProjectTab = 'local' | 'cloud';
 
 const sortOptions: { key: SortKey; label: string }[] = [
   { key: 'lastModified', label: 'Last Modified' },
@@ -39,18 +41,35 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     renameProject,
     duplicateProject,
     importProjectFromData,
+    pullDriveProjects,
   } = useProject();
   const dialog = useDialog();
+  const auth = useGoogleAuth();
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('lastModified');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
 
+  const { localProjects, cloudProjects } = useMemo(() => {
+    const local: ProjectMeta[] = [];
+    const cloud: ProjectMeta[] = [];
+    for (const p of projectList) {
+      if (p.driveFileId) {
+        cloud.push(p);
+      } else {
+        local.push(p);
+      }
+    }
+    return { localProjects: local, cloudProjects: cloud };
+  }, [projectList]);
+
   const sortedList = useMemo(() => {
-    const list = [...projectList];
+    const source = activeTab === 'local' ? localProjects : cloudProjects;
+    const list = [...source];
     if (sortKey === 'lastModified') {
       list.sort((a, b) => b.lastModified - a.lastModified);
     } else if (sortKey === 'createdAt') {
@@ -59,7 +78,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       list.sort((a, b) => a.title.localeCompare(b.title));
     }
     return list;
-  }, [projectList, sortKey]);
+  }, [localProjects, cloudProjects, activeTab, sortKey]);
+
+  const hasProjects = sortedList.length > 0;
 
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,40 +132,113 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setRenamingId(null);
   };
 
-  const hasProjects = projectList.length > 0;
-
   return (
     <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
       footer={
         <ModalFooter>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
-          </button>
-          <button
-            onClick={() => { createProject(); onClose?.(); }}
-            className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Project
-          </button>
-          <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
+          {activeTab === 'local' ? (
+            <>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
+              </button>
+              <button
+                onClick={() => { createProject(); onClose?.(); }}
+                className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Project
+              </button>
+              <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
+            </>
+          ) : auth.isSignedIn ? (
+            <>
+              <button
+                onClick={async () => {
+                  try {
+                    await pullDriveProjects();
+                  } catch (e: any) {
+                    dialog.alert({ title: 'Drive Sync', message: e?.message || 'Failed to sync with Drive' });
+                  }
+                }}
+                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors flex items-center gap-2"
+              >
+                <Cloud className="w-3.5 h-3.5" /> Pull from Drive
+              </button>
+              <button
+                onClick={() => { createProject(); onClose?.(); }}
+                className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Project
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => auth.signIn()}
+              className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+            >
+              <Cloud className="w-3.5 h-3.5" /> Sign in with Google
+            </button>
+          )}
         </ModalFooter>
       }
     >
-      <div className="px-5 py-3">
-        {!hasProjects ? (
+      <div className="px-5 py-3 max-h-[60vh] overflow-y-auto">
+        <div className="flex gap-0.5 mb-3">
+          <button
+            onClick={() => setActiveTab('local')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === 'local'
+                ? 'bg-zinc-800 text-white'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
+            }`}
+          >
+            <HardDrive className="w-3 h-3" />
+            Local
+            <span className="text-[10px] text-zinc-500 ml-0.5">{localProjects.length}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('cloud')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              activeTab === 'cloud'
+                ? 'bg-zinc-800 text-white'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
+            }`}
+          >
+            <Cloud className="w-3 h-3" />
+            Cloud
+            <span className="text-[10px] text-zinc-500 ml-0.5">{cloudProjects.length}</span>
+          </button>
+        </div>
+
+        {activeTab === 'cloud' && !auth.isSignedIn ? (
           <div className="text-center py-12 text-zinc-500">
-            <FolderOpen className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
-            <p className="text-sm font-medium text-zinc-400">No projects yet</p>
-            <p className="text-xs mt-1 text-zinc-600">Create a new project or import one to get started.</p>
+            <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
+            <p className="text-sm font-medium text-zinc-400">Sign in required</p>
+            <p className="text-xs mt-1 text-zinc-600">Connect to Google Drive to access your cloud projects.</p>
+          </div>
+        ) : !hasProjects ? (
+          <div className="text-center py-12 text-zinc-500">
+            {activeTab === 'local' ? (
+              <>
+                <HardDrive className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
+                <p className="text-sm font-medium text-zinc-400">No local projects</p>
+                <p className="text-xs mt-1 text-zinc-600">Create a new project or import one to get started.</p>
+              </>
+            ) : (
+              <>
+                <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
+                <p className="text-sm font-medium text-zinc-400">No cloud projects</p>
+                <p className="text-xs mt-1 text-zinc-600">Sync a local project to Google Drive to see it here.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{projectList.length} project{projectList.length !== 1 ? 's' : ''}</span>
+              <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} project{sortedList.length !== 1 ? 's' : ''}</span>
               <div className="relative">
                 <RadixDropdownMenu.Root open={showSortMenu} onOpenChange={(o) => setShowSortMenu(o)} modal={true}>
                   <RadixDropdownMenu.Trigger asChild>

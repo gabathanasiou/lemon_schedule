@@ -15,15 +15,18 @@ import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import {
-  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye, Square, CheckSquare,
-  ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search,
+  Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, Eye, Square, CheckSquare,
+  ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download,
 } from 'lucide-react';
-import Papa from 'papaparse';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
+import ImportDialog from './ImportDialog';
+import { exportBreakdownCSV, parseCSV } from '../lib/importScreenplay';
+import type { ImportResult } from '../lib/importScreenplay';
+import Modal, { ModalFooter } from './Modal';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
@@ -164,6 +167,9 @@ export function GlideBreakdownTab({
   }, []);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
+  const [sortMenu, setSortMenu] = useState<{ x: number; y: number; colKey: string; label: string } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ sceneId: string; sceneNumber: string } | null>(null);
+  const [suppressDeleteWarning, setSuppressDeleteWarning] = useState(false);
   const [gridSelection, setGridSelection] = useState<GridSelection>({
     columns: CompactSelection.empty(),
     rows: CompactSelection.empty(),
@@ -188,6 +194,7 @@ export function GlideBreakdownTab({
   }, [scenes, COLUMNS]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingCSVImport, setPendingCSVImport] = useState<{ result: ImportResult; fileName: string } | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -299,6 +306,13 @@ export function GlideBreakdownTab({
     return textCell(val);
   }, [COLUMNS, getSceneValue]);
 
+  const getNextSceneNumber = useCallback((prevSceneNumber?: string): string => {
+    if (!prevSceneNumber) return '';
+    const match = prevSceneNumber.match(/^(\d+)/);
+    if (!match) return '';
+    return String(parseInt(match[1], 10) + 1);
+  }, []);
+
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
     if (row === scenesRef.current.length) {
       const colDef = COLUMNS[col];
@@ -312,7 +326,7 @@ export function GlideBreakdownTab({
             ? newValue.data.toUpperCase()
             : newValue.data;
       const newScene: Scene = {
-        id: generateUUID(), sceneNumber: '', pageCount: '', pageCountDecimal: 0,
+        id: generateUUID(), sceneNumber: colDef.key === 'sceneNumber' ? val : '', pageCount: '', pageCountDecimal: 0,
         scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
         description: '', cast: '', notes: '',
         backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
@@ -321,6 +335,11 @@ export function GlideBreakdownTab({
         shootDay: null,
         [colDef.key]: val,
       };
+      if (!newScene.sceneNumber) {
+        const prev = scenesRef.current[scenesRef.current.length - 1];
+        const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
+        newScene.sceneNumber = nextNum;
+      }
       dispatch({ type: 'ADD_SCENE', payload: newScene });
       return;
     }
@@ -332,7 +351,7 @@ export function GlideBreakdownTab({
     if (newValue.kind === GridCellKind.Text) {
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit]);
+  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber]);
 
   const provideEditor = useCallback((cellData: any & { location?: Item }): any => {
     const loc = cellData.location;
@@ -484,8 +503,10 @@ export function GlideBreakdownTab({
   }, [COLUMNS, dispatch, commitEdit]);
 
   const addScene = useCallback(() => {
+    const prev = scenesRef.current[scenesRef.current.length - 1];
+    const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     dispatch({ type: 'ADD_SCENE', payload: {
-      id: generateUUID(), sceneNumber: '', pageCount: '', pageCountDecimal: 0,
+      id: generateUUID(), sceneNumber: nextNum, pageCount: '', pageCountDecimal: 0,
       scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
       description: '', cast: '', notes: '',
       backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
@@ -493,11 +514,13 @@ export function GlideBreakdownTab({
       animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
       shootDay: null,
     }});
-  }, [dispatch]);
+  }, [dispatch, getNextSceneNumber]);
 
   const insertSceneAt = useCallback((index: number) => {
+    const prev = scenesRef.current[index - 1];
+    const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
     const newScene: Scene = {
-      id: generateUUID(), sceneNumber: '', pageCount: '', pageCountDecimal: 0,
+      id: generateUUID(), sceneNumber: nextNum, pageCount: '', pageCountDecimal: 0,
       scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
       description: '', cast: '', notes: '',
       backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
@@ -506,7 +529,7 @@ export function GlideBreakdownTab({
       shootDay: null,
     };
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
-  }, [dispatch]);
+  }, [dispatch, getNextSceneNumber]);
 
   const duplicateSceneAt = useCallback((index: number) => {
     const original = scenes[index];
@@ -684,7 +707,14 @@ export function GlideBreakdownTab({
       return;
     }
     if (col === 0) {
-      deleteScene(scenesRef.current[row]?.id);
+      const scene = scenesRef.current[row];
+      if (!scene) return;
+      const suppressedUntil = localStorage.getItem('lemon_schedule_suppress_delete_warning');
+      if (suppressedUntil && Date.now() < parseInt(suppressedUntil, 10)) {
+        deleteScene(scene.id);
+      } else {
+        setDeleteConfirm({ sceneId: scene.id, sceneNumber: scene.sceneNumber || String(row + 1) });
+      }
       return;
     }
     if (col >= 0) return;
@@ -699,37 +729,21 @@ export function GlideBreakdownTab({
     }
   }, [scenes.length, onOpenSheet]);
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    Papa.parse(file, {
-      header: true, skipEmptyLines: true,
-      complete: (results) => {
-        const imported: Scene[] = results.data.map((row: any) => ({
-          id: generateUUID(),
-          sceneNumber: typeof row['Scene #'] === 'string' ? row['Scene #'] : typeof row['Scene'] === 'string' ? row['Scene'] : String(row['Scene'] || row['Scene #'] || ''),
-          pageCount: formatPageCount(parsePageCount(row['Pages'] || '0')),
-          pageCountDecimal: parsePageCount(row['Pages'] || '0'),
-          scriptDay: row['Script Day'] || '',
-          intExt: (row['I/E'] || 'INT') as any,
-          set: (row['Set'] || '').toUpperCase(),
-          dayNight: (row['D/N'] || 'DAY') as any,
-          description: row['Description'] || '',
-          cast: row['Cast'] || '',
-          notes: row['Notes'] || '',
-          backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '', makeup: '',
-          sfx: '', vfx: '', sound: '', music: '', animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-          shootDay: null,
-        }));
-        if (imported.length > 0) {
-          dispatch({ type: 'BATCH_START' });
-          dispatch({ type: 'IMPORT_SCENES', payload: imported });
-          dispatch({ type: 'BATCH_COMMIT' });
-        }
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      },
-    });
-  };
+  const onHeaderContextMenu = useCallback((colIndex: number, e: any) => {
+    e.preventDefault();
+    if (colIndex === -1) {
+      const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+      const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+      setSortMenu({ x, y, colKey: 'sceneNumber', label: 'Scene #' });
+      return;
+    }
+    const colKey = COLUMNS[colIndex]?.key;
+    if (!colKey || colKey === 'actions') return;
+    const label = COLUMNS[colIndex]?.label || colKey;
+    const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+    const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+    setSortMenu({ x, y, colKey, label });
+  }, [COLUMNS]);
 
   const cleanEmptyRows = useCallback(() => {
     const toDelete: string[] = [];
@@ -744,6 +758,17 @@ export function GlideBreakdownTab({
 
   const hasSelection = gridSelection.current?.range !== undefined || gridSelection.rows.length > 0 || gridSelection.columns.length > 0;
   const hasActiveCell = gridSelection.current?.cell !== undefined || gridSelection.rows.length > 0;
+
+  const handleCSVFile = useCallback(async (file: File) => {
+    try {
+      const result = await parseCSV(file, project.castMembers || [], project.customCategories || [], project.categoryLabels || {});
+      if (result.scenes.length === 0 && result.unknownCategories.length === 0) return;
+      setPendingCSVImport({ result, fileName: file.name });
+    } catch (_) {
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [project.castMembers, project.customCategories, project.categoryLabels]);
 
   const headerContent = (
     <div className="flex items-center justify-end gap-1">
@@ -770,6 +795,9 @@ export function GlideBreakdownTab({
         <DropdownDivider />
         <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />}>
           Import CSV
+        </DropdownItem>
+        <DropdownItem onClick={() => { setActionsOpen(false); exportBreakdownCSV(project); }} icon={<Download className="w-3.5 h-3.5" />}>
+          Export Breakdown to CSV
         </DropdownItem>
       </DropdownMenu>
 
@@ -848,6 +876,7 @@ export function GlideBreakdownTab({
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
+          onHeaderContextMenu={onHeaderContextMenu}
           drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
@@ -883,7 +912,30 @@ export function GlideBreakdownTab({
             <ContextMenuDivider />
             <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
             <ContextMenuDivider />
-            <ContextMenuItem onClick={() => { deleteScene(scenes[contextMenu.row]?.id); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3 h-3" />}>Delete Row</ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                const range = getEffectiveRange();
+                const rowCount = range ? range.height : 1;
+                if (rowCount > 1 && range) {
+                  const ids = scenes.slice(range.y, range.y + range.height).map(s => s.id);
+                  const startScene = scenes[range.y];
+                  setDeleteConfirm({ sceneId: ids.join(','), sceneNumber: `${rowCount} scenes` });
+                } else {
+                  const scene = scenes[contextMenu.row];
+                  if (scene) {
+                    setDeleteConfirm({ sceneId: scene.id, sceneNumber: scene.sceneNumber || String(contextMenu.row + 1) });
+                  }
+                }
+                setContextMenu(null);
+              }}
+              variant="danger"
+              icon={<Trash2 className="w-3 h-3" />}
+            >
+              {(() => {
+                const range = getEffectiveRange();
+                return range && range.height > 1 ? 'Delete Scenes' : 'Delete Scene';
+              })()}
+            </ContextMenuItem>
             {contextMenu.col !== undefined && (() => {
               const colKey = COLUMNS[contextMenu.col!]?.key;
               const isElementColumn = colKey && (colKey === 'cast' || colKey === 'set' || allBreakdownCategories.includes(colKey));
@@ -910,7 +962,88 @@ export function GlideBreakdownTab({
         )}
       </ContextMenu>
 
-      <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleImport} />
+      {/* Sort Context Menu */}
+      <ContextMenu open={!!sortMenu} x={sortMenu?.x ?? 0} y={sortMenu?.y ?? 0} onClose={() => setSortMenu(null)}>
+        {sortMenu && (() => {
+          const numericKeys = new Set(['pageCount', 'scriptDay']);
+          const isNumeric = numericKeys.has(sortMenu.colKey);
+          return (
+            <>
+              <ContextMenuItem
+                onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'asc' } }); setSortMenu(null); }}
+                icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
+              >
+                {isNumeric ? 'Sort Smallest to Largest' : 'Sort A to Z'}
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'desc' } }); setSortMenu(null); }}
+                icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
+              >
+                {isNumeric ? 'Sort Largest to Smallest' : 'Sort Z to A'}
+              </ContextMenuItem>
+            </>
+          );
+        })()}
+      </ContextMenu>
+
+      <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); }} />
+      {pendingCSVImport && <ImportDialog initialResult={pendingCSVImport.result} initialFileName={pendingCSVImport.fileName} fileFilter=".csv" onClose={() => setPendingCSVImport(null)} />}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={!!deleteConfirm}
+        onClose={() => { setDeleteConfirm(null); setSuppressDeleteWarning(false); }}
+        title={deleteConfirm?.sceneId.includes(',') ? 'Delete Scenes' : 'Delete Scene'}
+        width="max-w-sm"
+        footer={
+          <ModalFooter>
+            <button
+              onClick={() => { setDeleteConfirm(null); setSuppressDeleteWarning(false); }}
+              className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (deleteConfirm) {
+                  const ids = deleteConfirm.sceneId.split(',');
+                  if (ids.length > 1) dispatch({ type: 'BATCH_START' });
+                  for (const id of ids) deleteScene(id);
+                  if (ids.length > 1) dispatch({ type: 'BATCH_COMMIT' });
+                  if (suppressDeleteWarning) {
+                    localStorage.setItem('lemon_schedule_suppress_delete_warning', String(Date.now() + 86400000));
+                  }
+                  setDeleteConfirm(null);
+                  setSuppressDeleteWarning(false);
+                }
+              }}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 text-white hover:bg-red-500 transition-colors"
+            >
+              Delete
+            </button>
+          </ModalFooter>
+        }
+      >
+        <div className="px-5 py-4 space-y-4">
+          <p className="text-sm text-zinc-300">
+            Are you sure you want to delete{deleteConfirm?.sceneId.includes(',') ? '' : ' scene'} <span className="font-semibold text-white">{deleteConfirm?.sceneNumber}</span>?
+          </p>
+          <label
+            className="flex items-center gap-3 cursor-pointer select-none bg-zinc-800/50 hover:bg-zinc-800/70 rounded-lg px-3 py-2.5 transition-colors border border-zinc-800/50"
+            onClick={() => setSuppressDeleteWarning(!suppressDeleteWarning)}
+          >
+            <div className="shrink-0">
+              {suppressDeleteWarning
+                ? <CheckSquare className="w-4 h-4 text-red-500" />
+                : <Square className="w-4 h-4 text-zinc-500" />
+              }
+            </div>
+            <span className="text-xs text-zinc-400 select-none">
+              Don't ask again (24 hours)
+            </span>
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 }

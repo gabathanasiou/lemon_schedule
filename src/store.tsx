@@ -226,6 +226,7 @@ type Action =
   | { type: 'EMPTY_TRASH' }
   | { type: 'RESTORE_VERSION_FROM_TRASH', payload: string }
   | { type: 'SORT_SCENES' }
+  | { type: 'SORT_SCENES_BY', payload: { key: string, direction: 'asc' | 'desc' } }
   | { type: 'INSERT_SCENE_AT', payload: { index: number; scene: Scene } }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
   | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null, id?: string } }
@@ -451,6 +452,26 @@ function reducer(state: State, action: Action): State {
       const sorted = [...state.present.scenes].sort((a, b) => 
         a.sceneNumber.localeCompare(b.sceneNumber, undefined, { numeric: true, sensitivity: 'base' })
       );
+      return applyChange({ ...state.present, scenes: sorted });
+    }
+
+    case 'SORT_SCENES_BY': {
+      const { key, direction } = action.payload;
+      const numericKeys = new Set(['pageCount', 'pageCountDecimal', 'scriptDay']);
+      const sorted = [...state.present.scenes].sort((a, b) => {
+        const aVal = (a as any)[key] ?? '';
+        const bVal = (b as any)[key] ?? '';
+        if (aVal === '' && bVal === '') return 0;
+        if (aVal === '') return 1;
+        if (bVal === '') return -1;
+        let cmp: number;
+        if (numericKeys.has(key)) {
+          cmp = (parseFloat(aVal) || 0) - (parseFloat(bVal) || 0);
+        } else {
+          cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+        }
+        return direction === 'asc' ? cmp : -cmp;
+      });
       return applyChange({ ...state.present, scenes: sorted });
     }
 
