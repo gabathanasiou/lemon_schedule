@@ -269,6 +269,7 @@ export function GlideBreakdownTab({
         displayData: '',
         allowOverlay: false,
         readonly: true,
+        style: 'faded',
       } as GridCell;
     }
     const colDef = COLUMNS[col];
@@ -452,9 +453,11 @@ export function GlideBreakdownTab({
         animalsAndWranglers: s.animalsAndWranglers || '', weapons: s.weapons || '', greenery: s.greenery || '', artDept: s.artDept || '',
         shootDay: null,
       };
-      const decimal = parsePageCount(scene.pageCount || '0');
-      scene.pageCount = formatPageCount(decimal);
-      scene.pageCountDecimal = decimal;
+      if (scene.pageCount && scene.pageCount.trim()) {
+        const decimal = parsePageCount(scene.pageCount);
+        scene.pageCount = formatPageCount(decimal);
+        scene.pageCountDecimal = decimal;
+      }
       dispatch({ type: 'ADD_SCENE', payload: scene as Scene });
     }
 
@@ -589,6 +592,22 @@ export function GlideBreakdownTab({
     setContextMenu(null);
   }, [gridSelection, handlePaste]);
 
+  const handlePasteToAddRow = useCallback(async () => {
+    const text = await navigator.clipboard.readText();
+    if (!text) return;
+    const pastedRows = text.split(/\r\n|\n|\r/);
+    handlePaste([1, scenesRef.current.length] as Item, pastedRows.map(r => r.split('\t')));
+    setContextMenu(null);
+  }, [handlePaste]);
+
+  const handlePasteAtRow = useCallback(async (row: number) => {
+    const text = await navigator.clipboard.readText();
+    if (!text) return;
+    const pastedRows = text.split(/\r\n|\n|\r/);
+    handlePaste([1, row] as Item, pastedRows.map(r => r.split('\t')));
+    setContextMenu(null);
+  }, [handlePaste]);
+
   const handleClear = useCallback(() => {
     const range = getEffectiveRange();
     if (!range) return;
@@ -619,16 +638,36 @@ export function GlideBreakdownTab({
   const onCellContextMenu = useCallback((cell: Item, e: any) => {
     e.preventDefault();
     const [col, row] = cell;
-    if (row < 0 || row >= scenes.length) return;
+    if (row < 0 || row > scenes.length) return;
+    if (col < 0 && row < scenes.length) {
+      setTimeout(() => {
+        setGridSelection({
+          columns: CompactSelection.empty(),
+          rows: CompactSelection.fromSingleSelection(row),
+          current: {
+            cell: [0, row] as Item,
+            range: { x: 0, y: row, width: COLUMNS.length, height: 1 },
+            rangeStack: [],
+          },
+        });
+      }, 0);
+    }
     const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
     const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
     setContextMenu({ x, y, row, col });
-  }, [scenes.length]);
+  }, [scenes.length, COLUMNS.length]);
 
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
     if (row < 0 || row > scenes.length) return;
-    if (row === scenes.length) return;
+    if (row === scenes.length) {
+      if (col < 0) {
+        const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+        const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+        setContextMenu({ x, y, row, col });
+      }
+      return;
+    }
     if (col === 0) {
       deleteScene(scenesRef.current[row]?.id);
       return;
@@ -812,7 +851,11 @@ export function GlideBreakdownTab({
               <>
                 <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Copy</ContextMenuItem>
                 <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Cut</ContextMenuItem>
-                <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell}>Paste</ContextMenuItem>
+                {contextMenu.col >= 0 ? (
+                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell}>Paste</ContextMenuItem>
+                ) : (
+                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />}>Paste</ContextMenuItem>
+                )}
                 <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Clear</ContextMenuItem>
                 <ContextMenuDivider />
               </>
@@ -844,6 +887,9 @@ export function GlideBreakdownTab({
               );
             })()}
           </>
+        )}
+        {contextMenu && contextMenu.row === scenes.length && (
+          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />}>Paste</ContextMenuItem>
         )}
       </ContextMenu>
 
