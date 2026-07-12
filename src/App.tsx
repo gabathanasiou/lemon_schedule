@@ -438,6 +438,7 @@ function AppContent() {
               onOpenChange={setShowFileMenu}
               width="w-56"
               align="left"
+              theme={isCloudProject ? 'light' : 'dark'}
               trigger={
                 <button
                   className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
@@ -513,6 +514,7 @@ function AppContent() {
                 open={tabDropdownOpen}
                 onOpenChange={setTabDropdownOpen}
                 width="w-44"
+                theme={isCloudProject ? 'light' : 'dark'}
                 trigger={
                   <button className={`flex items-center gap-1.5 border transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans text-xs font-semibold ${isCloudProject ? 'bg-blue-900 border-blue-800 hover:bg-blue-800' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>
                     <span>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
@@ -627,6 +629,7 @@ function AppContent() {
               open={showVersionsMenu}
               onOpenChange={(o) => { if (!o) setEditingVersionId(null); setShowVersionsMenu(o); }}
               width="w-80"
+              theme={isCloudProject ? 'light' : 'dark'}
               trigger={
                 <button 
                   className={`flex items-center space-x-1.5 border transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium ${isCloudProject ? 'bg-blue-900 border-blue-800 hover:bg-blue-800' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}
@@ -636,7 +639,7 @@ function AppContent() {
                 </button>
               }
             >
-              <div className="px-3 py-2 border-b border-zinc-800 text-zinc-400 font-bold text-[11px] tracking-wider uppercase">
+              <div className={`px-3 py-2 border-b text-zinc-400 font-bold text-[11px] tracking-wider uppercase ${isCloudProject ? 'border-zinc-200' : 'border-zinc-800'}`}>
                 Schedule Versions
               </div>
               
@@ -648,7 +651,7 @@ function AppContent() {
                   return (
                     <div 
                       key={v.id} 
-                      className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? 'bg-blue-600 text-white font-semibold' : 'hover:bg-zinc-800'}`}
+                       className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? 'bg-zinc-800 text-white font-semibold' : (isCloudProject ? 'text-zinc-700 hover:bg-zinc-100' : 'text-zinc-300 hover:bg-zinc-800')}`}
                     >
                       {isEditing ? (
                         <div className="flex items-center space-x-1 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
