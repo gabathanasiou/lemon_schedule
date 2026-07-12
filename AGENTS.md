@@ -542,3 +542,45 @@ const drawCell = (args, draw) => {
 ### Help Modal (`src/components/HelpModal.tsx`)
 
 When adding any new keyboard shortcut, control, or interaction to the schedule stripboard, you MUST update `HelpModal.tsx` to document it. The modal is organized by category sections using `<Section>`, `<Row>`, and `<Kbd>` components. Use Unicode symbols for keyboard keys: `⌘` (Cmd), `⌥` (Opt/Alt), `⇧` (Shift), `⌫` (Delete/Backspace), `⏎` (Enter), `⎋` (Esc), `↹` (Tab).
+
+## Security Rules
+
+### Never hardcode secrets
+- All API keys, Client IDs, tokens MUST come from `import.meta.env.VITE_*` — never write them as string literals in source files.
+- `.env` files are gitignored (`.env*` except `.env.example`). Never commit a `.env` file.
+- `.env.example` must only contain placeholder values (e.g. `YOUR_CLIENT_ID`) — never real secrets.
+- `.playwright-cli/` is gitignored. Do not commit Playwright recordings.
+
+### OAuth token handling
+- The Google OAuth access token is stored in `useRef` + `sessionStorage` (survives page refresh, cleared on tab close). Never `localStorage`.
+- The token is exposed via React Context as `useGoogleAuth().accessToken`. Only `store.tsx` and `ProjectManager.tsx` legitimately consume it for Drive API calls. Never pass it to components that don't need it.
+- Never log the access token. In OAuth error handlers, log only `error?.message`, not the full error object.
+- Never expose the token in URLs, DOM `data-*` attributes, or rendered output.
+
+### Environment variables
+- All client-side env vars MUST use the `VITE_` prefix (Vite requirement).
+- Expected vars: `VITE_GOOGLE_CLIENT_ID` (Google Drive OAuth), `GEMINI_API_KEY` (AI Studio injects), `APP_URL` (AI Studio injects).
+- Add new env vars to both `.env.example` and the `ImportMetaEnv` interface in `src/vite-env.d.ts`.
+- The CI deploy workflow (`.github/workflows/deploy.yml`) must pass `VITE_GOOGLE_CLIENT_ID` from a GitHub repository secret.
+
+### Dependencies
+- Do not add `@google/genai`, `dotenv`, or `express` — they are unused in this SPA codebase.
+- Before adding any new dependency, confirm it's imported in at least one source file.
+
+### Google Drive OAuth Setup (one-time per developer/deployment)
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → create or select a project.
+2. **APIs & Services → Library** → search "Google Drive API" → Enable.
+3. **APIs & Services → OAuth consent screen**:
+   - User Type: **Internal**
+   - App name: "Lemon Schedule"
+   - Add your email as developer contact
+   - Scopes: add `drive.appdata` (non-sensitive scope, skip verification)
+   - Save
+4. **APIs & Services → Credentials → Create Credentials → OAuth Client ID**:
+   - Application type: **Web application**
+   - Name: "Lemon Schedule Dev"
+   - Authorized JavaScript origins: `http://localhost:3000` (add production URL too if deploying)
+   - Create
+5. Copy the Client ID → add to `.env` as `VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com`
+6. If deploying via CI, add the same ID as a GitHub secret (`VITE_GOOGLE_CLIENT_ID`) in repo Settings → Secrets & Variables → Actions.

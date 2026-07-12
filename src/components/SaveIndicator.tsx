@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Loader2, WifiOff } from 'lucide-react';
+import { Loader2, WifiOff, Save, Cloud } from 'lucide-react';
 import { useProject } from '../store';
 
 export interface SaveState {
@@ -42,7 +42,7 @@ export function useSaveIndicator(): SaveState {
     : { status, lastSavedAt: lastSavedRef.current };
 }
 
-export function SaveIndicator() {
+export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -83,16 +83,21 @@ export function SaveIndicator() {
   }
 
   const ago = lastSavedAt ? formatTimeAgo(Date.now() - lastSavedAt) : '';
+  const tooltip = isCloudProject ? `Synced to Drive${ago ? ` ${ago}` : ''}` : `Saved locally${ago ? ` ${ago}` : ''}`;
   return (
     <div
       className="relative"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
-      <Check className="w-3.5 h-3.5 text-zinc-500" />
+      {isCloudProject ? (
+        <Cloud className="w-3.5 h-3.5 text-zinc-500" />
+      ) : (
+        <Save className="w-3.5 h-3.5 text-zinc-500" />
+      )}
       {showTooltip && (
         <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
-          Saved{ago ? ` ${ago}` : ''}
+          {tooltip}
         </div>
       )}
     </div>

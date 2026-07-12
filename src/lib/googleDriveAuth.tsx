@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useRef, useCallback, useEff
 import { GoogleOAuthProvider, useGoogleLogin, googleLogout } from '@react-oauth/google';
 
 const SESSION_KEY = 'lemon_google_signed_in';
+const TOKEN_KEY = 'lemon_google_token';
 
 export interface GoogleUser {
   name: string;
@@ -58,11 +59,12 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       accessTokenRef.current = tokenResponse.access_token;
       setIsSignedIn(true);
       sessionStorage.setItem(SESSION_KEY, '1');
+      sessionStorage.setItem(TOKEN_KEY, tokenResponse.access_token);
       await fetchUserInfo(tokenResponse.access_token);
       setTokenVersion(v => v + 1);
     },
     onError: (error) => {
-      console.error('Google sign-in error:', error);
+      console.error('Google sign-in error:', error?.error_description ?? error);
     },
   });
 
@@ -75,12 +77,17 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
     setIsSignedIn(false);
     setUser(null);
     sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
     googleLogout();
   }, []);
 
   useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY) === '1') {
-      login();
+    const savedToken = sessionStorage.getItem(TOKEN_KEY);
+    if (savedToken) {
+      accessTokenRef.current = savedToken;
+      setIsSignedIn(true);
+      fetchUserInfo(savedToken);
+      setTokenVersion(v => v + 1);
     }
     setIsReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps

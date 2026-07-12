@@ -1,12 +1,13 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useProject, ProjectMeta } from '../store';
+import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
-import { Plus, Download, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive } from 'lucide-react';
+import { pushProjectAndUpdateIndex } from '../lib/syncManager';
+import { deleteDriveProject } from '../lib/googleDriveStorage';
+import { Plus, Download, Upload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive } from 'lucide-react';
 import { useDialog } from './Dialog';
-import Modal from './Modal';
-import { ModalFooter } from './Modal';
+import Modal, { ModalFooter } from './Modal';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 
 interface ProjectManagerProps {
@@ -35,6 +36,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const {
     projectList,
     currentProjectId,
+    state,
     createProject,
     openProject,
     deleteProject,
@@ -42,6 +44,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     duplicateProject,
     importProjectFromData,
     pullDriveProjects,
+    updateProjectMeta,
   } = useProject();
   const dialog = useDialog();
   const auth = useGoogleAuth();
@@ -53,6 +56,25 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const hasFetchedCloudRef = useRef(false);
+  const hasDefaultedRef = useRef(false);
+
+  useEffect(() => {
+    if (auth.isSignedIn && !hasDefaultedRef.current) {
+      setActiveTab('cloud');
+      hasDefaultedRef.current = true;
+    }
+  }, [auth.isSignedIn]);
+
+  useEffect(() => {
+    if (activeTab === 'cloud' && auth.isSignedIn && !hasFetchedCloudRef.current) {
+      hasFetchedCloudRef.current = true;
+      pullDriveProjects().catch(() => {});
+    }
+    if (activeTab !== 'cloud') {
+      hasFetchedCloudRef.current = false;
+    }
+  }, [activeTab, auth.isSignedIn]);
 
   const { localProjects, cloudProjects } = useMemo(() => {
     const local: ProjectMeta[] = [];
@@ -132,6 +154,40 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setRenamingId(null);
   };
 
+  const [movingId, setMovingId] = useState<string | null>(null);
+
+  const handleMoveToDrive = async (p: ProjectMeta) => {
+    const ok = await dialog.confirm({ title: `Move "${p.title}" to Drive?`, message: 'This will upload the project to Google Drive and sync future changes.' });
+    if (!ok) return;
+    setMovingId(p.id);
+    try {
+      const project = p.id === currentProjectId ? { ...state.present } : loadProjectFromStorage(p.id);
+      if (!project) { dialog.alert({ title: 'Error', message: 'Could not load project data.' }); return; }
+      const newFileId = await pushProjectAndUpdateIndex(auth.accessToken!, project);
+      updateProjectMeta(p.id, { driveFileId: newFileId, driveModifiedTime: Date.now() });
+    } catch (e: any) {
+      dialog.alert({ title: 'Upload Failed', message: e?.message || 'Could not upload to Drive.' });
+    } finally {
+      setMovingId(null);
+    }
+  };
+
+  const handleMoveToLocal = async (p: ProjectMeta) => {
+    const ok = await dialog.confirm({ title: `Remove "${p.title}" from Drive?`, message: 'This will delete the project from Google Drive. Local data will not be affected.', danger: true });
+    if (!ok) return;
+    setMovingId(p.id);
+    try {
+      if (p.driveFileId) {
+        await deleteDriveProject(auth.accessToken!, p.driveFileId);
+      }
+      updateProjectMeta(p.id, { driveFileId: undefined, driveModifiedTime: undefined });
+    } catch (e: any) {
+      dialog.alert({ title: 'Remove Failed', message: e?.message || 'Could not remove from Drive.' });
+    } finally {
+      setMovingId(null);
+    }
+  };
+
   return (
     <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
       footer={
@@ -149,29 +205,24 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 onClick={() => { createProject(); onClose?.(); }}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
-                <Plus className="w-3.5 h-3.5" /> New Project
+              <Plus className="w-3.5 h-3.5" /> New Project
               </button>
               <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
             </>
           ) : auth.isSignedIn ? (
             <>
               <button
-                onClick={async () => {
-                  try {
-                    await pullDriveProjects();
-                  } catch (e: any) {
-                    dialog.alert({ title: 'Drive Sync', message: e?.message || 'Failed to sync with Drive' });
-                  }
-                }}
-                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors flex items-center gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                <Cloud className="w-3.5 h-3.5" /> Pull from Drive
+                <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
               </button>
               <button
                 onClick={() => { createProject(); onClose?.(); }}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
-                <Plus className="w-3.5 h-3.5" /> New Project
+                <Plus className="w-3.5 h-3.5" /> New Cloud Project
               </button>
             </>
           ) : (
@@ -212,6 +263,12 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <span className="text-[10px] text-zinc-500 ml-0.5">{cloudProjects.length}</span>
           </button>
         </div>
+
+        {activeTab === 'cloud' && auth.isSignedIn && auth.user && (
+          <div className="flex items-center gap-2 px-1 pb-2">
+            <span className="text-[10px] text-zinc-500">Logged in as <strong className="text-zinc-300 font-semibold">{auth.user.name}</strong></span>
+          </div>
+        )}
 
         {activeTab === 'cloud' && !auth.isSignedIn ? (
           <div className="text-center py-12 text-zinc-500">
@@ -351,6 +408,26 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         >
                           <Download className="w-3.5 h-3.5 text-zinc-400" />
                         </button>
+                        {activeTab === 'local' && auth.isSignedIn && (
+                          <button
+                            onClick={() => handleMoveToDrive(p)}
+                            disabled={movingId === p.id}
+                            className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-40"
+                            title="Move to Drive"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                        )}
+                        {activeTab === 'cloud' && (
+                          <button
+                            onClick={() => handleMoveToLocal(p)}
+                            disabled={movingId === p.id}
+                            className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-40"
+                            title="Move to Local"
+                          >
+                            <Cloud className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                        )}
                         <button
                           onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true }); if (ok) deleteProject(p.id); }}
                           className="p-1.5 rounded-md transition-colors hover:bg-rose-900/40"

@@ -34,12 +34,11 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
-import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SaveIndicator } from './components/SaveIndicator';
 import { DriveConflictModal } from './components/DriveConflictModal';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import type { Conflict } from './lib/syncManager';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut } from 'lucide-react';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
@@ -50,7 +49,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, pendingConflict, resolveDriveConflict } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -167,6 +166,7 @@ function AppContent() {
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
   const noProject = currentProjectId === null;
+  const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
   const topTabIsDark = activeTab === 'reports' || activeTab === 'design';
   const topTabOverlayReady = 'left' in topTabOverlayStyle;
@@ -401,14 +401,18 @@ function AppContent() {
       {showConflictModal && (
         <DriveConflictModal
           conflicts={pendingConflicts}
-          onResolve={(resolutions) => {
+          onResolve={async (resolutions) => {
             setShowConflictModal(false);
-            for (const resolution of resolutions) {
-              const ctxResolved = ctx as any;
-              if (resolution.action === 'keep_local') {
-                ctxResolved.syncProjectToDrive?.();
-              } else if (resolution.action === 'keep_drive' || resolution.action === 'keep_both') {
-                dialog.alert({ title: 'Import from Drive', message: `Project "${resolution.projectId}" will be imported from Drive.` });
+            for (const r of resolutions) {
+              if (r.projectId === ctx.currentProjectId && ctx.resolveDriveConflict) {
+                await ctx.resolveDriveConflict(r.action);
+              } else {
+                const meta = ctx.projectList.find(p => p.id === r.projectId);
+                if (r.action === 'keep_local' && meta?.driveFileId && ctx.syncProjectToDrive) {
+                  await ctx.syncProjectToDrive();
+                } else if (r.action === 'keep_drive' || r.action === 'keep_both') {
+                  dialog.alert({ title: 'Import from Drive', message: `Project "${r.projectId}" change will be applied on next sync.` });
+                }
               }
             }
           }}
@@ -435,6 +439,32 @@ function AppContent() {
           </button>
         </div>
       )}
+      {/* CONFLICT BANNER */}
+      {pendingConflict && (
+        <div className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
+          <span className="font-medium">This project was also edited on another device</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={async () => { await resolveDriveConflict('keep_local'); }}
+              className="px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
+            >
+              Keep my changes
+            </button>
+            <button
+              onClick={async () => { await resolveDriveConflict('keep_drive'); }}
+              className="px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
+            >
+              Use Drive version
+            </button>
+            <button
+              onClick={async () => { await resolveDriveConflict('keep_both'); }}
+              className="px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
+            >
+              Keep both
+            </button>
+          </div>
+        </div>
+      )}
       {showOfflineModal && (
         <Modal open={showOfflineModal} onClose={() => setShowOfflineModal(false)} title="You're offline" icon={<WifiOff className="w-5 h-5 text-zinc-400" />} width="max-w-md"
           footer={
@@ -456,7 +486,7 @@ function AppContent() {
       )}
 
       {/* HEADER */}
-      <header className="flex items-center justify-between bg-zinc-950 text-zinc-300 px-4 py-2 select-none print:hidden">
+      <header className={`flex items-center justify-between ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
         <div className="flex items-center space-x-6">
           <div className="flex items-center gap-2">
             <DropdownMenu
@@ -508,35 +538,26 @@ function AppContent() {
               </DropdownSubmenu>
               <DropdownDivider />
               {driveCtx.isSignedIn ? (
-                <>
-                  <DropdownItem onClick={async () => { setShowFileMenu(false); try { const result = await ctx.pullDriveProjects(); if (result.conflicts.length > 0) { setPendingConflicts(result.conflicts); setShowConflictModal(true); } } catch (e: any) { dialog.alert({ title: 'Drive Sync', message: e?.message || 'Failed to sync with Drive' }); } }} icon={<Cloud className="w-3.5 h-3.5" />}>
-                    Sync with Google Drive
-                  </DropdownItem>
-                  <DropdownDivider />
-                  <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signOut(); }}>
-                    Google Drive: signed in as {driveCtx.user?.name}
-                  </DropdownItem>
-                  <DropdownDivider />
-                </>
+                <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
+                  Sign out{driveCtx.user ? ` (${driveCtx.user.name})` : ''}
+                </DropdownItem>
               ) : (
-                <>
-                  <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signIn(); }} icon={<Cloud className="w-3.5 h-3.5" />}>
-                    Sign in with Google Drive...
-                  </DropdownItem>
-                  <DropdownDivider />
-                </>
+                <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signIn(); }} icon={<Cloud className="w-3.5 h-3.5" />}>
+                  Sign in with Google Drive...
+                </DropdownItem>
               )}
+              <DropdownDivider />
               <DropdownItem onClick={() => { setShowFileMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
                 Trash...
               </DropdownItem>
             </DropdownMenu>
+            <SaveIndicator isCloudProject={isCloudProject} />
             <input 
               value={project.title} 
               onChange={e => dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}})}
               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="bg-transparent border-none text-white font-medium focus:ring-1 focus:ring-zinc-600 rounded px-1 outline-none font-sans"
             />
-            <SaveIndicator />
           </div>
           <div ref={topTabContainerRef} className="relative flex items-center gap-1">
             {compactTabs ? (
@@ -636,8 +657,6 @@ function AppContent() {
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
-          <SyncStatusIcon syncState={ctx.driveSyncState} onRetry={() => ctx.syncProjectToDrive()} />
-          <div className="w-px h-4 bg-zinc-700" />
           <div className="flex items-center gap-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
             <button
               onClick={() => dispatch({ type: 'UNDO' })}

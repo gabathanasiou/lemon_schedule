@@ -5,6 +5,7 @@ import { getDefaultRibbonRows, getDefaultColWidths, cid, DEFAULT_COLOR_PALETTE }
 import { isMultiValue, getFieldItems } from './lib/categories';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import { pushProjectAndUpdateIndex, pullFromDrive } from './lib/syncManager';
+import { readDriveProject } from './lib/googleDriveStorage';
 import type { SyncState } from './components/SyncStatusIcon';
 import type { Conflict } from './lib/syncManager';
 import Papa from 'papaparse';
@@ -43,7 +44,7 @@ function saveProjectListToStorage(list: ProjectMeta[]) {
   localStorage.setItem(INDEX_KEY, JSON.stringify(list));
 }
 
-function loadProjectFromStorage(id: string): Project | null {
+export function loadProjectFromStorage(id: string): Project | null {
   try {
     const stored = localStorage.getItem(getProjectStorageKey(id));
     if (stored) {
@@ -1240,6 +1241,7 @@ interface ProjectContextType {
   renameProject: (id: string, title: string) => void;
   duplicateProject: (id: string) => void;
   importProjectFromData: (data: Project) => string;
+  updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
   syncProjectToDrive: () => Promise<void>;
   pullDriveProjects: () => Promise<{
     newProjects: { project: Project; driveFileId: string }[];
@@ -1248,6 +1250,8 @@ interface ProjectContextType {
   }>;
   driveSyncState: SyncState;
   isDriveSignedIn: boolean;
+  pendingConflict: Conflict | null;
+  resolveDriveConflict: (action: 'keep_local' | 'keep_drive' | 'keep_both') => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -1258,6 +1262,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const auth = useGoogleAuth();
   const [driveSyncState, setDriveSyncState] = useState<SyncState>('idle');
+  const [pendingConflict, setPendingConflict] = useState<Conflict | null>(null);
   const driveFileIdRef = useRef<string | undefined>(undefined);
 
   const blank = makeBlankProject();
@@ -1354,16 +1359,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const driveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!currentProjectId || !auth.isSignedIn || !auth.accessToken) return;
+    const currentFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
+    if (!currentFileId) { setDriveSyncState('idle'); return; }
     if (driveSyncTimerRef.current) clearTimeout(driveSyncTimerRef.current);
 
     driveSyncTimerRef.current = setTimeout(async () => {
       try {
         setDriveSyncState('syncing');
-        const fileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
         const newFileId = await pushProjectAndUpdateIndex(
           auth.accessToken!,
           state.present,
-          fileId,
+          currentFileId,
         );
         driveFileIdRef.current = newFileId;
         setProjectList(prev => {
@@ -1411,13 +1417,70 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [auth.isSignedIn, auth.accessToken, currentProjectId, state.present, projectList]);
 
+  const resolveDriveConflict = useCallback(async (action: 'keep_local' | 'keep_drive' | 'keep_both') => {
+    if (!pendingConflict || !auth.accessToken || !currentProjectId) return;
+
+    if (action === 'keep_local') {
+      await syncProjectToDrive();
+    } else {
+      const driveProject = await readDriveProject(auth.accessToken, pendingConflict.projectId);
+
+      if (action === 'keep_drive') {
+        localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(driveProject));
+        dispatch({ type: 'LOAD', payload: driveProject });
+      } else if (action === 'keep_both') {
+        const newProject = { ...driveProject, title: `${driveProject.title} (from Drive)` };
+        importProjectFromData(newProject);
+      }
+    }
+
+    setPendingConflict(null);
+  }, [pendingConflict, auth.accessToken, currentProjectId, syncProjectToDrive, dispatch]);
+
+  const importDriveProject = useCallback((project: Project, driveFileId: string) => {
+    localStorage.setItem(getProjectStorageKey(project.id), JSON.stringify(project));
+    setProjectList(prev => {
+      const existing = prev.find(p => p.id === project.id);
+      if (existing) {
+        const updated = prev.map(p =>
+          p.id === project.id
+            ? { ...p, title: project.title, lastModified: Date.now(), driveFileId }
+            : p
+        );
+        saveProjectListToStorage(updated);
+        return updated;
+      }
+      const meta: ProjectMeta = {
+        id: project.id,
+        title: project.title,
+        lastModified: project.versions?.[0]?.createdAt ?? Date.now(),
+        createdAt: project.versions?.[0]?.createdAt ?? Date.now(),
+        driveFileId,
+      };
+      const updated = [...prev, meta];
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+  }, []);
+
   const pullDriveProjects = useCallback(async () => {
     if (!auth.accessToken) throw new Error('Not signed in');
     setDriveSyncState('syncing');
     const result = await pullFromDrive(auth.accessToken, projectList);
     setDriveSyncState('synced');
+
+    for (const { project, driveFileId } of result.newProjects) {
+      importDriveProject(project, driveFileId);
+    }
+    for (const { project, driveFileId } of result.updatedProjects) {
+      importDriveProject(project, driveFileId);
+    }
+
+    const currentConflict = result.conflicts.find(c => c.projectId === currentProjectId) ?? null;
+    setPendingConflict(currentConflict);
+
     return result;
-  }, [auth.accessToken, projectList]);
+  }, [auth.accessToken, projectList, importDriveProject, currentProjectId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1564,6 +1627,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return id;
   }, [flushCurrentProject]);
 
+  const updateProjectMeta = useCallback((id: string, updates: Partial<ProjectMeta>) => {
+    setProjectList(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
+      saveProjectListToStorage(updated);
+      return updated;
+    });
+    if (id === currentProjectId && 'driveFileId' in updates) {
+      driveFileIdRef.current = updates.driveFileId;
+    }
+  }, [currentProjectId]);
+
   return (
     <ProjectContext.Provider value={{
       state,
@@ -1578,10 +1652,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       renameProject,
       duplicateProject,
       importProjectFromData,
+      updateProjectMeta,
       syncProjectToDrive,
       pullDriveProjects,
       driveSyncState,
       isDriveSignedIn: auth.isSignedIn,
+      pendingConflict,
+      resolveDriveConflict,
     }}>
       {children}
     </ProjectContext.Provider>
