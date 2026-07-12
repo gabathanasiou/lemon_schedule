@@ -34,7 +34,6 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, ImportResult } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
-import { GoogleSignIn } from './components/GoogleSignIn';
 import { SyncStatusIcon } from './components/SyncStatusIcon';
 import { SaveIndicator } from './components/SaveIndicator';
 import { DriveConflictModal } from './components/DriveConflictModal';
@@ -513,10 +512,26 @@ function AppContent() {
               <DropdownItem onClick={() => { setShowFileMenu(false); storage.handle ? storage.setStatus('saving') : null; }} icon={<HardDrive className="w-3.5 h-3.5" />}>
                 Save Folder...
               </DropdownItem>
-              <DropdownItem onClick={async () => { setShowFileMenu(false); try { const result = await ctx.pullDriveProjects(); if (result.conflicts.length > 0) { setPendingConflicts(result.conflicts); setShowConflictModal(true); } } catch (e: any) { dialog.alert({ title: 'Drive Sync', message: e?.message || 'Failed to sync with Drive' }); } }} icon={<Cloud className="w-3.5 h-3.5" />}>
-                Sync with Google Drive
-              </DropdownItem>
               <DropdownDivider />
+              {driveCtx.isSignedIn ? (
+                <>
+                  <DropdownItem onClick={async () => { setShowFileMenu(false); try { const result = await ctx.pullDriveProjects(); if (result.conflicts.length > 0) { setPendingConflicts(result.conflicts); setShowConflictModal(true); } } catch (e: any) { dialog.alert({ title: 'Drive Sync', message: e?.message || 'Failed to sync with Drive' }); } }} icon={<Cloud className="w-3.5 h-3.5" />}>
+                    Sync with Google Drive
+                  </DropdownItem>
+                  <DropdownDivider />
+                  <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signOut(); }}>
+                    Google Drive: signed in as {driveCtx.user?.name}
+                  </DropdownItem>
+                  <DropdownDivider />
+                </>
+              ) : (
+                <>
+                  <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signIn(); }} icon={<Cloud className="w-3.5 h-3.5" />}>
+                    Sign in with Google Drive...
+                  </DropdownItem>
+                  <DropdownDivider />
+                </>
+              )}
               <DropdownItem onClick={() => { setShowFileMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
                 Trash...
               </DropdownItem>
@@ -628,7 +643,6 @@ function AppContent() {
 
         <div className="flex items-center space-x-3 font-mono text-xs">
           <SyncStatusIcon syncState={ctx.driveSyncState} onRetry={() => ctx.syncProjectToDrive()} />
-          <GoogleSignIn />
           <div className="w-px h-4 bg-zinc-700" />
           <div className="flex items-center gap-1 bg-zinc-900 rounded-md p-0.5 border border-zinc-800">
             <button
