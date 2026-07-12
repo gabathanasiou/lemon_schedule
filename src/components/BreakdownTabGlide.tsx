@@ -55,7 +55,7 @@ const FIXED_COLS = [
   { key: 'notes', label: 'Notes', width: 200 },
 ];
 
-function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center' }>): GridCell {
+function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center'; cursor?: React.CSSProperties['cursor'] }>): GridCell {
   return {
     kind: GridCellKind.Text,
     data,
@@ -63,6 +63,7 @@ function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData:
     allowOverlay: opts?.allowOverlay ?? true,
     readonly: opts?.readonly ?? false,
     contentAlign: opts?.align,
+    cursor: opts?.cursor,
   } as GridCell;
 }
 
@@ -220,6 +221,8 @@ export function GlideBreakdownTab({
   projectRef.current = project;
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
   allBreakdownLabelsRef.current = allBreakdownLabels;
+  const gridSelectionRef = useRef(gridSelection);
+  gridSelectionRef.current = gridSelection;
 
   const commitEdit = useCallback((sceneId: string, colKey: string, newVal: string) => {
     const currentProject = projectRef.current;
@@ -257,7 +260,7 @@ export function GlideBreakdownTab({
       if (row === scenesRef.current.length) {
         const colDef = COLUMNS[col];
         if (!colDef) return textCell('', { readonly: true });
-        if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false });
+        if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer' });
         return textCell('');
       }
       return {
@@ -271,7 +274,7 @@ export function GlideBreakdownTab({
     const colDef = COLUMNS[col];
     if (!colDef) return textCell('', { readonly: true });
     const colKey = colDef.key;
-    if (colKey === 'actions') return textCell('', { readonly: true, allowOverlay: false });
+    if (colKey === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer' });
     const val = getSceneValue(scene, colKey);
     if (colKey === 'cast') {
       const members = projectRef.current.castMembers || [];
@@ -404,23 +407,33 @@ export function GlideBreakdownTab({
     const newScenes: Scene[] = [];
     const editRows: { row: number; colKey: string; val: string }[] = [];
 
+    if (values.length === 0) return false;
+
+    const sel = gridSelectionRef.current?.current?.range;
+    const pasteRows = sel && sel.height > values.length ? sel.height : values.length;
+    const pasteCols = sel && sel.width > Math.max(...values.map(r => r.length)) ? sel.width : Math.max(...values.map(r => r.length));
+
     dispatch({ type: 'BATCH_START' });
 
-    for (let r = 0; r < values.length; r++) {
+    for (let r = 0; r < pasteRows; r++) {
+      const srcR = r % values.length;
+      const srcRow = values[srcR];
       const targetRow = target[1] + r;
       if (targetRow < currentScenes.length) {
-        for (let c = 0; c < values[r].length; c++) {
+        for (let c = 0; c < pasteCols; c++) {
+          const srcC = c % (srcRow.length || 1);
           const targetCol = target[0] + c;
           if (targetCol < COLUMNS.length && COLUMNS[targetCol].key !== 'actions') {
-            editRows.push({ row: targetRow, colKey: COLUMNS[targetCol].key, val: values[r][c] });
+            editRows.push({ row: targetRow, colKey: COLUMNS[targetCol].key, val: srcRow[srcC] ?? '' });
           }
         }
       } else {
         const newScene: any = {};
-        for (let c = 0; c < values[r].length && c < COLUMNS.length; c++) {
+        for (let c = 0; c < pasteCols; c++) {
+          const srcC = c % (srcRow.length || 1);
           const colIndex = target[0] + c;
           if (colIndex < COLUMNS.length) {
-            newScene[COLUMNS[colIndex].key] = values[r][c];
+            newScene[COLUMNS[colIndex].key] = srcRow[srcC] ?? '';
           }
         }
         newScenes.push(newScene);
