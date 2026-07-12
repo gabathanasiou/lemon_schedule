@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, WifiOff, Save, Cloud } from 'lucide-react';
+import { Loader2, WifiOff, Save, Cloud, CloudOff } from 'lucide-react';
 import { useProject } from '../store';
 
 export interface SaveState {
@@ -44,7 +44,9 @@ export function useSaveIndicator(): SaveState {
 
 export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
+  const { driveSaveError, retryDriveSync } = useProject();
   const [showTooltip, setShowTooltip] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   if (status === 'idle') return null;
 
@@ -83,6 +85,35 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
   }
 
   const ago = lastSavedAt ? formatTimeAgo(Date.now() - lastSavedAt) : '';
+
+  if (isCloudProject && driveSaveError) {
+    return (
+      <div
+        className="relative"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <button
+          onClick={async () => { setRetrying(true); await retryDriveSync(); setRetrying(false); }}
+          disabled={retrying}
+          className="cursor-pointer"
+          title="Sync failed — click to retry"
+        >
+          {retrying ? (
+            <Loader2 className="w-3.5 h-3.5 text-rose-400 animate-spin" />
+          ) : (
+            <CloudOff className="w-3.5 h-3.5 text-rose-400" />
+          )}
+        </button>
+        {showTooltip && (
+          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+            Sync failed — click to retry
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const tooltip = isCloudProject ? `Synced to Drive${ago ? ` ${ago}` : ''}` : `Saved locally${ago ? ` ${ago}` : ''}`;
   return (
     <div

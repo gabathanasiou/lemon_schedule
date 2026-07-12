@@ -1241,6 +1241,8 @@ interface ProjectContextType {
   importProjectFromData: (data: Project) => string;
   updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
   registerPostSaveHandler: (handler: ((project: Project) => Promise<void>) | null) => void;
+  driveSaveError: boolean;
+  retryDriveSync: () => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -1251,6 +1253,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const [initialized, setInitialized] = useState(false);
   const auth = useGoogleAuth();
   const driveFileIdRef = useRef<string | undefined>(undefined);
+  const [driveSaveError, setDriveSaveError] = useState(false);
 
   const blank = makeBlankProject();
 
@@ -1346,8 +1349,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               saveProjectListToStorage(updated);
               return updated;
             });
+            setDriveSaveError(false);
           } catch (err) {
             console.error('Drive save failed:', err);
+            setDriveSaveError(true);
           }
         }
       } else {
@@ -1592,6 +1597,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentProjectId]);
 
+  const retryDriveSync = useCallback(async () => {
+    if (!currentProjectId || !auth.accessToken) return;
+    const meta = projectList.find(p => p.id === currentProjectId);
+    if (!meta?.driveFileId) return;
+    try {
+      await pushProjectAndUpdateIndex(auth.accessToken, { ...presentRef.current }, meta.driveFileId);
+      setDriveSaveError(false);
+    } catch (err) {
+      setDriveSaveError(true);
+    }
+  }, [currentProjectId, auth.accessToken, projectList]);
+
   return (
     <ProjectContext.Provider value={{
       state,
@@ -1608,6 +1625,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       importProjectFromData,
       updateProjectMeta,
       registerPostSaveHandler,
+      driveSaveError,
+      retryDriveSync,
     }}>
       {children}
     </ProjectContext.Provider>

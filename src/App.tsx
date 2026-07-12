@@ -495,7 +495,7 @@ function AppContent() {
                 Trash...
               </DropdownItem>
             </DropdownMenu>
-            <SaveIndicator />
+            <SaveIndicator isCloudProject={isCloudProject} />
             <input 
               value={project.title} 
               onChange={e => {
