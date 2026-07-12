@@ -392,7 +392,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             onClick={() => setActiveTab('cloud')}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
               activeTab === 'cloud'
-                ? 'bg-zinc-800 text-white'
+                ? 'bg-blue-900 text-white'
                 : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
             }`}
           >
@@ -454,22 +454,22 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         )}
 
         {activeTab === 'cloud' && auth.isSignedIn && auth.user && (
-          <div className="flex items-center justify-between px-3 py-2 mb-3 -mx-1 rounded-md bg-zinc-900/50 border border-zinc-800/50">
-            <span className="text-[10px] text-zinc-500">Logged in as <strong className="text-zinc-300 font-semibold">{auth.user.name}</strong></span>
+          <div className="flex items-center justify-between px-3 py-2 mb-3 -mx-1 rounded-md bg-blue-950/50 border border-blue-900/50">
+            <span className="text-[10px] text-blue-200/60">Logged in as <strong className="text-blue-100 font-semibold">{auth.user.name}</strong></span>
             <div className="flex items-center gap-2">
               {lastRefreshedAt && !driveLoading && (
-                <span className="text-[10px] text-zinc-600">Updated {formatDate(lastRefreshedAt)}</span>
+                <span className="text-[10px] text-blue-200/40">Updated {formatDate(lastRefreshedAt)}</span>
               )}
               {driveLoading && (
-                <span className="text-[10px] text-zinc-600 animate-pulse">Syncing…</span>
+                <span className="text-[10px] text-blue-200/40 animate-pulse">Syncing…</span>
               )}
               <button
                 onClick={() => refetchDriveRef.current()}
                 disabled={driveLoading}
-                className="p-0.5 rounded hover:bg-zinc-700 transition-colors disabled:opacity-30"
+                className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30"
                 title="Refresh cloud projects"
               >
-                <RefreshCw className={`w-3 h-3 text-zinc-500 ${driveLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3 h-3 text-blue-200/60 ${driveLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>

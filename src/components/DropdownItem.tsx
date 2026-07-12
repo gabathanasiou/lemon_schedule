@@ -36,10 +36,10 @@ export default function DropdownItem({
     : isLight
       ? 'text-zinc-700 hover:bg-zinc-100 focus-visible:bg-zinc-100 active:bg-zinc-200'
       : isBlue
-      ? 'text-zinc-300 hover:bg-blue-800 hover:text-white focus-visible:bg-blue-800 focus-visible:text-white active:bg-blue-700 active:text-white'
+      ? 'text-white hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/15'
       : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white active:bg-zinc-700 active:text-white';
 
-  const iconColor = isLight ? 'text-zinc-500' : isBlue ? 'text-zinc-300' : 'text-zinc-400';
+  const iconColor = isLight ? 'text-zinc-500' : isBlue ? 'text-white' : 'text-zinc-400';
 
   return (
     <RadixDropdownMenu.Item
