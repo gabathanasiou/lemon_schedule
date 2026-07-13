@@ -172,7 +172,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
     rows: getDefaultRibbonRows(),
     createdAt: Date.now(),
     cellPaddingV: 3,
-    cellPaddingH: 20,
+    cellPaddingH: 3,
     edgePadding: 3,
   };
   return {
@@ -301,9 +301,9 @@ function reducer(state: State, action: Action): State {
         colWidths: getDefaultColWidths(),
         rows: getDefaultRibbonRows(),
         createdAt: Date.now(),
-        cellPaddingV: 6,
-        cellPaddingH: 6,
-        edgePadding: 2,
+        cellPaddingV: 3,
+        cellPaddingH: 3,
+        edgePadding: 3,
       };
       p.ribbonDesigns = [defaultDesign];
       p.activeRibbonId = p.activeRibbonId || defaultDesign.id;
@@ -1053,7 +1053,7 @@ function reducer(state: State, action: Action): State {
         rows,
         createdAt: Date.now(),
         cellPaddingV: action.payload.cellPaddingV ?? source?.cellPaddingV ?? 3,
-        cellPaddingH: action.payload.cellPaddingH ?? source?.cellPaddingH ?? 6,
+        cellPaddingH: action.payload.cellPaddingH ?? source?.cellPaddingH ?? 3,
         edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 3,
       };
       return applyChange({

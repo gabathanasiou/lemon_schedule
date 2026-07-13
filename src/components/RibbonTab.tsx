@@ -667,7 +667,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               try {
                 const data = JSON.parse(reader.result as string);
                 if (data.rows && Array.isArray(data.rows)) {
-                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 6, edgePadding: data.edgePadding ?? 3 } });
+                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 3, edgePadding: data.edgePadding ?? 3 } });
                 }
               } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
               setFileMenuOpen(false);

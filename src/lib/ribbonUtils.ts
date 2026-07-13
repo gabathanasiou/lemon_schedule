@@ -472,7 +472,7 @@ export function normalizeColWidths(widths: number[]): number[] {
 }
 
 export function getDefaultColWidths(): number[] {
-  return [8.34, 6.18, 8.73, 8.08, 37.72, 10.15, 20.8];
+  return [10.22, 5.01, 6.18, 7.57, 40.59, 9.62, 20.85];
 }
 
 export function getDefaultRibbonRows(): RibbonRow[] {
@@ -481,7 +481,7 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 1',
       cells: [
-        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle', truncation: false },
+        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle' },
         { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'intExt', align: 'left' },
@@ -494,7 +494,7 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 2',
       cells: [
-        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top' },
+        { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top', truncation: false },
         { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'dayNight', align: 'left' },
