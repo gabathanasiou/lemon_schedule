@@ -758,6 +758,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }))
   ], [activeVersion.rows, missingScenesInRows]);
 
+  const hasDaybreaks = useMemo(
+    () => (activeVersion?.rows || []).some(r => r.type === 'DAYBREAK'),
+    [activeVersion?.rows]
+  );
+
   const scheduledRows = useMemo(() => {
     const grouped = augmentedRows.filter(r => !activeDragIds.has(r.id) && r.shootDay !== -1).reduce((acc, row) => {
       if (row.shootDay !== null) {
@@ -1704,6 +1709,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                       colWidths={activeColWidths}
                       cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
                      cellBorders={cellBorders}
+                     hasDaybreaks={hasDaybreaks}
                   />
               ))}
           </div>
