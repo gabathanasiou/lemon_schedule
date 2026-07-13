@@ -1507,11 +1507,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setProjectList(prev => prev.filter(p => p.id !== id));
 
     if (currentProjectId === id) {
-      if (remaining.length > 0) {
-        openProject(remaining[0].id);
-      } else {
-        setCurrentProjectId(null);
-      }
+      setCurrentProjectId(null);
     }
   }, [currentProjectId, openProject, projectList, auth.isSignedIn, auth.accessToken]);
 
