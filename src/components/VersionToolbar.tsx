@@ -50,7 +50,6 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
             onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
             className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
           />
-          <div className={`h-4 w-px ${isCloudProject ? 'bg-blue-800' : 'bg-zinc-700'}`} />
           <span className="px-3 py-1.5 rounded text-xs font-semibold bg-white text-zinc-900">
             {tabName}
           </span>
