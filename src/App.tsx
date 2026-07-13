@@ -1227,10 +1227,6 @@ function AppContent() {
     </div>
     {tabContextMenu && (
       <ContextMenu open={true} x={tabContextMenu.x} y={tabContextMenu.y} onClose={() => setTabContextMenu(null)}>
-        <ContextMenuItem onClick={() => { setActiveTab(tabContextMenu.tabId as any); setTabContextMenu(null); }}>
-          Switch to {tabLabels[tabContextMenu.tabId]}
-        </ContextMenuItem>
-        <ContextMenuDivider />
         <ContextMenuItem onClick={() => { togglePopout(tabContextMenu.tabId); setTabContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>
           Open in New Window
         </ContextMenuItem>
