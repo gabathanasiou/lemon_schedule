@@ -40,7 +40,7 @@ export default function DropdownMenu({
   const contentClasses = theme === 'light'
     ? 'bg-white border border-zinc-200 rounded-lg shadow-xl z-[200] text-zinc-700 p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out'
     : theme === 'blue'
-    ? 'bg-blue-950/95 backdrop-blur-md border border-blue-900/50 rounded-lg shadow-2xl z-[200] text-white p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out'
+    ? 'bg-blue-950/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl z-[200] text-white p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out'
     : 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out';
 
   const handlePointerDownOutside = useCallback((e: Event) => {
@@ -135,15 +135,16 @@ export function ItemManagerDropdown({
     textActive: isBlue ? 'text-white font-semibold' : 'text-blue-200 font-medium',
     hoverBg: isBlue ? 'hover:bg-white/10' : 'hover:bg-zinc-800',
     hoverBgBright: isBlue ? 'hover:bg-white/10 hover:text-white' : 'hover:bg-zinc-800 hover:text-white',
+    hoverText: isBlue ? 'hover:text-white' : 'hover:text-white',
     activeBg: isBlue ? 'bg-white/15' : 'bg-blue-600/20',
     separator: isBlue ? 'border-t border-white/10 my-1' : 'border-t border-zinc-800 my-1',
     inputBg: isBlue ? 'bg-white/10 border-white/10 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-200',
     inputFocus: isBlue ? 'focus:border-white/30' : 'focus:border-zinc-500',
     iconColor: isBlue ? 'text-white/50' : 'text-zinc-400',
-    btnBase: isBlue ? 'text-white/50 hover:text-white hover:bg-white/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800',
-    btnActive: isBlue ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-blue-300 hover:text-blue-200 hover:bg-blue-800/30',
-    btnDelete: isBlue ? 'text-white/50 hover:text-red-400 hover:bg-white/10' : 'text-zinc-500 hover:text-red-400 hover:bg-zinc-800',
-    btnDeleteActive: isBlue ? 'text-white/70 hover:text-red-400 hover:bg-white/10' : 'text-blue-300 hover:text-red-400 hover:bg-blue-800/30',
+    btnBase: isBlue ? 'text-white/50 hover:text-white' : 'text-zinc-500 hover:text-zinc-300',
+    btnActive: isBlue ? 'text-white/70 hover:text-white' : 'text-blue-300 hover:text-blue-200',
+    btnDelete: isBlue ? 'text-white/50 hover:text-red-400' : 'text-zinc-500 hover:text-red-400',
+    btnDeleteActive: isBlue ? 'text-white/70 hover:text-red-400' : 'text-blue-300 hover:text-red-400',
     btnDeleteDisabled: 'text-zinc-700 pointer-events-none',
   };
 
@@ -181,7 +182,7 @@ export function ItemManagerDropdown({
         const isActive = item.id === activeId;
         const isEditing = editingId === item.id;
         return (
-          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? th.activeBg : ''}`}>
+          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? th.activeBg : th.hoverBg}`}>
             {isEditing ? (
               <>
                 <RadixDropdownMenu.Item
@@ -215,7 +216,7 @@ export function ItemManagerDropdown({
             ) : (
               <>
                 <RadixDropdownMenu.Item
-                  className={`flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none cursor-pointer flex items-center ${th.text} ${isActive ? '' : th.hoverBgBright}`}
+                  className={`flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none cursor-pointer flex items-center ${th.text} ${isActive ? '' : th.hoverText}`}
                   onSelect={closeOnSelect ? () => { onSelect(item.id); } : e => { e.preventDefault(); onSelect(item.id); }}
                   onTouchStart={() => {}}
                 >
