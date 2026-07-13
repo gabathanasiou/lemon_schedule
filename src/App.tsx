@@ -690,7 +690,7 @@ function AppContent() {
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Design
             </button>
@@ -704,7 +704,7 @@ function AppContent() {
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Reports
             </button>
@@ -903,7 +903,7 @@ function AppContent() {
       {poppedOutSubTabs.breakdown?.has('sheet') && popoutSubWindowsRef.current.get('sub_breakdown_sheet') && (
         <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" contentTheme="light" onClose={() => closeSubPopout('breakdown', 'sheet')} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'sheet')} />
             <MiniTab
               tabs={[{ id: 'sheet', label: 'Sheet' }]}
               activeTab="sheet"
@@ -919,7 +919,7 @@ function AppContent() {
       {poppedOutSubTabs.breakdown?.has('elements') && popoutSubWindowsRef.current.get('sub_breakdown_elements') && (
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" contentTheme="light" onClose={() => closeSubPopout('breakdown', 'elements')} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'elements')} />
             <MiniTab
               tabs={[{ id: 'elements', label: 'Element Manager' }]}
               activeTab="elements"
@@ -935,7 +935,7 @@ function AppContent() {
       {poppedOutSubTabs.breakdown?.has('glide') && popoutSubWindowsRef.current.get('sub_breakdown_glide') && (
         <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" contentTheme="light" onClose={() => closeSubPopout('breakdown', 'glide')} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'glide')} />
             <MiniTab
               tabs={[{ id: 'glide', label: 'Glide Breakdown' }]}
               activeTab="glide"
@@ -951,7 +951,7 @@ function AppContent() {
       {poppedOutSubTabs.design?.has('ribbons') && popoutSubWindowsRef.current.get('sub_design_ribbons') && (
         <PopoutWindow title={`${project.title || 'Untitled'} — Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" contentTheme="dark" onClose={() => closeSubPopout('design', 'ribbons')} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closeSubPopout('design', 'ribbons')} />
             <MiniTab
               theme="dark"
               tabs={[{ id: 'ribbons', label: 'Ribbon Designer' }]}
@@ -968,7 +968,7 @@ function AppContent() {
       {poppedOutSubTabs.design?.has('colors') && popoutSubWindowsRef.current.get('sub_design_colors') && (
         <PopoutWindow title={`${project.title || 'Untitled'} — Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" contentTheme="dark" onClose={() => closeSubPopout('design', 'colors')} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closeSubPopout('design', 'colors')} />
             <MiniTab
               theme="dark"
               tabs={[{ id: 'colors', label: 'Colors' }]}
@@ -985,7 +985,7 @@ function AppContent() {
       {poppedOutSubTabs.reports?.has('doods') && popoutSubWindowsRef.current.get('sub_reports_doods') && (
         <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" contentTheme="dark" onClose={() => closeSubPopout('reports', 'doods')} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closeSubPopout('reports', 'doods')} />
             <MiniTab
               theme="dark"
               tabs={[{ id: 'doods', label: 'Day Out of Days' }]}
