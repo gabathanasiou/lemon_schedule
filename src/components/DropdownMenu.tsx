@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useState, useRef, useEffect } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Pencil, Copy, Trash2, Plus, Check, X } from 'lucide-react';
+import { Pencil, Copy, Trash2, Plus, Check, X, RotateCcw } from 'lucide-react';
 import { usePortalTarget } from '../lib/popoutTarget';
 
 export type DropdownTheme = 'light' | 'dark' | 'blue';
@@ -155,7 +155,7 @@ export function ItemManagerDropdown({
         const isActive = item.id === activeId;
         const isEditing = editingId === item.id;
         return (
-          <div key={item.id} className="flex items-center gap-1 group">
+          <div key={item.id} className={`flex items-center gap-1 rounded ${isActive ? 'bg-blue-600/20' : 'hover:bg-zinc-800/50'}`}>
             {isEditing ? (
               <>
                 <RadixDropdownMenu.Item
@@ -189,15 +189,14 @@ export function ItemManagerDropdown({
             ) : (
               <>
                 <RadixDropdownMenu.Item
-                  className="flex-1 min-w-0 px-3 py-1.5 rounded text-xs outline-none cursor-pointer text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center gap-2"
-                  onSelect={() => { onSelect(item.id); }}
+                  className={`flex-1 min-w-0 px-3 py-1.5 rounded text-xs outline-none cursor-pointer text-zinc-300 ${isActive ? '' : 'hover:text-white'} flex items-center`}
+                  onSelect={e => { e.preventDefault(); onSelect(item.id); }}
                   onTouchStart={() => {}}
                 >
-                  <span className={isActive ? 'text-blue-400' : 'text-zinc-500'}>{isActive ? '●' : '○'}</span>
-                  <span className="truncate">{item.name}</span>
+                  <span className={`truncate ${isActive ? 'text-blue-200 font-medium' : ''}`}>{item.name}</span>
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 outline-none cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer ${isActive ? 'text-blue-300 hover:text-blue-200 hover:bg-blue-800/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
                   onSelect={e => { e.preventDefault(); startRename(item.id, item.name); }}
                   onTouchStart={() => {}}
                   disabled={readOnly}
@@ -205,7 +204,7 @@ export function ItemManagerDropdown({
                   <Pencil className="w-3 h-3" />
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 outline-none cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer ${isActive ? 'text-blue-300 hover:text-blue-200 hover:bg-blue-800/30' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
                   onSelect={e => { e.preventDefault(); const newId = onDuplicate(item.id); if (newId) startRename(newId, `${item.name} Copy`); }}
                   onTouchStart={() => {}}
                   disabled={readOnly}
@@ -213,7 +212,7 @@ export function ItemManagerDropdown({
                   <Copy className="w-3 h-3" />
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ${items.length <= minItems ? 'text-zinc-700 pointer-events-none' : 'text-zinc-500 hover:text-red-400 hover:bg-zinc-800'}`}
+                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer ${items.length <= minItems ? 'text-zinc-700 pointer-events-none' : isActive ? 'text-blue-300 hover:text-red-400 hover:bg-blue-800/30' : 'text-zinc-500 hover:text-red-400 hover:bg-zinc-800'}`}
                   onSelect={e => { e.preventDefault(); onDelete(item.id); }}
                   onTouchStart={() => {}}
                   disabled={readOnly || items.length <= minItems}
@@ -230,10 +229,11 @@ export function ItemManagerDropdown({
           <RadixDropdownMenu.Separator className="border-t border-zinc-800 my-1" />
           <RadixDropdownMenu.Item
             className="w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-300 hover:bg-zinc-800 hover:text-white"
-            onSelect={() => { onReset(); }}
+            onSelect={e => { e.preventDefault(); onReset(); }}
             onTouchStart={() => {}}
             disabled={readOnly}
           >
+            <RotateCcw className="w-3.5 h-3.5 text-zinc-400" />
             Reset to Default
           </RadixDropdownMenu.Item>
         </>
@@ -244,18 +244,18 @@ export function ItemManagerDropdown({
       {onCreate && (
         <RadixDropdownMenu.Item
           className="w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-300 hover:bg-zinc-800 hover:text-white"
-          onSelect={() => { onCreate(); }}
+          onSelect={e => { e.preventDefault(); onCreate(); }}
           onTouchStart={() => {}}
           disabled={readOnly}
         >
           <Plus className="w-3.5 h-3.5 text-zinc-400" />
-          Create {createLabel}
+          New {createLabel}
         </RadixDropdownMenu.Item>
       )}
       {onImport && (
         <RadixDropdownMenu.Item
           className="w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-300 hover:bg-zinc-800 hover:text-white"
-          onSelect={() => { onImport(); }}
+          onSelect={e => { e.preventDefault(); onImport(); }}
           onTouchStart={() => {}}
           disabled={readOnly}
         >
@@ -266,7 +266,7 @@ export function ItemManagerDropdown({
       {onExport && (
         <RadixDropdownMenu.Item
           className="w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none text-zinc-300 hover:bg-zinc-800 hover:text-white"
-          onSelect={() => { onExport(); }}
+          onSelect={e => { e.preventDefault(); onExport(); }}
           onTouchStart={() => {}}
           disabled={readOnly}
         >
