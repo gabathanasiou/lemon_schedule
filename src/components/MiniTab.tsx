@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useIsCloudProject } from '../store';
+import { ExternalLink } from 'lucide-react';
+import { IS_COARSE } from '../lib/device';
 
 interface MiniTabItem {
   id: string;
@@ -12,6 +14,7 @@ interface MiniTabProps {
   onChange: (id: string) => void;
   rightContent?: React.ReactNode;
   theme?: 'light' | 'dark';
+  onPopout?: (tabId: string) => void;
 }
 
 const THEME = {
@@ -27,7 +30,7 @@ const THEME = {
   },
 } as const;
 
-export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme = 'light' }: MiniTabProps) {
+export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme = 'light', onPopout }: MiniTabProps) {
   const t = THEME[theme];
   const isCloud = useIsCloudProject();
   const activeBg = theme === 'light' && isCloud ? 'bg-blue-950' : 'bg-zinc-950';
@@ -93,11 +96,20 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
               onClick={() => onChange(tab.id)}
               onMouseEnter={() => updateHover(tab.id)}
               onMouseLeave={() => updateHover(null)}
-              className={`relative px-3 py-1.5 text-xs font-semibold rounded-b-md transition-colors ${
+              className={`relative group px-3 py-1.5 text-xs font-semibold rounded-b-md transition-colors ${
                 active ? 'text-white' : t.inactive
               }`}
             >
               <span className="relative">{tab.label}</span>
+              {onPopout && (
+                <span
+                  onClick={(e) => { e.stopPropagation(); onPopout(tab.id); }}
+                  className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
+                  title="Open in separate window"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
           );
         })}
