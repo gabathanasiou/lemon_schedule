@@ -501,7 +501,9 @@ function AppContent() {
               value={project.title} 
               onChange={e => {
                 dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}});
-                renameProject(currentProjectId!, e.target.value);
+              }}
+              onBlur={e => {
+                renameProject(currentProjectId!, e.target.value, projectList.find(p => p.id === currentProjectId)?.driveFileId);
               }}
               onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}

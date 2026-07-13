@@ -46,6 +46,9 @@ async function uploadJson(
   });
 
   if (!res.ok) {
+    if (existingFileId && (res.status === 404 || res.status === 410)) {
+      return uploadJson(accessToken, name, data);
+    }
     const text = await res.text();
     throw new Error(`Drive API error: ${res.status} ${text}`);
   }

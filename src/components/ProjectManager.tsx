@@ -57,7 +57,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
-  const hasDefaultedRef = useRef(false);
 
   // Drive state
   const [driveMetas, setDriveMetas] = useState<ProjectMeta[]>([]);
@@ -84,11 +83,13 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   }, [showNewProjectModal]);
 
   useEffect(() => {
-    if (auth.isSignedIn) {
+    if (currentProjectId) {
+      const meta = projectList.find(p => p.id === currentProjectId);
+      setActiveTab(meta?.driveFileId ? 'cloud' : 'local');
+    } else if (auth.isSignedIn) {
       setActiveTab('cloud');
-      hasDefaultedRef.current = true;
     }
-  }, [auth.isSignedIn]);
+  }, [auth.isSignedIn, currentProjectId]);
 
   // Fetch Drive index on mount
   useEffect(() => {
