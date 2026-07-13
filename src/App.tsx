@@ -36,7 +36,8 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } f
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink } from 'lucide-react';
+import PopoutWindow, { PopoutPlaceholder } from './components/PopoutWindow';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
@@ -60,22 +61,62 @@ function AppContent() {
   const [scheduleScrollTop, setScheduleScrollTop] = useState(0);
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   const [showRestoredBanner, setShowRestoredBanner] = useState(false);
+  const [poppedOutTabs, setPoppedOutTabs] = useState<Set<string>>(new Set());
+  const popoutWindowsRef = useRef<Map<string, Window>>(new Map());
+
+  const togglePopout = (tabId: string) => {
+    setPoppedOutTabs(prev => {
+      const next = new Set(prev);
+      if (next.has(tabId)) {
+        next.delete(tabId);
+        const w = popoutWindowsRef.current.get(tabId);
+        if (w && !w.closed) w.close();
+        popoutWindowsRef.current.delete(tabId);
+      } else {
+        const left = Math.round((screen.width - 1200) / 2);
+        const top = Math.round((screen.height - 800) / 2);
+        const w = window.open('', `popout_${tabId}`, `width=1200,height=800,left=${left},top=${top}`);
+        if (!w) return prev;
+        popoutWindowsRef.current.set(tabId, w);
+        next.add(tabId);
+      }
+      return next;
+    });
+  };
+
+  const closePopout = (tabId: string) => {
+    setPoppedOutTabs(prev => {
+      const next = new Set(prev);
+      next.delete(tabId);
+      return next;
+    });
+    popoutWindowsRef.current.delete(tabId);
+  };
+
+  const tabLabels: Record<string, string> = {
+    breakdown: 'Breakdown', schedule: 'Schedule', calendar: 'Calendar',
+    design: 'Design', rules: 'Rules', reports: 'Reports',
+  };
 
   const handleOpenSheet = useCallback((rowIndex: number) => {
-    setActiveTab('breakdown');
     setBrSubTab('sheet');
     setBrSheetIdx(rowIndex);
-  }, []);
+    if (!poppedOutTabs.has('breakdown')) setActiveTab('breakdown');
+  }, [poppedOutTabs]);
 
   const handleOpenScene = useCallback((sceneId: string) => {
     const idx = state.present.scenes.findIndex(s => s.id === sceneId);
-    if (idx >= 0) { setActiveTab('breakdown'); setBrSubTab('sheet'); setBrSheetIdx(idx); }
-  }, [state.present.scenes]);
+    if (idx >= 0) {
+      setBrSubTab('sheet');
+      setBrSheetIdx(idx);
+      if (!poppedOutTabs.has('breakdown')) setActiveTab('breakdown');
+    }
+  }, [state.present.scenes, poppedOutTabs]);
 
   const handleOpenScheduleAtScene = useCallback((sceneId: string) => {
-    setActiveTab('schedule');
     setScheduleTargetScene(sceneId);
-  }, []);
+    if (!poppedOutTabs.has('schedule')) setActiveTab('schedule');
+  }, [poppedOutTabs]);
 
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
 
@@ -140,7 +181,6 @@ function AppContent() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [compactTabs, setCompactTabs] = useState(window.innerWidth < 900);
   const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
-
   useEffect(() => {
     const onResize = () => setCompactTabs(window.innerWidth < 900);
     window.addEventListener('resize', onResize);
@@ -554,54 +594,96 @@ function AppContent() {
               onClick={() => setActiveTab('breakdown')} 
               onMouseEnter={() => updateTopHover('breakdown')}
               onMouseLeave={() => updateTopHover(null)}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Breakdown</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); togglePopout('breakdown'); }}
+                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                title="Open in separate window"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </span>
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('schedule', el); }}
               onMouseEnter={() => updateTopHover('schedule')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('schedule')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Schedule</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); togglePopout('schedule'); }}
+                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                title="Open in separate window"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </span>
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('calendar', el); }}
               onMouseEnter={() => updateTopHover('calendar')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('calendar')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Calendar</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); togglePopout('calendar'); }}
+                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                title="Open in separate window"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </span>
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('design', el); }}
               onMouseEnter={() => updateTopHover('design')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('design')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Design</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); togglePopout('design'); }}
+                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                title="Open in separate window"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </span>
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('rules', el); }}
               onMouseEnter={() => updateTopHover('rules')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('rules')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Rules</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); togglePopout('rules'); }}
+                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                title="Open in separate window"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </span>
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('reports', el); }}
               onMouseEnter={() => updateTopHover('reports')}
               onMouseLeave={() => updateTopHover(null)}
               onClick={() => setActiveTab('reports')}
-              className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Reports</span>
+              <span
+                onClick={(e) => { e.stopPropagation(); togglePopout('reports'); }}
+                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                title="Open in separate window"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </span>
             </button>
             </>)}
           </div>
@@ -732,9 +814,57 @@ function AppContent() {
         </div>
       </header>
 
+      {/* POPOUT WINDOWS */}
+      {poppedOutTabs.has('breakdown') && popoutWindowsRef.current.get('breakdown') && (
+        <PopoutWindow title="Breakdown - Lemon Schedule" win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} />
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutTabs.has('schedule') && popoutWindowsRef.current.get('schedule') && (
+        <PopoutWindow title="Schedule - Lemon Schedule" win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} />
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutTabs.has('calendar') && popoutWindowsRef.current.get('calendar') && (
+        <PopoutWindow title="Calendar - Lemon Schedule" win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <CalendarTab onOpenScene={handleOpenScene} />
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutTabs.has('design') && popoutWindowsRef.current.get('design') && (
+        <PopoutWindow title="Design - Lemon Schedule" win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')}>
+          <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
+            <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} />
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutTabs.has('rules') && popoutWindowsRef.current.get('rules') && (
+        <PopoutWindow title="Rules - Lemon Schedule" win={popoutWindowsRef.current.get('rules')!} onClose={() => closePopout('rules')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <RulesTab />
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutTabs.has('reports') && popoutWindowsRef.current.get('reports') && (
+        <PopoutWindow title="Reports - Lemon Schedule" win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')}>
+          <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
+            <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} />
+          </div>
+        </PopoutWindow>
+      )}
+
       {/* CONTENT */}
       <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        {activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />}
+        {poppedOutTabs.has(activeTab) ? (
+          <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
+        ) : (
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />
+        )}
       </main>
 
       {showTrash && (

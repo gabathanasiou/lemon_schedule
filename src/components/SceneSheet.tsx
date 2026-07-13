@@ -48,11 +48,19 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const [index, setIndex] = useState(() => Math.min(initialIndex ?? persistedIndex, Math.max(scenes.length - 1, 0)));
   useEffect(() => { persistedIndex = index; }, [index]);
   const [sheetInput, setSheetInput] = useState(String(index + 1));
+
+  useEffect(() => {
+    if (initialIndex !== undefined) {
+      const idx = Math.min(initialIndex, Math.max(scenes.length - 1, 0));
+      setIndex(idx);
+      setSheetInput(String(idx + 1));
+    }
+  }, [initialIndex, scenes.length]);
+
   const [edits, setEdits] = useState<Record<string, Partial<Scene>>>({});
   const editsRef = useRef(edits);
   editsRef.current = edits;
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputsRef = useRef<Map<string, HTMLElement>>(new Map());
 
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
@@ -79,14 +87,60 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
 
   const displayDay = shootDay != null ? (chronoDayMap.get(shootDay) ?? shootDay) : null;
 
-  const goTo = useCallback((n: number) => {
-    if (Object.keys(editsRef.current).length > 0) {
-      saveRef.current();
+  const commitField = useCallback((sceneId: string, field: string, value: string) => {
+    if (field === 'cast' || allBreakdownCats.includes(field)) {
+      const isCast = field === 'cast';
+      const existing = breakdownElements[field] || [];
+      const existingSet = new Set(isCast
+        ? existing.map((e: any) => e.id)
+        : existing.map((e: any) => e.name.toLowerCase()));
+      const newItems = getFieldItems(field, value).filter(
+        v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()),
+      );
+      for (const item of newItems) {
+        const name = isCast ? (castMembers.find(m => m.id === item)?.name ?? '') : item;
+        dispatch({ type: 'ADD_ELEMENT', payload: { category: field, element: { id: item, name } } });
+      }
     }
+    if (field === 'pageCount') {
+      if (value === '') {
+        dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, pageCount: '', pageCountDecimal: 0 } });
+        return;
+      }
+      const decimal = parsePageCount(value);
+      dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, pageCount: formatPageCount(decimal), pageCountDecimal: decimal } });
+      return;
+    }
+    let processed = value;
+    if (field === 'scriptDay') processed = value.replace(/[^0-9]/g, '');
+    if (field === 'set') processed = value.toUpperCase();
+    dispatch({ type: 'UPDATE_SCENE', payload: { id: sceneId, [field]: processed } });
+  }, [dispatch, breakdownElements, castMembers, allBreakdownCats]);
+
+  const commitFieldRef = useRef(commitField);
+  commitFieldRef.current = commitField;
+
+  const commitTextEdits = useCallback(() => {
+    const e = editsRef.current;
+    if (Object.keys(e).length === 0) return;
+    for (const [id, edit] of Object.entries(e)) {
+      if (!edit) continue;
+      const rec = edit as Record<string, any>;
+      for (const [field, val] of Object.entries(rec)) {
+        if (val !== undefined && val !== '') {
+          commitFieldRef.current(id, field, val);
+        }
+      }
+    }
+    setEdits({});
+  }, []);
+
+  const goTo = useCallback((n: number) => {
+    commitTextEdits();
     const idx = Math.max(0, Math.min(scenes.length - 1, n));
     setIndex(idx); setSheetInput(String(idx + 1));
     onIndexChange?.(idx);
-  }, [scenes.length, onIndexChange]);
+  }, [scenes.length, onIndexChange, commitTextEdits]);
 
   const update = useCallback((field: string, value: any) => {
     if (!scene) return;
@@ -103,9 +157,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, [scene, currentEdits]);
 
   const createNewScene = useCallback(() => {
-    if (Object.keys(editsRef.current).length > 0) {
-      saveRef.current();
-    }
+    commitTextEdits();
     const newId = generateUUID();
     dispatch({
       type: 'ADD_SCENE',
@@ -142,26 +194,22 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     setIndex(newIdx);
     setSheetInput(String(newIdx + 1));
     onIndexChange?.(newIdx);
-  }, [dispatch, scenes.length, onIndexChange]);
+  }, [dispatch, scenes.length, onIndexChange, commitTextEdits]);
 
   const duplicateScene = useCallback(() => {
     if (!scene) return;
-    if (Object.keys(editsRef.current).length > 0) {
-      saveRef.current();
-    }
+    commitTextEdits();
     const dup: Scene = { ...scene, id: generateUUID() };
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index: index + 1, scene: dup } });
     const newIdx = index + 1;
     setIndex(newIdx);
     setSheetInput(String(newIdx + 1));
     onIndexChange?.(newIdx);
-  }, [scene, index, dispatch, onIndexChange]);
+  }, [scene, index, dispatch, onIndexChange, commitTextEdits]);
 
   const deleteCurrentScene = useCallback(() => {
     if (!scene) return;
-    if (Object.keys(editsRef.current).length > 0) {
-      setEdits({});
-    }
+    setEdits({});
     dispatch({ type: 'DELETE_SCENE', payload: scene.id });
     const newLen = scenes.length - 1;
     const newIdx = Math.min(index, Math.max(0, newLen - 1));
@@ -169,32 +217,6 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     setSheetInput(String(newIdx + 1));
     onIndexChange?.(newIdx);
   }, [scene, index, dispatch, scenes.length, onIndexChange]);
-
-  const doSave = useCallback(() => {
-    const added = new Set<string>();
-    for (const [id, e] of Object.entries(edits)) {
-      if (!e) continue;
-      for (const cat of allBreakdownCats) {
-        if (cat === 'notes') continue;
-        const v = (e as any)[cat]; if (!v) continue;
-        const elements = breakdownElements[cat] || [];
-        const existing = new Set(elements.flatMap((x: any) => [x.name.toLowerCase(), x.id.toLowerCase()]));
-        for (const item of getFieldItems(cat, v)) {
-          const key = `${cat}:${item.toLowerCase()}`;
-          if (!existing.has(item.toLowerCase()) && !added.has(key)) {
-            added.add(key);
-            const name = cat === 'cast' ? (castMembers.find(m => m.id === item)?.name ?? '') : item;
-            dispatch({ type: 'ADD_ELEMENT', payload: { category: cat, element: { id: item, name } } });
-          }
-        }
-      }
-      dispatch({ type: 'UPDATE_SCENE', payload: { id, ...(e as Record<string, any>) } });
-    }
-    setEdits({});
-  }, [edits, dispatch, breakdownElements, castMembers]);
-
-  const saveRef = useRef(doSave);
-  saveRef.current = doSave;
 
   const breakdownItems = useMemo(() => {
     const result: Record<string, { id: string; name: string }[]> = {};
@@ -242,28 +264,9 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   }, [scenes, breakdownElements]);
 
   const blurOnEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLElement).blur(); } };
-  const focusNext = (key: string) => { /* tab order follows DOM by default */ };
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onFocusOut = (e: FocusEvent) => {
-      if (!el.contains(e.relatedTarget as Node)) {
-        if (Object.keys(editsRef.current).length > 0) {
-          saveRef.current();
-        }
-      }
-    };
-    el.addEventListener('focusout', onFocusOut);
-    return () => el.removeEventListener('focusout', onFocusOut);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (Object.keys(editsRef.current).length > 0) {
-        saveRef.current();
-      }
-    };
+    return () => commitTextEdits();
   }, []);
 
   const inputCls = "w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent";
@@ -364,31 +367,32 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 w-[85px]">Scene Sheet</td>
                 <td className="px-2.5 py-1.5 border-r border-zinc-300"><span className="text-sm font-semibold text-zinc-800">{index + 1}</span></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 w-[85px]">Scene No.</td>
-                <td className="px-2.5 py-1.5"><input className={inputCls} value={val('sceneNumber')} onChange={e => update('sceneNumber', e.target.value)} onKeyDown={blurOnEnter} /></td>
+                <td className="px-2.5 py-1.5"><input className={inputCls} value={val('sceneNumber')} onChange={e => update('sceneNumber', e.target.value)} onBlur={commitTextEdits} onKeyDown={blurOnEnter} /></td>
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Int/Ext</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><AutocompleteDropdown value={val('intExt')} onChange={v => update('intExt', v)} options={getIntExtOptions(project.colorPalette)} showAll /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><AutocompleteDropdown value={val('intExt')} onChange={v => scene && commitField(scene.id, 'intExt', v)} options={getIntExtOptions(project.colorPalette)} showAll /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Day/Night</td>
-                <td className="px-2.5 py-1.5"><AutocompleteDropdown value={val('dayNight')} onChange={v => update('dayNight', v)} options={getDayNightOptions(project.colorPalette)} showAll /></td>
+                <td className="px-2.5 py-1.5"><AutocompleteDropdown value={val('dayNight')} onChange={v => scene && commitField(scene.id, 'dayNight', v)} options={getDayNightOptions(project.colorPalette)} showAll /></td>
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} onChange={v => update('set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="text-xs" /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} onChange={v => scene && commitField(scene.id, 'set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="text-xs" /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
                 <td className="px-2.5 py-1.5"><input className={inputCls} onKeyDown={blurOnEnter} /></td>
               </tr>
               <tr className="border-b border-zinc-300">
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Pages</td>
-                <td className="px-2.5 py-1.5 border-r border-zinc-300"><CellInput value={val('pageCount')} onChange={v => { if (v === '') { update('pageCount', ''); } else { const d = parsePageCount(v); update('pageCount', formatPageCount(d)); } }} className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent" suffix="pgs" /></td>
+                <td className="px-2.5 py-1.5 border-r border-zinc-300"><CellInput value={val('pageCount')} onChange={v => { if (!scene) return; if (v === '') { commitField(scene.id, 'pageCount', ''); } else { const d = parsePageCount(v); commitField(scene.id, 'pageCount', formatPageCount(d)); } }} className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent" suffix="pgs" /></td>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Script Day</td>
-                <td className="px-2.5 py-1.5"><input className={inputCls} value={val('scriptDay')} onChange={e => update('scriptDay', e.target.value.replace(/[^0-9]/g, ''))} onKeyDown={blurOnEnter} /></td>
+                <td className="px-2.5 py-1.5"><input className={inputCls} value={val('scriptDay')} onChange={e => update('scriptDay', e.target.value.replace(/[^0-9]/g, ''))} onBlur={commitTextEdits} onKeyDown={blurOnEnter} /></td>
               </tr>
               <tr>
                 <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300 align-top">Synopsis</td>
                 <td colSpan={3} className="px-2.5 py-1.5">
                   <textarea className="w-full border-0 px-0 py-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
                     value={val('description')} onChange={e => update('description', e.target.value)}
+                    onBlur={commitTextEdits}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                 </td>
               </tr>
@@ -405,11 +409,12 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
                   {cat === 'notes' ? (
                     <textarea className="w-full border-0 p-0 text-xs focus:outline-none focus:ring-0 bg-transparent resize-none" rows={2}
                       value={val('notes')} onChange={e => update('notes', e.target.value)}
+                      onBlur={commitTextEdits}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                   ) : cat === 'cast' ? (
-                    <EntityDropdown value={val('cast')} onChange={v => update('cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>} />
+                    <EntityDropdown value={val('cast')} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '—'}</span></>} />
                   ) : (
-                    <EntityDropdown value={val(cat)} onChange={v => update(cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, project.customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
+                    <EntityDropdown value={val(cat)} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, project.customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
                   )}
                 </div>
               </div>
