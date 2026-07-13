@@ -1350,8 +1350,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               return updated;
             });
             setDriveSaveError(false);
-          } catch (err) {
+          } catch (err: any) {
             console.error('Drive save failed:', err);
+            if (err?.message?.includes('401')) {
+              auth.refreshToken();
+            }
             setDriveSaveError(true);
           }
         }
@@ -1619,7 +1622,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     try {
       await pushProjectAndUpdateIndex(auth.accessToken, { ...presentRef.current }, meta.driveFileId);
       setDriveSaveError(false);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.message?.includes('401')) {
+        auth.refreshToken();
+      }
       setDriveSaveError(true);
     }
   }, [currentProjectId, auth.accessToken, projectList]);
