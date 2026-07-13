@@ -6,10 +6,10 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { StripBlock } from './StripBlock';
 import { BoneyardBlock } from './BoneyardBlock';
 import { SortableRow } from './SortableRow';
-import { generateUUID, formatDuration } from '../lib/utils';
+import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, ArrowUpDown } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -23,6 +23,7 @@ import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
+import { useDialog } from './Dialog';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
@@ -47,6 +48,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [autoDaybreakOpen, setAutoDaybreakOpen] = useState(false);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const dialog = useDialog();
 
   const marqueeMode = useMarqueeMode();
 
@@ -928,6 +932,176 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     setContextMenu(null);
   };
 
+  const handleDeleteAllDaybreaks = async () => {
+    if (!activeVersion) return;
+    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
+    if (!hasDaybreaks) return;
+    const ok = await dialog.confirm({
+      title: 'Clear All Day Breaks',
+      message: 'Remove all day break separators from the stripboard?',
+      danger: true,
+    });
+    if (!ok) return;
+    dispatch({ type: 'BATCH_START' });
+    const newRows = activeVersion.rows.filter(r => r.type !== 'DAYBREAK');
+    newRows.forEach((r, i) => r.order = i);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    dispatch({ type: 'BATCH_COMMIT' });
+  };
+
+  const handleAutoDaybreak = async (mode: 'duration' | 'pages') => {
+    if (!activeVersion) return;
+    const val = await dialog.prompt({
+      title: mode === 'duration' ? 'Auto Day Break by Duration' : 'Auto Day Break by Pages',
+      placeholder: mode === 'duration' ? 'e.g. 8h or 1h 30m' : 'e.g. 2 4/8 or 3.5',
+      defaultValue: mode === 'duration' ? '8h' : '8',
+    });
+    if (!val) return;
+    const threshold = mode === 'duration' ? parseDuration(val) : parsePageCount(val);
+    if (isNaN(threshold) || threshold <= 0) return;
+
+    let rows = [...activeVersion.rows];
+
+    const hasDaybreaks = rows.some(r => r.type === 'DAYBREAK');
+    if (hasDaybreaks) {
+      const ok = await dialog.confirm({
+        title: 'Existing Day Breaks',
+        message: 'Existing day breaks will be removed before auto-placing new ones. Continue?',
+        danger: true,
+      });
+      if (!ok) return;
+      rows = rows.filter(r => r.type !== 'DAYBREAK');
+    }
+
+    dispatch({ type: 'BATCH_START' });
+
+    const scheduled = rows.filter(r => r.shootDay !== null && r.type !== 'DAYBREAK');
+    const boneyard = rows.filter(r => r.shootDay === null && r.type !== 'DAYBREAK');
+
+    scheduled.sort((a, b) => {
+      if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+      return a.order - b.order;
+    });
+
+    const result: typeof rows = [];
+    let accumulator = 0;
+
+    for (const row of scheduled) {
+      const scene = row.sceneId ? project.scenes.find(s => s.id === row.sceneId) : null;
+
+      if (accumulator > 0 && accumulator >= threshold) {
+        result.push({
+          id: generateUUID(),
+          type: 'DAYBREAK' as const,
+          shootDay: row.shootDay,
+          order: 0,
+          daybreakLabel: 'DAYBREAK',
+        });
+        accumulator = 0;
+      }
+
+      if (mode === 'duration') {
+        accumulator += (row.estimatedDuration || 0);
+      } else {
+        accumulator += scene?.pageCountDecimal || 0;
+      }
+
+      result.push(row);
+    }
+
+    const combined = [...result, ...boneyard];
+    combined.forEach((r, i) => r.order = i);
+
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+    dispatch({ type: 'BATCH_COMMIT' });
+  };
+
+  const handleSort = async (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set' | 'int_ext' | 'day_night' | 'cast' | 'duration') => {
+    if (!activeVersion) return;
+
+    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
+    if (hasDaybreaks) {
+      const ok = await dialog.confirm({
+        title: 'Sort Strips',
+        message: 'Sorting will remove all day breaks. Continue?',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
+    dispatch({ type: 'BATCH_START' });
+
+    let rows = activeVersion.rows.filter(r => r.type !== 'DAYBREAK');
+
+    const scheduled = rows.filter(r => r.shootDay !== null);
+    const boneyard = rows.filter(r => r.shootDay === null);
+
+    const days = new Map<number, typeof scheduled>();
+    for (const row of scheduled) {
+      const d = row.shootDay || 0;
+      if (!days.has(d)) days.set(d, []);
+      days.get(d)!.push(row);
+    }
+
+    for (const [day, dayRows] of days) {
+      const sceneRows = dayRows.filter(r => r.type === 'SCENE');
+      const nonSceneRows = dayRows.filter(r => r.type !== 'SCENE');
+
+      sceneRows.sort((a, b) => {
+        const sceneA = a.sceneId ? project.scenes.find(s => s.id === a.sceneId) : null;
+        const sceneB = b.sceneId ? project.scenes.find(s => s.id === b.sceneId) : null;
+
+        if (criterion === 'scene_number') {
+          const numA = sceneA ? parseInt(sceneA.sceneNumber, 10) || 0 : 0;
+          const numB = sceneB ? parseInt(sceneB.sceneNumber, 10) || 0 : 0;
+          if (numA !== numB) return numA - numB;
+          return (sceneA?.sceneNumber || '').localeCompare(sceneB?.sceneNumber || '');
+        }
+        if (criterion === 'script_day') {
+          const numA = parseInt(sceneA?.scriptDay || '0', 10) || 0;
+          const numB = parseInt(sceneB?.scriptDay || '0', 10) || 0;
+          if (numA !== numB) return numA - numB;
+          return (sceneA?.scriptDay || '').localeCompare(sceneB?.scriptDay || '');
+        }
+        if (criterion === 'page_count') {
+          return (sceneB?.pageCountDecimal || 0) - (sceneA?.pageCountDecimal || 0);
+        }
+        if (criterion === 'set') {
+          return (sceneA?.set || '').localeCompare(sceneB?.set || '');
+        }
+        if (criterion === 'int_ext') {
+          return (sceneA?.intExt || '').localeCompare(sceneB?.intExt || '');
+        }
+        if (criterion === 'day_night') {
+          return (sceneA?.dayNight || '').localeCompare(sceneB?.dayNight || '');
+        }
+        if (criterion === 'cast') {
+          return (sceneA?.cast || '').localeCompare(sceneB?.cast || '');
+        }
+        if (criterion === 'duration') {
+          return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
+        }
+        return 0;
+      });
+
+      const merged = [...sceneRows, ...nonSceneRows];
+      days.set(day, merged);
+    }
+
+    const sortedScheduled: typeof scheduled = [];
+    for (const day of [...days.keys()].sort((a, b) => a - b)) {
+      const dayRows = days.get(day)!;
+      sortedScheduled.push(...dayRows);
+    }
+
+    const combined = [...sortedScheduled, ...boneyard];
+    combined.forEach((r, i) => r.order = i);
+
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+    dispatch({ type: 'BATCH_COMMIT' });
+    setSortMenuOpen(false);
+  };
+
   const applyNoteColor = () => {
     if (!colorPicker || !activeVersion) return;
     const newRows = activeVersion.rows.map(r =>
@@ -1282,6 +1456,56 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
             <span className="text-zinc-300 select-none">·</span>
             <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
+            <div className="w-px h-4 bg-zinc-200" />
+            <button
+              onClick={handleDeleteAllDaybreaks}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white transition-colors cursor-pointer select-none"
+              title="Clear All Day Breaks"
+            >
+              <Eraser className="w-3.5 h-3.5 shrink-0" />
+              Clear
+            </button>
+            <DropdownMenu
+              open={autoDaybreakOpen}
+              onOpenChange={setAutoDaybreakOpen}
+              width="w-44"
+              theme="light"
+              trigger={
+                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                  <Wand2 className="w-3.5 h-3.5 shrink-0" />
+                  Auto
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </button>
+              }
+            >
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('duration'); }} icon={<Clock className="w-3.5 h-3.5" />}>By Duration…</DropdownItem>
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('pages'); }} icon={<FileText className="w-3.5 h-3.5" />}>By Pages…</DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Eraser className="w-3.5 h-3.5" />} variant="danger">Clear All</DropdownItem>
+            </DropdownMenu>
+            <DropdownMenu
+              open={sortMenuOpen}
+              onOpenChange={setSortMenuOpen}
+              width="w-44"
+              theme="light"
+              trigger={
+                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+                  Sort
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </button>
+              }
+            >
+              <DropdownItem onClick={() => handleSort('scene_number')} icon={<Eye className="w-3.5 h-3.5" />}>Scene Number</DropdownItem>
+              <DropdownItem onClick={() => handleSort('script_day')} icon={<Sunrise className="w-3.5 h-3.5" />}>Script Day</DropdownItem>
+              <DropdownItem onClick={() => handleSort('page_count')} icon={<FileText className="w-3.5 h-3.5" />}>Page Count</DropdownItem>
+              <DropdownItem onClick={() => handleSort('duration')} icon={<Clock className="w-3.5 h-3.5" />}>Duration</DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => handleSort('set')}>Set / Location</DropdownItem>
+              <DropdownItem onClick={() => handleSort('int_ext')}>INT / EXT</DropdownItem>
+              <DropdownItem onClick={() => handleSort('day_night')}>Day / Night</DropdownItem>
+              <DropdownItem onClick={() => handleSort('cast')}>Cast</DropdownItem>
+            </DropdownMenu>
             <div className="w-px h-4 bg-zinc-200" />
             <DropdownMenu
               open={ribbonMenuOpen}
