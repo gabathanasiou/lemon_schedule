@@ -1018,6 +1018,16 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       result.push(row);
     }
 
+    if (result.length > 0) {
+      result.push({
+        id: generateUUID(),
+        type: 'DAYBREAK' as const,
+        shootDay: result[result.length - 1].shootDay,
+        order: 0,
+        daybreakLabel: 'DAYBREAK',
+      });
+    }
+
     const combined = [...result, ...boneyard];
     combined.forEach((r, i) => r.order = i);
 
