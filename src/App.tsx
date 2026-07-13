@@ -10,6 +10,7 @@ import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTra
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
+import { DaybreakCalendarTab } from './components/DaybreakCalendarTab';
 import { RulesTab } from './components/RulesTab';
 import DesignTab from './components/DesignTab';
 import RibbonTab from './components/RibbonTab';
@@ -48,7 +49,7 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } f
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Sunrise } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
@@ -63,7 +64,7 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler } = useProject();
   const dialog = useDialog();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
+  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'daybreak' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide'>('glide');
   const [brCategory, setBrCategory] = useState('cast');
@@ -107,7 +108,7 @@ function AppContent() {
 
   const tabLabels: Record<string, string> = {
     breakdown: 'Breakdown', schedule: 'Schedule', calendar: 'Calendar',
-    design: 'Design', rules: 'Rules', reports: 'Reports',
+    daybreak: 'Daybreak', design: 'Design', rules: 'Rules', reports: 'Reports',
   };
 
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -658,8 +659,8 @@ function AppContent() {
                   </button>
                 }
               >
-                {(['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'] as const).map(tab => {
-                  const Icon = tab === 'breakdown' ? ClipboardList : tab === 'schedule' ? CalendarClock : tab === 'calendar' ? CalendarDays : tab === 'design' ? Layout : tab === 'rules' ? Gavel : FileText;
+                {(['breakdown', 'schedule', 'calendar', 'daybreak', 'design', 'rules', 'reports'] as const).map(tab => {
+                  const Icon = tab === 'breakdown' ? ClipboardList : tab === 'schedule' ? CalendarClock : tab === 'calendar' ? CalendarDays : tab === 'daybreak' ? Sunrise : tab === 'design' ? Layout : tab === 'rules' ? Gavel : FileText;
                   return (
                     <DropdownItem
                       key={tab}
@@ -673,7 +674,7 @@ function AppContent() {
                           if (!poppedOutTabs.has(tab)) {
                             togglePopout(tab);
                             if (tab === activeTab) {
-                              const allTabs = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'];
+                              const allTabs = ['breakdown', 'schedule', 'calendar', 'daybreak', 'design', 'rules', 'reports'];
                               const next = allTabs.find(t => t !== tab && !poppedOutTabs.has(t)) || allTabs.find(t => t !== tab);
                               if (next) setActiveTab(next as any);
                             }
@@ -709,6 +710,13 @@ function AppContent() {
               className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Calendar
+            </button>
+            <button 
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('daybreak'); } else { setActiveTab('daybreak'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'daybreak' }); }}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'daybreak' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+            >
+              Daybreak
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
@@ -829,6 +837,16 @@ function AppContent() {
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Calendar" onClose={() => closePopout('calendar')} />
             <div className="flex-1 min-h-0 flex flex-col">
               <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutTabs.has('daybreak') && popoutWindowsRef.current.get('daybreak') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Daybreak`} win={popoutWindowsRef.current.get('daybreak')!} onClose={() => closePopout('daybreak')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Daybreak" onClose={() => closePopout('daybreak')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <DaybreakCalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} />
             </div>
           </div>
         </PopoutWindow>
@@ -1080,7 +1098,7 @@ function AppContent() {
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> : <RulesTab />
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'daybreak' ? <DaybreakCalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> : <RulesTab />
         )}
       </main>
 

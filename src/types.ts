@@ -56,6 +56,7 @@ export interface ScheduleRow {
   // DAYBREAK specific
   daybreakLabel?: string;
   daybreakCallTime?: string;
+  daybreakDate?: string;
 }
 
 export interface ShootDayMeta {
@@ -67,6 +68,11 @@ export interface ShootDayMeta {
   castIds?: string;
 }
 
+export interface NonShootDate {
+  date: string; // YYYY-MM-DD
+  status: 'hold' | 'travel' | 'holiday';
+}
+
 export interface ScheduleVersion {
   id: string;
   name: string;
@@ -74,6 +80,8 @@ export interface ScheduleVersion {
   updatedAt: number;
   rows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>; // key is shootDay
+  nonShootDates?: NonShootDate[];
+  daybreakStartDate?: string;
 }
 
 export interface TrashItem {

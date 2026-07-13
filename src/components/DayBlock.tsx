@@ -224,6 +224,16 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     let sectionShoot = 0;
     let sectionBreak = 0;
     let daybreakCounter = 0;
+    const addDays = (d: string, n: number) => {
+      const parts = d.split('-').map(Number);
+      const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
+      return dt.toISOString().slice(0, 10);
+    };
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const startDate = activeVersion?.daybreakStartDate || todayStr;
+    const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
+    let nextDate = startDate;
+    while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
     const computedRows = rows.map(r => {
       const callTime = addMinutesToTime(sectionBaseTime, sectionElapsed);
       let dur = 0;
@@ -232,9 +242,10 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         daybreakCounter += 1;
         const sectionTotal = runningElapsed - sectionStart;
         const sectionEndTime = callTime;
-        const row = {
+        const row: any = {
           ...r,
           daybreakLabel: `End of Daybreak ${daybreakCounter}`,
+          daybreakDate: nextDate,
           computedCallTime: callTime,
           computedElapsed: runningElapsed,
           sectionTotal,
@@ -243,6 +254,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
           sectionBreak,
           sectionEndTime,
         };
+        nextDate = addDays(nextDate, 1);
+        while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
         sectionElapsed = 0;
         sectionBaseTime = r.daybreakCallTime || meta?.unitCall || '08:00';
         sectionStart = runningElapsed;
@@ -286,7 +299,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       }
     }
     return { computedRows, totalPages, totalShootTime: runningElapsed - totalBreakTime, totalBreakTime, runningElapsed };
-  }, [rows, meta?.unitCall, project.scenes]);
+  }, [rows, meta?.unitCall, project.scenes, activeVersion?.daybreakStartDate, activeVersion?.nonShootDates]);
 
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',
@@ -316,7 +329,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const renderRibbonHeader = (statusLabel?: string) => {
     if (!cells || mainCellIdx == null) return null;
     const label = statusLabel || `DAY #${displayDay}`;
-    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    const dateStr = (activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : '';
     return (
       <div 
         className="flex-1 min-w-0 flex flex-col relative"
@@ -401,7 +414,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
   const renderRibbonFooter = () => {
     if (!cells || mainCellIdx == null) return null;
     const endTime = runningElapsed > 0 ? addMinutesToTime(meta?.unitCall || '08:00', runningElapsed) : '';
-    const dateStr = meta?.date ? formatDateLong(meta.date) : '';
+    const dateStr = (activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : '';
     return (
       <div ref={setFooterRef} style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '1px solid var(--border, #d4d4d8)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
@@ -483,7 +496,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <td className="col-dur" />
                 <td className="col-ie" />
                 <td className="col-set text-center font-semibold">
-                  {meta?.date ? formatDateLong(meta.date) : ''}
+                  {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
                 </td>
                 <td className="col-dn" />
                 <td className="col-cast" />
@@ -530,7 +543,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                 <td className="col-dur" />
                 <td className="col-ie" />
                 <td className="col-set text-center font-semibold">
-                  {meta?.date ? formatDateLong(meta.date) : ''}
+                  {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
                 </td>
                 <td className="col-dn" />
                 <td className="col-cast">
@@ -606,7 +619,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
               {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
             </span>
             <span className="flex-1 text-center">
-              {meta?.date ? formatDateLong(meta.date) : ''}
+              {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
             </span>
             <div className="flex shrink-0" style={{gap: '20pt'}}>
               <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>

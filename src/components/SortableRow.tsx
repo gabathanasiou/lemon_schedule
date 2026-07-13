@@ -531,6 +531,11 @@ const SortableRowContent: React.FC<{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                       }}>
                         <span>{row.daybreakLabel || 'End of Daybreak'}</span>
+                        {row.daybreakDate && (
+                          <span style={{ fontSize: '7pt', opacity: 0.8 }}>
+                            {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
+                          </span>
+                        )}
                         {showStats && (
                           <span style={{ fontSize: '7pt', opacity: 0.75 }}>
                             {formatPageCount(sectionPages)} pgs · {formatDuration(sectionShoot)} shoot{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}
