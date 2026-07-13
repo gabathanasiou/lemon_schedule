@@ -957,7 +957,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Sheet" onClose={() => closeSubPopout('breakdown', 'sheet')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_sheet'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_sheet: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_sheet'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_sheet: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200" />
             <div className="flex-1 min-h-0 flex flex-col">
               <SceneSheet initialIndex={brSheetIdx} onIndexChange={setBrSheetIdx} onOpenSchedule={handleOpenScheduleAtScene} onOpenScheduleInPopout={handleOpenScheduleInPopout} headerTarget={subHeaderTargets['sub_breakdown_sheet']} />
             </div>
@@ -968,7 +968,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Manager" onClose={() => closeSubPopout('breakdown', 'elements')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_elements'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_elements: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_elements'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_elements: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200" />
             <div className="flex-1 min-h-0 flex flex-col">
               <ElementManager initialCategory={brCategory} onCategoryChange={setBrCategory} headerTarget={subHeaderTargets['sub_breakdown_elements']} />
             </div>
@@ -979,7 +979,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Glide Breakdown" onClose={() => closeSubPopout('breakdown', 'glide')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_glide'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_glide: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_glide'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_glide: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200" />
             <div className="flex-1 min-h-0 flex flex-col">
               <GlideBreakdownTab onOpenSheet={handleOpenSheet} onOpenSheetInPopout={handleOpenSheetInPopout} headerTarget={subHeaderTargets['sub_breakdown_glide']} />
             </div>
@@ -990,7 +990,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Ribbon Designer" onClose={() => closeSubPopout('design', 'ribbons')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_design_ribbons'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_ribbons: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_design_ribbons'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_ribbons: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800" />
             <div className="flex-1 min-h-0 flex flex-col">
               <RibbonTab headerTarget={subHeaderTargets['sub_design_ribbons']} />
             </div>
@@ -1001,7 +1001,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Colors" onClose={() => closeSubPopout('design', 'colors')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_design_colors'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_colors: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_design_colors'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_colors: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800" />
             <div className="flex-1 min-h-0 flex flex-col">
               <ColorsTab headerTarget={subHeaderTargets['sub_design_colors']} />
             </div>
@@ -1012,7 +1012,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Day Out of Days" onClose={() => closeSubPopout('reports', 'doods')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_reports_doods'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_doods: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_reports_doods'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_doods: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800" />
             <div className="flex-1 min-h-0 flex flex-col">
               <DoodsTab selectedCategory={reportsCategory} />
             </div>
@@ -1023,7 +1023,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Breakdown`} win={popoutSubWindowsRef.current.get('sub_reports_elementBreakdown')!} onClose={() => closeSubPopout('reports', 'elementBreakdown')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Breakdown" onClose={() => closeSubPopout('reports', 'elementBreakdown')} />
-            <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="shrink-0" />
+            <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="flex items-center justify-end gap-2 px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800" />
             <div className="flex-1 min-h-0 flex flex-col">
               <ElementBreakdownView selectedCategory={reportsCategory} />
             </div>
