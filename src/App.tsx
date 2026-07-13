@@ -98,10 +98,10 @@ function AppContent() {
     design: 'Design', rules: 'Rules', reports: 'Reports',
   };
 
-  const shiftRef = useRef(false);
+  const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
-    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = true; };
-    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = false; };
+    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
     return () => {

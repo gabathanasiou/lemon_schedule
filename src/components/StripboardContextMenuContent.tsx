@@ -4,7 +4,7 @@ import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu'
 import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink } from 'lucide-react';
 
 export const StripboardContextMenuContent: React.FC<{
-  contextMenu: { x: number; y: number; rowId: string; shootDay: number | null; shiftHeld?: boolean };
+  contextMenu: { x: number; y: number; rowId: string; shootDay: number | null };
   setContextMenu: (v: null) => void;
   augmentedRows: ScheduleRow[];
   selectedRowIds: Set<string>;
@@ -14,6 +14,7 @@ export const StripboardContextMenuContent: React.FC<{
   handleContextMenuAction: (action: string) => void;
   onOpenScene?: (sceneId: string) => void;
   onOpenSceneInPopout?: (sceneId: string) => void;
+  shiftHeld?: boolean;
   dispatch: React.Dispatch<any>;
   activeVersion: any;
   selectNextAfterRemove?: (ids: Set<string>) => void;
@@ -30,6 +31,7 @@ export const StripboardContextMenuContent: React.FC<{
   handleContextMenuAction,
   onOpenScene,
   onOpenSceneInPopout,
+  shiftHeld,
   dispatch,
   activeVersion,
   selectNextAfterRemove,
@@ -75,7 +77,7 @@ export const StripboardContextMenuContent: React.FC<{
             <>
               <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
               <ContextMenuDivider />
-              {contextMenu.shiftHeld && onOpenSceneInPopout ? (
+              {shiftHeld && onOpenSceneInPopout ? (
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
               ) : (
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>

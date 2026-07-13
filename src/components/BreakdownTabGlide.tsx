@@ -169,12 +169,12 @@ export function GlideBreakdownTab({
     return draw(args);
   }, []);
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number; shiftHeld?: boolean } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
 
-  const shiftRef = useRef(false);
+  const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
-    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = true; };
-    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = false; };
+    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
     return () => {
@@ -704,7 +704,7 @@ export function GlideBreakdownTab({
     }
     const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
     const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
-    setContextMenu({ x, y, row, col, shiftHeld: shiftRef.current });
+    setContextMenu({ x, y, row, col });
   }, [scenes.length, COLUMNS.length]);
 
   const onCellClicked = useCallback((cell: Item, e: any) => {
@@ -714,7 +714,7 @@ export function GlideBreakdownTab({
       if (col < 0 && (e.isTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
-        setContextMenu({ x, y, row, col, shiftHeld: shiftRef.current });
+        setContextMenu({ x, y, row, col });
       }
       if (col === 0) {
         addScene();
@@ -734,7 +734,7 @@ export function GlideBreakdownTab({
     }
     if (col >= 0) return;
     if (e.isDoubleClick) {
-      if (shiftRef.current && onOpenSheetInPopout) {
+      if (shiftHeld && onOpenSheetInPopout) {
         onOpenSheetInPopout(row);
       } else {
         onOpenSheet?.(row);
@@ -929,7 +929,7 @@ export function GlideBreakdownTab({
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
             <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
-            {contextMenu.shiftHeld && onOpenSheetInPopout ? (
+            {shiftHeld && onOpenSheetInPopout ? (
               <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
             ) : (
               <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>

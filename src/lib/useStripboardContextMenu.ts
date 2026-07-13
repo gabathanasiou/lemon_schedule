@@ -8,7 +8,6 @@ interface ContextMenuState {
   y: number;
   rowId: string;
   shootDay: number | null;
-  shiftHeld?: boolean;
 }
 
 interface ColorPickerState {
@@ -295,7 +294,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const shootDayAttr = rowEl.getAttribute('data-shoot-day');
       const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
       options?.prependSelect?.();
-      setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay, shiftHeld: e.shiftKey });
+      setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay });
     } else {
       setContextMenu(null);
     }

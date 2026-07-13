@@ -424,6 +424,17 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const ctrlOrCmdHeld = useAddMode();
   const marqueeMode = useMarqueeMode();
   const calendarGridRef = useRef<HTMLDivElement>(null);
+  const [shiftHeld, setShiftHeld] = useState(false);
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     calendarGridRef,
     useCallback((ids) => {
@@ -1137,6 +1148,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           containerRef={calendarGridRef}
           onOpenScene={onOpenScene}
           onOpenSceneInPopout={onOpenSceneInPopout}
+          shiftHeld={shiftHeld}
           extraItems={contextMenu.rowId.startsWith('empty-') ? (
             <>
               <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'work' }); setContextMenu(null); } }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>

@@ -37,7 +37,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null, shiftHeld?: boolean } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
   const [forceUnscheduledExpanded, setForceUnscheduledExpanded] = useState(false);
@@ -46,6 +46,18 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [showHelp, setShowHelp] = useState(false);
 
   const marqueeMode = useMarqueeMode();
+
+  const [shiftHeld, setShiftHeld] = useState(false);
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
+    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
 
   const handleRowDoubleClick = useCallback((id: string, shiftKey?: boolean) => {
     if (marqueeMode !== 'off') return;
@@ -1363,7 +1375,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                  }
                  const shootDayAttr = rowEl.getAttribute('data-shoot-day');
                  const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
-                 setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay, shiftHeld: e.shiftKey });
+                 setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay });
               } else {
                  setContextMenu(null);
               }
@@ -1520,7 +1532,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
                   <ContextMenuDivider />
-                  {contextMenu?.shiftHeld && onOpenSceneInPopout ? (
+                  {shiftHeld && onOpenSceneInPopout ? (
                     <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
                   ) : (
                     <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
