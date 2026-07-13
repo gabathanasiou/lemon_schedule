@@ -7,19 +7,27 @@
  */
 
 import React from 'react';
+import { IS_COARSE } from '../lib/device';
+
+const HM_KBD = IS_COARSE ? 'inline-flex items-center justify-center min-w-[2rem] h-6 px-1.5 rounded bg-zinc-800 border border-zinc-600 text-xs font-medium text-zinc-200 font-sans' : 'inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1 rounded bg-zinc-800 border border-zinc-600 text-[10px] font-medium text-zinc-200 font-sans';
+const HM_SECTION_TITLE = IS_COARSE ? 'text-xs' : 'text-[10px]';
+const HM_TABLE_CELL = IS_COARSE ? 'text-sm py-2' : 'text-xs py-1.5';
+const HM_CONTENT = IS_COARSE ? 'px-7 py-5 space-y-6' : 'px-6 py-4 space-y-5';
+const HM_FOOTER_BTN = IS_COARSE ? 'px-7 py-2.5 text-sm' : 'px-6 py-2 text-xs';
+
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 
 const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <kbd className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1 rounded bg-zinc-800 border border-zinc-600 text-[10px] font-medium text-zinc-200 font-sans">
+  <kbd className={HM_KBD}>
     {children}
   </kbd>
 );
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div>
-    <h3 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-2">{title}</h3>
-    <table className="w-full text-xs">
+    <h3 className={`${HM_SECTION_TITLE} font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-2`}>{title}</h3>
+    <table className={`w-full ${IS_COARSE ? 'text-sm' : 'text-xs'}`}>
       <tbody>{children}</tbody>
     </table>
   </div>
@@ -27,8 +35,8 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 
 const Row: React.FC<{ keys: React.ReactNode; action: string }> = ({ keys, action }) => (
   <tr className="border-b border-zinc-800/50 last:border-b-0">
-    <td className="py-1.5 pr-3 text-zinc-300 whitespace-nowrap align-top w-[130px]">{keys}</td>
-    <td className="py-1.5 text-zinc-400">{action}</td>
+    <td className={`${HM_TABLE_CELL} pr-3 text-zinc-300 whitespace-nowrap align-top w-[130px]`}>{keys}</td>
+    <td className={`${HM_TABLE_CELL} text-zinc-400`}>{action}</td>
   </tr>
 );
 
@@ -42,13 +50,13 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
     <Modal open={open} onClose={onClose} title="Stripboard Controls" width="max-w-xl"
       footer={
         <ModalFooter>
-          <button onClick={onClose} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">
+          <button onClick={onClose} className={`${HM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
             Close
           </button>
         </ModalFooter>
       }
     >
-      <div className="px-6 py-4 space-y-5 overflow-y-auto max-h-[65vh]">
+      <div className={`${HM_CONTENT} overflow-y-auto max-h-[65vh]`}>
         <Section title="Cell Editing (Edit mode)">
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit edit, stay on cell" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>⏎</Kbd></>} action="Commit & jump to same field in next ribbon (selects ribbon)" />

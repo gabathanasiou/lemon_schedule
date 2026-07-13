@@ -171,39 +171,49 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   };
 
   const XSZ = IS_COARSE ? 'w-4 h-4' : 'w-3 h-3';
+  const CREM_LABEL = IS_COARSE ? 'text-xs' : 'text-[10px]';
+  const CREM_TEXT = IS_COARSE ? 'text-sm' : 'text-xs';
+  const CREM_BODY = IS_COARSE ? 'p-7 space-y-6' : 'p-6 space-y-5';
+  const CREM_BTN_COND = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs';
+  const CREM_DD_ITEM = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
+  const CREM_COLOR = IS_COARSE ? 'w-12 h-12' : 'w-9 h-9';
+  const CREM_COLOR_INPUT = IS_COARSE ? 'text-xs' : 'text-[10px]';
+  const CREM_FOOTER_BTN = IS_COARSE ? 'px-7 py-2.5 text-sm' : 'px-6 py-2 text-xs';
+  const CREM_CELL_BODY = IS_COARSE ? 'p-7 space-y-6' : 'p-6 space-y-5';
+  const CREM_CELL_COLOR = IS_COARSE ? 'w-16 h-16' : 'w-14 h-14';
 
   return (
     <Modal open onClose={onClose} title={isEditing ? 'Edit Color Rule' : 'New Color Rule'} width="max-w-2xl"
       footer={
         <ModalFooter>
           {isEditing && onDelete && (
-            <button onClick={() => { onDelete(rule!.id); onClose(); }} className="px-6 py-2 text-red-400 text-xs font-medium rounded-lg hover:bg-red-900/30 hover:text-red-300 transition-colors mr-auto">
+            <button onClick={() => { onDelete(rule!.id); onClose(); }} className={`${CREM_FOOTER_BTN} text-red-400 font-medium rounded-lg hover:bg-red-900/30 hover:text-red-300 transition-colors mr-auto`}>
               Delete
             </button>
           )}
-          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+          <button onClick={onClose} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>
             Cancel
           </button>
-          <button onClick={handleSave} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">
+          <button onClick={handleSave} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
             Save
           </button>
         </ModalFooter>
       }
     >
-      <div className="p-6 space-y-5" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
+      <div className={CREM_BODY} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
         {/* Enabled toggle */}
         <button onClick={() => setEnabled(!enabled)} className="flex items-center gap-3 cursor-pointer">
           <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${enabled ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
             {enabled && <Check className="w-3 h-3 text-zinc-200" />}
           </span>
-          <span className="text-xs text-zinc-300">Enabled</span>
+          <span className={`${CREM_TEXT} text-zinc-300`}>Enabled</span>
         </button>
 
         {/* Conditions */}
         <div>
           <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-            <span className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">Conditions (AND)</span>
-            <button onClick={addCondition} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1" style={{ padding: 0, background: 'none', border: 'none' }}>
+            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Conditions (AND)</span>
+            <button onClick={addCondition} className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium flex items-center gap-1`} style={{ padding: 0, background: 'none', border: 'none' }}>
               <Plus className={XSZ} /> Add
             </button>
           </div>
@@ -217,7 +227,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                 <div key={idx} className="flex items-center gap-2">
                   <RadixDropdownMenu.Root modal={true} open={openDropdown === `cat-${idx}`} onOpenChange={(o) => setOpenDropdown(o ? `cat-${idx}` : null)}>
                     <RadixDropdownMenu.Trigger asChild>
-                      <button className="flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-[120px] justify-between">
+                      <button className={`flex items-center gap-1.5 ${CREM_BTN_COND} bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-[120px] justify-between`}>
                         <span className="truncate">{catLabel}</span>
                         <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
                       </button>
@@ -247,7 +257,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                               key={key}
                               data-cat={key}
                               onSelect={() => setConditionCategory(idx, key)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
+                              className={`flex items-center gap-2 ${CREM_DD_ITEM} rounded transition-colors outline-none cursor-pointer select-none ${
                                 active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
                               }`}
                             >
@@ -265,7 +275,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
 
                   <RadixDropdownMenu.Root modal={true} open={openDropdown === `el-${idx}`} onOpenChange={(o) => setOpenDropdown(o ? `el-${idx}` : null)}>
                     <RadixDropdownMenu.Trigger asChild>
-                      <button className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-0 justify-between">
+                      <button className={`flex-1 flex items-center gap-1.5 ${CREM_BTN_COND} bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-0 justify-between`}>
                         <span className="truncate">
                           {cond.elementId
                             ? (isCast ? `${cond.elementId}. ${getElementName(cond.category, cond.elementId)}` : getElementName(cond.category, cond.elementId))
@@ -290,7 +300,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                         }}
                       >
                         {elements.length === 0 ? (
-                          <div className="px-3 py-2 text-xs text-zinc-500">No elements</div>
+                          <div className={`${CREM_DD_ITEM} text-zinc-500`}>No elements</div>
                         ) : elements.slice().sort((a, b) => {
                           if (isCast) {
                             const ia = parseInt(a.id) ?? 0;
@@ -305,7 +315,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                               key={el.id || el.name}
                               data-el={el.id || el.name}
                               onSelect={() => setConditionElement(idx, el.id || el.name)}
-                              className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none whitespace-nowrap ${
+                              className={`flex items-center gap-2 ${CREM_DD_ITEM} rounded transition-colors outline-none cursor-pointer select-none whitespace-nowrap ${
                                 active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
                               }`}
                             >
@@ -327,23 +337,23 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
             })}
           </div>
           {conditions.length === 0 && (
-            <p className="text-[10px] text-zinc-600 italic mt-2">No conditions — rule will match all scenes.</p>
+            <p className={`${CREM_LABEL} text-zinc-600 italic mt-2`}>No conditions — rule will match all scenes.</p>
           )}
         </div>
 
         {/* Override */}
         <div>
-          <span className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block">Override</span>
+          <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider border-b border-zinc-800 pb-1.5 mb-3 block`}>Override</span>
           <div className="flex gap-1.5 mb-4">
             <button
               onClick={() => setOverrideType('single')}
-              className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${overrideType === 'single' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+              className={`flex-1 px-3 py-1.5 rounded ${CREM_TEXT} font-medium transition-colors ${overrideType === 'single' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
             >
               Single Color
             </button>
             <button
               onClick={() => setOverrideType('matrix')}
-              className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${overrideType === 'matrix' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
+              className={`flex-1 px-3 py-1.5 rounded ${CREM_TEXT} font-medium transition-colors ${overrideType === 'matrix' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
             >
               Custom Matrix
             </button>
@@ -352,14 +362,14 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
           {overrideType === 'single' ? (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-zinc-400">BG:</span>
-                <input type="color" value={singleBg} onChange={e => setSingleBg(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-                <input type="text" readOnly value={singleBg} className="w-[4.5rem] text-[10px] text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none" />
+                <span className={`${CREM_LABEL} text-zinc-400`}>BG:</span>
+                <input type="color" value={singleBg} onChange={e => setSingleBg(e.target.value)} className={`${CREM_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
+                <input type="text" readOnly value={singleBg} className={`w-[4.5rem] ${CREM_COLOR_INPUT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none`} />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-zinc-400">Text:</span>
-                <input type="color" value={singleText} onChange={e => setSingleText(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-                <input type="text" readOnly value={singleText} className="w-[4.5rem] text-[10px] text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none" />
+                <span className={`${CREM_LABEL} text-zinc-400`}>Text:</span>
+                <input type="color" value={singleText} onChange={e => setSingleText(e.target.value)} className={`${CREM_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
+                <input type="text" readOnly value={singleText} className={`w-[4.5rem] ${CREM_COLOR_INPUT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none`} />
               </div>
               <div className="w-10 h-10 rounded border border-zinc-700 flex items-center justify-center text-[9px] font-bold" style={{ background: singleBg, color: singleText }}>
                 Aa
@@ -373,7 +383,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                     <th className="w-14" />
                     {ieOptions.map(ie => (
                       <th key={ie} className="px-0.5 pb-1 text-center min-w-[80px]">
-                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">{ie}</span>
+                        <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-zinc-500 uppercase tracking-wider`}>{ie}</span>
                       </th>
                     ))}
                   </tr>
@@ -382,7 +392,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                   {dnOptions.map(dn => (
                     <tr key={dn}>
                       <td className="pr-2 py-0.5 align-middle text-right">
-                        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">{dn}</span>
+                        <span className={`${IS_COARSE ? 'text-[11px]' : 'text-[9px]'} font-bold text-zinc-500 uppercase tracking-wider`}>{dn}</span>
                       </td>
                       {ieOptions.map(ie => {
                         const idx = findEntryIdx(matrixColors, ie, dn);
@@ -391,7 +401,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                           <td key={ie} className="px-0.5 py-0.5">
                             <button
                               onClick={() => openCellEdit(ie, dn)}
-                              className="w-full h-10 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center text-[8px] font-semibold cursor-pointer"
+                              className={`w-full ${IS_COARSE ? 'h-12' : 'h-10'} rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${IS_COARSE ? 'text-[10px]' : 'text-[8px]'} font-semibold cursor-pointer`}
                               style={{ background: entry.background, color: entry.text }}
                             >
                               <span className="text-center leading-tight px-0.5">{ie}<br />{dn}</span>
@@ -413,24 +423,24 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
         <Modal open onClose={() => setCellEdit(null)} title={`Edit: ${cellEdit.ie} ${cellEdit.dn}`} width="max-w-sm"
           footer={
             <ModalFooter>
-              <button onClick={() => setCellEdit(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={commitCellEdit} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
+              <button onClick={() => setCellEdit(null)} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>Cancel</button>
+              <button onClick={commitCellEdit} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>Apply</button>
             </ModalFooter>
           }
         >
-          <div className="p-6 space-y-5">
+          <div className={CREM_CELL_BODY}>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Background</span>
+              <span className={`${CREM_TEXT} text-zinc-300`}>Background</span>
               <div className="flex items-center gap-2.5">
-                <input type="color" value={cellBg} onChange={e => setCellBg(e.target.value)} className="w-14 h-14 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-                <input type="text" readOnly value={cellBg} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none" />
+                <input type="color" value={cellBg} onChange={e => setCellBg(e.target.value)} className={`${CREM_CELL_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
+                <input type="text" readOnly value={cellBg} className={`w-[5.5rem] ${CREM_TEXT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none`} />
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Text Color</span>
+              <span className={`${CREM_TEXT} text-zinc-300`}>Text Color</span>
               <div className="flex items-center gap-2.5">
-                <input type="color" value={cellText} onChange={e => setCellText(e.target.value)} className="w-14 h-14 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-                <input type="text" readOnly value={cellText} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none" />
+                <input type="color" value={cellText} onChange={e => setCellText(e.target.value)} className={`${CREM_CELL_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
+                <input type="text" readOnly value={cellText} className={`w-[5.5rem] ${CREM_TEXT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none`} />
               </div>
             </div>
             <div className="w-full h-10 rounded border border-zinc-700 flex items-center justify-center text-sm font-bold" style={{ background: cellBg, color: cellText }}>

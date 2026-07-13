@@ -210,3 +210,26 @@ export function formatDateLong(dateStr: string): string {
   const suffix = (day >= 11 && day <= 13) ? 'TH' : suffixes[day % 10] || 'TH';
   return `${weekday} ${day}${suffix} ${month} ${year}`;
 }
+
+export async function clipboardWrite(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+export async function clipboardRead(): Promise<string> {
+  try {
+    return await navigator.clipboard.readText();
+  } catch {
+    return '';
+  }
+}

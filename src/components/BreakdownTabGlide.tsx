@@ -13,7 +13,7 @@ import DataEditor, {
 import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
-import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
+import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
 import {
   Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, Eye, Square, CheckSquare,
   ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download,
@@ -574,7 +574,7 @@ export function GlideBreakdownTab({
       }
       rows.push(cols.join('\t'));
     }
-    if (rows.length > 0) await navigator.clipboard.writeText(rows.join('\n'));
+    if (rows.length > 0) await clipboardWrite(rows.join('\n'));
     setContextMenu(null);
   }, [scenes, COLUMNS, getEffectiveRange]);
 
@@ -596,7 +596,7 @@ export function GlideBreakdownTab({
       rows.push(cols.join('\t'));
     }
     if (rows.length > 0) {
-      await navigator.clipboard.writeText(rows.join('\n'));
+      await clipboardWrite(rows.join('\n'));
       dispatch({ type: 'BATCH_START' });
       for (const c of committers) commitEdit(scenes[c.row].id, c.colKey, '');
       dispatch({ type: 'BATCH_COMMIT' });
@@ -616,7 +616,7 @@ export function GlideBreakdownTab({
       }
     }
     if (!cell) return;
-    const text = await navigator.clipboard.readText();
+    const text = await clipboardRead();
     if (!text) return;
     const pastedRows = text.split(/\r\n|\n|\r/);
     handlePaste(gridSelection.current.cell, pastedRows.map(r => r.split('\t')));
@@ -624,7 +624,7 @@ export function GlideBreakdownTab({
   }, [gridSelection, handlePaste]);
 
   const handlePasteToAddRow = useCallback(async () => {
-    const text = await navigator.clipboard.readText();
+    const text = await clipboardRead();
     if (!text) return;
     const pastedRows = text.split(/\r\n|\n|\r/);
     handlePaste([1, scenesRef.current.length] as Item, pastedRows.map(r => r.split('\t')));
@@ -632,7 +632,7 @@ export function GlideBreakdownTab({
   }, [handlePaste]);
 
   const handlePasteAtRow = useCallback(async (row: number) => {
-    const text = await navigator.clipboard.readText();
+    const text = await clipboardRead();
     if (!text) return;
     const pastedRows = text.split(/\r\n|\n|\r/);
     handlePaste([1, row] as Item, pastedRows.map(r => r.split('\t')));

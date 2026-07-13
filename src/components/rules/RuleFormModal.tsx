@@ -7,6 +7,23 @@ import {
 import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFields, CastSceneFlagFields } from './RuleFormFields';
 import { X, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { EntityDropdown } from '../EntityDropdown';
+import { IS_COARSE } from '../../lib/device';
+
+const RFM_HEADER_PX = IS_COARSE ? 'px-7' : 'px-6';
+const RFM_HEADER_PY = IS_COARSE ? 'py-5' : 'py-4';
+const RFM_TITLE = IS_COARSE ? 'text-lg' : 'text-base';
+const RFM_SUBTITLE = IS_COARSE ? 'text-sm' : 'text-xs';
+const RFM_CLOSE = IS_COARSE ? 'w-5 h-5' : 'w-4 h-4';
+const RFM_BODY_PAD = IS_COARSE ? 'p-7' : 'p-6';
+const RFM_BODY_GAP = IS_COARSE ? 'space-y-7' : 'space-y-6';
+const RFM_LABEL = IS_COARSE ? 'text-xs' : 'text-[10px]';
+const RFM_TYPE_ICON = IS_COARSE ? 'w-5 h-5' : 'w-4 h-4';
+const RFM_TYPE_TITLE = IS_COARSE ? 'text-sm' : 'text-xs';
+const RFM_TYPE_DESC = IS_COARSE ? 'text-xs' : 'text-[10px]';
+const RFM_FOOTER_PX = IS_COARSE ? 'px-7' : 'px-6';
+const RFM_FOOTER_PY = IS_COARSE ? 'py-5' : 'py-4';
+const RFM_FOOTER_BTN = IS_COARSE ? 'px-5 py-3 text-base' : 'px-4 py-2 text-sm';
+const RFM_ERROR = IS_COARSE ? 'text-sm' : 'text-xs';
 
 interface RuleFormModalProps {
   open: boolean;
@@ -132,23 +149,23 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
         className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className={`flex items-center justify-between ${RFM_HEADER_PX} ${RFM_HEADER_PY} border-b border-zinc-200`}>
           <div>
-            <h2 className="text-zinc-900 font-bold text-base">
+            <h2 className={`text-zinc-900 font-bold ${RFM_TITLE}`}>
               {initial ? 'Edit Rule' : 'New Rule'}
             </h2>
-            <p className="text-zinc-500 text-xs mt-0.5">
+            <p className={`text-zinc-500 ${RFM_SUBTITLE} mt-0.5`}>
               {initial ? 'Update this rule\'s parameters.' : 'Add a rule to flag cast violations.'}
             </p>
           </div>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 p-1 rounded">
-            <X className="w-4 h-4" />
+            <X className={RFM_CLOSE} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className={`flex-1 overflow-y-auto ${RFM_BODY_PAD} ${RFM_BODY_GAP}`}>
           <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+            <label className={`${RFM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-2 block`}>
               Rule Type
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -169,15 +186,15 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
                     )}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <Icon className={cn('w-4 h-4', selected ? m.text : 'text-zinc-400')} />
+                      <Icon className={cn(RFM_TYPE_ICON, selected ? m.text : 'text-zinc-400')} />
                       <span className={cn(
-                        'text-xs font-bold',
+                        `${RFM_TYPE_TITLE} font-bold`,
                         selected ? m.text : 'text-zinc-700'
                       )}>
                         {m.label}
                       </span>
                     </div>
-                    <p className="text-[10px] text-zinc-500 leading-snug">
+                    <p className={`${RFM_TYPE_DESC} text-zinc-500 leading-snug`}>
                       {m.description}
                     </p>
                   </button>
@@ -188,7 +205,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
 
           {form.type !== 'CAST_SCENE_FLAG' && form.type !== 'CAST_CONFLICT' && (
           <div>
-            <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider mb-2 block">
+            <label className={`${RFM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-2 block`}>
               Cast IDs
             </label>
             <EntityDropdown
@@ -237,18 +254,18 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
           )}
 
           {error && (
-            <div className="flex items-center gap-2 text-rose-600 text-xs bg-rose-50 border border-rose-200 rounded-md px-3 py-2">
+            <div className={`flex items-center gap-2 text-rose-600 ${RFM_ERROR} bg-rose-50 border border-rose-200 rounded-md px-3 py-2`}>
               <AlertCircle className="w-3.5 h-3.5" />
               {error}
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-zinc-200 bg-zinc-50">
+        <div className={`flex items-center justify-between gap-2 ${RFM_FOOTER_PX} ${RFM_FOOTER_PY} border-t border-zinc-200 bg-zinc-50`}>
           {initial && onDelete ? (
             <button
               onClick={onDelete}
-              className="px-3 py-2 rounded-md text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5"
+              className={`${RFM_FOOTER_BTN} rounded-md font-medium text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1.5`}
             >
               <Trash2 className="w-4 h-4" />
               Delete Rule
@@ -259,13 +276,13 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-md text-sm font-medium text-zinc-700 hover:bg-zinc-200 transition-colors"
+              className={`${RFM_FOOTER_BTN} rounded-md font-medium text-zinc-700 hover:bg-zinc-200 transition-colors`}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+              className={`${RFM_FOOTER_BTN} rounded-md font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors flex items-center gap-1.5`}
             >
               {initial ? 'Save Changes' : 'Add Rule'}
             </button>

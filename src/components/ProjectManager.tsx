@@ -9,6 +9,14 @@ import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, C
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
+import { IS_COARSE } from '../lib/device';
+
+const PM_BTN_PAD = IS_COARSE ? 'p-2' : 'p-1.5';
+const PM_ICON = IS_COARSE ? 'w-4 h-4' : 'w-3.5 h-3.5';
+const PM_ICON_SM = IS_COARSE ? 'w-3.5 h-3.5' : 'w-3 h-3';
+const PM_INPUT = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs';
+const PM_TITLE = IS_COARSE ? 'text-sm' : 'text-xs';
+const PM_SUBTITLE = IS_COARSE ? 'text-xs' : 'text-[10px]';
 
 interface ProjectManagerProps {
   onClose?: () => void;
@@ -646,20 +654,20 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                           if (e.key === 'Escape') setRenamingId(null);
                         }}
                         autoFocus
-                        className="flex-1 bg-zinc-950 border border-zinc-600 text-white px-2.5 py-1.5 rounded-md text-xs outline-none focus:ring-2 focus:ring-zinc-500"
+                        className={`flex-1 bg-zinc-950 border border-zinc-600 text-white ${PM_INPUT} rounded-md outline-none focus:ring-2 focus:ring-zinc-500`}
                         onClick={e => e.stopPropagation()}
                       />
                       <button
                         onClick={e => { e.stopPropagation(); confirmRename(); }}
-                        className="p-1.5 hover:bg-emerald-800/60 rounded-md text-emerald-400 transition-colors"
+                        className={`${PM_BTN_PAD} hover:bg-emerald-800/60 rounded-md text-emerald-400 transition-colors`}
                       >
-                        <Check className="w-3.5 h-3.5" />
+                        <Check className={`${PM_ICON}`} />
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); setRenamingId(null); }}
-                        className="p-1.5 hover:bg-rose-800/60 rounded-md text-rose-400 transition-colors"
+                        className={`${PM_BTN_PAD} hover:bg-rose-800/60 rounded-md text-rose-400 transition-colors`}
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        <svg className={`${PM_ICON}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   ) : (
@@ -667,17 +675,17 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           {(openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id) && (
-                            <Loader2 className="w-3 h-3 text-zinc-400 animate-spin shrink-0" />
+                            <Loader2 className={`${PM_ICON_SM} text-zinc-400 animate-spin shrink-0`} />
                           )}
-                          <h3 className="font-semibold truncate text-xs">{p.title}</h3>
+                          <h3 className={`font-semibold truncate ${PM_TITLE}`}>{p.title}</h3>
                           {p.driveFileId && (
-                            <Cloud className="w-3 h-3 text-zinc-500 shrink-0" title="Cloud project" />
+                            <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} title="Cloud project" />
                           )}
                           {isActive && (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <CheckCircle2 className={`${PM_ICON} text-emerald-400 shrink-0`} />
                           )}
                         </div>
-                        <p className={`text-[10px] mt-0.5 ${isActive ? 'text-zinc-500' : 'text-zinc-500'}`}>
+                        <p className={`${PM_SUBTITLE} mt-0.5 ${isActive ? 'text-zinc-500' : 'text-zinc-500'}`}>
                           {isActive ? 'Currently open' : formatDate(p.lastModified)}
                         </p>
                       </div>
@@ -686,10 +694,10 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         <button
                           onClick={() => startRenaming(p)}
                           disabled={isBusy}
-                          className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
+                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
                           title="Rename"
                         >
-                          <Pencil className="w-3.5 h-3.5 text-zinc-400" />
+                          <Pencil className={`${PM_ICON} text-zinc-400`} />
                         </button>
                         <button
                           onClick={async () => {
@@ -699,43 +707,43 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                             if (p.driveFileId) refetchDriveRef.current();
                           }}
                           disabled={isBusy}
-                          className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
+                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
                           title="Duplicate"
                         >
-                          <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                          <Copy className={`${PM_ICON} text-zinc-400`} />
                         </button>
                         <button
                           onClick={e => handleExportJSON(e, p)}
                           disabled={isBusy}
-                          className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
+                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
                             title="Export"
                         >
-                          <Save className="w-3.5 h-3.5 text-zinc-400" />
+                          <Save className={`${PM_ICON} text-zinc-400`} />
                         </button>
                         {activeTab === 'local' && auth.isSignedIn && (
                           <button
                             onClick={() => handleMoveToDrive(p)}
                             disabled={isBusy}
-                            className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
+                            className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
                             title="Move to Drive"
                           >
-                            <CloudUpload className="w-3.5 h-3.5 text-zinc-400" />
+                            <CloudUpload className={`${PM_ICON} text-zinc-400`} />
                           </button>
                         )}
                         {activeTab === 'cloud' && (
                           <button
                             onClick={() => handleMoveToLocal(p)}
                             disabled={isBusy}
-                            className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
+                            className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
                             title="Move to Local"
                           >
-                            <HardDriveDownload className="w-3.5 h-3.5 text-zinc-400" />
+                            <HardDriveDownload className={`${PM_ICON} text-zinc-400`} />
                           </button>
                         )}
                         <button
                           onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true }); if (ok) { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); } }}
                           disabled={isBusy}
-                          className="p-1.5 rounded-md transition-colors hover:bg-rose-900/40 disabled:opacity-30"
+                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-rose-900/40 disabled:opacity-30`}
                           title="Delete"
                         >
                           <Trash2 className="w-3.5 h-3.5 text-zinc-400 hover:text-rose-400 transition-colors" />

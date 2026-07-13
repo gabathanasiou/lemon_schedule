@@ -1,6 +1,17 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
+import { IS_COARSE } from '../lib/device';
+
+const DIALOG_PAD = IS_COARSE ? 'p-6' : 'p-5';
+const DIALOG_TITLE = IS_COARSE ? 'text-base' : 'text-sm';
+const DIALOG_CLOSE = IS_COARSE ? 'w-5 h-5' : 'w-4 h-4';
+const DIALOG_DESC = IS_COARSE ? 'text-sm' : 'text-xs';
+const DIALOG_INPUT = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
+const DIALOG_BTN = IS_COARSE ? 'px-4 py-2.5 text-sm' : 'px-3 py-1.5 text-xs';
+const DLG_EDGE_H = IS_COARSE ? 'left-3 right-3 h-[10px]' : 'left-2 right-2 h-[6px]';
+const DLG_EDGE_V = IS_COARSE ? 'top-3 bottom-3 w-[10px]' : 'top-2 bottom-2 w-[6px]';
+const DLG_CORNER = IS_COARSE ? 'w-[14px] h-[14px]' : 'w-[10px] h-[10px]';
 
 interface ConfirmOptions {
   title: string;
@@ -165,7 +176,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
           <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/20" />
           <RadixDialog.Content
             ref={contentRef}
-            className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-5 space-y-4 focus:outline-none select-none ${dragPos || size ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'} ${size ? '' : 'w-full max-w-sm'}`}
+            className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl ${DIALOG_PAD} space-y-4 focus:outline-none select-none ${dragPos || size ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'} ${size ? '' : 'w-full max-w-sm'}`}
             style={{ ...(dragPos ? { left: dragPos.left, top: dragPos.top } : {}), ...(size ? { width: size.w, height: size.h } : {}) }}
             onEscapeKeyDown={(e) => {
               close();
@@ -192,16 +203,16 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
             >
-              <RadixDialog.Title className="text-sm font-bold text-white">
+              <RadixDialog.Title className={`${DIALOG_TITLE} font-bold text-white`}>
                 {dialog?.options.title}
               </RadixDialog.Title>
               <RadixDialog.Close className="text-zinc-500 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
+                <X className={DIALOG_CLOSE} />
               </RadixDialog.Close>
             </div>
 
             {dialog?.options.message && (
-              <RadixDialog.Description className="text-xs text-zinc-400 leading-relaxed">
+              <RadixDialog.Description className={`${DIALOG_DESC} text-zinc-400 leading-relaxed`}>
                 {dialog.options.message}
               </RadixDialog.Description>
             )}
@@ -213,7 +224,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                 defaultValue={dialog.options.defaultValue || ''}
                 placeholder={dialog.options.placeholder}
                 onKeyDown={e => { if (e.key === 'Enter') resolvePrompt(); }}
-                className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
+                className={`w-full ${DIALOG_INPUT} bg-zinc-900 border border-zinc-700 rounded-md text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500`}
               />
             )}
 
@@ -224,7 +235,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     if (dialog.kind === 'confirm') { dialog.resolve(false); setDialog(null); }
                     else if (dialog.kind === 'prompt') { dialog.resolve(null); setDialog(null); }
                   }}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+                  className={`${DIALOG_BTN} rounded-md font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}
                 >
                   Cancel
                 </button>
@@ -236,7 +247,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   else if (dialog.kind === 'prompt') resolvePrompt();
                   else { dialog.resolve(); setDialog(null); }
                 }}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                className={`${DIALOG_BTN} rounded-md font-semibold transition-colors ${
                   dialog?.kind === 'confirm' && dialog.options.danger
                     ? 'bg-red-600 text-white hover:bg-red-500'
                     : 'bg-zinc-800 text-white hover:bg-zinc-700'
@@ -246,14 +257,14 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute left-2 right-2 top-0 h-[6px] cursor-n-resize pointer-events-auto" onPointerDown={startResize('n')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute left-2 right-2 bottom-0 h-[6px] cursor-s-resize pointer-events-auto" onPointerDown={startResize('s')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute top-2 bottom-2 left-0 w-[6px] cursor-w-resize pointer-events-auto" onPointerDown={startResize('w')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute top-2 bottom-2 right-0 w-[6px] cursor-e-resize pointer-events-auto" onPointerDown={startResize('e')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute top-0 left-0 w-[10px] h-[10px] cursor-nw-resize pointer-events-auto" onPointerDown={startResize('nw')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute top-0 right-0 w-[10px] h-[10px] cursor-ne-resize pointer-events-auto" onPointerDown={startResize('ne')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute bottom-0 left-0 w-[10px] h-[10px] cursor-sw-resize pointer-events-auto" onPointerDown={startResize('sw')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
-              <div className="absolute bottom-0 right-0 w-[10px] h-[10px] cursor-se-resize pointer-events-auto" onPointerDown={startResize('se')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute ${DLG_EDGE_H} top-0 cursor-n-resize pointer-events-auto`} onPointerDown={startResize('n')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute ${DLG_EDGE_H} bottom-0 cursor-s-resize pointer-events-auto`} onPointerDown={startResize('s')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute ${DLG_EDGE_V} left-0 cursor-w-resize pointer-events-auto`} onPointerDown={startResize('w')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute ${DLG_EDGE_V} right-0 cursor-e-resize pointer-events-auto`} onPointerDown={startResize('e')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute top-0 left-0 ${DLG_CORNER} cursor-nw-resize pointer-events-auto`} onPointerDown={startResize('nw')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute top-0 right-0 ${DLG_CORNER} cursor-ne-resize pointer-events-auto`} onPointerDown={startResize('ne')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute bottom-0 left-0 ${DLG_CORNER} cursor-sw-resize pointer-events-auto`} onPointerDown={startResize('sw')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
+              <div className={`absolute bottom-0 right-0 ${DLG_CORNER} cursor-se-resize pointer-events-auto`} onPointerDown={startResize('se')} onPointerMove={onResizeMove} onPointerUp={onResizeUp} />
             </div>
           </RadixDialog.Content>
         </RadixDialog.Portal>

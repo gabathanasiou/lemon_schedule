@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react'
 import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, ColumnIndicatorComponent, EntireRowsSelection, EntireColumnsSelection, RangeSelection, Point, HeaderRowComponent, CornerIndicatorComponent } from 'react-spreadsheet';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
 import { Scene, IntExt, DayNight } from '../types';
-import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
+import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
 import { Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, Eye, ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search } from 'lucide-react';
 import Papa from 'papaparse';
 import { ElementManager } from './ElementManager';
@@ -723,7 +723,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       }
       rows.push(cols.join('\t'));
     }
-    await navigator.clipboard.writeText(rows.join('\n'));
+    await clipboardWrite(rows.join('\n'));
     setContextMenu(null);
   }, [selectionRange, activeCell, data]);
 
@@ -739,7 +739,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
       }
       rows.push(cols.join('\t'));
     }
-    await navigator.clipboard.writeText(rows.join('\n'));
+    await clipboardWrite(rows.join('\n'));
     const newData = data.map(row => row.map(cell => ({ ...cell })));
     for (let r = start.row; r <= end.row; r++) {
       for (let c = start.column; c <= end.column; c++) {
@@ -752,7 +752,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   const handlePaste = useCallback(async () => {
     if (!activeCell) return;
-    const text = await navigator.clipboard.readText();
+    const text = await clipboardRead();
     if (!text) return;
     const pastedRows = text.split(/\r\n|\n|\r/);
     const pastedData = pastedRows.map(r => r.split('\t'));
