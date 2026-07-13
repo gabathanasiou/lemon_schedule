@@ -234,7 +234,7 @@ const DayCell: React.FC<{
   );
 };
 
-const UnscheduledSidebar: React.FC<{
+const BoneyardSidebar: React.FC<{
   rows: ScheduleRow[];
   scenes: Scene[];
   displayField: string;
@@ -248,7 +248,7 @@ const UnscheduledSidebar: React.FC<{
   onSort?: (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => void;
   onRowDoubleClick?: (id: string) => void;
 }> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onRowDoubleClick }) => {
-  const { setNodeRef, isOver } = useDroppable({ id: 'unscheduled', data: { type: 'UNSCHEDULED' } });
+  const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'UNSCHEDULED' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 200; } catch { return 200; }
@@ -293,7 +293,7 @@ const UnscheduledSidebar: React.FC<{
       style={{ width: `${width}px` }}
     >
       <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white flex items-center justify-between">
-        <span>UNSCHEDULED</span>
+        <span>BONEYARD</span>
         {onSort && (
           <div className="relative">
             <button onClick={() => setShowSortMenu(p => !p)} className="text-[10px] text-zinc-400 hover:text-zinc-600 font-normal">
@@ -325,7 +325,7 @@ const UnscheduledSidebar: React.FC<{
               </div>
             )}
             <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
-            {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-unscheduled' && (
+            {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-boneyard' && (
               <div className="opacity-40 flex flex-col gap-0">
                 {activeDragRows.slice(0, 2).map(dr => (
                   <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
@@ -612,10 +612,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     return map;
   }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
 
-  const unscheduledRows = useMemo(() => {
+  const boneyardRows = useMemo(() => {
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
-      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
+      if (r.type === 'DAYBREAK') return false;
+      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
       if (r.shootDay === null) return true;
       const meta = activeVersion?.dayMeta?.[r.shootDay];
       return !meta?.date;
@@ -645,16 +646,16 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
   }, [dispatch, activeTool, activeVersion]);
 
-  const sortUnscheduled = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
+  const sortBoneyard = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;
     const scheduled = activeVersion.rows.filter(r => r.shootDay !== null);
     const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
     const missingScenes = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
-    const unscheduled: ScheduleRow[] = [
+    const boneyard: ScheduleRow[] = [
       ...activeVersion.rows.filter(r => r.shootDay === null),
       ...missingScenes.map(s => ({ id: generateUUID(), type: 'SCENE' as const, sceneId: s.id, shootDay: null as number | null, order: 999999, estimatedDuration: 30 })),
     ];
-    unscheduled.sort((a, b) => {
+    boneyard.sort((a, b) => {
       if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
       if (a.type === 'SCENE' && b.type !== 'SCENE') return -1;
       if (a.type !== 'SCENE' && b.type !== 'SCENE') return 0;
@@ -667,7 +668,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (criterion === 'set_name') return sA.set.localeCompare(sB.set);
       return 0;
     });
-    const combined = [...scheduled, ...unscheduled];
+    const combined = [...scheduled, ...boneyard];
     combined.forEach((r, i) => { r.order = i; });
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
   }, [activeVersion, project.scenes, dispatch]);
@@ -776,7 +777,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const handleDragOver = (e: DragOverEvent) => {
     const overId = e.over?.id as string | undefined;
     if (!overId || activeType !== 'SCENE_CARD') { setInsertBeforeId(null); return; }
-    if (overId === 'unscheduled') { setInsertBeforeId('end-unscheduled'); return; }
+    if (overId === 'boneyard') { setInsertBeforeId('end-boneyard'); return; }
     if (overId.startsWith('end-')) { setInsertBeforeId(overId); return; }
     if (overId.startsWith('day-')) { setInsertBeforeId(overId); return; }
     setInsertBeforeId(overId);
@@ -823,7 +824,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
     let targetShootDay: number | null = null;
     const overData = over.data.current as any;
-    if (over.id === 'unscheduled') targetShootDay = null;
+    if (over.id === 'boneyard') targetShootDay = null;
     else if (overData?.type === 'DAY_CELL' && overData.shootDay != null) targetShootDay = overData.shootDay;
     else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
       const raw = over.id.slice(4);
@@ -920,7 +921,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
-        <UnscheduledSidebar rows={unscheduledRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortUnscheduled} onRowDoubleClick={handleRowDoubleClick} />
+        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} onRowDoubleClick={handleRowDoubleClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">

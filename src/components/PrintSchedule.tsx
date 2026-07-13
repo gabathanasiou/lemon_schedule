@@ -888,7 +888,6 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
       if (r.type === 'DAYBREAK') { s.push({ index: idx, rows: current, daybreakRow: r }); current = []; idx++; }
       else { current.push(r); }
     }
-    if (current.length > 0 || idx === 0) s.push({ index: idx, rows: current });
     return s;
   })();
 

@@ -80,13 +80,13 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>←</Kbd> <Kbd>→</Kbd></>} action="Select previous / next day header" />
           <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move selection up / down through all ribbons" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>↑</Kbd>/<Kbd>↓</Kbd></>} action="Extend / contract selection range" />
-          <Row keys={<><Kbd>↹</Kbd> Tab</>} action="Toggle focus between unscheduled sidebar ↔ stripboard" />
+          <Row keys={<><Kbd>↹</Kbd> Tab</>} action="Toggle focus between boneyard sidebar ↔ stripboard" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="With 1 ribbon selected: focus duration / call time cell" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>⏎</Kbd></>} action="With 1 note/break selected: focus inline text cell editor" />
         </Section>
 
         <Section title="Scheduling">
-          <Row keys={<><Kbd>0</Kbd> – <Kbd>9</Kbd></>} action="Quick-schedule: type day number for selected unscheduled ribbons" />
+          <Row keys={<><Kbd>0</Kbd> – <Kbd>9</Kbd></>} action="Quick-schedule: type section number for selected boneyard ribbons" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit digit buffer immediately (during quick-schedule)" />
           <Row keys={<>Drag & drop</>} action="Move ribbons between days or reorder within a day" />
         </Section>
@@ -94,7 +94,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         <Section title="Cut, Paste & Delete">
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>X</Kbd></>} action="Cut selected ribbons to clipboard (unschedule with marker)" />
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>V</Kbd></>} action="Paste clipboard items below selected ribbon (1 ribbon selected)" />
-          <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Unschedule selected ribbons (move back to Unscheduled)" />
+          <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Unschedule selected ribbons (move back to Boneyard)" />
         </Section>
 
         <Section title="Touch / iPad">
@@ -108,8 +108,8 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Drag ▸◂</>} action="Resize columns by dragging the divider between any two column headers" />
         </Section>
 
-        <Section title="Unscheduled Sidebar">
-          <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Unscheduled" />
+        <Section title="Boneyard Sidebar">
+          <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Boneyard" />
           <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, or Set" />
           <Row keys={<>Collapse</>} action="Collapse sidebar to save space (persisted)" />
           <Row keys={<>Resize edge</>} action="Drag right edge to resize sidebar (200px – 600px)" />
@@ -133,7 +133,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Change Color</>} action="Edit banner background & text color (notes only)" />
           <Row keys={<>Open Sheet</>} action="Open scene in Breakdown tab (scenes only)" />
           <Row keys={<><Kbd>⇧</Kbd> + Right-click → Open in New Window</>} action="Open scene sheet in a new window (scenes only)" />
-          <Row keys={<>Remove Ribbon</>} action="Unschedule the ribbon" />
+          <Row keys={<>Send to Boneyard</>} action="Move the ribbon back to the boneyard" />
           <Row keys={<>Delete</>} action="Permanently delete the ribbon" />
         </Section>
 

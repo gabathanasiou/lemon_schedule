@@ -26,16 +26,16 @@ export function checkDay(
   castMembers: CastMember[] = [],
 ): RuleViolation[] {
   const violations: RuleViolation[] = [];
-  const dayRows = rows.filter(r => r.shootDay === shootDay);
-  const dayDate = dayMeta[shootDay]?.date;
+  const secRows = rows.filter(r => r.shootDay === shootDay);
+  const secDate = dayMeta[shootDay]?.date;
 
   for (const rule of rules) {
     if (rule.type === 'MAX_HOURS') {
-      if (rule.dates && rule.dates.length > 0 && (!dayDate || !rule.dates.includes(dayDate))) continue;
+      if (rule.dates && rule.dates.length > 0 && (!secDate || !rule.dates.includes(secDate))) continue;
       let totalMin = 0;
       let exceeded = false;
       const flaggedScenes: string[] = [];
-      for (const row of dayRows.sort((a, b) => a.order - b.order)) {
+      for (const row of secRows.sort((a, b) => a.order - b.order)) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene || !scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
@@ -61,9 +61,9 @@ export function checkDay(
     }
 
     if (rule.type === 'DATE_RESTRICTION') {
-      if (!dayDate || !rule.dates.includes(dayDate)) continue;
+      if (!secDate || !rule.dates.includes(secDate)) continue;
       const affectedScenes: string[] = [];
-      for (const row of dayRows) {
+      for (const row of secRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene || !scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
@@ -83,11 +83,11 @@ export function checkDay(
     }
 
     if (rule.type === 'TIME_WINDOW') {
-      if (rule.dates.length > 0 && (!dayDate || !rule.dates.includes(dayDate))) continue;
+      if (rule.dates.length > 0 && (!secDate || !rule.dates.includes(secDate))) continue;
       const unitCall = dayMeta[shootDay]?.unitCall || '08:00';
       let runningMin = 0;
       const flaggedScenes: string[] = [];
-      for (const row of dayRows.sort((a, b) => a.order - b.order)) {
+      for (const row of secRows.sort((a, b) => a.order - b.order)) {
         const callTime = addMinutesToTime(unitCall, runningMin);
         const dur = row.type === 'BREAK' ? (row.breakDuration || 0) : (row.estimatedDuration || 0);
         const endTime = addMinutesToTime(callTime, dur);
@@ -127,7 +127,7 @@ export function checkDay(
 
     if (rule.type === 'CAST_CONFLICT') {
       const castSet = new Set<string>();
-      for (const row of dayRows) {
+      for (const row of secRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene) continue;
@@ -139,7 +139,7 @@ export function checkDay(
       const groupB = rule.conflictCastIds.filter(c => castSet.has(c));
       if (groupA.length > 0 && groupB.length > 0) {
         const flaggedScenes: string[] = [];
-        for (const row of dayRows) {
+        for (const row of secRows) {
           if (row.type !== 'SCENE' || !row.sceneId) continue;
           const scene = scenes.find(s => s.id === row.sceneId);
           if (!scene) continue;
@@ -159,7 +159,7 @@ export function checkDay(
 
     if (rule.type === 'CAST_SCENE_FLAG') {
       const flaggedScenes: string[] = [];
-      for (const row of dayRows) {
+      for (const row of secRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene) continue;
@@ -191,16 +191,16 @@ export function checkSection(
   castMembers: CastMember[] = [],
 ): RuleViolation[] {
   const violations: RuleViolation[] = [];
-  const dayRows = sectionRows;
-  const dayDate = sectionDate;
+  const secRows = sectionRows;
+  const secDate = sectionDate;
 
   for (const rule of rules) {
     if (rule.type === 'MAX_HOURS') {
-      if (rule.dates && rule.dates.length > 0 && (!dayDate || !rule.dates.includes(dayDate))) continue;
+      if (rule.dates && rule.dates.length > 0 && (!secDate || !rule.dates.includes(secDate))) continue;
       let totalMin = 0;
       let exceeded = false;
       const flaggedScenes: string[] = [];
-      for (const row of dayRows.sort((a, b) => a.order - b.order)) {
+      for (const row of secRows.sort((a, b) => a.order - b.order)) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene || !scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
@@ -226,9 +226,9 @@ export function checkSection(
     }
 
     if (rule.type === 'DATE_RESTRICTION') {
-      if (!dayDate || !rule.dates.includes(dayDate)) continue;
+      if (!secDate || !rule.dates.includes(secDate)) continue;
       const affectedScenes: string[] = [];
-      for (const row of dayRows) {
+      for (const row of secRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene || !scene.cast.split(',').map(c => c.trim()).includes(rule.castId)) continue;
@@ -248,10 +248,10 @@ export function checkSection(
     }
 
     if (rule.type === 'TIME_WINDOW') {
-      if (rule.dates.length > 0 && (!dayDate || !rule.dates.includes(dayDate))) continue;
+      if (rule.dates.length > 0 && (!secDate || !rule.dates.includes(secDate))) continue;
       let runningMin = 0;
       const flaggedScenes: string[] = [];
-      for (const row of dayRows.sort((a, b) => a.order - b.order)) {
+      for (const row of secRows.sort((a, b) => a.order - b.order)) {
         const callTime = addMinutesToTime(sectionBaseTime, runningMin);
         const dur = row.type === 'BREAK' ? (row.breakDuration || 0) : (row.estimatedDuration || 0);
         const endTime = addMinutesToTime(callTime, dur);
@@ -291,7 +291,7 @@ export function checkSection(
 
     if (rule.type === 'CAST_CONFLICT') {
       const castSet = new Set<string>();
-      for (const row of dayRows) {
+      for (const row of secRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene) continue;
@@ -303,7 +303,7 @@ export function checkSection(
       const groupB = rule.conflictCastIds.filter(c => castSet.has(c));
       if (groupA.length > 0 && groupB.length > 0) {
         const flaggedScenes: string[] = [];
-        for (const row of dayRows) {
+        for (const row of secRows) {
           if (row.type !== 'SCENE' || !row.sceneId) continue;
           const scene = scenes.find(s => s.id === row.sceneId);
           if (!scene) continue;
@@ -323,7 +323,7 @@ export function checkSection(
 
     if (rule.type === 'CAST_SCENE_FLAG') {
       const flaggedScenes: string[] = [];
-      for (const row of dayRows) {
+      for (const row of secRows) {
         if (row.type !== 'SCENE' || !row.sceneId) continue;
         const scene = scenes.find(s => s.id === row.sceneId);
         if (!scene) continue;

@@ -34,9 +34,6 @@ export function useDaybreakSections() {
         currentRows.push(r);
       }
     }
-    if (currentRows.length > 0 || sectionIndex === 0) {
-      s.push({ index: sectionIndex, rows: currentRows });
-    }
     return s;
   }, [containerRows]);
 

@@ -85,10 +85,12 @@ export const StripboardContextMenuContent: React.FC<{
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
               )}
               <ContextMenuDivider />
-              <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
+              {row?.shootDay != null && (
+                <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+              )}
             </>
           )}
-          {(row?.type === 'NOTE' || row?.type === 'BREAK') && (
+          {(row?.type === 'NOTE' || row?.type === 'BREAK' || row?.type === 'DAYBREAK') && (
             <>
               {row?.type === 'NOTE' && (
                 <>
@@ -99,8 +101,13 @@ export const StripboardContextMenuContent: React.FC<{
               {row?.type === 'BREAK' && (
                 <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_break'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
               )}
+              {row?.type === 'DAYBREAK' && (
+                <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_daybreak'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Daybreak</ContextMenuItem>
+              )}
               <ContextMenuDivider />
-              <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
+              {row?.type !== 'DAYBREAK' && row?.shootDay != null && (
+                <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+              )}
               <ContextMenuItem onClick={() => { handleContextMenuAction('delete'); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
             </>
           )}

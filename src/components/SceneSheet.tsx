@@ -333,7 +333,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
                 <span className="font-bold text-sm whitespace-nowrap">{formatSectionDate(sectionIdx)}</span>
               </div>
             ) : (
-              <span className="text-center text-xs font-semibold opacity-80 w-full">Unscheduled</span>
+              <span className="text-center text-xs font-semibold opacity-80 w-full">Boneyard</span>
             )}
           </div>
         );

@@ -10,7 +10,7 @@ import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
-import { checkDay, checkSection } from '../lib/rulesEngine';
+import { checkSection } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -184,21 +184,6 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     data: { type: 'DAY_END', dayInt }
   });
 
-  const violations = useMemo(() => {
-    if (!activeVersion) return [];
-    return checkDay(dayInt, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta, project.castMembers || []);
-  }, [dayInt, project.rules, project.scenes, project.castMembers, activeVersion]);
-    const sceneViolationMap = useMemo(() => {
-    const map = new Map<string, RuleViolation[]>();
-    for (const v of violations) {
-      for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
-        if (!map.has(sid)) map.set(sid, []);
-        map.get(sid)!.push(v);
-      }
-    }
-    return map;
-  }, [violations]);
-
   const updateMeta = (updates: Partial<ShootDayMeta>) => {
     if (!activeVersion) return;
     dispatch({
@@ -319,14 +304,14 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     return map;
   }, [computedRows, project.rules, project.scenes, project.castMembers, meta?.unitCall]);
 
+  const violations = useMemo(() => {
+    const all: RuleViolation[] = [];
+    for (const [, v] of sectionViolationMap) all.push(...v);
+    return all;
+  }, [sectionViolationMap]);
+
   const mergedSceneViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
-    for (const v of violations) {
-      for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
-        if (!map.has(sid)) map.set(sid, []);
-        map.get(sid)!.push(v);
-      }
-    }
     for (const [, violations] of sectionViolationMap) {
       for (const v of violations) {
         for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
@@ -336,7 +321,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
       }
     }
     return map;
-  }, [violations, sectionViolationMap]);
+  }, [sectionViolationMap]);
 
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',

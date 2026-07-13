@@ -15,7 +15,7 @@ import { useCurrentDocument } from '../lib/popoutTarget';
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
 
-const unscheduledBlockPropsEqual = (a: any, b: any) => {
+const boneyardBlockPropsEqual = (a: any, b: any) => {
   if (a.rows !== b.rows) return false;
   if (a.projectScenes !== b.projectScenes) return false;
   if (a.textEditingEnabled !== b.textEditingEnabled) return false;
@@ -35,7 +35,7 @@ const unscheduledBlockPropsEqual = (a: any, b: any) => {
   return true;
 };
 
-export const UnscheduledBlock: React.FC<{ 
+export const BoneyardBlock: React.FC<{ 
   rows: ScheduleRow[], 
   projectScenes: Scene[],
   textEditingEnabled: boolean,
@@ -103,12 +103,12 @@ export const UnscheduledBlock: React.FC<{
   }, [textEditingEnabled, currentDocument]);
 
   const panelRef = useRef<HTMLDivElement>(null);
-  const unscheduledMarqueeRef = useRef<HTMLDivElement>(null);
+  const boneyardMarqueeRef = useRef<HTMLDivElement>(null);
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const sortableItems = useMemo(() => rows.map(r => r.id), [rows]);
 
   const { marqueeBox } = useMarquee(
-    unscheduledMarqueeRef,
+    boneyardMarqueeRef,
     useCallback((ids, isAddMode) => {
       onSelectionChange?.(ids, isAddMode);
     }, [onSelectionChange]),
@@ -116,12 +116,12 @@ export const UnscheduledBlock: React.FC<{
   );
   
   const { setNodeRef } = useDroppable({
-    id: 'unscheduled_bin',
+    id: 'boneyard_bin',
     data: { type: 'UNSCHEDULED_BIN' }
   });
 
   const { setNodeRef: setEndRef } = useDroppable({
-    id: 'end-unscheduled',
+    id: 'end-boneyard',
     data: { type: 'UNSCHEDULED_END' }
   });
 
@@ -148,7 +148,7 @@ export const UnscheduledBlock: React.FC<{
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: [...activeVersion.rows, newRow] } });
   };
 
-  const sortUnscheduled = (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
+  const sortBoneyard = (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
     if (!activeVersion) return;
 
@@ -157,7 +157,7 @@ export const UnscheduledBlock: React.FC<{
     const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
     const missingScenes = state.present.scenes.filter(s => !sceneIdsInRows.has(s.id));
     
-    const unscheduled: ScheduleRow[] = [
+    const boneyard: ScheduleRow[] = [
       ...activeVersion.rows.filter(r => r.shootDay === null),
       ...missingScenes.map(s => ({
         id: generateUUID(),
@@ -169,7 +169,7 @@ export const UnscheduledBlock: React.FC<{
       }))
     ];
 
-    unscheduled.sort((a, b) => {
+    boneyard.sort((a, b) => {
       if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
       if (a.type === 'SCENE' && b.type !== 'SCENE') return -1;
       if (a.type !== 'SCENE' && b.type !== 'SCENE') return 0;
@@ -190,7 +190,7 @@ export const UnscheduledBlock: React.FC<{
       return 0;
     });
 
-    const combined = [...scheduled, ...unscheduled];
+    const combined = [...scheduled, ...boneyard];
     combined.forEach((r, i) => {
       r.order = i;
     });
@@ -250,7 +250,7 @@ export const UnscheduledBlock: React.FC<{
               className="text-zinc-400 font-bold tracking-widest text-[11px] select-none uppercase whitespace-nowrap" 
               style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
             >
-              UNSCHEDULED ({rows.length})
+              BONEYARD ({rows.length})
             </span>
           </div>
         </div>
@@ -259,7 +259,7 @@ export const UnscheduledBlock: React.FC<{
           <div className="p-4 border-b border-zinc-200 bg-zinc-50 shadow-sm sticky top-0 z-10 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-bold text-sm tracking-widest text-zinc-800">UNSCHEDULED</h2>
+                <h2 className="font-bold text-sm tracking-widest text-zinc-800">BONEYARD</h2>
                 <p className="text-xs text-zinc-500 mt-1">{rows.length} Items</p>
               </div>
               
@@ -278,25 +278,25 @@ export const UnscheduledBlock: React.FC<{
                       <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
                       <div className="absolute right-0 top-full mt-1.5 w-48 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col text-[11px] font-sans font-semibold">
                         <button 
-                          onClick={() => { sortUnscheduled('scene_number'); setShowSortMenu(false); }}
+                          onClick={() => { sortBoneyard('scene_number'); setShowSortMenu(false); }}
                           className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
                         >
                           Sort by Scene Number
                         </button>
                         <button 
-                          onClick={() => { sortUnscheduled('script_day'); setShowSortMenu(false); }}
+                          onClick={() => { sortBoneyard('script_day'); setShowSortMenu(false); }}
                           className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
                         >
                           Sort by Script Day
                         </button>
                         <button 
-                          onClick={() => { sortUnscheduled('page_count'); setShowSortMenu(false); }}
+                          onClick={() => { sortBoneyard('page_count'); setShowSortMenu(false); }}
                           className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
                         >
                           Sort by Page Count (Longest)
                         </button>
                         <button 
-                          onClick={() => { sortUnscheduled('set_name'); setShowSortMenu(false); }}
+                          onClick={() => { sortBoneyard('set_name'); setShowSortMenu(false); }}
                           className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
                         >
                           Sort by Set/Location
@@ -326,9 +326,9 @@ export const UnscheduledBlock: React.FC<{
             </div>
           </div>
           
-          <div ref={unscheduledMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          <div ref={boneyardMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
              <MarqueeOverlay box={marqueeBox} />
-            <div id="unscheduled_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
+            <div id="boneyard_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
             <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
               {rows.map((r, i, arr) => (
                 <React.Fragment key={r.id}>
@@ -356,7 +356,7 @@ export const UnscheduledBlock: React.FC<{
             </SortableContext>
             {rows.length === 0 && (
               <>
-                {showGhosts && insertBeforeId === `end-unscheduled` && (
+                {showGhosts && insertBeforeId === `end-boneyard` && (
                   <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
                 )}
                 <div className="flex-1" />
@@ -364,7 +364,7 @@ export const UnscheduledBlock: React.FC<{
             )}
             {rows.length > 0 && (
               <div ref={setEndRef} className="pb-20">
-                {showGhosts && insertBeforeId === `end-unscheduled` && (
+                {showGhosts && insertBeforeId === `end-boneyard` && (
                   <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
                 )}
               </div>
@@ -382,4 +382,4 @@ export const UnscheduledBlock: React.FC<{
       )}
     </div>
   );
-}, unscheduledBlockPropsEqual);
+}, boneyardBlockPropsEqual);

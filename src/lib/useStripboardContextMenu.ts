@@ -254,7 +254,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       return;
     } else if (action === 'delete') {
       newRows = newRows.filter(r => r.id !== rowId);
-    } else if (action === 'unschedule') {
+    } else if (action === 'unschedule' && row.type !== 'DAYBREAK') {
       newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
     }
 
