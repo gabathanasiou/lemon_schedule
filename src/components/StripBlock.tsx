@@ -2,11 +2,11 @@ import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
-import { addMinutesToTime, formatDuration, formatPageCount, formatDateLong } from '../lib/utils';
+import { addMinutesToTime } from '../lib/utils';
 import { SortableRow } from './SortableRow';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
@@ -311,76 +311,10 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     lineHeight: '1.2',
   };
 
-  // Ribbon column layout for footer
-  const ribbonActive = !!(ribbon && ribbon.length > 0);
-  const cells = ribbonActive ? ribbon![0].cells : null;
-  const cw = colWidths ?? cells?.map(() => 100 / (cells.length || 1)) ?? [];
-  const cpv = cellPaddingV ?? 6;
-  const cph = cellPaddingH ?? 6;
-  const hPad = `${getNoteBreakPad(cpv, ribbon?.length || 1)}px ${cph}px`;
-  const mainCellIdx = cells ? (() => {
-    const nonSpecial = cells
-      .map((c, i) => ({i, w: cw[i] ?? 0, f: c.field}))
-      .filter(x => x.f !== 'duration' && x.f !== 'callTime');
-    return nonSpecial.length > 0
-      ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
-      : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
-  })() : null;
-  const labelCellIdx = cells ? cells.findIndex(c => c.field !== 'duration' && c.field !== 'callTime') : -1;
-
-  const renderRibbonFooter = () => {
-    if (!cells || mainCellIdx == null) return null;
-    const endTime = runningElapsed > 0 ? addMinutesToTime(meta?.unitCall || '08:00', runningElapsed) : '';
-    const dateStr = (activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : '';
-    return (
-      <div ref={setFooterRef} style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', borderTop: '1px solid var(--border, #d4d4d8)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
-          {cells.map((cell, ci) => {
-            if (ci === labelCellIdx) {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                  textAlign: 'center', overflow: 'hidden',
-                  whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-                }}>
-                  End of Day #{displayDay}
-                  {endTime && <span> · {endTime}</span>}
-                </div>
-              );
-            }
-            if (ci === mainCellIdx) {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                  textAlign: 'center',
-                }}>
-                  {dateStr}
-                </div>
-              );
-            }
-            return (
-              <div key={cell.id} style={{
-                gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                textAlign: 'center',
-              }} />
-            );
-          })}
-        </div>
-        <div style={{ padding: `2px ${cpv}px`, display: 'flex', justifyContent: 'flex-end', gap: 16, color: '#18181b' }}>
-          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-          <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
-      {/* Day Banner — empty drop zone */}
+      {/* Drop zone */}
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
@@ -423,27 +357,12 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
         )}
       </div>
 
-      {/* Day Footer */}
+      {/* Day Footer — end drop target */}
       <>
         {showGhosts && insertBeforeId === `end-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
-        {ribbonActive ? renderRibbonFooter() : (
-          <div ref={setFooterRef} className="flex justify-between items-center px-2 py-1 border-t border-zinc-300"
-            style={{fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b'}}>
-            <span className="shrink-0">
-              End of Day #{displayDay}
-              {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
-            </span>
-            <span className="flex-1 text-center">
-              {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
-            </span>
-            <div className="flex shrink-0" style={{gap: '20pt'}}>
-              <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-              <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-            </div>
-          </div>
-        )}
+        <div ref={setFooterRef} className="h-1" />
       </>
     </div>
   );
