@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect } from 'react';
 import { IS_COARSE } from '../lib/device';
+import { useCurrentWindow } from '../lib/popoutTarget';
 
 const MARGIN = 8;
 const CTX_ITEM = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
@@ -14,6 +15,7 @@ export const ContextMenu: React.FC<{
   containerRef?: React.RefObject<HTMLElement>;
 }> = ({ open, x, y, onClose, children, containerRef }) => {
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const currentWindow = useCurrentWindow();
 
   useEffect(() => {
     if (!open) return;
@@ -22,16 +24,16 @@ export const ContextMenu: React.FC<{
         onClose();
       }
     };
-    window.addEventListener('pointerdown', handler, true);
-    return () => window.removeEventListener('pointerdown', handler, true);
-  }, [open, onClose]);
+    currentWindow.addEventListener('pointerdown', handler, true);
+    return () => currentWindow.removeEventListener('pointerdown', handler, true);
+  }, [open, onClose, currentWindow]);
 
   useLayoutEffect(() => {
     if (!open || !menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
     const containerRect = containerRef?.current?.getBoundingClientRect();
-    const vw = containerRect ? containerRect.right : window.innerWidth;
-    const vh = containerRect ? containerRect.bottom : window.innerHeight;
+    const vw = containerRect ? containerRect.right : currentWindow.innerWidth;
+    const vh = containerRect ? containerRect.bottom : currentWindow.innerHeight;
     const minLeft = containerRect ? containerRect.left : 0;
     const minTop = containerRect ? containerRect.top : 0;
     let top = Math.max(minTop + MARGIN, y);

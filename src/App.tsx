@@ -606,36 +606,25 @@ function AppContent() {
                       key={tab}
                       onClick={() => { setActiveTab(tab); setTabDropdownOpen(false); }}
                       icon={<Icon className="w-3.5 h-3.5" />}
+                      rightAction={!IS_COARSE ? {
+                        icon: <ExternalLink className="w-3 h-3" />,
+                        title: "Open in separate window",
+                        onClick: () => {
+                          setTabDropdownOpen(false);
+                          if (!poppedOutTabs.has(tab)) {
+                            togglePopout(tab);
+                            if (tab === activeTab) {
+                              const allTabs = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'];
+                              const next = allTabs.find(t => t !== tab && !poppedOutTabs.has(t)) || allTabs.find(t => t !== tab);
+                              if (next) setActiveTab(next as any);
+                            }
+                          } else {
+                            closePopout(tab);
+                          }
+                        },
+                      } : undefined}
                     >
                       {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </DropdownItem>
-                  );
-                })}
-                {!IS_COARSE && <DropdownDivider />}
-                {!IS_COARSE && (['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'] as const).map(tab => {
-                  const Icon = tab === 'breakdown' ? ClipboardList : tab === 'schedule' ? CalendarClock : tab === 'calendar' ? CalendarDays : tab === 'design' ? Layout : tab === 'rules' ? Gavel : FileText;
-                  return (
-                    <DropdownItem
-                      key={`popout-${tab}`}
-                      onClick={() => {
-                        setTabDropdownOpen(false);
-                        if (!poppedOutTabs.has(tab)) {
-                          togglePopout(tab);
-                          if (tab === activeTab) {
-                            const allTabs = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'];
-                            const next = allTabs.find(t => t !== tab && !poppedOutTabs.has(t)) || allTabs.find(t => t !== tab);
-                            if (next) setActiveTab(next as any);
-                          }
-                        } else {
-                          closePopout(tab);
-                        }
-                      }}
-                      icon={<Icon className="w-3.5 h-3.5" />}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        <ExternalLink className="w-3 h-3 text-zinc-500" />
-                      </span>
                     </DropdownItem>
                   );
                 })}

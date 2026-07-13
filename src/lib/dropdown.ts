@@ -16,6 +16,7 @@ export type CloseRef = { current: (() => void) | null };
 export const globalDropdownCloseRef: CloseRef = { current: null };
 
 export function useDropdown(open: boolean, ref: RefObject<HTMLDivElement>, onClose?: () => void, panelRef?: RefObject<HTMLDivElement>) {
+  const currentDocument = useCurrentDocument();
   useEffect(() => {
     if (open) {
       globalDropdownCloseRef.current = () => onClose?.();
@@ -26,13 +27,13 @@ export function useDropdown(open: boolean, ref: RefObject<HTMLDivElement>, onClo
           onClose?.();
         }
       };
-      document.addEventListener('pointerdown', onClick);
+      currentDocument.addEventListener('pointerdown', onClick);
       return () => {
-        document.removeEventListener('pointerdown', onClick);
+        currentDocument.removeEventListener('pointerdown', onClick);
         globalDropdownCloseRef.current = undefined;
       };
     }
-  }, [open, ref, onClose, panelRef]);
+  }, [open, ref, onClose, panelRef, currentDocument]);
 }
 
 export function useOpenHandler(setOpen: (v: boolean) => void) {

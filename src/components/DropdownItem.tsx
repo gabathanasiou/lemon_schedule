@@ -14,6 +14,11 @@ interface DropdownItemProps {
   children: React.ReactNode;
   key?: string;
   keepOpen?: boolean;
+  rightAction?: {
+    icon: React.ReactNode;
+    onClick: () => void;
+    title?: string;
+  };
 }
 
 export default function DropdownItem({
@@ -24,6 +29,7 @@ export default function DropdownItem({
   className = '',
   children,
   keepOpen = false,
+  rightAction,
 }: DropdownItemProps) {
   const theme = useDropdownTheme();
   const isLight = theme === 'light';
@@ -40,6 +46,7 @@ export default function DropdownItem({
       : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white active:bg-zinc-700 active:text-white';
 
   const iconColor = isLight ? 'text-zinc-500' : isBlue ? 'text-white' : 'text-zinc-400';
+  const rightActionColor = isLight ? 'text-zinc-400 hover:text-zinc-600' : 'text-zinc-500 hover:text-zinc-300';
 
   return (
     <RadixDropdownMenu.Item
@@ -57,7 +64,24 @@ export default function DropdownItem({
       disabled={disabled}
     >
       {icon && <span className={`${iconColor} shrink-0`}>{icon}</span>}
-      {children}
+      <span className="flex-1 truncate">{children}</span>
+      {rightAction && (
+        <span
+          className={`shrink-0 ml-1 p-0.5 rounded transition-colors ${rightActionColor}`}
+          title={rightAction.title}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            rightAction.onClick();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+        >
+          {rightAction.icon}
+        </span>
+      )}
     </RadixDropdownMenu.Item>
   );
 }

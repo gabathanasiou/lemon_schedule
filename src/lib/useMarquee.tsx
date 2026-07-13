@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getMarqueeMode, getTransientMarquee, setTransientMarquee } from './useLongPressMenu';
+import { useCurrentWindow, useCurrentDocument } from './popoutTarget';
 
 interface MarqueeBox {
   left: number;
@@ -87,6 +88,8 @@ export function useMarquee(
   onSelectionChange: (ids: Set<string>, isAddMode: boolean) => void,
   isEnabled: boolean = true,
 ) {
+  const currentWindow = useCurrentWindow();
+  const currentDocument = useCurrentDocument();
   const [marqueeBox, setMarqueeBox] = useState<MarqueeBox | null>(null);
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
@@ -263,8 +266,8 @@ export function useMarquee(
       }
       stopAutoScroll();
       active = false;
-      document.body.style.userSelect = '';
-      document.body.style.webkitUserSelect = '';
+      currentDocument.body.style.userSelect = '';
+      currentDocument.body.style.webkitUserSelect = '';
       setMarqueeBox(null);
       setRowsDisabled(false);
       if (hadMovement) {
@@ -284,14 +287,14 @@ export function useMarquee(
 
     container.addEventListener('pointerdown', onPointerDown);
     container.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
+    currentWindow.addEventListener('pointerup', onPointerUp);
     container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => {
       stopAutoScroll();
       container.removeEventListener('pointerdown', onPointerDown);
       container.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
+      currentWindow.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchstart', onTouchStart);
       setRowsDisabled(false);
