@@ -738,10 +738,10 @@ function AppContent() {
               theme={isCloudProject ? 'blue' : 'dark'}
               trigger={
                 <button 
-                  className={`flex items-center space-x-1.5 border transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans font-medium ${isCloudProject ? 'bg-blue-900 border-blue-800 hover:bg-blue-800' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}
+                  className="flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white hover:bg-zinc-800"
                 >
-                   <span>Version: <strong className={`font-semibold ${isCloudProject ? 'text-white' : 'text-zinc-300'}`}>{version?.name || 'Select Version'}</strong></span>
-                  <ChevronDown className={`w-3.5 h-3.5 ${isCloudProject ? 'text-blue-300' : 'text-zinc-400'}`} />
+                   <span>Version: <strong>{version?.name || 'Select Version'}</strong></span>
+                  <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               }
             >
