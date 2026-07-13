@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useLayoutEffect, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useLayoutEffect, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, Project } from './types';
@@ -19,6 +19,8 @@ import ElementBreakdownView from './components/ElementBreakdownView';
 import { SceneSheet } from './components/SceneSheet';
 import { ElementManager } from './components/ElementManager';
 import { GlideBreakdownTab } from './components/BreakdownTabGlide';
+import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from './lib/categories';
+import { getElementsFromScenes } from './store';
 import { ProjectManager } from './components/ProjectManager';
 import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
@@ -295,6 +297,18 @@ function AppContent() {
   const [hoverTopTabStyle, setHoverTopTabStyle] = useState<React.CSSProperties>({});
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
+
+  const allReportCategoryKeys = useMemo(() => {
+    const hidden = new Set(project.hiddenCategories || []);
+    const keys: { key: string; isCustom: boolean }[] = [];
+    for (const c of ELEMENT_CATEGORIES) {
+      if (!hidden.has(c.key)) keys.push({ key: c.key, isCustom: false });
+    }
+    for (const c of project.customCategories || []) {
+      if (!hidden.has(c.key)) keys.push({ key: c.key, isCustom: true });
+    }
+    return keys;
+  }, [project.customCategories, project.hiddenCategories]);
 
   const noProject = currentProjectId === null;
   const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
@@ -1031,8 +1045,36 @@ function AppContent() {
               <span className="px-3 py-1.5 text-xs font-semibold rounded-b-md text-white bg-zinc-950">Day Out of Days</span>
               <div ref={el => { if (el && subHeaderTargets['sub_reports_doods'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_doods: el })); }} className="flex items-center gap-2" />
             </div>
-            <div className="flex-1 min-h-0 flex flex-col">
-              <DoodsTab selectedCategory={reportsCategory} />
+            <div className="flex-1 min-h-0 flex">
+              <div className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
+                <div className="p-3">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
+                  <div className="space-y-0.5 mt-2">
+                    {allReportCategoryKeys.map(({ key, isCustom }) => {
+                      const Icon = isCustom
+                        ? getCustomIcon((project.customCategories || []).find(c => c.key === key)?.icon || 'Tag')
+                        : CAT_ICONS[key] || null;
+                      const isActive = key === reportsCategory;
+                      const label = isCustom
+                        ? (project.customCategories || []).find(c => c.key === key)?.label || key
+                        : getLabel(key, (() => { const b: Record<string, string> = {}; for (const c of ELEMENT_CATEGORIES) b[c.key] = c.label; return b; })()[key] || key, project.categoryLabels);
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setReportsCategory(key)}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors ${isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'}`}
+                        >
+                          {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                          <span className="truncate flex-1">{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                <DoodsTab selectedCategory={reportsCategory} />
+              </div>
             </div>
           </div>
         </PopoutWindow>
@@ -1045,8 +1087,36 @@ function AppContent() {
               <span className="px-3 py-1.5 text-xs font-semibold rounded-b-md text-white bg-zinc-950">Element Breakdown</span>
               <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="flex items-center gap-2" />
             </div>
-            <div className="flex-1 min-h-0 flex flex-col">
-              <ElementBreakdownView selectedCategory={reportsCategory} />
+            <div className="flex-1 min-h-0 flex">
+              <div className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
+                <div className="p-3">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
+                  <div className="space-y-0.5 mt-2">
+                    {allReportCategoryKeys.map(({ key, isCustom }) => {
+                      const Icon = isCustom
+                        ? getCustomIcon((project.customCategories || []).find(c => c.key === key)?.icon || 'Tag')
+                        : CAT_ICONS[key] || null;
+                      const isActive = key === reportsCategory;
+                      const label = isCustom
+                        ? (project.customCategories || []).find(c => c.key === key)?.label || key
+                        : getLabel(key, (() => { const b: Record<string, string> = {}; for (const c of ELEMENT_CATEGORIES) b[c.key] = c.label; return b; })()[key] || key, project.categoryLabels);
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setReportsCategory(key)}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left text-xs transition-colors ${isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'}`}
+                        >
+                          {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
+                          <span className="truncate flex-1">{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                <ElementBreakdownView selectedCategory={reportsCategory} />
+              </div>
             </div>
           </div>
         </PopoutWindow>
