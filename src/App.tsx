@@ -311,7 +311,7 @@ function AppContent() {
   const noProject = currentProjectId === null;
   const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
-  const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white' : 'text-zinc-400 hover:text-zinc-200';
+  const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
 
   const storage = useStorage();
   const ctx = useProject();
