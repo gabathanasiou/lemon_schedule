@@ -40,7 +40,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
 
   return (
     <div className={`flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 ${t.bar}`}>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 min-w-0 flex-1 mr-2">
         {tabs.map(tab => {
           const active = activeTab === tab.id;
           return (
@@ -57,7 +57,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
                 e.preventDefault();
                 setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
               } : undefined}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors truncate max-w-[160px] ${
                 active ? `${activeBg} ${activeText}` : t.inactive
               }`}
             >
