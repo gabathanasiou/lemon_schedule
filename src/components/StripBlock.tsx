@@ -358,12 +358,10 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
       </div>
 
       {/* Day Footer — end drop target */}
-      <>
-        {showGhosts && insertBeforeId === `end-${dayInt}` && (
-          <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
-        )}
-        <div ref={setFooterRef} className="h-1" />
-      </>
+      {showGhosts && insertBeforeId === `end-${dayInt}` && (
+        <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
+      )}
+      <div ref={setFooterRef} />
     </div>
   );
 }, dayBlockPropsEqual);
