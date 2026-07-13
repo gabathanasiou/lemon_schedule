@@ -9,7 +9,7 @@ import { ViolationTooltip } from './ViolationTooltip';
 import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
@@ -328,9 +328,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     lineHeight: '1.2',
   };
 
-  const dhColors = getDayHeaderColors(project.colorPalette);
-
-  // Ribbon column layout for header/footer
+  // Ribbon column layout for footer
   const ribbonActive = !!(ribbon && ribbon.length > 0);
   const cells = ribbonActive ? ribbon![0].cells : null;
   const cw = colWidths ?? cells?.map(() => 100 / (cells.length || 1)) ?? [];
@@ -346,91 +344,6 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
       : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
   const labelCellIdx = cells ? cells.findIndex(c => c.field !== 'duration' && c.field !== 'callTime') : -1;
-
-  const renderRibbonHeader = (statusLabel?: string) => {
-    if (!cells || mainCellIdx == null) return null;
-    const label = statusLabel || `DAY #${displayDay}`;
-    const dateStr = (activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : '';
-    return (
-      <div 
-        className="flex-1 min-w-0 flex flex-col relative"
-        data-row-id={`empty-${dayInt}`}
-        data-shoot-day={dayInt}
-        onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-        style={{ 
-          paddingLeft: edgePadding ?? 2, 
-          paddingRight: edgePadding ?? 2,
-          ...(selectedIds.has(`empty-${dayInt}`) ? { background: '#27272a' } : {}),
-        }}
-      >
-        {violations.length > 0 && (
-          <div className="absolute top-0 right-0 p-1 z-10">
-            <ViolationTooltip violations={violations}>
-              <span className="inline-flex items-center gap-0.5 text-red-400">
-                <Flag className="w-3.5 h-3.5 fill-red-400" />
-                <span className="text-[10px] font-bold">{violations.length}</span>
-              </span>
-            </ViolationTooltip>
-          </div>
-        )}
-        <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
-          {cells.map((cell, ci) => {
-            if (ci === mainCellIdx) {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                  textAlign: 'center', padding: hPad, overflow: 'visible',
-                  whiteSpace: 'normal', wordBreak: 'break-word',
-                }}>
-                  <strong>{dateStr}</strong>
-                </div>
-              );
-            }
-            if (ci === labelCellIdx) {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                  textAlign: 'center', padding: hPad, overflow: 'visible',
-                }}>
-                  <span className="font-bold">{label}</span>
-                </div>
-              );
-            }
-            if (cell.field === 'callTime') {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                  textAlign: 'center', padding: hPad, overflow: 'visible',
-                }}>
-                  {!statusLabel && (
-                    <>
-                      <span className="font-semibold text-[10px]">CALL </span>
-                      <CellInput
-                        value={meta?.unitCall || '08:00'}
-                        onChange={val => updateMeta({unitCall: val})}
-                        clearOnType col="duration"
-                        className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
-                      />
-                    </>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <div key={cell.id} style={{
-                gridColumn: ci + 1, gridRow: 1,
-                ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
-                textAlign: 'center', padding: hPad, overflow: 'visible',
-              }} />
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   const renderRibbonFooter = () => {
     if (!cells || mainCellIdx == null) return null;
@@ -484,66 +397,52 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
-      {/* Day Ribbon Banner */}
-      <div style={{ background: dhColors.background, color: dhColors.color }}>
-        {ribbonActive ? renderRibbonHeader() : (
-          <table className="schedule-table">
-            <tbody>
-              <tr className="strip-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
-                onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-                style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
-                <td className="col-sc" style={{textAlign: 'left'}}>
-                  <span className="font-bold" style={{paddingLeft: 4}}>DAY #{displayDay}</span>
-                </td>
-                <td className="col-call">
-                  {violations.length > 0 && (
-                    <ViolationTooltip violations={violations}>
-                      <span className="inline-flex items-center gap-0.5 text-red-400">
-                        <Flag className="w-3.5 h-3.5 fill-red-400" />
-                        <span className="text-[10px] font-bold">{violations.length}</span>
-                      </span>
-                    </ViolationTooltip>
-                  )}
-                  <button 
-                    onClick={() => { 
-                      if (!activeVersion) return;
-                      dispatch({
-                        type: 'UPDATE_VERSION',
-                        payload: {
-                          id: activeVersion.id,
-                          rows: activeVersion.rows.map(r => r.shootDay === dayInt ? { ...r, shootDay: null as any, order: 999999 } : r)
-                        }
-                      });
-                    }}
-                    className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors ml-1"
-                    title="Remove all scenes from this day"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </td>
-                <td className="col-dur" />
-                <td className="col-ie" />
-                <td className="col-set text-center font-semibold">
-                  {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
-                </td>
-                <td className="col-dn" />
-                <td className="col-cast">
-                  <span className="font-semibold text-[10px] text-zinc-400">CALL</span>
-                </td>
-                <td className="col-pgs">
-                  <CellInput
-                    value={meta?.unitCall || '08:00'}
-                    onChange={val => updateMeta({unitCall: val})}
-                    clearOnType
-                    col="duration"
-                    className="bg-zinc-900 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-600 w-full text-center"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      {/* Day Banner */}
+      <div className="flex justify-between items-center px-2 py-1 border-b border-zinc-300"
+        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b', ...(selectedIds.has(`empty-${dayInt}`) ? { background: '#27272a' } : {}) }}
+        data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
+        onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
+      >
+        <span className="shrink-0 flex items-center gap-2">
+          <span className="font-bold">DAY #{displayDay}</span>
+          <CellInput
+            value={meta?.unitCall || '08:00'}
+            onChange={val => updateMeta({ unitCall: val })}
+            clearOnType col="duration"
+            className="bg-zinc-100 px-1.5 py-0.5 border border-zinc-300 focus-within:border-zinc-500 w-[60px] text-center rounded"
+          />
+        </span>
+        {violations.length > 0 && (
+          <ViolationTooltip violations={violations}>
+            <span className="inline-flex items-center gap-0.5 text-red-500 shrink-0">
+              <Flag className="w-3.5 h-3.5 fill-red-500" />
+              <span className="text-[10px] font-bold">{violations.length}</span>
+            </span>
+          </ViolationTooltip>
         )}
-
+        <button
+          onClick={() => {
+            if (!activeVersion) return;
+            dispatch({
+              type: 'UPDATE_VERSION',
+              payload: {
+                id: activeVersion.id,
+                rows: activeVersion.rows.map(r => r.shootDay === dayInt ? { ...r, shootDay: null as any, order: 999999 } : r)
+              }
+            });
+          }}
+          className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
+          title="Remove all scenes from this day"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+        <span className="flex-1 text-center font-semibold">
+          {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
+        </span>
+        <div className="flex shrink-0" style={{ gap: '20pt' }}>
+          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
+          <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
+        </div>
       </div>
 
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
