@@ -12,6 +12,13 @@ import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
 import { RulesTab } from './components/RulesTab';
 import DesignTab from './components/DesignTab';
+import RibbonTab from './components/RibbonTab';
+import { ColorsTab } from './components/ColorsTab';
+import DoodsTab from './components/DoodsTab';
+import ElementBreakdownView from './components/ElementBreakdownView';
+import { SceneSheet } from './components/SceneSheet';
+import { ElementManager } from './components/ElementManager';
+import { GlideBreakdownTab } from './components/BreakdownTabGlide';
 import { ProjectManager } from './components/ProjectManager';
 import PrintDialog, { PrintOptions } from './components/PrintDialog';
 import PrintSchedule from './components/PrintSchedule';
@@ -154,6 +161,56 @@ function AppContent() {
   }, [poppedOutTabs]);
 
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
+
+  const [poppedOutSubTabs, setPoppedOutSubTabs] = useState<Record<string, Set<string>>>({});
+  const popoutSubWindowsRef = useRef<Map<string, Window>>(new Map());
+
+  const toggleSubPopout = (parentId: string, subTabId: string) => {
+    const isPopped = poppedOutSubTabs[parentId]?.has(subTabId);
+    if (isPopped) {
+      const winKey = `sub_${parentId}_${subTabId}`;
+      const w = popoutSubWindowsRef.current.get(winKey);
+      if (w && !w.closed) w.close();
+      popoutSubWindowsRef.current.delete(winKey);
+      setPoppedOutSubTabs(prev => {
+        const next = { ...prev };
+        const s = new Set(prev[parentId] || []);
+        s.delete(subTabId);
+        next[parentId] = s;
+        return next;
+      });
+    } else {
+      const { left, top } = cascadePosition();
+      const winKey = `sub_${parentId}_${subTabId}`;
+      const w = window.open('', winKey, `width=1200,height=800,left=${left},top=${top}`);
+      if (!w) return;
+      popoutSubWindowsRef.current.set(winKey, w);
+      const newSet = new Set(poppedOutSubTabs[parentId] || []);
+      newSet.add(subTabId);
+      setPoppedOutSubTabs(prev => ({ ...prev, [parentId]: newSet }));
+      if (parentId === 'breakdown' && brSubTab === subTabId) {
+        const nextTab = ['sheet', 'elements', 'glide'].find(t => t !== subTabId && !newSet.has(t));
+        if (nextTab) setBrSubTab(nextTab as any);
+      } else if (parentId === 'design' && designSubTab === subTabId) {
+        const nextTab = ['ribbons', 'colors'].find(t => t !== subTabId && !newSet.has(t));
+        if (nextTab) setDesignSubTab(nextTab as any);
+      } else if (parentId === 'reports' && reportsSubTab === subTabId) {
+        const nextTab = ['doods', 'elementBreakdown'].find(t => t !== subTabId && !newSet.has(t));
+        if (nextTab) setReportsSubTab(nextTab as any);
+      }
+    }
+  };
+
+  const closeSubPopout = (parentId: string, subTabId: string) => {
+    setPoppedOutSubTabs(prev => {
+      const next = { ...prev };
+      const s = new Set(prev[parentId] || []);
+      s.delete(subTabId);
+      next[parentId] = s;
+      return next;
+    });
+    popoutSubWindowsRef.current.delete(`sub_${parentId}_${subTabId}`);
+  };
 
   useEffect(() => {
     if (IS_COARSE && typeof document !== 'undefined') {
@@ -872,7 +929,7 @@ function AppContent() {
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closePopout('breakdown')} />
             <div className="flex-1 min-h-0 flex flex-col">
-              <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
+              <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} />
             </div>
           </div>
         </PopoutWindow>
@@ -902,7 +959,7 @@ function AppContent() {
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closePopout('design')} />
             <div className="flex-1 min-h-0 flex flex-col">
-              <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} />
+              <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} />
             </div>
           </div>
         </PopoutWindow>
@@ -922,7 +979,79 @@ function AppContent() {
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closePopout('reports')} />
             <div className="flex-1 min-h-0 flex flex-col">
-              <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} />
+              <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+
+      {/* SUB-TAB POPOUT WINDOWS */}
+      {poppedOutSubTabs.breakdown?.has('sheet') && popoutSubWindowsRef.current.get('sub_breakdown_sheet') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Sheet" onClose={() => closeSubPopout('breakdown', 'sheet')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <SceneSheet initialIndex={brSheetIdx} onIndexChange={setBrSheetIdx} onOpenSchedule={handleOpenScheduleAtScene} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutSubTabs.breakdown?.has('elements') && popoutSubWindowsRef.current.get('sub_breakdown_elements') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Manager" onClose={() => closeSubPopout('breakdown', 'elements')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ElementManager initialCategory={brCategory} onCategoryChange={setBrCategory} />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutSubTabs.breakdown?.has('glide') && popoutSubWindowsRef.current.get('sub_breakdown_glide') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
+          <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Glide Breakdown" onClose={() => closeSubPopout('breakdown', 'glide')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <GlideBreakdownTab onOpenSheet={handleOpenSheet} onOpenSheetInPopout={handleOpenSheetInPopout} />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutSubTabs.design?.has('ribbons') && popoutSubWindowsRef.current.get('sub_design_ribbons') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
+          <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Ribbon Designer" onClose={() => closeSubPopout('design', 'ribbons')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <RibbonTab />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutSubTabs.design?.has('colors') && popoutSubWindowsRef.current.get('sub_design_colors') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
+          <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Colors" onClose={() => closeSubPopout('design', 'colors')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ColorsTab />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutSubTabs.reports?.has('doods') && popoutSubWindowsRef.current.get('sub_reports_doods') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
+          <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Day Out of Days" onClose={() => closeSubPopout('reports', 'doods')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <DoodsTab selectedCategory={reportsCategory} />
+            </div>
+          </div>
+        </PopoutWindow>
+      )}
+      {poppedOutSubTabs.reports?.has('elementBreakdown') && popoutSubWindowsRef.current.get('sub_reports_elementBreakdown') && (
+        <PopoutWindow title={`${project.title || 'Untitled'} — Element Breakdown`} win={popoutSubWindowsRef.current.get('sub_reports_elementBreakdown')!} onClose={() => closeSubPopout('reports', 'elementBreakdown')}>
+          <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Breakdown" onClose={() => closeSubPopout('reports', 'elementBreakdown')} />
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ElementBreakdownView selectedCategory={reportsCategory} />
             </div>
           </div>
         </PopoutWindow>
@@ -933,7 +1062,7 @@ function AppContent() {
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} /> : <RulesTab />
         )}
       </main>
 

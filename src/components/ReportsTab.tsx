@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useProject, getElementsFromScenes } from '../store';
 import { CustomCategoryDef } from '../types';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
@@ -6,8 +6,7 @@ import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
 import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
 import MiniTab from './MiniTab';
-import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './PopoutWindow';
-import VersionToolbar from './VersionToolbar';
+import { PopoutPlaceholder } from './PopoutWindow';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
   const builtin: Record<string, string> = {};
@@ -17,21 +16,19 @@ function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): s
   return custom?.label || key;
 }
 
-const SUB_TABS = [
-  { id: 'doods', label: 'Day Out of Days' },
-  { id: 'elementBreakdown', label: 'Element Breakdown' },
-] as const;
-
 interface ReportsTabProps {
   subTab: 'doods' | 'elementBreakdown';
   onSubTabChange: (t: 'doods' | 'elementBreakdown') => void;
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
   onPrint?: () => void;
+  poppedOutSubTabs: Set<string>;
+  onToggleSubPopout: (id: string) => void;
+  onCloseSubPopout: (id: string) => void;
 }
 
-export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint }: ReportsTabProps) {
-  const { state, renameProject, currentProjectId, projectList } = useProject();
+export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout }: ReportsTabProps) {
+  const { state } = useProject();
   const project = state.present;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -48,76 +45,21 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
     return keys;
   }, [project.customCategories, hiddenSet]);
 
-  const [poppedOutSubTabs, setPoppedOutSubTabs] = useState<Set<string>>(new Set());
-  const popoutSubWindowsRef = useRef<Map<string, Window>>(new Map());
-
-  const toggleSubPopout = (subTabId: string) => {
-    setPoppedOutSubTabs(prev => {
-      const next = new Set(prev);
-      if (next.has(subTabId)) {
-        next.delete(subTabId);
-        const w = popoutSubWindowsRef.current.get(subTabId);
-        if (w && !w.closed) w.close();
-        popoutSubWindowsRef.current.delete(subTabId);
-      } else {
-        const { left, top } = cascadePosition();
-        const w = window.open('', `popout_sub_${subTabId}`, `width=1200,height=800,left=${left},top=${top}`);
-        if (!w) return prev;
-        popoutSubWindowsRef.current.set(subTabId, w);
-        next.add(subTabId);
-        if (subTabId === subTab) {
-          const nextTab = SUB_TABS.find(t => t.id !== subTabId && !next.has(t.id));
-          if (nextTab) onSubTabChange(nextTab.id as 'doods' | 'elementBreakdown');
-        }
-      }
-      return next;
-    });
-  };
-
-  const closeSubPopout = (subTabId: string) => {
-    setPoppedOutSubTabs(prev => {
-      const next = new Set(prev);
-      next.delete(subTabId);
-      return next;
-    });
-    popoutSubWindowsRef.current.delete(subTabId);
-  };
-
   const subTabLabels: Record<string, string> = {
     doods: 'Day Out of Days', elementBreakdown: 'Element Breakdown',
   };
 
-  const renameHandler = (v: string) => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId);
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {poppedOutSubTabs.has('doods') && popoutSubWindowsRef.current.get('doods') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('doods')!} onClose={() => closeSubPopout('doods')}>
-          <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={renameHandler} tabName="Day Out of Days" onClose={() => closeSubPopout('doods')} />
-            <div className="flex-1 min-h-0 flex">
-              <DoodsTab selectedCategory={selectedCategory} />
-            </div>
-          </div>
-        </PopoutWindow>
-      )}
-      {poppedOutSubTabs.has('elementBreakdown') && popoutSubWindowsRef.current.get('elementBreakdown') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Element Breakdown`} win={popoutSubWindowsRef.current.get('elementBreakdown')!} onClose={() => closeSubPopout('elementBreakdown')}>
-          <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
-            <VersionToolbar projectTitle={project.title} onProjectTitleChange={renameHandler} tabName="Element Breakdown" onClose={() => closeSubPopout('elementBreakdown')} />
-            <div className="flex-1 min-h-0 flex">
-              <ElementBreakdownView selectedCategory={selectedCategory} />
-            </div>
-          </div>
-        </PopoutWindow>
-      )}
-
       <MiniTab
         theme="dark"
-        tabs={SUB_TABS.map(t => ({ id: t.id, label: t.label }))}
+        tabs={[
+          { id: 'doods', label: 'Day Out of Days' },
+          { id: 'elementBreakdown', label: 'Element Breakdown' },
+        ]}
         activeTab={subTab}
         onChange={onSubTabChange}
-        onPopout={toggleSubPopout}
+        onPopout={onToggleSubPopout}
         rightContent={
           onPrint ? (
             <button
@@ -130,9 +72,8 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
           ) : undefined
         }
       />
-
       {poppedOutSubTabs.has(subTab) ? (
-        <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => closeSubPopout(subTab)} />
+        <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0">
         {sidebarCollapsed ? (
