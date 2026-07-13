@@ -51,13 +51,13 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
             className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
           />
           <div className={`h-4 w-px ${isCloudProject ? 'bg-blue-800' : 'bg-zinc-700'}`} />
-          <span className="px-3 py-1.5 rounded-md text-xs font-semibold bg-white text-zinc-900">
+          <span className="px-3 py-1.5 rounded text-xs font-semibold bg-white text-zinc-900">
             {tabName}
           </span>
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
-          <div className={`flex items-center gap-1 rounded-md p-0.5 border ${cloudBorder} ${cloudBtnBg}`}>
+          <div className={`flex items-center gap-1 rounded p-0.5 border ${cloudBorder} ${cloudBtnBg}`}>
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
               disabled={state.past.length === 0}

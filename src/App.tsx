@@ -619,7 +619,7 @@ function AppContent() {
               className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
             />
           </div>
-          <div ref={topTabContainerRef} className="flex items-end gap-1 self-end border border-white/20 rounded-md p-0.5">
+          <div ref={topTabContainerRef} className="flex items-end gap-1 self-end border border-white/20 rounded p-0.5">
             {compactTabs ? (
               <div className="flex-1 flex justify-center">
               <DropdownMenu
@@ -669,42 +669,42 @@ function AppContent() {
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Breakdown
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Schedule
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Calendar
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Design
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Rules
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Reports
             </button>
@@ -713,7 +713,7 @@ function AppContent() {
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
-          <div className={`flex items-center gap-1 rounded-md p-0.5 border ${isCloudProject ? 'bg-blue-900 border-blue-800' : 'bg-zinc-900 border-zinc-800'}`}>
+          <div className={`flex items-center gap-1 rounded p-0.5 border ${isCloudProject ? 'bg-blue-900 border-blue-800' : 'bg-zinc-900 border-zinc-800'}`}>
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
               disabled={state.past.length === 0}
