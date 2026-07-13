@@ -52,12 +52,9 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
             className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
           />
           <div className={`h-4 w-px ${isCloudProject ? 'bg-blue-800' : 'bg-zinc-700'}`} />
-          <div className="relative h-full">
-            <span className={`absolute top-0.5 -bottom-5 left-0 right-0 rounded-t-md pointer-events-none ${contentTheme === 'dark' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600' : 'bg-white'}`} />
-            <span className={`relative px-3 py-1.5 rounded-t-md text-xs font-semibold ${contentTheme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
-              {tabName}
-            </span>
-          </div>
+          <span className={`px-3 py-1.5 rounded-t-md text-xs font-semibold ${contentTheme === 'dark' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : 'bg-white text-zinc-900'}`}>
+            {tabName}
+          </span>
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">

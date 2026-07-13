@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useLayoutEffect, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, Project } from './types';
@@ -293,10 +293,6 @@ function AppContent() {
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
-  const topTabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [topTabOverlayStyle, setTopTabOverlayStyle] = useState<React.CSSProperties>({ background: '#ffffff' });
-  const [hoveredTopTab, setHoveredTopTab] = useState<string | null>(null);
-  const [hoverTopTabStyle, setHoverTopTabStyle] = useState<React.CSSProperties>({});
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -315,44 +311,7 @@ function AppContent() {
   const noProject = currentProjectId === null;
   const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
-  const topTabIsDark = activeTab === 'reports' || activeTab === 'design';
-  const topTabOverlayReady = 'left' in topTabOverlayStyle;
   const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white' : 'text-zinc-400 hover:text-zinc-200';
-
-  const measureTopOverlay = () => {
-    const el = topTabRefs.current.get(activeTab);
-    const container = topTabContainerRef.current;
-    if (!el || !container) return;
-    const cr = container.getBoundingClientRect();
-    const er = el.getBoundingClientRect();
-    const isDark = activeTab === 'reports' || activeTab === 'design';
-    const left = er.left - cr.left;
-    const width = er.width;
-    const bg = isDark ? '#18181b' : '#ffffff';
-    const borders = isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {};
-    setTopTabOverlayStyle({ left, width, opacity: 1, transform: 'translateY(0)', background: bg, ...borders });
-  };
-
-  useLayoutEffect(() => {
-    const el = topTabRefs.current.get(activeTab);
-    if (!el) return;
-    const ro = new ResizeObserver(() => measureTopOverlay());
-    ro.observe(el);
-    measureTopOverlay();
-    return () => ro.disconnect();
-  }, [activeTab, designSubTab, noProject]);
-
-  const updateTopHover = (tabId: string | null) => {
-    setHoveredTopTab(tabId);
-    if (tabId && tabId !== activeTab) {
-      const el = topTabRefs.current.get(tabId);
-      const container = topTabContainerRef.current;
-      if (!el || !container) return;
-      const cr = container.getBoundingClientRect();
-      const er = el.getBoundingClientRect();
-      setHoverTopTabStyle({ left: er.left - cr.left, width: er.width });
-    }
-  };
 
   const storage = useStorage();
   const ctx = useProject();
@@ -707,75 +666,47 @@ function AppContent() {
               </DropdownMenu>
               </div>
             ) : (<>
-            <span
-              className="absolute top-0.5 -bottom-4 bg-white rounded-t-md pointer-events-none"
-              style={{ ...topTabOverlayStyle, transition: 'none' }}
-            />
-            {hoveredTopTab && hoveredTopTab !== activeTab && (
-              <span
-                className={`absolute top-0.5 -bottom-4 rounded-t-md pointer-events-none ${isCloudProject ? 'bg-blue-900/70' : 'bg-zinc-700/70'}`}
-                style={{ ...hoverTopTabStyle, transition: 'none' }}
-              />
-            )}
             <button 
-              ref={el => { if (el) topTabRefs.current.set('breakdown', el); }}
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
-              onMouseEnter={() => updateTopHover('breakdown')}
-              onMouseLeave={() => updateTopHover(null)}
-              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
-              <span className="relative">Breakdown</span>
+              Breakdown
             </button>
             <button 
-              ref={el => { if (el) topTabRefs.current.set('schedule', el); }}
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
-              onMouseEnter={() => updateTopHover('schedule')}
-              onMouseLeave={() => updateTopHover(null)}
-              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
-              <span className="relative">Schedule</span>
+              Schedule
             </button>
             <button 
-              ref={el => { if (el) topTabRefs.current.set('calendar', el); }}
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
-              onMouseEnter={() => updateTopHover('calendar')}
-              onMouseLeave={() => updateTopHover(null)}
-              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
-              <span className="relative">Calendar</span>
+              Calendar
             </button>
             <button 
-              ref={el => { if (el) topTabRefs.current.set('design', el); }}
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-              onMouseEnter={() => updateTopHover('design')}
-              onMouseLeave={() => updateTopHover(null)}
-              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
             >
-              <span className="relative">Design</span>
+              Design
             </button>
             <button 
-              ref={el => { if (el) topTabRefs.current.set('rules', el); }}
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
-              onMouseEnter={() => updateTopHover('rules')}
-              onMouseLeave={() => updateTopHover(null)}
-              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
-              <span className="relative">Rules</span>
+              Rules
             </button>
             <button 
-              ref={el => { if (el) topTabRefs.current.set('reports', el); }}
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-              onMouseEnter={() => updateTopHover('reports')}
-              onMouseLeave={() => updateTopHover(null)}
-              className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
             >
-              <span className="relative">Reports</span>
+              Reports
             </button>
             </>)}
           </div>
