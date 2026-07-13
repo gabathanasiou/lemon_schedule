@@ -351,7 +351,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   }, []);
 
   return (
-    <Modal open onClose={() => onClose?.()} title="Projects" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
+    <Modal open onClose={() => onClose?.()} title="Project Manager" icon={<FolderOpen className="w-4 h-4" />} width="max-w-lg"
       footer={
         <ModalFooter>
           {activeTab === 'local' ? (
