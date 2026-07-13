@@ -621,14 +621,13 @@ function AppContent() {
           </div>
           <div ref={topTabContainerRef} className="flex items-end gap-1 self-end rounded p-0.5">
             {compactTabs ? (
-              <div className="flex-1 flex justify-center">
               <DropdownMenu
                 open={tabDropdownOpen}
                 onOpenChange={setTabDropdownOpen}
                 width="w-44"
                 theme={isCloudProject ? 'blue' : 'dark'}
                 trigger={
-                  <button className={`flex items-center gap-1.5 border transition-colors text-white px-3 py-1.5 rounded cursor-pointer select-none font-sans text-xs font-semibold ${isCloudProject ? 'bg-blue-900 border-blue-800 hover:bg-blue-800' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>
+                  <button className="px-3 py-1.5 rounded text-xs font-semibold transition-colors bg-white text-zinc-900 flex items-center gap-1">
                     <span>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
                     <ChevronDown className="w-3 h-3 text-zinc-400" />
                   </button>
@@ -664,7 +663,6 @@ function AppContent() {
                   );
                 })}
               </DropdownMenu>
-              </div>
             ) : (<>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
