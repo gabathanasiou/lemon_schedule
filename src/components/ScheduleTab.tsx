@@ -54,11 +54,14 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
     const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
+    const onBlur = () => setShiftHeld(false);
     currentWindow.addEventListener('keydown', onDown);
     currentWindow.addEventListener('keyup', onUp);
+    currentWindow.addEventListener('blur', onBlur);
     return () => {
       currentWindow.removeEventListener('keydown', onDown);
       currentWindow.removeEventListener('keyup', onUp);
+      currentWindow.removeEventListener('blur', onBlur);
     };
   }, [currentWindow]);
 
