@@ -1,4 +1,4 @@
-import React, { useRef, useState, useLayoutEffect } from 'react';
+import React, { useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { useIsCloudProject } from '../store';
 import { ExternalLink, ChevronDown } from 'lucide-react';
 import { IS_COARSE } from '../lib/device';
@@ -32,6 +32,8 @@ const THEME = {
   },
 } as const;
 
+const GAP = 4;
+
 export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme = 'light', onPopout, shiftHeld = false }: MiniTabProps) {
   const t = THEME[theme];
   const isCloud = useIsCloudProject();
@@ -39,37 +41,60 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
   const activeText = theme === 'light' && isCloud ? 'text-blue-50' : 'text-white';
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [overflowFromIndex, setOverflowFromIndex] = useState<number | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const tabsRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const tabWidthsRef = useRef<number[]>([]);
 
-  useLayoutEffect(() => {
+  const measure = useCallback(() => {
     const el = measureRef.current;
     if (!el) return;
-    const check = () => {
-      const container = tabsRef.current;
-      if (!container) return;
-      setCollapsed(container.scrollWidth > container.clientWidth);
-    };
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    check();
-    return () => ro.disconnect();
-  }, [tabs]);
+    const items = Array.from(el.querySelectorAll('[data-mtab-id]')) as HTMLElement[];
+    if (items.length === 0) return;
+    const containerWidth = el.parentElement?.getBoundingClientRect().width ?? 0;
+    if (containerWidth <= 0) return;
+    const gaps = GAP * (items.length - 1);
+    const widths = items.map(i => i.getBoundingClientRect().width);
+    tabWidthsRef.current = widths;
+    const total = widths.reduce((a, b) => a + b, 0) + gaps;
+    if (total <= containerWidth) { setOverflowFromIndex(null); return; }
+    let acc = 0;
+    for (let i = 0; i < widths.length; i++) {
+      acc += widths[i] + (i > 0 ? GAP : 0);
+      if (acc > containerWidth) { setOverflowFromIndex(i); return; }
+    }
+    setOverflowFromIndex(null);
+  }, []);
 
-  const active = tabs.find(t => t.id === activeTab);
+  useLayoutEffect(() => {
+    const el = measureRef.current?.parentElement;
+    if (!el) return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [measure]);
+
+  const overflowIdx = overflowFromIndex ?? tabs.length;
+  const visibleTabs = tabs.slice(0, overflowIdx);
+  const overflowTabs = tabs.slice(overflowIdx);
+  const hasOverflow = overflowTabs.length > 0;
   const dropdownTriggerTheme = theme === 'dark' ? 'dark' : 'light';
 
+  const tabBtnClass = (isActive: boolean) =>
+    `px-3 py-1.5 text-xs font-semibold rounded transition-colors whitespace-nowrap ${isActive ? `${activeBg} ${activeText}` : t.inactive}`;
+
   return (
-    <div ref={measureRef} className={`flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 ${t.bar}`}>
+    <div className={`flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 ${t.bar}`}>
       <div className="flex items-center gap-1 min-w-0 flex-1">
-        <div ref={tabsRef} className={`items-center gap-1 min-w-0 ${collapsed ? 'overflow-hidden h-0 invisible flex' : 'flex'}`}>
+        <div ref={measureRef} className="flex items-center gap-1 min-w-0">
           {tabs.map(tab => {
             const isActive = activeTab === tab.id;
+            const isVisible = visibleTabs.includes(tab);
             return (
               <button
                 key={tab.id}
+                data-mtab-id={tab.id}
                 onClick={() => {
                   if (shiftHeld && !IS_COARSE && onPopout) {
                     onPopout(tab.id);
@@ -81,16 +106,14 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
                 } : undefined}
-                className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors whitespace-nowrap ${
-                  isActive ? `${activeBg} ${activeText}` : t.inactive
-                }`}
+                className={`${tabBtnClass(isActive)} ${isVisible ? '' : 'absolute invisible'}`}
               >
                 {tab.label}
               </button>
             );
           })}
         </div>
-        {collapsed && active && (
+        {hasOverflow && (
           <DropdownMenu
             open={dropdownOpen}
             onOpenChange={setDropdownOpen}
@@ -98,20 +121,14 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
             theme={dropdownTriggerTheme}
             align="left"
             trigger={
-              <button
-                onClick={() => setDropdownOpen(p => !p)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors flex items-center gap-1 whitespace-nowrap ${activeBg} ${activeText}`}
-              >
-                <span className="truncate">{active.label}</span>
+              <button onClick={() => setDropdownOpen(p => !p)} className={`${tabBtnClass(false)} flex items-center gap-1`}>
+                More
                 <ChevronDown className="w-3 h-3 shrink-0 opacity-60" />
               </button>
             }
           >
-            {tabs.map(tab => (
-              <DropdownItem
-                key={tab.id}
-                onClick={() => { onChange(tab.id); setDropdownOpen(false); }}
-              >
+            {overflowTabs.map(tab => (
+              <DropdownItem key={tab.id} onClick={() => { onChange(tab.id); setDropdownOpen(false); }}>
                 {tab.label}
               </DropdownItem>
             ))}
