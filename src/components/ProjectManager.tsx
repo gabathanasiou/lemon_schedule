@@ -186,6 +186,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       title: 'Delete ALL Drive data?',
       message: `This will permanently delete all ${driveTotalCount?.toLocaleString() ?? 'unknown'} files in your Google Drive app data. This cannot be undone.`,
       danger: true,
+      suppressKey: 'lemon_schedule_dnwa_delete_drive',
     });
     if (!ok) return;
     setDeletingAll(true);
@@ -313,7 +314,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   };
 
   const handleMoveToLocal = async (p: ProjectMeta) => {
-    const ok = await dialog.confirm({ title: `Remove "${p.title}" from Drive?`, message: 'This will delete the project from Google Drive. A local copy will be saved.', danger: true });
+    const ok = await dialog.confirm({ title: `Remove "${p.title}" from Drive?`, message: 'This will delete the project from Google Drive. A local copy will be saved.', danger: true, suppressKey: 'lemon_schedule_dnwa_remove_drive' });
     if (!ok) return;
     setMovingId(p.id);
     try {
@@ -741,7 +742,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                           </button>
                         )}
                         <button
-                          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true }); if (ok) { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); } }}
+                          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_project' }); if (ok) { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); } }}
                           disabled={isBusy}
                           className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-rose-900/40 disabled:opacity-30`}
                           title="Delete"

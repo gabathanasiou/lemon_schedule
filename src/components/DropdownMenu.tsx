@@ -2,6 +2,7 @@ import React, { createContext, useContext, useCallback, useState, useRef, useEff
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Pencil, Copy, Trash2, Plus, Check, X, RotateCcw } from 'lucide-react';
 import { usePortalTarget } from '../lib/popoutTarget';
+import { IS_COARSE } from '../lib/device';
 
 export type DropdownTheme = 'light' | 'dark' | 'blue';
 
@@ -128,6 +129,17 @@ export function ItemManagerDropdown({
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const sz = {
+    rowPad: IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs',
+    footerPad: IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs',
+    headerText: IS_COARSE ? 'text-xs' : 'text-[10px]',
+    btnSize: IS_COARSE ? 'w-8 h-8' : 'w-6 h-6',
+    btnIcon: 'w-3.5 h-3.5',
+    footerIcon: 'w-3.5 h-3.5',
+    inputPad: IS_COARSE ? 'px-3 py-2 text-sm' : 'px-1.5 py-0.5 text-xs',
+    headerPad: IS_COARSE ? 'px-3 pt-3 pb-2' : 'px-3 pt-2 pb-1',
+  };
+
   const th = {
     text: isBlue ? 'text-white' : 'text-zinc-300',
     textBright: isBlue ? 'text-white' : 'text-white',
@@ -190,7 +202,7 @@ export function ItemManagerDropdown({
 
   return (
     <DropdownMenu open={open} onOpenChange={(o) => { if (!o) { setEditingId(null); setEditValue(''); } if (!o || !readOnly) onClose(o); }} width="w-80" theme={theme} trigger={trigger}>
-      <div className={`px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${th.textDim}`}>
+      <div className={`${sz.headerPad} ${sz.headerText} font-semibold uppercase tracking-wider ${th.textDim}`}>
         {header}
       </div>
       {items.map(item => {
@@ -201,63 +213,63 @@ export function ItemManagerDropdown({
             {isEditing ? (
               <>
                 <div
-                  className="flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none flex items-center gap-2"
+                  className={`flex-1 min-w-0 ${sz.footerPad} rounded outline-none flex items-center gap-2`}
                 >
                   <input
                     ref={inputRef}
                     value={editValue}
                     onChange={e => setEditValue(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); commitRename(); } if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelRename(); } }}
-                    className={`w-full border rounded px-1.5 py-0.5 text-xs outline-none ${th.inputBg} ${th.inputFocus}`}
+                    className={`w-full border rounded ${sz.inputPad} outline-none ${th.inputBg} ${th.inputFocus}`}
                   />
                 </div>
                 <RadixDropdownMenu.Item
-                  className="shrink-0 w-6 h-6 rounded flex items-center justify-center hover:text-green-400 outline-none cursor-pointer"
+                  className={`shrink-0 ${sz.btnSize} rounded flex items-center justify-center outline-none cursor-pointer ${isBlue ? 'text-white/60 hover:text-green-400' : 'text-zinc-400 hover:text-green-400'}`}
                   onSelect={e => { e.preventDefault(); commitRename(); }}
                   onTouchStart={() => {}}
                 >
-                  <Check className="w-3 h-3" />
+                  <Check className={sz.btnIcon} />
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className="shrink-0 w-6 h-6 rounded flex items-center justify-center hover:text-red-400 outline-none cursor-pointer"
+                  className={`shrink-0 ${sz.btnSize} rounded flex items-center justify-center outline-none cursor-pointer mr-1 ${isBlue ? 'text-white/60 hover:text-red-400' : 'text-zinc-400 hover:text-red-400'}`}
                   onSelect={e => { e.preventDefault(); cancelRename(); }}
                   onTouchStart={() => {}}
                 >
-                  <X className="w-3 h-3" />
+                  <X className={sz.btnIcon} />
                 </RadixDropdownMenu.Item>
               </>
             ) : (
               <>
                 <RadixDropdownMenu.Item
-                  className={`flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none cursor-pointer flex items-center ${th.text} ${isActive ? '' : th.hoverText}`}
+                  className={`flex-1 min-w-0 ${sz.footerPad} rounded outline-none cursor-pointer flex items-center ${th.text} ${isActive ? '' : th.hoverText}`}
                   onSelect={closeOnSelect ? () => { onSelect(item.id); } : e => { e.preventDefault(); onSelect(item.id); }}
                   onTouchStart={() => {}}
                 >
                   <span className={`truncate ${isActive ? th.textActive + ' font-medium' : ''}`}>{item.name}</span>
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer ${isActive ? th.btnActive : th.btnBase}`}
+                  className={`shrink-0 ${sz.btnSize} rounded flex items-center justify-center outline-none cursor-pointer ${isActive ? th.btnActive : th.btnBase}`}
                   onSelect={e => { e.preventDefault(); startRename(item.id, item.name); }}
                   onTouchStart={() => {}}
                   disabled={readOnly}
                 >
-                  <Pencil className="w-3 h-3" />
+                  <Pencil className={sz.btnIcon} />
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer ${isActive ? th.btnActive : th.btnBase}`}
+                  className={`shrink-0 ${sz.btnSize} rounded flex items-center justify-center outline-none cursor-pointer ${isActive ? th.btnActive : th.btnBase}`}
                   onSelect={e => { e.preventDefault(); const newId = onDuplicate(item.id); if (newId) startRename(newId, `${item.name} Copy`); }}
                   onTouchStart={() => {}}
                   disabled={readOnly}
                 >
-                  <Copy className="w-3 h-3" />
+                  <Copy className={sz.btnIcon} />
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
-                  className={`shrink-0 w-6 h-6 rounded flex items-center justify-center outline-none cursor-pointer ${items.length <= minItems ? th.btnDeleteDisabled : isActive ? th.btnDeleteActive : th.btnDelete}`}
+                  className={`shrink-0 ${sz.btnSize} rounded flex items-center justify-center outline-none cursor-pointer mr-1 ${items.length <= minItems ? th.btnDeleteDisabled : isActive ? th.btnDeleteActive : th.btnDelete}`}
                   onSelect={e => { e.preventDefault(); onDelete(item.id); }}
                   onTouchStart={() => {}}
                   disabled={readOnly || items.length <= minItems}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className={sz.btnIcon} />
                 </RadixDropdownMenu.Item>
               </>
             )}
@@ -269,12 +281,12 @@ export function ItemManagerDropdown({
           <>
             <RadixDropdownMenu.Separator className={th.separator} />
             <RadixDropdownMenu.Item
-              className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+              className={`w-full text-left ${sz.footerPad} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
               onSelect={e => { e.preventDefault(); onReset(); }}
               onTouchStart={() => {}}
               disabled={readOnly}
             >
-              <RotateCcw className={`w-3.5 h-3.5 ${th.iconColor}`} />
+              <RotateCcw className={`${sz.footerIcon} ${th.iconColor}`} />
               Reset to Default
             </RadixDropdownMenu.Item>
           </>
@@ -284,45 +296,45 @@ export function ItemManagerDropdown({
         )}
         {onCreate && (
           <RadixDropdownMenu.Item
-            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            className={`w-full text-left ${sz.footerPad} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
             onSelect={e => { e.preventDefault(); const newId = onCreate(); if (newId) startRename(newId, ''); }}
             onTouchStart={() => {}}
             disabled={readOnly}
           >
-            <Plus className={`w-3.5 h-3.5 ${th.iconColor}`} />
+            <Plus className={`${sz.footerIcon} ${th.iconColor}`} />
             New {createLabel}
           </RadixDropdownMenu.Item>
         )}
         {onImport && (
           <RadixDropdownMenu.Item
-            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            className={`w-full text-left ${sz.footerPad} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
             onSelect={e => { e.preventDefault(); onImport(); }}
             onTouchStart={() => {}}
             disabled={readOnly}
           >
-            <svg className={`w-3.5 h-3.5 ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            <svg className={`${sz.footerIcon} ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             Import
           </RadixDropdownMenu.Item>
         )}
         {onExport && (
           <RadixDropdownMenu.Item
-            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            className={`w-full text-left ${sz.footerPad} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
             onSelect={e => { e.preventDefault(); onExport(); }}
             onTouchStart={() => {}}
             disabled={readOnly}
           >
-            <svg className={`w-3.5 h-3.5 ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            <svg className={`${sz.footerIcon} ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
             Export
           </RadixDropdownMenu.Item>
         )}
         {onTrash && (
           <RadixDropdownMenu.Item
-            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            className={`w-full text-left ${sz.footerPad} rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
             onSelect={e => { e.preventDefault(); onTrash(); }}
             onTouchStart={() => {}}
             disabled={readOnly}
           >
-            <Trash2 className={`w-3.5 h-3.5 ${th.iconColor}`} />
+            <Trash2 className={`${sz.footerIcon} ${th.iconColor}`} />
             Trash
           </RadixDropdownMenu.Item>
         )}

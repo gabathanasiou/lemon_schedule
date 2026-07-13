@@ -556,7 +556,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
-                            const ok = await dialog.confirm({ title: `Hide "${label}"?`, message: 'Category will be hidden from all views.', danger: true });
+                            const ok = await dialog.confirm({ title: `Hide "${label}"?`, message: 'Category will be hidden from all views.', danger: true, suppressKey: 'lemon_schedule_dnwa_hide_category' });
                             if (ok) {
                               dispatch({ type: 'HIDE_CATEGORY', payload: key });
                               if (category === key) switchCategory('cast');
@@ -583,7 +583,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
-                            const ok = await dialog.confirm({ title: `Delete "${label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true });
+                            const ok = await dialog.confirm({ title: `Delete "${label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_category' });
                             if (ok) {
                               dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: key });
                               if (category === key) switchCategory('cast');

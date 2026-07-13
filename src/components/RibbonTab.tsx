@@ -600,7 +600,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           return newId;
         }}
         onDelete={async (id) => {
-          const ok = await dialog.confirm({ title: 'Delete Design?', message: 'This can be restored from Trash.', danger: true });
+          const ok = await dialog.confirm({ title: 'Delete Design?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_design' });
           if (ok) dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: id });
         }}
         onCreate={() => {

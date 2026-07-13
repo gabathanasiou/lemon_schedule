@@ -18,6 +18,7 @@ interface ConfirmOptions {
   title: string;
   message?: string;
   danger?: boolean;
+  suppressKey?: string;
 }
 
 interface PromptOptions {
@@ -53,6 +54,7 @@ export function useDialog() {
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [suppressCheck, setSuppressCheck] = useState(false);
   const portalTarget = usePortalTarget();
   const currentWindow = useCurrentWindow();
   const currentWindowRef = useRef(currentWindow);
@@ -140,7 +142,14 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   }, [dialog]);
 
   const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
+    if (opts.suppressKey) {
+      const suppressedUntil = localStorage.getItem(opts.suppressKey);
+      if (suppressedUntil && Date.now() < parseInt(suppressedUntil, 10)) {
+        return Promise.resolve(true);
+      }
+    }
     return new Promise(resolve => {
+      setSuppressCheck(false);
       setDialog({ kind: 'confirm', options: opts, resolve });
     });
   }, []);
@@ -222,6 +231,18 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               </RadixDialog.Description>
             )}
 
+            {dialog?.kind === 'confirm' && (dialog.options as ConfirmOptions).suppressKey && (
+              <label className="flex items-center gap-2 cursor-pointer text-zinc-500 hover:text-zinc-400 text-xs">
+                <input
+                  type="checkbox"
+                  checked={suppressCheck}
+                  onChange={e => setSuppressCheck(e.target.checked)}
+                  className="rounded bg-zinc-800 border-zinc-700 text-zinc-500 focus:ring-0"
+                />
+                Don't ask again (24 hours)
+              </label>
+            )}
+
             {dialog?.kind === 'prompt' && (
               <input
                 ref={inputRef}
@@ -248,7 +269,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               <button
                 onClick={() => {
                   if (!dialog) return;
-                  if (dialog.kind === 'confirm') { dialog.resolve(true); setDialog(null); }
+                   if (dialog.kind === 'confirm') {
+                     const opts = dialog.options as ConfirmOptions;
+                     if (opts.suppressKey && suppressCheck) {
+                       localStorage.setItem(opts.suppressKey, String(Date.now() + 86400000));
+                     }
+                     dialog.resolve(true); setDialog(null);
+                   }
                   else if (dialog.kind === 'prompt') resolvePrompt();
                   else { dialog.resolve(); setDialog(null); }
                 }}

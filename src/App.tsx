@@ -773,7 +773,7 @@ function AppContent() {
               return newId;
             }}
             onDelete={async (id) => {
-              const ok = await dialog.confirm({ title: 'Delete Version?', message: 'This cannot be undone.', danger: true });
+              const ok = await dialog.confirm({ title: 'Delete Version?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_version' });
               if (ok) dispatch({ type: 'DELETE_VERSION', payload: id });
             }}
             onCreate={() => {
@@ -1095,7 +1095,7 @@ function AppContent() {
               <div className="flex items-center gap-2 shrink-0 ml-3">
                 {(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) + (project.colorRulesTrash?.length || 0) > 0 && (
                   <button
-                    onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
+                    onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true, suppressKey: 'lemon_schedule_dnwa_empty_trash' }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
                     className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-1.5 py-0.5 rounded hover:bg-red-500/10 transition-colors"
                   >
                     Empty

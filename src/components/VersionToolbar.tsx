@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useProject, useIsCloudProject } from '../store';
+import { useDialog } from './Dialog';
 import { SaveIndicator } from './SaveIndicator';
 import { Undo2, Redo2, ChevronDown } from 'lucide-react';
 import { ItemManagerDropdown } from './DropdownMenu';
@@ -14,6 +15,7 @@ interface VersionToolbarProps {
 
 export default function VersionToolbar({ projectTitle, onProjectTitleChange, tabName, onClose }: VersionToolbarProps) {
   const { state, dispatch, readOnly } = useProject();
+  const dialog = useDialog();
   const isCloudProject = useIsCloudProject();
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
@@ -84,7 +86,10 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
               dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: id, id: newId } });
               return newId;
             }}
-            onDelete={(id) => dispatch({ type: 'DELETE_VERSION', payload: id })}
+            onDelete={async (id) => {
+              const ok = await dialog.confirm({ title: 'Delete Version?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_version' });
+              if (ok) dispatch({ type: 'DELETE_VERSION', payload: id });
+            }}
             onCreate={() => {
               const name = `V${String(project.versions.length + 1).padStart(2, '0')}`;
               const newId = generateUUID();
