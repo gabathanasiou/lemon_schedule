@@ -32,7 +32,7 @@ import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
-import { usePortalTarget } from '../lib/popoutTarget';
+import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -192,8 +192,11 @@ export function GlideBreakdownTab({
   });
   const gridRef = useRef<DataEditorRef>(null);
   const portalTarget = usePortalTarget();
+  const currentDocument = useCurrentDocument();
   const portalRef = useRef<HTMLElement | null>(null);
   useEffect(() => { portalRef.current = portalTarget ?? document.getElementById('portal'); }, [portalTarget]);
+  const gridPortalRef = useRef<HTMLElement | null>(null);
+  useEffect(() => { gridPortalRef.current = portalTarget ? portalTarget.querySelector('#portal') : document.getElementById('portal'); }, [portalTarget]);
   const prevScenesLen = useRef(scenes.length);
   const mountedRef = useRef(false);
 
@@ -907,6 +910,8 @@ export function GlideBreakdownTab({
           cellActivationBehavior="double-click"
           smoothScrollX={smoothScroll}
           smoothScrollY={smoothScroll}
+          portalElementRef={gridPortalRef}
+          {...({ experimental: { eventTarget: currentDocument } } as any)}
         />
       </div>
 

@@ -10,9 +10,10 @@ interface DesignTabProps {
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
+  shiftHeld?: boolean;
 }
 
-export default function DesignTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout }: DesignTabProps) {
+export default function DesignTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: DesignTabProps) {
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const subTabLabels: Record<string, string> = {
@@ -30,6 +31,7 @@ export default function DesignTab({ subTab, onSubTabChange, poppedOutSubTabs, on
         activeTab={subTab}
         onChange={onSubTabChange}
         onPopout={onToggleSubPopout}
+        shiftHeld={shiftHeld}
         rightContent={<div ref={setPortalTarget} className="flex items-center gap-2" />}
       />
       {poppedOutSubTabs.has(subTab) ? (

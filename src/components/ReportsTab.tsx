@@ -25,9 +25,10 @@ interface ReportsTabProps {
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
+  shiftHeld?: boolean;
 }
 
-export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout }: ReportsTabProps) {
+export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: ReportsTabProps) {
   const { state } = useProject();
   const project = state.present;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -60,6 +61,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
         activeTab={subTab}
         onChange={onSubTabChange}
         onPopout={onToggleSubPopout}
+        shiftHeld={shiftHeld}
         rightContent={
           onPrint ? (
             <button

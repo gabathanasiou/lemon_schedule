@@ -5,7 +5,7 @@ import MiniTab from './MiniTab';
 import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout }: {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: {
   subTab: 'elements' | 'sheet' | 'glide';
   onSubTabChange: (t: 'elements' | 'sheet' | 'glide') => void;
   savedCat: string;
@@ -19,6 +19,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
+  shiftHeld?: boolean;
 }) {
   const subTab = externalSubTab;
   const scrollTops = useRef<Record<string, number>>({});
@@ -47,6 +48,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           onSubTabChange(id as 'elements' | 'sheet' | 'glide');
         }}
         onPopout={onToggleSubPopout}
+        shiftHeld={shiftHeld}
         rightContent={
           <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className="flex items-center gap-2" />
         }

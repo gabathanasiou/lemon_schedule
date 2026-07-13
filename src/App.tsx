@@ -33,6 +33,7 @@ import DropdownMenu from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
 import DropdownDivider from './components/DropdownDivider';
 import DropdownSubmenu from './components/DropdownSubmenu';
+import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './components/ContextMenu';
 import Modal from './components/Modal';
 import { ModalFooter } from './components/Modal';
 import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageStatus';
@@ -273,6 +274,7 @@ function AppContent() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [compactTabs, setCompactTabs] = useState(window.innerWidth < 900);
   const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
+  const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
   useEffect(() => {
     const onResize = () => setCompactTabs(window.innerWidth < 900);
     window.addEventListener('resize', onResize);
@@ -700,99 +702,93 @@ function AppContent() {
             )}
             <button 
               ref={el => { if (el) topTabRefs.current.set('breakdown', el); }}
-              onClick={() => setActiveTab('breakdown')} 
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
               onMouseEnter={() => updateTopHover('breakdown')}
               onMouseLeave={() => updateTopHover(null)}
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Breakdown</span>
-              <span
-                onClick={(e) => { e.stopPropagation(); togglePopout('breakdown'); }}
-                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
-                title="Open in separate window"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </span>
+              {shiftHeld && !IS_COARSE && hoveredTopTab === 'breakdown' && (
+                <span className="ml-1.5 inline-flex items-center text-zinc-400">
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('schedule', el); }}
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
               onMouseEnter={() => updateTopHover('schedule')}
               onMouseLeave={() => updateTopHover(null)}
-              onClick={() => setActiveTab('schedule')}
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Schedule</span>
-              <span
-                onClick={(e) => { e.stopPropagation(); togglePopout('schedule'); }}
-                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
-                title="Open in separate window"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </span>
+              {shiftHeld && !IS_COARSE && hoveredTopTab === 'schedule' && (
+                <span className="ml-1.5 inline-flex items-center text-zinc-400">
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('calendar', el); }}
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
               onMouseEnter={() => updateTopHover('calendar')}
               onMouseLeave={() => updateTopHover(null)}
-              onClick={() => setActiveTab('calendar')}
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Calendar</span>
-              <span
-                onClick={(e) => { e.stopPropagation(); togglePopout('calendar'); }}
-                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
-                title="Open in separate window"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </span>
+              {shiftHeld && !IS_COARSE && hoveredTopTab === 'calendar' && (
+                <span className="ml-1.5 inline-flex items-center text-zinc-400">
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('design', el); }}
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
               onMouseEnter={() => updateTopHover('design')}
               onMouseLeave={() => updateTopHover(null)}
-              onClick={() => setActiveTab('design')}
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Design</span>
-              <span
-                onClick={(e) => { e.stopPropagation(); togglePopout('design'); }}
-                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
-                title="Open in separate window"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </span>
+              {shiftHeld && !IS_COARSE && hoveredTopTab === 'design' && (
+                <span className="ml-1.5 inline-flex items-center text-zinc-400">
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('rules', el); }}
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
               onMouseEnter={() => updateTopHover('rules')}
               onMouseLeave={() => updateTopHover(null)}
-              onClick={() => setActiveTab('rules')}
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Rules</span>
-              <span
-                onClick={(e) => { e.stopPropagation(); togglePopout('rules'); }}
-                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
-                title="Open in separate window"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </span>
+              {shiftHeld && !IS_COARSE && hoveredTopTab === 'rules' && (
+                <span className="ml-1.5 inline-flex items-center text-zinc-400">
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('reports', el); }}
+              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
+              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
               onMouseEnter={() => updateTopHover('reports')}
               onMouseLeave={() => updateTopHover(null)}
-              onClick={() => setActiveTab('reports')}
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Reports</span>
-              <span
-                onClick={(e) => { e.stopPropagation(); togglePopout('reports'); }}
-                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
-                title="Open in separate window"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </span>
+              {shiftHeld && !IS_COARSE && hoveredTopTab === 'reports' && (
+                <span className="ml-1.5 inline-flex items-center text-zinc-400">
+                  <ExternalLink className="w-3 h-3" />
+                </span>
+              )}
             </button>
             </>)}
           </div>
@@ -929,7 +925,7 @@ function AppContent() {
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closePopout('breakdown')} />
             <div className="flex-1 min-h-0 flex flex-col">
-              <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} />
+              <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} shiftHeld={shiftHeld} />
             </div>
           </div>
         </PopoutWindow>
@@ -959,7 +955,7 @@ function AppContent() {
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closePopout('design')} />
             <div className="flex-1 min-h-0 flex flex-col">
-              <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} />
+              <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} />
             </div>
           </div>
         </PopoutWindow>
@@ -979,7 +975,7 @@ function AppContent() {
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closePopout('reports')} />
             <div className="flex-1 min-h-0 flex flex-col">
-              <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} />
+              <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} />
             </div>
           </div>
         </PopoutWindow>
@@ -1062,7 +1058,7 @@ function AppContent() {
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} /> : <RulesTab />
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> : <RulesTab />
         )}
       </main>
 
@@ -1229,6 +1225,17 @@ function AppContent() {
       )}
 
     </div>
+    {tabContextMenu && (
+      <ContextMenu open={true} x={tabContextMenu.x} y={tabContextMenu.y} onClose={() => setTabContextMenu(null)}>
+        <ContextMenuItem onClick={() => { setActiveTab(tabContextMenu.tabId as any); setTabContextMenu(null); }}>
+          Switch to {tabLabels[tabContextMenu.tabId]}
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem onClick={() => { togglePopout(tabContextMenu.tabId); setTabContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>
+          Open in New Window
+        </ContextMenuItem>
+      </ContextMenu>
+    )}
     {IS_COARSE && <SelectionModeButton />}
     {IS_COARSE && <KeyboardToggleButton />}
     </>
