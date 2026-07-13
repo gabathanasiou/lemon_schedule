@@ -97,18 +97,6 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Unschedule selected ribbons (move back to Unscheduled)" />
         </Section>
 
-        <Section title="Context Menu (Right-click)">
-          <Row keys={<>Right-click</>} action="Open context menu on a ribbon" />
-          <Row keys={<>Add Note / Break</>} action="Insert a note or break ribbon below the target" />
-          <Row keys={<>Duplicate</>} action="Clone scene (lettered suffix), note, or break" />
-          <Row keys={<>Cut to Buffer</>} action="Cut selected ribbons to clipboard" />
-          <Row keys={<>Paste Below</>} action="Paste clipboard ribbons below" />
-          <Row keys={<>Change Color</>} action="Edit banner background & text color (notes only)" />
-          <Row keys={<>Open Sheet</>} action="Open scene in Breakdown tab (scenes only)" />
-          <Row keys={<>Remove Ribbon</>} action="Unschedule the ribbon" />
-          <Row keys={<>Delete</>} action="Permanently delete the ribbon" />
-        </Section>
-
         <Section title="Touch / iPad">
           <Row keys={<>Swipe</>} action="Scroll — swipe on ribbons, gaps, margins, or day headers" />
           <Row keys={<>Press & hold</>} action="Drag a ribbon — hold still (~200ms) then drag. Drags full multi-selection if tapped item is selected" />
@@ -130,9 +118,30 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         <Section title="Mouse">
           <Row keys={<>Double-click note</>} action="Open banner color editor (Edit Banner)" />
           <Row keys={<>Double-click scene</>} action="Open scene in Breakdown tab" />
+          <Row keys={<><Kbd>⇧</Kbd> + Double-click scene</>} action="Open scene sheet in a new window" />
           <Row keys={<>Click day header</>} action="Select the entire day" />
           <Row keys={<>Click empty space</>} action="Deselect all rows" />
           <Row keys={<>Trash on day header</>} action="Unschedule all ribbons from that day" />
+        </Section>
+
+        <Section title="Context Menu (Right-click)">
+          <Row keys={<>Right-click</>} action="Open context menu on a ribbon" />
+          <Row keys={<>Add Note / Break</>} action="Insert a note or break ribbon below the target" />
+          <Row keys={<>Duplicate</>} action="Clone scene (lettered suffix), note, or break" />
+          <Row keys={<>Cut to Buffer</>} action="Cut selected ribbons to clipboard" />
+          <Row keys={<>Paste Below</>} action="Paste clipboard ribbons below" />
+          <Row keys={<>Change Color</>} action="Edit banner background & text color (notes only)" />
+          <Row keys={<>Open Sheet</>} action="Open scene in Breakdown tab (scenes only)" />
+          <Row keys={<><Kbd>⇧</Kbd> + Right-click → Open in New Window</>} action="Open scene sheet in a new window (scenes only)" />
+          <Row keys={<>Remove Ribbon</>} action="Unschedule the ribbon" />
+          <Row keys={<>Delete</>} action="Permanently delete the ribbon" />
+        </Section>
+
+        <Section title="Pop-out Windows">
+          <Row keys={<><Kbd>⇧</Kbd> + Double-click</>} action="Open scene sheet in a new window (from stripboard, calendar, or Glide grid)" />
+          <Row keys={<><Kbd>⇧</Kbd> + Right-click</>} action={'Context menu shows "Open in New Window" instead of "Open Sheet"'} />
+          <Row keys={<><Kbd>⇧</Kbd> + Click</>} action="Click sheet header banner to open Schedule in a new window" />
+          <Row keys={<>Tab pop-out icon</>} action="Hover tab name and click <Kbd>⇗</Kbd> to open tab in a separate window. Click again to bring back." />
         </Section>
 
         <div className="text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">

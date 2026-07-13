@@ -1,10 +1,10 @@
 import React from 'react';
 import { ScheduleRow } from '../types';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink } from 'lucide-react';
 
 export const StripboardContextMenuContent: React.FC<{
-  contextMenu: { x: number; y: number; rowId: string; shootDay: number | null };
+  contextMenu: { x: number; y: number; rowId: string; shootDay: number | null; shiftHeld?: boolean };
   setContextMenu: (v: null) => void;
   augmentedRows: ScheduleRow[];
   selectedRowIds: Set<string>;
@@ -13,6 +13,7 @@ export const StripboardContextMenuContent: React.FC<{
   pasteClipboard: (targetRowId: string) => void;
   handleContextMenuAction: (action: string) => void;
   onOpenScene?: (sceneId: string) => void;
+  onOpenSceneInPopout?: (sceneId: string) => void;
   dispatch: React.Dispatch<any>;
   activeVersion: any;
   selectNextAfterRemove?: (ids: Set<string>) => void;
@@ -28,6 +29,7 @@ export const StripboardContextMenuContent: React.FC<{
   pasteClipboard,
   handleContextMenuAction,
   onOpenScene,
+  onOpenSceneInPopout,
   dispatch,
   activeVersion,
   selectNextAfterRemove,
@@ -73,7 +75,11 @@ export const StripboardContextMenuContent: React.FC<{
             <>
               <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
               <ContextMenuDivider />
-              <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
+              {contextMenu.shiftHeld && onOpenSceneInPopout ? (
+                <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
+              ) : (
+                <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
+              )}
               <ContextMenuDivider />
               <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
             </>

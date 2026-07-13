@@ -23,7 +23,7 @@ const BREAKDOWN_LABEL: Record<string, string> = {
 
 let persistedIndex = 0;
 
-export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void }) {
+export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule, onOpenScheduleInPopout }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void; onOpenScheduleInPopout?: (sceneId: string) => void }) {
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
   const project = state.present;
@@ -341,8 +341,8 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           <div
             className="sticky top-0 z-10 shrink-0 w-full flex items-center gap-3 px-4 py-1.5 cursor-pointer select-none"
             style={{ background: colors.background, color: colors.color }}
-            onClick={() => onOpenSchedule?.(scene.id)}
-            title="Click to open in Schedule"
+            onClick={(e) => { if (e.shiftKey && onOpenScheduleInPopout) { onOpenScheduleInPopout(scene.id); } else { onOpenSchedule?.(scene.id); } }}
+            title={onOpenScheduleInPopout ? 'Click to open in Schedule · Shift+Click to open in new window' : 'Click to open in Schedule'}
           >
             {shootDayMeta ? (
               <>

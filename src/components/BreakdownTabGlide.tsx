@@ -16,7 +16,7 @@ import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount, clipboardWrite, clipboardRead } from '../lib/utils';
 import {
   Trash2, Copy, Scissors, ClipboardPaste, Plus, ArrowDown, ArrowUp, Eye, Square, CheckSquare,
-  ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download,
+  ChevronDown, ZoomIn, ZoomOut, RotateCcw, FileDown, Search, Download, ExternalLink,
 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -73,9 +73,11 @@ function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData:
 
 export function GlideBreakdownTab({
   onOpenSheet,
+  onOpenSheetInPopout,
   headerTarget,
 }: {
   onOpenSheet?: (rowIndex: number) => void;
+  onOpenSheetInPopout?: (rowIndex: number) => void;
   headerTarget?: HTMLElement | null;
 }) {
   const { state, dispatch, readOnly } = useProject();
@@ -167,7 +169,19 @@ export function GlideBreakdownTab({
     return draw(args);
   }, []);
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number; shiftHeld?: boolean } | null>(null);
+
+  const shiftRef = useRef(false);
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = true; };
+    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = false; };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
   const [sortMenu, setSortMenu] = useState<{ x: number; y: number; colKey: string; label: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ sceneId: string; sceneNumber: string } | null>(null);
   const [suppressDeleteWarning, setSuppressDeleteWarning] = useState(false);
@@ -690,7 +704,7 @@ export function GlideBreakdownTab({
     }
     const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
     const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
-    setContextMenu({ x, y, row, col });
+    setContextMenu({ x, y, row, col, shiftHeld: shiftRef.current });
   }, [scenes.length, COLUMNS.length]);
 
   const onCellClicked = useCallback((cell: Item, e: any) => {
@@ -700,7 +714,7 @@ export function GlideBreakdownTab({
       if (col < 0 && (e.isTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
-        setContextMenu({ x, y, row, col });
+        setContextMenu({ x, y, row, col, shiftHeld: shiftRef.current });
       }
       if (col === 0) {
         addScene();
@@ -720,7 +734,11 @@ export function GlideBreakdownTab({
     }
     if (col >= 0) return;
     if (e.isDoubleClick) {
-      onOpenSheet?.(row);
+      if (shiftRef.current && onOpenSheetInPopout) {
+        onOpenSheetInPopout(row);
+      } else {
+        onOpenSheet?.(row);
+      }
       return;
     }
     if (e.isTouch || e.button === 2) {
@@ -728,7 +746,7 @@ export function GlideBreakdownTab({
       const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
       setContextMenu({ x, y, row, col });
     }
-  }, [scenes.length, onOpenSheet]);
+  }, [scenes.length, onOpenSheet, onOpenSheetInPopout]);
 
   const onHeaderContextMenu = useCallback((colIndex: number, e: any) => {
     e.preventDefault();
@@ -911,7 +929,11 @@ export function GlideBreakdownTab({
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
             <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
-            <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
+            {contextMenu.shiftHeld && onOpenSheetInPopout ? (
+              <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
+            ) : (
+              <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>
+            )}
             <ContextMenuDivider />
             <ContextMenuItem
               onClick={() => {

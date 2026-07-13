@@ -109,7 +109,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
     return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
       onClick={(e) => onToggle?.(row.id, e)}
-      onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id); }}
+      onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id, e.shiftKey); }}
       data-row-id={row.id}
       data-shoot-day={row.shootDay == null ? 'null' : row.shootDay}
       className={`${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
@@ -342,7 +342,7 @@ const UnscheduledSidebar: React.FC<{
   );
 };
 
-export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> = ({ onOpenScene }) => {
+export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void }> = ({ onOpenScene, onOpenSceneInPopout }) => {
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -682,7 +682,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     }
   };
 
-  const handleRowDoubleClick = useCallback((id: string) => {
+  const handleRowDoubleClick = useCallback((id: string, shiftKey?: boolean) => {
     if (marqueeMode !== 'off') return;
     const activeEl = document.activeElement;
     if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
@@ -692,10 +692,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
-    } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
-      onOpenScene(row.sceneId);
+    } else if (row?.type === 'SCENE' && row.sceneId) {
+      if (shiftKey && onOpenSceneInPopout) {
+        onOpenSceneInPopout(row.sceneId);
+      } else if (onOpenScene) {
+        onOpenScene(row.sceneId);
+      }
     }
-  }, [activeVersion, onOpenScene, marqueeMode]);
+  }, [activeVersion, onOpenScene, onOpenSceneInPopout, marqueeMode]);
 
   const applyNoteColor = useCallback(() => {
     if (!colorPicker || !activeVersion) return;
@@ -1132,6 +1136,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void }> 
           selectNextAfterRemove={selectNextAfterRemove}
           containerRef={calendarGridRef}
           onOpenScene={onOpenScene}
+          onOpenSceneInPopout={onOpenSceneInPopout}
           extraItems={contextMenu.rowId.startsWith('empty-') ? (
             <>
               <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'work' }); setContextMenu(null); } }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>

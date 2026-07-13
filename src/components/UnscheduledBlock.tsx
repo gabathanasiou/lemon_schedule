@@ -45,7 +45,7 @@ export const UnscheduledBlock: React.FC<{
   activeDragIds?: Set<string>,
   onRowClick?: (id: string, e: React.MouseEvent) => void,
   onSelectionChange?: (ids: Set<string>, isAddMode: boolean) => void,
-  onRowDoubleClick?: (id: string) => void,
+  onRowDoubleClick?: (id: string, shiftKey?: boolean) => void,
   insertBeforeId?: string | null,
   activeDragRow?: ScheduleRow | null,
   activeDragRows?: ScheduleRow[],

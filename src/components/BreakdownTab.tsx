@@ -4,7 +4,7 @@ import { SceneSheet } from './SceneSheet';
 import MiniTab from './MiniTab';
 import { GlideBreakdownTab } from './BreakdownTabGlide';
 
-export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule }: {
+export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout }: {
   subTab: 'elements' | 'sheet' | 'glide';
   onSubTabChange: (t: 'elements' | 'sheet' | 'glide') => void;
   savedCat: string;
@@ -13,6 +13,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   onSheetIdxChange: (i: number) => void;
   onOpenSheet?: (rowIndex: number) => void;
   onOpenSchedule?: (sceneId: string) => void;
+  onOpenSheetInPopout?: (rowIndex: number) => void;
+  onOpenScheduleInPopout?: (sceneId: string) => void;
 }) {
   const subTab = externalSubTab;
   const scrollTops = useRef<Record<string, number>>({});
@@ -40,7 +42,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className="flex items-center gap-2" />
         }
       />
-      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} headerTarget={portalTarget} />}
+      {subTab === 'elements' ? <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} headerTarget={portalTarget} /> : subTab === 'sheet' ? <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} headerTarget={portalTarget} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} /> : <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} headerTarget={portalTarget} />}
     </div>
   );
 }

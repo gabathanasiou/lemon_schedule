@@ -1113,7 +1113,7 @@ export const SortableRow: React.FC<{
       {...(ctrlOrCmdHeld ? {} : listeners)}
       {...attributes}
       onClick={onSelectToggle}
-      onDoubleClick={() => onDoubleClick?.(row.id)}
+      onDoubleClick={(e) => onDoubleClick?.(row.id, e.shiftKey)}
       data-row-id={row.id}
       data-shoot-day={row.shootDay}
       className={`group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`}

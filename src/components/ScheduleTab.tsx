@@ -8,7 +8,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID, formatDuration } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -23,7 +23,7 @@ import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 
-export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
+export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
@@ -37,7 +37,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, shootDay: number | null, shiftHeld?: boolean } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
   const [forceUnscheduledExpanded, setForceUnscheduledExpanded] = useState(false);
@@ -47,7 +47,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
 
   const marqueeMode = useMarqueeMode();
 
-  const handleRowDoubleClick = useCallback((id: string) => {
+  const handleRowDoubleClick = useCallback((id: string, shiftKey?: boolean) => {
     if (marqueeMode !== 'off') return;
     if (textEditingEnabled) return;
     const activeEl = document.activeElement;
@@ -58,10 +58,14 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
-    } else if (row?.type === 'SCENE' && row.sceneId && onOpenScene) {
-      onOpenScene(row.sceneId);
+    } else if (row?.type === 'SCENE' && row.sceneId) {
+      if (shiftKey && onOpenSceneInPopout) {
+        onOpenSceneInPopout(row.sceneId);
+      } else if (onOpenScene) {
+        onOpenScene(row.sceneId);
+      }
     }
-  }, [activeVersion, onOpenScene, marqueeMode]);
+  }, [activeVersion, onOpenScene, onOpenSceneInPopout, marqueeMode]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (textEditingEnabled) return;
@@ -1359,7 +1363,7 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                  }
                  const shootDayAttr = rowEl.getAttribute('data-shoot-day');
                  const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
-                 setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay });
+                 setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay, shiftHeld: e.shiftKey });
               } else {
                  setContextMenu(null);
               }
@@ -1516,7 +1520,11 @@ export function ScheduleTab({ onOpenScene, onPrint, targetSceneId, onSceneTarget
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
                   <ContextMenuDivider />
-                  <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
+                  {contextMenu?.shiftHeld && onOpenSceneInPopout ? (
+                    <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
+                  ) : (
+                    <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
+                  )}
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
                 </>

@@ -98,6 +98,18 @@ function AppContent() {
     design: 'Design', rules: 'Rules', reports: 'Reports',
   };
 
+  const shiftRef = useRef(false);
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = true; };
+    const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') shiftRef.current = false; };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
+
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setBrSubTab('sheet');
     setBrSheetIdx(rowIndex);
@@ -116,6 +128,26 @@ function AppContent() {
   const handleOpenScheduleAtScene = useCallback((sceneId: string) => {
     setScheduleTargetScene(sceneId);
     if (!poppedOutTabs.has('schedule')) setActiveTab('schedule');
+  }, [poppedOutTabs]);
+
+  const handleOpenSheetInPopout = useCallback((rowIndex: number) => {
+    setBrSubTab('sheet');
+    setBrSheetIdx(rowIndex);
+    if (!poppedOutTabs.has('breakdown')) togglePopout('breakdown');
+  }, [poppedOutTabs]);
+
+  const handleOpenSceneInPopout = useCallback((sceneId: string) => {
+    const idx = state.present.scenes.findIndex(s => s.id === sceneId);
+    if (idx >= 0) {
+      setBrSubTab('sheet');
+      setBrSheetIdx(idx);
+      if (!poppedOutTabs.has('breakdown')) togglePopout('breakdown');
+    }
+  }, [state.present.scenes, poppedOutTabs]);
+
+  const handleOpenScheduleInPopout = useCallback((sceneId: string) => {
+    setScheduleTargetScene(sceneId);
+    if (!poppedOutTabs.has('schedule')) togglePopout('schedule');
   }, [poppedOutTabs]);
 
   const handleClearScheduleTarget = useCallback(() => setScheduleTargetScene(null), []);
@@ -818,21 +850,21 @@ function AppContent() {
       {poppedOutTabs.has('breakdown') && popoutWindowsRef.current.get('breakdown') && (
         <PopoutWindow title="Breakdown - Lemon Schedule" win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} />
+            <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('schedule') && popoutWindowsRef.current.get('schedule') && (
         <PopoutWindow title="Schedule - Lemon Schedule" win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} />
+            <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} />
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('calendar') && popoutWindowsRef.current.get('calendar') && (
         <PopoutWindow title="Calendar - Lemon Schedule" win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <CalendarTab onOpenScene={handleOpenScene} />
+            <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} />
           </div>
         </PopoutWindow>
       )}
@@ -863,7 +895,7 @@ function AppContent() {
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> : activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} /> : <RulesTab />
         )}
       </main>
 
