@@ -35,6 +35,9 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
   const isCloud = useIsCloudProject();
   const activeBg = theme === 'light' && isCloud ? 'bg-blue-950' : 'bg-zinc-950';
   const activeText = theme === 'light' && isCloud ? 'text-blue-50' : 'text-white';
+  const inactiveHover = theme === 'light' && isCloud
+    ? 'hover:bg-blue-950/10 hover:text-blue-950'
+    : t.inactive;
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
 
@@ -58,7 +61,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
                 setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
               } : undefined}
               className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors truncate max-w-[160px] ${
-                active ? `${activeBg} ${activeText}` : t.inactive
+                active ? `${activeBg} ${activeText}` : inactiveHover
               }`}
             >
               {tab.label}
