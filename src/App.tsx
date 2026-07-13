@@ -871,7 +871,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Breakdown`} win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closePopout('breakdown')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
             </div>
           </div>
@@ -881,7 +881,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Schedule`} win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Schedule" onClose={() => closePopout('schedule')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} />
             </div>
           </div>
@@ -891,7 +891,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Calendar`} win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Calendar" onClose={() => closePopout('calendar')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} />
             </div>
           </div>
@@ -901,7 +901,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Design`} win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closePopout('design')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} />
             </div>
           </div>
@@ -911,7 +911,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Rules`} win={popoutWindowsRef.current.get('rules')!} onClose={() => closePopout('rules')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Rules" onClose={() => closePopout('rules')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <RulesTab />
             </div>
           </div>
@@ -921,7 +921,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Reports`} win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closePopout('reports')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} />
             </div>
           </div>

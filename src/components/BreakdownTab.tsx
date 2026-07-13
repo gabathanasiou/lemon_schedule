@@ -84,7 +84,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sheet')!} onClose={() => closeSubPopout('sheet')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={renameHandler} tabName="Sheet" onClose={() => closeSubPopout('sheet')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <SceneSheet initialIndex={savedSheetIdx} onIndexChange={onSheetIdxChange} onOpenSchedule={onOpenSchedule} onOpenScheduleInPopout={onOpenScheduleInPopout} />
             </div>
           </div>
@@ -94,7 +94,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('elements')!} onClose={() => closeSubPopout('elements')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={renameHandler} tabName="Element Manager" onClose={() => closeSubPopout('elements')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <ElementManager initialCategory={savedCat} onCategoryChange={onCategoryChange} />
             </div>
           </div>
@@ -104,7 +104,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
         <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('glide')!} onClose={() => closeSubPopout('glide')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={renameHandler} tabName="Glide Breakdown" onClose={() => closeSubPopout('glide')} />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <GlideBreakdownTab onOpenSheet={onOpenSheet} onOpenSheetInPopout={onOpenSheetInPopout} />
             </div>
           </div>
