@@ -619,7 +619,7 @@ function AppContent() {
               className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
             />
           </div>
-          <div ref={topTabContainerRef} className="flex items-end gap-1 self-end border border-white/20 rounded-t-md px-1 pt-1">
+          <div ref={topTabContainerRef} className="flex items-end gap-1 self-end border border-white/20 rounded-md px-1 pt-1">
             {compactTabs ? (
               <div className="flex-1 flex justify-center">
               <DropdownMenu
