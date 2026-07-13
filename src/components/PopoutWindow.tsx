@@ -1,5 +1,7 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { PopoutWindowContext } from '../lib/popoutTarget';
+import { useProject } from '../store';
 
 interface PopoutWindowProps {
   title: string;
@@ -10,6 +12,31 @@ interface PopoutWindowProps {
 
 export default function PopoutWindow({ title, win, onClose, children }: PopoutWindowProps) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  const { state, dispatch } = useProject();
+  const currentProjectIdRef = useRef(state.present.id);
+  currentProjectIdRef.current = state.present.id;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const id = currentProjectIdRef.current;
+      if (!id) return;
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        dispatch({ type: 'UNDO' });
+      }
+      if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        dispatch({ type: 'REDO' });
+      }
+      if (cmdOrCtrl && e.key === 's') {
+        e.preventDefault();
+      }
+    };
+    win.addEventListener('keydown', handler);
+    return () => win.removeEventListener('keydown', handler);
+  }, [win, dispatch]);
 
   useEffect(() => {
     const styleText = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
@@ -19,7 +46,7 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
     win.document.title = title;
     win.document.head.innerHTML = styleText;
 
-    win.document.body.innerHTML = '<div id="popout-root"></div>';
+    win.document.body.innerHTML = '<div id="portal"></div><div id="popout-root"></div>';
     win.document.body.style.margin = '0';
     win.document.body.style.overflow = 'hidden';
     win.document.body.style.height = '100vh';
@@ -54,7 +81,11 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
 
   if (!container) return null;
 
-  return createPortal(children, container);
+  return (
+    <PopoutWindowContext.Provider value={win}>
+      {createPortal(children, container)}
+    </PopoutWindowContext.Provider>
+  );
 }
 
 export function PopoutPlaceholder({ title, onBringBack }: { title: string; onBringBack: () => void }) {

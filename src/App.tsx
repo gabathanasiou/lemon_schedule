@@ -631,7 +631,7 @@ function AppContent() {
               <span className="relative">Breakdown</span>
               <span
                 onClick={(e) => { e.stopPropagation(); togglePopout('breakdown'); }}
-                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
                 title="Open in separate window"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -647,7 +647,7 @@ function AppContent() {
               <span className="relative">Schedule</span>
               <span
                 onClick={(e) => { e.stopPropagation(); togglePopout('schedule'); }}
-                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
                 title="Open in separate window"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -663,7 +663,7 @@ function AppContent() {
               <span className="relative">Calendar</span>
               <span
                 onClick={(e) => { e.stopPropagation(); togglePopout('calendar'); }}
-                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
                 title="Open in separate window"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -679,7 +679,7 @@ function AppContent() {
               <span className="relative">Design</span>
               <span
                 onClick={(e) => { e.stopPropagation(); togglePopout('design'); }}
-                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
                 title="Open in separate window"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -695,7 +695,7 @@ function AppContent() {
               <span className="relative">Rules</span>
               <span
                 onClick={(e) => { e.stopPropagation(); togglePopout('rules'); }}
-                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
                 title="Open in separate window"
               >
                 <ExternalLink className="w-3 h-3" />
@@ -711,7 +711,7 @@ function AppContent() {
               <span className="relative">Reports</span>
               <span
                 onClick={(e) => { e.stopPropagation(); togglePopout('reports'); }}
-                className="ml-1.5 inline-flex items-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200"
+                className={`ml-1.5 inline-flex items-center transition-opacity cursor-pointer text-zinc-400 hover:text-zinc-200 ${IS_COARSE ? '' : 'opacity-0 group-hover:opacity-100 hover:opacity-100'}`}
                 title="Open in separate window"
               >
                 <ExternalLink className="w-3 h-3" />
