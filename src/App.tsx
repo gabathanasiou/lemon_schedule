@@ -739,9 +739,9 @@ function AppContent() {
               theme={isCloudProject ? 'blue' : 'dark'}
               trigger={
                 <button 
-                  className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
+                  className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white whitespace-nowrap ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
                 >
-                   <span>Version: <strong>{version?.name || 'Select Version'}</strong></span>
+                   <span>{compactTabs ? <strong>{version?.name || 'Select Version'}</strong> : <>Version: <strong>{version?.name || 'Select Version'}</strong></>}</span>
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               }
