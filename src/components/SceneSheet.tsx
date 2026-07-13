@@ -9,6 +9,7 @@ import { CellInput } from './CellInput';
 import { parsePageCount, formatPageCount, generateUUID, formatDateLong } from '../lib/utils';
 import { sceneStyle, getIntExtOptions, getDayNightOptions, getFallbackStripColors } from '../lib/ribbonUtils';
 import { getFieldItems, isMultiValue } from '../lib/categories';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -65,27 +66,10 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
-  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const scheduleRow = scene ? activeVersion?.rows.find(r => r.sceneId === scene.id) : null;
-  const shootDay = scheduleRow?.shootDay;
-  const shootDayMeta = shootDay != null ? activeVersion?.dayMeta?.[shootDay] : null;
+  const { sceneToSection, formatSectionDate } = useDaybreakSections();
 
-  const chronoDayMap = useMemo(() => {
-    const m = new Map<number, number>();
-    const existingDays = Object.keys(activeVersion?.dayMeta || {}).map(Number).sort((a, b) => {
-      const dateA = activeVersion?.dayMeta?.[a]?.date || '';
-      const dateB = activeVersion?.dayMeta?.[b]?.date || '';
-      return dateA.localeCompare(dateB);
-    });
-    let counter = 0;
-    for (const d of existingDays) {
-      const status = activeVersion?.dayMeta?.[d]?.status;
-      if (!status || status === 'work') { counter++; m.set(d, counter); }
-    }
-    return m;
-  }, [activeVersion?.dayMeta]);
-
-  const displayDay = shootDay != null ? (chronoDayMap.get(shootDay) ?? shootDay) : null;
+  const sectionIdx = scene ? (sceneToSection.get(scene.id) ?? null) : null;
+  const hasScheduleInfo = sectionIdx != null;
 
   const commitField = useCallback((sceneId: string, field: string, value: string) => {
     if (field === 'cast' || allBreakdownCats.includes(field)) {
@@ -344,11 +328,10 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
             onClick={(e) => { if (e.shiftKey && onOpenScheduleInPopout) { onOpenScheduleInPopout(scene.id); } else { onOpenSchedule?.(scene.id); } }}
             title={onOpenScheduleInPopout ? 'Click to open in Schedule · Shift+Click to open in new window' : 'Click to open in Schedule'}
           >
-            {shootDayMeta ? (
-              <>
-                <span className="font-bold text-sm whitespace-nowrap">Day {displayDay}</span>
-                <span className="flex-1 text-center text-xs font-semibold opacity-80">Date: {formatDateLong(shootDayMeta.date)}</span>
-              </>
+            {hasScheduleInfo ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+                <span className="font-bold text-sm whitespace-nowrap">{formatSectionDate(sectionIdx)}</span>
+              </div>
             ) : (
               <span className="text-center text-xs font-semibold opacity-80 w-full">Unscheduled</span>
             )}

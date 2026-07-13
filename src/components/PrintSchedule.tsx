@@ -875,31 +875,47 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
 
   Object.values(scheduledRows).forEach(dayRows => dayRows.sort((a, b) => a.order - b.order));
 
-  const existingDays = Array.from(new Set([
-    ...augmentedRows.map(r => r.shootDay).filter((d): d is number => d !== null),
-    ...(includeStatusDays ? Object.entries(activeVersion.dayMeta || {})
-      .filter(([, v]) => (v as ShootDayMeta).status && (v as ShootDayMeta).status !== 'work')
-      .map(([k]) => Number(k)) : []),
-  ])).filter(d => scheduledRows[d] && scheduledRows[d].length > 0 ? selectedDays.includes(d) : includeStatusDays && selectedDays.includes(d))
-    .sort((a, b) => {
-      const dateA = activeVersion.dayMeta?.[a]?.date || '';
-      const dateB = activeVersion.dayMeta?.[b]?.date || '';
-      return dateA.localeCompare(dateB);
-    });
+  const allRows = augmentedRows.filter(r => r.shootDay != null).sort((a, b) => {
+    if ((a.shootDay || 0) !== (b.shootDay || 0)) return (a.shootDay || 0) - (b.shootDay || 0);
+    return a.order - b.order;
+  });
+
+  const sections: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = (() => {
+    const s: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
+    let current: ScheduleRow[] = [];
+    let idx = 0;
+    for (const r of allRows) {
+      if (r.type === 'DAYBREAK') { s.push({ index: idx, rows: current, daybreakRow: r }); current = []; idx++; }
+      else { current.push(r); }
+    }
+    if (current.length > 0 || idx === 0) s.push({ index: idx, rows: current });
+    return s;
+  })();
+
+  const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return dt.toISOString().slice(0, 10); };
+  const startDate = activeVersion?.daybreakStartDate || new Date().toISOString().slice(0, 10);
+  const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
+  const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (let i = 0; i < sections.length; i++) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(i, c); c = addDays(c, 1); } return m; })();
+
+  const sectionEntries = sections.map((s, secIdx) => ({
+    sectionIndex: s.index,
+    date: sectionDateMap.get(s.index) || '',
+    rows: s.rows.filter(r => selectedDays.includes(s.index)),
+    hasRows: s.rows.some(r => selectedDays.includes(s.index)),
+  })).filter(e => e.hasRows && e.date);
+
+  sectionEntries.sort((a, b) => a.date.localeCompare(b.date));
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
     let counter = 0;
-    for (const d of existingDays) {
-      const status = activeVersion.dayMeta?.[d]?.status;
-      if (!status || status === 'work') { counter++; m.set(d, counter); }
-    }
+    for (const e of sectionEntries) { counter++; m.set(e.sectionIndex, counter); }
     return m;
-  }, [existingDays, activeVersion]);
+  }, []);
 
   const printedSceneIds = new Set<string>();
-  for (const dayInt of existingDays) {
-    for (const row of (scheduledRows[dayInt] || [])) {
+  for (const e of sectionEntries) {
+    for (const row of e.rows) {
       if (row.sceneId) printedSceneIds.add(row.sceneId);
     }
   }
@@ -926,18 +942,18 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
           <p className="print-subtitle">Schedule Version: {activeVersion.name}{showExportDate ? ` ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}</p>
         </div>
 
-        {existingDays.length > 0 && (
+        {sectionEntries.length > 0 && (
           <div className="print-schedule-pages" style={{ counterReset: 'page' }}>
-            {existingDays.map((dayInt, i) => (
+            {sectionEntries.map((e, i) => (
               <DaySection
-                key={dayInt}
-                dayInt={dayInt}
-                rows={scheduledRows[dayInt] || []}
-                meta={activeVersion.dayMeta?.[dayInt]}
+                key={e.sectionIndex}
+                dayInt={e.sectionIndex}
+                rows={e.rows}
+                meta={{ shootDay: e.sectionIndex, unitCall: '08:00', date: e.date }}
                 scenes={scenes}
                 showTimes={showTimes}
                 showDurations={showDurations}
-                chronoDay={chronoDayMap.get(dayInt)}
+                chronoDay={chronoDayMap.get(e.sectionIndex)}
                 ribbon={ribbon}
                 colWidths={colWidths}
                 cellPaddingV={cellPaddingV}

@@ -10,7 +10,7 @@ import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getDayHeaderColors, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
-import { checkDay } from '../lib/rulesEngine';
+import { checkDay, checkSection } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -301,6 +301,43 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     return { computedRows, totalPages, totalShootTime: runningElapsed - totalBreakTime, totalBreakTime, runningElapsed };
   }, [rows, meta?.unitCall, project.scenes, activeVersion?.daybreakStartDate, activeVersion?.nonShootDates]);
 
+  const sectionViolationMap = useMemo(() => {
+    const map = new Map<string, RuleViolation[]>();
+    let sectionRows: ScheduleRow[] = [];
+    let sectionBaseTime = meta?.unitCall || '08:00';
+    for (const row of computedRows) {
+      if (row.type === 'DAYBREAK') {
+        const sectionDate = (row as any).daybreakDate;
+        const v = checkSection(sectionRows, sectionDate, sectionBaseTime, project.rules || [], project.scenes, project.castMembers || []);
+        if (v.length > 0) map.set(row.id, v);
+        sectionRows = [];
+        sectionBaseTime = row.daybreakCallTime || meta?.unitCall || '08:00';
+      } else {
+        sectionRows.push(row as ScheduleRow);
+      }
+    }
+    return map;
+  }, [computedRows, project.rules, project.scenes, project.castMembers, meta?.unitCall]);
+
+  const mergedSceneViolationMap = useMemo(() => {
+    const map = new Map<string, RuleViolation[]>();
+    for (const v of violations) {
+      for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
+        if (!map.has(sid)) map.set(sid, []);
+        map.get(sid)!.push(v);
+      }
+    }
+    for (const [, violations] of sectionViolationMap) {
+      for (const v of violations) {
+        for (const sid of (v.sceneIds || (v.sceneId ? [v.sceneId] : []))) {
+          if (!map.has(sid)) map.set(sid, []);
+          map.get(sid)!.push(v);
+        }
+      }
+    }
+    return map;
+  }, [violations, sectionViolationMap]);
+
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',
     fontSize: '8pt',
@@ -583,7 +620,8 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                     isFaded={activeDragIds.has(r.id)}
                     onSelectToggle={(e) => onRowClick?.(r.id, e)}
                     textEditingEnabled={textEditingEnabled}
-                    sceneViolations={sceneViolationMap.get(r.sceneId || '')}
+                    sceneViolations={mergedSceneViolationMap.get(r.sceneId || '')}
+                    sectionViolations={sectionViolationMap.get(r.id)}
                     focusedRowId={focusedRowId}
                     onDoubleClick={onRowDoubleClick}
                     onRowNavigate={onRowNavigate}

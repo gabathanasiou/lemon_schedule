@@ -3,6 +3,7 @@ import { useProject } from '../store';
 import { Scene, ScheduleRow, ShootDayMeta, CustomCategoryDef } from '../types';
 import { getLabel, DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -72,9 +73,7 @@ interface DoodsTabProps {
 export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   const { state } = useProject();
   const project = state.present;
-  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const rows = activeVersion?.rows || [];
-  const dayMeta = (activeVersion?.dayMeta || {}) as Record<number, ShootDayMeta>;
+  const { sections, sectionDateMap, sectionLabelMap, sceneToSection } = useDaybreakSections();
   const castMembers = project.castMembers || [];
   const isCast = selectedCategory === 'cast';
 
@@ -99,54 +98,39 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     });
   }, [project.scenes, selectedCategory, isCast]);
 
-  /**
-   * Builds the DOOD grid columns.
-   *
-   * A "scheduled day" is a day with an entry in `dayMeta` (created via the
-   * calendar or assigned scenes). It has a day number (1, 2, 3, …) and a
-   * date. `isShooting` is true when the day has scheduled scenes and no
-   * non-working status (hold/travel/holiday).
-   *
-   * A "gap day" is a calendar date between the min and max scheduled date
-   * that has NO `dayMeta` entry — e.g. a weekend or break between two
-   * shooting blocks. Gap days have `dayInt: 0` and `isGap: true`. They are
-   * shown as dimmed, empty columns so the DOOD reads like a calendar.
-   */
+  const sectionDayEntries = useMemo(() => {
+    const entries: { sectionIndex: number; isoDate: string; label: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = sections.map((s, i) => {
+      const date = sectionDateMap.get(s.index) || '';
+      return {
+        sectionIndex: s.index,
+        isoDate: date,
+        label: sectionLabelMap.get(s.index) || `Ch. ${i + 1}`,
+        isShooting: s.rows.some(r => r.type === 'SCENE'),
+        status: undefined,
+      };
+    }).sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+
+    for (let i = 1; i < entries.length; i++) {
+      const prev = new Date(entries[i - 1].isoDate + 'T00:00:00');
+      const cur = new Date(entries[i].isoDate + 'T00:00:00');
+      entries[i].hasGap = cur.getTime() - prev.getTime() > 86400000;
+    }
+
+    return entries;
+  }, [sections, sectionDateMap, sectionLabelMap]);
+
   const data = useMemo(() => {
     const scenes = project.scenes;
-    const scheduleRows = rows;
-    const dm = dayMeta;
 
-    const scenesByDay = new Map<number, Scene[]>();
-    for (const row of scheduleRows) {
+    const scenesBySection = new Map<number, Scene[]>();
+    for (const row of sections.flatMap(s => s.rows)) {
       if (row.type !== 'SCENE' || !row.sceneId) continue;
       const scene = scenes.find(s => s.id === row.sceneId);
       if (!scene) continue;
-      if (!scenesByDay.has(row.shootDay)) scenesByDay.set(row.shootDay, []);
-      scenesByDay.get(row.shootDay)!.push(scene);
-    }
-
-    const shootingDays = new Set(scenesByDay.keys());
-
-    const days: { dayInt: number; isoDate: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = [];
-    for (const [k, v] of Object.entries(dm)) {
-      if (!v.date) continue;
-      const dayInt = Number(k);
-      days.push({
-        dayInt,
-        isoDate: v.date,
-        isShooting: shootingDays.has(dayInt) && (!v.status || v.status === 'work'),
-        status: v.status,
-      });
-    }
-    days.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
-
-    for (let i = 1; i < days.length; i++) {
-      const prev = new Date(days[i - 1].isoDate + 'T00:00:00');
-      const cur = new Date(days[i].isoDate + 'T00:00:00');
-      if (cur.getTime() - prev.getTime() > 86400000) {
-        days[i].hasGap = true;
-      }
+      const secIdx = sceneToSection.get(row.sceneId);
+      if (secIdx == null) continue;
+      if (!scenesBySection.has(secIdx)) scenesBySection.set(secIdx, []);
+      scenesBySection.get(secIdx)!.push(scene);
     }
 
     const doodRows: { elementId: string; elementName: string; cells: string[]; workDays: number; holdDays: number; travelDays: number; startDate: string | null; finishDate: string | null }[] = [];
@@ -155,23 +139,27 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
       const appearSet = new Set<number>();
       let firstDate: string | null = null;
       let lastDate: string | null = null;
-      for (const d of days) {
-        const dayScenes = scenesByDay.get(d.dayInt);
-        if (!dayScenes) continue;
-        if (dayScenes.some(s => getSceneElements(s, selectedCategory).includes(elementId))) {
-          appearSet.add(d.dayInt);
+      for (const d of sectionDayEntries) {
+        const secScenes = scenesBySection.get(d.sectionIndex);
+        if (!secScenes) continue;
+        if (secScenes.some(s => getSceneElements(s, selectedCategory).includes(elementId))) {
+          appearSet.add(d.sectionIndex);
           if (!firstDate || d.isoDate < firstDate) firstDate = d.isoDate;
           if (!lastDate || d.isoDate > lastDate) lastDate = d.isoDate;
         }
       }
 
-      const cells: string[] = days.map(d => {
-        const meta = dm[d.dayInt];
-        if (isCast && meta?.status === 'travel' && meta?.castIds) {
-          const tIds = meta.castIds.split(',').map(x => x.trim());
-          if (tIds.includes(elementId)) return 'T';
+      const nonShootDates = (state.present.versions.find(v => v.id === state.present.activeVersionId)?.nonShootDates || []);
+
+      const cells: string[] = sectionDayEntries.map(d => {
+        if (isCast) {
+          const nd = nonShootDates.find(n => n.date === d.isoDate);
+          if (nd?.status === 'travel') {
+            const tIds = (state.present.versions.find(v => v.id === state.present.activeVersionId)?.dayMeta?.[1]?.castIds || '').split(',').map(x => x.trim());
+            if (tIds.includes(elementId)) return 'T';
+          }
         }
-        if (!appearSet.has(d.dayInt)) {
+        if (!appearSet.has(d.sectionIndex)) {
           return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
         }
         if (d.isoDate === firstDate && d.isoDate === lastDate) return 'SWF';
@@ -192,9 +180,6 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         displayName = elementId;
       }
 
-      const startDate = firstDate;
-      const finishDate = lastDate;
-
       doodRows.push({
         elementId,
         elementName: displayName,
@@ -202,19 +187,19 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         workDays,
         holdDays: holdCount,
         travelDays: travelCount,
-        startDate,
-        finishDate,
+        startDate: firstDate,
+        finishDate: lastDate,
       });
     }
 
-    return { days, rows: doodRows };
-  }, [project.scenes, rows, dayMeta, elementIds, castMembers, selectedCategory, isCast]);
+    return { days: sectionDayEntries, rows: doodRows };
+  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, selectedCategory, isCast, state.present.versions, state.present.activeVersionId]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
     let counter = 0;
     for (const d of data.days) {
-      if (d.isShooting) { counter++; m.set(d.dayInt, counter); }
+      if (d.isShooting) { counter++; m.set(d.sectionIndex, counter); }
     }
     return m;
   }, [data.days]);
@@ -251,7 +236,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         <table className="border-separate border-spacing-0 text-[11px] table-fixed">
           <colgroup>
             <col style={{ width: widths.name }} />
-            {data.days.map(d => <col key={d.dayInt} style={{ width: widths.day }} />)}
+            {data.days.map(d => <col key={d.sectionIndex} style={{ width: widths.day }} />)}
             <col style={{ width: widths.work }} />
             <col style={{ width: widths.hold }} />
             {isCast && <col style={{ width: widths.trav }} />}
@@ -265,7 +250,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.dayInt} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                <th key={d.sectionIndex} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
@@ -297,7 +282,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.dayInt} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                <th key={d.sectionIndex} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {formatDow(d.isoDate)}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
@@ -324,8 +309,8 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.dayInt} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  {d.isShooting ? chronoDayMap.get(d.dayInt) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
+                <th key={d.sectionIndex} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                  {d.isShooting ? chronoDayMap.get(d.sectionIndex) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}

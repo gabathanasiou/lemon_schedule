@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Tras
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
-import { checkDay } from '../lib/rulesEngine';
+import { checkDay, checkSection } from '../lib/rulesEngine';
 import { ViolationTooltip } from './ViolationTooltip';
 import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
@@ -589,13 +589,16 @@ export const DaybreakCalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => 
   const violationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();
     if (!activeVersion || !showConflicts) return m;
+    let baseTime = activeVersion.dayMeta?.[1]?.unitCall || '08:00';
     for (const s of sections) {
-      if (!s.date) continue;
-      const v = checkDay(1, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta, project.castMembers || []);
-      if (v.length > 0) m.set(s.date, v);
+      const dateKey = sectionDateMap.get(s.index);
+      if (!dateKey) continue;
+      const v = checkSection(s.rows, dateKey, baseTime, project.rules || [], project.scenes, project.castMembers || []);
+      if (v.length > 0) m.set(dateKey, v);
+      baseTime = s.daybreakRow?.daybreakCallTime || baseTime;
     }
     return m;
-  }, [activeVersion, project.rules, project.scenes, project.castMembers, showConflicts, sections]);
+  }, [activeVersion, project.rules, project.scenes, project.castMembers, showConflicts, sections, sectionDateMap]);
 
   const sceneViolationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();

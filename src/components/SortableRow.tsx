@@ -57,6 +57,7 @@ const SortableRowContent: React.FC<{
   isCompact?: boolean,
   textEditingEnabled?: boolean,
   sceneViolations?: RuleViolation[],
+  sectionViolations?: RuleViolation[],
   focusedRowId?: string | null,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
@@ -65,7 +66,7 @@ const SortableRowContent: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
   const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
@@ -529,7 +530,13 @@ const SortableRowContent: React.FC<{
                         textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
                         whiteSpace: 'normal', wordBreak: 'break-word',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                        position: 'relative',
                       }}>
+                        {sectionViolations && sectionViolations.length > 0 && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700 }}>
+                            <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
+                          </span>
+                        )}
                         <span>{row.daybreakLabel || 'End of Daybreak'}</span>
                         {row.daybreakDate && (
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>
@@ -1248,6 +1255,7 @@ export const SortableRow: React.FC<{
   isCompact?: boolean,
   textEditingEnabled?: boolean,
   sceneViolations?: RuleViolation[],
+  sectionViolations?: RuleViolation[],
   focusedRowId?: string | null,
   onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
@@ -1257,7 +1265,7 @@ export const SortableRow: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const ctrlOrCmdHeld = useAddMode();
 
   const {
@@ -1301,6 +1309,7 @@ export const SortableRow: React.FC<{
         isCompact={isCompact}
         textEditingEnabled={textEditingEnabled}
         sceneViolations={sceneViolations}
+        sectionViolations={sectionViolations}
         focusedRowId={focusedRowId}
         onRowNavigate={onRowNavigate}
         ribbon={ribbon}

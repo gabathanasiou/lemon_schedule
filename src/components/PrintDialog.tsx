@@ -8,6 +8,7 @@ import { ModalFooter } from './Modal';
 import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function formatDayDateShort(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -45,12 +46,15 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [currentCellBorders] = useCellBorders();
 
-  const dayEntries = (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
-    .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
-    .sort((a, b) => (a.date).localeCompare(b.date))
-    .map((d, i) => ({ ...d, chrono: i + 1 }));
+  const { sections, sectionDateMap, sectionLabelMap } = useDaybreakSections();
 
-  const allDayInts = dayEntries.map(d => d.dayInt);
+  const dayEntries = sections.map((s, i) => ({
+    sectionIndex: s.index,
+    date: sectionDateMap.get(s.index) || '',
+    chrono: i + 1,
+  }));
+
+  const allSectionIndices = dayEntries.map(d => d.sectionIndex);
 
   const storageKey = `lemon_schedule_print_${project.id}`;
   const defaultSettings = {
@@ -84,18 +88,18 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
       const stored = localStorage.getItem(`${storageKey}_days`);
       if (stored) {
         const arr: number[] = JSON.parse(stored);
-        const valid = arr.filter(d => allDayInts.includes(d));
-        return valid.length > 0 ? new Set(valid) : new Set(allDayInts);
+        const valid = arr.filter(d => allSectionIndices.includes(d));
+        return valid.length > 0 ? new Set(valid) : new Set(allSectionIndices);
       }
     } catch {}
-    return new Set(allDayInts);
+    return new Set(allSectionIndices);
   });
 
   const resetSettings = useCallback(() => {
     setSettings(defaultSettings);
-    setSelectedDays(new Set(allDayInts));
+    setSelectedDays(new Set(allSectionIndices));
     try { localStorage.removeItem(storageKey); localStorage.removeItem(`${storageKey}_days`); } catch {}
-  }, [allDayInts, defaultSettings, storageKey]);
+  }, [allSectionIndices, defaultSettings, storageKey]);
 
   const updateSelectedDays = useCallback((fn: (prev: Set<number>) => Set<number>) => {
     setSelectedDays(prev => {
@@ -111,7 +115,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
     if (selectedDays.size === dayEntries.length) {
       updateSelectedDays(() => new Set());
     } else {
-      updateSelectedDays(() => new Set(allDayInts));
+      updateSelectedDays(() => new Set(allSectionIndices));
     }
   };
 
@@ -360,17 +364,24 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             </div>
             <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-96">
               {dayEntries.map(d => {
-                const checked = selectedDays.has(d.dayInt);
-                return (
-                  <button
-                    key={d.dayInt}
-                    onClick={() => toggleDayInt(d.dayInt)}
+                 const checked = selectedDays.has(d.sectionIndex);
+                 return (
+                   <button
+                     key={d.sectionIndex}
+                     onClick={() => {
+                       setSelectedDays(prev => {
+                         const next = new Set(prev);
+                         if (next.has(d.sectionIndex)) next.delete(d.sectionIndex); else next.add(d.sectionIndex);
+                         persistDays(Array.from(next));
+                         return next;
+                       });
+                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
                   >
                     <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
                       {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </span>
-                    <span className="font-medium">Day {d.chrono}</span>
+                    <span className="font-medium">{sectionLabelMap.get(d.sectionIndex) || `Ch. ${d.chrono}`}</span>
                     {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateShort(d.date)}</span>}
                   </button>
                 );

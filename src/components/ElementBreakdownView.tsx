@@ -4,6 +4,7 @@ import { Scene, ScheduleRow, ShootDayMeta, CustomCategoryDef } from '../types';
 import { formatPageCount } from '../lib/utils';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
   const builtin = DEFAULT_CATEGORY_LABELS[key];
@@ -24,40 +25,13 @@ interface ElementBreakdownViewProps {
 export default function ElementBreakdownView({ selectedCategory }: ElementBreakdownViewProps) {
   const { state } = useProject();
   const project = state.present;
-  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const rows = activeVersion?.rows || [];
-  const dayMeta = (activeVersion?.dayMeta || {}) as Record<number, ShootDayMeta>;
+  const { sections, sectionDateMap, sceneToSection, formatSectionDate } = useDaybreakSections();
   const castMembers = project.castMembers || [];
 
   const { widths, startResize, resetWidths, hasCustomWidths } = useColumnResize(
     'lemon_schedule_col_widths_eb',
     { name: 200, scenes: 250, pages: 90, days: 250 },
   );
-
-  const sceneToDay = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const r of rows) {
-      if (r.type === 'SCENE' && r.sceneId) m.set(r.sceneId, r.shootDay);
-    }
-    return m;
-  }, [rows]);
-
-  const dayToDate = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const [k, v] of Object.entries(dayMeta)) {
-      const dayNum = parseInt(k);
-      if (v.date) m.set(dayNum, v.date);
-    }
-    return m;
-  }, [dayMeta]);
-
-  const formatDayDate = (dayNum: number): string => {
-    const d = dayToDate.get(dayNum);
-    if (!d) return `Day ${dayNum}`;
-    const dt = new Date(d + 'T00:00:00');
-    if (isNaN(dt.getTime())) return `Day ${dayNum}`;
-    return `Day ${dayNum} (${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
-  };
 
   const elements = useMemo(() => {
     const cat = selectedCategory;
@@ -91,13 +65,13 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
         const totalPagesDecimal = scenes.reduce((sum, s) => sum + (s.pageCountDecimal || 0), 0);
         const totalPages = formatPageCount(totalPagesDecimal);
 
-        const shootDays = new Set<number>();
+        const secIndices = new Set<number>();
         for (const s of scenes) {
-          const d = sceneToDay.get(s.id);
-          if (d != null) shootDays.add(d);
+          const d = sceneToSection.get(s.id);
+          if (d != null) secIndices.add(d);
         }
-        const sortedDays = [...shootDays].sort((a, b) => a - b);
-        const shootDaysStr = sortedDays.map(d => formatDayDate(d)).join(', ');
+        const sortedSections = [...secIndices].sort((a, b) => a - b);
+        const shootDaysStr = sortedSections.map(d => formatSectionDate(d)).join(', ');
 
         let displayName = el.name;
         if (cat === 'cast') {
@@ -113,7 +87,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
           shootDays: shootDaysStr,
         };
       });
-  }, [selectedCategory, project.scenes, sceneToDay, castMembers]);
+  }, [selectedCategory, project.scenes, sceneToSection, castMembers, formatSectionDate]);
 
   const selectedLabel = getCategoryLabel(selectedCategory, project.customCategories || []);
 
