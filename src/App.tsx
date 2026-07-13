@@ -709,11 +709,6 @@ function AppContent() {
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Breakdown</span>
-              {shiftHeld && !IS_COARSE && hoveredTopTab === 'breakdown' && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('schedule', el); }}
@@ -724,11 +719,6 @@ function AppContent() {
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Schedule</span>
-              {shiftHeld && !IS_COARSE && hoveredTopTab === 'schedule' && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('calendar', el); }}
@@ -739,11 +729,6 @@ function AppContent() {
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Calendar</span>
-              {shiftHeld && !IS_COARSE && hoveredTopTab === 'calendar' && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('design', el); }}
@@ -754,11 +739,6 @@ function AppContent() {
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Design</span>
-              {shiftHeld && !IS_COARSE && hoveredTopTab === 'design' && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('rules', el); }}
@@ -769,11 +749,6 @@ function AppContent() {
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Rules</span>
-              {shiftHeld && !IS_COARSE && hoveredTopTab === 'rules' && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
             <button 
               ref={el => { if (el) topTabRefs.current.set('reports', el); }}
@@ -784,11 +759,6 @@ function AppContent() {
               className={`relative group px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? (topTabIsDark || !topTabOverlayReady ? 'text-white' : isCloudProject ? 'text-blue-950' : 'text-zinc-900') : inactiveTabText}`}
             >
               <span className="relative">Reports</span>
-              {shiftHeld && !IS_COARSE && hoveredTopTab === 'reports' && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
             </>)}
           </div>

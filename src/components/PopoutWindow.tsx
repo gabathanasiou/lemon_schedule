@@ -57,7 +57,7 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
     win.document.title = title;
     win.document.head.innerHTML = styleText;
 
-    win.document.body.innerHTML = '<div id="portal"></div><div id="popout-root"></div>';
+    win.document.body.innerHTML = '<div id="portal" style="position:fixed;left:0;top:0;z-index:9999"></div><div id="popout-root"></div>';
     win.document.body.style.margin = '0';
     win.document.body.style.overflow = 'hidden';
     win.document.body.style.height = '100vh';

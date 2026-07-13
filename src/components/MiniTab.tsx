@@ -112,11 +112,6 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
               }`}
             >
               <span className="relative">{tab.label}</span>
-              {shiftHeld && !IS_COARSE && onPopout && hoveredTab === tab.id && (
-                <span className="ml-1.5 inline-flex items-center text-zinc-400">
-                  <ExternalLink className="w-3 h-3" />
-                </span>
-              )}
             </button>
           );
         })}
