@@ -52,7 +52,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
             className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
           />
           <div className={`h-4 w-px ${isCloudProject ? 'bg-blue-800' : 'bg-zinc-700'}`} />
-          <span className={`px-3 py-1.5 rounded-t-md text-xs font-semibold ${contentTheme === 'dark' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : 'bg-white text-zinc-900'}`}>
+          <span className={`px-3 py-1.5 rounded-md text-xs font-semibold ${contentTheme === 'dark' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : 'bg-white text-zinc-900'}`}>
             {tabName}
           </span>
         </div>

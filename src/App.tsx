@@ -669,42 +669,42 @@ function AppContent() {
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
-              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Breakdown
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
-              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Schedule
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
-              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Calendar
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
             >
               Design
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
-              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900' : inactiveTabText}`}
             >
               Rules
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-              className={`px-3 py-1.5 rounded-t-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-zinc-900 border-l border-r border-t border-zinc-600 text-white' : inactiveTabText}`}
             >
               Reports
             </button>
