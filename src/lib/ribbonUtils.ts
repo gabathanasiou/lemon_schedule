@@ -329,14 +329,12 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, 
 export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1, _cellPadding?: number): React.CSSProperties {
   if (cell.truncation === false) {
     return {
-      display: 'block',
       whiteSpace: 'nowrap',
       overflow: 'hidden',
     };
   }
   if (cell.wrap) {
     return {
-      display: 'block',
       whiteSpace: 'normal',
       overflow: 'visible',
       overflowWrap: 'break-word',
@@ -481,9 +479,9 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 1',
       cells: [
-        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle' },
-        { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
-        { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
+        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle', truncation: false },
+        { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle', truncation: false },
+        { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle', wrap: true },
         { id: cid(), field: 'intExt', align: 'left' },
         { id: cid(), field: 'set', align: 'left', verticalAlign: 'middle' },
         { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top', wrap: true },
@@ -495,8 +493,8 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       name: 'Row 2',
       cells: [
         { id: cid(), field: 'pageCount', suffix: 'pgs', align: 'left', verticalAlign: 'top', truncation: false },
-        { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
-        { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
+        { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle', truncation: false },
+        { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle', wrap: true },
         { id: cid(), field: 'dayNight', align: 'left' },
         { id: cid(), field: 'description', align: 'left', verticalAlign: 'top' },
         { id: cid(), field: 'cast', align: 'left', verticalAlign: 'top', wrap: true },
