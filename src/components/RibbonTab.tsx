@@ -604,11 +604,10 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           if (ok) dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: id });
         }}
         onCreate={() => {
-          void (async () => {
-            await promptSaveDefault();
-            const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' });
-            if (n) dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } });
-          })();
+          const name = `Design ${project.ribbonDesigns.length + 1}`;
+          const newId = generateUUID();
+          dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { id: newId, name, cloneFromId: project.activeRibbonId } });
+          return newId;
         }}
         onImport={() => {
           const input = document.createElement('input');

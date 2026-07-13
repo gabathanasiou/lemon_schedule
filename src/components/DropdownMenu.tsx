@@ -129,9 +129,9 @@ export function ItemManagerDropdown({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const th = {
-    text: isBlue ? 'text-white/70' : 'text-zinc-300',
+    text: isBlue ? 'text-white' : 'text-zinc-300',
     textBright: isBlue ? 'text-white' : 'text-white',
-    textDim: isBlue ? 'text-white/50' : 'text-zinc-500',
+    textDim: isBlue ? 'text-white/60' : 'text-zinc-500',
     textActive: isBlue ? 'text-white font-semibold' : 'text-blue-200 font-medium',
     hoverBg: isBlue ? 'hover:bg-white/10' : 'hover:bg-zinc-800',
     hoverBgBright: isBlue ? 'hover:bg-white/10 hover:text-white' : 'hover:bg-zinc-800 hover:text-white',
@@ -140,18 +140,20 @@ export function ItemManagerDropdown({
     separator: isBlue ? 'border-t border-white/10 my-1' : 'border-t border-zinc-800 my-1',
     inputBg: isBlue ? 'bg-white/10 border-white/10 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-200',
     inputFocus: isBlue ? 'focus:border-white/30' : 'focus:border-zinc-500',
-    iconColor: isBlue ? 'text-white/50' : 'text-zinc-400',
-    btnBase: isBlue ? 'text-white/50 hover:text-white' : 'text-zinc-500 hover:text-zinc-300',
-    btnActive: isBlue ? 'text-white/70 hover:text-white' : 'text-blue-300 hover:text-blue-200',
-    btnDelete: isBlue ? 'text-white/50 hover:text-red-400' : 'text-zinc-500 hover:text-red-400',
-    btnDeleteActive: isBlue ? 'text-white/70 hover:text-red-400' : 'text-blue-300 hover:text-red-400',
+    iconColor: isBlue ? 'text-white/70' : 'text-zinc-400',
+    btnBase: isBlue ? 'text-white/60 hover:text-white' : 'text-zinc-500 hover:text-zinc-300',
+    btnActive: isBlue ? 'text-white hover:text-white' : 'text-blue-300 hover:text-blue-200',
+    btnDelete: isBlue ? 'text-white/60 hover:text-red-400' : 'text-zinc-500 hover:text-red-400',
+    btnDeleteActive: isBlue ? 'text-white hover:text-red-400' : 'text-blue-300 hover:text-red-400',
     btnDeleteDisabled: 'text-zinc-700 pointer-events-none',
   };
 
   useEffect(() => {
-    if (editingId && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
+    if (editingId) {
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
     }
   }, [editingId]);
 
@@ -174,7 +176,7 @@ export function ItemManagerDropdown({
   const createLabel = itemLabel || header.replace(/S$/, '').replace(/s$/, '');
 
   return (
-    <DropdownMenu open={open} onOpenChange={(o) => { if (!o || !readOnly) onClose(o); }} width="w-80" theme={theme} trigger={trigger}>
+    <DropdownMenu open={open} onOpenChange={(o) => { if (!o) { setEditingId(null); setEditValue(''); } if (!o || !readOnly) onClose(o); }} width="w-80" theme={theme} trigger={trigger}>
       <div className={`px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider ${th.textDim}`}>
         {header}
       </div>
@@ -182,22 +184,20 @@ export function ItemManagerDropdown({
         const isActive = item.id === activeId;
         const isEditing = editingId === item.id;
         return (
-          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? th.activeBg : th.hoverBg}`}>
+          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? th.activeBg : th.hoverBg} ${editingId && !isEditing ? 'opacity-40 pointer-events-none' : ''}`}>
             {isEditing ? (
               <>
-                <RadixDropdownMenu.Item
+                <div
                   className="flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none flex items-center gap-2"
-                  onSelect={e => e.preventDefault()}
-                  onTouchStart={() => {}}
                 >
                   <input
                     ref={inputRef}
                     value={editValue}
                     onChange={e => setEditValue(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') cancelRename(); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); commitRename(); } if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelRename(); } }}
                     className={`w-full border rounded px-1.5 py-0.5 text-xs outline-none ${th.inputBg} ${th.inputFocus}`}
                   />
-                </RadixDropdownMenu.Item>
+                </div>
                 <RadixDropdownMenu.Item
                   className="shrink-0 w-6 h-6 rounded flex items-center justify-center hover:text-green-400 outline-none cursor-pointer"
                   onSelect={e => { e.preventDefault(); commitRename(); }}
@@ -251,67 +251,69 @@ export function ItemManagerDropdown({
           </div>
         );
       })}
-      {onReset && (
-        <>
+      <div className={editingId ? 'opacity-40 pointer-events-none' : ''}>
+        {onReset && (
+          <>
+            <RadixDropdownMenu.Separator className={th.separator} />
+            <RadixDropdownMenu.Item
+              className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+              onSelect={e => { e.preventDefault(); onReset(); }}
+              onTouchStart={() => {}}
+              disabled={readOnly}
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${th.iconColor}`} />
+              Reset to Default
+            </RadixDropdownMenu.Item>
+          </>
+        )}
+        {(onCreate || onImport || onExport || onTrash) && (
           <RadixDropdownMenu.Separator className={th.separator} />
+        )}
+        {onCreate && (
           <RadixDropdownMenu.Item
             className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
-            onSelect={e => { e.preventDefault(); onReset(); }}
+            onSelect={e => { e.preventDefault(); const newId = onCreate(); if (newId) startRename(newId, ''); }}
             onTouchStart={() => {}}
             disabled={readOnly}
           >
-            <RotateCcw className={`w-3.5 h-3.5 ${th.iconColor}`} />
-            Reset to Default
+            <Plus className={`w-3.5 h-3.5 ${th.iconColor}`} />
+            New {createLabel}
           </RadixDropdownMenu.Item>
-        </>
-      )}
-      {(onCreate || onImport || onExport || onTrash) && (
-        <RadixDropdownMenu.Separator className={th.separator} />
-      )}
-      {onCreate && (
-        <RadixDropdownMenu.Item
-          className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
-          onSelect={e => { e.preventDefault(); const newId = onCreate(); if (newId) startRename(newId, ''); }}
-          onTouchStart={() => {}}
-          disabled={readOnly}
-        >
-          <Plus className={`w-3.5 h-3.5 ${th.iconColor}`} />
-          New {createLabel}
-        </RadixDropdownMenu.Item>
-      )}
-      {onImport && (
-        <RadixDropdownMenu.Item
-          className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
-          onSelect={e => { e.preventDefault(); onImport(); }}
-          onTouchStart={() => {}}
-          disabled={readOnly}
-        >
-          <svg className={`w-3.5 h-3.5 ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
-          Import
-        </RadixDropdownMenu.Item>
-      )}
-      {onExport && (
-        <RadixDropdownMenu.Item
-          className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
-          onSelect={e => { e.preventDefault(); onExport(); }}
-          onTouchStart={() => {}}
-          disabled={readOnly}
-        >
-          <svg className={`w-3.5 h-3.5 ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-          Export
-        </RadixDropdownMenu.Item>
-      )}
-      {onTrash && (
-        <RadixDropdownMenu.Item
-          className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
-          onSelect={e => { e.preventDefault(); onTrash(); }}
-          onTouchStart={() => {}}
-          disabled={readOnly}
-        >
-          <Trash2 className={`w-3.5 h-3.5 ${th.iconColor}`} />
-          Trash
-        </RadixDropdownMenu.Item>
-      )}
+        )}
+        {onImport && (
+          <RadixDropdownMenu.Item
+            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            onSelect={e => { e.preventDefault(); onImport(); }}
+            onTouchStart={() => {}}
+            disabled={readOnly}
+          >
+            <svg className={`w-3.5 h-3.5 ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            Import
+          </RadixDropdownMenu.Item>
+        )}
+        {onExport && (
+          <RadixDropdownMenu.Item
+            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            onSelect={e => { e.preventDefault(); onExport(); }}
+            onTouchStart={() => {}}
+            disabled={readOnly}
+          >
+            <svg className={`w-3.5 h-3.5 ${th.iconColor}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            Export
+          </RadixDropdownMenu.Item>
+        )}
+        {onTrash && (
+          <RadixDropdownMenu.Item
+            className={`w-full text-left px-3 py-2 text-xs rounded flex items-center gap-2 transition-colors outline-none cursor-pointer select-none ${th.text} ${th.hoverBgBright}`}
+            onSelect={e => { e.preventDefault(); onTrash(); }}
+            onTouchStart={() => {}}
+            disabled={readOnly}
+          >
+            <Trash2 className={`w-3.5 h-3.5 ${th.iconColor}`} />
+            Trash
+          </RadixDropdownMenu.Item>
+        )}
+      </div>
     </DropdownMenu>
   );
 }
