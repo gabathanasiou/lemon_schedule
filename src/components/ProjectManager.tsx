@@ -4,7 +4,7 @@ import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
-import { listDriveProjectMetas, deleteDriveProject, readDriveProject, clearAllDriveData } from '../lib/googleDriveStorage';
+import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData } from '../lib/googleDriveStorage';
 import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
@@ -320,6 +320,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       localStorage.setItem(`lemon_schedule_project_v1_${p.id}`, JSON.stringify(project));
       if (p.driveFileId) {
         await deleteDriveProject(auth.accessToken!, p.driveFileId);
+        await removeFromDriveIndex(auth.accessToken!, p.id);
       }
       updateProjectMeta(p.id, { driveFileId: undefined });
       refetchDrive();
@@ -536,7 +537,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         )}
 
         {activeTab === 'cloud' && !auth.isSignedIn ? (
-          <div className="max-h-[50vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-zinc-500">
             <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
             <p className="text-sm font-medium text-zinc-400">Sign in required</p>
@@ -544,14 +545,14 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           </div>
           </div>
         ) : activeTab === 'cloud' && driveLoading ? (
-          <div className="max-h-[50vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-zinc-500">
             <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
             <p className="text-xs text-zinc-500">Loading cloud projects...</p>
           </div>
           </div>
         ) : activeTab === 'cloud' && driveError && !driveCorrupt ? (
-          <div className="max-h-[50vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-zinc-500">
             <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
             <p className="text-sm font-medium text-zinc-400">Failed to load</p>
@@ -565,7 +566,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
           </div>
           </div>
         ) : !hasProjects ? (
-          <div className="max-h-[50vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-y-auto scrollbar-custom">
           <div className="text-center py-12 text-zinc-500">
             {activeTab === 'local' ? (
               <>
@@ -617,7 +618,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 </RadixDropdownMenu.Root>
               </div>
             </div>
-            <div className="max-h-[50vh] overflow-y-auto">
+            <div className="max-h-[50vh] overflow-y-auto scrollbar-custom mt-2">
             <div className="space-y-2">
 
             {sortedList.map(p => {

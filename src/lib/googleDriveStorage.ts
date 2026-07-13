@@ -126,6 +126,9 @@ export async function listDriveProjectMetas(
           continue;
         }
         entry.driveFileId = resolved;
+      } else if (!fileIdByName.has(`${entry.id}.json`)) {
+        console.warn('[Drive] Skipping ghost index entry (file deleted):', entry.id, entry.title);
+        continue;
       }
       result.push(entry);
     }
