@@ -274,6 +274,7 @@ function AppContent() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [compactTabs, setCompactTabs] = useState(window.innerWidth < 900);
   const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
+  const [subHeaderTargets, setSubHeaderTargets] = useState<Record<string, HTMLDivElement | null>>({});
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
   useEffect(() => {
     const onResize = () => setCompactTabs(window.innerWidth < 900);
@@ -956,8 +957,9 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Sheet" onClose={() => closeSubPopout('breakdown', 'sheet')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_sheet'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_sheet: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
-              <SceneSheet initialIndex={brSheetIdx} onIndexChange={setBrSheetIdx} onOpenSchedule={handleOpenScheduleAtScene} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
+              <SceneSheet initialIndex={brSheetIdx} onIndexChange={setBrSheetIdx} onOpenSchedule={handleOpenScheduleAtScene} onOpenScheduleInPopout={handleOpenScheduleInPopout} headerTarget={subHeaderTargets['sub_breakdown_sheet']} />
             </div>
           </div>
         </PopoutWindow>
@@ -966,8 +968,9 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Manager" onClose={() => closeSubPopout('breakdown', 'elements')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_elements'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_elements: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
-              <ElementManager initialCategory={brCategory} onCategoryChange={setBrCategory} />
+              <ElementManager initialCategory={brCategory} onCategoryChange={setBrCategory} headerTarget={subHeaderTargets['sub_breakdown_elements']} />
             </div>
           </div>
         </PopoutWindow>
@@ -976,8 +979,9 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Glide Breakdown" onClose={() => closeSubPopout('breakdown', 'glide')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_breakdown_glide'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_breakdown_glide: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
-              <GlideBreakdownTab onOpenSheet={handleOpenSheet} onOpenSheetInPopout={handleOpenSheetInPopout} />
+              <GlideBreakdownTab onOpenSheet={handleOpenSheet} onOpenSheetInPopout={handleOpenSheetInPopout} headerTarget={subHeaderTargets['sub_breakdown_glide']} />
             </div>
           </div>
         </PopoutWindow>
@@ -986,8 +990,9 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Ribbon Designer" onClose={() => closeSubPopout('design', 'ribbons')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_design_ribbons'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_ribbons: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
-              <RibbonTab />
+              <RibbonTab headerTarget={subHeaderTargets['sub_design_ribbons']} />
             </div>
           </div>
         </PopoutWindow>
@@ -996,8 +1001,9 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Colors" onClose={() => closeSubPopout('design', 'colors')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_design_colors'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_colors: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
-              <ColorsTab />
+              <ColorsTab headerTarget={subHeaderTargets['sub_design_colors']} />
             </div>
           </div>
         </PopoutWindow>
@@ -1006,6 +1012,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Day Out of Days" onClose={() => closeSubPopout('reports', 'doods')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_reports_doods'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_doods: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
               <DoodsTab selectedCategory={reportsCategory} />
             </div>
@@ -1016,6 +1023,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Breakdown`} win={popoutSubWindowsRef.current.get('sub_reports_elementBreakdown')!} onClose={() => closeSubPopout('reports', 'elementBreakdown')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Breakdown" onClose={() => closeSubPopout('reports', 'elementBreakdown')} />
+            <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="shrink-0" />
             <div className="flex-1 min-h-0 flex flex-col">
               <ElementBreakdownView selectedCategory={reportsCategory} />
             </div>
