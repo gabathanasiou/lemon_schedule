@@ -14,16 +14,16 @@ import {
   Calendar, StickyNote, UserPlus, Sparkles, Car, Package, Shirt, Scissors,
   Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket,
   Plus, Trash2, GripHorizontal,
-  Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
+  Eye, ArrowRightLeft, ArrowUp, ArrowDown,
   ChevronDown, ArrowLeft, ArrowRight,
   AlignCenter, AlignRight, WrapText, Ellipsis, X, Type, Tag, CircleDot,
   ClipboardList,
-  Download, Upload, Copy, Check, Pencil,
+  Check, Pencil,
   PanelTop, Equal, PanelBottom,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
+import { ItemManagerDropdown } from './DropdownMenu';
 import DropdownItem from './DropdownItem';
-import DropdownDivider from './DropdownDivider';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { useViewMode, useCellBorders } from '../lib/persist';
@@ -103,7 +103,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   colWidthsRef.current = colWidths;
   const numCols = colWidths.length;
   const [designMenuOpen, setDesignMenuOpen] = useState(false);
-  const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
   const mergeLookup = useMemo(() => getMergeLookup(rows), [rows]);
@@ -135,12 +134,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
     }
   }, [activeDesign, dispatch, dialog]);
-
-  const switchDesign = useCallback(async (newId: string) => {
-    await promptSaveDefault();
-    dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
-    setDesignMenuOpen(false);
-  }, [promptSaveDefault, dispatch]);
 
   const promptSaveDefaultRef = useRef(promptSaveDefault);
   promptSaveDefaultRef.current = promptSaveDefault;
@@ -592,73 +585,29 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
 
   const headerContent = (
     <>
-      <DropdownMenu
+      <ItemManagerDropdown
         open={designMenuOpen}
-        onOpenChange={v => { if (!readOnly) setDesignMenuOpen(v); }}
-        width="w-52"
-        trigger={
-          <button className={`flex items-center gap-1.5 rounded px-2 py-1 transition-colors ${readOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-zinc-800'}`}>
-            <span className="text-xs font-semibold text-zinc-500">Editing:</span>
-            <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
-        }
-      >
-        <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Designs</div>
-        {project.ribbonDesigns.map(d => (
-          <DropdownItem
-            key={d.id}
-            disabled={readOnly}
-            onClick={() => switchDesign(d.id)}
-            icon={d.id === project.activeRibbonId ? <Check className="w-3.5 h-3.5" /> : undefined}
-          >
-            {d.name}
-          </DropdownItem>
-        ))}
-      </DropdownMenu>
-      <DropdownMenu
-        open={fileMenuOpen}
-        onOpenChange={v => { if (!readOnly) setFileMenuOpen(v); }}
-        width="w-44"
-        trigger={
-          <button className={`flex items-center gap-1.5 rounded px-2 py-1 transition-colors ${readOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-zinc-800'}`}>
-            <span className="text-xs font-semibold text-zinc-400">Edit</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
-        }
-      >
-        <DropdownItem disabled={readOnly} onClick={async () => { await promptSaveDefault(); const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' }); if (n) { dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } }); setFileMenuOpen(false); } }}
-          icon={<Plus className="w-3.5 h-3.5" />}>
-          New Design
-        </DropdownItem>
-        <DropdownItem disabled={readOnly} onClick={async () => { const n = await dialog.prompt({ title: 'Rename Design', defaultValue: activeDesign.name, placeholder: 'New name' }); if (n) { dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id: activeDesign.id, name: n.trim() } }); setFileMenuOpen(false); } }}
-          icon={<Pencil className="w-3.5 h-3.5" />}>
-          Rename
-        </DropdownItem>
-        <DropdownItem disabled={readOnly} onClick={async () => {
-          const n = await dialog.prompt({ title: 'Duplicate Design', defaultValue: `${activeDesign.name} - Copy`, placeholder: 'Name for the copy' });
-          if (n) {
-            dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim(), cloneFromId: activeDesign.id } });
-            setFileMenuOpen(false);
-          }
+        onClose={() => setDesignMenuOpen(false)}
+        items={project.ribbonDesigns.map(d => ({ id: d.id, name: d.name }))}
+        activeId={project.activeRibbonId}
+        onSelect={async (id) => { await promptSaveDefault(); dispatch({ type: 'SET_ACTIVE_RIBBON', payload: id }); }}
+        onRename={(id, name) => dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id, name } })}
+        onDuplicate={async (id) => {
+          const d = project.ribbonDesigns.find(x => x.id === id);
+          if (d) dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: `${d.name} Copy`, cloneFromId: id } });
         }}
-          icon={<Copy className="w-3.5 h-3.5" />}>
-          Duplicate
-        </DropdownItem>
-        <DropdownDivider />
-        <DropdownItem disabled={readOnly} onClick={() => {
-           const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPaddingV: activeDesign.cellPaddingV, cellPaddingH: activeDesign.cellPaddingH, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-           a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
-           a.click(); URL.revokeObjectURL(url); setFileMenuOpen(false);
+        onDelete={async (id) => {
+          const ok = await dialog.confirm({ title: 'Delete Design?', message: 'This can be restored from Trash.', danger: true });
+          if (ok) dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: id });
         }}
-          icon={<Download className="w-3.5 h-3.5" />}>
-          Export
-        </DropdownItem>
-        <DropdownItem disabled={readOnly} onClick={() => {
+        onCreate={async () => {
+          await promptSaveDefault();
+          const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' });
+          if (n) dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } });
+        }}
+        onImport={() => {
           const input = document.createElement('input');
-           input.type = 'file'; input.accept = '.ribbon,.json';
+          input.type = 'file'; input.accept = '.ribbon,.json';
           input.onchange = () => {
             const file = input.files?.[0];
             if (!file) return;
@@ -667,31 +616,42 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               try {
                 const data = JSON.parse(reader.result as string);
                 if (data.rows && Array.isArray(data.rows)) {
-                   dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 3, edgePadding: data.edgePadding ?? 3 } });
+                  dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: data.name || 'Imported', rows: data.rows, colWidths: data.colWidths, cellPaddingV: data.cellPaddingV ?? data.cellPadding ?? 3, cellPaddingH: data.cellPaddingH ?? 3, edgePadding: data.edgePadding ?? 3 } });
                 }
               } catch { dialog.alert({ title: 'Invalid File', message: 'Could not parse the imported file.' }); }
-              setFileMenuOpen(false);
+              setDesignMenuOpen(false);
             };
             reader.readAsText(file);
           };
           input.click();
         }}
-          icon={<Upload className="w-3.5 h-3.5" />}>
-          Import
-        </DropdownItem>
-        <DropdownDivider />
-        <DropdownItem
-          disabled={readOnly}
-          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${activeDesign.name}"?`, message: 'This can be restored from Trash.', danger: true }); if (ok) { dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: activeDesign.id }); setFileMenuOpen(false); } }}
-          variant="danger"
-          icon={<Trash2 className="w-3.5 h-3.5" />}>
-          Delete Design
-        </DropdownItem>
-      </DropdownMenu>
-      <button onClick={() => { if (!readOnly) { commit(getDefaultRibbonRows(), getDefaultColWidths()); dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } }); dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 3 } }); dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } }); }}}
-        className={`h-7 px-2.5 text-[10px] rounded-md bg-zinc-800 border border-zinc-700 flex items-center gap-1.5 transition-colors ${readOnly ? 'opacity-30 cursor-not-allowed' : 'text-zinc-400 hover:bg-zinc-700'}`}>
-        <RotateCcw className="w-3 h-3" /> Reset
-      </button>
+        onExport={() => {
+          const blob = new Blob([JSON.stringify({ name: activeDesign.name, colWidths, rows, cellPaddingV: activeDesign.cellPaddingV, cellPaddingH: activeDesign.cellPaddingH, edgePadding: activeDesign.edgePadding }, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `${activeDesign.name.replace(/\s+/g, '_')}.ribbon`;
+          a.click(); URL.revokeObjectURL(url);
+        }}
+        onReset={() => {
+          dispatch({ type: 'BATCH_START' });
+          commit(getDefaultRibbonRows(), getDefaultColWidths());
+          dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: 3 } });
+          dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: 3 } });
+          dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: 3 } });
+          dispatch({ type: 'BATCH_COMMIT' });
+        }}
+        readOnly={readOnly}
+        label="Editing"
+        header="RIBBON DESIGNS"
+        itemLabel="Design"
+        trigger={
+          <button className={`flex items-center gap-1.5 rounded px-2 py-1 transition-colors ${readOnly ? 'opacity-40 cursor-not-allowed' : 'hover:bg-zinc-800'}`}>
+            <span className="text-xs font-semibold text-zinc-500">Editing:</span>
+            <span className="text-xs font-semibold text-zinc-200">{activeDesign.name}</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          </button>
+        }
+      />
       <div className="flex-1" />
       <DropdownMenu
         open={viewMenuOpen}
