@@ -1,6 +1,6 @@
 import React from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useDropdownTheme } from './DropdownMenu';
+import { useDropdownTheme, getDropdownClasses } from './DropdownMenu';
 import { IS_COARSE } from '../lib/device';
 
 const ITEM_CLASS = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
@@ -32,25 +32,14 @@ export default function DropdownItem({
   rightAction,
 }: DropdownItemProps) {
   const theme = useDropdownTheme();
+  const d = getDropdownClasses(theme);
   const isLight = theme === 'light';
-  const isBlue = theme === 'blue';
 
-  const variantStyles = variant === 'danger'
-    ? isLight
-      ? 'text-red-600 hover:bg-red-100 focus-visible:bg-red-100 active:bg-red-200'
-      : 'text-red-400 hover:bg-red-900/30 hover:text-red-300 focus-visible:bg-red-900/30 focus-visible:text-red-300 active:bg-red-900/50 active:text-red-200'
-    : isLight
-      ? 'text-zinc-700 hover:bg-zinc-100 focus-visible:bg-zinc-100 active:bg-zinc-200'
-      : isBlue
-      ? 'text-white hover:bg-white/10 focus-visible:bg-white/10 active:bg-white/15'
-      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white active:bg-zinc-700 active:text-white';
-
-  const iconColor = isLight ? 'text-zinc-500' : isBlue ? 'text-white' : 'text-zinc-400';
-  const rightActionColor = isLight ? 'text-zinc-400 hover:text-zinc-600' : 'text-zinc-500 hover:text-zinc-300';
+  const variantStyles = variant === 'danger' ? d.itemDanger : d.itemDefault;
 
   return (
     <RadixDropdownMenu.Item
-      className={`w-full text-left ${ITEM_CLASS} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
+      className={`w-full text-left ${d.itemPad} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
       onSelect={(e) => { if (keepOpen) e.preventDefault(); onClick(); }}
       onTouchStart={() => {}}
       onPointerDown={(e) => {
@@ -63,11 +52,11 @@ export default function DropdownItem({
       }}
       disabled={disabled}
     >
-      {icon && <span className={`${iconColor} shrink-0`}>{icon}</span>}
+      {icon && <span className={`${d.icon} shrink-0`}>{icon}</span>}
       <span className="flex-1 truncate">{children}</span>
       {rightAction && (
         <span
-          className={`shrink-0 ml-1 p-0.5 rounded transition-colors ${rightActionColor}`}
+          className={`shrink-0 ml-1 p-0.5 rounded transition-colors ${d.rightAction}`}
           title={rightAction.title}
           onPointerDown={(e) => {
             e.stopPropagation();
