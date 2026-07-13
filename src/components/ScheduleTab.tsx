@@ -71,7 +71,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
     } else if (row?.type === 'SCENE' && row.sceneId) {
-      if (shiftKey && onOpenSceneInPopout) {
+      if (!IS_COARSE && shiftKey && onOpenSceneInPopout) {
         onOpenSceneInPopout(row.sceneId);
       } else if (onOpenScene) {
         onOpenScene(row.sceneId);
@@ -1532,7 +1532,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 <>
                   <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
                   <ContextMenuDivider />
-                  {shiftHeld && onOpenSceneInPopout ? (
+                  {!IS_COARSE && shiftHeld && onOpenSceneInPopout ? (
                     <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
                   ) : (
                     <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>

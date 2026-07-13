@@ -8,6 +8,7 @@ import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useProject } from '../store';
+import { usePortalTarget } from '../lib/popoutTarget';
 import { CellInput } from './CellInput';
 import { Flag } from 'lucide-react';
 import { useAddMode, useLastPointerType } from '../lib/useMarquee';
@@ -65,6 +66,7 @@ const SortableRowContent: React.FC<{
   cellBorders?: CellBorders,
 }> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
+  const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
 
   const lastPointerType = useLastPointerType();

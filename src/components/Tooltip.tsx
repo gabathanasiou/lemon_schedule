@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalTarget, useCurrentWindow } from '../lib/popoutTarget';
 
 export const Tooltip: React.FC<{ content: string; children: React.ReactNode }> = ({ content, children }) => {
+  const portalTarget = usePortalTarget();
+  const currentWindow = useCurrentWindow();
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -13,8 +16,8 @@ export const Tooltip: React.FC<{ content: string; children: React.ReactNode }> =
   };
 
   useEffect(() => {
-    if (show) { updatePos(); window.addEventListener('scroll', updatePos, true); }
-    return () => window.removeEventListener('scroll', updatePos, true);
+    if (show) { updatePos(); currentWindow.addEventListener('scroll', updatePos, true); }
+    return () => currentWindow.removeEventListener('scroll', updatePos, true);
   }, [show]);
 
   return (
@@ -35,7 +38,7 @@ export const Tooltip: React.FC<{ content: string; children: React.ReactNode }> =
           ))}
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>,
-        document.body
+        portalTarget ?? document.body
       )}
     </div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/popoutTarget';
 
 interface FloatingTooltipProps {
   open: boolean;
@@ -7,6 +8,11 @@ interface FloatingTooltipProps {
 }
 
 export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children }) => {
+  const portalTarget = usePortalTarget();
+  const currentDocument = useCurrentDocument();
+  const currentWindow = useCurrentWindow();
+  const currentWindowRef = useRef(currentWindow);
+  currentWindowRef.current = currentWindow;
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
   const posRef = useRef({ x: 0, y: 0 });
@@ -23,11 +29,11 @@ export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children
     let left = posRef.current.x + 12;
     let top = posRef.current.y - 12 - rect.height;
     if (top < MARGIN) top = posRef.current.y + 12;
-    if (left + rect.width > window.innerWidth - MARGIN) {
-      left = window.innerWidth - rect.width - MARGIN;
+    if (left + rect.width > currentWindowRef.current.innerWidth - MARGIN) {
+      left = currentWindowRef.current.innerWidth - rect.width - MARGIN;
     }
     if (left < MARGIN) left = MARGIN;
-    top = Math.max(MARGIN, Math.min(top, window.innerHeight - rect.height - MARGIN));
+    top = Math.max(MARGIN, Math.min(top, currentWindowRef.current.innerHeight - rect.height - MARGIN));
     setPos({ x: left, y: top });
   }, []);
 
@@ -48,9 +54,9 @@ export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children
         });
       }
     };
-    document.addEventListener('pointermove', handler);
+    currentDocument.addEventListener('pointermove', handler);
     return () => {
-      document.removeEventListener('pointermove', handler);
+      currentDocument.removeEventListener('pointermove', handler);
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -59,8 +65,8 @@ export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children
   }, [open, updatePos]);
 
   useEffect(() => {
-    if (open) window.addEventListener('scroll', updatePos, true);
-    return () => window.removeEventListener('scroll', updatePos, true);
+    if (open) currentWindow.addEventListener('scroll', updatePos, true);
+    return () => currentWindow.removeEventListener('scroll', updatePos, true);
   }, [open, updatePos]);
 
   if (!open) return null;
@@ -73,7 +79,7 @@ export const FloatingTooltip: React.FC<FloatingTooltipProps> = ({ open, children
     >
       {children}
     </div>,
-    document.body
+    portalTarget ?? document.body
   );
 };
 

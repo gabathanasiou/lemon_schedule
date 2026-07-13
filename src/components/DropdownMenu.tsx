@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useState } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
+import { usePortalTarget } from '../lib/popoutTarget';
 
 export type DropdownTheme = 'light' | 'dark' | 'blue';
 
@@ -33,6 +34,7 @@ export default function DropdownMenu({
   children,
 }: DropdownMenuProps) {
   const [activeSub, setActiveSub] = useState<string | null>(null);
+  const portalTarget = usePortalTarget();
 
   const contentClasses = theme === 'light'
     ? 'bg-white border border-zinc-200 rounded-lg shadow-xl z-[200] text-zinc-700 p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out'
@@ -51,7 +53,7 @@ export default function DropdownMenu({
       <RadixDropdownMenu.Trigger asChild>
         {trigger}
       </RadixDropdownMenu.Trigger>
-      <RadixDropdownMenu.Portal>
+      <RadixDropdownMenu.Portal container={portalTarget ?? undefined}>
         <DropdownThemeContext.Provider value={theme}>
           <SubmenuContext.Provider value={{ activeSub, setActiveSub }}>
             <RadixDropdownMenu.Content

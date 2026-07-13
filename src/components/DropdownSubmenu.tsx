@@ -3,6 +3,7 @@ import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronRight } from 'lucide-react';
 import { useDropdownTheme, SubmenuContext } from './DropdownMenu';
 import { IS_COARSE } from '../lib/device';
+import { usePortalTarget } from '../lib/popoutTarget';
 
 const SUB_ITEM = IS_COARSE ? 'px-4 py-3 text-sm' : 'px-3 py-2 text-xs';
 
@@ -21,6 +22,7 @@ export default function DropdownSubmenu({ id, label, icon, width, side = 'right'
   const theme = useDropdownTheme();
   const isLight = theme === 'light';
   const isBlue = theme === 'blue';
+  const portalTarget = usePortalTarget();
 
   const triggerClasses = isLight
     ? `w-full text-left ${SUB_ITEM} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none text-zinc-700 justify-between hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100 focus-visible:text-zinc-900 active:bg-zinc-200 active:text-zinc-900 data-[state=open]:bg-zinc-100 data-[state=open]:text-zinc-900`
@@ -58,7 +60,7 @@ export default function DropdownSubmenu({ id, label, icon, width, side = 'right'
         </span>
         {side === 'right' && <ChevronRight className={`w-3 h-3 ${chevronColor}`} />}
       </RadixDropdownMenu.SubTrigger>
-      <RadixDropdownMenu.Portal>
+      <RadixDropdownMenu.Portal container={portalTarget ?? undefined}>
         <RadixDropdownMenu.SubContent
           className={contentClasses}
           side={side}

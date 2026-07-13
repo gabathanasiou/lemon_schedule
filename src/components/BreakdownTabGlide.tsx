@@ -734,7 +734,7 @@ export function GlideBreakdownTab({
     }
     if (col >= 0) return;
     if (e.isDoubleClick) {
-      if (shiftHeld && onOpenSheetInPopout) {
+      if (!IS_COARSE && shiftHeld && onOpenSheetInPopout) {
         onOpenSheetInPopout(row);
       } else {
         onOpenSheet?.(row);
@@ -929,7 +929,7 @@ export function GlideBreakdownTab({
             <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
             <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
-            {shiftHeld && onOpenSheetInPopout ? (
+            {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
               <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
             ) : (
               <ContextMenuItem onClick={() => { if (onOpenSheet) onOpenSheet(contextMenu.row); setContextMenu(null); }} icon={<Eye className="w-3 h-3 text-zinc-400" />}>Open Sheet</ContextMenuItem>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { RuleViolation, CastMember } from '../types';
 import { useProject } from '../store';
+import { usePortalTarget, useCurrentWindow } from '../lib/popoutTarget';
 
 function resolveCastName(castId: string, castMembers: CastMember[]): string {
   const cm = castMembers.find(c => c.id === castId);
@@ -58,6 +59,8 @@ export const ViolationTooltip: React.FC<{
   violations: RuleViolation[];
   children: React.ReactNode;
 }> = ({ violations, children }) => {
+  const portalTarget = usePortalTarget();
+  const currentWindow = useCurrentWindow();
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -71,8 +74,8 @@ export const ViolationTooltip: React.FC<{
   };
 
   useEffect(() => {
-    if (show) { updatePos(); window.addEventListener('scroll', updatePos, true); }
-    return () => window.removeEventListener('scroll', updatePos, true);
+    if (show) { updatePos(); currentWindow.addEventListener('scroll', updatePos, true); }
+    return () => currentWindow.removeEventListener('scroll', updatePos, true);
   }, [show]);
 
   return (
@@ -91,7 +94,7 @@ export const ViolationTooltip: React.FC<{
           <ViolationContent violations={violations} castMembers={castMembers} />
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>,
-        document.body
+        portalTarget ?? document.body
       )}
     </div>
   );

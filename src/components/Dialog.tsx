@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { IS_COARSE } from '../lib/device';
+import { usePortalTarget, useCurrentWindow } from '../lib/popoutTarget';
 
 const DIALOG_PAD = IS_COARSE ? 'p-6' : 'p-5';
 const DIALOG_TITLE = IS_COARSE ? 'text-base' : 'text-sm';
@@ -52,6 +53,10 @@ export function useDialog() {
 
 export function DialogProvider({ children }: { children: React.ReactNode }) {
   const [dialog, setDialog] = useState<DialogState>(null);
+  const portalTarget = usePortalTarget();
+  const currentWindow = useCurrentWindow();
+  const currentWindowRef = useRef(currentWindow);
+  currentWindowRef.current = currentWindow;
   const inputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
@@ -113,7 +118,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     if (rs.dir.includes('s')) newH = rs.startH + dy;
     if (rs.dir.includes('n')) { newH = rs.startH - dy; newT = rs.startT + dy; }
 
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const vw = currentWindowRef.current.innerWidth, vh = currentWindowRef.current.innerHeight;
     newW = Math.max(MIN_W, Math.min(newW, vw - MAX_EDGE * 2));
     newH = Math.max(MIN_H, Math.min(newH, vh - MAX_EDGE * 2));
     if (rs.dir.includes('w')) newL = Math.max(MAX_EDGE, Math.min(newL, vw - newW - MAX_EDGE));
@@ -172,7 +177,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) close(); }} modal={true}>
-        <RadixDialog.Portal>
+        <RadixDialog.Portal container={portalTarget ?? undefined}>
           <RadixDialog.Overlay className="fixed inset-0 z-[10000] bg-black/20" />
           <RadixDialog.Content
             ref={contentRef}

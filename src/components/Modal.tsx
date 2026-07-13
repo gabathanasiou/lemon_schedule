@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect, useLayoutEffect } from
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { X, RotateCcw } from 'lucide-react';
 import { IS_COARSE } from '../lib/device';
+import { usePortalTarget, useCurrentWindow } from '../lib/popoutTarget';
 
 const MIN_W = 200, MIN_H = 150;
 const MAX_EDGE = 32;
@@ -41,6 +42,10 @@ export default function Modal({
   onReset,
 }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const portalTarget = usePortalTarget();
+  const currentWindow = useCurrentWindow();
+  const currentWindowRef = useRef(currentWindow);
+  currentWindowRef.current = currentWindow;
   const [dragPos, setDragPos] = useState<{ left: number; top: number } | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -112,7 +117,7 @@ export default function Modal({
     if (rs.dir.includes('s')) newH = rs.startH + dy;
     if (rs.dir.includes('n')) { newH = rs.startH - dy; newT = rs.startT + dy; }
 
-    const vw = window.innerWidth, vh = window.innerHeight;
+    const vw = currentWindowRef.current.innerWidth, vh = currentWindowRef.current.innerHeight;
     newW = Math.max(MIN_W, Math.min(newW, vw - MAX_EDGE * 2));
     newH = Math.max(MIN_H, Math.min(newH, vh - MAX_EDGE * 2));
     if (rs.dir.includes('w')) newL = Math.max(MAX_EDGE, Math.min(newL, vw - newW - MAX_EDGE));
@@ -145,7 +150,7 @@ export default function Modal({
 
   return (
     <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <RadixDialog.Portal>
+      <RadixDialog.Portal container={portalTarget ?? undefined}>
         <RadixDialog.Overlay
           className="fixed inset-0 z-[9999] bg-black/20"
           style={{ touchAction: 'manipulation' }}

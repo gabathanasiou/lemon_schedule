@@ -704,7 +704,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (row?.type === 'NOTE') {
       setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
     } else if (row?.type === 'SCENE' && row.sceneId) {
-      if (shiftKey && onOpenSceneInPopout) {
+      if (!IS_COARSE && shiftKey && onOpenSceneInPopout) {
         onOpenSceneInPopout(row.sceneId);
       } else if (onOpenScene) {
         onOpenScene(row.sceneId);

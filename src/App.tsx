@@ -131,12 +131,14 @@ function AppContent() {
   }, [poppedOutTabs]);
 
   const handleOpenSheetInPopout = useCallback((rowIndex: number) => {
+    if (IS_COARSE) return;
     setBrSubTab('sheet');
     setBrSheetIdx(rowIndex);
     if (!poppedOutTabs.has('breakdown')) togglePopout('breakdown');
   }, [poppedOutTabs]);
 
   const handleOpenSceneInPopout = useCallback((sceneId: string) => {
+    if (IS_COARSE) return;
     const idx = state.present.scenes.findIndex(s => s.id === sceneId);
     if (idx >= 0) {
       setBrSubTab('sheet');
@@ -146,6 +148,7 @@ function AppContent() {
   }, [state.present.scenes, poppedOutTabs]);
 
   const handleOpenScheduleInPopout = useCallback((sceneId: string) => {
+    if (IS_COARSE) return;
     setScheduleTargetScene(sceneId);
     if (!poppedOutTabs.has('schedule')) togglePopout('schedule');
   }, [poppedOutTabs]);
