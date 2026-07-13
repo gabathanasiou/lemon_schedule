@@ -322,10 +322,7 @@ function AppContent() {
   const measureTopOverlay = () => {
     const el = topTabRefs.current.get(activeTab);
     const container = topTabContainerRef.current;
-    if (!el || !container) {
-      console.log('[overlay] measureTopOverlay: missing refs', { hasEl: !!el, hasContainer: !!container, activeTab });
-      return;
-    }
+    if (!el || !container) return;
     const cr = container.getBoundingClientRect();
     const er = el.getBoundingClientRect();
     const isDark = activeTab === 'reports' || activeTab === 'design';
@@ -333,20 +330,17 @@ function AppContent() {
     const width = er.width;
     const bg = isDark ? '#18181b' : '#ffffff';
     const borders = isDark ? { borderLeft: '1px solid #52525b', borderRight: '1px solid #52525b', borderTop: '1px solid #52525b' } : {};
-    console.log('[overlay] measureTopOverlay', { activeTab, left, width, elWidth: er.width, elLeft: er.left, containerLeft: cr.left, compactTabs });
     setTopTabOverlayStyle({ left, width, opacity: 1, transform: 'translateY(0)', background: bg, ...borders });
   };
 
   useLayoutEffect(() => {
     const el = topTabRefs.current.get(activeTab);
-    const keys = Array.from(topTabRefs.current.keys());
-    console.log('[overlay] useLayoutEffect', { activeTab, hasEl: !!el, compactTabs, mapKeys: keys, mapSize: topTabRefs.current.size });
     if (!el) return;
     const ro = new ResizeObserver(() => measureTopOverlay());
     ro.observe(el);
     measureTopOverlay();
     return () => ro.disconnect();
-  }, [activeTab, designSubTab]);
+  }, [activeTab, designSubTab, noProject]);
 
   const updateTopHover = (tabId: string | null) => {
     setHoveredTopTab(tabId);
