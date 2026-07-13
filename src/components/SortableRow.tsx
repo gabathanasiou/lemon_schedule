@@ -913,8 +913,7 @@ const SortableRowContent: React.FC<{
     if (field === 'duration') {
       return (
         <div key={cellId} style={style}>
-          {textEditingEnabled ? (
-            isTouchMode ? (
+          {isTouchMode ? (
               <DurationKeypad 
                 value={row.estimatedDuration || 0} 
                 onChange={val => updateRow({estimatedDuration: val})} 
@@ -935,10 +934,7 @@ const SortableRowContent: React.FC<{
                 autoFocus={focusedRowId === row.id} 
                 onRowNavigate={onRowNavigate}
               />
-            )
-          ) : (
-            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV}>{fmt(prefix, val, suffix)}</RibbonCellText>
-          )}
+            )}
         </div>
       );
     }

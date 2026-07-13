@@ -282,7 +282,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const handler = (e: KeyboardEvent) => {
       if ((e.key === 'Backspace' || e.key === 'Delete') && selectedRowIds.size > 0 && !textEditingEnabled) {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
         e.preventDefault();
         if (!activeVersion) return;
         const ids = Array.from(selectedRowIds);
@@ -314,7 +314,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       }
       if (e.key === 'Enter' && selectedRowIds.size === 1 && !textEditingEnabled) {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        const isEditableInput = (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly;
+        if (isEditableInput) return;
     const selectedId = [...selectedRowIds][0] as string;
     const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
     if ((selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) || selectedId.startsWith('empty-')) {
@@ -331,7 +332,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       }
       if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !textEditingEnabled && selectedRowIds.size > 0) {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
         e.preventDefault();
         const lastSelected = [...selectedRowIds].pop()!;
         let currentDay: number | null = null;
@@ -353,7 +354,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       }
       if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !textEditingEnabled) {
         const target = e.target as HTMLElement;
-        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
         if (!activeVersion) return;
         e.preventDefault();
         const isShift = e.shiftKey;
@@ -472,7 +473,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Tab' || textEditingEnabled) return;
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
       if (!activeVersion) return;
       if (sidebarCollapsedRef.current) return;
       e.preventDefault();
@@ -1209,7 +1210,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const handler = (e: KeyboardEvent) => {
       if (textEditingEnabled || !activeVersion) return;
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+      if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
       if (e.key === 'Enter' && digitDataRef.current.buffer) {
         e.preventDefault();
         if (digitTimerRef.current) clearTimeout(digitTimerRef.current);
