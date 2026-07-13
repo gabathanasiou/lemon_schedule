@@ -339,7 +339,8 @@ function AppContent() {
 
   useLayoutEffect(() => {
     const el = topTabRefs.current.get(activeTab);
-    console.log('[overlay] useLayoutEffect', { activeTab, hasEl: !!el, compactTabs });
+    const keys = Array.from(topTabRefs.current.keys());
+    console.log('[overlay] useLayoutEffect', { activeTab, hasEl: !!el, compactTabs, mapKeys: keys, mapSize: topTabRefs.current.size });
     if (!el) return;
     const ro = new ResizeObserver(() => measureTopOverlay());
     ro.observe(el);
