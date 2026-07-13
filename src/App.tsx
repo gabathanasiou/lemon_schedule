@@ -625,6 +625,7 @@ function AppContent() {
                 open={tabDropdownOpen}
                 onOpenChange={setTabDropdownOpen}
                 width="w-44"
+                align="left"
                 theme={isCloudProject ? 'blue' : 'dark'}
                 trigger={
                   <button className="px-3 py-1.5 rounded text-xs font-semibold transition-colors bg-white text-zinc-900 flex items-center gap-1">
