@@ -155,11 +155,11 @@ export function ItemManagerDropdown({
         const isActive = item.id === activeId;
         const isEditing = editingId === item.id;
         return (
-          <div key={item.id} className={`flex items-center gap-1 rounded ${isActive ? 'bg-blue-600/20' : 'hover:bg-zinc-800/50'}`}>
+          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? 'bg-blue-600/20' : 'hover:bg-zinc-800'}`}>
             {isEditing ? (
               <>
                 <RadixDropdownMenu.Item
-                  className="flex-1 min-w-0 px-3 py-1.5 rounded text-xs outline-none flex items-center gap-2"
+                  className="flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none flex items-center gap-2"
                   onSelect={e => e.preventDefault()}
                   onTouchStart={() => {}}
                 >
@@ -189,7 +189,7 @@ export function ItemManagerDropdown({
             ) : (
               <>
                 <RadixDropdownMenu.Item
-                  className={`flex-1 min-w-0 px-3 py-1.5 rounded text-xs outline-none cursor-pointer text-zinc-300 ${isActive ? '' : 'hover:text-white'} flex items-center`}
+                  className={`flex-1 min-w-0 px-3 py-2 rounded text-xs outline-none cursor-pointer text-zinc-300 ${isActive ? '' : 'hover:text-white'} flex items-center`}
                   onSelect={e => { e.preventDefault(); onSelect(item.id); }}
                   onTouchStart={() => {}}
                 >
