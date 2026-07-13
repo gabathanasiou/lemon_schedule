@@ -78,12 +78,12 @@ export default function DropdownMenu({
 
 interface ItemManagerDropdownProps {
   open: boolean;
-  onClose: () => void;
+  onClose: (open: boolean) => void;
   items: { id: string; name: string }[];
   activeId: string;
   onSelect: (id: string) => void;
   onRename: (id: string, name: string) => void;
-  onDuplicate: (id: string) => void;
+  onDuplicate: (id: string) => string | void;
   onDelete: (id: string) => void;
   onCreate?: () => void;
   onImport?: () => void;
@@ -147,7 +147,7 @@ export function ItemManagerDropdown({
   const createLabel = itemLabel || header.replace(/S$/, '').replace(/s$/, '');
 
   return (
-    <DropdownMenu open={open} onClose={onClose} width="w-80" trigger={trigger}>
+    <DropdownMenu open={open} onOpenChange={(o) => { if (!o || !readOnly) onClose(o); }} width="w-80" trigger={trigger}>
       <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
         {header}
       </div>
@@ -206,7 +206,7 @@ export function ItemManagerDropdown({
                 </RadixDropdownMenu.Item>
                 <RadixDropdownMenu.Item
                   className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 outline-none cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                  onSelect={e => { e.preventDefault(); onDuplicate(item.id); }}
+                  onSelect={e => { e.preventDefault(); const newId = onDuplicate(item.id); if (newId) startRename(newId, `${item.name} Copy`); }}
                   onTouchStart={() => {}}
                   disabled={readOnly}
                 >

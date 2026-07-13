@@ -587,14 +587,17 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     <>
       <ItemManagerDropdown
         open={designMenuOpen}
-        onClose={() => setDesignMenuOpen(false)}
+        onClose={(open) => setDesignMenuOpen(open)}
         items={project.ribbonDesigns.map(d => ({ id: d.id, name: d.name }))}
         activeId={project.activeRibbonId}
         onSelect={async (id) => { await promptSaveDefault(); dispatch({ type: 'SET_ACTIVE_RIBBON', payload: id }); }}
         onRename={(id, name) => dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id, name } })}
-        onDuplicate={async (id) => {
+        onDuplicate={(id) => {
           const d = project.ribbonDesigns.find(x => x.id === id);
-          if (d) dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: `${d.name} Copy`, cloneFromId: id } });
+          if (!d) return;
+          const newId = generateUUID();
+          dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { id: newId, name: `${d.name} Copy`, cloneFromId: id } });
+          return newId;
         }}
         onDelete={async (id) => {
           const ok = await dialog.confirm({ title: 'Delete Design?', message: 'This can be restored from Trash.', danger: true });

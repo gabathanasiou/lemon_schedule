@@ -259,7 +259,7 @@ type Action =
   | { type: 'MERGE_ELEMENTS'; payload: { category: string; sourceIds: string[]; targetId: string; targetName: string } }
   | { type: 'RESTORE_ELEMENT_FROM_TRASH'; payload: string }
   | { type: 'UPDATE_SCENE_RIBBON'; payload: SceneRibbonColumn[] }
-  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number } }
+  | { type: 'ADD_RIBBON_DESIGN'; payload: { name: string; cloneFromId?: string; rows?: RibbonRow[]; colWidths?: number[]; cellPaddingV?: number; cellPaddingH?: number; edgePadding?: number; id?: string } }
   | { type: 'UPDATE_RIBBON_DESIGN'; payload: { id: string; rows: RibbonRow[]; colWidths: number[] } }
   | { type: 'DELETE_RIBBON_DESIGN'; payload: string }
   | { type: 'RENAME_RIBBON_DESIGN'; payload: { id: string; name: string } }
@@ -1047,7 +1047,7 @@ function reducer(state: State, action: Action): State {
           ? [...source.colWidths]
           : getDefaultColWidths();
       const newDesign: RibbonDesign = {
-        id: generateUUID(),
+        id: action.payload.id || generateUUID(),
         name: action.payload.name,
         colWidths,
         rows,
