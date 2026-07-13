@@ -14,13 +14,20 @@
 ## Tab System
 
 ### Top-Level App Tabs
-In `App.tsx`, the main header (`bg-zinc-950`) contains top-level navigation tabs: Breakdown, Schedule, Calendar, Rules, Reports. These use a bottom-anchored pattern:
-- Container: `flex items-end gap-1 self-end -mb-2` — breaks through the header's `py-2` padding to sit at the bottom edge
-- Active tab: `bg-white text-zinc-900 rounded-t-md` — white background touching DOWN into the content below
-- Inactive tab: `text-zinc-400 hover:text-zinc-200`
+In `App.tsx`, the main header (`bg-zinc-950`) contains top-level navigation tabs: Breakdown, Schedule, Calendar, Design, Rules, Reports.
+
+**Container**: `flex items-end gap-1 self-end border border-white/10 rounded p-0.5` — sits at the bottom of the header with a subtle white border.
+
+**Active tab**: `bg-white text-zinc-900 rounded px-3 py-1.5 text-xs font-semibold` — white background, dark text.
+
+**Inactive tab**: `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded px-3 py-1.5 text-xs font-semibold` — muted text with hover highlight (cloud projects: `hover:bg-blue-900/60`).
+
+**Compact mode** (`window.innerWidth < 900`): tabs collapse into a single dropdown button styled like an active tab (`bg-white text-zinc-900`), opening a DropdownMenu with all tab options + Open in New Window actions (via `rightAction` prop).
+
+**Shift+click**: pops out the clicked tab. **Right-click**: context menu with "Open in New Window". Tabs also show "Open in New Window" items in the compact dropdown.
 
 ### MiniTab Component (`src/components/MiniTab.tsx`)
-A reusable sub-tab bar used in Breakdown, Schedule, and Reports tabs. It's the **inverse** of the top-level tabs — tabs touch UP toward the dark app header above:
+A reusable sub-tab bar used in Breakdown, Design, and Reports tabs.
 
 | Prop | Type | Description |
 |---|---|---|
@@ -28,26 +35,21 @@ A reusable sub-tab bar used in Breakdown, Schedule, and Reports tabs. It's the *
 | `activeTab` | `string` | Currently active tab id |
 | `onChange` | `(id: string) => void` | Tab switch handler |
 | `rightContent` | `ReactNode` | Controls rendered on the right side of the bar |
-| `theme` | `'light' \| 'dark'` | `light` (default): white bar with `bg-zinc-950` active tab. `dark`: `bg-zinc-900` bar for dark content areas |
+| `theme` | `'light' \| 'dark'` | `light` (default): white bar with `bg-zinc-950` active tab. `dark`: `bg-zinc-900` bar |
+| `onPopout` | `(tabId: string) => void` | Pop-out handler (fires from right-click or Shift+click) |
+| `shiftHeld` | `boolean` | Whether Shift key is currently held |
 
-**Inverted padding pattern** (mirrors top-level tabs):
-- Bar: `pt-2 pb-2` — breathing room for right-side controls
-- Tab container: `self-start items-start -mt-2` — negates top padding so tabs touch the top edge
-- Active tab: `bg-zinc-950 text-white rounded-b-md` — dark, merges with app header above. When project is a cloud/Drive project (blue header), switches to `bg-blue-950` automatically via `useIsCloudProject()` hook.
-- Inactive tab: theme-dependent hover highlight
-- Right controls: centered vertically via parent's `items-center`
+**Active tab**: `bg-zinc-950 text-white rounded px-3 py-1.5` (cloud projects: `bg-blue-950 text-blue-50`). Dark theme uses same active bg.
+**Inactive tab**: `text-zinc-500 hover:text-zinc-900` (dark: `text-zinc-500 hover:text-zinc-300`).
+**Bar**: `px-3 pt-2 pb-2 border-b shrink-0` with theme-dependent bg/border.
+**Truncation**: tab buttons use `truncate max-w-[160px]` — labels overflow with ellipsis.
+**Right-click**: shows context menu "Open in New Window" (gated behind `!IS_COARSE`).
+**Shift+click**: pops out the clicked sub-tab.
 
 **Usages:**
-- `BreakdownTab` — `theme="light"` (default), tabs: Scene Breakdown / Glide Breakdown / Elements / Sheet. Controls sent via `rightContent` or portaled into the bar
-- `ScheduleTab` — `theme="light"` when on Stripboard, `theme="dark"` when in Ribbon Designer
+- `BreakdownTab` — `theme="light"`, tabs: Sheet / Element Manager / Glide Breakdown
+- `DesignTab` — `theme="dark"`, tabs: Ribbon Designer / Colors
 - `ReportsTab` — `theme="dark"`, tabs: Day Out of Days / Element Breakdown
-
-### Tab Design Philosophy
-Two complementary tab patterns that fit together seamlessly:
-- **Top-level tabs** → touch DOWN (white → white content)
-- **MiniTabs** → touch UP (dark → dark header)
-
-Both use padding-ignoring container margins to let tabs reach edges while keeping controls comfortably spaced.
 
 ### MiniTab Header Portal Pattern
 When a child component rendered below a MiniTab bar needs to place toolbar controls (dropdowns, buttons) **inside** the MiniTab's `rightContent` area, use the portal pattern:
@@ -99,7 +101,7 @@ When the active project is a Google Drive cloud project, the app header switches
 
 | Element | Normal (zinc) | Cloud (blue) |
 |---|---|---|
-| MiniTab active tab overlay | `bg-zinc-950` | `bg-blue-950` |
+| MiniTab active tab | `bg-zinc-950` | `bg-blue-950` |
 | Primary action buttons in header (`+New`, `+Add Scene`, `Save`) | `bg-zinc-900 hover:bg-zinc-800` | `bg-blue-950 hover:bg-blue-900` |
 
 **How:** Import `useIsCloudProject` from `'../store'` and derive the button class:
@@ -566,7 +568,87 @@ const drawCell = (args, draw) => {
 
 When adding any new keyboard shortcut, control, or interaction to the schedule stripboard, you MUST update `HelpModal.tsx` to document it. The modal is organized by category sections using `<Section>`, `<Row>`, and `<Kbd>` components. Use Unicode symbols for keyboard keys: `⌘` (Cmd), `⌥` (Opt/Alt), `⇧` (Shift), `⌫` (Delete/Backspace), `⏎` (Enter), `⎋` (Esc), `↹` (Tab).
 
-## Security Rules
+## Pop-out Windows (`src/components/PopoutWindow.tsx`)
+
+Multi-window support allowing tabs and sub-tabs to be opened in separate browser windows while sharing the same React state via `createPortal`. Desktop-only — gated behind `!IS_COARSE`.
+
+### Architecture
+
+- **`PopoutWindow`**: receives a pre-opened `Window` object (opened synchronously in the click handler to avoid popup blockers), copies styles from the parent document, renders children via `ReactDOM.createPortal` into the popup's body. The children share the same React tree → same Zustand store, same context, same event handlers.
+- **`cascadePosition()`**: module-level function returning `{ left, top }` that increments 30px per call, wrapping every 10 windows. All `window.open()` calls use this for tiled positioning.
+- **`PopoutPlaceholder`**: shown inline when the active tab/sub-tab is popped out, with a "Bring back" button.
+
+### Top-Level Tab Pop-outs
+
+**State** (in `App.tsx`):
+- `poppedOutTabs: Set<string>` — which tabs are popped out
+- `popoutWindowsRef: Map<string, Window>` — window handles opened synchronously on click
+- `togglePopout(tabId)` — opens/closes popup. If popping out the active tab, auto-switches to next available
+- `closePopout(tabId)` — cleanup
+
+**Rendering**: 6 `<PopoutWindow>` components (one per tab), rendered at App level alongside main content. Each contains `<VersionToolbar>` + the tab's full component.
+
+**How to add a new top-level tab with pop-out:**
+1. Add the tab button in the header with onClick branching on `shiftHeld` (shift+click = popout, normal = switch)
+2. Add `onContextMenu` handler → `setTabContextMenu({ tabId })`
+3. Add a `<PopoutWindow>` wrapper rendering the tab's component with `<VersionToolbar>`
+4. Pass the pop-out handler to child components that need cross-tab navigation (`onOpenSceneInPopout`, etc.)
+5. Add the tab to the compact dropdown with `rightAction` for "Open in New Window"
+
+### Sub-tab (MiniTab) Pop-outs
+
+**State** (in `App.tsx`):
+- `poppedOutSubTabs: Record<string, Set<string>>` — keyed by parent ID (`breakdown`, `design`, `reports`)
+- `popoutSubWindowsRef: Map<string, Window>` — keyed `sub_{parentId}_{subTabId}`
+- `toggleSubPopout(parentId, subTabId)` — opens/closes sub-tab popup. If popping out the active sub-tab, auto-switches to next available
+- `closeSubPopout(parentId, subTabId)` — cleanup
+
+**Rendering**: 7 `<PopoutWindow>` components (3 Breakdown + 2 Design + 2 Reports), rendered at App level. Each contains `<VersionToolbar>` + `<MiniTab>` (decorative, single tab) + the sub-component.
+
+**State is lifted to App.tsx** — sub-tab popups survive tab switches. Closing a popped-out parent tab closes all its sub-tab popups.
+
+**How to add a new sub-tab with pop-out:**
+1. Add the sub-tab to the parent component's `MiniTab` tabs array
+2. Add a `<PopoutWindow>` in App.tsx under `SUB-TAB POPOUT WINDOWS` rendering the sub-component with `<VersionToolbar>` and `<MiniTab>`
+3. Add the sub-tab ID to the parent's `toggleSubPopout` auto-switch logic
+4. The `<MiniTab>` in the popup is decorative (single tab, `onChange={() => {}}`)
+
+### Shift+Click and Right-click Behavior
+
+- **Shift+click** on any tab button → pops out that tab instead of switching (gated `!IS_COARSE`)
+- **Right-click** on any tab button → context menu with "Open in New Window" (gated `!IS_COARSE`)
+- **Shift+double-click** on scene strips (Schedule/Calendar/Glide) → opens sheet in popout window
+- **Context menus** with "Open Sheet" items → when Shift is held during right-click, show "Open in New Window" instead. Shift tracking uses `useState` (reactive toggle while menu is open)
+- **Shift+click** on SceneSheet header banner → opens Schedule in popout
+
+### VersionToolbar (`src/components/VersionToolbar.tsx`)
+
+Reusable toolbar rendered in every popup window:
+- **SaveIndicator** — sync status dot
+- **Project title** — editable input, calls `renameProject` from store
+- **Tab name** — styled as a top-level tab indicator (`bg-white text-zinc-900 rounded`)
+- **Undo/Redo** buttons — minimal, in `border border-white/10 rounded bg-white/5` container
+- **Version selector** — dropdown for switching/renaming/duplicating versions
+
+### Cross-tab Navigation When Target is Popped Out
+
+Navigation handlers (`handleOpenSheet`, `handleOpenScene`, `handleOpenScheduleAtScene`) skip `setActiveTab()` when the target tab is in `poppedOutTabs`. State changes (sub-tab, sheet index, schedule target) still flow to the popup via shared React context.
+
+### SceneSheet Per-Field Commit
+
+To ensure edits appear live across windows, SceneSheet uses per-field store commits:
+- **Dropdowns** (EntityDropdown, AutocompleteDropdown, CellInput) → dispatch to store immediately on change
+- **Text inputs** → buffer keystrokes in local `edits` state, flush on blur via `commitTextEdits()`
+- **Navigation** (`goTo`, `create`, `duplicate`) → flushes remaining text edits before changing scenes
+- This matches GlideBreakdown's real-time edit pattern, avoiding the snapshot-and-batch delay
+
+### Keyboard Shortcuts in Popups
+
+The `PopoutWindow` component attaches `keydown` listeners in the popup window for `Cmd+Z` (undo) and `Cmd+Shift+Z` (redo), dispatching directly to the shared Zustand store.
+
+### Mobile / iPad
+
+`window.open()` on iOS Safari opens a new tab (not a separate window) with a separate JS context, breaking `createPortal`. Dragging tabs into Split View reloads the page. The entire pop-out feature is gated behind `!IS_COARSE` — no pop-out UI (icons, context menus, shift+click branches) appears on touch devices.
 
 ### Never hardcode secrets
 - All API keys, Client IDs, tokens MUST come from `import.meta.env.VITE_*` — never write them as string literals in source files.

@@ -246,6 +246,28 @@ function AppContent() {
     }
   }, []);
 
+  useEffect(() => {
+    setShowProjectManager(false);
+    setShowPrintDialog(false);
+    setShowDoodDialog(false);
+    setShowBreakdownSheetDialog(false);
+    setShowElementBreakdownDialog(false);
+    setPrintDialogCategory(undefined);
+    setShowTrash(false);
+    setShowRestoreModal(null);
+    setPendingImport(null);
+    setPrintOptions(null);
+    setDoodOptions(null);
+    setBreakdownSheetOptions(null);
+    setElementBreakdownOptions(null);
+    popoutWindowsRef.current.forEach(w => { if (!w.closed) w.close(); });
+    popoutWindowsRef.current.clear();
+    setPoppedOutTabs(new Set());
+    popoutSubWindowsRef.current.forEach(w => { if (!w.closed) w.close(); });
+    popoutSubWindowsRef.current.clear();
+    setPoppedOutSubTabs({});
+  }, [currentProjectId]);
+
   const [showProjectManager, setShowProjectManager] = useState(false);
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
   const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
@@ -1112,7 +1134,7 @@ function AppContent() {
       )}
 
       {/* CONTENT */}
-      <main className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <main key={currentProjectId} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
