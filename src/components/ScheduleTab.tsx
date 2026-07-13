@@ -758,11 +758,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }))
   ], [activeVersion.rows, missingScenesInRows]);
 
-  const daybreakCount = useMemo(
-    () => (activeVersion?.rows || []).filter(r => r.type === 'DAYBREAK').length,
-    [activeVersion?.rows]
-  );
-
   const scheduledRows = useMemo(() => {
     const grouped = augmentedRows.filter(r => !activeDragIds.has(r.id) && r.shootDay !== -1).reduce((acc, row) => {
       if (row.shootDay !== null) {
@@ -1689,7 +1684,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
                {existingDays.map((dayInt, i) => (
                 <StripBlock 
-                  key={`${dayInt}-d${daybreakCount}`} 
+                  key={dayInt} 
                   dayInt={dayInt} 
                   rows={scheduledRows[dayInt] || []}
                   meta={activeVersion?.dayMeta[dayInt]}

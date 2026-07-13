@@ -145,26 +145,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; rib
   );
 };
 
-const dayBlockPropsEqual = (a: any, b: any) => {
-  if (a.dayInt !== b.dayInt) return false;
-  if (a.rows !== b.rows) return false;
-  if (a.meta !== b.meta) return false;
-  if (a.selectedIds !== b.selectedIds) return false;
-  if (a.activeDragIds !== b.activeDragIds) return false;
-  if (a.textEditingEnabled !== b.textEditingEnabled) return false;
-  if (a.insertBeforeId !== b.insertBeforeId) return false;
-  if (a.activeRowId !== b.activeRowId) return false;
-  if (a.activeDragRow !== b.activeDragRow) return false;
-  if (a.activeDragRows !== b.activeDragRows) return false;
-  if (a.chronoDay !== b.chronoDay) return false;
-  if (a.focusedRowId !== b.focusedRowId) return false;
-  if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
-  if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
-  if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
-  return true;
-};
-
-export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
@@ -396,4 +377,4 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
       <div ref={setFooterRef} />
     </div>
   );
-}, dayBlockPropsEqual);
+};
