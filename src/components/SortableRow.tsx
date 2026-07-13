@@ -146,7 +146,7 @@ const SortableRowContent: React.FC<{
           <ViolationContent violations={sceneViolations} castMembers={state.present.castMembers || []} />
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>,
-        document.body
+        portalTarget ?? document.body
       )}
     </>
   ) : null;

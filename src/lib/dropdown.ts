@@ -1,6 +1,7 @@
 import { useEffect, useCallback, type RefObject } from 'react';
 import { CastMember } from '../types';
 import { IS_COARSE } from './device';
+import { useCurrentDocument } from './popoutTarget';
 
 const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
 

@@ -1,9 +1,13 @@
-import { useLayoutEffect, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
+import { useCurrentWindow } from './popoutTarget';
 
 export function useSmartPosition(
   wrapperRef: RefObject<HTMLElement>,
   open: boolean,
 ) {
+  const currentWindow = useCurrentWindow();
+  const currentWindowRef = useRef(currentWindow);
+  currentWindowRef.current = currentWindow;
   useLayoutEffect(() => {
     if (!open || !wrapperRef.current) return;
     const dropdown = wrapperRef.current.querySelector('.absolute') as HTMLElement | null;
@@ -17,8 +21,8 @@ export function useSmartPosition(
 
     const wrapperRect = wrapperRef.current.getBoundingClientRect();
     const ddRect = dropdown.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = currentWindowRef.current.innerWidth;
+    const vh = currentWindowRef.current.innerHeight;
 
     const overflowRight = ddRect.right - vw;
     if (overflowRight > 0) {
@@ -48,14 +52,17 @@ export function useFixedPosition(
   open: boolean,
   setPos: (p: { top: number; left: number; width: number; maxH: number; bottom?: number }) => void,
 ) {
+  const currentWindow = useCurrentWindow();
+  const currentWindowRef = useRef(currentWindow);
+  currentWindowRef.current = currentWindow;
   useLayoutEffect(() => {
     if (!open || !wrapperRef.current) return;
     const el = wrapperRef.current;
     requestAnimationFrame(() => {
       const rect = el.getBoundingClientRect();
-      const vw = window.innerWidth;
-      const vh = window.visualViewport?.height ?? window.innerHeight;
-      const voff = window.visualViewport?.offsetTop ?? 0;
+      const vw = currentWindowRef.current.innerWidth;
+      const vh = currentWindowRef.current.visualViewport?.height ?? currentWindowRef.current.innerHeight;
+      const voff = currentWindowRef.current.visualViewport?.offsetTop ?? 0;
       const panelWidth = 200;
       const gap = 4;
       const minH = 120;

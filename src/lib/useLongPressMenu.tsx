@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { IS_COARSE } from './device';
+import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 
 type MarqueeMode = 'off' | 'tool';
 
@@ -66,6 +67,7 @@ function animateRing(ringEl: SVGElement, ms: number) {
 
 function LongPressIndicator({ x, y }: { x: number; y: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const portalTarget = usePortalTarget();
   useEffect(() => {
     if (svgRef.current) animateRing(svgRef.current, LONG_PRESS_MS);
   }, []);
@@ -103,7 +105,7 @@ function LongPressIndicator({ x, y }: { x: number; y: number }) {
         />
       </svg>
     </div>,
-    document.body,
+    portalTarget ?? document.body,
   );
 }
 
@@ -122,6 +124,7 @@ function isInteractiveElement(el: HTMLElement): boolean {
 
 export function LongPressMenuProvider({ children }: { children: React.ReactNode }) {
   const [indicator, setIndicator] = useState<{ x: number; y: number } | null>(null);
+  const currentDocument = useCurrentDocument();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startRef = useRef<{ x: number; y: number; target: EventTarget | null }>({ x: 0, y: 0, target: null });
   const activeRef = useRef(false);
@@ -197,18 +200,18 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       setIndicator(null);
     };
 
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointerup', onPointerUp);
-    document.addEventListener('pointercancel', onPointerUp);
-    document.addEventListener('pointerleave', onPointerLeave);
+    currentDocument.addEventListener('pointerdown', onPointerDown);
+    currentDocument.addEventListener('pointermove', onPointerMove);
+    currentDocument.addEventListener('pointerup', onPointerUp);
+    currentDocument.addEventListener('pointercancel', onPointerUp);
+    currentDocument.addEventListener('pointerleave', onPointerLeave);
 
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('pointermove', onPointerMove);
-      document.removeEventListener('pointerup', onPointerUp);
-      document.removeEventListener('pointercancel', onPointerUp);
-      document.removeEventListener('pointerleave', onPointerLeave);
+      currentDocument.removeEventListener('pointerdown', onPointerDown);
+      currentDocument.removeEventListener('pointermove', onPointerMove);
+      currentDocument.removeEventListener('pointerup', onPointerUp);
+      currentDocument.removeEventListener('pointercancel', onPointerUp);
+      currentDocument.removeEventListener('pointerleave', onPointerLeave);
       if (timerRef.current !== null) clearTimeout(timerRef.current);
     };
   }, []);

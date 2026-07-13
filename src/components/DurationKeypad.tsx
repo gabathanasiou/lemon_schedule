@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Delete } from 'lucide-react';
 import { parseDuration, formatDuration } from '../lib/utils';
+import { usePortalTarget, useCurrentDocument, useCurrentWindow } from '../lib/popoutTarget';
 
 interface DurationKeypadProps {
   value: number;
@@ -37,6 +38,9 @@ export default function DurationKeypad({
   pageCount,
   ...rest
 }: DurationKeypadProps) {
+  const portalTarget = usePortalTarget();
+  const currentDocument = useCurrentDocument();
+  const currentWindow = useCurrentWindow();
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
   const [draft, setDraft] = useState('');
@@ -117,13 +121,13 @@ export default function DurationKeypad({
         e.preventDefault();
       }
     };
-    document.addEventListener('dblclick', block, true);
-    document.addEventListener('click', block, true);
-    document.addEventListener('pointerup', block, true);
+    currentDocument.addEventListener('dblclick', block, true);
+    currentDocument.addEventListener('click', block, true);
+    currentDocument.addEventListener('pointerup', block, true);
     return () => {
-      document.removeEventListener('dblclick', block, true);
-      document.removeEventListener('click', block, true);
-      document.removeEventListener('pointerup', block, true);
+      currentDocument.removeEventListener('dblclick', block, true);
+      currentDocument.removeEventListener('click', block, true);
+      currentDocument.removeEventListener('pointerup', block, true);
     };
   }, []);
 
@@ -196,22 +200,22 @@ export default function DurationKeypad({
       if (/^[0-9hm]$/i.test(e.key)) { e.preventDefault(); setPressedKey(e.key.toLowerCase()); handleKeyPressText(e.key.toLowerCase()); }
     };
     const keyupHandler = () => setPressedKey(null);
-    window.addEventListener('keydown', keydownHandler, true);
-    window.addEventListener('keyup', keyupHandler, true);
+    currentWindow.addEventListener('keydown', keydownHandler, true);
+    currentWindow.addEventListener('keyup', keyupHandler, true);
     return () => {
-      window.removeEventListener('keydown', keydownHandler, true);
-      window.removeEventListener('keyup', keyupHandler, true);
+      currentWindow.removeEventListener('keydown', keydownHandler, true);
+      currentWindow.removeEventListener('keyup', keyupHandler, true);
       setPressedKey(null);
     };
   }, [open, handleCommit, handleCancel, backspaceText, handleKeyPressText]);
 
   useEffect(() => {
     if (!open) return;
-    window.addEventListener('scroll', reposition, true);
-    window.addEventListener('resize', reposition);
+    currentWindow.addEventListener('scroll', reposition, true);
+    currentWindow.addEventListener('resize', reposition);
     return () => {
-      window.removeEventListener('scroll', reposition, true);
-      window.removeEventListener('resize', reposition);
+      currentWindow.removeEventListener('scroll', reposition, true);
+      currentWindow.removeEventListener('resize', reposition);
     };
   }, [open, reposition]);
 
@@ -272,7 +276,7 @@ export default function DurationKeypad({
             </div>
           </div>
         </div>,
-        document.body
+        portalTarget ?? document.body
       )}
     </>
   );
