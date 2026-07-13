@@ -10,6 +10,7 @@ import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 import { IS_COARSE } from '../lib/device';
+import { useCurrentDocument } from '../lib/popoutTarget';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
@@ -61,6 +62,9 @@ export const UnscheduledBlock: React.FC<{
   forceExpanded?: boolean,
 }> = React.memo(({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
+  const currentDocument = useCurrentDocument();
+  const currentDocumentRef = useRef(currentDocument);
+  currentDocumentRef.current = currentDocument;
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
   });
@@ -94,9 +98,9 @@ export const UnscheduledBlock: React.FC<{
       if (target.isContentEditable) return;
       e.preventDefault();
     };
-    document.addEventListener('selectstart', onSelectStart);
-    return () => document.removeEventListener('selectstart', onSelectStart);
-  }, [textEditingEnabled]);
+    currentDocument.addEventListener('selectstart', onSelectStart);
+    return () => currentDocument.removeEventListener('selectstart', onSelectStart);
+  }, [textEditingEnabled, currentDocument]);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const unscheduledMarqueeRef = useRef<HTMLDivElement>(null);
@@ -212,11 +216,11 @@ export const UnscheduledBlock: React.FC<{
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       setWidth(widthRef.current);
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
+      currentDocumentRef.current.removeEventListener('pointermove', handlePointerMove);
+      currentDocumentRef.current.removeEventListener('pointerup', handlePointerUp);
     };
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
+    currentDocumentRef.current.addEventListener('pointermove', handlePointerMove);
+    currentDocumentRef.current.addEventListener('pointerup', handlePointerUp);
   }, []);
 
   return (

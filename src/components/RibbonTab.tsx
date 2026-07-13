@@ -27,6 +27,7 @@ import DropdownDivider from './DropdownDivider';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { useViewMode, useCellBorders } from '../lib/persist';
+import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { Tooltip } from './Tooltip';
 import { RibbonCellText } from './RibbonCellText';
 
@@ -76,6 +77,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     || { id: '', name: 'Default', colWidths: getDefaultColWidths(), rows: getDefaultRibbonRows(), createdAt: 0 };
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [cellBorders] = useCellBorders();
+  const currentWindow = useCurrentWindow();
+  const currentDocument = useCurrentDocument();
 
   const [selId, setSelId] = useState<string | null>(null);
   const [contextPos, setContextPos] = useState<{ x: number; y: number } | null>(null);
@@ -192,9 +195,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement)?.contentEditable === 'true') return;
       if (selId) { e.preventDefault(); clearCell(selId); }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selId, clearCell]);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [selId, clearCell, currentWindow]);
 
   /* Column operations */
   const removeColumn = useCallback((ci: number) => {
@@ -404,6 +407,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   }, [rows, colWidths, commit]);
 
   /* ── Direct-DOM column resize ── */
+  const currentDocumentRef = useRef(currentDocument);
+  currentDocumentRef.current = currentDocument;
   const startResize = useCallback((ci: number, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -462,16 +467,16 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     };
 
     const onUp = () => {
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onUp);
+      currentDocumentRef.current.removeEventListener('pointermove', onMove);
+      currentDocumentRef.current.removeEventListener('pointerup', onUp);
       gridEl.style.touchAction = '';
       document.body.style.touchAction = '';
       if (canvasEl) canvasEl.style.touchAction = '';
       saveToStore(rowsRef.current, [...colWidthsRef.current]);
     };
 
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
+    currentDocumentRef.current.addEventListener('pointermove', onMove);
+    currentDocumentRef.current.addEventListener('pointerup', onUp);
   }, [saveToStore]);
 
   /* ── Keyboard (use refs for stable closures) ── */
@@ -558,8 +563,8 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         return;
       }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    currentDocumentRef.current.addEventListener('keydown', onKey);
+    return () => currentDocumentRef.current.removeEventListener('keydown', onKey);
   }, []);
 
   const used = new Set(rows.flatMap(r => r.cells.map(c => c.field)).filter(f => f && f !== 'text'));

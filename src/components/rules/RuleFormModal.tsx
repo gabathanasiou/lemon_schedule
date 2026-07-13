@@ -8,6 +8,7 @@ import { MaxHoursFields, DateRestrictionFields, TimeWindowFields, CastConflictFi
 import { X, AlertCircle, Info, Trash2 } from 'lucide-react';
 import { EntityDropdown } from '../EntityDropdown';
 import { IS_COARSE } from '../../lib/device';
+import { useCurrentWindow } from '../../lib/popoutTarget';
 
 const RFM_HEADER_PX = IS_COARSE ? 'px-7' : 'px-6';
 const RFM_HEADER_PY = IS_COARSE ? 'py-5' : 'py-4';
@@ -40,6 +41,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
 }) => {
   const [form, setForm] = useState<RuleFormState>(blankRuleForm());
   const [error, setError] = useState('');
+  const currentWindow = useCurrentWindow();
 
   useEffect(() => {
     if (open) {
@@ -57,9 +59,9 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    currentWindow.addEventListener('keydown', onKey);
+    return () => currentWindow.removeEventListener('keydown', onKey);
+  }, [open, onClose, currentWindow]);
 
   if (!open) return null;
 

@@ -3,6 +3,7 @@ import Spreadsheet, { CellBase, DataViewerComponent, DataEditorComponent, Column
 import { useProject } from '../store';
 import { CastMember } from '../types';
 import { Trash2 } from 'lucide-react';
+import { useCurrentDocument } from '../lib/popoutTarget';
 
 const COLUMNS = [
   { key: 'id', label: 'Cast #' },
@@ -58,6 +59,9 @@ export const CastTab: React.FC = () => {
   const colWidths = useRef<number[]>([...DEFAULT_WIDTHS]);
   const [widthVersion, setWidthVersion] = useState(0);
   const resizeRef = useRef<{ col: number; startX: number; startW: number } | null>(null);
+  const currentDocument = useCurrentDocument();
+  const currentDocumentRef = useRef(currentDocument);
+  currentDocumentRef.current = currentDocument;
 
   const CustomHeaderRow: HeaderRowComponent = ({ children, ...rest }) => (
     <tr {...rest} className="Spreadsheet__header-row">{children}</tr>
@@ -82,13 +86,13 @@ export const CastTab: React.FC = () => {
             };
             const onUp = () => {
               resizeRef.current = null;
-              document.removeEventListener('mousemove', onMove);
-              document.removeEventListener('mouseup', onUp);
+              currentDocumentRef.current.removeEventListener('mousemove', onMove);
+              currentDocumentRef.current.removeEventListener('mouseup', onUp);
               document.body.style.cursor = '';
               document.body.style.userSelect = '';
             };
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
+            currentDocumentRef.current.addEventListener('mousemove', onMove);
+            currentDocumentRef.current.addEventListener('mouseup', onUp);
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
           }} />

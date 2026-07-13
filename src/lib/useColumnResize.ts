@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { useCurrentDocument } from './popoutTarget';
 
 interface ColumnWidths {
   [key: string]: number;
@@ -11,6 +12,9 @@ export function useColumnResize(
   storageKey: string,
   defaults: ColumnWidths,
 ) {
+  const currentDocument = useCurrentDocument();
+  const currentDocumentRef = useRef(currentDocument);
+  currentDocumentRef.current = currentDocument;
   const [widths, setWidths] = useState<ColumnWidths>(() => {
     try {
       const stored = localStorage.getItem(storageKey);
@@ -37,19 +41,19 @@ export function useColumnResize(
       };
 
       const onUp = () => {
-        document.removeEventListener('pointermove', onMove);
-        document.removeEventListener('pointerup', onUp);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
+        currentDocumentRef.current.removeEventListener('pointermove', onMove);
+        currentDocumentRef.current.removeEventListener('pointerup', onUp);
+        currentDocumentRef.current.body.style.cursor = '';
+        currentDocumentRef.current.body.style.userSelect = '';
         try {
           localStorage.setItem(storageKey, JSON.stringify(widthsRef.current));
         } catch {}
       };
 
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-      document.addEventListener('pointermove', onMove);
-      document.addEventListener('pointerup', onUp);
+      currentDocumentRef.current.body.style.cursor = 'col-resize';
+      currentDocumentRef.current.body.style.userSelect = 'none';
+      currentDocumentRef.current.addEventListener('pointermove', onMove);
+      currentDocumentRef.current.addEventListener('pointerup', onUp);
     },
     [defaults, storageKey],
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject } from '../store';
+import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { DayBlock } from './DayBlock';
@@ -25,6 +26,8 @@ import { getMarqueeMode } from '../lib/useLongPressMenu';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
+  const currentWindow = useCurrentWindow();
+  const currentDocument = useCurrentDocument();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const [viewMode, setViewMode, viewWidth] = useViewMode();
@@ -51,13 +54,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
     const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
-    window.addEventListener('keydown', onDown);
-    window.addEventListener('keyup', onUp);
+    currentWindow.addEventListener('keydown', onDown);
+    currentWindow.addEventListener('keyup', onUp);
     return () => {
-      window.removeEventListener('keydown', onDown);
-      window.removeEventListener('keyup', onUp);
+      currentWindow.removeEventListener('keydown', onDown);
+      currentWindow.removeEventListener('keyup', onUp);
     };
-  }, []);
+  }, [currentWindow]);
 
   const handleRowDoubleClick = useCallback((id: string, shiftKey?: boolean) => {
     if (marqueeMode !== 'off') return;
@@ -238,9 +241,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setSelectedRowIds(new Set());
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [currentWindow]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -255,9 +258,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         }
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion]);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion, currentWindow]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -395,9 +398,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         }
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch]);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [selectedRowIds, textEditingEnabled, activeVersion, dispatch, currentWindow]);
 
   useEffect(() => {
     if (textEditingEnabled) setSelectedRowIds(new Set());
@@ -411,10 +414,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       e.preventDefault();
     };
     if (!textEditingEnabled) {
-      document.addEventListener('selectstart', onSelectStart);
+      currentDocument.addEventListener('selectstart', onSelectStart);
     }
-    return () => document.removeEventListener('selectstart', onSelectStart);
-  }, [textEditingEnabled]);
+    return () => currentDocument.removeEventListener('selectstart', onSelectStart);
+  }, [textEditingEnabled, currentDocument]);
 
   useEffect(() => {
     for (const id of selectedRowIds) {
@@ -455,9 +458,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         }
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [textEditingEnabled, activeVersion, selectedRowIds]);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [textEditingEnabled, activeVersion, selectedRowIds, currentWindow]);
 
   const handleCollapseChange = useCallback((collapsed: boolean) => {
     sidebarCollapsedRef.current = collapsed;
@@ -530,13 +533,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         rafId = requestAnimationFrame(loop);
       }
     };
-    document.addEventListener('pointermove', onPointerMove);
+    currentDocument.addEventListener('pointermove', onPointerMove);
 
     return () => {
-      document.removeEventListener('pointermove', onPointerMove);
+      currentDocument.removeEventListener('pointermove', onPointerMove);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [activeId]);
+  }, [activeId, currentDocument]);
 
   useEffect(() => {
     if (!focusedRowId) return;
@@ -1000,9 +1003,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       if (digitTimerRef.current) clearTimeout(digitTimerRef.current);
       digitTimerRef.current = setTimeout(commitDigits, BUFFER_MS);
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedRowIds, textEditingEnabled, activeVersion, commitDigits]);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [selectedRowIds, textEditingEnabled, activeVersion, commitDigits, currentWindow]);
 
   useEffect(() => {
     return () => {

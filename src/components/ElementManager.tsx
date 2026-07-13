@@ -12,6 +12,7 @@ import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
+import { useCurrentDocument } from '../lib/popoutTarget';
 
 function loadCategoryElements(project: any, category: string): ProjectElement[] {
   if (category === 'cast') {
@@ -63,6 +64,7 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
 export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
+  const currentDocument = useCurrentDocument();
   const dialog = useDialog();
   const project = state.present;
 
@@ -368,9 +370,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         if (e.key === 's') { e.preventDefault(); doSave(); }
       }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [addNew, doSave]);
+    currentDocument.addEventListener('keydown', onKey);
+    return () => currentDocument.removeEventListener('keydown', onKey);
+  }, [addNew, doSave, currentDocument]);
 
   const hasChangesRef = useRef(hasChanges);
   hasChangesRef.current = hasChanges;

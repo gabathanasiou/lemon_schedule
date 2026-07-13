@@ -38,6 +38,7 @@ import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder } from './components/PopoutWindow';
+import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
@@ -868,44 +869,62 @@ function AppContent() {
 
       {/* POPOUT WINDOWS */}
       {poppedOutTabs.has('breakdown') && popoutWindowsRef.current.get('breakdown') && (
-        <PopoutWindow title="Breakdown - Lemon Schedule" win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} — Breakdown`} win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closePopout('breakdown')} />
+            <div className="flex-1 min-h-0">
+              <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} />
+            </div>
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('schedule') && popoutWindowsRef.current.get('schedule') && (
-        <PopoutWindow title="Schedule - Lemon Schedule" win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} — Schedule`} win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Schedule" onClose={() => closePopout('schedule')} />
+            <div className="flex-1 min-h-0">
+              <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} />
+            </div>
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('calendar') && popoutWindowsRef.current.get('calendar') && (
-        <PopoutWindow title="Calendar - Lemon Schedule" win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} — Calendar`} win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Calendar" onClose={() => closePopout('calendar')} />
+            <div className="flex-1 min-h-0">
+              <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} />
+            </div>
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('design') && popoutWindowsRef.current.get('design') && (
-        <PopoutWindow title="Design - Lemon Schedule" win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} — Design`} win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
-            <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closePopout('design')} />
+            <div className="flex-1 min-h-0">
+              <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} />
+            </div>
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('rules') && popoutWindowsRef.current.get('rules') && (
-        <PopoutWindow title="Rules - Lemon Schedule" win={popoutWindowsRef.current.get('rules')!} onClose={() => closePopout('rules')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} — Rules`} win={popoutWindowsRef.current.get('rules')!} onClose={() => closePopout('rules')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
-            <RulesTab />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Rules" onClose={() => closePopout('rules')} />
+            <div className="flex-1 min-h-0">
+              <RulesTab />
+            </div>
           </div>
         </PopoutWindow>
       )}
       {poppedOutTabs.has('reports') && popoutWindowsRef.current.get('reports') && (
-        <PopoutWindow title="Reports - Lemon Schedule" win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} — Reports`} win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
-            <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} />
+            <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closePopout('reports')} />
+            <div className="flex-1 min-h-0">
+              <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} />
+            </div>
           </div>
         </PopoutWindow>
       )}

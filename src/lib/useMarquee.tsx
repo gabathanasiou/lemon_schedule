@@ -196,8 +196,8 @@ export function useMarquee(
       startY = e.clientY - rect.top + container.scrollTop;
       active = true;
       hadMovement = false;
-      document.body.style.userSelect = 'none';
-      document.body.style.webkitUserSelect = 'none';
+      currentDocument.body.style.userSelect = 'none';
+      currentDocument.body.style.webkitUserSelect = 'none';
       setMarqueeBox({ left: startX, top: startY, width: 0, height: 0 });
       setRowsDisabled(true);
       e.preventDefault();

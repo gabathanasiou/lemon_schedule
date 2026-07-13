@@ -19,6 +19,7 @@ import { useMarquee, MarqueeOverlay, useAddMode, isAddModeActive } from '../lib/
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { IS_COARSE } from '../lib/device';
 import { usePersistState } from '../lib/persist';
+import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { getLabel, ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -254,6 +255,9 @@ const UnscheduledSidebar: React.FC<{
   });
   const panelRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(width);
+  const currentDocument = useCurrentDocument();
+  const currentDocumentRef = useRef(currentDocument);
+  currentDocumentRef.current = currentDocument;
 
   useEffect(() => {
     widthRef.current = width;
@@ -276,11 +280,11 @@ const UnscheduledSidebar: React.FC<{
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
       setWidth(widthRef.current);
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
+      currentDocumentRef.current.removeEventListener('pointermove', handlePointerMove);
+      currentDocumentRef.current.removeEventListener('pointerup', handlePointerUp);
     };
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
+    currentDocumentRef.current.addEventListener('pointermove', handlePointerMove);
+    currentDocumentRef.current.addEventListener('pointerup', handlePointerUp);
   }, []);
 
   return (
@@ -344,6 +348,7 @@ const UnscheduledSidebar: React.FC<{
 
 export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void }> = ({ onOpenScene, onOpenSceneInPopout }) => {
   const { state, dispatch } = useProject();
+  const currentWindow = useCurrentWindow();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -428,13 +433,13 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(true); };
     const onUp = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftHeld(false); };
-    window.addEventListener('keydown', onDown);
-    window.addEventListener('keyup', onUp);
+    currentWindow.addEventListener('keydown', onDown);
+    currentWindow.addEventListener('keyup', onUp);
     return () => {
-      window.removeEventListener('keydown', onDown);
-      window.removeEventListener('keyup', onUp);
+      currentWindow.removeEventListener('keydown', onDown);
+      currentWindow.removeEventListener('keyup', onUp);
     };
-  }, []);
+  }, [currentWindow]);
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     calendarGridRef,
     useCallback((ids) => {
@@ -902,9 +907,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedRowIds(new Set()); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [currentWindow]);
 
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
