@@ -712,11 +712,11 @@ function AppContent() {
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
-          <div className={`flex items-center gap-1 rounded p-0.5 border ${isCloudProject ? 'bg-blue-900 border-blue-800' : 'bg-zinc-900 border-zinc-800'}`}>
+          <div className="flex items-center gap-1 border border-white/10 rounded">
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
               disabled={state.past.length === 0}
-              className={`p-1.5 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'hover:bg-blue-800' : 'hover:bg-zinc-800'}`}
+              className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-zinc-400 hover:text-white hover:bg-zinc-800"
               title="Undo (Cmd+Z)"
             >
               <Undo2 className="w-3.5 h-3.5" />
@@ -724,7 +724,7 @@ function AppContent() {
             <button
               onClick={() => dispatch({ type: 'REDO' })}
               disabled={state.future.length === 0}
-              className={`p-1.5 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'hover:bg-blue-800' : 'hover:bg-zinc-800'}`}
+              className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-zinc-400 hover:text-white hover:bg-zinc-800"
               title="Redo (Cmd+Shift+Z)"
             >
               <Redo2 className="w-3.5 h-3.5" />
