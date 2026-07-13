@@ -790,9 +790,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         {/* ── Canvas ── */}
         <div ref={canvasRef} className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
           {/* Toolbar */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none" onClick={e => e.stopPropagation()}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none min-w-max" onClick={e => e.stopPropagation()}>
             {/* Structure */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
               <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Structure</span>
               <Tooltip content="Add Column After">
                 <button onClick={() => selCell && setSelId(addColumn(selCell.ci))} disabled={readOnly || !selCell}
@@ -846,7 +846,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               </Tooltip>
             </div>
             {/* Cell */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
               <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Cell</span>
               <Tooltip content="Change Field">
                 <button
@@ -884,7 +884,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               </Tooltip>
             </div>
             {/* Cell Style */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
               <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Style</span>
               {(['left', 'center', 'right'] as const).map(a => {
                 const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
@@ -979,7 +979,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               )}
             </div>
             {/* Layout */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
               <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Layout</span>
               <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
               <Tooltip content="Vertical Cell Padding (px)">
