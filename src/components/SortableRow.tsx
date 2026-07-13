@@ -758,27 +758,31 @@ const SortableRowContent: React.FC<{
     if (field === 'duration') {
       return (
         <div key={cellId} style={style}>
-          {isTouchMode ? (
-            <DurationKeypad 
-              value={row.estimatedDuration || 0} 
-              onChange={val => updateRow({estimatedDuration: val})} 
-              display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
-              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
-              autoFocus={focusedRowId === row.id} 
-              onOpen={() => onRowNavigate?.(row.id)}
-              sceneNumber={scene?.sceneNumber}
-              pageCount={scene?.pageCount}
-            />
+          {textEditingEnabled ? (
+            isTouchMode ? (
+              <DurationKeypad 
+                value={row.estimatedDuration || 0} 
+                onChange={val => updateRow({estimatedDuration: val})} 
+                display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
+                className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
+                autoFocus={focusedRowId === row.id} 
+                onOpen={() => onRowNavigate?.(row.id)}
+                sceneNumber={scene?.sceneNumber}
+                pageCount={scene?.pageCount}
+              />
+            ) : (
+              <CellInput 
+                value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
+                onChange={val => updateRow({estimatedDuration: parseDuration(val)})} 
+                clearOnType
+                col="duration"
+                className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
+                autoFocus={focusedRowId === row.id} 
+                onRowNavigate={onRowNavigate}
+              />
+            )
           ) : (
-            <CellInput 
-              value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)} 
-              onChange={val => updateRow({estimatedDuration: parseDuration(val)})} 
-              clearOnType
-              col="duration"
-              className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} 
-              autoFocus={focusedRowId === row.id} 
-              onRowNavigate={onRowNavigate}
-            />
+            <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV}>{fmt(prefix, val, suffix)}</RibbonCellText>
           )}
         </div>
       );
