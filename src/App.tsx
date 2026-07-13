@@ -1017,6 +1017,9 @@ function AppContent() {
               <span className="px-3 py-1.5 text-xs font-semibold rounded-b-md text-white bg-zinc-950">Colors</span>
               <div ref={el => { if (el && subHeaderTargets['sub_design_colors'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_design_colors: el })); }} className="flex items-center gap-2" />
             </div>
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ColorsTab headerTarget={subHeaderTargets['sub_design_colors']} />
+            </div>
           </div>
         </PopoutWindow>
       )}
