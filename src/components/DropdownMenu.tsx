@@ -154,8 +154,21 @@ export function ItemManagerDropdown({
         inputRef.current?.focus();
         inputRef.current?.select();
       });
+      const item = items.find(i => i.id === editingId);
+      if (item && !editValue) {
+        setEditValue(item.name);
+      }
     }
   }, [editingId]);
+
+  useEffect(() => {
+    if (editingId) {
+      const item = items.find(i => i.id === editingId);
+      if (item && !editValue) {
+        setEditValue(item.name);
+      }
+    }
+  }, [editingId, items]);
 
   const startRename = (id: string, name: string) => {
     setEditingId(id);
