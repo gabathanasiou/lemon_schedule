@@ -123,8 +123,7 @@ export function ItemManagerDropdown({
   trigger,
   minItems = 1,
 }: ItemManagerDropdownProps) {
-  const resolvedTheme = useDropdownTheme();
-  const isBlue = resolvedTheme === 'blue';
+  const isBlue = theme === 'blue';
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -133,18 +132,18 @@ export function ItemManagerDropdown({
     text: isBlue ? 'text-white/70' : 'text-zinc-300',
     textBright: isBlue ? 'text-white' : 'text-white',
     textDim: isBlue ? 'text-white/50' : 'text-zinc-500',
-    textActive: 'text-blue-200',
+    textActive: isBlue ? 'text-white font-semibold' : 'text-blue-200 font-medium',
     hoverBg: isBlue ? 'hover:bg-white/10' : 'hover:bg-zinc-800',
     hoverBgBright: isBlue ? 'hover:bg-white/10 hover:text-white' : 'hover:bg-zinc-800 hover:text-white',
-    activeBg: 'bg-blue-600/20',
+    activeBg: isBlue ? 'bg-white/15' : 'bg-blue-600/20',
     separator: isBlue ? 'border-t border-white/10 my-1' : 'border-t border-zinc-800 my-1',
     inputBg: isBlue ? 'bg-white/10 border-white/10 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-200',
     inputFocus: isBlue ? 'focus:border-white/30' : 'focus:border-zinc-500',
     iconColor: isBlue ? 'text-white/50' : 'text-zinc-400',
     btnBase: isBlue ? 'text-white/50 hover:text-white hover:bg-white/10' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800',
-    btnActive: 'text-blue-300 hover:text-blue-200 hover:bg-blue-800/30',
+    btnActive: isBlue ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-blue-300 hover:text-blue-200 hover:bg-blue-800/30',
     btnDelete: isBlue ? 'text-white/50 hover:text-red-400 hover:bg-white/10' : 'text-zinc-500 hover:text-red-400 hover:bg-zinc-800',
-    btnDeleteActive: 'text-blue-300 hover:text-red-400 hover:bg-blue-800/30',
+    btnDeleteActive: isBlue ? 'text-white/70 hover:text-red-400 hover:bg-white/10' : 'text-blue-300 hover:text-red-400 hover:bg-blue-800/30',
     btnDeleteDisabled: 'text-zinc-700 pointer-events-none',
   };
 
@@ -182,7 +181,7 @@ export function ItemManagerDropdown({
         const isActive = item.id === activeId;
         const isEditing = editingId === item.id;
         return (
-          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? th.activeBg : th.hoverBg}`}>
+          <div key={item.id} className={`flex items-center gap-1 rounded my-0.5 ${isActive ? th.activeBg : ''}`}>
             {isEditing ? (
               <>
                 <RadixDropdownMenu.Item
