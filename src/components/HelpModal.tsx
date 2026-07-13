@@ -92,9 +92,9 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Cut, Paste & Delete">
-          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>X</Kbd></>} action="Cut selected ribbons to clipboard (unschedule with marker)" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>X</Kbd></>} action="Cut selected ribbons to clipboard (send to boneyard with marker)" />
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>V</Kbd></>} action="Paste clipboard items below selected ribbon (1 ribbon selected)" />
-          <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Unschedule selected ribbons (move back to Boneyard)" />
+          <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Send to Boneyard (move selected ribbons to boneyard)" />
         </Section>
 
         <Section title="Touch / iPad">
@@ -121,7 +121,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⇧</Kbd> + Double-click scene</>} action="Open scene sheet in a new window" />
           <Row keys={<>Click day header</>} action="Select the entire day" />
           <Row keys={<>Click empty space</>} action="Deselect all rows" />
-          <Row keys={<>Trash on day header</>} action="Unschedule all ribbons from that day" />
+          <Row keys={<>Trash on day header</>} action="Send all ribbons from that day to boneyard" />
         </Section>
 
         <Section title="Context Menu (Right-click)">

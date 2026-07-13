@@ -260,7 +260,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       } else {
         newRows = newRows.filter(r => r.id !== rowId);
       }
-    } else if (action === 'unschedule' && row.type !== 'DAYBREAK') {
+    } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
       newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
     }
 
@@ -278,7 +278,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       setFocusedRowId(newRowIds[0]);
       scrollToRow(newRowIds[0]);
     }
-    if (action === 'delete' || action === 'unschedule') {
+    if (action === 'delete' || action === 'boneyard') {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);

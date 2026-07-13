@@ -37,6 +37,66 @@ function loadProjectListFromStorage(): ProjectMeta[] {
   return [];
 }
 
+function migrateDayMetaToNonShootDates(parsed: any) {
+  const versions = parsed.versions || [];
+  for (const v of versions) {
+    if (!v.dayMeta || Object.keys(v.dayMeta).length === 0) continue;
+
+    const entries = Object.entries(v.dayMeta) as [string, any][];
+    const sorted = entries.sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+
+    const workEntries: [string, any][] = [];
+    const nonWorkEntries: [string, any][] = [];
+    for (const [k, m] of sorted) {
+      if (m.status && m.status !== 'work') {
+        nonWorkEntries.push([k, m]);
+      } else {
+        workEntries.push([k, m]);
+      }
+    }
+
+    if (!v.nonShootDates) v.nonShootDates = [];
+
+    const hasStatus = Object.values(v.dayMeta).some((m: any) => m.status);
+    const isOldProject = nonWorkEntries.length > 0 || hasStatus
+      || (!v.nonShootDates && Object.keys(v.dayMeta).length > 1);
+
+    if (isOldProject) {
+      v.daybreakStartDate = workEntries.length > 0 ? workEntries[0][1].date : v.daybreakStartDate;
+      for (const [, m] of nonWorkEntries) {
+        v.nonShootDates.push({
+          date: m.date,
+          status: m.status,
+          ...(m.status === 'travel' && m.castIds ? { castIds: m.castIds } : {}),
+        });
+      }
+
+      let prevDate: string | null = null;
+      for (const [, m] of workEntries) {
+        if (prevDate && m.date) {
+          const prev = new Date(prevDate + 'T00:00:00');
+          const cur = new Date(m.date + 'T00:00:00');
+          const diffDays = (cur.getTime() - prev.getTime()) / 86400000;
+          for (let i = 1; i < diffDays; i++) {
+            const gapDate = new Date(prev.getTime() + i * 86400000).toISOString().slice(0, 10);
+            if (!v.nonShootDates.some((n: any) => n.date === gapDate)) {
+              v.nonShootDates.push({ date: gapDate, status: 'holiday' });
+            }
+          }
+        }
+        prevDate = m.date || null;
+      }
+
+      v.dayMeta = Object.fromEntries(workEntries.map(([k, m]) => [
+        k,
+        { shootDay: m.shootDay, unitCall: m.unitCall || '08:00', date: m.date, order: m.order },
+      ]));
+    } else if (!v.daybreakStartDate && workEntries.length > 0) {
+      v.daybreakStartDate = workEntries[0][1].date;
+    }
+  }
+}
+
 function saveProjectListToStorage(list: ProjectMeta[]) {
   const localOnly = list.filter(p => !p.driveFileId);
   localStorage.setItem(INDEX_KEY, JSON.stringify(localOnly));
@@ -116,6 +176,8 @@ export function loadProjectFromStorage(id: string): Project | null {
 
         parsed.hiddenCategories = parsed.hiddenCategories || [];
         parsed.categoryLabels = parsed.categoryLabels || {};
+
+        migrateDayMetaToNonShootDates(parsed);
 
         return parsed;
       }
@@ -233,10 +295,6 @@ type Action =
   | { type: 'RENAME_VERSION', payload: { id: string, name: string } }
   | { type: 'SET_ACTIVE_VERSION', payload: string }
   | { type: 'IMPORT_SCENES', payload: Scene[] }
-  | { type: 'DELETE_DAY', day: number }
-  | { type: 'UNSCHEDULE_DAY', day: number }
-  | { type: 'TOGGLE_WORKING_DAY', date: string }
-  | { type: 'UPDATE_DAY_META'; shootDay: number; date?: string; status?: string; castIds?: string }
   | { type: 'ADD_RULE'; payload: ProjectRule }
   | { type: 'UPDATE_RULE'; payload: ProjectRule }
   | { type: 'DELETE_RULE'; payload: string }
@@ -571,91 +629,6 @@ function reducer(state: State, action: Action): State {
         ...state.present,
         scenes: [...state.present.scenes, ...action.payload]
       });
-
-    case 'DELETE_DAY': {
-      const activeVerId = state.present.activeVersionId;
-      if (!activeVerId) return state;
-      return applyChange({
-        ...state.present,
-        versions: state.present.versions.map(v => {
-          if (v.id !== activeVerId) return v;
-          return {
-            ...v,
-            rows: v.rows.filter(r => r.shootDay !== action.day),
-            dayMeta: Object.fromEntries(Object.entries(v.dayMeta).filter(([k]) => Number(k) !== action.day))
-          };
-        })
-      });
-    }
-
-    case 'UNSCHEDULE_DAY': {
-      const activeVerId = state.present.activeVersionId;
-      if (!activeVerId) return state;
-      const day = action.day;
-      return applyChange({
-        ...state.present,
-        versions: state.present.versions.map(v => {
-          if (v.id !== activeVerId) return v;
-          return {
-            ...v,
-            rows: v.rows.map(r => r.shootDay === day ? { ...r, shootDay: null as any, order: 999999 } : r)
-          };
-        })
-      });
-    }
-
-    case 'TOGGLE_WORKING_DAY': {
-      const date = action.date;
-      const activeVerId = state.present.activeVersionId;
-      if (!activeVerId) return state;
-      return applyChange({
-        ...state.present,
-        versions: state.present.versions.map(v => {
-          if (v.id !== activeVerId) return v;
-          const existing = Object.entries(v.dayMeta).find(([, m]) => m.date === date);
-          if (existing) {
-            const day = Number(existing[0]);
-            return {
-              ...v,
-              rows: v.rows.map(r => r.shootDay === day ? { ...r, shootDay: null as any, order: 999999 } : r),
-              dayMeta: Object.fromEntries(Object.entries(v.dayMeta).filter(([k]) => Number(k) !== day))
-            };
-          } else {
-            const nextDay = Math.max(0, ...Object.keys(v.dayMeta || {}).map(Number), 0) + 1;
-            return {
-              ...v,
-              dayMeta: { ...v.dayMeta, [nextDay]: { shootDay: nextDay, unitCall: '08:00', date } }
-            };
-          }
-        })
-      });
-    }
-
-    case 'UPDATE_DAY_META': {
-      const { shootDay, status, date, castIds } = action;
-      const activeVerId = state.present.activeVersionId;
-      if (!activeVerId) return state;
-      return applyChange({
-        ...state.present,
-        versions: state.present.versions.map(v => {
-          if (v.id !== activeVerId) return v;
-          const oldStatus = v.dayMeta[shootDay]?.status;
-          const newStatus = status as any;
-          let rows = v.rows;
-          if (newStatus && newStatus !== 'work' && oldStatus !== newStatus) {
-            rows = v.rows.map(r => r.shootDay === shootDay ? { ...r, shootDay: null as any, order: 999999 } : r);
-          }
-          return {
-            ...v,
-            rows,
-            dayMeta: {
-              ...v.dayMeta,
-              [shootDay]: { ...(v.dayMeta[shootDay] || { shootDay, unitCall: '08:00', date: date || '' }), status: newStatus, ...(castIds !== undefined ? { castIds } : {}) },
-            },
-          };
-        }),
-      });
-    }
 
     case 'ADD_RULE':
       return applyChange({

@@ -381,7 +381,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                     <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
                       {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </span>
-                    <span className="font-medium">{sectionLabelMap.get(d.sectionIndex) || `Ch. ${d.chrono}`}</span>
+                    <span className="font-medium">{sectionLabelMap.get(d.sectionIndex) || `Day ${d.chrono}`}</span>
                     {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateShort(d.date)}</span>}
                   </button>
                 );

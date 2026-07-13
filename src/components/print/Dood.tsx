@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta, CastMember } from '../../types';
+import { Scene, ScheduleRow, ShootDayMeta, CastMember, NonShootDate } from '../../types';
 import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
@@ -71,7 +71,7 @@ interface DoodDay {
   dayInt: number;
   isoDate: string;
   isShooting: boolean;
-  status?: string;
+  nonShootStatus?: string;
   hasGap?: boolean;
 }
 
@@ -110,10 +110,12 @@ function deriveDood(
   dayInts: number[],
   includeNonShooting: boolean,
   category: string,
+  nonShootDates?: NonShootDate[],
   castMemberNames?: Map<string, string>,
   elementNameMap?: Map<string, string>,
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
   const isCast = category === 'cast';
+  const nonShootByDate = new Map(nonShootDates?.map(n => [n.date, n]) || []);
   const scenesByDay = new Map<number, Scene[]>();
   for (const row of scheduleRows) {
     if (row.type !== 'SCENE' || !row.sceneId) continue;
@@ -133,12 +135,15 @@ function deriveDood(
     sortedDayInts = sortedDayInts.filter(d => shootingDays.has(d));
   }
 
-  const days: DoodDay[] = sortedDayInts.map(d => ({
-    dayInt: d,
-    isoDate: dayMeta[d].date || '',
-    isShooting: shootingDays.has(d) && (!dayMeta[d].status || dayMeta[d].status === 'work'),
-    status: dayMeta[d].status || undefined,
-  }));
+  const days: DoodDay[] = sortedDayInts.map(d => {
+    const ns = nonShootByDate.get(dayMeta[d]?.date || '');
+    return {
+      dayInt: d,
+      isoDate: dayMeta[d].date || '',
+      isShooting: shootingDays.has(d),
+      nonShootStatus: ns?.status || undefined,
+    };
+  });
 
   for (let i = 1; i < days.length; i++) {
     const prev = new Date(days[i - 1].isoDate + 'T00:00:00');
@@ -167,9 +172,9 @@ function deriveDood(
     }
 
     const cells: string[] = days.map(d => {
-      const meta = dayMeta[d.dayInt];
-      if (isCast && meta?.status === 'travel' && meta?.castIds) {
-        const tIds = meta.castIds.split(',').map(x => x.trim());
+      const ns = nonShootByDate.get(d.isoDate);
+      if (isCast && ns?.status === 'travel' && ns?.castIds) {
+        const tIds = ns.castIds.split(',').map(x => x.trim());
         if (tIds.includes(elementId)) return 'T';
       }
       if (!appearSet.has(d.dayInt)) {
@@ -202,6 +207,7 @@ interface DoodProps {
   scenes: Scene[];
   scheduleRows: ScheduleRow[];
   dayMeta: Record<number, ShootDayMeta>;
+  nonShootDates?: NonShootDate[];
   castMembers?: CastMember[];
   elementIds: string[];
   dayInts: number[];
@@ -215,6 +221,7 @@ const Dood: React.FC<DoodProps> = ({
   scenes,
   scheduleRows,
   dayMeta,
+  nonShootDates,
   castMembers,
   elementIds,
   dayInts,
@@ -237,8 +244,8 @@ const Dood: React.FC<DoodProps> = ({
   }, [scenes, category]);
 
   const data = useMemo(() => deriveDood(
-    scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap,
-  ), [scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap]);
+    scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, nonShootDates, castMemberNames, elementNameMap,
+  ), [scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, nonShootDates, castMemberNames, elementNameMap]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -321,7 +328,7 @@ const Dood: React.FC<DoodProps> = ({
                   <th className="dood-col-cast">Shooting Day</th>
                   {group.days.map((d, ci) => (
                     <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
-                      {d.isShooting ? chronoDayMap.get(d.dayInt) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
+                      {d.isShooting ? chronoDayMap.get(d.dayInt) : d.nonShootStatus === 'hold' ? 'H' : d.nonShootStatus === 'travel' ? 'T' : d.nonShootStatus === 'holiday' ? 'HOL' : ''}
                     </th>
                   ))}
                   {isLast && showTotals && (

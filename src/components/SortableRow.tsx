@@ -500,7 +500,7 @@ const SortableRowContent: React.FC<{
     const sectionBreak = (row as any).sectionBreak || 0;
     const sectionEndTime = (row as any).sectionEndTime || '';
     const nextDaybreakNum = (row as any).hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
-    const nextLabel = nextDaybreakNum > 0 ? `START OF DAYBREAK ${nextDaybreakNum}` : '';
+    const nextLabel = nextDaybreakNum > 0 ? `START OF DAY ${nextDaybreakNum}` : '';
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
@@ -537,7 +537,7 @@ const SortableRowContent: React.FC<{
                             <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
                           </span>
                         )}
-                        <span>{row.daybreakLabel || 'End of Daybreak'}</span>
+                        <span>{row.daybreakLabel || 'End of Day'}</span>
                         {row.daybreakDate && (
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>
                             {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
@@ -645,7 +645,7 @@ const SortableRowContent: React.FC<{
                   <td className="col-dur">{sectionTotal > 0 ? formatDuration(sectionTotal) : ''}</td>
                   <td className="col-ie" />
                   <td className="col-set" style={{textAlign: 'center'}}>
-                    {row.daybreakLabel || 'End of Daybreak'}
+                    {row.daybreakLabel || 'End of Day'}
                   </td>
                   <td className="col-dn" />
                   <td className="col-cast" />
@@ -653,7 +653,7 @@ const SortableRowContent: React.FC<{
                 </>
               ) : (
                 <td colSpan={4} className="col-set">
-                  {row.daybreakLabel || 'End of Daybreak'}
+                  {row.daybreakLabel || 'End of Day'}
                 </td>
               )}
             </tr>

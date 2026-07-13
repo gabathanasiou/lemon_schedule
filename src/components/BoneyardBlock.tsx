@@ -4,7 +4,7 @@ import { CellBorders } from '../lib/persist';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableRow } from './SortableRow';
-import { StackedGhosts } from './DayBlock';
+import { StackedGhosts } from './StripBlock';
 import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -117,12 +117,12 @@ export const BoneyardBlock: React.FC<{
   
   const { setNodeRef } = useDroppable({
     id: 'boneyard_bin',
-    data: { type: 'UNSCHEDULED_BIN' }
+    data: { type: 'BONEYARD_BIN' }
   });
 
   const { setNodeRef: setEndRef } = useDroppable({
     id: 'end-boneyard',
-    data: { type: 'UNSCHEDULED_END' }
+    data: { type: 'BONEYARD_END' }
   });
 
   const addRow = (type: 'NOTE' | 'BREAK') => {

@@ -121,7 +121,6 @@ interface EntityDropdownProps {
  * - BreakdownTab generic element editors (following the fix to use multi)
  * - SortableRow cast fields
  * - PrintDialog shoot day picker
- * - CalendarTab hold/travel cast picker
  * - Various dialog cast pickers (RuleFormFields, DoodDialog, etc.)
  *
  * ### `single` — search-then-select, commas allowed in value

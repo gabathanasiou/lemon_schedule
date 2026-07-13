@@ -3,7 +3,7 @@ import { useProject } from '../store';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { DayBlock } from './DayBlock';
+import { StripBlock } from './StripBlock';
 import { BoneyardBlock } from './BoneyardBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID, formatDuration } from '../lib/utils';
@@ -775,11 +775,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const m = new Map<number, number>();
     let counter = 0;
     for (const d of existingDays) {
-      const status = activeVersion?.dayMeta?.[d]?.status;
-      if (!status || status === 'work') { counter++; m.set(d, counter); }
+      counter++; m.set(d, counter);
     }
     return m;
-  }, [existingDays, activeVersion]);
+  }, [existingDays]);
 
   const selectionSummary = useMemo(() => {
     if (selectedRowIds.size < 2) return null;
@@ -905,7 +904,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       } else {
         newRows = newRows.filter(r => r.id !== rowId);
       }
-    } else if (action === 'unschedule' && row.type !== 'DAYBREAK') {
+    } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
       newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
     }
 
@@ -923,7 +922,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       setFocusedRowId(newRowIds[0]);
       scrollToRow(newRowIds[0]);
     }
-    if (action === 'delete' || action === 'unschedule') {
+    if (action === 'delete' || action === 'boneyard') {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);
@@ -1382,7 +1381,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           text-align: left;
           line-height: 1.2;
         }
-        .schedule-table .day-header-row td {
+        .schedule-table .strip-header-row td {
           padding-top: 16px !important;
           padding-bottom: 16px !important;
         }
@@ -1449,7 +1448,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
                {existingDays.map((dayInt, i) => (
-                <DayBlock 
+                <StripBlock 
                   key={dayInt} 
                   dayInt={dayInt} 
                   rows={scheduledRows[dayInt] || []}
@@ -1589,7 +1588,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   )}
               <ContextMenuDivider />
               {row?.shootDay != null && (
-                <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+                <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
               )}
             </>
           )}
@@ -1609,7 +1608,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   )}
                   <ContextMenuDivider />
                   {row?.shootDay != null && (
-                    <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+                    <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
                   )}
                   <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
                 </>

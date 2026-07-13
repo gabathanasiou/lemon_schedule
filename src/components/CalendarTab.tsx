@@ -3,14 +3,14 @@ import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, D
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
-import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette } from '../types';
+import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
-import { checkDay } from '../lib/rulesEngine';
+import { checkSection } from '../lib/rulesEngine';
 import { ViolationTooltip } from './ViolationTooltip';
 import { EntityDropdown } from './EntityDropdown';
 import Modal from './Modal';
@@ -56,7 +56,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
   const palette = state.present.colorPalette;
   const sz = IS_COARSE ? 'text-xs px-2 py-1' : 'text-[9px] px-1.5 py-0.5';
   if (!scene) {
-    const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : row.type === 'DAYBREAK' ? row.daybreakLabel || 'DAYBREAK' : null;
+    const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : row.type === 'DAYBREAK' ? row.daybreakLabel || 'End of Day' : null;
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
     const bg = row.type === 'DAYBREAK' ? '#ffffff' : row.noteColor || nb.background;
@@ -121,15 +121,15 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
 
 const DayCell: React.FC<{
   dateKey: string; date: Date; isCurrentMonth: boolean; isToday: boolean;
-  isWorkingDay: boolean; shootDay: number | null; label: string | null;
   rows: ScheduleRow[]; scenes: Scene[]; displayField: string;
   violations: RuleViolation[];
   sceneViolationMap: Map<string, RuleViolation[]>;
   onToggle: (dateKey: string) => void;
-  onDoubleClick?: (dateKey: string) => void;
-  status?: string;
-  chronoDay?: number;
-  dayCastIds?: string;
+  onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
+  nonShootStatus?: string;
+  sectionIndex?: number;
+  sectionLabel?: string;
+  label?: string | null;
   activeTool?: string | null;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
@@ -138,44 +138,40 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-  activeDragDay?: number | null;
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
-}> = ({ dateKey, date, isCurrentMonth, isToday, isWorkingDay, shootDay, label, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onDoubleClick, status, chronoDay, dayCastIds, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, activeDragDay, monthSeparator, onRowDoubleClick }) => {
-  const isNonWorkStatus = status && status !== 'work';
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
-    data: { type: 'DAY_CELL', date: dateKey, shootDay },
-  });
-
-  const { attributes, listeners, setNodeRef: setHandleRef, isDragging } = useDraggable({
-    id: shootDay !== null ? `day-handle-${shootDay}` : 'day-handle-inactive',
-    data: shootDay !== null ? { type: 'DAY', shootDay, date: dateKey } : {},
-    disabled: !isWorkingDay || shootDay === null,
+    data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
   });
 
   const { setNodeRef: setEndRef } = useDroppable({
-    id: shootDay != null ? `end-${shootDay}` : `end-date-${dateKey}`,
-    data: { type: 'DAY_END', date: dateKey, shootDay },
-    disabled: isNonWorkStatus || shootDay === null,
+    id: `end-${dateKey}`,
+    data: { type: 'STRIP_END', date: dateKey, sectionIndex },
+    disabled: !!nonShootStatus,
   });
 
-  const statusBadge = status === 'hold' ? 'H' : status === 'travel' ? 'T' : status === 'holiday' ? 'HOL' : null;
-  const statusBg = status === 'hold' ? 'bg-red-50' : status === 'travel' ? 'bg-purple-50' : status === 'holiday' ? 'bg-green-50' : '';
-  const headerColor = status === 'hold' ? 'bg-red-600 text-white'
-    : status === 'travel' ? 'bg-purple-600 text-white'
-    : status === 'holiday' ? 'bg-green-700 text-white'
-    : status === 'work' || (!status && isWorkingDay) ? 'bg-zinc-700 text-white'
+  const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'HOL' : null;
+  const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-green-50' : '';
+  const headerColor = nonShootStatus === 'hold' ? 'bg-red-600 text-white'
+    : nonShootStatus === 'travel' ? 'bg-purple-600 text-white'
+    : nonShootStatus === 'holiday' ? 'bg-green-700 text-white'
+    : sectionLabel ? 'bg-zinc-700 text-white'
     : 'bg-zinc-200 text-zinc-600';
 
-  const headerLabel = status === 'hold' ? `HOLD${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'travel' ? `TRAVEL${dayCastIds ? ` · ${dayCastIds.split(',').filter(Boolean).length}` : ''}` : status === 'holiday' ? 'HOLIDAY' : chronoDay ? `DAY #${chronoDay}` : '';
+  const headerLabel = nonShootStatus === 'hold' ? 'HOLD' : nonShootStatus === 'travel' ? 'TRAVEL' : nonShootStatus === 'holiday' ? 'HOLIDAY' : sectionLabel || '';
+
+  const isNonShoot = !!nonShootStatus;
+  const isWorking = sectionIndex != null;
 
   return (
     <div ref={setNodeRef}
+      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
       className={`min-h-[80px] h-full border-r flex flex-col
-        ${!isWorkingDay && !status ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
-        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorkingDay && !status ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
-        ${isOver && !(activeDragIds?.size && isNonWorkStatus) ? '!bg-blue-50' : ''}`}
+        ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
+        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
+        ${isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
     >
         {monthSeparator && (
           <div className="text-center text-[9px] font-bold text-zinc-400 uppercase tracking-wider py-0.5 bg-zinc-50 border-b border-zinc-200">
@@ -183,28 +179,24 @@ const DayCell: React.FC<{
           </div>
         )}
         <div
-          ref={setHandleRef} {...listeners} {...attributes}
           onClick={() => activeTool && onToggle(dateKey)}
-          onDoubleClick={(e) => { e.preventDefault(); if (!activeTool && onDoubleClick) onDoubleClick(dateKey); }}
-          data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`}
-          data-shoot-day={shootDay == null ? 'null' : shootDay}
-          title={activeTool ? `Click to set ${activeTool}` : 'Double-click to set status'}
-          style={{ opacity: isDragging ? 0.3 : 1, cursor: activeTool ? 'pointer' : (isWorkingDay && shootDay != null ? 'grab' : 'default') }}
+          style={{ cursor: activeTool ? 'pointer' : 'default' }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
         <span className="w-5 flex justify-center">
-
-
           {violations.length > 0 && (
             <ViolationTooltip violations={violations}>
               <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
             </ViolationTooltip>
           )}
+          {label && (
+            <span className="text-[8px] font-bold text-white/80 ml-0.5">{label}</span>
+          )}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5" data-row-id={shootDay != null ? `empty-${shootDay}` : `empty-date-${dateKey}`} data-shoot-day={shootDay == null ? 'null' : shootDay}>
+      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
@@ -248,7 +240,7 @@ const BoneyardSidebar: React.FC<{
   onSort?: (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => void;
   onRowDoubleClick?: (id: string) => void;
 }> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onRowDoubleClick }) => {
-  const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'UNSCHEDULED' } });
+  const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'BONEYARD' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 200; } catch { return 200; }
@@ -352,6 +344,39 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(today);
+
+  useEffect(() => {
+    if (activeVersion?.daybreakStartDate) setStartDate(activeVersion.daybreakStartDate);
+  }, [activeVersion?.daybreakStartDate]);
+
+  const containerDay = useMemo(() => {
+    if (!activeVersion) return 1;
+    const days = activeVersion.rows.filter(r => r.shootDay != null).map(r => r.shootDay!);
+    return days.length > 0 ? Math.min(...days) : 1;
+  }, [activeVersion]);
+
+  const updateStartDate = useCallback((d: string) => {
+    setStartDate(d);
+    if (activeVersion) {
+      const dayMeta = { ...activeVersion.dayMeta };
+      dayMeta[containerDay] = { ...(dayMeta[containerDay] || { unitCall: '08:00', date: '', shootDay: containerDay }), date: d };
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, daybreakStartDate: d, dayMeta } });
+    }
+  }, [activeVersion, dispatch, containerDay]);
+
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (!activeVersion || didInit.current) return;
+    if (activeVersion.daybreakStartDate) return;
+    didInit.current = true;
+    const sd = activeVersion.dayMeta?.[containerDay]?.date || new Date().toISOString().slice(0, 10);
+    updateStartDate(sd);
+  }, [activeVersion, updateStartDate]);
+
+  const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
+
   const [calSettings, setCalSettings] = usePersistState<{ displayField: string; showBreaks: boolean; showConflicts: boolean }>('lemon_schedule_calendar_view', {
     displayField: 'set',
     showBreaks: true,
@@ -360,8 +385,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const { displayField, showBreaks, showConflicts } = calSettings;
   const updateCal = (patch: Partial<typeof calSettings>) => setCalSettings(prev => ({ ...prev, ...patch }));
 
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(() => new Date(startDate + 'T00:00:00').getMonth());
+  const [currentYear, setCurrentYear] = useState(() => new Date(startDate + 'T00:00:00').getFullYear());
+
+  useEffect(() => {
+    const d = new Date(startDate + 'T00:00:00');
+    setCurrentMonth(d.getMonth());
+    setCurrentYear(d.getFullYear());
+  }, [startDate]);
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
@@ -370,20 +401,24 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [modalStatus, setModalStatus] = useState('work');
   const [modalCastIds, setModalCastIds] = useState('');
 
-  const handleStatusDoubleClick = useCallback((dateKey: string) => {
-    let day: number | null = null;
-    const meta = activeVersion?.dayMeta || {};
-    for (const [k, v] of Object.entries(meta) as [string, ShootDayMeta][]) {
-      if (v.date === dateKey) { day = Number(k); break; }
+  const handleNonShootToggle = useCallback((dateKey: string, status: 'hold' | 'travel' | 'holiday' | null) => {
+    if (!activeVersion) return;
+    const current = activeVersion.nonShootDates || [];
+    let next: NonShootDate[];
+    if (status === null) {
+      next = current.filter(ns => ns.date !== dateKey);
+    } else {
+      const exists = current.find(ns => ns.date === dateKey);
+      if (exists) {
+        next = current.map(ns => ns.date === dateKey ? { ...ns, status } : ns);
+      } else {
+        next = [...current, { date: dateKey, status }];
+      }
     }
-    if (day == null) {
-      const existing = Object.keys(meta).map(Number);
-      day = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-    }
-    setModalStatus(meta[day]?.status || 'work');
-    setModalCastIds(meta[day]?.castIds || '');
-    setStatusModal({ shootDay: day, dateKey });
-  }, [activeVersion]);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
+  }, [activeVersion, dispatch]);
+
+  const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -396,13 +431,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   selectedRowIdsRef.current = selectedRowIds;
 
   const collisionDetection = useCallback<CollisionDetection>((args) => {
-    const { active, pointerCoordinates, droppableContainers } = args;
-    const isDraggingDay = active.data.current?.type === 'DAY';
+    const { pointerCoordinates, droppableContainers } = args;
     const filteredContainers = droppableContainers.filter((container) => {
-      const id = container.id as string;
-      const isDayDrop = container.data.current?.type === 'DAY_CELL';
-      if (isDraggingDay) return isDayDrop;
-      if (activeDragIdsRef.current.has(id)) return false;
+      if (activeDragIdsRef.current.has(container.id as string)) return false;
       return true;
     });
     if (pointerCoordinates) {
@@ -466,43 +497,65 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
 
-  const workingMap = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
-      if (v.date) m.set(v.date, Number(k));
-    }
-    return m;
+  const containerRows = useMemo(() => {
+    if (!activeVersion) return [];
+    return activeVersion.rows.filter(r => r.shootDay != null).sort((a, b) => {
+      if ((a.shootDay || 0) !== (b.shootDay || 0)) return (a.shootDay || 0) - (b.shootDay || 0);
+      return a.order - b.order;
+    });
   }, [activeVersion]);
 
-  const statusMap = useMemo(() => {
+  const sections = useMemo(() => {
+    const s: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
+    let currentRows: ScheduleRow[] = [];
+    let sectionIndex = 0;
+    for (const r of containerRows) {
+      if (r.type === 'DAYBREAK') {
+        s.push({ index: sectionIndex, rows: currentRows, daybreakRow: r });
+        currentRows = [];
+        sectionIndex++;
+      } else {
+        currentRows.push(r);
+      }
+    }
+    return s;
+  }, [containerRows]);
+
+  const addDays = (d: string, n: number) => {
+    const parts = d.split('-').map(Number);
+    const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
+    return dt.toISOString().slice(0, 10);
+  };
+
+  const nonShootDateMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const ns of nonShootDates) m.set(ns.date, ns.status);
+    return m;
+  }, [nonShootDates]);
+
+  const sectionDateMap = useMemo(() => {
     const m = new Map<number, string>();
-    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
-      if (v.status) m.set(Number(k), v.status);
+    let current = startDate;
+    for (let i = 0; i < sections.length; i++) {
+      while (nonShootDateMap.has(current)) current = addDays(current, 1);
+      m.set(i, current);
+      current = addDays(current, 1);
     }
     return m;
-  }, [activeVersion]);
+  }, [sections, startDate, nonShootDateMap]);
 
   const chronoDayMap = useMemo(() => {
-    const entries = Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][];
-    const sorted = entries
-      .filter(([, v]) => v.date && (!v.status || v.status === 'work'))
-      .sort((a, b) => a[1].date.localeCompare(b[1].date));
     const m = new Map<number, number>();
-    sorted.forEach(([k], i) => m.set(Number(k), i + 1));
-    return m;
-  }, [activeVersion]);
-
-  const dayCastIdsMap = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const [k, v] of Object.entries(activeVersion.dayMeta || {}) as [string, ShootDayMeta][]) {
-      if (v.castIds) m.set(Number(k), v.castIds);
+    let chrono = 1;
+    for (let i = 0; i < sections.length; i++) {
+      m.set(i, chrono++);
     }
     return m;
-  }, [activeVersion]);
+  }, [sections]);
 
   const workingLabels = useMemo(() => {
     const labels = new Map<string, string>();
-    const workingDates = [...workingMap.keys()].sort();
+    const workingDates = [...new Set<string>(sectionDateMap.values())].filter(d => !nonShootDateMap.has(d)).sort();
     if (workingDates.length === 0) return labels;
     labels.set(workingDates[0], 'SW');
     if (workingDates.length > 1) labels.set(workingDates[workingDates.length - 1], 'FW');
@@ -510,7 +563,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       labels.set(workingDates[i], 'W');
     }
     return labels;
-  }, [workingMap]);
+  }, [sections, nonShootDateMap]);
 
   const availableFields = useMemo(() => {
     const hiddenSet = new Set(project.hiddenCategories || []);
@@ -533,13 +586,16 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const violationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();
     if (!activeVersion || !showConflicts) return m;
-    for (const [k] of Object.entries(activeVersion.dayMeta || {})) {
-      const day = Number(k);
-      const v = checkDay(day, project.rules || [], project.scenes, activeVersion.rows, activeVersion.dayMeta, project.castMembers || []);
-      if (v.length > 0) m.set(activeVersion.dayMeta[day]?.date || '', v);
+    let baseTime = activeVersion.dayMeta?.[1]?.unitCall || '08:00';
+    for (const s of sections) {
+      const dateKey = sectionDateMap.get(s.index);
+      if (!dateKey) continue;
+      const v = checkSection(s.rows, dateKey, baseTime, project.rules || [], project.scenes, project.castMembers || []);
+      if (v.length > 0) m.set(dateKey, v);
+      baseTime = s.daybreakRow?.daybreakCallTime || baseTime;
     }
     return m;
-  }, [activeVersion, project.rules, project.scenes, project.castMembers, showConflicts]);
+  }, [activeVersion, project.rules, project.scenes, project.castMembers, showConflicts, sections, sectionDateMap]);
 
   const sceneViolationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();
@@ -599,52 +655,48 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const rowsByDate = useMemo(() => {
     const map = new Map<string, ScheduleRow[]>();
     if (!activeVersion) return map;
-    augmentedRows.forEach(r => {
-      if (r.shootDay === null) return;
-      if (activeDragIds.has(r.id)) return;
-      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return;
-      const meta = activeVersion.dayMeta?.[r.shootDay];
-      if (!meta?.date) return;
-      const dk = meta.date;
-      if (!map.has(dk)) map.set(dk, []);
-      map.get(dk)!.push(r);
-    });
+    for (const s of sections) {
+      const dateKey = sectionDateMap.get(s.index);
+      if (!dateKey) continue;
+      const allRows = s.rows.filter(r => {
+        if (activeDragIds.has(r.id)) return false;
+        if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
+        return true;
+      });
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey)!.push(...allRows);
+    }
     return map;
-  }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
+  }, [sections, sectionDateMap, activeDragIds, showBreaks, activeVersion]);
+
+  const dateSectionMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [k, v] of sectionDateMap) m.set(v, k);
+    return m;
+  }, [sectionDateMap]);
+
+  const sectionRowIds = useMemo(() => new Set(sections.flatMap(s => s.rows.map(r => r.id))), [sections]);
 
   const boneyardRows = useMemo(() => {
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
-      if (r.type === 'DAYBREAK') return false;
-      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
-      if (r.shootDay === null) return true;
-      const meta = activeVersion?.dayMeta?.[r.shootDay];
-      return !meta?.date;
+      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
+      if (r.shootDay === null && r.type !== 'DAYBREAK') return true;
+      if (r.shootDay != null && !sectionRowIds.has(r.id) && r.type !== 'DAYBREAK') return true;
+      return false;
     }).sort((a, b) => a.order - b.order);
-  }, [augmentedRows, activeVersion, activeDragIds, showBreaks]);
+  }, [augmentedRows, activeDragIds, showBreaks, sectionRowIds]);
 
   const handleToggle = useCallback((dateKey: string) => {
     if (activeTool) {
       if (activeTool === 'remove') {
-        const meta = (activeVersion?.dayMeta ?? {}) as Record<number, ShootDayMeta>;
-        if (!Object.values(meta).some(v => v.date === dateKey)) return;
-        dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
+        handleNonShootToggle(dateKey, null);
       } else {
-        const meta = activeVersion?.dayMeta || {};
-        let shootDay: number | null = null;
-        for (const [k, v] of Object.entries(meta) as [string, ShootDayMeta][]) {
-          if (v.date === dateKey) { shootDay = Number(k); break; }
-        }
-        if (shootDay == null) {
-          const existing = Object.keys(meta).map(Number);
-          shootDay = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-        }
-        dispatch({ type: 'UPDATE_DAY_META' as any, shootDay, date: dateKey, status: activeTool });
+        handleNonShootToggle(dateKey, activeTool as 'hold' | 'travel' | 'holiday');
       }
       return;
     }
-    dispatch({ type: 'TOGGLE_WORKING_DAY', date: dateKey });
-  }, [dispatch, activeTool, activeVersion]);
+  }, [handleNonShootToggle, activeTool]);
 
   const sortBoneyard = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;
@@ -754,24 +806,16 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (isAddModeActive()) return;
     const data = e.active.data.current as any;
     setActiveId(e.active.id as string);
-    if (data?.type === 'DAY') {
-      setActiveDragDay(data.shootDay);
-      setActiveDragRow(null);
-      setActiveDragIds(new Set());
+    const draggedId = e.active.id as string;
+    const currentSelection = selectedRowIdsRef.current;
+    if (currentSelection.has(draggedId) && currentSelection.size > 1) {
+      setActiveDragIds(new Set(currentSelection));
     } else {
-      const draggedId = e.active.id as string;
-      const currentSelection = selectedRowIdsRef.current;
-      if (currentSelection.has(draggedId) && currentSelection.size > 1) {
-        setActiveDragIds(new Set(currentSelection));
-      } else {
-        if (currentSelection.size > 0) {
-          setSelectedRowIds(new Set());
-        }
-        setActiveDragIds(new Set([draggedId]));
-      }
-      setActiveDragRow(augmentedRows.find(r => r.id === draggedId) || null);
-      setActiveDragDay(null);
+      if (currentSelection.size > 0) setSelectedRowIds(new Set());
+      setActiveDragIds(new Set([draggedId]));
     }
+    setActiveDragRow(augmentedRows.find(r => r.id === draggedId) || null);
+    setActiveDragDay(null);
   };
 
   const handleDragOver = (e: DragOverEvent) => {
@@ -795,113 +839,95 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
     const activeData = active.data.current as any;
 
-    if (activeData?.type === 'DAY') {
-      const sourceDay = activeData.shootDay as number;
-      const sourceDate = activeData.date as string;
-      const overData = over.data.current as any;
-      const targetDate: string | null = overData?.date ?? null;
-      if (!targetDate || sourceDate === targetDate) return;
-      const targetEntry = (Object.entries(activeVersion.dayMeta) as [string, ShootDayMeta][]).find(([, m]) => m.date === targetDate);
-      const newDayMeta = { ...activeVersion.dayMeta };
-      newDayMeta[sourceDay] = { ...newDayMeta[sourceDay], date: targetDate };
-      if (targetEntry) newDayMeta[Number(targetEntry[0])] = { ...newDayMeta[Number(targetEntry[0])], date: sourceDate };
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, dayMeta: newDayMeta } });
-      return;
-    }
-
     const draggedId = active.id as string;
     const allSelected = new Set(activeDragIds);
     const draggingIds = allSelected.size > 1 ? Array.from(allSelected) : [draggedId];
     draggingIds.sort((a, b) => {
       const rA = augmentedRows.find(r => r.id === a);
       const rB = augmentedRows.find(r => r.id === b);
-      if (rA && rB) {
-        if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
-        return rA.order - rB.order;
-      }
+      if (rA && rB) return rA.order - rB.order;
       return 0;
     });
 
-    let targetShootDay: number | null = null;
+    let targetDateKey: string | null = null;
     const overData = over.data.current as any;
-    if (over.id === 'boneyard') targetShootDay = null;
-    else if (overData?.type === 'DAY_CELL' && overData.shootDay != null) targetShootDay = overData.shootDay;
-    else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
-      const raw = over.id.slice(4);
-      const meta = activeVersion.dayMeta || {};
-      const dateMap = new Map((Object.entries(meta) as [string, ShootDayMeta][]).map(([k, v]) => [v.date || '', Number(k)]));
-      targetShootDay = dateMap.get(raw) ?? null;
+    if (over.id === 'boneyard') {
+      targetDateKey = null;
+    } else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
+      targetDateKey = over.id.slice(4);
+    } else if (typeof over.id === 'string' && over.id.startsWith('end-')) {
+      targetDateKey = over.id.slice(4);
     } else {
       const overRow = augmentedRows.find(r => r.id === over.id);
-      if (overRow && overRow.shootDay != null) targetShootDay = overRow.shootDay;
+      if (overRow) {
+        for (const s of sections) {
+          if (s.rows.some(rr => rr.id === overRow.id)) {
+            targetDateKey = sectionDateMap.get(s.index) || null;
+            break;
+          }
+        }
+      }
     }
 
-    if (targetShootDay != null) {
-      const targetStatus = statusMap.get(targetShootDay);
-      if (targetStatus && targetStatus !== 'work') return;
+    let targetSectionIndex: number | null = null;
+    if (targetDateKey) {
+      targetSectionIndex = dateSectionMap.get(targetDateKey) ?? null;
     }
+    if (targetDateKey && nonShootDateMap.has(targetDateKey)) return;
 
-    if (targetShootDay === undefined) return;
-
-    let newRows = activeVersion.rows.map(r => ({ ...r }));
+    const newRows = activeVersion.rows.map(r => ({ ...r }));
     const sanitizeRow = (r: ScheduleRow) => {
       if (r.id.startsWith('row-synth-')) return { ...r, id: generateUUID() };
       return r;
     };
 
-    if (draggingIds.length === 1) {
-      newRows = newRows.filter(r => r.id !== draggedId);
-      let dayRows = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
-      let insertIndex: number;
-      if (lastInsertId?.startsWith('day-')) {
-        insertIndex = dayRows.length;
-      } else if (lastInsertId?.startsWith('end-')) {
-        insertIndex = dayRows.length;
-      } else if (lastInsertId && dayRows.some(r => r.id === lastInsertId)) {
-        insertIndex = dayRows.findIndex(r => r.id === lastInsertId);
-        if (insertIndex === -1) insertIndex = dayRows.length;
-      } else {
-        insertIndex = dayRows.length;
-      }
-      const sourceRow = augmentedRows.find(r => r.id === draggedId) || activeVersion.rows.find(r => r.id === draggedId);
-      if (!sourceRow) { setSelectedRowIds(new Set()); return; }
-      const movedRow = { ...sourceRow, shootDay: targetShootDay };
-      dayRows.splice(insertIndex, 0, movedRow);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.shootDay !== targetShootDay), ...dayRows];
-      setSelectedRowIds(new Set([draggedId]));
-    } else {
-      const draggingItems = draggingIds
-        .map(id => augmentedRows.find(r => r.id === id) || activeVersion.rows.find(r => r.id === id))
-        .filter(Boolean) as ScheduleRow[];
-      const dayRowsBefore = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
-      let rawIndex: number;
-      if (lastInsertId?.startsWith('day-')) {
-        rawIndex = dayRowsBefore.length;
-      } else if (lastInsertId?.startsWith('end-')) {
-        rawIndex = dayRowsBefore.length;
-      } else if (lastInsertId && dayRowsBefore.some(r => r.id === lastInsertId)) {
-        rawIndex = dayRowsBefore.findIndex(r => r.id === lastInsertId);
-        if (rawIndex === -1) rawIndex = dayRowsBefore.length;
-      } else {
-        rawIndex = dayRowsBefore.length;
-      }
-      const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
-        const idx = dayRowsBefore.findIndex(r => r.id === id);
-        return idx >= 0 && idx < rawIndex;
-      }).length;
-
-      newRows = newRows.filter(r => !draggingIds.includes(r.id));
-      const dayRows = newRows.filter(r => r.shootDay === targetShootDay).sort((a, b) => a.order - b.order);
-      const newItems = draggingItems.map(item => ({ ...item, shootDay: targetShootDay }));
-      dayRows.splice(insertIndex, 0, ...newItems);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.shootDay !== targetShootDay), ...dayRows];
-      setSelectedRowIds(new Set(draggingIds));
+    if (targetSectionIndex === null) {
+      newRows.filter(r => draggingIds.includes(r.id)).forEach(r => {
+        const idx = newRows.findIndex(nr => nr.id === r.id);
+        if (idx !== -1) newRows[idx] = { ...newRows[idx], shootDay: null, order: 999999 };
+      });
+      newRows.sort((a, b) => {
+        if ((a.shootDay === null) !== (b.shootDay === null)) return a.shootDay === null ? 1 : -1;
+        return a.order - b.order;
+      });
+      newRows.forEach((r, i) => r.order = i);
+      const persistentRows = newRows.map(sanitizeRow);
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
+      return;
     }
 
-    const persistentRows = newRows.map(sanitizeRow);
+    const targetSection = sections.find(s => s.index === targetSectionIndex);
+    if (!targetSection) return;
+
+    const sectionRowIds = new Set(targetSection.rows.map(r => r.id));
+    let insertIndex = targetSection.rows.length;
+    if (lastInsertId && typeof lastInsertId === 'string' && !lastInsertId.startsWith('day-') && !lastInsertId.startsWith('end-') && !lastInsertId.startsWith('boneyard')) {
+      const idx = targetSection.rows.findIndex(r => r.id === lastInsertId);
+      if (idx !== -1) insertIndex = idx;
+    }
+
+    newRows.filter(r => draggingIds.includes(r.id)).forEach(r => {
+      const idx = newRows.findIndex(nr => nr.id === r.id);
+      if (idx !== -1 && !sectionRowIds.has(r.id)) newRows.splice(idx, 1);
+    });
+
+    const firstSectionRow = targetSection.rows[0];
+    const firstIdx = firstSectionRow ? newRows.findIndex(r => r.id === firstSectionRow.id) : newRows.length;
+    const insertAt = firstSectionRow ? firstIdx + insertIndex : newRows.length;
+
+    const draggingItems = draggingIds
+      .map(id => augmentedRows.find(r => r.id === id) || activeVersion.rows.find(r => r.id === id))
+      .filter(Boolean) as ScheduleRow[];
+    const newItems = draggingItems.map(item => ({ ...item, shootDay: 1 }));
+
+    const before = newRows.slice(0, insertAt).filter(r => !draggingIds.includes(r.id));
+    const after = newRows.slice(insertAt).filter(r => !draggingIds.includes(r.id));
+    const combined = [...before, ...newItems, ...after];
+    combined.forEach((r, i) => r.order = i);
+
+    const persistentRows = combined.map(sanitizeRow);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
+    setSelectedRowIds(new Set(draggingIds));
   };
 
   const goPrev = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
@@ -928,6 +954,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
               <button onClick={goPrev} className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
               <h2 className="font-semibold text-sm">{monthName}</h2>
               <button onClick={goNext} className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+              <span className="text-zinc-400">|</span>
+              <span className="text-[10px] font-semibold text-zinc-500">START</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => updateStartDate(e.target.value)}
+                className="text-[10px] font-semibold px-2 py-1 rounded border border-zinc-300 bg-white cursor-pointer"
+              />
             </div>
             <div className="flex items-center gap-3">
               <DropdownMenu
@@ -1014,18 +1048,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                   : firstOfNextMonth
                   ? new Date(nextYear, nextMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })
                   : null;
-                const sd = workingMap.get(day.dateKey) ?? null;
+                const dateSectionIdx = dateSectionMap.get(day.dateKey) ?? null;
+                const chronoDay = dateSectionIdx != null ? chronoDayMap.get(dateSectionIdx) : undefined;
+                const sectionLabel = chronoDay ? `DAY ${chronoDay}` : undefined;
                   return (
                   <DayCell key={day.dateKey}
                     dateKey={day.dateKey} date={day.date}
                     isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
-                    isWorkingDay={sd !== null} shootDay={sd}
-                    status={sd != null ? statusMap.get(sd) : undefined}
-                    chronoDay={sd != null ? chronoDayMap.get(sd) : undefined}
-                    dayCastIds={sd != null ? dayCastIdsMap.get(sd) : undefined}
+                    nonShootStatus={nonShootDateMap.get(day.dateKey)}
+                    sectionIndex={dateSectionIdx ?? undefined}
+                    sectionLabel={sectionLabel}
                     monthSeparator={monthSeparator}
                     activeTool={activeTool}
-                    onDoubleClick={(day) => handleStatusDoubleClick(day)}
+                    onContextMenu={(e, dateKey) => {
+                      setContextMenuDate(dateKey);
+                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', shootDay: null });
+                    }}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
                     displayField={displayField}
@@ -1056,92 +1094,23 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
             ))}
             {activeDragRows.length > 3 && <div className="text-[9px] text-center text-zinc-500">+{activeDragRows.length - 3} more</div>}
           </div>
-        ) : activeDragDay !== null ? (() => {
-          const dragStatus = activeVersion?.dayMeta?.[activeDragDay]?.status;
-          const ghostHeader = dragStatus === 'hold' ? 'bg-red-600 text-white'
-            : dragStatus === 'travel' ? 'bg-purple-600 text-white'
-            : dragStatus === 'holiday' ? 'bg-green-700 text-white'
-            : 'bg-zinc-700 text-white';
-          return (
-          <div className="bg-zinc-50 border border-zinc-300 shadow-xl flex flex-col w-[200px] opacity-90">
-            <div className={`flex items-center justify-between px-2 py-1.5 ${ghostHeader}`}>
-              <span className="text-[10px] font-bold">{activeVersion?.dayMeta?.[activeDragDay]?.date ? new Date(activeVersion.dayMeta[activeDragDay].date + 'T00:00:00').getDate() : activeDragDay}</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                {dragStatus === 'hold' ? 'HOLD' : dragStatus === 'travel' ? 'TRAVEL' : dragStatus === 'holiday' ? 'HOLIDAY' : chronoDayMap.get(activeDragDay) ? `DAY #${chronoDayMap.get(activeDragDay)}` : ''}
-              </span>
-              <span className="w-4" />
-            </div>
-            <div className="flex flex-col gap-0.5 p-1.5">
-              {augmentedRows.filter(r => r.shootDay === activeDragDay).map(r => (
-                <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
-              ))}
-              {augmentedRows.filter(r => r.shootDay === activeDragDay).length === 0 && (
-                <div className="text-[9px] text-zinc-400 text-center py-2">No scenes</div>
-              )}
-            </div>
-          </div>
-          ) })() : null}
+        ) : null}
       </DragOverlay>
 
-      {statusModal !== null && (
-        <Modal open onClose={() => setStatusModal(null)} title={`Day ${statusModal.shootDay}`} width="max-w-sm"
-          footer={
-            <div className="flex items-center justify-between px-6 py-2.5 border-t border-zinc-800">
-              <button type="button"
-                onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY' as any, date: statusModal.dateKey }); setStatusModal(null); }}
-                className="text-xs font-medium text-rose-400 hover:bg-rose-950/40 px-2 py-1 rounded transition-colors"
-              >Remove</button>
-              <button type="button"
-                onClick={() => { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: statusModal.shootDay, date: statusModal.dateKey, status: modalStatus, castIds: modalCastIds || '' }); setStatusModal(null); }}
-                className="px-4 py-1.5 rounded-md text-xs font-bold bg-zinc-800 text-white border border-zinc-700 hover:bg-zinc-700 transition-colors"
-              >Apply</button>
-            </div>
-          }
-        >
-          <div className="p-4 space-y-2">
-            {(['work', 'hold', 'travel', 'holiday'] as const).map(s => (
-              <button key={s} type="button"
-                onClick={() => setModalStatus(s)}
-                className={`w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center gap-2 ${modalStatus === s ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:bg-zinc-900 border border-zinc-800'}`}
-              >
-                <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${modalStatus === s ? 'border-white' : 'border-zinc-600'}`}>
-                  {modalStatus === s && <span className="w-2 h-2 bg-white rounded-full" />}
-                </span>
-                {s === 'work' ? 'Work' : s === 'hold' ? 'Hold' : s === 'travel' ? 'Travel' : 'Holiday'}
-              </button>
-            ))}
-            {(modalStatus === 'hold' || modalStatus === 'travel') && (
-              <div className="pt-1">
-                <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1 font-semibold">Cast Members</div>
-                <EntityDropdown
-                  value={modalCastIds}
-                  onChange={v => setModalCastIds(v)}
-                  items={(project.castMembers || []).map(m => ({ id: m.id, name: m.name }))}
-                  positioning="fixed"
-                  mode="multi"
-                  displayMode="id"
-                  placeholder="e.g. 1, 2, 3"
-                  className="text-xs"
-                  renderItem={(item) => (
-                    <>
-                      <span className="text-zinc-400 shrink-0">{item.id}.</span>
-                      <span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span>
-                    </>
-                  )}
-                />
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
-      {contextMenu && contextMenu.rowId.startsWith('empty-date-') ? (
-        <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} containerRef={calendarGridRef}>
-          <ContextMenuItem onClick={() => { dispatch({ type: 'TOGGLE_WORKING_DAY', date: contextMenu.rowId.replace('empty-date-', '') }); setContextMenu(null); }} icon={<Plus className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
-          <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'hold' }); setContextMenu(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
-          <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'travel' }); setContextMenu(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
-          <ContextMenuItem onClick={() => { const dk = contextMenu.rowId.replace('empty-date-', ''); const m = activeVersion?.dayMeta || {}; const existing = Object.keys(m).map(Number); const sd = existing.length > 0 ? Math.max(...existing) + 1 : 1; dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: sd, date: dk, status: 'holiday' }); setContextMenu(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
+      {contextMenuDate && contextMenu && (
+        <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuDate(null); }}>
+          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'hold'); setContextMenu(null); setContextMenuDate(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
+          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'travel'); setContextMenu(null); setContextMenuDate(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
+          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'holiday'); setContextMenu(null); setContextMenuDate(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
+          {nonShootDateMap.has(contextMenuDate) && (
+            <>
+              <ContextMenuDivider />
+              <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, null); setContextMenu(null); setContextMenuDate(null); }} icon={<X className="w-3.5 h-3.5" />}>Clear Status</ContextMenuItem>
+            </>
+          )}
         </ContextMenu>
-      ) : contextMenu ? (
+      )}
+      {contextMenu && !contextMenuDate && (
         <StripboardContextMenuContent
           contextMenu={contextMenu}
           setContextMenu={setContextMenu}
@@ -1158,20 +1127,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           onOpenScene={onOpenScene}
           onOpenSceneInPopout={onOpenSceneInPopout}
           shiftHeld={shiftHeld}
-          extraItems={contextMenu.rowId.startsWith('empty-') ? (
-            <>
-              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'work' }); setContextMenu(null); } }} icon={<Briefcase className="w-3.5 h-3.5" />}>Work</ContextMenuItem>
-              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'hold' }); setContextMenu(null); } }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
-              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'travel' }); setContextMenu(null); } }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
-              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) { dispatch({ type: 'UPDATE_DAY_META' as any, shootDay: contextMenu.shootDay, date: dk, status: 'holiday' }); setContextMenu(null); } }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
-              <ContextMenuDivider />
-              <ContextMenuItem onClick={() => { const dk = (activeVersion?.dayMeta[contextMenu.shootDay!] || {}).date; if (dk) dispatch({ type: 'TOGGLE_WORKING_DAY', date: dk }); setContextMenu(null); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>
-                Remove Working Day
-              </ContextMenuItem>
-            </>
-          ) : undefined}
         />
-      ) : null}
+      )}
       {colorPicker && (
         <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
           footer={

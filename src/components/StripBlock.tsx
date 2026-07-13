@@ -42,7 +42,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   if (row.type === 'DAYBREAK') {
     return (
       <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: '#ffffff', color: '#18181b' }}>
-        <div className="flex-1 flex items-center justify-center px-3">{row.daybreakLabel || 'End of Daybreak'}</div>
+        <div className="flex-1 flex items-center justify-center px-3">{row.daybreakLabel || 'End of Day'}</div>
       </div>
     );
   }
@@ -166,9 +166,8 @@ const dayBlockPropsEqual = (a: any, b: any) => {
   return true;
 };
 
-export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
-  const isStatusDay = !!(meta?.status && meta.status !== 'work');
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
   const project = state.present;
@@ -176,12 +175,12 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
 
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
-    data: { type: 'DAY_DROPZONE', dayInt }
+    data: { type: 'STRIP_DROPZONE', dayInt }
   });
 
   const { setNodeRef: setFooterRef } = useDroppable({
     id: `end-${dayInt}`,
-    data: { type: 'DAY_END', dayInt }
+    data: { type: 'STRIP_END', dayInt }
   });
 
   const updateMeta = (updates: Partial<ShootDayMeta>) => {
@@ -229,7 +228,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         const sectionEndTime = callTime;
         const row: any = {
           ...r,
-          daybreakLabel: `End of Daybreak ${daybreakCounter}`,
+          daybreakLabel: `End of Day ${daybreakCounter}`,
           daybreakDate: nextDate,
           computedCallTime: callTime,
           computedElapsed: runningElapsed,
@@ -482,55 +481,6 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     );
   };
 
-  if (isStatusDay) {
-    const statusLabel = meta?.status === 'hold' ? 'HOLD' : meta?.status === 'travel' ? 'TRAVEL' : 'HOLIDAY';
-    if (ribbonActive) {
-      return (
-        <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black border-b-dashed border-b-zinc-300">
-          <div style={{ background: dhColors.background, color: dhColors.color }}>
-            {renderRibbonHeader(statusLabel)}
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black border-b-dashed border-b-zinc-300">
-        <div style={{ background: dhColors.background, color: dhColors.color }}>
-          <table className="schedule-table">
-            <tbody>
-              <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
-                onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-                style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
-                <td className="col-sc" style={{textAlign: 'left'}}>
-                  <span className="font-bold" style={{paddingLeft: 4}}>{statusLabel}</span>
-                </td>
-                <td className="col-call">
-                  {violations.length > 0 && (
-                    <ViolationTooltip violations={violations}>
-                      <span className="inline-flex items-center gap-0.5 text-red-400">
-                        <Flag className="w-3.5 h-3.5 fill-red-400" />
-                        <span className="text-[10px] font-bold">{violations.length}</span>
-                      </span>
-                    </ViolationTooltip>
-                  )}
-                  <span style={{visibility: 'hidden'}}>CALL</span>
-                </td>
-                <td className="col-dur" />
-                <td className="col-ie" />
-                <td className="col-set text-center font-semibold">
-                  {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
-                </td>
-                <td className="col-dn" />
-                <td className="col-cast" />
-                <td className="col-pgs" />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
@@ -539,7 +489,7 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         {ribbonActive ? renderRibbonHeader() : (
           <table className="schedule-table">
             <tbody>
-              <tr className="day-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
+              <tr className="strip-header-row" data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
                 onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
                 style={{background: selectedIds.has(`empty-${dayInt}`) ? '#27272a' : undefined, outline: 'none'}}>
                 <td className="col-sc" style={{textAlign: 'left'}}>
@@ -555,7 +505,16 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
                     </ViolationTooltip>
                   )}
                   <button 
-                    onClick={() => { dispatch({ type: 'UNSCHEDULE_DAY', day: dayInt }); }}
+                    onClick={() => { 
+                      if (!activeVersion) return;
+                      dispatch({
+                        type: 'UPDATE_VERSION',
+                        payload: {
+                          id: activeVersion.id,
+                          rows: activeVersion.rows.map(r => r.shootDay === dayInt ? { ...r, shootDay: null as any, order: 999999 } : r)
+                        }
+                      });
+                    }}
                     className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors ml-1"
                     title="Remove all scenes from this day"
                   >

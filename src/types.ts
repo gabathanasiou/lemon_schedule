@@ -64,13 +64,12 @@ export interface ShootDayMeta {
   unitCall: string; // HH:mm
   date: string; // e.g. "SATURDAY 6TH JUNE 2026"
   order?: number;
-  status?: 'work' | 'hold' | 'travel' | 'holiday';
-  castIds?: string;
 }
 
 export interface NonShootDate {
   date: string; // YYYY-MM-DD
   status: 'hold' | 'travel' | 'holiday';
+  castIds?: string;
 }
 
 export interface ScheduleVersion {

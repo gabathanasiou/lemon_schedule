@@ -104,7 +104,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
       return {
         sectionIndex: s.index,
         isoDate: date,
-        label: sectionLabelMap.get(s.index) || `Ch. ${i + 1}`,
+        label: sectionLabelMap.get(s.index) || `Day ${i + 1}`,
         isShooting: s.rows.some(r => r.type === 'SCENE'),
         status: undefined,
       };
@@ -155,7 +155,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         if (isCast) {
           const nd = nonShootDates.find(n => n.date === d.isoDate);
           if (nd?.status === 'travel') {
-            const tIds = (state.present.versions.find(v => v.id === state.present.activeVersionId)?.dayMeta?.[1]?.castIds || '').split(',').map(x => x.trim());
+            const tIds = (nd.castIds || '').split(',').map(x => x.trim());
             if (tIds.includes(elementId)) return 'T';
           }
         }

@@ -62,7 +62,7 @@ export function useDaybreakSections() {
   const sectionLabelMap = useMemo(() => {
     const m = new Map<number, string>();
     sections.forEach((s, i) => {
-      m.set(s.index, `Ch. ${i + 1}`);
+      m.set(s.index, `Day ${i + 1}`);
     });
     return m;
   }, [sections]);
@@ -84,7 +84,7 @@ export function useDaybreakSections() {
     if (!d) return `Section ${sectionIndex + 1}`;
     const dt = new Date(d + 'T00:00:00');
     if (isNaN(dt.getTime())) return `Section ${sectionIndex + 1}`;
-    return `Ch. ${sectionIndex + 1} (${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+    return `Day ${sectionIndex + 1} (${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
   };
 
   return {

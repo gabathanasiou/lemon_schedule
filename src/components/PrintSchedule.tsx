@@ -182,20 +182,6 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
     return { ...r, computedCallTime: callTime, computedElapsed: runningElapsed };
   });
 
-  const isStatusDay = meta?.status && meta.status !== 'work';
-
-  if (isStatusDay && rows.length === 0) {
-    return (
-      <div className="print-day" style={{borderBottom: '1pt dashed #a1a1aa'}}>
-        <div className="print-day-header">
-          <span className="print-day-number">{meta.status === 'hold' ? 'HOLD' : meta.status === 'travel' ? 'TRAVEL' : 'HOLIDAY'}</span>
-          {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
-          <span className="print-day-call" style={{visibility: 'hidden'}}>CALL 08:00</span>
-        </div>
-      </div>
-    );
-  }
-
   const rawCells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
   const cw = colWidths ?? [];
   const { keep, filteredWidths } = useMemo(() => rawCells ? filterIndices(rawCells, cw, showTimes, showDurations) : { keep: [] as boolean[], filteredWidths: [] as number[] }, [rawCells, cw, showTimes, showDurations]);
@@ -455,7 +441,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                                 overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word',
                                 fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                               }}>
-                                <span>{(r as any).daybreakLabel || 'End of Daybreak'}</span>
+                                <span>{(r as any).daybreakLabel || 'End of Day'}</span>
                                 {showStats && (
                                   <span style={{ fontSize: '7pt', opacity: 0.75 }}>
                                     {formatPageCount(sPages)} pgs · {formatDuration(sShoot)} shoot{sBreak > 0 ? <span> + {formatDuration(sBreak)} break</span> : null}
@@ -521,7 +507,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         {showTimes && <td className="print-col-call">{sEndTime || (r as any).computedCallTime}</td>}
                         {showDurations && <td className="print-col-dur">{sTotal > 0 ? formatDuration(sTotal) : ''}</td>}
                         <td className="print-col-ie" />
-                        <td className="print-col-set" style={{textAlign: 'center'}}>{(r as any).daybreakLabel || 'End of Daybreak'}</td>
+                        <td className="print-col-set" style={{textAlign: 'center'}}>{(r as any).daybreakLabel || 'End of Day'}</td>
                         <td className="print-col-dn" />
                         <td className="print-col-cast" />
                         <td className="print-col-pgs" />

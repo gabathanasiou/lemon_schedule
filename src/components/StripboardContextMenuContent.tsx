@@ -86,7 +86,7 @@ export const StripboardContextMenuContent: React.FC<{
               )}
               <ContextMenuDivider />
               {row?.shootDay != null && (
-                <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+                <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
               )}
             </>
           )}
@@ -106,7 +106,7 @@ export const StripboardContextMenuContent: React.FC<{
               )}
               <ContextMenuDivider />
               {row?.type !== 'DAYBREAK' && row?.shootDay != null && (
-                <ContextMenuItem onClick={() => { handleContextMenuAction('unschedule'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+                <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
               )}
               <ContextMenuItem onClick={() => { handleContextMenuAction('delete'); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
             </>
