@@ -46,7 +46,7 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } f
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink } from 'lucide-react';
+import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
@@ -278,6 +278,7 @@ function AppContent() {
   const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
   const [subHeaderTargets, setSubHeaderTargets] = useState<Record<string, HTMLDivElement | null>>({});
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
+  const [reportSidebarCollapsed, setReportSidebarCollapsed] = useState<Record<string, boolean>>({});
   useEffect(() => {
     const onResize = () => setCompactTabs(window.innerWidth < 900);
     window.addEventListener('resize', onResize);
@@ -1043,13 +1044,31 @@ function AppContent() {
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Day Out of Days" onClose={() => closeSubPopout('reports', 'doods')} />
             <div className="flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800">
               <span className="px-3 py-1.5 text-xs font-semibold rounded-b-md text-white bg-zinc-950">Day Out of Days</span>
-              <div ref={el => { if (el && subHeaderTargets['sub_reports_doods'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_doods: el })); }} className="flex items-center gap-2" />
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setPrintDialogCategory(reportsCategory); setShowDoodDialog(true); }} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                  <Printer className="w-3.5 h-3.5" />
+                  Print
+                </button>
+                <div ref={el => { if (el && subHeaderTargets['sub_reports_doods'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_doods: el })); }} className="flex items-center gap-2" />
+              </div>
             </div>
             <div className="flex-1 min-h-0 flex">
+              {reportSidebarCollapsed['doods'] ? (
+                <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
+                  <button onClick={() => setReportSidebarCollapsed(prev => ({ ...prev, doods: false }))} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Expand sidebar">
+                    <PanelLeftOpen className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
               <div className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
                 <div className="p-3">
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
-                  <div className="space-y-0.5 mt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
+                    <button onClick={() => setReportSidebarCollapsed(prev => ({ ...prev, doods: true }))} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Collapse sidebar">
+                      <PanelLeftClose className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-0.5">
                     {allReportCategoryKeys.map(({ key, isCustom }) => {
                       const Icon = isCustom
                         ? getCustomIcon((project.customCategories || []).find(c => c.key === key)?.icon || 'Tag')
@@ -1072,6 +1091,7 @@ function AppContent() {
                   </div>
                 </div>
               </div>
+              )}
               <div className="flex-1 flex flex-col min-h-0 min-w-0">
                 <DoodsTab selectedCategory={reportsCategory} />
               </div>
@@ -1085,13 +1105,31 @@ function AppContent() {
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Breakdown" onClose={() => closeSubPopout('reports', 'elementBreakdown')} />
             <div className="flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800">
               <span className="px-3 py-1.5 text-xs font-semibold rounded-b-md text-white bg-zinc-950">Element Breakdown</span>
-              <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="flex items-center gap-2" />
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setPrintDialogCategory(reportsCategory); setShowElementBreakdownDialog(true); }} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                  <Printer className="w-3.5 h-3.5" />
+                  Print
+                </button>
+                <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="flex items-center gap-2" />
+              </div>
             </div>
             <div className="flex-1 min-h-0 flex">
-              <div className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
-                <div className="p-3">
-                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
-                  <div className="space-y-0.5 mt-2">
+              {reportSidebarCollapsed['elementBreakdown'] ? (
+                <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">
+                  <button onClick={() => setReportSidebarCollapsed(prev => ({ ...prev, elementBreakdown: false }))} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Expand sidebar">
+                    <PanelLeftOpen className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1">Categories</span>
+                      <button onClick={() => setReportSidebarCollapsed(prev => ({ ...prev, elementBreakdown: true }))} className="text-zinc-500 hover:text-zinc-300 transition-colors" title="Collapse sidebar">
+                        <PanelLeftClose className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-0.5">
                     {allReportCategoryKeys.map(({ key, isCustom }) => {
                       const Icon = isCustom
                         ? getCustomIcon((project.customCategories || []).find(c => c.key === key)?.icon || 'Tag')
@@ -1114,6 +1152,7 @@ function AppContent() {
                   </div>
                 </div>
               </div>
+              )}
               <div className="flex-1 flex flex-col min-h-0 min-w-0">
                 <ElementBreakdownView selectedCategory={reportsCategory} />
               </div>
