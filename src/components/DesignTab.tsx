@@ -3,7 +3,7 @@ import { useProject } from '../store';
 import MiniTab from './MiniTab';
 import RibbonTab from './RibbonTab';
 import { ColorsTab } from './ColorsTab';
-import PopoutWindow, { PopoutPlaceholder } from './PopoutWindow';
+import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './PopoutWindow';
 import VersionToolbar from './VersionToolbar';
 
 const SUB_TABS = [
@@ -34,8 +34,7 @@ export default function DesignTab({ subTab, onSubTabChange }: DesignTabProps) {
         if (w && !w.closed) w.close();
         popoutSubWindowsRef.current.delete(subTabId);
       } else {
-        const left = Math.round((screen.width - 1200) / 2);
-        const top = Math.round((screen.height - 800) / 2);
+        const { left, top } = cascadePosition();
         const w = window.open('', `popout_sub_${subTabId}`, `width=1200,height=800,left=${left},top=${top}`);
         if (!w) return prev;
         popoutSubWindowsRef.current.set(subTabId, w);

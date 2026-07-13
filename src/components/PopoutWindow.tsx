@@ -10,6 +10,17 @@ interface PopoutWindowProps {
   children: ReactNode;
 }
 
+let _cascadeIndex = 0;
+
+export function cascadePosition(width = 1200, height = 800) {
+  const offset = (_cascadeIndex % 10) * 30;
+  _cascadeIndex++;
+  return {
+    left: Math.round((screen.width - width) / 2) + offset,
+    top: Math.round((screen.height - height) / 2) + offset,
+  };
+}
+
 export default function PopoutWindow({ title, win, onClose, children }: PopoutWindowProps) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const { state, dispatch } = useProject();
@@ -55,7 +66,6 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
     const root = win.document.getElementById('popout-root')!;
     root.style.height = '100vh';
     root.style.width = '100vw';
-    root.style.overflow = 'hidden';
     setContainer(root);
 
     const handleUnload = () => onClose();

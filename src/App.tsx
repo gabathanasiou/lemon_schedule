@@ -37,7 +37,7 @@ import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import { Download, Printer, Copy, Trash2, Plus, Pencil, Check, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink } from 'lucide-react';
-import PopoutWindow, { PopoutPlaceholder } from './components/PopoutWindow';
+import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
@@ -74,8 +74,7 @@ function AppContent() {
         if (w && !w.closed) w.close();
         popoutWindowsRef.current.delete(tabId);
       } else {
-        const left = Math.round((screen.width - 1200) / 2);
-        const top = Math.round((screen.height - 800) / 2);
+        const { left, top } = cascadePosition();
         const w = window.open('', `popout_${tabId}`, `width=1200,height=800,left=${left},top=${top}`);
         if (!w) return prev;
         popoutWindowsRef.current.set(tabId, w);
