@@ -603,10 +603,12 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           const ok = await dialog.confirm({ title: 'Delete Design?', message: 'This can be restored from Trash.', danger: true });
           if (ok) dispatch({ type: 'DELETE_RIBBON_DESIGN', payload: id });
         }}
-        onCreate={async () => {
-          await promptSaveDefault();
-          const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' });
-          if (n) dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } });
+        onCreate={() => {
+          void (async () => {
+            await promptSaveDefault();
+            const n = await dialog.prompt({ title: 'New Design', defaultValue: `Design ${project.ribbonDesigns.length + 1}`, placeholder: 'Design name' });
+            if (n) dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: n.trim() } });
+          })();
         }}
         onImport={() => {
           const input = document.createElement('input');

@@ -1,10 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useProject, useIsCloudProject } from '../store';
 import { SaveIndicator } from './SaveIndicator';
-import { Undo2, Redo2, ChevronDown, Pencil, Check, X, Copy, Trash2, Plus } from 'lucide-react';
-import DropdownMenu from './DropdownMenu';
-import DropdownItem from './DropdownItem';
-import DropdownDivider from './DropdownDivider';
+import { Undo2, Redo2, ChevronDown } from 'lucide-react';
+import { ItemManagerDropdown } from './DropdownMenu';
 import { generateUUID } from '../lib/utils';
 
 interface VersionToolbarProps {
@@ -21,14 +19,8 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
   const [showVersionsMenu, setShowVersionsMenu] = useState(false);
-  const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
 
   const cloudBg = isCloudProject ? 'bg-blue-950' : 'bg-zinc-950';
-  const cloudBorder = isCloudProject ? 'border-blue-800' : 'border-zinc-800';
-  const cloudHover = isCloudProject ? 'hover:bg-blue-800' : 'hover:bg-zinc-800';
-  const cloudBtnBg = isCloudProject ? 'bg-blue-900' : 'bg-zinc-900';
-  const cloudBtnHover = isCloudProject ? 'hover:bg-blue-800' : 'hover:bg-zinc-800';
 
   const handleRenameProject = useCallback((value: string) => {
     onProjectTitleChange(value);
@@ -76,11 +68,34 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
           </div>
 
           <div className="border border-white/10 rounded bg-white/5">
-          <DropdownMenu
+          <ItemManagerDropdown
             open={showVersionsMenu}
-            onOpenChange={(o) => { if (!o) setEditingVersionId(null); setShowVersionsMenu(o); }}
-            width="w-80"
+            onClose={(open) => setShowVersionsMenu(open)}
+            items={project.versions.map(v => ({ id: v.id, name: v.name }))}
+            activeId={project.activeVersionId}
+            closeOnSelect
+            onSelect={(id) => dispatch({ type: 'SET_ACTIVE_VERSION', payload: id })}
+            onRename={(id, name) => dispatch({ type: 'RENAME_VERSION', payload: { id, name } })}
+            onDuplicate={(id) => {
+              const v = project.versions.find(x => x.id === id);
+              if (!v) return;
+              const name = `${v.name} Copy`;
+              const newId = generateUUID();
+              dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: id, id: newId } });
+              return newId;
+            }}
+            onDelete={(id) => dispatch({ type: 'DELETE_VERSION', payload: id })}
+            onCreate={() => {
+              const name = `V${String(project.versions.length + 1).padStart(2, '0')}`;
+              const newId = generateUUID();
+              dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null, id: newId } });
+              return newId;
+            }}
+            readOnly={false}
             theme={isCloudProject ? 'blue' : 'dark'}
+            label="Version"
+            header="SCHEDULE VERSIONS"
+            itemLabel="Version"
             trigger={
               <button
                 className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white whitespace-nowrap ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
@@ -89,72 +104,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
             }
-          >
-            <div className={`px-3 py-2 border-b font-bold text-[11px] tracking-wider uppercase ${isCloudProject ? 'border-white/10 text-white' : 'border-zinc-800 text-zinc-400'}`}>
-              Schedule Versions
-            </div>
-            <div className="max-h-60 overflow-y-auto py-1 space-y-0.5">
-              {project.versions.map(v => {
-                const isActive = v.id === project.activeVersionId;
-                const isEditing = v.id === editingVersionId;
-                return (
-                  <div
-                    key={v.id}
-                    className={`flex items-center justify-between px-3 py-2 rounded transition-colors group ${isActive ? (isCloudProject ? 'bg-white/15 text-white font-semibold' : 'bg-zinc-800 text-white font-semibold') : (isCloudProject ? 'text-white/70 hover:bg-white/10' : 'text-zinc-300 hover:bg-zinc-800')}`}
-                  >
-                    {isEditing ? (
-                      <div className="flex items-center space-x-1 flex-1 mr-2" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={e => setEditingName(e.target.value)}
-                          className="bg-zinc-800 border border-zinc-700 text-white px-2 py-0.5 rounded outline-none text-xs flex-1"
-                          autoFocus
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              if (editingName.trim()) dispatch({ type: 'RENAME_VERSION', payload: { id: v.id, name: editingName.trim() } });
-                              setEditingVersionId(null);
-                            } else if (e.key === 'Escape') {
-                              setEditingVersionId(null);
-                            }
-                          }}
-                        />
-                        <button onClick={(e) => { e.stopPropagation(); if (editingName.trim()) { dispatch({ type: 'RENAME_VERSION', payload: { id: v.id, name: editingName.trim() } }); } setEditingVersionId(null); }} className="p-1 hover:bg-zinc-700 rounded text-emerald-400">
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingVersionId(null); }} className="p-1 hover:bg-zinc-700 rounded text-rose-400">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <span onClick={() => { dispatch({ type: 'SET_ACTIVE_VERSION', payload: v.id }); setShowVersionsMenu(false); }} className="truncate flex-1 cursor-pointer" title={v.name}>{v.name}</span>
-                    )}
-                    {!isEditing && (
-                      <div className="flex items-center space-x-1 ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button onClick={() => { setEditingVersionId(v.id); setEditingName(v.name); }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Rename version">
-                          <Pencil className="w-3.5 h-3.5 text-zinc-400" />
-                        </button>
-                        <button onClick={() => { const name = `${v.name} Copy`; const newId = generateUUID(); dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: v.id, id: newId } }); setEditingVersionId(newId); setEditingName(name); }} className="p-1 hover:bg-zinc-800 rounded hover:text-white transition-colors" title="Duplicate version">
-                          <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                        </button>
-                        <button disabled={project.versions.length <= 1} className={`p-1 rounded transition-colors ${project.versions.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-rose-950/40 hover:text-rose-400'}`} title="Delete version">
-                          <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="border-t border-zinc-800 mt-1 pt-1.5 flex flex-col space-y-1">
-              <DropdownItem onClick={() => { const name = `${version?.name || 'Version'} Copy`; const newId = generateUUID(); dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: project.activeVersionId, id: newId } }); setEditingVersionId(newId); setEditingName(name); setShowVersionsMenu(false); }} icon={<Copy className="w-3.5 h-3.5" />}>
-                Duplicate Current
-              </DropdownItem>
-              <DropdownItem onClick={() => { const name = `V${String(project.versions.length + 1).padStart(2, '0')}`; const newId = generateUUID(); dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null, id: newId } }); setEditingVersionId(newId); setEditingName(name); setShowVersionsMenu(false); }} icon={<Plus className="w-3.5 h-3.5" />}>
-                Create Blank Version
-              </DropdownItem>
-            </div>
-          </DropdownMenu>
+          />
           </div>
         </div>
       </div>
