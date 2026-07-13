@@ -273,8 +273,30 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         e.preventDefault();
         if (!activeVersion) return;
         const ids = Array.from(selectedRowIds);
-        const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
-        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        const allInBoneyard = ids.every(id => {
+          const r = activeVersion.rows.find(rr => rr.id === id);
+          return r && r.shootDay == null;
+        });
+        if (allInBoneyard && ids.some(id => {
+          const r = activeVersion.rows.find(rr => rr.id === id);
+          return r && r.type !== 'DAYBREAK';
+        })) {
+          const containerRows = activeVersion.rows.filter(r => r.shootDay != null && r.shootDay !== -1);
+          const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
+          const newRows = activeVersion.rows.map((r, i) => {
+            if (ids.includes(r.id) && r.type !== 'DAYBREAK') {
+              return { ...r, shootDay: 1, order: maxOrder + 1 + ids.indexOf(r.id) };
+            }
+            if (ids.includes(r.id) && r.type === 'DAYBREAK') {
+              return null;
+            }
+            return r;
+          }).filter(Boolean) as ScheduleRow[];
+          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        } else {
+          const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        }
         selectNextAfterRemove(new Set(ids as string[]));
       }
       if (e.key === 'Enter' && selectedRowIds.size === 1 && !textEditingEnabled) {
@@ -876,7 +898,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
-      newRows = newRows.filter(r => r.id !== rowId);
+      if (row.shootDay == null && row.type !== 'DAYBREAK') {
+        const containerRows = newRows.filter(r => r.shootDay != null && r.shootDay !== -1);
+        const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
+        newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: 1, order: maxOrder + 1 } : r);
+      } else {
+        newRows = newRows.filter(r => r.id !== rowId);
+      }
     } else if (action === 'unschedule' && row.type !== 'DAYBREAK') {
       newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
     }

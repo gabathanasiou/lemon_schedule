@@ -253,7 +253,13 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
-      newRows = newRows.filter(r => r.id !== rowId);
+      if (row.shootDay == null && row.type !== 'DAYBREAK') {
+        const containerRows = newRows.filter(r => r.shootDay != null && r.shootDay !== -1);
+        const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
+        newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: 1, order: maxOrder + 1 } : r);
+      } else {
+        newRows = newRows.filter(r => r.id !== rowId);
+      }
     } else if (action === 'unschedule' && row.type !== 'DAYBREAK') {
       newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
     }
