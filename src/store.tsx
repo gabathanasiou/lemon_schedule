@@ -1653,3 +1653,8 @@ export function useProject() {
   if (!context) throw new Error("useProject must be used within ProjectProvider");
   return context;
 }
+
+export function useIsCloudProject(): boolean {
+  const { projectList, currentProjectId } = useProject();
+  return !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
+}

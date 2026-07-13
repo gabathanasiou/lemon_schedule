@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useProject, PROTECTED_CATEGORIES } from '../store';
+import { useProject, PROTECTED_CATEGORIES, useIsCloudProject } from '../store';
 import { ProjectElement, CustomCategoryDef } from '../types';
 import { getElementsFromScenes } from '../store';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -62,6 +62,7 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
 
 export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
   const { state, dispatch } = useProject();
+  const isCloud = useIsCloudProject();
   const dialog = useDialog();
   const project = state.present;
 
@@ -463,7 +464,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           <Undo2 className="w-3 h-3" /> Revert
         </button>
       )}
-      <button onClick={doSave} className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800' : 'bg-zinc-100 text-zinc-400'}`}>
+      <button onClick={doSave} className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${hasChanges ? (isCloud ? 'bg-blue-950 text-white hover:bg-blue-900' : 'bg-zinc-900 text-white hover:bg-zinc-800') : 'bg-zinc-100 text-zinc-400'}`}>
         <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
       </button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />

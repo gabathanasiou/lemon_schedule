@@ -33,7 +33,7 @@ A reusable sub-tab bar used in Breakdown, Schedule, and Reports tabs. It's the *
 **Inverted padding pattern** (mirrors top-level tabs):
 - Bar: `pt-2 pb-2` — breathing room for right-side controls
 - Tab container: `self-start items-start -mt-2` — negates top padding so tabs touch the top edge
-- Active tab: `bg-zinc-950 text-white rounded-b-md` — dark, merges with app header above
+- Active tab: `bg-zinc-950 text-white rounded-b-md` — dark, merges with app header above. When project is a cloud/Drive project (blue header), switches to `bg-blue-950` automatically via `useIsCloudProject()` hook.
 - Inactive tab: theme-dependent hover highlight
 - Right controls: centered vertically via parent's `items-center`
 
@@ -92,6 +92,28 @@ When a child component rendered below a MiniTab bar needs to place toolbar contr
 **Components using this pattern:** `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
 
 **Why:** When `headerTarget` is null (component used standalone), the toolbar renders inline. When portaled, it sits in the MiniTab bar, avoiding a redundant second toolbar below.
+
+### Cloud Project Coloring (MiniTab & Portaled Controls)
+
+When the active project is a Google Drive cloud project, the app header switches to `bg-blue-950` (from `bg-zinc-950`). All `theme="light"` MiniTab-related elements that visually attach to the header must follow suit:
+
+| Element | Normal (zinc) | Cloud (blue) |
+|---|---|---|
+| MiniTab active tab overlay | `bg-zinc-950` | `bg-blue-950` |
+| Primary action buttons in header (`+New`, `+Add Scene`, `Save`) | `bg-zinc-900 hover:bg-zinc-800` | `bg-blue-950 hover:bg-blue-900` |
+
+**How:** Import `useIsCloudProject` from `'../store'` and derive the button class:
+```tsx
+import { useIsCloudProject } from '../store';
+const isCloud = useIsCloudProject();
+
+<button className={isCloud
+  ? "bg-blue-950 text-white hover:bg-blue-900 ..."
+  : "bg-zinc-900 text-white hover:bg-zinc-800 ..."
+}>+ Add</button>
+```
+
+This only applies to `theme="light"` MiniTabs. `theme="dark"` MiniTabs and controls on dark pages are unaffected.
 
 ## UI Component Library (`src/components/`)
 
@@ -292,7 +314,8 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - `RulesTab.tsx` – grouped rule list with search, type filter bar, collapse/expand by cast group
 
 ### Store (`src/store.tsx`)
-- `useProject()` hook returns `{ state, dispatch, currentProjectId }`.
+- `useProject()` hook returns `{ state, dispatch, currentProjectId, projectList, readOnly, ... }`.
+- `useIsCloudProject()` hook returns `boolean` — true when the current project has a `driveFileId` (Google Drive/cloud). Used by MiniTab and portaled header controls to switch from `bg-zinc-950` / `bg-zinc-900` to `bg-blue-950` / `bg-blue-900` or to `bg-blue-900` (matching the blue app header).
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
 - Actions: `UPDATE_PROJECT`, `NEW_VERSION`, `DELETE_VERSION`, `RENAME_VERSION`, `SET_ACTIVE_VERSION`, `ADD_SCENE`, `UPDATE_SCENE`, `DELETE_SCENE`, `UNDO`, `REDO`, etc.
 - **Batching:** For bulk operations that dispatch many actions (import, paste), wrap in `BATCH_START` / `BATCH_COMMIT` to make the entire operation one undoable unit:

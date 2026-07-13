@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
 import { ChevronLeft, ChevronRight, Plus, Copy, Trash2 } from 'lucide-react';
 import { EntityDropdown } from './EntityDropdown';
@@ -25,6 +25,7 @@ let persistedIndex = 0;
 
 export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSchedule }: { initialIndex?: number; onIndexChange?: (idx: number) => void; headerTarget?: HTMLElement | null; onOpenSchedule?: (sceneId: string) => void }) {
   const { state, dispatch } = useProject();
+  const isCloud = useIsCloudProject();
   const project = state.present;
   const scenes = project.scenes;
   const breakdownElements = project.breakdownElements || {};
@@ -315,7 +316,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
       <span className="text-[11px] text-zinc-500">of {scenes.length}</span>
       <button onClick={() => goTo(index + 1)} disabled={index >= scenes.length - 1} className="p-1 rounded hover:bg-zinc-100 transition-colors disabled:opacity-30"><ChevronRight className="w-4 h-4 text-zinc-500" /></button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
-      <button onClick={createNewScene} className="bg-zinc-900 text-white px-2.5 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors flex items-center gap-1">
+      <button onClick={createNewScene} className={isCloud ? "bg-blue-950 text-white px-2.5 py-1 rounded text-[11px] font-semibold hover:bg-blue-900 transition-colors flex items-center gap-1" : "bg-zinc-900 text-white px-2.5 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors flex items-center gap-1"}>
         <Plus className="w-3 h-3" /> New
       </button>
       <button onClick={duplicateScene} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors flex items-center gap-1">

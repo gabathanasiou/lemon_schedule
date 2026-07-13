@@ -11,7 +11,7 @@ import DataEditor, {
   CompactSelection,
 } from '@glideapps/glide-data-grid';
 import '@glideapps/glide-data-grid/dist/index.css';
-import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
+import { useProject, DEFAULT_CATEGORY_LABELS, useIsCloudProject } from '../store';
 import { Scene } from '../types';
 import { generateUUID, formatPageCount, parsePageCount } from '../lib/utils';
 import {
@@ -79,6 +79,7 @@ export function GlideBreakdownTab({
   headerTarget?: HTMLElement | null;
 }) {
   const { state, dispatch, readOnly } = useProject();
+  const isCloud = useIsCloudProject();
   const project = state.present;
   const scenes = project.scenes;
 
@@ -774,7 +775,7 @@ export function GlideBreakdownTab({
     <div className="flex items-center justify-end gap-1">
       <button
         onClick={addScene}
-        className="bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors"
+        className={isCloud ? "bg-blue-950 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-blue-900 transition-colors" : "bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors"}
       >
         + Add Scene
       </button>

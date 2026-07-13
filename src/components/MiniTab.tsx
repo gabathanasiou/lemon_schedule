@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useIsCloudProject } from '../store';
 
 interface MiniTabItem {
   id: string;
@@ -28,6 +29,8 @@ const THEME = {
 
 export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme = 'light' }: MiniTabProps) {
   const t = THEME[theme];
+  const isCloud = useIsCloudProject();
+  const activeBg = theme === 'light' && isCloud ? 'bg-blue-950' : 'bg-zinc-950';
   const containerRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({ opacity: 0 });
@@ -78,7 +81,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
         )}
         {/* Active overlay */}
         <span
-          className={`absolute -top-2 -bottom-0 bg-zinc-950 rounded-b-md pointer-events-none ${theme === 'dark' ? 'border-l border-r border-zinc-600' : ''}`}
+          className={`absolute -top-2 -bottom-0 ${activeBg} rounded-b-md pointer-events-none ${theme === 'dark' ? 'border-l border-r border-zinc-600' : ''}`}
           style={{ ...overlayStyle, transition: 'none' }}
         />
         {tabs.map(tab => {

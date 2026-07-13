@@ -75,6 +75,13 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('Untitled Project');
   const [newProjectCloud, setNewProjectCloud] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showNewProjectModal && nameInputRef.current) {
+      nameInputRef.current.select();
+    }
+  }, [showNewProjectModal]);
 
   useEffect(() => {
     if (auth.isSignedIn) {
@@ -405,8 +412,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         {showNewProjectModal && (
           <div className="absolute inset-0 z-10 bg-zinc-900/95 flex items-center justify-center">
             <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-5 w-64 space-y-3">
-              <h3 className="text-sm font-bold text-white">Name the Project</h3>
+              <h3 className="text-sm font-bold text-white">{newProjectCloud ? "New Cloud Project" : "New Project"}</h3>
               <input
+                ref={nameInputRef}
                 value={newProjectName}
                 onChange={e => setNewProjectName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleCreateProject(); }}
