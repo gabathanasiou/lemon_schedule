@@ -4,9 +4,6 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useProject } from '../store';
 import { addMinutesToTime, formatDuration, formatPageCount, formatDateLong } from '../lib/utils';
 import { SortableRow } from './SortableRow';
-import { CellInput } from './CellInput';
-import { ViolationTooltip } from './ViolationTooltip';
-import { Trash2, Flag } from 'lucide-react';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getFallbackStripColors, computeMergeGroups, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
@@ -169,7 +166,7 @@ const dayBlockPropsEqual = (a: any, b: any) => {
 export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
-  const { state, dispatch } = useProject();
+  const { state } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -182,20 +179,6 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     id: `end-${dayInt}`,
     data: { type: 'STRIP_END', dayInt }
   });
-
-  const updateMeta = (updates: Partial<ShootDayMeta>) => {
-    if (!activeVersion) return;
-    dispatch({
-      type: 'UPDATE_VERSION',
-      payload: {
-        id: activeVersion.id,
-        dayMeta: {
-          ...activeVersion.dayMeta,
-          [dayInt]: { ...(activeVersion.dayMeta[dayInt] || { unitCall: '08:00', date: '' }), ...updates }
-        }
-      }
-    });
-  };
 
   const { computedRows, totalPages, totalShootTime, totalBreakTime, runningElapsed } = useMemo(() => {
     let runningElapsed = 0;
@@ -397,54 +380,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
-      {/* Day Banner */}
-      <div className="flex justify-between items-center px-2 py-1 border-b border-zinc-300"
-        style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', color: '#18181b', ...(selectedIds.has(`empty-${dayInt}`) ? { background: '#27272a' } : {}) }}
-        data-row-id={`empty-${dayInt}`} data-shoot-day={dayInt}
-        onClick={(e) => { e.stopPropagation(); onRowClick?.(`empty-${dayInt}`, e as any); }}
-      >
-        <span className="shrink-0 flex items-center gap-2">
-          <span className="font-bold">DAY #{displayDay}</span>
-          <CellInput
-            value={meta?.unitCall || '08:00'}
-            onChange={val => updateMeta({ unitCall: val })}
-            clearOnType col="duration"
-            className="bg-zinc-100 px-1.5 py-0.5 border border-zinc-300 focus-within:border-zinc-500 w-[60px] text-center rounded"
-          />
-        </span>
-        {violations.length > 0 && (
-          <ViolationTooltip violations={violations}>
-            <span className="inline-flex items-center gap-0.5 text-red-500 shrink-0">
-              <Flag className="w-3.5 h-3.5 fill-red-500" />
-              <span className="text-[10px] font-bold">{violations.length}</span>
-            </span>
-          </ViolationTooltip>
-        )}
-        <button
-          onClick={() => {
-            if (!activeVersion) return;
-            dispatch({
-              type: 'UPDATE_VERSION',
-              payload: {
-                id: activeVersion.id,
-                rows: activeVersion.rows.map(r => r.shootDay === dayInt ? { ...r, shootDay: null as any, order: 999999 } : r)
-              }
-            });
-          }}
-          className="opacity-40 hover:opacity-100 hover:text-red-400 transition-colors"
-          title="Remove all scenes from this day"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-        <span className="flex-1 text-center font-semibold">
-          {(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
-        </span>
-        <div className="flex shrink-0" style={{ gap: '20pt' }}>
-          <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>
-          <span>EST. TIME: <strong>{formatDuration(totalShootTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-        </div>
-      </div>
-
+      {/* Day Banner — empty drop zone */}
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
