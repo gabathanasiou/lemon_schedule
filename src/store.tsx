@@ -1235,9 +1235,9 @@ interface ProjectContextType {
   readOnly: boolean;
   createProject: (title?: string, cloud?: boolean) => Promise<string>;
   openProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
+  deleteProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
   renameProject: (id: string, title: string, driveFileId?: string) => void;
-  duplicateProject: (id: string) => void;
+  duplicateProject: (id: string, cloudDriveFileId?: string) => Promise<void>;
   importProjectFromData: (data: Project) => string;
   updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
   registerPostSaveHandler: (handler: ((project: Project) => Promise<void>) | null) => void;
@@ -1420,8 +1420,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const createProject = useCallback(async (title?: string, cloud?: boolean): Promise<string> => {
     flushCurrentProject();
-    const id = generateUUID();
     const newProject = makeBlankProject(title);
+    const id = newProject.id;
 
     if (cloud && auth.isSignedIn && auth.accessToken) {
       try {
@@ -1430,7 +1430,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now(),
           driveFileId: newFileId,
         };
-        setProjectList(prev => { const u = [...prev, meta]; return u; });
+        setProjectList(prev => { const u = [...prev, meta]; console.log('[createProject] adding to projectList:', meta.id, meta.title, 'total count:', u.length); return u; });
         dispatch({ type: 'LOAD', payload: newProject });
         setCurrentProjectId(id);
         driveFileIdRef.current = newFileId;
@@ -1485,18 +1485,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [flushCurrentProject, auth.accessToken, projectList]);
 
-  const deleteProject = useCallback(async (id: string) => {
+  const deleteProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
     const meta = projectList.find(p => p.id === id);
-    if (meta?.driveFileId && auth.isSignedIn && auth.accessToken) {
+    const driveFileId = meta?.driveFileId || cloudDriveFileId;
+    if (driveFileId && auth.isSignedIn && auth.accessToken) {
       try {
-        await removeFromDrive(auth.accessToken, meta.driveFileId);
+        await removeFromDrive(auth.accessToken, driveFileId);
         await removeFromDriveIndex(auth.accessToken, id);
       } catch (e) {
         console.error('Failed to delete project from Drive:', e);
       }
     }
 
-    if (!meta?.driveFileId) {
+    if (!driveFileId) {
       localStorage.removeItem(getProjectStorageKey(id));
     }
 
@@ -1549,17 +1550,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentProjectId, auth.accessToken]);
 
-  const duplicateProject = useCallback((id: string) => {
+  const duplicateProject = useCallback(async (id: string, cloudDriveFileId?: string) => {
     const meta = projectList.find(p => p.id === id);
-    if (meta?.driveFileId) return;
+    const driveFileId = meta?.driveFileId || cloudDriveFileId;
+    if (!meta && !driveFileId) return;
 
-    flushCurrentProject();
-    const original = id === currentProjectId ? state.present : loadProjectFromStorage(id);
+    let original: Project | null = null;
+    if (driveFileId && auth.accessToken) {
+      try {
+        original = await readDriveProject(auth.accessToken, driveFileId);
+      } catch (e) {
+        console.error('[duplicate] failed to read cloud project:', e);
+        return;
+      }
+    } else if (!driveFileId) {
+      original = id === currentProjectId ? state.present : loadProjectFromStorage(id);
+    }
     if (!original) return;
 
+    flushCurrentProject();
     const newId = generateUUID();
     const newProject: Project = {
       ...original,
+      id: newId,
       title: `${original.title} Copy`,
       versions: original.versions.map(v => ({
         ...v,
@@ -1570,10 +1583,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       activeRibbonId: original.activeRibbonId || '',
     };
 
-    localStorage.setItem(getProjectStorageKey(newId), JSON.stringify(newProject));
-    const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
-    setProjectList(prev => { const u = [...prev, newMeta]; saveProjectListToStorage(u); return u; });
-  }, [flushCurrentProject, currentProjectId, state.present, projectList]);
+    if (driveFileId && auth.accessToken) {
+      const newFileId = await pushProjectAndUpdateIndex(auth.accessToken, newProject);
+      const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now(), driveFileId: newFileId };
+      setProjectList(prev => [...prev, newMeta]);
+    } else {
+      localStorage.setItem(getProjectStorageKey(newId), JSON.stringify(newProject));
+      const newMeta: ProjectMeta = { id: newId, title: newProject.title, lastModified: Date.now(), createdAt: Date.now() };
+      setProjectList(prev => { const u = [...prev, newMeta]; saveProjectListToStorage(u); return u; });
+    }
+  }, [flushCurrentProject, currentProjectId, state.present, projectList, auth.accessToken]);
 
   const importProjectFromData = useCallback((data: Project): string => {
     flushCurrentProject();

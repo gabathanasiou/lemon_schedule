@@ -4,8 +4,8 @@ import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
-import { listDriveProjectMetas, deleteDriveProject, clearAllDriveData } from '../lib/googleDriveStorage';
-import { Plus, Download, Upload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
+import { listDriveProjectMetas, deleteDriveProject, readDriveProject, clearAllDriveData } from '../lib/googleDriveStorage';
+import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
@@ -69,8 +69,12 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [deletingAll, setDeletingAll] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [creatingCloud, setCreatingCloud] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('Untitled Project');
+  const [newProjectCloud, setNewProjectCloud] = useState(false);
 
   useEffect(() => {
     if (auth.isSignedIn) {
@@ -94,6 +98,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setDriveTotalCount(null);
     listDriveProjectMetas(auth.accessToken)
       .then(metas => {
+        console.log('[driveMetas] fetched from Drive index:', metas.length, 'entries:', metas.map(m => `${m.id.slice(0,8)}:"${m.title}" driveFileId:${m.driveFileId.slice(0,8)}...`));
         setDriveTotalCount(metas.length);
         if (metas.length > MAX_DRIVE_ENTRIES) {
           setDriveCorrupt(true);
@@ -133,6 +138,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setDriveTotalCount(null);
     listDriveProjectMetas(auth.accessToken)
       .then(metas => {
+        console.log('[driveMetas] fetched from Drive index:', metas.length, 'entries:', metas.map(m => `${m.id.slice(0,8)}:"${m.title}" driveFileId:${m.driveFileId.slice(0,8)}...`));
         setDriveTotalCount(metas.length);
         if (metas.length > MAX_DRIVE_ENTRIES) {
           setDriveCorrupt(true);
@@ -194,8 +200,16 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     for (const p of projectList) {
       if (p.driveFileId) merged.set(p.id, p);
     }
-    console.log('[PM] cloudProjects merge:', { driveMetas: driveMetas.length, fromProjectList: projectList.filter(p => p.driveFileId).length, merged: merged.size });
-    return [...merged.values()];
+    const result = [...merged.values()];
+    if (Object.keys(result).length > 0) {
+      console.log('[cloudProjects] merge:', {
+        driveMetasIds: driveMetas.map(m => m.id.slice(0,8)),
+        projectListDriveIds: projectList.filter(p => p.driveFileId).map(m => m.id.slice(0,8)),
+        mergedCount: result.length,
+        mergedTitles: result.map(m => `${m.id.slice(0,8)}:"${m.title}"`),
+      });
+    }
+    return result;
   }, [projectList, driveMetas]);
 
   const sortedList = useMemo(() => {
@@ -297,10 +311,13 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     if (!ok) return;
     setMovingId(p.id);
     try {
-      const project = p.id === currentProjectId ? { ...state.present } : null;
-      if (project) {
-        localStorage.setItem(`lemon_schedule_project_v1_${p.id}`, JSON.stringify(project));
-      }
+      const project = p.id === currentProjectId
+        ? { ...state.present }
+        : p.driveFileId
+          ? await readDriveProject(auth.accessToken!, p.driveFileId)
+          : null;
+      if (!project) { dialog.alert({ title: 'Error', message: 'Could not load project data.' }); return; }
+      localStorage.setItem(`lemon_schedule_project_v1_${p.id}`, JSON.stringify(project));
       if (p.driveFileId) {
         await deleteDriveProject(auth.accessToken!, p.driveFileId);
       }
@@ -311,6 +328,15 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     } finally {
       setMovingId(null);
     }
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    if (newProjectCloud) setCreatingCloud(true);
+    await createProject(newProjectName.trim(), newProjectCloud);
+    setShowNewProjectModal(false);
+    setCreatingCloud(false);
+    onClose?.();
   };
 
   // Listen for Shift key to show debug panel
@@ -339,7 +365,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
               </button>
               <button
-                onClick={() => { createProject(); onClose?.(); }}
+                onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(false); }}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
               <Plus className="w-3.5 h-3.5" /> New Project
@@ -356,7 +382,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
               </button>
               <button
-                onClick={async () => { setCreatingCloud(true); await createProject(undefined, true); setCreatingCloud(false); onClose?.(); }}
+                onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(true); }}
                 disabled={creatingCloud}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
@@ -374,7 +400,41 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         </ModalFooter>
       }
     >
-      <div className="px-5 py-3 max-h-[60vh] overflow-y-auto">
+      <div className="relative">
+        {showNewProjectModal && (
+          <div className="absolute inset-0 z-10 bg-zinc-900/95 flex items-center justify-center">
+            <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-5 w-64 space-y-3">
+              <h3 className="text-sm font-bold text-white">Name the Project</h3>
+              <input
+                value={newProjectName}
+                onChange={e => setNewProjectName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateProject(); }}
+                disabled={creatingCloud}
+                placeholder="Project name"
+                autoFocus
+                className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => { setShowNewProjectModal(false); setCreatingCloud(false); }}
+                  disabled={creatingCloud}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateProject}
+                  disabled={creatingCloud || !newProjectName.trim()}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-zinc-700 text-white hover:bg-zinc-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {creatingCloud && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {creatingCloud ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="px-5 py-3">
         <div className="flex gap-0.5 mb-3">
           <button
             onClick={() => setActiveTab('local')}
@@ -476,17 +536,22 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         )}
 
         {activeTab === 'cloud' && !auth.isSignedIn ? (
+          <div className="max-h-[50vh] overflow-y-auto">
           <div className="text-center py-12 text-zinc-500">
             <Cloud className="w-12 h-12 mx-auto mb-3 text-zinc-700" />
             <p className="text-sm font-medium text-zinc-400">Sign in required</p>
             <p className="text-xs mt-1 text-zinc-600">Connect to Google Drive to access your cloud projects.</p>
           </div>
+          </div>
         ) : activeTab === 'cloud' && driveLoading ? (
+          <div className="max-h-[50vh] overflow-y-auto">
           <div className="text-center py-12 text-zinc-500">
             <Loader2 className="w-8 h-8 mx-auto mb-3 text-zinc-600 animate-spin" />
             <p className="text-xs text-zinc-500">Loading cloud projects...</p>
           </div>
+          </div>
         ) : activeTab === 'cloud' && driveError && !driveCorrupt ? (
+          <div className="max-h-[50vh] overflow-y-auto">
           <div className="text-center py-12 text-zinc-500">
             <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
             <p className="text-sm font-medium text-zinc-400">Failed to load</p>
@@ -498,7 +563,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <RefreshCw className="w-3 h-3" /> Retry
             </button>
           </div>
+          </div>
         ) : !hasProjects ? (
+          <div className="max-h-[50vh] overflow-y-auto">
           <div className="text-center py-12 text-zinc-500">
             {activeTab === 'local' ? (
               <>
@@ -514,8 +581,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               </>
             )}
           </div>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">{sortedList.length} {activeTab === 'cloud' ? 'cloud' : 'local'} project{sortedList.length !== 1 ? 's' : ''}</span>
               <div className="relative">
@@ -549,11 +617,13 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 </RadixDropdownMenu.Root>
               </div>
             </div>
+            <div className="max-h-[50vh] overflow-y-auto">
+            <div className="space-y-2">
 
             {sortedList.map(p => {
               const isActive = p.id === currentProjectId;
               const isRenaming = renamingId === p.id;
-              const isBusy = openingId === p.id || deletingId === p.id || movingId === p.id;
+              const isBusy = openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id;
 
               return (
                 <div
@@ -596,7 +666,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                     <>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          {(openingId === p.id || deletingId === p.id || movingId === p.id) && (
+                          {(openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id) && (
                             <Loader2 className="w-3 h-3 text-zinc-400 animate-spin shrink-0" />
                           )}
                           <h3 className="font-semibold truncate text-xs">{p.title}</h3>
@@ -621,23 +691,27 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         >
                           <Pencil className="w-3.5 h-3.5 text-zinc-400" />
                         </button>
-                        {!p.driveFileId && (
-                          <button
-                            onClick={() => duplicateProject(p.id)}
-                            disabled={isBusy}
-                            className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
-                            title="Duplicate"
-                          >
-                            <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                          </button>
-                        )}
+                        <button
+                          onClick={async () => {
+                            console.log('[PM] duplicate clicked:', p.id, p.driveFileId, p.title);
+                            setDuplicatingId(p.id);
+                            await duplicateProject(p.id, p.driveFileId);
+                            setDuplicatingId(null);
+                            if (p.driveFileId) refetchDriveRef.current();
+                          }}
+                          disabled={isBusy}
+                          className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
+                          title="Duplicate"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                        </button>
                         <button
                           onClick={e => handleExportJSON(e, p)}
                           disabled={isBusy}
                           className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
-                           title="Export"
+                            title="Export"
                         >
-                          <Download className="w-3.5 h-3.5 text-zinc-400" />
+                          <Save className="w-3.5 h-3.5 text-zinc-400" />
                         </button>
                         {activeTab === 'local' && auth.isSignedIn && (
                           <button
@@ -646,7 +720,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                             className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
                             title="Move to Drive"
                           >
-                            <Upload className="w-3.5 h-3.5 text-zinc-400" />
+                            <CloudUpload className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
                         )}
                         {activeTab === 'cloud' && (
@@ -656,11 +730,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                             className="p-1.5 rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30"
                             title="Move to Local"
                           >
-                            <Cloud className="w-3.5 h-3.5 text-zinc-400" />
+                            <HardDriveDownload className="w-3.5 h-3.5 text-zinc-400" />
                           </button>
                         )}
                         <button
-                          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true }); if (ok) { setDeletingId(p.id); await deleteProject(p.id); setDeletingId(null); refetchDrive(); } }}
+                          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true }); if (ok) { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); } }}
                           disabled={isBusy}
                           className="p-1.5 rounded-md transition-colors hover:bg-rose-900/40 disabled:opacity-30"
                           title="Delete"
@@ -674,8 +748,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               );
             })}
           </div>
-        )}
+            </div>
+          </>
+          )}
       </div>
+    </div>
     </Modal>
   );
 }

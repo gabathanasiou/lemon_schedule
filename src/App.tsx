@@ -448,7 +448,7 @@ function AppContent() {
                 </button>
               }
             >
-              <DropdownItem onClick={() => { setShowFileMenu(false); createProject(); }} icon={<Plus className="w-3.5 h-3.5" />}>
+              <DropdownItem onClick={async () => { setShowFileMenu(false); const name = await dialog.prompt({ title: 'Name the Project', defaultValue: 'Untitled Project', placeholder: 'Project name' }); if (name) { await createProject(name); } }} icon={<Plus className="w-3.5 h-3.5" />}>
                 New Project
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
