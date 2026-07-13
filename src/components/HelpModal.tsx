@@ -126,7 +126,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
 
         <Section title="Context Menu (Right-click)">
           <Row keys={<>Right-click</>} action="Open context menu on a ribbon" />
-          <Row keys={<>Add Note / Break</>} action="Insert a note or break ribbon below the target" />
+          <Row keys={<>Add Note / Break / Daybreak</>} action="Insert a note, break, or daybreak ribbon below the target" />
           <Row keys={<>Duplicate</>} action="Clone scene (lettered suffix), note, or break" />
           <Row keys={<>Cut to Buffer</>} action="Cut selected ribbons to clipboard" />
           <Row keys={<>Paste Below</>} action="Paste clipboard ribbons below" />

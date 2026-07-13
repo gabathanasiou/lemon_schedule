@@ -56,11 +56,11 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
   const palette = state.present.colorPalette;
   const sz = IS_COARSE ? 'text-xs px-2 py-1' : 'text-[9px] px-1.5 py-0.5';
   if (!scene) {
-    const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : null;
+    const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : row.type === 'DAYBREAK' ? row.daybreakLabel || 'DAYBREAK' : null;
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
-    const bg = row.noteColor || nb.background;
-    const fg = row.noteTextColor || nb.color;
+    const bg = row.type === 'DAYBREAK' ? '#ffffff' : row.noteColor || nb.background;
+    const fg = row.type === 'DAYBREAK' ? '#18181b' : row.noteTextColor || nb.color;
     return (
       <div style={{ background: bg, color: fg }} className={`${sz} font-semibold truncate border-b border-black select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
@@ -602,7 +602,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     augmentedRows.forEach(r => {
       if (r.shootDay === null) return;
       if (activeDragIds.has(r.id)) return;
-      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return;
+      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return;
       const meta = activeVersion.dayMeta?.[r.shootDay];
       if (!meta?.date) return;
       const dk = meta.date;
@@ -615,7 +615,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const unscheduledRows = useMemo(() => {
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
-      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE')) return false;
+      if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
       if (r.shootDay === null) return true;
       const meta = activeVersion?.dayMeta?.[r.shootDay];
       return !meta?.date;

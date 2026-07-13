@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
+import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
+import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups, getDayHeaderColors } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
@@ -78,6 +78,7 @@ interface DaySectionProps {
   sceneColors?: SceneColorEntry[];
   fallbackOverride?: { background: string; color: string };
   colorRules?: ColorRule[];
+  colorPalette?: SceneColorPalette;
 }
 
 const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCastIds: Set<string> }> = ({ castMembers, relevantCastIds }) => {
@@ -121,25 +122,63 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
+  let sectionElapsed = 0;
+  let sectionBaseTime = meta?.unitCall || '08:00';
+  let sectionStart = 0;
+  let sectionPages = 0;
+  let sectionShoot = 0;
+  let sectionBreak = 0;
 
   const computedRows = rows.map(r => {
-    const callTime = addMinutesToTime(meta?.unitCall || '08:00', runningElapsed);
+    const callTime = addMinutesToTime(sectionBaseTime, sectionElapsed);
     let dur = 0;
+
+    if (r.type === 'DAYBREAK') {
+      const sectionTotal = runningElapsed - sectionStart;
+      const sectionEndTime = callTime;
+      const row = {
+        ...r,
+        computedCallTime: callTime,
+        computedElapsed: runningElapsed,
+        sectionTotal,
+        sectionPages,
+        sectionShoot,
+        sectionBreak,
+        sectionEndTime,
+      };
+      sectionElapsed = 0;
+      sectionBaseTime = r.daybreakCallTime || meta?.unitCall || '08:00';
+      sectionStart = runningElapsed;
+      sectionPages = 0;
+      sectionShoot = 0;
+      sectionBreak = 0;
+      return row;
+    }
+
     if (r.type === 'SCENE') {
       dur = r.estimatedDuration || 0;
       const scene = scenes.find(s => s.id === r.sceneId);
-      if (scene) totalPages += scene.pageCountDecimal;
+      if (scene) {
+        totalPages += scene.pageCountDecimal;
+        sectionPages += scene.pageCountDecimal;
+      }
+      sectionShoot += dur;
     } else if (r.type === 'BREAK') {
       dur = r.breakDuration || 0;
       totalBreakTime += dur;
+      sectionBreak += dur;
     } else if (r.type === 'NOTE') {
       dur = r.estimatedDuration || 0;
+      sectionShoot += dur;
     }
+
     runningElapsed += dur;
+    sectionElapsed += dur;
+
     return { ...r, computedCallTime: callTime, computedElapsed: runningElapsed };
   });
 
@@ -382,6 +421,107 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                         {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
                         <td className="print-col-ie" />
                         <td className="print-col-set" style={{textAlign: 'center'}}>{r.breakLabel || 'BREAK'}</td>
+                        <td className="print-col-dn" />
+                        <td className="print-col-cast" />
+                        <td className="print-col-pgs" />
+                      </>
+                    </tr>
+                  </tbody>
+                </table>
+              );
+            }
+            if (r.type === 'DAYBREAK') {
+              const dh = getDayHeaderColors(colorPalette);
+              const sTotal = (r as any).sectionTotal || 0;
+              const sPages = (r as any).sectionPages || 0;
+              const sShoot = (r as any).sectionShoot || 0;
+              const sBreak = (r as any).sectionBreak || 0;
+              const sEndTime = (r as any).sectionEndTime || '';
+              const sCallTime = (r as any).daybreakCallTime || '';
+
+              if (cells) {
+                const showStats = sTotal > 0;
+                return (
+                  <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000' }}>
+                    <div style={{ background: '#ffffff', color: '#18181b' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' ') }}>
+                        {cells.map((cell, ci) => {
+                          if (ci === mainCellIdx) {
+                            return (
+                              <div key={cell.id} style={{
+                                gridColumn: ci + 1, gridRow: 1,
+                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                                padding: noteBreakPadPx, textAlign: 'center',
+                                overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word',
+                                fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                              }}>
+                                <span>{(r as any).daybreakLabel || 'End of Daybreak'}</span>
+                                {showStats && (
+                                  <span style={{ fontSize: '7pt', opacity: 0.75 }}>
+                                    {formatPageCount(sPages)} pgs · {formatDuration(sShoot)} shoot{sBreak > 0 ? <span> + {formatDuration(sBreak)} break</span> : null}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                          let content = '';
+                          if (cell.field === 'callTime') {
+                            content = sEndTime || '';
+                          } else if (cell.field === 'duration') {
+                            content = sTotal > 0 ? formatDuration(sTotal) : '';
+                          }
+                          return (
+                            <div key={cell.id} style={{
+                              gridColumn: ci + 1, gridRow: 1,
+                              padding: noteBreakPadPx, textAlign: 'center',
+                              fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                            }}>
+                              {content}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {sCallTime && (
+                      <div style={{ background: dh.background, color: dh.color }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' ') }}>
+                          {cells.map((cell, ci) => {
+                            if (cell.field === 'callTime') {
+                              return (
+                                <div key={cell.id} style={{
+                                  gridColumn: ci + 1, gridRow: 1,
+                                  padding: '1px 4px', textAlign: 'center',
+                                  fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                                }}>
+                                  <span style={{ fontWeight: 600, fontSize: '10px' }}>CALL </span>
+                                  {sCallTime}
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={cell.id} style={{
+                                gridColumn: ci + 1, gridRow: 1,
+                                padding: '1px 4px',
+                              }} />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
+                  <tbody>
+                    <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px`, background: '#ffffff', color: '#18181b' } as any}>
+                      <>
+                        <td className="print-col-sc" />
+                        {showTimes && <td className="print-col-call">{sEndTime || (r as any).computedCallTime}</td>}
+                        {showDurations && <td className="print-col-dur">{sTotal > 0 ? formatDuration(sTotal) : ''}</td>}
+                        <td className="print-col-ie" />
+                        <td className="print-col-set" style={{textAlign: 'center'}}>{(r as any).daybreakLabel || 'End of Daybreak'}</td>
                         <td className="print-col-dn" />
                         <td className="print-col-cast" />
                         <td className="print-col-pgs" />
@@ -807,6 +947,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 sceneColors={project.colorPalette?.sceneColors}
                 fallbackOverride={getFallbackStripColors(project.colorPalette)}
                 colorRules={project.colorPalette?.colorRules}
+                colorPalette={project.colorPalette}
               />
             ))}
           </div>

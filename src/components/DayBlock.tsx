@@ -39,6 +39,14 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
     );
   }
 
+  if (row.type === 'DAYBREAK') {
+    return (
+      <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: '#ffffff', color: '#18181b' }}>
+        <div className="flex-1 flex items-center justify-center px-3">{row.daybreakLabel || 'End of Daybreak'}</div>
+      </div>
+    );
+  }
+
   const scene = scenes.find(s => s.id === row.sceneId);
   if (!scene) return null;
 
@@ -209,22 +217,60 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
     let runningElapsed = 0;
     let totalPages = 0;
     let totalBreakTime = 0;
+    let sectionElapsed = 0;
+    let sectionBaseTime = meta?.unitCall || '08:00';
+    let sectionStart = 0;
+    let sectionPages = 0;
+    let sectionShoot = 0;
+    let sectionBreak = 0;
+    let daybreakCounter = 0;
     const computedRows = rows.map(r => {
-      const callTime = addMinutesToTime(meta?.unitCall || '08:00', runningElapsed);
+      const callTime = addMinutesToTime(sectionBaseTime, sectionElapsed);
       let dur = 0;
-      
+
+      if (r.type === 'DAYBREAK') {
+        daybreakCounter += 1;
+        const sectionTotal = runningElapsed - sectionStart;
+        const sectionEndTime = callTime;
+        const row = {
+          ...r,
+          daybreakLabel: `End of Daybreak ${daybreakCounter}`,
+          computedCallTime: callTime,
+          computedElapsed: runningElapsed,
+          sectionTotal,
+          sectionPages,
+          sectionShoot,
+          sectionBreak,
+          sectionEndTime,
+        };
+        sectionElapsed = 0;
+        sectionBaseTime = r.daybreakCallTime || meta?.unitCall || '08:00';
+        sectionStart = runningElapsed;
+        sectionPages = 0;
+        sectionShoot = 0;
+        sectionBreak = 0;
+        return row;
+      }
+
       if (r.type === 'SCENE') {
         dur = r.estimatedDuration || 0;
         const scene = project.scenes.find(s => s.id === r.sceneId);
-        if (scene) totalPages += scene.pageCountDecimal;
+        if (scene) {
+          totalPages += scene.pageCountDecimal;
+          sectionPages += scene.pageCountDecimal;
+        }
+        sectionShoot += dur;
       } else if (r.type === 'BREAK') {
         dur = r.breakDuration || 0;
         totalBreakTime += dur;
+        sectionBreak += dur;
       } else if (r.type === 'NOTE') {
         dur = r.estimatedDuration || 0;
+        sectionShoot += dur;
       }
 
       runningElapsed += dur;
+      sectionElapsed += dur;
 
       return {
         ...r,
@@ -232,6 +278,13 @@ export const DayBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: Sh
         computedElapsed: runningElapsed
       };
     });
+    for (let i = computedRows.length - 1, found = false; i >= 0; i--) {
+      const cr = computedRows[i] as any;
+      if (cr.type === 'DAYBREAK') {
+        cr.hasNextDaybreak = found;
+        found = true;
+      }
+    }
     return { computedRows, totalPages, totalShootTime: runningElapsed - totalBreakTime, totalBreakTime, runningElapsed };
   }, [rows, meta?.unitCall, project.scenes]);
 

@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
-import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
+import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
@@ -36,6 +36,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.row.estimatedDuration !== b.row.estimatedDuration) return false;
   if (a.row.noteText !== b.row.noteText || a.row.noteColor !== b.row.noteColor || a.row.noteTextColor !== b.row.noteTextColor) return false;
   if (a.row.breakLabel !== b.row.breakLabel || a.row.breakDuration !== b.row.breakDuration) return false;
+  if (a.row.daybreakLabel !== b.row.daybreakLabel || a.row.daybreakCallTime !== b.row.daybreakCallTime) return false;
   if (a.row.computedCallTime !== b.row.computedCallTime || a.row.computedElapsed !== b.row.computedElapsed) return false;
   if (a.scenes !== b.scenes) return false;
   if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
@@ -484,6 +485,169 @@ const SortableRowContent: React.FC<{
             </tbody>
           </table>
         </div>
+    );
+  }
+
+  if (row.type === 'DAYBREAK') {
+    const dh = getDayHeaderColors(state.present.colorPalette);
+    const daybreakStyle: React.CSSProperties = { background: '#ffffff', color: '#18181b' };
+    if (isSelected && !isFaded) { daybreakStyle.background = sel.background; daybreakStyle.color = sel.color; }
+
+    const sectionTotal = (row as any).sectionTotal || 0;
+    const sectionPages = (row as any).sectionPages || 0;
+    const sectionShoot = (row as any).sectionShoot || 0;
+    const sectionBreak = (row as any).sectionBreak || 0;
+    const sectionEndTime = (row as any).sectionEndTime || '';
+    const nextDaybreakNum = (row as any).hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
+    const nextLabel = nextDaybreakNum > 0 ? `START OF DAYBREAK ${nextDaybreakNum}` : '';
+
+    if (ribbon && ribbon.length > 0 && !isCompact) {
+      const cells = ribbon[0].cells;
+      const cw = colWidths ?? cells.map(() => 100 / cells.length);
+      const nonSpecial = cells
+        .map((c, i) => ({i, w: cw[i] ?? 0, f: c.field}))
+        .filter(x => x.f !== 'duration' && x.f !== 'callTime');
+      const mainCellIdx = nonSpecial.length > 0
+        ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
+        : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+      const notePadV = getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1);
+      const daybreakPadV = Math.max(cellPaddingV ?? 6, Math.floor(notePadV / 2));
+      const daybreakPadPx = `${daybreakPadV}px ${cellPaddingH ?? 6}px`;
+
+      return (
+        <div className="flex items-stretch min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div style={{ ...daybreakStyle }}>
+              <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+                {cells.map((cell, ci) => {
+                  if (ci === mainCellIdx) {
+                    const showStats = sectionTotal > 0;
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        whiteSpace: 'normal', wordBreak: 'break-word',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                      }}>
+                        <span>{row.daybreakLabel || 'End of Daybreak'}</span>
+                        {showStats && (
+                          <span style={{ fontSize: '7pt', opacity: 0.75 }}>
+                            {formatPageCount(sectionPages)} pgs · {formatDuration(sectionShoot)} shoot{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (cell.field === 'duration') {
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                      }} />
+                    );
+                  }
+                  if (cell.field === 'callTime') {
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                      }}>
+                        {sectionEndTime ? fmt(cell.prefix, sectionEndTime, cell.suffix) : ''}
+                      </div>
+                    );
+                  }
+                  return <div key={cell.id} style={{
+                    gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                  }} />;
+                })}
+              </div>
+            </div>
+
+            {(row as any).hasNextDaybreak && (
+            (() => {
+              const callStyle: React.CSSProperties = isSelected && !isFaded
+                ? { background: sel.background, color: sel.color }
+                : { background: dh.background, color: dh.color };
+              return (
+            <div style={callStyle}>
+              <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+                {cells.map((cell, ci) => {
+                  if (ci === mainCellIdx) {
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        whiteSpace: 'normal', wordBreak: 'break-word',
+                      }}>
+                        <strong>{nextLabel}</strong>
+                      </div>
+                    );
+                  }
+                  if (cell.field === 'callTime') {
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                      }}>
+                        <CellInput
+                          value={row.daybreakCallTime || ''}
+                          onChange={val => updateRow({daybreakCallTime: val})}
+                          clearOnType col="duration"
+                          className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                        />
+                      </div>
+                    );
+                  }
+                  return <div key={cell.id} style={{
+                    gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                  }} />;
+                })}
+              </div>
+            </div>
+              );
+            })()
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-stretch min-w-0">
+        <table className="schedule-table flex-1 min-w-0">
+          <tbody>
+            <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+              <td className="col-sc" />
+              {!isCompact ? (
+                <>
+                  <td className="col-call">{sectionEndTime || row.computedCallTime}</td>
+                  <td className="col-dur">{sectionTotal > 0 ? formatDuration(sectionTotal) : ''}</td>
+                  <td className="col-ie" />
+                  <td className="col-set" style={{textAlign: 'center'}}>
+                    {row.daybreakLabel || 'End of Daybreak'}
+                  </td>
+                  <td className="col-dn" />
+                  <td className="col-cast" />
+                  <td className="col-pgs" />
+                </>
+              ) : (
+                <td colSpan={4} className="col-set">
+                  {row.daybreakLabel || 'End of Daybreak'}
+                </td>
+              )}
+            </tr>
+          </tbody>
+        </table>
+      </div>
     );
   }
 

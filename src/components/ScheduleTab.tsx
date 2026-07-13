@@ -9,7 +9,7 @@ import { SortableRow } from './SortableRow';
 import { generateUUID, formatDuration } from '../lib/utils';
 import { ScheduleRow, Scene } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -792,14 +792,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const isDummy = rowId.startsWith('empty-');
 
     // Dummy rows can only add notes/breaks
-    if (isDummy && (action === 'add_note' || action === 'add_break')) {
+    if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_daybreak')) {
       const newId = generateUUID();
+      const type = action === 'add_note' ? 'NOTE' as const : action === 'add_break' ? 'BREAK' as const : 'DAYBREAK' as const;
       const newRow: ScheduleRow = {
         id: newId,
-        type: action === 'add_note' ? 'NOTE' : 'BREAK',
+        type,
         shootDay,
         order: 0,
-        ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
+        ...(action === 'add_note' ? { noteText: '' } : action === 'add_break' ? { breakLabel: 'LUNCH', breakDuration: 60 } : { daybreakLabel: 'DAYBREAK' }),
       };
       const dayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
       const firstDayRow = dayRows[0];
@@ -831,6 +832,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         id: newId, type: 'BREAK', shootDay, order: row.order + 0.5, breakLabel: 'LUNCH', breakDuration: 60
       });
       newRowIds.push(newId);
+    } else if (action === 'add_daybreak') {
+      const newId = generateUUID();
+      newRows.push({
+        id: newId, type: 'DAYBREAK', shootDay, order: row.order + 0.5, daybreakLabel: 'DAYBREAK'
+      });
+      newRowIds.push(newId);
     } else if (action === 'duplicate' && row.type === 'SCENE') {
       const newId = generateUUID();
       const newRow: ScheduleRow = {
@@ -860,7 +867,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       }
       newRows.push(newRow);
       newRowIds.push(newId);
-    } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break') && (row.type === 'NOTE' || row.type === 'BREAK')) {
+    } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break' || action === 'duplicate_daybreak') && (row.type === 'NOTE' || row.type === 'BREAK' || row.type === 'DAYBREAK')) {
       const newId = generateUUID();
       newRows.push({ ...row, id: newId, order: row.order + 0.5 });
       newRowIds.push(newId);
@@ -1533,6 +1540,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               )}
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_daybreak')} icon={<Sunrise className="w-3.5 h-3.5" />}>Add Daybreak Below</ContextMenuItem>
               {row && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
@@ -1547,7 +1555,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>
                 </>
               )}
-              {(row?.type === 'NOTE' || row?.type === 'BREAK') && (
+              {(row?.type === 'NOTE' || row?.type === 'BREAK' || row?.type === 'DAYBREAK') && (
                 <>
                   {row?.type === 'NOTE' && (
                     <>
@@ -1557,6 +1565,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   )}
                   {row?.type === 'BREAK' && (
                     <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
+                  )}
+                  {row?.type === 'DAYBREAK' && (
+                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_daybreak')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Daybreak</ContextMenuItem>
                   )}
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('unschedule')} icon={<Trash2 className="w-3.5 h-3.5" />}>Remove Ribbon</ContextMenuItem>

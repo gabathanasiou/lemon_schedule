@@ -1,6 +1,6 @@
 export type IntExt = string;
 export type DayNight = string;
-export type RowType = 'SCENE' | 'BREAK' | 'NOTE';
+export type RowType = 'SCENE' | 'BREAK' | 'NOTE' | 'DAYBREAK';
 
 export interface Scene {
   id: string;
@@ -52,6 +52,10 @@ export interface ScheduleRow {
   noteText?: string;
   noteColor?: string;
   noteTextColor?: string;
+
+  // DAYBREAK specific
+  daybreakLabel?: string;
+  daybreakCallTime?: string;
 }
 
 export interface ShootDayMeta {
