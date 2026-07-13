@@ -132,7 +132,6 @@ export async function listDriveProjectMetas(
       }
       result.push(entry);
     }
-    console.log('[Drive] listDriveProjectMetas result:', result.map(e => ({ id: e.id, title: e.title, driveFileId: e.driveFileId })));
     return result;
   } catch (e) {
     console.error('Failed to parse Drive index file:', e);

@@ -105,7 +105,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setDriveTotalCount(null);
     listDriveProjectMetas(auth.accessToken)
       .then(metas => {
-        console.log('[driveMetas] fetched from Drive index:', metas.length, 'entries:', metas.map(m => `${m.id.slice(0,8)}:"${m.title}" driveFileId:${m.driveFileId.slice(0,8)}...`));
         setDriveTotalCount(metas.length);
         if (metas.length > MAX_DRIVE_ENTRIES) {
           setDriveCorrupt(true);
@@ -145,7 +144,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setDriveTotalCount(null);
     listDriveProjectMetas(auth.accessToken)
       .then(metas => {
-        console.log('[driveMetas] fetched from Drive index:', metas.length, 'entries:', metas.map(m => `${m.id.slice(0,8)}:"${m.title}" driveFileId:${m.driveFileId.slice(0,8)}...`));
         setDriveTotalCount(metas.length);
         if (metas.length > MAX_DRIVE_ENTRIES) {
           setDriveCorrupt(true);
@@ -208,14 +206,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       if (p.driveFileId) merged.set(p.id, p);
     }
     const result = [...merged.values()];
-    if (Object.keys(result).length > 0) {
-      console.log('[cloudProjects] merge:', {
-        driveMetasIds: driveMetas.map(m => m.id.slice(0,8)),
-        projectListDriveIds: projectList.filter(p => p.driveFileId).map(m => m.id.slice(0,8)),
-        mergedCount: result.length,
-        mergedTitles: result.map(m => `${m.id.slice(0,8)}:"${m.title}"`),
-      });
-    }
     return result;
   }, [projectList, driveMetas]);
 
@@ -702,7 +692,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                         </button>
                         <button
                           onClick={async () => {
-                            console.log('[PM] duplicate clicked:', p.id, p.driveFileId, p.title);
                             setDuplicatingId(p.id);
                             await duplicateProject(p.id, p.driveFileId);
                             setDuplicatingId(null);

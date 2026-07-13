@@ -1430,7 +1430,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           id, title: newProject.title, lastModified: Date.now(), createdAt: Date.now(),
           driveFileId: newFileId,
         };
-        setProjectList(prev => { const u = [...prev, meta]; console.log('[createProject] adding to projectList:', meta.id, meta.title, 'total count:', u.length); return u; });
+        setProjectList(prev => { const u = [...prev, meta]; return u; });
         dispatch({ type: 'LOAD', payload: newProject });
         setCurrentProjectId(id);
         driveFileIdRef.current = newFileId;
