@@ -14,6 +14,7 @@ import { Flag } from 'lucide-react';
 import { useAddMode, useLastPointerType } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import DurationKeypad from './DurationKeypad';
+import SectionHeader from './SectionHeader';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 import { createPortal } from 'react-dom';
@@ -581,52 +582,17 @@ const SortableRowContent: React.FC<{
             </div>
 
             {(row as any).hasNextDaybreak && (
-            (() => {
-              const callStyle: React.CSSProperties = isSelected && !isFaded
-                ? { background: sel.background, color: sel.color }
-                : { background: dh.background, color: dh.color };
-              return (
-            <div style={callStyle}>
-              <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
-                {cells.map((cell, ci) => {
-                  if (ci === mainCellIdx) {
-                    return (
-                      <div key={cell.id} style={{
-                        gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                        whiteSpace: 'normal', wordBreak: 'break-word',
-                      }}>
-                        <strong>{nextLabel}</strong>
-                      </div>
-                    );
-                  }
-                  if (cell.field === 'callTime') {
-                    return (
-                      <div key={cell.id} style={{
-                        gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                      }}>
-                        <CellInput
-                          value={row.daybreakCallTime || ''}
-                          onChange={val => updateRow({daybreakCallTime: val})}
-                          clearOnType col="duration"
-                          className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
-                        />
-                      </div>
-                    );
-                  }
-                  return <div key={cell.id} style={{
-                    gridColumn: ci + 1, gridRow: 1,
-                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                    textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                  }} />;
-                })}
-              </div>
-            </div>
-              );
-            })()
+              <SectionHeader
+                dayLabel={nextLabel}
+                callTime={row.daybreakCallTime || ''}
+                onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
+                palette={state.present.colorPalette}
+                isSelected={isSelected && !isFaded}
+                ribbon={ribbon}
+                colWidths={colWidths}
+                cellPaddingV={cellPaddingV}
+                cellPaddingH={cellPaddingH}
+              />
             )}
           </div>
         </div>
@@ -635,30 +601,43 @@ const SortableRowContent: React.FC<{
 
     return (
       <div className="flex items-stretch min-w-0">
-        <table className="schedule-table flex-1 min-w-0">
-          <tbody>
-            <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
-              <td className="col-sc" />
-              {!isCompact ? (
-                <>
-                  <td className="col-call">{sectionEndTime || row.computedCallTime}</td>
-                  <td className="col-dur">{sectionTotal > 0 ? formatDuration(sectionTotal) : ''}</td>
-                  <td className="col-ie" />
-                  <td className="col-set" style={{textAlign: 'center'}}>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <table className="schedule-table flex-1 min-w-0">
+            <tbody>
+              <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+                <td className="col-sc" />
+                {!isCompact ? (
+                  <>
+                    <td className="col-call">{sectionEndTime || row.computedCallTime}</td>
+                    <td className="col-dur">{sectionTotal > 0 ? formatDuration(sectionTotal) : ''}</td>
+                    <td className="col-ie" />
+                    <td className="col-set" style={{textAlign: 'center'}}>
+                      {row.daybreakLabel || 'End of Day'}
+                    </td>
+                    <td className="col-dn" />
+                    <td className="col-cast" />
+                    <td className="col-pgs" />
+                  </>
+                ) : (
+                  <td colSpan={4} className="col-set">
                     {row.daybreakLabel || 'End of Day'}
                   </td>
-                  <td className="col-dn" />
-                  <td className="col-cast" />
-                  <td className="col-pgs" />
-                </>
-              ) : (
-                <td colSpan={4} className="col-set">
-                  {row.daybreakLabel || 'End of Day'}
-                </td>
-              )}
-            </tr>
-          </tbody>
-        </table>
+                )}
+              </tr>
+            </tbody>
+          </table>
+          {nextDaybreakNum > 0 && (
+            <SectionHeader
+              dayLabel={nextLabel}
+              callTime={row.daybreakCallTime || ''}
+              onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
+              palette={state.present.colorPalette}
+              isSelected={isSelected && !isFaded}
+              cellPaddingV={cellPaddingV}
+              cellPaddingH={cellPaddingH}
+            />
+          )}
+        </div>
       </div>
     );
   }

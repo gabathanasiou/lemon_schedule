@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
-import { addMinutesToTime } from '../lib/utils';
+import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { SortableRow } from './SortableRow';
+import SectionHeader from './SectionHeader';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
@@ -166,9 +167,10 @@ const dayBlockPropsEqual = (a: any, b: any) => {
 export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = React.memo(({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
-  const { state } = useProject();
+  const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const hasDaybreaks = (activeVersion?.rows || []).some(r => r.type === 'DAYBREAK');
 
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
@@ -179,6 +181,20 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     id: `end-${dayInt}`,
     data: { type: 'STRIP_END', dayInt }
   });
+
+  const updateMeta = (updates: Partial<ShootDayMeta>) => {
+    if (!activeVersion) return;
+    dispatch({
+      type: 'UPDATE_VERSION',
+      payload: {
+        id: activeVersion.id,
+        dayMeta: {
+          ...activeVersion.dayMeta,
+          [dayInt]: { ...(activeVersion.dayMeta[dayInt] || { unitCall: '08:00', date: '' }), ...updates }
+        }
+      }
+    });
+  };
 
   const { computedRows, totalPages, totalShootTime, totalBreakTime, runningElapsed } = useMemo(() => {
     let runningElapsed = 0;
@@ -314,6 +330,22 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
   return (
     <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
       
+      {/* Section Header — present when daybreaks exist */}
+      {hasDaybreaks && (
+        <SectionHeader
+          dayLabel={`DAY #${displayDay}`}
+          callTime={meta?.unitCall || '08:00'}
+          onCallTimeChange={val => updateMeta({ unitCall: val })}
+          dateStr={(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
+          palette={project.colorPalette}
+          isSelected={selectedIds.has(`empty-${dayInt}`)}
+          ribbon={ribbon}
+          colWidths={colWidths}
+          cellPaddingV={cellPaddingV}
+          cellPaddingH={cellPaddingH}
+        />
+      )}
+
       {/* Drop zone */}
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
