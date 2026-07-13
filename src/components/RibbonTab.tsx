@@ -16,7 +16,7 @@ import {
   Plus, Trash2, GripHorizontal,
   Eye, ArrowRightLeft, RotateCcw, ArrowUp, ArrowDown,
   ChevronDown, ArrowLeft, ArrowRight,
-  AlignCenter, AlignRight, WrapText, Type, Tag, CircleDot,
+  AlignCenter, AlignRight, WrapText, Ellipsis, X, Type, Tag, CircleDot,
   ClipboardList,
   Download, Upload, Copy, Check, Pencil,
   PanelTop, Equal, PanelBottom,
@@ -92,7 +92,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const tabBarRef = useRef<HTMLDivElement>(null);
   const previewSectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
+  const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; truncation?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
   const [rows, setRows] = useState<RibbonRow[]>(cloneRows(initialRows));
@@ -229,7 +229,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     commit(
       rows.map(r => {
         const nc = [...r.cells];
-        nc.splice(ci, 0, { id: cid(), field: fieldKey || '', prefix: fieldKey === 'pageCount' ? f?.defaultPrefix : undefined, suffix: fieldKey === 'pageCount' ? f?.defaultSuffix : undefined, align: f?.align, wrap: f?.defaultWrap });
+        nc.splice(ci, 0, { id: cid(), field: fieldKey || '', prefix: fieldKey === 'pageCount' ? f?.defaultPrefix : undefined, suffix: fieldKey === 'pageCount' ? f?.defaultSuffix : undefined, align: f?.align, wrap: f?.defaultWrap, truncation: f?.defaultTruncation });
         return { ...r, cells: nc };
       }),
       normalizeColWidths([...colWidths.slice(0, ci), dw, ...colWidths.slice(ci)]),
@@ -271,6 +271,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         field: src.field,
         align: src.align,
         wrap: src.wrap,
+        truncation: src.truncation,
         prefix: src.prefix,
         suffix: src.suffix,
         textContent: src.textContent,
@@ -306,6 +307,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         field: srcCell.field,
         align: srcCell.align,
         wrap: srcCell.wrap,
+        truncation: srcCell.truncation,
         prefix: srcCell.prefix,
         suffix: srcCell.suffix,
         textContent: srcCell.textContent,
@@ -335,10 +337,15 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     })), colWidths);
   }, [rows, colWidths, commit]);
 
-  const setWrapCell = useCallback((cellId: string, wrap: boolean) => {
+  const setOverflow = useCallback((cellId: string, mode: 'truncate' | 'wrap' | 'none') => {
     const ids = mergeSiblingIds(cellId, rows);
+    const update: Partial<RibbonCell> = mode === 'wrap'
+      ? { wrap: true, truncation: undefined }
+      : mode === 'none'
+        ? { wrap: undefined, truncation: false }
+        : { wrap: undefined, truncation: undefined };
     commit(rows.map(r => ({
-      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, wrap: wrap || undefined } : c),
+      ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, ...update } : c),
     })), colWidths);
   }, [rows, colWidths, commit]);
 
@@ -498,8 +505,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   setTextContentRef.current = setTextContent;
   const setAlignRef = useRef(setAlign);
   setAlignRef.current = setAlign;
-  const setWrapCellRef = useRef(setWrapCell);
-  setWrapCellRef.current = setWrapCell;
   const setVerticalAlignRef = useRef(setVerticalAlign);
   setVerticalAlignRef.current = setVerticalAlign;
 
@@ -517,6 +522,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             field: sc.cell.field,
             align: sc.cell.align,
             wrap: sc.cell.wrap,
+            truncation: sc.cell.truncation,
             prefix: sc.cell.prefix,
             suffix: sc.cell.suffix,
             textContent: sc.cell.textContent,
@@ -539,6 +545,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               field: clip.field,
               align: clip.align,
               wrap: clip.wrap || undefined,
+              truncation: clip.truncation,
               prefix: clip.prefix || undefined,
               suffix: clip.suffix || undefined,
               textContent: clip.textContent || undefined,
@@ -786,27 +793,24 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none" onClick={e => e.stopPropagation()}>
             {/* Structure */}
             <div className="flex items-center gap-1.5 px-3 py-1.5">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Structure</span>
-              <Tooltip content="Change Field">
-                <button
-                  onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
-                  disabled={readOnly || !selCell}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-                  <ArrowRightLeft className="w-3 h-3" /> Change
-                  <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
-                </button>
-              </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Structure</span>
               <Tooltip content="Add Column After">
                 <button onClick={() => selCell && setSelId(addColumn(selCell.ci))} disabled={readOnly || !selCell}
                   className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Plus className="w-3 h-3" /> Add Col
+                  <Plus className="w-3 h-3" /> Column
                 </button>
               </Tooltip>
               <Tooltip content="Delete Column">
                 <button onClick={() => selCell && removeColumn(selCell.ci)} disabled={readOnly || !selCell || numCols <= 1}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
+                  <Trash2 className="w-3 h-3" /> Column
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+              <Tooltip content="Add Row">
+                <button onClick={() => selCell && addRow()} disabled={readOnly || !selCell}
                   className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Trash2 className="w-3 h-3" /> Col
+                  <Plus className="w-3 h-3" /> Row
                 </button>
               </Tooltip>
               <Tooltip content="Delete Row">
@@ -818,58 +822,70 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               <div className="w-px h-5 bg-zinc-700 mx-0.5" />
               <Tooltip content="Move Column Left">
                 <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={readOnly || !selCell || selCell.ci === 0}
-                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                  <ArrowLeft className="w-3 h-3" />
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowLeft className="w-2.5 h-2.5" /> Move
                 </button>
               </Tooltip>
               <Tooltip content="Move Column Right">
                 <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={readOnly || !selCell || (selCell && selCell.ci >= numCols - 1)}
-                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                  <ArrowRight className="w-3 h-3" />
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowRight className="w-2.5 h-2.5" /> Move
                 </button>
               </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
               <Tooltip content="Move Row Up">
                 <button onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                  <ArrowUp className="w-3 h-3" />
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowUp className="w-2.5 h-2.5" /> Move
                 </button>
               </Tooltip>
               <Tooltip content="Move Row Down">
                 <button onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-                  className="h-7 w-7 rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center justify-center transition-colors">
-                  <ArrowDown className="w-3 h-3" />
+                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
+                  <ArrowDown className="w-2.5 h-2.5" /> Move
                 </button>
               </Tooltip>
             </div>
-            {/* Cell Style */}
+            {/* Cell */}
             <div className="flex items-center gap-1.5 px-3 py-1.5">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Style</span>
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Cell</span>
+              <Tooltip content="Change Field">
+                <button
+                  onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
+                  disabled={readOnly || !selCell}
+                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
+                  <ArrowRightLeft className="w-3 h-3" /> Change
+                  <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
+                </button>
+              </Tooltip>
+              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
               <Tooltip content="Copy field from row above">
                 <button onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
                   className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowDown className="w-2.5 h-2.5" /> Copy
+                  <ArrowDown className="w-2.5 h-2.5" /> Above
                 </button>
               </Tooltip>
               <Tooltip content="Copy field from row below">
                 <button onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
                   className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowUp className="w-2.5 h-2.5" /> Copy
+                  <ArrowUp className="w-2.5 h-2.5" /> Below
                 </button>
               </Tooltip>
               <Tooltip content="Copy field from column left">
                 <button onClick={() => selCell && copyFromLeft(selCell.cell.id)} disabled={readOnly || !selCell || selCell.ci <= 0}
                   className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowLeft className="w-2.5 h-2.5" /> Copy
+                  <ArrowLeft className="w-2.5 h-2.5" /> Left
                 </button>
               </Tooltip>
               <Tooltip content="Copy field from column right">
                 <button onClick={() => selCell && copyFromRight(selCell.cell.id)} disabled={readOnly || !selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
                   className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowRight className="w-2.5 h-2.5" /> Copy
+                  <ArrowRight className="w-2.5 h-2.5" /> Right
                 </button>
               </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
+            </div>
+            {/* Cell Style */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5">
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Style</span>
               {(['left', 'center', 'right'] as const).map(a => {
                 const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
                 const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
@@ -908,15 +924,26 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                 );
               })}
               <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              <Tooltip content="Toggle Text Wrap">
-                <button onClick={() => selCell && setWrapCell(selId!, !selCell.cell.wrap)}
-                  disabled={readOnly || !selCell}
-                  className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                    selCell?.cell.wrap ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                  }`}>
-                  <WrapText className="w-3 h-3" />
-                </button>
-              </Tooltip>
+              <div className="inline-flex rounded overflow-hidden border border-zinc-700">
+                {(['truncate', 'wrap', 'none'] as const).map((mode, i) => {
+                  const current = selCell?.cell.truncation === false ? 'none' : selCell?.cell.wrap ? 'wrap' : 'truncate';
+                  const active = mode === current;
+                  const Icon = mode === 'wrap' ? WrapText : mode === 'none' ? X : Ellipsis;
+                  const label = mode === 'wrap' ? 'Wrap' : mode === 'none' ? 'None' : 'Truncate';
+                  return (
+                    <Tooltip key={mode} content={`Overflow: ${label}`}>
+                      <button
+                        onClick={() => selCell && !active && setOverflow(selId!, mode)}
+                        disabled={readOnly || !selCell}
+                        className={`h-7 w-7 flex items-center justify-center disabled:opacity-25 transition-colors ${
+                          active ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
+                        } ${i < 2 ? 'border-r border-zinc-700' : ''}`}>
+                        <Icon className="w-3 h-3" />
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </div>
               <div className="w-px h-5 bg-zinc-700 mx-0.5" />
               {selCell?.cell.field === 'text' ? (
                 <Tooltip content="Static Text Content">
@@ -953,7 +980,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             </div>
             {/* Layout */}
             <div className="flex items-center gap-1.5 px-3 py-1.5">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 mr-1">Layout</span>
+              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Layout</span>
               <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
               <Tooltip content="Vertical Cell Padding (px)">
                 <input
@@ -1132,9 +1159,6 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                   )}
                 </div>
 
-                <button onClick={e => { e.stopPropagation(); addRow(); }} className="mt-5 w-full py-2.5 text-[10px] font-medium rounded-lg border-2 border-dashed border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400 hover:bg-zinc-900/50 transition-colors flex items-center justify-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5" /> Add Row
-                </button>
               </div>
             </section>
 

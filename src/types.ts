@@ -208,6 +208,7 @@ export interface RibbonCell {
   align?: 'left' | 'center' | 'right';
   verticalAlign?: 'top' | 'middle' | 'bottom';
   wrap?: boolean;
+  truncation?: boolean;   // false = disable text truncation (show full content)
   prefix?: string;
   suffix?: string;
   textContent?: string;   // for 'text' type static cells

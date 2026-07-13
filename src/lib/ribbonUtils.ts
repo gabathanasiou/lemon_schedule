@@ -263,10 +263,11 @@ export interface FieldDef {
   defaultPrefix?: string;
   defaultSuffix?: string;
   defaultWrap?: boolean;
+  defaultTruncation?: boolean;
 }
 
 export const ALL_FIELDS: FieldDef[] = [
-  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 8, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc' },
+  { key: 'sceneNumber', label: 'Scene #',   defaultWidth: 8, align: 'center', category: 'Scene Info', defaultPrefix: 'Sc', defaultTruncation: false },
   { key: 'callTime',    label: 'Call Time',  defaultWidth: 7, align: 'left',   category: 'Shooting' },
   { key: 'duration',    label: 'Duration',   defaultWidth: 7, align: 'left',   category: 'Shooting' },
   { key: 'intExt',      label: 'I/E',        defaultWidth: 9.74, align: 'left',   category: 'Shooting' },
@@ -326,16 +327,12 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, 
 }
 
 export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1, _cellPadding?: number): React.CSSProperties {
-  const multiRow = span > 1;
-  if (multiRow && !cell.wrap) {
+  if (cell.truncation === false) {
     return {
-      display: '-webkit-box',
-      WebkitLineClamp: span,
-      WebkitBoxOrient: 'vertical',
+      display: 'block',
+      whiteSpace: 'nowrap',
       overflow: 'hidden',
-      whiteSpace: 'normal',
-      overflowWrap: 'break-word',
-    } as React.CSSProperties;
+    };
   }
   if (cell.wrap) {
     return {
@@ -344,6 +341,16 @@ export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1, _cellPadding?
       overflow: 'visible',
       overflowWrap: 'break-word',
     };
+  }
+  if (span > 1) {
+    return {
+      display: '-webkit-box',
+      WebkitLineClamp: span,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden',
+      whiteSpace: 'normal',
+      overflowWrap: 'break-word',
+    } as React.CSSProperties;
   }
   return {
     whiteSpace: 'nowrap',
@@ -474,7 +481,7 @@ export function getDefaultRibbonRows(): RibbonRow[] {
       id: `row-${cid()}`,
       name: 'Row 1',
       cells: [
-        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle' },
+        { id: cid(), field: 'sceneNumber', prefix: 'Scene:', align: 'left', verticalAlign: 'middle', truncation: false },
         { id: cid(), field: 'callTime', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'duration', align: 'center', verticalAlign: 'middle' },
         { id: cid(), field: 'intExt', align: 'left' },
