@@ -712,11 +712,11 @@ function AppContent() {
         </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs">
-          <div className="flex items-center gap-1 border border-white/10 rounded">
+          <div className="flex items-center gap-1 border border-white/10 rounded bg-white/5">
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
               disabled={state.past.length === 0}
-              className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-zinc-400 hover:text-white hover:bg-zinc-800"
+              className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               title="Undo (Cmd+Z)"
             >
               <Undo2 className="w-3.5 h-3.5" />
@@ -724,13 +724,14 @@ function AppContent() {
             <button
               onClick={() => dispatch({ type: 'REDO' })}
               disabled={state.future.length === 0}
-              className="p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-zinc-400 hover:text-white hover:bg-zinc-800"
+              className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               title="Redo (Cmd+Shift+Z)"
             >
               <Redo2 className="w-3.5 h-3.5" />
             </button>
           </div>
 
+          <div className="border border-white/10 rounded bg-white/5">
           <DropdownMenu
               open={showVersionsMenu}
               onOpenChange={(o) => { if (!o) setEditingVersionId(null); setShowVersionsMenu(o); }}
@@ -738,7 +739,7 @@ function AppContent() {
               theme={isCloudProject ? 'blue' : 'dark'}
               trigger={
                 <button 
-                  className="flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white hover:bg-zinc-800"
+                  className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
                 >
                    <span>Version: <strong>{version?.name || 'Select Version'}</strong></span>
                   <ChevronDown className="w-3.5 h-3.5" />
@@ -832,6 +833,7 @@ function AppContent() {
                 </DropdownItem>
               </div>
             </DropdownMenu>
+          </div>
 
         </div>
       </header>
