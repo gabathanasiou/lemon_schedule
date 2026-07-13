@@ -24,6 +24,7 @@ import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 import { useDialog } from './Dialog';
+import { ELEMENT_CATEGORIES } from '../lib/categories';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
@@ -51,6 +52,14 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [autoDaybreakOpen, setAutoDaybreakOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const dialog = useDialog();
+
+  const sortCategories = useMemo(() => {
+    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
+    for (const cc of project.customCategories) {
+      cats.push({ key: cc.key, label: cc.label });
+    }
+    return cats;
+  }, [project.customCategories]);
 
   const marqueeMode = useMarqueeMode();
 
@@ -954,7 +963,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const val = await dialog.prompt({
       title: mode === 'duration' ? 'Auto Day Break by Duration' : 'Auto Day Break by Pages',
       placeholder: mode === 'duration' ? 'e.g. 8h or 1h 30m' : 'e.g. 2 4/8 or 3.5',
-      defaultValue: mode === 'duration' ? '8h' : '8',
+      defaultValue: '',
     });
     if (!val) return;
     const threshold = mode === 'duration' ? parseDuration(val) : parsePageCount(val);
@@ -1016,7 +1025,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     dispatch({ type: 'BATCH_COMMIT' });
   };
 
-  const handleSort = async (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set' | 'int_ext' | 'day_night' | 'cast' | 'duration') => {
+  const handleSort = async (criterion: string) => {
     if (!activeVersion) return;
 
     const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
@@ -1066,22 +1075,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if (criterion === 'page_count') {
           return (sceneB?.pageCountDecimal || 0) - (sceneA?.pageCountDecimal || 0);
         }
-        if (criterion === 'set') {
-          return (sceneA?.set || '').localeCompare(sceneB?.set || '');
-        }
-        if (criterion === 'int_ext') {
-          return (sceneA?.intExt || '').localeCompare(sceneB?.intExt || '');
-        }
-        if (criterion === 'day_night') {
-          return (sceneA?.dayNight || '').localeCompare(sceneB?.dayNight || '');
-        }
-        if (criterion === 'cast') {
-          return (sceneA?.cast || '').localeCompare(sceneB?.cast || '');
-        }
         if (criterion === 'duration') {
           return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
         }
-        return 0;
+        const valA = String((sceneA as any)?.[criterion] ?? '');
+        const valB = String((sceneB as any)?.[criterion] ?? '');
+        return valA.localeCompare(valB);
       });
 
       const merged = [...sceneRows, ...nonSceneRows];
@@ -1486,7 +1485,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             <DropdownMenu
               open={sortMenuOpen}
               onOpenChange={setSortMenuOpen}
-              width="w-44"
+              width="w-56"
               theme="light"
               trigger={
                 <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
@@ -1501,10 +1500,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               <DropdownItem onClick={() => handleSort('page_count')} icon={<FileText className="w-3.5 h-3.5" />}>Page Count</DropdownItem>
               <DropdownItem onClick={() => handleSort('duration')} icon={<Clock className="w-3.5 h-3.5" />}>Duration</DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => handleSort('set')}>Set / Location</DropdownItem>
               <DropdownItem onClick={() => handleSort('int_ext')}>INT / EXT</DropdownItem>
               <DropdownItem onClick={() => handleSort('day_night')}>Day / Night</DropdownItem>
-              <DropdownItem onClick={() => handleSort('cast')}>Cast</DropdownItem>
+              <DropdownDivider />
+              {sortCategories.map(c => (
+                <DropdownItem key={c.key} onClick={() => handleSort(c.key)}>{c.label}</DropdownItem>
+              ))}
             </DropdownMenu>
             <div className="w-px h-4 bg-zinc-200" />
             <DropdownMenu
