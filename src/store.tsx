@@ -1275,7 +1275,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
         return a.order - b.order;
       });
-      let sectionBase = '08:00';
+      const firstDb = rows.find(r => r.type === 'DAYBREAK');
+      let sectionBase = firstDb?.daybreakCallTime || '08:00';
       let elapsed = 0;
       const addMins = (t: string, m: number) => {
         const [h, min] = t.split(':').map(Number);
