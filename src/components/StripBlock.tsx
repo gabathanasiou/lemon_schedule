@@ -320,6 +320,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
   };
 
   return (
+    <div className="flex flex-col">
     <div style={{ ...baseStyle, borderBottom: 'none' }} className="bg-white flex flex-col border-[2px] border-black">
       
       {/* Section Header — present when daybreaks exist */}
@@ -383,13 +384,15 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
             No scenes in this day · right-click for options
           </div>
         )}
+        {computedRows.length === 0 && <div className="flex-1" />}
       </div>
+    </div>
 
       {/* Day Footer — end drop target */}
       {showGhosts && insertBeforeId === `end-${dayInt}` && (
         <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
       )}
-      <div ref={setFooterRef} />
+      <div ref={setFooterRef} className="pb-20" />
     </div>
   );
 };

@@ -108,6 +108,10 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Drag ▸◂</>} action="Resize columns by dragging the divider between any two column headers" />
         </Section>
 
+        <Section title="Calendar">
+          <Row keys={<>Drag day header</>} action="Swap two days' content and call times in the stripboard" />
+        </Section>
+
         <Section title="Boneyard Sidebar">
           <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Boneyard" />
           <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, or Set" />

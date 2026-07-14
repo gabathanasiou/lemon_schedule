@@ -142,10 +142,17 @@ const DayCell: React.FC<{
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
   palette?: SceneColorPalette;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, palette }) => {
+  activeDragDay?: number | null;
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, palette, activeDragDay }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
+  });
+
+  const { setNodeRef: setDragRef, attributes: dragAttributes, listeners: dragListeners, isDragging } = useDraggable({
+    id: `day-section-${sectionIndex ?? -1}`,
+    data: { type: 'DAY', sectionIndex },
+    disabled: !sectionLabel || !!activeTool,
   });
 
   const { setNodeRef: setEndRef } = useDroppable({
@@ -187,10 +194,13 @@ const DayCell: React.FC<{
           </div>
         )}
         <div
+          ref={setDragRef}
+          {...dragListeners}
+          {...dragAttributes}
           onClick={() => activeTool && onToggle(dateKey)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
-          style={{ cursor: activeTool ? 'pointer' : 'default', ...headerStyle }}
-        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
+          style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
+        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
@@ -845,6 +855,12 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (isAddModeActive()) return;
     const data = e.active.data.current as any;
     setActiveId(e.active.id as string);
+    if (data?.type === 'DAY') {
+      setActiveDragDay(data.sectionIndex);
+      setActiveDragRow(null);
+      setActiveDragIds(new Set());
+      return;
+    }
     const draggedId = e.active.id as string;
     const currentSelection = selectedRowIdsRef.current;
     if (currentSelection.has(draggedId) && currentSelection.size > 1) {
@@ -877,6 +893,85 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (!over || !activeVersion) return;
 
     const activeData = active.data.current as any;
+
+    if (activeData?.type === 'DAY') {
+      const sourceIdx = activeData.sectionIndex as number;
+      const overData = over.data.current as any;
+      let targetIdx: number | null = null;
+      if (overData?.sectionIndex != null) {
+        targetIdx = overData.sectionIndex;
+      } else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
+        const dateKey = over.id.slice(4);
+        targetIdx = dateSectionMap.get(dateKey) ?? null;
+      }
+      if (targetIdx == null || sourceIdx === targetIdx) return;
+      if (sourceIdx < 0 || targetIdx < 0 || sourceIdx >= sections.length || targetIdx >= sections.length) return;
+
+      const allRows = activeVersion.rows.map(r => ({ ...r }));
+      const boneyard = allRows.filter(r => r.containerId == null);
+      const scheduled = allRows.filter(r => r.containerId != null).sort((a, b) => a.order - b.order);
+
+      // Build section blocks matching the sections array structure
+      const blocks: { content: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
+      let currentContent: ScheduleRow[] = [];
+      for (const r of scheduled) {
+        if (r.type === 'DAYBREAK') {
+          blocks.push({ content: currentContent, daybreakRow: r });
+          currentContent = [];
+        } else {
+          currentContent.push(r);
+        }
+      }
+      // Note: rows after the last DAYBREAK are not included (matching sections derivation)
+
+      const sourceBlock = blocks[sourceIdx];
+      const targetBlock = blocks[targetIdx];
+      if (!sourceBlock || !targetBlock) return;
+
+      // Swap content between sections
+      const swapContent = [...targetBlock.content];
+      targetBlock.content = [...sourceBlock.content];
+      sourceBlock.content = swapContent;
+
+      // Call time for section N is:
+      // - N == 0: dayMeta.unitCall
+      // - N > 0: section N-1's daybreakRow.daybreakCallTime
+      const getCallTime = (idx: number): string => {
+        if (idx === 0) return activeVersion.dayMeta?.[containerDay]?.unitCall || '08:00';
+        return blocks[idx - 1]?.daybreakRow?.daybreakCallTime || '08:00';
+      };
+
+      const callA = getCallTime(sourceIdx);
+      const callB = getCallTime(targetIdx);
+
+      // Swap call times by updating the appropriate sources
+      const dayMeta = { ...activeVersion.dayMeta };
+      dayMeta[containerDay] = { ...dayMeta[containerDay] };
+
+      if (sourceIdx === 0) {
+        dayMeta[containerDay].unitCall = callB;
+      } else if (blocks[sourceIdx - 1].daybreakRow) {
+        blocks[sourceIdx - 1].daybreakRow!.daybreakCallTime = callB;
+      }
+
+      if (targetIdx === 0) {
+        dayMeta[containerDay].unitCall = callA;
+      } else if (blocks[targetIdx - 1].daybreakRow) {
+        blocks[targetIdx - 1].daybreakRow!.daybreakCallTime = callA;
+      }
+
+      // Rebuild rows from blocks
+      const rebuilt: ScheduleRow[] = [];
+      for (const block of blocks) {
+        rebuilt.push(...block.content);
+        if (block.daybreakRow) rebuilt.push(block.daybreakRow);
+      }
+      const combined = [...boneyard, ...rebuilt];
+      combined.forEach((r, i) => r.order = i);
+
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined, dayMeta } });
+      return;
+    }
 
     const draggedId = active.id as string;
     const allSelected = new Set(activeDragIds);
@@ -1134,6 +1229,12 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         </div>
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
+        {activeType === 'DAY' && activeDragDay != null ? (
+          <div className="bg-zinc-900 text-white rounded px-3 py-2 shadow-xl opacity-90">
+            <div className="text-[11px] font-bold uppercase tracking-wider">{sections[activeDragDay] ? `DAY ${(chronoDayMap.get(activeDragDay) ?? 0)}` : ''}</div>
+            <div className="text-[9px] text-zinc-400">{sections[activeDragDay]?.rows.length ?? 0} strips</div>
+          </div>
+        ) : null}
         {activeDragRows.length > 0 ? (
           <div className="flex flex-col gap-0.5 opacity-90">
             {activeDragRows.slice(0, 3).map(r => (
