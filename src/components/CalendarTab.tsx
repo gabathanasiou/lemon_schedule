@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
-import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors } from '../lib/ribbonUtils';
+import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -140,7 +140,8 @@ const DayCell: React.FC<{
   activeRowId?: string | null;
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick }) => {
+  palette?: SceneColorPalette;
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, palette }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -154,11 +155,13 @@ const DayCell: React.FC<{
 
   const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'HOL' : null;
   const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-green-50' : '';
+  const hdr = getDayHeaderColors(palette);
   const headerColor = nonShootStatus === 'hold' ? 'bg-red-600 text-white'
     : nonShootStatus === 'travel' ? 'bg-purple-600 text-white'
     : nonShootStatus === 'holiday' ? 'bg-green-700 text-white'
-    : sectionLabel ? 'bg-zinc-700 text-white'
+    : sectionLabel ? ''
     : 'bg-zinc-200 text-zinc-600';
+  const headerStyle = sectionLabel && !nonShootStatus ? { background: hdr.background, color: hdr.color } : undefined;
 
   const headerLabel = nonShootStatus === 'hold' ? 'HOLD' : nonShootStatus === 'travel' ? 'TRAVEL' : nonShootStatus === 'holiday' ? 'HOLIDAY' : sectionLabel || '';
 
@@ -167,12 +170,16 @@ const DayCell: React.FC<{
 
   return (
     <div ref={setNodeRef}
-      onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
-      className={`min-h-[80px] h-full border-r flex flex-col
+      className={`min-h-[80px] h-full border-r flex flex-col relative
         ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
     >
+        {label && (
+          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-white text-[7px] font-bold text-zinc-800 shadow-sm border border-zinc-300 leading-none z-20">
+            {label}
+          </span>
+        )}
         {monthSeparator && (
           <div className="text-center text-[9px] font-bold text-zinc-400 uppercase tracking-wider py-0.5 bg-zinc-50 border-b border-zinc-200">
             {monthSeparator}
@@ -180,7 +187,8 @@ const DayCell: React.FC<{
         )}
         <div
           onClick={() => activeTool && onToggle(dateKey)}
-          style={{ cursor: activeTool ? 'pointer' : 'default' }}
+          onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
+          style={{ cursor: activeTool ? 'pointer' : 'default', ...headerStyle }}
         className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
@@ -190,9 +198,6 @@ const DayCell: React.FC<{
             <ViolationTooltip violations={violations}>
               <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
             </ViolationTooltip>
-          )}
-          {label && (
-            <span className="text-[8px] font-bold text-white/80 ml-0.5">{label}</span>
           )}
         </span>
       </div>
@@ -634,7 +639,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     cutSelected,
     pasteClipboard,
     handleContextMenuAction,
-    createOnContextMenu,
     selectNextAfterRemove,
   } = useStripboardContextMenu({
     selectedRowIds,
@@ -649,8 +653,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setColorPicker,
     project,
   });
-
-  const handleContextMenu = createOnContextMenu();
 
   const rowsByDate = useMemo(() => {
     const map = new Map<string, ScheduleRow[]>();
@@ -946,7 +948,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   return (
     <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }} onContextMenu={handleContextMenu}>
+      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}>
         <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} onRowDoubleClick={handleRowDoubleClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
@@ -1079,6 +1081,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     activeRowId={activeId}
                     activeDragDay={activeDragDay}
                     onRowDoubleClick={handleRowDoubleClick}
+                    palette={project.colorPalette}
                   />
                 );
               })}
