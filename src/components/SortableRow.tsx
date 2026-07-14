@@ -18,7 +18,7 @@ import SectionHeader from './SectionHeader';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 import { createPortal } from 'react-dom';
-import { ViolationContent, ViolationTooltip } from './ViolationTooltip';
+import { ViolationContent } from './ViolationTooltip';
 import { ViolationModal } from './ViolationModal';
 
 const ENTITY_KEYS = new Set([
@@ -60,6 +60,7 @@ const SortableRowContent: React.FC<{
   textEditingEnabled?: boolean,
   sceneViolations?: RuleViolation[],
   sectionViolations?: RuleViolation[],
+  nextSectionViolations?: RuleViolation[],
   focusedRowId?: string | null,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
@@ -68,7 +69,7 @@ const SortableRowContent: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const { state, dispatch } = useProject();
   const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
@@ -570,13 +571,6 @@ const SortableRowContent: React.FC<{
                         position: 'relative',
                       }}>
                         <span>{row.daybreakLabel || 'End of Day'}</span>
-                        {sectionViolations && sectionViolations.length > 0 && (
-                          <ViolationTooltip violations={sectionViolations}>
-                            <span onClick={() => setShowViolationModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700, cursor: 'help' }}>
-                              <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
-                            </span>
-                          </ViolationTooltip>
-                        )}
                         {row.daybreakDate && (
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>
                             {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
@@ -649,7 +643,7 @@ const SortableRowContent: React.FC<{
                 callTime={row.daybreakCallTime || '08:00'}
                 onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
                 dateStr={nextDateStr}
-                sectionViolations={sectionViolations}
+                sectionViolations={nextSectionViolations || sectionViolations}
                 palette={state.present.colorPalette}
                 isSelected={isSelected && !isFaded}
                 ribbon={ribbon}
@@ -678,16 +672,6 @@ const SortableRowContent: React.FC<{
                     <td className="col-ie" />
                     <td className="col-set" style={{textAlign: 'center'}}>
                       {row.daybreakLabel || 'End of Day'}
-                      {sectionViolations && sectionViolations.length > 0 && (
-                        <>
-                          {' '}
-                          <ViolationTooltip violations={sectionViolations}>
-                            <span onClick={() => setShowViolationModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700, cursor: 'help' }}>
-                              <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
-                            </span>
-                          </ViolationTooltip>
-                        </>
-                      )}
                     </td>
                     <td className="col-dn" />
                     <td className="col-cast" />
@@ -713,7 +697,7 @@ const SortableRowContent: React.FC<{
               callTime={row.daybreakCallTime || '08:00'}
               onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
               dateStr={nextDateStr}
-              sectionViolations={sectionViolations}
+              sectionViolations={nextSectionViolations || sectionViolations}
               palette={state.present.colorPalette}
               isSelected={isSelected && !isFaded}
               cellPaddingV={cellPaddingV}
@@ -1324,7 +1308,7 @@ export const SortableRow: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const ctrlOrCmdHeld = useAddMode();
 
   const {
@@ -1369,6 +1353,7 @@ export const SortableRow: React.FC<{
         textEditingEnabled={textEditingEnabled}
         sceneViolations={sceneViolations}
         sectionViolations={sectionViolations}
+        nextSectionViolations={nextSectionViolations}
         focusedRowId={focusedRowId}
         onRowNavigate={onRowNavigate}
         ribbon={ribbon}

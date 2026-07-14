@@ -283,11 +283,21 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     return map;
   }, [computedRows, project.rules, project.scenes, project.castMembers, meta?.unitCall]);
 
-  const violations = useMemo(() => {
-    const all: RuleViolation[] = [];
-    for (const [, v] of sectionViolationMap) all.push(...v);
-    return all;
-  }, [sectionViolationMap]);
+  const nextSectionViolationMap = useMemo(() => {
+    const map = new Map<string, RuleViolation[]>();
+    const daybreaks = computedRows.filter(r => r.type === 'DAYBREAK');
+    for (let i = 0; i < daybreaks.length - 1; i++) {
+      const next = daybreaks[i + 1];
+      const v = sectionViolationMap.get(next.id);
+      if (v) map.set(daybreaks[i].id, v);
+    }
+    return map;
+  }, [computedRows, sectionViolationMap]);
+
+  const firstSectionViolations = useMemo(() => {
+    const first = computedRows.find(r => r.type === 'DAYBREAK');
+    return first ? sectionViolationMap.get(first.id) : undefined;
+  }, [computedRows, sectionViolationMap]);
 
   const mergedSceneViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
@@ -324,7 +334,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
           colWidths={colWidths}
           cellPaddingV={cellPaddingV}
           cellPaddingH={cellPaddingH}
-          sectionViolations={violations}
+          sectionViolations={firstSectionViolations}
         />
       )}
 
@@ -349,6 +359,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
                     textEditingEnabled={textEditingEnabled}
                     sceneViolations={mergedSceneViolationMap.get(r.sceneId || '')}
                     sectionViolations={sectionViolationMap.get(r.id)}
+                    nextSectionViolations={nextSectionViolationMap.get(r.id)}
                     focusedRowId={focusedRowId}
                     onDoubleClick={onRowDoubleClick}
                     onRowNavigate={onRowNavigate}
