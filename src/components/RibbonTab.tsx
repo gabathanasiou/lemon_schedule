@@ -92,7 +92,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const tabBarRef = useRef<HTMLDivElement>(null);
   const previewSectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; truncation?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
+  const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; truncation?: boolean; overflowVisible?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
   const [rows, setRows] = useState<RibbonRow[]>(cloneRows(initialRows));
@@ -330,13 +330,15 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     })), colWidths);
   }, [rows, colWidths, commit]);
 
-  const setOverflow = useCallback((cellId: string, mode: 'truncate' | 'wrap' | 'none') => {
+  const setOverflow = useCallback((cellId: string, mode: 'truncate' | 'wrap' | 'none' | 'visible') => {
     const ids = mergeSiblingIds(cellId, rows);
     const update: Partial<RibbonCell> = mode === 'wrap'
-      ? { wrap: true, truncation: undefined }
+      ? { wrap: true, truncation: undefined, overflowVisible: undefined }
       : mode === 'none'
-        ? { wrap: undefined, truncation: false }
-        : { wrap: undefined, truncation: undefined };
+        ? { wrap: undefined, truncation: false, overflowVisible: undefined }
+        : mode === 'visible'
+          ? { wrap: undefined, truncation: undefined, overflowVisible: true }
+          : { wrap: undefined, truncation: undefined, overflowVisible: undefined };
     commit(rows.map(r => ({
       ...r, cells: r.cells.map(c => ids.includes(c.id) ? { ...c, ...update } : c),
     })), colWidths);
@@ -516,6 +518,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
             align: sc.cell.align,
             wrap: sc.cell.wrap,
             truncation: sc.cell.truncation,
+            overflowVisible: sc.cell.overflowVisible,
             prefix: sc.cell.prefix,
             suffix: sc.cell.suffix,
             textContent: sc.cell.textContent,
@@ -539,6 +542,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               align: clip.align,
               wrap: clip.wrap || undefined,
               truncation: clip.truncation,
+              overflowVisible: clip.overflowVisible || undefined,
               prefix: clip.prefix || undefined,
               suffix: clip.suffix || undefined,
               textContent: clip.textContent || undefined,
@@ -889,11 +893,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
               })}
               <div className="w-px h-5 bg-zinc-700 mx-0.5" />
               <div className="inline-flex rounded overflow-hidden border border-zinc-700">
-                {(['truncate', 'wrap', 'none'] as const).map((mode, i) => {
-                  const current = selCell?.cell.truncation === false ? 'none' : selCell?.cell.wrap ? 'wrap' : 'truncate';
+                {(['truncate', 'wrap', 'none', 'visible'] as const).map((mode, i) => {
+                  const current = selCell?.cell.truncation === false ? 'none' : selCell?.cell.overflowVisible ? 'visible' : selCell?.cell.wrap ? 'wrap' : 'truncate';
                   const active = mode === current;
-                  const Icon = mode === 'wrap' ? WrapText : mode === 'none' ? X : Ellipsis;
-                  const label = mode === 'wrap' ? 'Wrap' : mode === 'none' ? 'None' : 'Truncate';
+                  const Icon = mode === 'wrap' ? WrapText : mode === 'none' ? X : mode === 'visible' ? Eye : Ellipsis;
+                  const label = mode === 'wrap' ? 'Wrap' : mode === 'none' ? 'None' : mode === 'visible' ? 'Visible' : 'Truncate';
                   return (
                     <Tooltip key={mode} content={`Overflow: ${label}`}>
                       <button
@@ -901,7 +905,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
                         disabled={readOnly || !selCell}
                         className={`h-7 w-7 flex items-center justify-center disabled:opacity-25 transition-colors ${
                           active ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
-                        } ${i < 2 ? 'border-r border-zinc-700' : ''}`}>
+                        } ${i < 3 ? 'border-r border-zinc-700' : ''}`}>
                         <Icon className="w-3 h-3" />
                       </button>
                     </Tooltip>

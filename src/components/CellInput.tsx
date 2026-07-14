@@ -14,7 +14,8 @@ export const CellInput: React.FC<{
   navigateOnEnter?: boolean,
   onRowNavigate?: (rowId: string) => void,
   suffix?: string,
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix }) => {
+  noTruncate?: boolean,
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, noTruncate }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const rawValue = value?.toString() || '';
   const [localVal, setLocalVal] = useState(rawValue);
@@ -184,7 +185,7 @@ export const CellInput: React.FC<{
           onPointerDown={handlePointerDown}
           readOnly={readOnly}
           placeholder={placeholder}
-          className={`${inputClass} text-ellipsis overflow-hidden whitespace-nowrap`}
+          className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'}`}
         />
       )}
     </div>

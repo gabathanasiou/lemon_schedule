@@ -86,6 +86,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
                     clearOnType
                     col="duration"
                     className="text-center"
+                    noTruncate
                   />
                 </div>
               );

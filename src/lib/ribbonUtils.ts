@@ -327,6 +327,12 @@ export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, 
 }
 
 export function getRibbonTextWrapStyle(cell: RibbonCell, span = 1, _cellPadding?: number): React.CSSProperties {
+  if (cell.overflowVisible) {
+    return {
+      whiteSpace: 'nowrap',
+      overflow: 'visible',
+    };
+  }
   if (cell.truncation === false) {
     return {
       whiteSpace: 'nowrap',

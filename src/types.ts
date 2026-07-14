@@ -220,6 +220,7 @@ export interface RibbonCell {
   verticalAlign?: 'top' | 'middle' | 'bottom';
   wrap?: boolean;
   truncation?: boolean;   // false = disable text truncation (show full content)
+  overflowVisible?: boolean; // text overflows cell bounds without wrapping
   prefix?: string;
   suffix?: string;
   textContent?: string;   // for 'text' type static cells

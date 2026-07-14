@@ -576,26 +576,27 @@ const SortableRowContent: React.FC<{
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        padding: daybreakPadPx, overflow: 'visible',
                         whiteSpace: 'normal', wordBreak: 'break-word',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                        display: 'flex', flexDirection: 'column', alignItems: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center', justifyContent: 'center', gap: 1,
                       }}>
-                        <span style={{ fontSize: '7pt', opacity: 0.75 }}>
+                        <span style={{ fontSize: '8pt' }}>
                           EST: {formatDuration(sectionShoot)}{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}
                         </span>
                       </div>
                     );
                   }
                   if (ci === pageCountColIdx && sectionPages > 0) {
+                    const pc = pageCountCell!;
                     return (
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                        ...getRibbonCellBaseStyle(pc, cellPaddingV, cellPaddingH, 1),
+                        padding: daybreakPadPx, overflow: 'visible',
+                        display: 'flex', flexDirection: 'column', alignItems: pc.align === 'right' ? 'flex-end' : pc.align === 'left' ? 'flex-start' : 'center', justifyContent: 'center', gap: 1,
                       }}>
                         <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
-                        <span style={{ fontSize: '7pt', opacity: 0.75 }}>{formatPageCount(sectionPages)} pgs</span>
+                        <span style={{ fontSize: '8pt' }}>{formatPageCount(sectionPages)} {pc.suffix || 'pgs'}</span>
                       </div>
                     );
                   }
@@ -700,7 +701,7 @@ const SortableRowContent: React.FC<{
   }
 
   const renderCellContent = (cell: RibbonCell, ci?: number) => {
-    const { field, align, prefix, suffix, wrap, id: cellId } = cell;
+    const { field, align, prefix, suffix, wrap, overflowVisible, id: cellId } = cell;
     const a = align || 'left';
     if (!field) {
       return <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
@@ -768,7 +769,7 @@ const SortableRowContent: React.FC<{
               style={{ fontSize: '8pt', lineHeight: 1.1 }}
             />
           ) : (
-            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: wrap ? 'normal' : 'nowrap', overflow: wrap ? 'visible' : 'hidden', textOverflow: wrap ? undefined : 'ellipsis', display: 'block' }}>
+            <span className={inputClass} style={{ fontSize: '8pt', lineHeight: 1.1, whiteSpace: overflowVisible ? 'nowrap' : wrap ? 'normal' : 'nowrap', overflow: overflowVisible || wrap ? 'visible' : 'hidden', textOverflow: overflowVisible || wrap ? undefined : 'ellipsis', display: 'block' }}>
               {prefix}{val}{suffix || ' pgs'}
             </span>
           )}
@@ -901,7 +902,7 @@ const SortableRowContent: React.FC<{
   }, [scenes, state.present.castMembers]);
 
   const renderCellFlex = (cell: RibbonCell, isLast: boolean, isLastRow: boolean, textColor: string, col?: number, gRow?: number, vSpan?: number, hSpan?: number) => {
-    const { field, align, prefix, suffix, wrap, id: cellId } = cell;
+    const { field, align, prefix, suffix, wrap, overflowVisible, id: cellId } = cell;
     const a = align || 'left';
     const span = vSpan || 1;
     const style: React.CSSProperties = {
