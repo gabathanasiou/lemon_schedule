@@ -125,7 +125,8 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
   const cutSelected = useCallback(() => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
-    const ids = Array.from(selectedRowIds);
+    const ids = Array.from(selectedRowIds).filter(id => !activeVersion.rows.find(r => r.id === id)?.pinned);
+    if (ids.length === 0) return;
     const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     selectPrevAfterRemove(new Set(ids as string[]));
@@ -154,7 +155,12 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
       const dayRows = activeVersion.rows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
       if (dayRows.length > 0) {
-        insertIdx = activeVersion.rows.indexOf(dayRows[0]);
+        const first = dayRows[0];
+        if (first.pinned) {
+          insertIdx = activeVersion.rows.indexOf(first) + 1;
+        } else {
+          insertIdx = activeVersion.rows.indexOf(first);
+        }
       }
     } else if (targetRow) {
       overDay = targetRow.containerId;
@@ -200,7 +206,13 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       };
       const dayRows = activeVersion.rows.filter(r => r.containerId === containerId).sort((a, b) => a.order - b.order);
       const firstDayRow = dayRows[0];
-      const insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
+      let insertAt: number;
+      if (firstDayRow?.pinned) {
+        const pinnedIdx = activeVersion.rows.indexOf(firstDayRow);
+        insertAt = pinnedIdx + 1;
+      } else {
+        insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
+      }
       const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
       newRows.forEach((r, i) => r.order = i);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
@@ -253,6 +265,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
+      if (row.pinned) { setContextMenu(null); return; }
       if (row.containerId == null && row.type !== 'DAYBREAK') {
         const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
         const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
@@ -260,7 +273,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       } else {
         newRows = newRows.filter(r => r.id !== rowId);
       }
-    } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
+    } else if (action === 'boneyard' && row.type !== 'DAYBREAK' && !row.pinned) {
       newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: null, order: 999999 } : r);
     }
 

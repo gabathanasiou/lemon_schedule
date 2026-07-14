@@ -309,7 +309,12 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     return map;
   }, [computedRows]);
 
-  const sortableRows = computedRows;
+  const sortableRows = useMemo(() => {
+    if (!activeVersion) return computedRows;
+    const hasOtherDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned);
+    if (hasOtherDaybreaks) return computedRows;
+    return computedRows.filter(r => !r.pinned);
+  }, [computedRows, activeVersion]);
 
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',

@@ -211,7 +211,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   const cutSelected = () => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
-    const ids = Array.from(selectedRowIds);
+    const ids = Array.from(selectedRowIds).filter(id => !activeVersion.rows.find(r => r.id === id)?.pinned);
+    if (ids.length === 0) return;
     const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     selectPrevAfterRemove(new Set(ids as string[]));
@@ -241,7 +242,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
     } else if (targetRowId.startsWith('empty-')) {
       overDay = parseInt(targetRowId.replace('empty-', ''), 10);
-      insertIdx = 0;
+      const dayRows = activeVersion.rows.filter(r => r.containerId === overDay && r.containerId !== -1).sort((a, b) => a.order - b.order);
+      insertIdx = dayRows.length > 0 && dayRows[0]?.pinned ? 1 : 0;
     } else {
       return;
     }
@@ -289,7 +291,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
         e.preventDefault();
         if (!activeVersion) return;
-        const ids = Array.from(selectedRowIds);
+        const ids = Array.from(selectedRowIds).filter(id => {
+          const r = activeVersion.rows.find(rr => rr.id === id);
+          return !r?.pinned;
+        });
+        if (ids.length === 0) return;
         const allInBoneyard = ids.every(id => {
           const r = activeVersion.rows.find(rr => rr.id === id);
           return r && r.containerId == null;
@@ -678,7 +684,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       const ids = activeDragIdsRef.current;
       const version = activeVersionRef.current;
       if (ids.size > 0 && version) {
-        const newRows = version.rows.map(r => ids.has(r.id) ? { ...r, containerId: null, order: 999999 } : r);
+        const newRows = version.rows.map(r => ids.has(r.id) && !r.pinned ? { ...r, containerId: null, order: 999999 } : r);
         dispatch({ type: 'UPDATE_VERSION', payload: { id: version.id, rows: newRows } });
       }
     };
@@ -897,7 +903,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       };
       const dayRows = activeVersion.rows.filter(r => r.containerId === containerId).sort((a, b) => a.order - b.order);
       const firstDayRow = dayRows[0];
-      const insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
+      let insertAt: number;
+      if (firstDayRow?.pinned) {
+        const pinnedIdx = activeVersion.rows.indexOf(firstDayRow);
+        insertAt = pinnedIdx + 1;
+      } else {
+        insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
+      }
       const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
       newRows.forEach((r, i) => r.order = i);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
@@ -969,6 +981,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
+      if (row.pinned) { setContextMenu(null); return; }
       if (row.containerId == null && row.type !== 'DAYBREAK') {
         const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
         const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
@@ -976,7 +989,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       } else {
         newRows = newRows.filter(r => r.id !== rowId);
       }
-    } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
+    } else if (action === 'boneyard' && row.type !== 'DAYBREAK' && !row.pinned) {
       newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: null, order: 999999 } : r);
     }
 
@@ -1011,7 +1024,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     });
     if (!ok) return;
     dispatch({ type: 'BATCH_START' });
-    const newRows = activeVersion.rows.filter(r => r.type !== 'DAYBREAK');
+    const newRows = activeVersion.rows.filter(r => r.type !== 'DAYBREAK' || r.pinned);
     newRows.forEach((r, i) => r.order = i);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     dispatch({ type: 'BATCH_COMMIT' });
@@ -1038,10 +1051,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         danger: true,
       });
       if (!ok) return;
-      rows = rows.filter(r => r.type !== 'DAYBREAK');
+      rows = rows.filter(r => r.type !== 'DAYBREAK' || r.pinned);
     }
 
     dispatch({ type: 'BATCH_START' });
+
+    const pinnedRows = rows.filter(r => r.pinned);
 
     const scheduled = rows.filter(r => r.containerId !== null && r.type !== 'DAYBREAK');
     const boneyard = rows.filter(r => r.containerId === null && r.type !== 'DAYBREAK');
@@ -1087,7 +1102,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       });
     }
 
-    const combined = [...result, ...boneyard];
+    const combined = [...pinnedRows, ...result, ...boneyard];
     combined.forEach((r, i) => r.order = i);
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
@@ -1097,7 +1112,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const handleSort = async (criterion: string) => {
     if (!activeVersion) return;
 
-    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
+    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned);
     if (hasDaybreaks) {
       const ok = await dialog.confirm({
         title: 'Sort Strips',
@@ -1109,7 +1124,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
     dispatch({ type: 'BATCH_START' });
 
-    let rows = activeVersion.rows.filter(r => r.type !== 'DAYBREAK');
+    const pinnedRows = activeVersion.rows.filter(r => r.pinned);
+    let rows = activeVersion.rows.filter(r => (r.type !== 'DAYBREAK' || r.pinned) && !r.pinned);
 
     const scheduled = rows.filter(r => r.containerId !== null);
     const boneyard = rows.filter(r => r.containerId === null);
@@ -1162,7 +1178,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       sortedScheduled.push(...dayRows);
     }
 
-    const combined = [...sortedScheduled, ...boneyard];
+    const combined = [...pinnedRows, ...sortedScheduled, ...boneyard];
     combined.forEach((r, i) => r.order = i);
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
@@ -1426,6 +1442,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       } else {
         insertIndex = dayRows.length;
       }
+      if (insertIndex === 0 && dayRows.length > 0 && dayRows[0]?.pinned) {
+        insertIndex = 1;
+      }
       const movedRow = { ...activeRow, containerId: overDay };
       dayRows.splice(insertIndex, 0, movedRow);
       dayRows.forEach((r, i) => r.order = i);
@@ -1444,6 +1463,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if (rawIndex === -1) rawIndex = dayRowsBefore.length;
       } else {
         rawIndex = dayRowsBefore.length;
+      }
+      if (rawIndex === 0 && dayRowsBefore.length > 0 && dayRowsBefore[0]?.pinned) {
+        rawIndex = 1;
       }
       const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
         const idx = dayRowsBefore.findIndex(r => r.id === id);
@@ -1843,7 +1865,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
                 <ContextMenuDivider />
                 <ContextMenuItem variant="danger" onClick={() => {
-                  const ids = Array.from(selectedRowIds);
+        const ids = Array.from(selectedRowIds).filter(id => {
+          const r = activeVersion.rows.find(rr => rr.id === id);
+          return !r?.pinned;
+        });
+        if (ids.length === 0) return;
                   const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
                   dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
                   selectNextAfterRemove(new Set(ids as string[]));

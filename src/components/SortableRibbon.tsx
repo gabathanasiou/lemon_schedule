@@ -563,7 +563,7 @@ const SortableRowContent: React.FC<{
       return (
         <div className="flex items-stretch min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
-              {!isFirstDaybreak && (
+              {!isFirstDaybreak && !row.pinned && (
               <div className="flex-1 min-w-0 flex flex-col" style={{
                 ...daybreakStyle,
                 paddingLeft: edgePadding ?? 2,
@@ -773,7 +773,7 @@ const SortableRowContent: React.FC<{
     return (
       <div className="flex items-stretch min-w-0">
         <div className="flex-1 min-w-0 flex flex-col">
-          {!isFirstDaybreak && (
+          {!isFirstDaybreak && !row.pinned && (
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
               <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
@@ -1483,6 +1483,7 @@ export const SortableRibbon: React.FC<{
     isDragging,
   } = useSortable({
     id: row.id,
+    disabled: row.pinned,
     data: { type: 'ROW', row }
   });
 

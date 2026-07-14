@@ -56,6 +56,8 @@ export interface ScheduleRow {
   daybreakLabel?: string;
   daybreakCallTime?: string;
   daybreakDate?: string;
+
+  pinned?: boolean;
 }
 
 export interface NonShootDate {

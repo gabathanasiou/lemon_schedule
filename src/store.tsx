@@ -191,7 +191,14 @@ function makeBlankProject(title = 'Untitled Project'): Project {
       name: 'v01',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      rows: [],
+      rows: [{
+        id: generateUUID(),
+        type: 'DAYBREAK',
+        containerId: 1,
+        order: 0,
+        daybreakLabel: 'DAYBREAK',
+        pinned: true,
+      }],
       productionStart: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
     }],
     activeVersionId: id,
@@ -511,7 +518,14 @@ function reducer(state: State, action: Action): State {
           name: action.payload.name,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          rows: [],
+          rows: [{
+            id: generateUUID(),
+            type: 'DAYBREAK',
+            containerId: 1,
+            order: 0,
+            daybreakLabel: 'DAYBREAK',
+            pinned: true,
+          }],
           productionStart: new Date().toISOString().slice(0, 10),
         };
       }
