@@ -523,15 +523,4 @@ DAYBREAK rows split the stripboard into logical **sections**. Each daybreak rend
 | Name | Role | Styling | Content |
 |---|---|---|---|
 | **`SectionFooter`** | Closes the section above it. Shows cumulative totals, end time, and date for the just-finished section. | White background (`#ffffff`) with dark text (`#18181b`). Rendered as `row-note` in non-ribbon mode, or a CSS grid in ribbon mode. | "End of Day #N", date, section pages, shoot time, break time, end time. |
-| **`SectionHeader`** | Opens the section below it. Provides a call time input and day label for the upcoming section. | Dark palette background (`getDayHeaderColors`), rendered via shared `SectionHeader` component. | "DAY #N" or "START OF DAY #N", call time `CellInput`, date. |
-
-### Shared `SectionHeader` component
-
-`src/components/SectionHeader.tsx` — renders the **`SectionHeader`** in both ribbon and non-ribbon modes. A single source of truth; any style change applies everywhere.
-
-**Used by:**
-1. `SortableRibbon.tsx` — ribbon daybreak: shown when `hasNextDaybreak` after the "End of Day" grid row.
-2. `SortableRibbon.tsx` — non-ribbon daybreak: shown when `hasNextDaybreak` below the "End of Day" table row.
-3. `StripBlock.tsx` — top of each day block: shown only when at least one `DAYBREAK` row exists in the version. Provides the call time input for the day.
-
-**Props:** `dayLabel`, `callTime`, `onCallTimeChange`, `dateStr?`, `palette?`, `isSelected?`, `ribbon?`, `colWidths?`, `cellPaddingV?`, `cellPaddingH?`. If `ribbon` is provided it renders the CSS grid variant; otherwise the `schedule-table` variant.
+|
