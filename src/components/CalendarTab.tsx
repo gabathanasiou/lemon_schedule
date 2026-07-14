@@ -154,11 +154,11 @@ const DayCell: React.FC<{
   });
 
   const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'DO' : null;
-  const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-green-50' : '';
+  const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-zinc-200' : '';
   const hdr = getDayHeaderColors(palette);
   const headerColor = nonShootStatus === 'hold' ? 'bg-red-600 text-white'
     : nonShootStatus === 'travel' ? 'bg-purple-600 text-white'
-    : nonShootStatus === 'holiday' ? 'bg-green-700 text-white'
+    : nonShootStatus === 'holiday' ? 'bg-zinc-400 text-zinc-800'
     : sectionLabel ? ''
     : 'bg-zinc-200 text-zinc-600';
   const headerStyle = sectionLabel && !nonShootStatus ? { background: hdr.background, color: hdr.color } : undefined;
