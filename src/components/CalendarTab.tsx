@@ -132,7 +132,8 @@ const DraggableDayHeader: React.FC<{
   label?: string | null;
   activeTool?: string | null;
   isDragging?: boolean;
-}> = ({ sectionIndex, dateKey, bg, fg, isCurrentMonth, isToday, dateNum, headerLabel, violations, label, activeTool, isDragging }) => {
+  onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
+}> = ({ sectionIndex, dateKey, bg, fg, isCurrentMonth, isToday, dateNum, headerLabel, violations, label, activeTool, isDragging, onContextMenu }) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: `day-section-${sectionIndex}`,
     data: { type: 'DAY_SECTION', sectionIndex, dateKey },
@@ -145,6 +146,7 @@ const DraggableDayHeader: React.FC<{
   };
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, dateKey); }}
       className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isDragging ? 'opacity-30' : ''}`}
     >
       {label && (
@@ -253,10 +255,12 @@ const DayCell: React.FC<{
             label={label}
             activeTool={activeTool}
             isDragging={isDragSource}
+            onContextMenu={(e, dk) => { onContextMenu?.(e, dk); }}
           />
         ) : (
           <div
             onClick={() => activeTool && onToggle(dateKey)}
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, dateKey); }}
             style={{ cursor: activeTool ? 'pointer' : 'default' }}
           className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
