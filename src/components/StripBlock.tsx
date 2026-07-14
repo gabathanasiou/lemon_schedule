@@ -196,12 +196,12 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
       let dur = 0;
 
       if (r.type === 'DAYBREAK') {
-        daybreakCounter += 1;
+        if (!r.pinned) daybreakCounter += 1;
         const sectionTotal = runningElapsed - sectionStart;
         const sectionEndTime = callTime;
         const row: any = {
           ...r,
-          daybreakLabel: `End of Day ${daybreakCounter}`,
+          daybreakLabel: r.pinned ? '' : `End of Day ${daybreakCounter}`,
           daybreakDate: nextDate,
           computedCallTime: callTime,
           computedElapsed: runningElapsed,
@@ -211,8 +211,10 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
           sectionBreak,
           sectionEndTime,
         };
-        nextDate = addDays(nextDate, 1);
-        while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
+        if (!r.pinned) {
+          nextDate = addDays(nextDate, 1);
+          while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
+        }
         sectionElapsed = 0;
         sectionBaseTime = r.daybreakCallTime || firstDaybreakCallTime;
         sectionStart = runningElapsed;

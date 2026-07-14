@@ -571,6 +571,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     return s;
   }, [containerRows]);
 
+  const calendarSections = useMemo(() => sections.filter(s => !s.daybreakRow?.pinned), [sections]);
+
   const addDays = (d: string, n: number) => {
     const parts = d.split('-').map(Number);
     const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
@@ -586,22 +588,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const sectionDateMap = useMemo(() => {
     const m = new Map<number, string>();
     let current = startDate;
-    for (let i = 0; i < sections.length; i++) {
+    for (const s of calendarSections) {
       while (nonShootDateMap.has(current)) current = addDays(current, 1);
-      m.set(i, current);
+      m.set(s.index, current);
       current = addDays(current, 1);
     }
     return m;
-  }, [sections, startDate, nonShootDateMap]);
+  }, [calendarSections, startDate, nonShootDateMap]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
     let chrono = 1;
-    for (let i = 0; i < sections.length; i++) {
-      m.set(i, chrono++);
+    for (const s of calendarSections) {
+      m.set(s.index, chrono++);
     }
     return m;
-  }, [sections]);
+  }, [calendarSections]);
 
   const workingLabels = useMemo(() => {
     const labels = new Map<string, string>();

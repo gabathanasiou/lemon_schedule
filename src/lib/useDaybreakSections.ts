@@ -37,6 +37,12 @@ export function useDaybreakSections() {
     return s;
   }, [containerRows]);
 
+  const firstSectionPinned = sections[0]?.daybreakRow?.pinned ?? false;
+
+  const productionSections = useMemo(() =>
+    firstSectionPinned ? sections.filter((s, i) => i !== 0 || !s.daybreakRow?.pinned) : sections,
+  [sections, firstSectionPinned]);
+
   const addDays = (d: string, n: number) => {
     const parts = d.split('-').map(Number);
     const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
@@ -54,7 +60,9 @@ export function useDaybreakSections() {
     for (let i = 0; i < sections.length; i++) {
       while (nonShootSet.has(current)) current = addDays(current, 1);
       m.set(i, current);
-      current = addDays(current, 1);
+      if (!sections[i].daybreakRow?.pinned) {
+        current = addDays(current, 1);
+      }
     }
     return m;
   }, [sections, startDate, nonShootSet]);
@@ -62,10 +70,14 @@ export function useDaybreakSections() {
   const sectionLabelMap = useMemo(() => {
     const m = new Map<number, string>();
     sections.forEach((s, i) => {
-      m.set(s.index, `Day ${i + 1}`);
+      if (s.daybreakRow?.pinned) {
+        m.set(s.index, '');
+      } else {
+        m.set(s.index, `Day ${i - (firstSectionPinned ? 1 : 0) + 1}`);
+      }
     });
     return m;
-  }, [sections]);
+  }, [sections, firstSectionPinned]);
 
   const sceneToSection = useMemo(() => {
     const m = new Map<string, number>();
@@ -81,14 +93,16 @@ export function useDaybreakSections() {
 
   const formatSectionDate = (sectionIndex: number): string => {
     const d = sectionDateMap.get(sectionIndex);
-    if (!d) return `Section ${sectionIndex + 1}`;
+    const label = sectionLabelMap.get(sectionIndex) || `Section ${sectionIndex + 1}`;
+    if (!d) return `${label} (no date)`;
     const dt = new Date(d + 'T00:00:00');
-    if (isNaN(dt.getTime())) return `Section ${sectionIndex + 1}`;
-    return `Day ${sectionIndex + 1} (${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+    if (isNaN(dt.getTime())) return `${label} (no date)`;
+    return `${label} (${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
   };
 
   return {
     sections,
+    productionSections,
     sectionDateMap,
     sectionLabelMap,
     sceneToSection,

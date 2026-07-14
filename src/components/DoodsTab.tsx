@@ -73,7 +73,7 @@ interface DoodsTabProps {
 export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   const { state } = useProject();
   const project = state.present;
-  const { sections, sectionDateMap, sectionLabelMap, sceneToSection } = useDaybreakSections();
+  const { sections, productionSections, sectionDateMap, sectionLabelMap, sceneToSection } = useDaybreakSections();
   const castMembers = project.castMembers || [];
   const isCast = selectedCategory === 'cast';
 
@@ -99,7 +99,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   }, [project.scenes, selectedCategory, isCast]);
 
   const sectionDayEntries = useMemo(() => {
-    const entries: { sectionIndex: number; isoDate: string; label: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = sections.map((s, i) => {
+    const entries: { sectionIndex: number; isoDate: string; label: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = productionSections.map((s, i) => {
       const date = sectionDateMap.get(s.index) || '';
       return {
         sectionIndex: s.index,

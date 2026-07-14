@@ -48,11 +48,13 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
 
   const { sections, sectionDateMap, sectionLabelMap } = useDaybreakSections();
 
-  const dayEntries = sections.map((s, i) => ({
-    sectionIndex: s.index,
-    date: sectionDateMap.get(s.index) || '',
-    chrono: i + 1,
-  }));
+  const dayEntries = sections
+    .filter(s => !s.daybreakRow?.pinned)
+    .map((s, i) => ({
+      sectionIndex: s.index,
+      date: sectionDateMap.get(s.index) || '',
+      chrono: i + 1,
+    }));
 
   const allSectionIndices = dayEntries.map(d => d.sectionIndex);
 

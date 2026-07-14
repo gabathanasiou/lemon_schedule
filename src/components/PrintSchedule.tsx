@@ -882,9 +882,9 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return dt.toISOString().slice(0, 10); };
   const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
   const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
-  const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (let i = 0; i < sections.length; i++) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(i, c); c = addDays(c, 1); } return m; })();
+  const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (const s of sections) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(s.index, c); if (!s.daybreakRow?.pinned) { c = addDays(c, 1); } } return m; })();
 
-  const sectionEntries = sections.map((s, secIdx) => ({
+  const sectionEntries = sections.filter(s => !s.daybreakRow?.pinned).map((s, secIdx) => ({
     sectionIndex: s.index,
     date: sectionDateMap.get(s.index) || '',
     rows: s.rows.filter(r => selectedDays.includes(s.index)),
