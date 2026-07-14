@@ -346,12 +346,17 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
   const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (const s of sections) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(s.index, c); if (!s.daybreakRow?.pinned) { c = addDays(c, 1); } } return m; })();
 
-  const sectionEntries = sections.filter(s => !s.daybreakRow?.pinned).map((s, secIdx) => ({
-    sectionIndex: s.index,
-    date: sectionDateMap.get(s.index) || '',
-    rows: s.rows.filter(r => selectedDays.includes(s.index)),
-    hasRows: s.rows.some(r => selectedDays.includes(s.index)),
-  })).filter(e => e.hasRows && e.date);
+  const sectionEntries = sections.filter(s => !s.daybreakRow?.pinned).map((s) => {
+    const content = s.rows.filter(r => selectedDays.includes(s.index));
+    const allRows = [...content];
+    if (s.daybreakRow && selectedDays.includes(s.index)) allRows.push(s.daybreakRow as ScheduleRow);
+    return {
+      sectionIndex: s.index,
+      date: sectionDateMap.get(s.index) || '',
+      rows: allRows,
+      hasRows: allRows.length > 0,
+    };
+  }).filter(e => e.hasRows && e.date);
 
   sectionEntries.sort((a, b) => a.date.localeCompare(b.date));
 
