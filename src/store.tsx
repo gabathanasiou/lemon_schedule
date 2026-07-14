@@ -1256,7 +1256,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setInitialized(true);
   }, []);
 
-  // Post-save hook for File System Access (registered by App.tsx)
   const postSaveHandlerRef = useRef<((project: Project) => Promise<void>) | null>(null);
   const registerPostSaveHandler = useCallback((handler: ((project: Project) => Promise<void>) | null) => {
     postSaveHandlerRef.current = handler;
@@ -1266,6 +1265,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveProjectRef = useRef(state.present);
   saveProjectRef.current = state.present;
+
+  useEffect(() => {
+    (window as any).__dumpSchedule = () => {
+      const project = saveProjectRef.current;
+      const version = project.versions.find(v => v.id === project.activeVersionId);
+      if (!version) return console.log('No active version');
+      console.table(version.rows.filter(r => r.type === 'DAYBREAK').map(r => ({
+        id: r.id.slice(0, 6),
+        callTime: r.daybreakCallTime,
+        pinned: r.pinned,
+      })));
+    };
+  }, []);
+
   useEffect(() => {
     if (!currentProjectId) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
