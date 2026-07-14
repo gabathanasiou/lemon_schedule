@@ -120,7 +120,6 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Double-click scene</>} action="Open scene in Breakdown tab" />
           <Row keys={<><Kbd>⇧</Kbd> + Double-click scene</>} action="Open scene sheet in a new window" />
           <Row keys={<>Click day header</>} action="Select the entire day" />
-          <Row keys={<>Drag day header</>} action="Calendar: drag working day headers to reorder days" />
           <Row keys={<>Click empty space</>} action="Deselect all rows" />
           <Row keys={<>Trash on day header</>} action="Send all ribbons from that day to boneyard" />
         </Section>

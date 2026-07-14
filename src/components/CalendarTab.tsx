@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
-import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors } from '../lib/ribbonUtils';
+import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -119,50 +119,6 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
   );
 };
 
-const DraggableDayHeader: React.FC<{
-  sectionIndex: number;
-  dateKey: string;
-  bg: string;
-  fg: string;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  dateNum: number;
-  headerLabel: string;
-  violations: RuleViolation[];
-  label?: string | null;
-  activeTool?: string | null;
-  isDragging?: boolean;
-}> = ({ sectionIndex, dateKey, bg, fg, isCurrentMonth, isToday, dateNum, headerLabel, violations, label, activeTool, isDragging }) => {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: `day-section-${sectionIndex}`,
-    data: { type: 'DAY_SECTION', sectionIndex, dateKey },
-    disabled: !!activeTool,
-  });
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    backgroundColor: bg,
-    color: fg,
-  };
-  return (
-    <div ref={setNodeRef} style={style} {...listeners} {...attributes}
-      className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isDragging ? 'opacity-30' : ''}`}
-    >
-      {label && (
-        <span className="absolute -top-1 -right-1 text-[7px] font-bold px-1 rounded-full bg-white text-zinc-700 leading-tight border border-zinc-300 z-10">{label}</span>
-      )}
-      <span className="text-[10px] font-bold w-5 text-center leading-none">{dateNum}</span>
-      <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
-      <span className="w-5 flex justify-center">
-        {violations.length > 0 && (
-          <ViolationTooltip violations={violations}>
-            <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
-          </ViolationTooltip>
-        )}
-      </span>
-    </div>
-  );
-};
-
 const DayCell: React.FC<{
   dateKey: string; date: Date; isCurrentMonth: boolean; isToday: boolean;
   rows: ScheduleRow[]; scenes: Scene[]; displayField: string;
@@ -184,9 +140,7 @@ const DayCell: React.FC<{
   activeRowId?: string | null;
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
-  activeDragDay?: number | null;
-  palette?: SceneColorPalette;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, activeDragDay, palette }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -196,12 +150,6 @@ const DayCell: React.FC<{
     id: `end-${dateKey}`,
     data: { type: 'STRIP_END', date: dateKey, sectionIndex },
     disabled: !!nonShootStatus,
-  });
-
-  const { setNodeRef: setSectionRef, isOver: isSectionOver } = useDroppable({
-    id: `day-section-${sectionIndex}`,
-    data: { type: 'DAY_SECTION', dateKey, sectionIndex },
-    disabled: sectionIndex == null,
   });
 
   const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'HOL' : null;
@@ -216,64 +164,38 @@ const DayCell: React.FC<{
 
   const isNonShoot = !!nonShootStatus;
   const isWorking = sectionIndex != null;
-  const isDragSource = activeDragDay != null && activeDragDay === sectionIndex;
-  const dh = getDayHeaderColors(palette);
-
-  const setOuterRef = (node: HTMLElement | null) => {
-    setNodeRef(node);
-    if (sectionIndex != null) setSectionRef(node);
-  };
 
   return (
-    <div ref={setOuterRef}
+    <div ref={setNodeRef}
       onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
       className={`min-h-[80px] h-full border-r flex flex-col
         ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
         ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
-        ${isOver && !isNonShoot ? '!bg-blue-50' : ''}
-        ${isSectionOver ? 'ring-2 ring-blue-400 bg-blue-50/50' : ''}
-        ${isDragSource ? 'opacity-40' : ''}`}
+        ${isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
     >
         {monthSeparator && (
           <div className="text-center text-[9px] font-bold text-zinc-400 uppercase tracking-wider py-0.5 bg-zinc-50 border-b border-zinc-200">
             {monthSeparator}
           </div>
         )}
-        {isWorking ? (
-          <DraggableDayHeader
-            sectionIndex={sectionIndex!}
-            dateKey={dateKey}
-            bg={dh.background}
-            fg={dh.color}
-            isCurrentMonth={isCurrentMonth}
-            isToday={isToday}
-            dateNum={date.getDate()}
-            headerLabel={headerLabel}
-            violations={violations}
-            label={label}
-            activeTool={activeTool}
-            isDragging={isDragSource}
-          />
-        ) : (
-          <div
-            onClick={() => activeTool && onToggle(dateKey)}
-            style={{ cursor: activeTool ? 'pointer' : 'default' }}
-          className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
-        >
-          <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
-          <span className="w-5 flex justify-center">
-            {violations.length > 0 && (
-              <ViolationTooltip violations={violations}>
-                <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
-              </ViolationTooltip>
-            )}
-            {label && (
-              <span className="text-[8px] font-bold text-white/80 ml-0.5">{label}</span>
-            )}
-          </span>
-        </div>
-        )}
+        <div
+          onClick={() => activeTool && onToggle(dateKey)}
+          style={{ cursor: activeTool ? 'pointer' : 'default' }}
+        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
+      >
+        <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
+        <span className="w-5 flex justify-center">
+          {violations.length > 0 && (
+            <ViolationTooltip violations={violations}>
+              <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
+            </ViolationTooltip>
+          )}
+          {label && (
+            <span className="text-[8px] font-bold text-white/80 ml-0.5">{label}</span>
+          )}
+        </span>
+      </div>
       <div className="flex-1 overflow-y-auto min-h-0 mx-0.5">
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {rows.map((r, i, arr) => (
@@ -509,13 +431,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   selectedRowIdsRef.current = selectedRowIds;
 
   const collisionDetection = useCallback<CollisionDetection>((args) => {
-    const { active, pointerCoordinates, droppableContainers } = args;
-    const isDraggingDay = active.data.current?.type === 'DAY_SECTION';
+    const { pointerCoordinates, droppableContainers } = args;
     const filteredContainers = droppableContainers.filter((container) => {
-      const id = container.id as string;
-      if (isDraggingDay) return id.startsWith('day-section-');
-      if (id.startsWith('day-section-')) return false;
-      if (activeDragIdsRef.current.has(id)) return false;
+      if (activeDragIdsRef.current.has(container.id as string)) return false;
       return true;
     });
     if (pointerCoordinates) {
@@ -888,11 +806,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (isAddModeActive()) return;
     const data = e.active.data.current as any;
     setActiveId(e.active.id as string);
-    if (data?.type === 'DAY_SECTION') {
-      setActiveDragDay(data.sectionIndex);
-      setActiveDragIds(new Set());
-      return;
-    }
     const draggedId = e.active.id as string;
     const currentSelection = selectedRowIdsRef.current;
     if (currentSelection.has(draggedId) && currentSelection.size > 1) {
@@ -925,52 +838,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (!over || !activeVersion) return;
 
     const activeData = active.data.current as any;
-    const overData = over.data.current as any;
-
-    if (activeData?.type === 'DAY_SECTION') {
-      const sourceIdx = activeData.sectionIndex as number;
-      let targetIdx = overData?.sectionIndex as number | undefined;
-      if (targetIdx == null && typeof over.id === 'string') {
-        targetIdx = parseInt(over.id.replace('day-section-', ''), 10);
-      }
-      if (targetIdx == null || isNaN(targetIdx) || sourceIdx === targetIdx) return;
-
-      const allRows = activeVersion.rows.map(r => ({ ...r }));
-
-      const sorted = allRows.filter(r => r.shootDay != null).sort((a, b) =>
-        (a.shootDay || 0) - (b.shootDay || 0) || a.order - b.order
-      );
-      const s: { rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
-      let currentRows: ScheduleRow[] = [];
-      for (const r of sorted) {
-        if (r.type === 'DAYBREAK') {
-          s.push({ rows: currentRows, daybreakRow: r });
-          currentRows = [];
-        } else {
-          currentRows.push(r);
-        }
-      }
-
-      if (sourceIdx >= s.length || targetIdx >= s.length) return;
-
-      const [sourceSection] = s.splice(sourceIdx, 1);
-      s.splice(targetIdx, 0, sourceSection);
-
-      const boneyard = allRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
-      const scheduled: ScheduleRow[] = [];
-      for (let i = 0; i < s.length; i++) {
-        const shootDay = i + 1;
-        const sectionRows = [...s[i].rows, ...(s[i].daybreakRow ? [s[i].daybreakRow] : [])];
-        for (const r of sectionRows) {
-          scheduled.push({ ...r, shootDay });
-        }
-      }
-
-      boneyard.forEach((r, i) => { r.order = scheduled.length + i; });
-      const newRows = [...scheduled, ...boneyard];
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-      return;
-    }
 
     const draggedId = active.id as string;
     const allSelected = new Set(activeDragIds);
@@ -983,6 +850,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     });
 
     let targetDateKey: string | null = null;
+    const overData = over.data.current as any;
     if (over.id === 'boneyard') {
       targetDateKey = null;
     } else if (typeof over.id === 'string' && over.id.startsWith('day-')) {
@@ -1210,7 +1078,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     activeDragRows={activeDragRows}
                     activeRowId={activeId}
                     activeDragDay={activeDragDay}
-                    palette={project.colorPalette}
                     onRowDoubleClick={handleRowDoubleClick}
                   />
                 );
@@ -1220,11 +1087,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         </div>
       </div>
       <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
-        {activeDragDay != null ? (
-          <div className="bg-zinc-700 text-white px-2 py-1 rounded text-[10px] font-bold opacity-90">
-            DAY {chronoDayMap.get(activeDragDay) ?? '?'} &middot; {sections[activeDragDay]?.rows.length || 0} scenes
-          </div>
-        ) : activeDragRows.length > 0 ? (
+        {activeDragRows.length > 0 ? (
           <div className="flex flex-col gap-0.5 opacity-90">
             {activeDragRows.slice(0, 3).map(r => (
               <SceneCardContent key={r.id} row={r} scene={project.scenes.find(s => s.id === r.sceneId)} displayField={displayField} />
