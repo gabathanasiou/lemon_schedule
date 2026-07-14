@@ -599,28 +599,31 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
           })}
 
       {cells ? (
-        <div className="print-day-footer" style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' ') }}>
+        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '), background: '#fff', color: '#18181b', borderTop: '1pt solid #d4d4d8' }}>
           {cells.map((cell, ci) => {
-            if (ci === 0) {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
-                }}>
-                  End of Day #{chronoDay}
-                  {runningElapsed > 0 && <span> · {addMinutesToTime(callTime || '08:00', runningElapsed)}</span>}
-                </div>
-              );
-            }
             if (ci === mainCellIdx) {
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                  textAlign: 'center', padding: `2px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                  fontSize: '7pt', lineHeight: 1.2,
                 }}>
-                  {dateStr ? formatDateLong(dateStr) : ''}
+                  <span>End of Day #{chronoDay}</span>
+                  {dateStr && <span style={{ display: 'block' }}>{formatDateLong(dateStr)}</span>}
+                </div>
+              );
+            }
+            if (ci === 0) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: `2px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                  fontSize: '7pt', lineHeight: 1.2,
+                }}>
+                  {totalPages > 0 && <span>{formatPageCount(totalPages)} pgs</span>}
+                  {runningElapsed > 0 && <span style={totalPages > 0 ? { marginLeft: 4 } : {}}>EST: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? <> + {formatDuration(totalBreakTime)} break</> : ''}</span>}
                 </div>
               );
             }
@@ -628,26 +631,22 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                textAlign: 'center', padding: `2px ${cellPaddingH ?? 6}px`, overflow: 'visible',
               }} />
             );
           })}
-          <div style={{ gridColumn: `1 / -1`, padding: `2px ${cellPaddingV ?? 6}px`, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-            {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>}
-            <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-          </div>
         </div>
       ) : (
-        <div className="print-day-footer">
-          <span className="print-footer-end-label">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', color: '#18181b', padding: '2px 6pt', borderTop: '1pt solid #d4d4d8', fontSize: '7pt' }}>
+          <span>
             End of Day #{chronoDay}
             {runningElapsed > 0 && <span> · {addMinutesToTime(callTime || '08:00', runningElapsed)}</span>}
           </span>
-          {dateStr && <span className="print-footer-date">{formatDateLong(dateStr)}</span>}
-          <div className="print-footer-stats">
-            {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>}
-            <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
-          </div>
+          {dateStr && <span>{formatDateLong(dateStr)}</span>}
+          <span>
+            {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong>{' '}</span>}
+            EST: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}
+          </span>
         </div>
       )}
     </div>
@@ -773,27 +772,6 @@ const PRINT_STYLE = `
     border-right: 1px solid #000 !important;
   }
 
-  .print-day-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: #ffffff;
-    color: #18181b;
-    padding: 4pt 6pt;
-    border-top: 1pt solid #d4d4d8;
-  }
-  .print-footer-end-label {
-    flex: 0 0 auto;
-  }
-  .print-footer-date {
-    flex: 1;
-    text-align: center;
-  }
-  .print-footer-stats {
-    display: flex;
-    gap: 20pt;
-    flex: 0 0 auto;
-  }
 `;
 
 const CAST_LIST_STYLE = `
