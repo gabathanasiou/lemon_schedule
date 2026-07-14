@@ -202,6 +202,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
       : cells.map((c, i) => ({i, w: filteredWidths[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
   })() : null;
 
+  const pageCountColIdx = cells ? cells.findIndex((_, ci) =>
+    filteredRibbon && filteredRibbon.some(r => ci < r.cells.length && r.cells[ci].field === 'pageCount')
+  ) : -1;
+
   const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
@@ -591,31 +595,55 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
           })}
 
       {cells ? (
-        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '), background: '#fff', color: '#18181b', borderTop: '1pt solid #d4d4d8' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '), background: '#fff', color: '#18181b', paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
           {cells.map((cell, ci) => {
             if (ci === mainCellIdx) {
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: `2px ${cellPaddingH ?? 6}px`, overflow: 'visible',
-                  fontSize: '7pt', lineHeight: 1.2,
+                  textAlign: 'center', padding: noteBreakPadPx,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}>
-                  <span>End of Day #{chronoDay}</span>
-                  {dateStr && <span style={{ display: 'block' }}>{formatDateLong(dateStr)}</span>}
+                  <span>{`End of Day ${chronoDay}`}</span>
+                  {dateStr && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{formatDateLong(dateStr)}</span>}
                 </div>
               );
             }
-            if (ci === 0) {
+            if (ci === pageCountColIdx && totalPages > 0) {
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: `2px ${cellPaddingH ?? 6}px`, overflow: 'visible',
-                  fontSize: '7pt', lineHeight: 1.2,
+                  padding: noteBreakPadPx,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}>
-                  {totalPages > 0 && <span>{formatPageCount(totalPages)} pgs</span>}
-                  {runningElapsed > 0 && <span style={totalPages > 0 ? { marginLeft: 4 } : {}}>EST: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? <> + {formatDuration(totalBreakTime)} break</> : ''}</span>}
+                  <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
+                  <span style={{ fontSize: '8pt' }}>{formatPageCount(totalPages)} pgs</span>
+                </div>
+              );
+            }
+            if (ci === cells.length - 1 && runningElapsed > 0) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  padding: noteBreakPadPx, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                }}>
+                  <span style={{ fontSize: '8pt' }}>
+                    EST: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? <> + {formatDuration(totalBreakTime)} break</> : ''}
+                  </span>
+                </div>
+              );
+            }
+            if (cell.field === 'callTime') {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  textAlign: 'center', padding: noteBreakPadPx,
+                }}>
+                  {addMinutesToTime(callTime || '08:00', runningElapsed)}
                 </div>
               );
             }
@@ -623,22 +651,16 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                textAlign: 'center', padding: `2px ${cellPaddingH ?? 6}px`, overflow: 'visible',
+                textAlign: 'center', padding: noteBreakPadPx,
               }} />
             );
           })}
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', color: '#18181b', padding: '2px 6pt', borderTop: '1pt solid #d4d4d8', fontSize: '7pt' }}>
-          <span>
-            End of Day #{chronoDay}
-            {runningElapsed > 0 && <span> · {addMinutesToTime(callTime || '08:00', runningElapsed)}</span>}
-          </span>
+          <span>End of Day #{chronoDay}{runningElapsed > 0 && <> · {addMinutesToTime(callTime || '08:00', runningElapsed)}</>}</span>
           {dateStr && <span>{formatDateLong(dateStr)}</span>}
-          <span>
-            {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong>{' '}</span>}
-            EST: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}
-          </span>
+          <span>{totalPages > 0 && <>{formatPageCount(totalPages)} pgs · </>}EST: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 && <> + {formatDuration(totalBreakTime)} break</>}</span>
         </div>
       )}
     </div>
