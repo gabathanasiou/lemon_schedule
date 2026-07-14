@@ -178,7 +178,7 @@ const SortableRowContent: React.FC<{
     <>
       <span
         ref={nextViolationRef}
-        style={{ cursor: 'help', display: 'inline-flex' }}
+        style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: 2 }}
         onMouseEnter={() => {
           if (nextViolationRef.current) {
             const r = nextViolationRef.current.getBoundingClientRect();
@@ -190,6 +190,7 @@ const SortableRowContent: React.FC<{
         onClick={() => setShowNextViolationModal(true)}
       >
         <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
+        <span style={{ fontSize: '8pt', fontWeight: 700, color: '#ef4444' }}>{nextSectionViolations!.length}</span>
       </span>
       {showNextViolationTip && createPortal(
         <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
@@ -738,6 +739,7 @@ const SortableRowContent: React.FC<{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                         textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         {ci === lastCellIdx && nextViolationBadge}
                       </div>
@@ -769,7 +771,7 @@ const SortableRowContent: React.FC<{
                     </td>
                     <td className="col-dn" />
                     <td className="col-cast" />
-                    <td className="col-pgs" style={{ textAlign: 'center' }}>
+                  <td className="col-pgs" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                       {sectionTotal > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                           <span style={{ fontSize: '7pt', opacity: 0.75 }}>{formatPageCount(sectionPages)} pgs · EST: {formatDuration(sectionShoot)}{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}</span>
