@@ -29,7 +29,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({
       onClose={onClose}
       title={title}
       icon={<Flag className="w-3.5 h-3.5 text-red-400" />}
-      width="max-w-2xl"
+      width="max-w-lg"
       footer={
         <ModalFooter>
           <span className="text-[10px] text-zinc-500 mr-auto">{violations.length} violation{violations.length !== 1 ? 's' : ''}</span>
@@ -68,7 +68,7 @@ export const ShootViolationsModal: React.FC<ShootViolationsModalProps> = ({
       onClose={onClose}
       title="Shoot Violations"
       icon={<Flag className="w-3.5 h-3.5 text-red-400" />}
-      width="max-w-2xl"
+      width="max-w-xl"
       footer={
         <ModalFooter>
           <span className="text-[10px] text-zinc-500 mr-auto">{totalViolations} violation{totalViolations !== 1 ? 's' : ''} across {dayViolations.length} section{dayViolations.length !== 1 ? 's' : ''}</span>

@@ -190,7 +190,7 @@ export default function Modal({
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 select-none bg-zinc-900" style={{ maxHeight: hasSize ? `calc(${size!.h}px - ${HEADER_HEIGHT}px)` : undefined }}>
+          <div className="overflow-y-auto flex-1 select-none bg-zinc-900 text-zinc-100" style={{ maxHeight: hasSize ? `calc(${size!.h}px - ${HEADER_HEIGHT}px)` : undefined }}>
             {children}
           </div>
 
