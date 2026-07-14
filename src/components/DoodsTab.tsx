@@ -117,7 +117,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     }
 
     return entries;
-  }, [sections, sectionDateMap, sectionLabelMap]);
+  }, [productionSections, sectionDateMap, sectionLabelMap]);
 
   const data = useMemo(() => {
     const scenes = project.scenes;
