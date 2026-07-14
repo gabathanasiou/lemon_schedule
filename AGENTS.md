@@ -19,17 +19,12 @@
 ## Tab System
 
 ### Top-Level App Tabs
-In `App.tsx`, the main header (`bg-zinc-950`) contains top-level navigation tabs: Breakdown, Schedule, Calendar, Design, Rules, Reports.
+In `App.tsx`, the main header (`bg-zinc-950`) contains tabs: Breakdown, Schedule, Calendar, Design, Rules, Reports.
 
-**Container**: `flex items-end gap-1 self-end border border-white/10 rounded p-0.5` — sits at the bottom of the header with a subtle white border.
-
-**Active tab**: `bg-white text-zinc-900 rounded px-3 py-1.5 text-xs font-semibold` — white background, dark text.
-
-**Inactive tab**: `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded px-3 py-1.5 text-xs font-semibold` — muted text with hover highlight (cloud projects: `hover:bg-blue-900/60`).
-
-**Compact mode** (`window.innerWidth < 900`): tabs collapse into a single dropdown button styled like an active tab (`bg-white text-zinc-900`), opening a DropdownMenu with all tab options + Open in New Window actions (via `rightAction` prop).
-
-**Shift+click**: pops out the clicked tab. **Right-click**: context menu with "Open in New Window". Tabs also show "Open in New Window" items in the compact dropdown.
+**Container**: `flex items-end gap-1 self-end border border-white/10 rounded p-0.5`
+**Active tab**: `bg-white text-zinc-900 rounded px-3 py-1.5 text-xs font-semibold`
+**Inactive tab**: `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded px-3 py-1.5 text-xs font-semibold` (cloud: `hover:bg-blue-900/60`)
+**Compact mode** (`< 900px`): tabs collapse into a dropdown button. **Shift+click**: pops out. **Right-click**: context menu.
 
 ### MiniTab Component (`src/components/MiniTab.tsx`)
 A reusable sub-tab bar used in Breakdown, Design, and Reports tabs.
@@ -57,7 +52,13 @@ A reusable sub-tab bar used in Breakdown, Design, and Reports tabs.
 - `ReportsTab` — `theme="dark"`, tabs: Day Out of Days / Element Breakdown
 
 ### MiniTab Header Portal Pattern
-When a child component needs toolbar controls inside the MiniTab's `rightContent`, use the portal pattern: parent provides a `<div ref={...}>` in `rightContent`, child accepts `headerTarget?: HTMLElement | null` and renders via `createPortal(headerContent, headerTarget)` — falling back to inline rendering when `headerTarget` is null. Components: `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
+
+When a child component needs toolbar controls inside the MiniTab's `rightContent`, use the portal pattern:
+
+1. **Parent** provides a `<div ref={el => portalRef.current = el}>` in `rightContent`
+2. **Child** accepts `headerTarget?: HTMLElement | null`, renders via `createPortal(headerContent, headerTarget)` — falls back to inline rendering when `headerTarget` is null
+
+Components using this: `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
 
 ### Cloud Project Coloring (MiniTab & Portaled Controls)
 When the active project is a Google Drive cloud project, the app header switches to `bg-blue-950`. All `theme="light"` MiniTab elements must follow: active tab `bg-blue-950`, buttons `bg-blue-950 hover:bg-blue-900`. Import `useIsCloudProject` from `'../store'` and derive classes conditionally. `theme="dark"` MiniTabs unaffected.
@@ -111,20 +112,12 @@ Multi/single-select dropdown for entities with `{ id, name }`. Used for cast, pr
 
 ```tsx
 import { EntityDropdown, EntityItem } from './components/EntityDropdown';
-```
 
-```tsx
 // Simple — defaults to store castMembers
 <EntityDropdown value="1, 2, 3" onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly={!textEditingEnabled} />
 
 // Cell editor (always open + auto-focused)
 <EntityDropdown value="1, 2, 3" onChange={handleChange} positioning="relative" defaultOpen autoFocus />
-
-// Standalone (bordered input, fixed positioning) — for forms
-<EntityDropdown value={castIds.join(', ')} onChange={val => setCastIds(val.split(',').map(x => x.trim()).filter(Boolean))}
-  items={entities} positioning="fixed" standalone mode="single" showSceneCounts scenes={scenes}
-  placeholder="Search..." searchFields={['id', 'name']}
-  renderItem={(item, selected) => <div>...</div>} sortItems={(items, selectedIds) => [...]} filterItem={(item, query) => boolean} />
 ```
 
 #### Creating a new entity dropdown (Props, Items, etc.)
@@ -133,56 +126,33 @@ The `EntityDropdown` component accepts an `items` prop — pass any `{ id: strin
 Utility classes exported from EntityDropdown.tsx: `DD_ITEM_CLASS(active)`, `DD_PANEL_CLASS(positioning)`, `DD_INPUT_CLASS(standalone)`.
 
 ### Entity Selection
-Whenever a UI needs the user to select items from a list (days, set pieces, props, cast members, etc.), use the `EntityDropdown` component. It handles multi/single-select, search filtering, custom display, and click-to-toggle in one shared component. Do not hand-roll checkboxes, tag inputs, or custom dropdowns — `EntityDropdown` with `items`/`renderItem`/`mode` covers every case cleanly.
-
-**Deriving `mode`:** Always use `isMultiValue(category, customCategories?)` from `src/lib/categories.ts` instead of hardcoding `mode="multi"` or `mode="single"`. The `multiValue` boolean on each category definition (built-in or custom) is the single source of truth:
-```tsx
-<EntityDropdown mode={isMultiValue(field, project.customCategories) ? 'multi' : 'single'} ... />
-```
-
-**Extracting field values:** Use `getFieldItems(field, value)` instead of raw `val.split(',')`. It returns `[value.trim()]` for single-value categories (e.g. `set`) and `value.split(',').map(...)` for multi-value categories. Never write `category === 'set' ? [val] : val.split(',')` — use the helper.
-
-```tsx
-import { getFieldItems, isMultiValue } from '../lib/categories';
-const items = getFieldItems(category, fieldValue);
-```
+Use `EntityDropdown` for all entity selection. Derive `mode` via `isMultiValue(field, project.customCategories)` from `src/lib/categories.ts` — never hardcode. Extract field values via `getFieldItems(field, value)` — never raw `val.split(',')`.
 
 ### EntityDropdown Sort Order
-
-Default sorting is handled by `sortCastMembers()` in `src/lib/dropdown.ts`. The function receives a `displayMode` parameter:
-
-| Mode | `displayMode` | Selected items | Non-selected items |
-|---|---|---|---|
-| Cast | `'id'` | Numeric by ID (`parseInt` then `localeCompare`) | Numeric by ID |
-| Non-cast | `'name'` | Preserved in text-box order (`currentIds` index) | Alphabetical by name |
-
-**Commit sorting:** When the drop-down commits (blur/Enter/Tab) in `displayMode="id"` multi mode, cast IDs are auto-sorted numerically (e.g. `"1, 4, 2"` → `"1, 2, 4"`). This is handled by `sortAndJoin()` in `EntityDropdown.tsx`.
-
-**Search-active:** When the user is actively typing a partial query (no exact match), a separate inline comparator runs (query matches first → selected first → numeric ID tiebreaker). This path is unaffected by `displayMode`. When the last comma-separated segment exactly matches an existing item, the search path is bypassed and the default sort is used.
+Default sorting via `sortCastMembers()` in `src/lib/dropdown.ts`:
+- Cast (`displayMode="id"`): numeric by ID; commit auto-sorts IDs numerically
+- Non-cast (`displayMode="name"`): selected in text-box order, non-selected alphabetical
+- Search-active: query matches first → selected first → numeric ID tiebreaker
 
 ### Dropdown Cell Editor Pattern (`onExit`)
 
-When using `EntityDropdown` or `AutocompleteDropdown` as a cell editor in the Breakdown spreadsheet, **always separate `onChange` from `exitEditMode`** using the `onExit` prop. This prevents the editor from unmounting on every commit, allowing the user to reopen the dropdown by clicking the input again.
+When using `EntityDropdown` or `AutocompleteDropdown` as a cell editor, **always separate `onChange` from `exitEditMode`** using the `onExit` prop. This prevents the editor from unmounting on every commit, allowing the user to reopen the dropdown by clicking the input again.
 
 ```tsx
-// WRONG — exitEditMode on every commit unmounts the editor, blocking re-entry:
-<EntityDropdown
-  onChange={val => { onChange({ value: val }); exitEditMode(); }}
-/>
+// WRONG — exitEditMode on every commit unmounts the editor:
+<EntityDropdown onChange={val => { onChange({ value: val }); exitEditMode(); }} />
 
 // CORRECT — onChange updates cell value, onExit handles edit mode exit:
-<EntityDropdown
-  onChange={val => onChange({ value: val })}
-  onExit={() => exitEditMode()}
-/>
+<EntityDropdown onChange={val => onChange({ value: val })} onExit={() => exitEditMode()} />
 ```
 
-**How it works:** Both `EntityDropdown` and `AutocompleteDropdown` compare the committed value with the original `value` prop. If unchanged, `onChange` is skipped entirely (no cell re-render, no unmount). If changed, `onChange` fires to update the cell. In both cases, `onExit?.()` is called, which triggers `exitEditMode()`. The result: Enter/Tab/Escape on the same value leaves the cell cleanly, and clicking the input reopens the dropdown instantly.
-
-This pattern is used in `BreakdownTab.tsx` for all editors: CastEditor, SetEditor, generic breakdown editors, IntExtEditor, and DayNightEditor.
+Both `EntityDropdown` and `AutocompleteDropdown` compare committed vs original value. If unchanged, `onChange` is skipped. In both cases, `onExit?.()` fires, triggering `exitEditMode()`. Used in `BreakdownTab.tsx` for all editors.
 
 ### Category `multiValue` Property
 Each category (built-in via `ELEMENT_CATEGORIES` in `src/lib/categories.ts`, custom via `CustomCategoryDef.multiValue?`) has a `multiValue: boolean`. Only `set` is `multiValue: false` by default. Custom categories can toggle this in the Element Manager's Create/Edit Category modal. When adding a new built-in single-value category, set `multiValue: false` in `ELEMENT_CATEGORIES` — no other code changes needed.
+
+### Categories Registry (`src/lib/categories.ts`)
+`ELEMENT_CATEGORIES` is the central registry for all breakdown categories. Each entry defines `key`, `label`, `multiValue`, and optional `fdxFallbacks` for import mapping. Helpers: `isMultiValue(key, customCategories?)`, `getFieldItems(key, value)`, `buildCSVLabelToKeyMap()`. To add a new built-in category, add an entry to `ELEMENT_CATEGORIES` — no other code changes needed unless the category needs custom rendering.
 
 ### Key Patterns
 - **Click-to-toggle** (NOT hover): All menus use React state + backdrop div for closing.
@@ -277,6 +247,19 @@ Rendering locations that must pass `cellPaddingV`, `cellPaddingH`, and `edgePadd
 - `PrintSchedule.tsx` → `DaySection` (props, passed from `App.tsx`)
 - `PrintDialog.tsx` (resolved from selected ribbon design)
 - `RibbonTab.tsx` (from `activeDesign`)
+
+### Ribbon Designer (`src/components/RibbonTab.tsx`)
+
+The Ribbon Designer sub-tab (under Design) lets users create and manage ribbon designs for scene stripboard rendering. Key features:
+
+- **Designs list**: Create/rename/delete/clone ribbon designs; active design stored as `activeRibbonId`
+- **Live Preview**: Real-time preview of ribbon rendering with dummy scene data; respects `useViewMode()` and `useCellBorders()`
+- **Column config**: Show/hide columns, reorder via drag-and-drop, set fixed/variable widths
+- **Row config**: Add/remove ribbon rows, map each row to a scene field or expression
+- **Cell padding**: `cellPaddingV`/`cellPaddingH` inputs (0–24px) and `edgePadding` (0–12px)
+- **Expression editor**: Custom field expressions using scene properties (e.g., `scene.sceneNumber`, `scene.intExt`)
+
+All ribbon designs are stored in `project.ribbonDesigns[]` and rendered via `getRibbonCellBaseStyle()` from `src/lib/ribbonUtils.ts`.
 
 ### View Mode (`src/lib/persist.ts`)
 
