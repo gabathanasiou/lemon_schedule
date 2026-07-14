@@ -795,7 +795,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   const existingDays = useMemo(() => {
     const ids = Array.from(new Set<number>(
-      activeVersion.rows.filter(r => r.containerId != null).map(r => r.containerId as number)
+      activeVersion.rows.filter(r => r.containerId != null && r.containerId !== -1).map(r => r.containerId as number)
     )).sort((a, b) => a - b);
     return ids.length > 0 ? ids : [1];
   }, [activeVersion.rows]);
