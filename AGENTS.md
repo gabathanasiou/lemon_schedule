@@ -57,70 +57,10 @@ A reusable sub-tab bar used in Breakdown, Design, and Reports tabs.
 - `ReportsTab` — `theme="dark"`, tabs: Day Out of Days / Element Breakdown
 
 ### MiniTab Header Portal Pattern
-When a child component rendered below a MiniTab bar needs to place toolbar controls (dropdowns, buttons) **inside** the MiniTab's `rightContent` area, use the portal pattern:
-
-1. **Parent** (`BreakdownTab.tsx`) provides a portal div in `rightContent`:
-   ```tsx
-   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
-   <MiniTab
-     rightContent={
-       <>
-         {/* direct controls for Scene Breakdown when subTab === 'scenes' */}
-         <div
-           ref={el => { portalTargetRef.current = el; setPortalTarget(el); }}
-           className={subTab === 'scenes' ? 'hidden' : 'flex items-center gap-2'}
-         />
-       </>
-     }
-   />
-   ```
-
-2. **Child component** accepts `headerTarget?: HTMLElement | null`, renders toolbar via `createPortal`:
-   ```tsx
-   import { createPortal } from 'react-dom';
-
-   const headerContent = (<div className="flex items-center justify-end gap-1">...</div>);
-
-   return (
-     <div>
-       {headerTarget ? createPortal(headerContent, headerTarget) : (
-         <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-zinc-200 bg-white shrink-0">
-           {headerContent}
-         </div>
-       )}
-       {/* component body */}
-     </div>
-   );
-   ```
-
-3. **Parent passes** `headerTarget={portalTarget}` to the child.
-
-**Components using this pattern:** `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
-
-**Why:** When `headerTarget` is null (component used standalone), the toolbar renders inline. When portaled, it sits in the MiniTab bar, avoiding a redundant second toolbar below.
+When a child component needs toolbar controls inside the MiniTab's `rightContent`, use the portal pattern: parent provides a `<div ref={...}>` in `rightContent`, child accepts `headerTarget?: HTMLElement | null` and renders via `createPortal(headerContent, headerTarget)` — falling back to inline rendering when `headerTarget` is null. Components: `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
 
 ### Cloud Project Coloring (MiniTab & Portaled Controls)
-
-When the active project is a Google Drive cloud project, the app header switches to `bg-blue-950` (from `bg-zinc-950`). All `theme="light"` MiniTab-related elements that visually attach to the header must follow suit:
-
-| Element | Normal (zinc) | Cloud (blue) |
-|---|---|---|
-| MiniTab active tab | `bg-zinc-950` | `bg-blue-950` |
-| Primary action buttons in header (`+New`, `+Add Scene`, `Save`) | `bg-zinc-900 hover:bg-zinc-800` | `bg-blue-950 hover:bg-blue-900` |
-
-**How:** Import `useIsCloudProject` from `'../store'` and derive the button class:
-```tsx
-import { useIsCloudProject } from '../store';
-const isCloud = useIsCloudProject();
-
-<button className={isCloud
-  ? "bg-blue-950 text-white hover:bg-blue-900 ..."
-  : "bg-zinc-900 text-white hover:bg-zinc-800 ..."
-}>+ Add</button>
-```
-
-This only applies to `theme="light"` MiniTabs. `theme="dark"` MiniTabs and controls on dark pages are unaffected.
+When the active project is a Google Drive cloud project, the app header switches to `bg-blue-950`. All `theme="light"` MiniTab elements must follow: active tab `bg-blue-950`, buttons `bg-blue-950 hover:bg-blue-900`. Import `useIsCloudProject` from `'../store'` and derive classes conditionally. `theme="dark"` MiniTabs unaffected.
 
 ## UI Component Library (`src/components/`)
 
@@ -130,53 +70,37 @@ This only applies to `theme="light"` MiniTabs. `theme="dark"` MiniTabs and contr
 Click-to-toggle dropdown built on `@radix-ui/react-dropdown-menu`. Escape key close and positioning handled by Radix.
 ```tsx
 import DropdownMenu from './components/DropdownMenu';
-
-// State management is caller's responsibility
 const [open, setOpen] = useState(false);
-
-<DropdownMenu
-  open={open}
-  onClose={() => setOpen(false)}
-  width="w-48"           // optional tailwind width
-  align="right"          // "left" | "right" (default "right")
-  trigger={
-    <button onClick={() => setOpen(p => !p)}>
-      Menu Label
-    </button>
-  }
->
+<DropdownMenu open={open} onClose={() => setOpen(false)} width="w-48" align="right"
+  trigger={<button onClick={() => setOpen(p => !p)}>Label</button>}>
   {/* children */}
 </DropdownMenu>
 ```
 
 #### `DropdownItem`
-Standard menu item button with icon support and variant styling.
-```tsx
-import DropdownItem from './components/DropdownItem';
-
-<DropdownItem
-  onClick={handler}
-  icon={<Icon className="w-3.5 h-3.5" />}
-  variant="default"      // "default" | "danger"
-  disabled={false}
->
-  Label
-</DropdownItem>
-```
+Standard menu item button with icon support and variant styling (`"default" | "danger"`).
 
 #### `DropdownDivider`
 Thin horizontal separator line.
-```tsx
-import DropdownDivider from './components/DropdownDivider';
-
-<DropdownDivider />
-```
 
 #### `DropdownSubmenu`
 Submenu component for nested dropdown menus, built on Radix UI.
 
 #### `CellInput`
 Inline-editable text input/textarea. Used in schedule view for editing scene/break/note text. Handles auto-focus, Enter to confirm, Escape to cancel.
+
+#### `Modal` + `ModalFooter` (`src/components/Modal.tsx`)
+Resizable/draggable modal built on `@radix-ui/react-dialog`. Supports portal targeting for popout windows.
+```tsx
+import Modal, { ModalFooter } from './components/Modal';
+<Modal open={isOpen} onClose={close} title="Title" icon={<Icon />} width="max-w-3xl"
+  footer={<ModalFooter><button>Cancel</button><button>Action</button></ModalFooter>}>
+  {/* body */}
+</Modal>
+```
+
+#### `ContextMenu` (`src/components/ContextMenu.tsx`)
+Fixed-position context menu for right-click/long-press. Exports `ContextMenu`, `ContextMenuItem`, `ContextMenuDivider`. White theme, viewport-aware positioning.
 
 #### `EntityDropdown` (`src/components/EntityDropdown.tsx`)
 Multi/single-select dropdown for entities with `{ id, name }`. Used for cast, props, items, shoot days — any entity type.
@@ -191,38 +115,16 @@ import { EntityDropdown, EntityItem } from './components/EntityDropdown';
 
 ```tsx
 // Simple — defaults to store castMembers
-<EntityDropdown
-  value="1, 2, 3"
-  onChange={val => updateScene({cast: val})}
-  className="text-right w-full"
-  readOnly={!textEditingEnabled}
-/>
+<EntityDropdown value="1, 2, 3" onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly={!textEditingEnabled} />
 
 // Cell editor (always open + auto-focused)
-<EntityDropdown
-  value="1, 2, 3"
-  onChange={handleChange}
-  positioning="relative"
-  defaultOpen
-  autoFocus
-/>
+<EntityDropdown value="1, 2, 3" onChange={handleChange} positioning="relative" defaultOpen autoFocus />
 
 // Standalone (bordered input, fixed positioning) — for forms
-<EntityDropdown
-  value={castIds.join(', ')}
-  onChange={val => setCastIds(val.split(',').map(x => x.trim()).filter(Boolean))}
-  items={entities}         // custom entity list (override store)
-  positioning="fixed"
-  standalone
-  mode="single"            // "single" | "multi" | "select" (default)
-  showSceneCounts          // show badge next to each item
-  scenes={scenes}
-  placeholder="Search..."
-  searchFields={['id', 'name']}
-  renderItem={(item, selected) => <div>...</div>}
-  sortItems={(items, selectedIds) => [...]}
-  filterItem={(item, query) => boolean}
-/>
+<EntityDropdown value={castIds.join(', ')} onChange={val => setCastIds(val.split(',').map(x => x.trim()).filter(Boolean))}
+  items={entities} positioning="fixed" standalone mode="single" showSceneCounts scenes={scenes}
+  placeholder="Search..." searchFields={['id', 'name']}
+  renderItem={(item, selected) => <div>...</div>} sortItems={(items, selectedIds) => [...]} filterItem={(item, query) => boolean} />
 ```
 
 #### Creating a new entity dropdown (Props, Items, etc.)
@@ -324,6 +226,12 @@ Text color: white for INT NIGHT / EXT NIGHT, black for all others.
 - `RuleFormFields.tsx` – field components for each rule type: `MaxHoursFields`, `DateRestrictionFields`, `TimeWindowFields`, `CastConflictFields`, `CastSceneFlagFields`
 - `RuleFormModal.tsx` – modal for creating/editing rules with type selector grid, cast autocomplete, and type-specific fields
 - `RulesTab.tsx` (in `src/components/`, not `rules/`) – grouped rule list with search, type filter bar, collapse/expand by cast group
+
+### Import/Export (`src/lib/importScreenplay.ts`)
+- Supports three formats: **CSV** (via PapaParse), **FDX** (Final Draft XML), and **Fountain** (via fountain-js)
+- `commitImport()` wraps all dispatches in `BATCH_START`/`BATCH_COMMIT` for single undo entry
+- CSV column mapping uses `buildCSVLabelToKeyMap()` with fallbacks for custom categories and FDX category names
+- `exportBreakdownCSV()` exports all visible columns with proper escaping
 
 ### Store (`src/store.tsx`)
 - `useProject()` hook returns `{ state, dispatch, currentProjectId, projectList, readOnly, initialized, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
@@ -436,46 +344,15 @@ Glide internally shifts column indices by `+1` when row markers are present (`ro
 
 ### Column Structure
 
-```tsx
-const FIXED_COLS = [
-  { key: 'actions', label: '', width: IS_COARSE ? 48 : 36 },  // delete icon column
-  { key: 'sceneNumber', label: 'Scene #', width: 60 },
-  // ... 9 more fixed columns
-];
+`FIXED_COLS` includes `actions` (index 0, delete icon via `drawCell` canvas callback) plus 10 fixed data columns. `COLUMNS = [...FIXED_COLS, ...dynamicCategories]`.
 
-const COLUMNS = [...FIXED_COLS, ...dynamicCategories];
-```
-
-- `actions` column (index 0): drawn via `drawCell` canvas callback (Trash2 SVG), `readonly + allowOverlay: false` prevents editing, click handled in `onCellClicked` to delete row
-- Column widths are persisted per-project in `localStorage` (`lemon_schedule_glide_cols_{id}`), editable via column resize drag (Glide native `onColumnResize`)
-- `freezeColumns={1}` freezes the first data column (actions — delete icon)
-- `glideColumns` maps `COLUMNS` to Glide's `GridColumn[]`; the `actions` column uses `themeOverride: { textDark: '#ef4444' }` for red color
+- Column widths persisted per-project in `localStorage` (`lemon_schedule_glide_cols_{id}`)
+- `freezeColumns={1}` freezes the actions column
+- Actions column uses `themeOverride: { textDark: '#ef4444' }` for red color
 
 ### Inline Entity Editing (`provideEditor`)
 
-Editors are rendered via Glide's overlay system. Pattern:
-
-```tsx
-const editor = (p: any) => {
-  const { value, onChange, onFinishedEditing } = p;
-  const latestRef = useRef(cellValue);
-
-  const handleChange = (newVal: string) => {
-    const next = { kind: GridCellKind.Text, data: newVal, ... };
-    latestRef.current = next;
-    onChange(next);
-  };
-
-  const handleClose = () => {
-    onFinishedEditing(latestRef.current);
-  };
-
-  return <EntityDropdown value={...} onChange={handleChange} onExit={handleClose} ... />;
-};
-return editor;
-```
-
-**Critical:** `handleClose` MUST pass the latest value to `onFinishedEditing(latestRef.current)`. Calling `onFinishedEditing()` without arguments passes `undefined`, which Glide treats as **cancel** (discards changes). Use a `useRef` to track the last `onChange` value.
+Editors are rendered via Glide's overlay system. **Critical:** `handleClose` MUST pass the latest value to `onFinishedEditing(latestRef.current)`. Calling `onFinishedEditing()` without arguments passes `undefined`, which Glide treats as **cancel** (discards changes). Use a `useRef` to track the last `onChange` value.
 
 Single/select mode in EntityDropdown calls `onExit?.()` in `toggle()` — this correctly flows through `handleClose` → `onFinishedEditing(latestRef.current)` → commit.
 
