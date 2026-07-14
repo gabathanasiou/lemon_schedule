@@ -934,12 +934,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       targetBlock.content = [...sourceBlock.content];
       sourceBlock.content = swapContent;
 
-      if (sourceBlock.daybreakRow && targetBlock.daybreakRow) {
-        const swapCallTime = sourceBlock.daybreakRow.daybreakCallTime;
-        sourceBlock.daybreakRow.daybreakCallTime = targetBlock.daybreakRow.daybreakCallTime;
-        targetBlock.daybreakRow.daybreakCallTime = swapCallTime;
-      }
-
       // Rebuild rows from blocks
       const rebuilt: ScheduleRow[] = [];
       for (const block of blocks) {
