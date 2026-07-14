@@ -273,7 +273,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       } else {
         newRows = newRows.filter(r => r.id !== rowId);
       }
-    } else if (action === 'boneyard' && row.type !== 'DAYBREAK' && !row.pinned) {
+    } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
       newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: null, order: 999999 } : r);
     }
 
