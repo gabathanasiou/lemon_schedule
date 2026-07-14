@@ -18,7 +18,7 @@ import SectionHeader from './SectionHeader';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 import { createPortal } from 'react-dom';
-import { ViolationContent } from './ViolationTooltip';
+import { ViolationContent, ViolationTooltip } from './ViolationTooltip';
 import { ViolationModal } from './ViolationModal';
 
 const ENTITY_KEYS = new Set([
@@ -570,6 +570,13 @@ const SortableRowContent: React.FC<{
                         position: 'relative',
                       }}>
                         <span>{row.daybreakLabel || 'End of Day'}</span>
+                        {sectionViolations && sectionViolations.length > 0 && (
+                          <ViolationTooltip violations={sectionViolations}>
+                            <span onClick={() => setShowViolationModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700, cursor: 'help' }}>
+                              <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
+                            </span>
+                          </ViolationTooltip>
+                        )}
                         {row.daybreakDate && (
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>
                             {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
@@ -671,6 +678,16 @@ const SortableRowContent: React.FC<{
                     <td className="col-ie" />
                     <td className="col-set" style={{textAlign: 'center'}}>
                       {row.daybreakLabel || 'End of Day'}
+                      {sectionViolations && sectionViolations.length > 0 && (
+                        <>
+                          {' '}
+                          <ViolationTooltip violations={sectionViolations}>
+                            <span onClick={() => setShowViolationModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700, cursor: 'help' }}>
+                              <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
+                            </span>
+                          </ViolationTooltip>
+                        </>
+                      )}
                     </td>
                     <td className="col-dn" />
                     <td className="col-cast" />
