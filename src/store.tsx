@@ -1173,6 +1173,7 @@ interface ProjectContextType {
   updateProjectMeta: (id: string, updates: Partial<ProjectMeta>) => void;
   registerPostSaveHandler: (handler: ((project: Project) => Promise<void>) | null) => void;
   driveSaveError: boolean;
+  storageQuotaError: boolean;
   retryDriveSync: () => Promise<void>;
 }
 
@@ -1185,6 +1186,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const auth = useGoogleAuth();
   const driveFileIdRef = useRef<string | undefined>(undefined);
   const [driveSaveError, setDriveSaveError] = useState(false);
+  const [storageQuotaError, setStorageQuotaError] = useState(false);
 
   const blank = makeBlankProject();
 
@@ -1242,6 +1244,15 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       setProjectList(list);
     }
 
+    const validIds = new Set(list.map(p => p.id));
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('lemon_schedule_') && key !== INDEX_KEY) {
+        const m = key.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+        if (m && !validIds.has(m[0])) localStorage.removeItem(key);
+      }
+    }
+
     setInitialized(true);
   }, []);
 
@@ -1290,7 +1301,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else {
-        localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(project));
+        try {
+          localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(project));
+          setStorageQuotaError(false);
+        } catch (e: any) {
+          if (e.name === 'QuotaExceededError') {
+            setStorageQuotaError(true);
+            console.error('localStorage quota exceeded — project not saved');
+          } else {
+            console.error('localStorage save failed:', e);
+          }
+          return;
+        }
         setProjectList(prev => {
           const existing = prev.find(p => p.id === currentProjectId);
           if (!existing) return prev;
@@ -1335,7 +1357,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
     if (!meta || meta.driveFileId) return;
-    localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
+    try {
+      localStorage.setItem(getProjectStorageKey(currentProjectId), JSON.stringify(state.present));
+      setStorageQuotaError(false);
+    } catch (e: any) {
+      if (e.name === 'QuotaExceededError') setStorageQuotaError(true);
+      return;
+    }
     setProjectList(prev => {
       const existing = prev.find(p => p.id === currentProjectId);
       if (!existing) return prev;
@@ -1433,6 +1461,11 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     if (!driveFileId) {
       localStorage.removeItem(getProjectStorageKey(id));
+    }
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && key.includes(id)) localStorage.removeItem(key);
     }
 
     const currentIndex = loadProjectListFromStorage();
@@ -1578,6 +1611,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       updateProjectMeta,
       registerPostSaveHandler,
       driveSaveError,
+      storageQuotaError,
       retryDriveSync,
     }}>
       {children}
