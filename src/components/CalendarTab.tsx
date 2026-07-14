@@ -934,12 +934,16 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       targetBlock.content = [...sourceBlock.content];
       sourceBlock.content = swapContent;
 
-      if (sourceBlock.daybreakRow && targetBlock.daybreakRow) {
-        const a = sourceBlock.daybreakRow.daybreakCallTime;
-        const b = targetBlock.daybreakRow.daybreakCallTime;
-        console.log(`[SWAP] section ${sourceIdx} <-> ${targetIdx} | callTime ${a} <-> ${b} | scenes ${sourceBlock.content.length} <-> ${targetBlock.content.length}`);
-        sourceBlock.daybreakRow.daybreakCallTime = b;
-        targetBlock.daybreakRow.daybreakCallTime = a;
+      if (sourceIdx > 1 && targetIdx > 1) {
+        const srcAbove = blocks[sourceIdx - 1].daybreakRow;
+        const tgtAbove = blocks[targetIdx - 1].daybreakRow;
+        if (srcAbove && tgtAbove) {
+          const a = srcAbove.daybreakCallTime;
+          const b = tgtAbove.daybreakCallTime;
+          console.log(`[SWAP] section ${sourceIdx} <-> ${targetIdx} | callTime ${a} <-> ${b} | scenes ${sourceBlock.content.length} <-> ${targetBlock.content.length}`);
+          srcAbove.daybreakCallTime = b;
+          tgtAbove.daybreakCallTime = a;
+        }
       }
 
       // Rebuild rows from blocks
