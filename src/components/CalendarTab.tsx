@@ -925,8 +925,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       }
       // Note: rows after the last DAYBREAK are not included (matching sections derivation)
 
-      console.log('[SWAP] blocks daybreak callTimes:', blocks.map((blk, i) => blk.daybreakRow?.daybreakCallTime ?? '-'));
-
       const sourceBlock = blocks[sourceIdx];
       const targetBlock = blocks[targetIdx];
       if (!sourceBlock || !targetBlock) return;
@@ -939,7 +937,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (sourceBlock.daybreakRow && targetBlock.daybreakRow) {
         const a = sourceBlock.daybreakRow.daybreakCallTime;
         const b = targetBlock.daybreakRow.daybreakCallTime;
-        console.log('[SWAP] sourceIdx:', sourceIdx, 'targetIdx:', targetIdx, '|', a, '<->', b);
         sourceBlock.daybreakRow.daybreakCallTime = b;
         targetBlock.daybreakRow.daybreakCallTime = a;
       }
@@ -952,7 +949,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       }
       const combined = [...boneyard, ...rebuilt];
       combined.forEach((r, i) => r.order = i);
-      console.log('[SWAP] dispatched daybreak callTimes:', combined.filter(r => r.type === 'DAYBREAK').map(r => r.daybreakCallTime));
 
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
       return;
