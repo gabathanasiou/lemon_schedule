@@ -1,14 +1,19 @@
 # Agent Context
 
 ## Build Commands
-- `npm run dev -- --port=3000` — start dev server
-- `npm run lint` — typecheck (`tsc --noEmit`)
+- `npm run dev` — start dev server (port 3000 by default)
+- `npm run lint` — typecheck (`tsc --noEmit`) — **no ESLint or prettier configured**
 - `npm run build` — production build
 - `npm run preview` — preview production build
+- **E2E tests:** `npx playwright test` (auto-starts dev server on port 3001; tests in `e2e/`)
+- **`DISABLE_HMR=true`** — set in env to disable HMR/file watching (AI Studio sets this automatically)
 
 ## Project: Film Production Breakdown & Scheduling App
+- React 19 + Vite 6 + Tailwind CSS v4 (`@tailwindcss/vite` plugin, not PostCSS)
 - Multi-project storage via localStorage (project index key: `lemon_schedule_project_index`, per-project key: `lemon_schedule_project_v1_{id}`)
-- State management: Zustand store with undo/redo (past/future stacks)
+- State management: React Context + `useReducer` with undo/redo (past/future stacks)
+- **Path alias:** `@/*` maps to project root (configured in both `tsconfig.json` and `vite.config.ts`)
+- **Deployment base:** `base: '/lemon_schedule/'` in `vite.config.ts` — assets served under `/lemon_schedule/` prefix
 - Tab-based UI: Breakdown (spreadsheet) + Schedule (drag-and-drop)
 
 ## Tab System
@@ -122,7 +127,7 @@ This only applies to `theme="light"` MiniTabs. `theme="dark"` MiniTabs and contr
 ### Shared Primitives (use these instead of raw HTML)
 
 #### `DropdownMenu`
-Click-to-toggle dropdown with backdrop, escape key close, and positioning.
+Click-to-toggle dropdown built on `@radix-ui/react-dropdown-menu`. Escape key close and positioning handled by Radix.
 ```tsx
 import DropdownMenu from './components/DropdownMenu';
 
@@ -167,6 +172,9 @@ import DropdownDivider from './components/DropdownDivider';
 <DropdownDivider />
 ```
 
+#### `DropdownSubmenu`
+Submenu component for nested dropdown menus, built on Radix UI.
+
 #### `CellInput`
 Inline-editable text input/textarea. Used in schedule view for editing scene/break/note text. Handles auto-focus, Enter to confirm, Escape to cancel.
 
@@ -206,7 +214,7 @@ import { EntityDropdown, EntityItem } from './components/EntityDropdown';
   items={entities}         // custom entity list (override store)
   positioning="fixed"
   standalone
-  mode="single"            // "single" | "multi" (default)
+  mode="single"            // "single" | "multi" | "select" (default)
   showSceneCounts          // show badge next to each item
   scenes={scenes}
   placeholder="Search..."
@@ -281,15 +289,17 @@ Each category (built-in via `ELEMENT_CATEGORIES` in `src/lib/categories.ts`, cus
 - **No CSS `group-hover` menus**: They're unreliable on touch and inconsistent. Use click-to-toggle everywhere.
 
 ### Colors (Scene Stripboard)
-Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (PrintSchedule.tsx). Valid combos:
-- INT DAY → white
-- EXT DAY → green (`#bdd857`)
-- INT NIGHT → dark green (`#67832e`)
-- EXT NIGHT → blue (`#2148a7`)
-- INT MORNING → peach (`#efbea0`)
-- EXT MORNING → pink (`#e88aa5`)
-- INT EVENING → amber (`#e29926`)
-- EXT EVENING → orange (`#ce7d21`)
+Scene row colors map `intExt` + `dayNight` to backgrounds via `SCENE_COLOR_FALLBACKS` in `ribbonUtils.ts`. The `sceneStyle()` function is imported from there. Actual hex values:
+- INT DAY → white (`#ffffff`)
+- EXT DAY → green (`#d7da50`)
+- INT NIGHT → dark green (`#41a31a`)
+- EXT NIGHT → blue (`#005c93`)
+- INT MORNING → pink (`#ff9ca2`)
+- EXT MORNING → pink (`#ff9ca2`) — same as INT MORNING
+- INT EVENING → amber (`#ff9d25`)
+- EXT EVENING → amber (`#ff9d25`) — same as INT EVENING
+
+Text color: white for INT NIGHT / EXT NIGHT, black for all others.
 
 ### Print System
 - Print uses `window.print()` on the main window (no iframe).
@@ -299,7 +309,7 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - Inline `<style>` tag for print CSS (since the page is replaced by print component).
 
 ### Rules Engine (`src/lib/rulesEngine.ts`)
-- `checkDay()` evaluates rules per shoot day; `checkAllDays()` returns a Map of day→violations.
+- `checkDay()` evaluates rules per shoot day; `checkAllDays()` returns a Map of day→violations; `checkSection()` evaluates a section of rows.
 - Five `ProjectRule` types:
   - `MAX_HOURS` – limit cast member's total hours per day
   - `DATE_RESTRICTION` – block cast on a specific date
@@ -313,10 +323,10 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 - `RuleCard.tsx` – card display with type badge, description, edit/delete buttons
 - `RuleFormFields.tsx` – field components for each rule type: `MaxHoursFields`, `DateRestrictionFields`, `TimeWindowFields`, `CastConflictFields`, `CastSceneFlagFields`
 - `RuleFormModal.tsx` – modal for creating/editing rules with type selector grid, cast autocomplete, and type-specific fields
-- `RulesTab.tsx` – grouped rule list with search, type filter bar, collapse/expand by cast group
+- `RulesTab.tsx` (in `src/components/`, not `rules/`) – grouped rule list with search, type filter bar, collapse/expand by cast group
 
 ### Store (`src/store.tsx`)
-- `useProject()` hook returns `{ state, dispatch, currentProjectId, projectList, readOnly, ... }`.
+- `useProject()` hook returns `{ state, dispatch, currentProjectId, projectList, readOnly, initialized, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
 - `useIsCloudProject()` hook returns `boolean` — true when the current project has a `driveFileId` (Google Drive/cloud). Used by MiniTab and portaled header controls to switch from `bg-zinc-950` / `bg-zinc-900` to `bg-blue-950` / `bg-blue-900` or to `bg-blue-900` (matching the blue app header).
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
 - Actions: `UPDATE_PROJECT`, `NEW_VERSION`, `DELETE_VERSION`, `RENAME_VERSION`, `SET_ACTIVE_VERSION`, `ADD_SCENE`, `UPDATE_SCENE`, `DELETE_SCENE`, `UNDO`, `REDO`, etc.
@@ -340,26 +350,25 @@ Scene row colors map `intExt` + `dayNight` to backgrounds in `sceneStyle()` (Pri
 
 ### Ribbon Cell Styling (single source of truth: `src/lib/ribbonUtils.ts`)
 
-All ribbon cells MUST use `getRibbonCellBaseStyle(cell, cellPadding?)` from `ribbonUtils.ts`. Never hardcode padding, font, or text styling on ribbon cells.
+All ribbon cells MUST use `getRibbonCellBaseStyle(cell, cellPaddingV?, cellPaddingH?, span?)` from `ribbonUtils.ts`. Never hardcode padding, font, or text styling on ribbon cells.
 
 | Rule | Value |
 |---|---|---|
-| Scene cell vertical padding | `cellPadding ?? 6` px |
-| Note/break banner vertical padding | `getNoteBreakPad(cellPadding, ribbonRowCount)` — **matches total scene height** |
-| Horizontal padding | `6px` (fixed) |
-| Banner pad formula | `cellPadding * N + 6 * (N - 1)` where `N = ribbonRowCount` — accounts for content line-height (≈12px per row) |
-| Shared helper | `getNoteBreakPad(cellPadding, rowCount)` in `src/lib/ribbonUtils.ts` |
-| Usage | `\`${getNoteBreakPad(cellPadding ?? 6, ribbon?.length || 1)}px 6px\`` for inline; `'--note-row-py': \`${getNoteBreakPad(...)}px\`` for CSS vars |
+| Scene cell vertical padding | `cellPaddingV ?? 3` px |
+| Scene cell horizontal padding | `cellPaddingH ?? 3` px |
+| Note/break banner vertical padding | `getNoteBreakPad(cellPaddingV, ribbonRowCount)` — **matches total scene height** |
+| Banner pad formula | `cellPaddingV * N + 6 * (N - 1)` where `N = ribbonRowCount` — accounts for content line-height (≈12px per row) |
+| Shared helper | `getNoteBreakPad(cellPaddingV, rowCount)` in `src/lib/ribbonUtils.ts` |
 
-`cellPadding` is stored per `RibbonDesign` (`cellPadding?: number`, default 6), editable in the ribbon designer toolbar ("Pad:" input, 0–24px). The store action is `SET_RIBBON_CELL_PADDING`.
+`cellPaddingV` and `cellPaddingH` are stored per `RibbonDesign` (`cellPaddingV?: number`, `cellPaddingH?: number`, default 3 each), editable in the ribbon designer toolbar ("Pad:" input, 0–24px). The store actions are `SET_RIBBON_CELL_PADDING_V` and `SET_RIBBON_CELL_PADDING_H`.
 
-`edgePadding` is stored per `RibbonDesign` (`edgePadding?: number`, default 2), editable in the ribbon designer toolbar ("Edge:" input, 0–12px). The store action is `SET_RIBBON_EDGE_PADDING`. Applied as `paddingTop`/`paddingBottom` on the outer scene ribbon container (not on individual cells or between rows).
+`edgePadding` is stored per `RibbonDesign` (`edgePadding?: number`, default 3), editable in the ribbon designer toolbar ("Edge:" input, 0–12px). The store action is `SET_RIBBON_EDGE_PADDING`. Applied as `paddingTop`/`paddingBottom` on the outer scene ribbon container (not on individual cells or between rows).
 
-Rendering locations that must pass both `cellPadding` and `edgePadding`:
-- `SortableRow.tsx` (prop `cellPadding`, passed from `ScheduleTab` → `DayBlock` → `SortableRow` and `UnscheduledBlock` → `SortableRow`)
-- `PrintSchedule.tsx` → `DaySection` (prop `cellPadding`, passed from `App.tsx`)
+Rendering locations that must pass `cellPaddingV`, `cellPaddingH`, and `edgePadding`:
+- `SortableRow.tsx` (props, passed from `ScheduleTab` → `DayBlock` → `SortableRow` and `UnscheduledBlock` → `SortableRow`)
+- `PrintSchedule.tsx` → `DaySection` (props, passed from `App.tsx`)
 - `PrintDialog.tsx` (resolved from selected ribbon design)
-- `RibbonTab.tsx` (from `activeDesign.cellPadding`)
+- `RibbonTab.tsx` (from `activeDesign`)
 
 ### View Mode (`src/lib/persist.ts`)
 
@@ -509,35 +518,11 @@ for (let r = range.y; r <= range.y + range.height; r++)
 
 ### Selection Handling
 
-When row markers are clicked, Glide selects rows via `gridSelection.rows` but doesn't set `gridSelection.current.range`. Use a helper to resolve the effective range:
-
-```tsx
-const getEffectiveRange = () => {
-  if (sel?.range) return sel.range;
-  if (gridSelection.rows.length > 0)
-    return { x: 0, y: firstSelected, width: COLUMNS.length, height: count };
-  return null;
-};
-```
+When row markers are clicked, Glide selects rows via `gridSelection.rows` but doesn't set `gridSelection.current.range`. Use a helper to resolve the effective range (check `sel?.range` first, then synthesize from `gridSelection.rows`).
 
 ### Row Markers
-
-```tsx
-rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa' } }}
-```
-
-- Single tap → selects row + shows context menu
-- Double tap → opens sheet page
-- Right-click/long-press → context menu
-
-### Smooth Scrolling
-
-Glide defaults to cell-snapped scrolling. Enable smooth pixel-level scrolling:
-
-```tsx
-smoothScrollX  // default: false
-smoothScrollY  // default: false
-```
+- `clickable-number`, `startIndex: 1`
+- Single tap → selects row + context menu. Double tap → opens sheet. Right-click/long-press → context menu.
 
 ### Context Menu Positioning
 
@@ -559,10 +544,10 @@ const drawCell = (args, draw) => {
 ```
 
 ## Types (`src/types.ts`)
-- `Scene`: `{ id, sceneNumber, pageCount, pageCountDecimal, scriptDay, intExt, set, dayNight, description, cast, notes }`
-- `ScheduleRow`: `{ id, type: 'SCENE'|'BREAK'|'NOTE', sceneId?, shootDay?, order, estimatedDuration? }`
-- `ScheduleVersion`: `{ id, name, rows: ScheduleRow[], dayMeta: Record<number, ShootDayMeta> }`
-- `Project`: `{ id, title, scenes: Scene[], versions: ScheduleVersion[], activeVersionId, rules: ProjectRule[], castMembers: CastMember[] }`
+- `Scene`: 22 fields including `id`, `sceneNumber`, `pageCount`, `pageCountDecimal`, `scriptDay`, `intExt`, `set`, `dayNight`, `description`, `cast`, `notes`, `shootDay`, `ghostOf`, plus entity arrays (`backgroundActors`, `stunts`, `vehicles`, `props`, `wardrobe`, `makeup`, `sfx`, `vfx`, `sound`, `music`, `animalsAndWranglers`, `weapons`, `greenery`, `artDept`)
+- `ScheduleRow`: `type` is `'SCENE' | 'BREAK' | 'NOTE' | 'DAYBREAK'`. Row-type-specific fields: `sceneId?`, `estimatedDuration?`, `descriptionOverride?`, `breakLabel?`, `breakDuration?`, `isTimed?`, `noteText?`, `noteColor?`, `noteTextColor?`, `daybreakLabel?`, `daybreakCallTime?`, `daybreakDate?`
+- `ScheduleVersion`: `{ id, name, createdAt, updatedAt, rows: ScheduleRow[], dayMeta: Record<number, ShootDayMeta>, nonShootDates?, daybreakStartDate? }`
+- `Project`: 21 fields including `id`, `title`, `draftNumber`, `scenes`, `versions`, `activeVersionId`, `rules`, `castMembers`, `customCategories`, `hiddenCategories`, `categoryLabels`, `breakdownElements`, `sceneRibbon`, `ribbonDesigns`, `activeRibbonId`, `colorPalette`, plus trash arrays (`trash`, `versionTrash`, `rulesTrash`, `colorRulesTrash`, `ribbonTrash`, `elementsTrash`, `categoryTrash`)
 
 ### Help Modal (`src/components/HelpModal.tsx`)
 
@@ -574,7 +559,7 @@ Multi-window support allowing tabs and sub-tabs to be opened in separate browser
 
 ### Architecture
 
-- **`PopoutWindow`**: receives a pre-opened `Window` object (opened synchronously in the click handler to avoid popup blockers), copies styles from the parent document, renders children via `ReactDOM.createPortal` into the popup's body. The children share the same React tree → same Zustand store, same context, same event handlers.
+- **`PopoutWindow`**: receives a pre-opened `Window` object (opened synchronously in the click handler to avoid popup blockers), copies styles from the parent document, renders children via `ReactDOM.createPortal` into the popup's body. The children share the same React tree → same context, same event handlers.
 - **`cascadePosition()`**: module-level function returning `{ left, top }` that increments 30px per call, wrapping every 10 windows. All `window.open()` calls use this for tiled positioning.
 - **`PopoutPlaceholder`**: shown inline when the active tab/sub-tab is popped out, with a "Bring back" button.
 
@@ -644,7 +629,7 @@ To ensure edits appear live across windows, SceneSheet uses per-field store comm
 
 ### Keyboard Shortcuts in Popups
 
-The `PopoutWindow` component attaches `keydown` listeners in the popup window for `Cmd+Z` (undo) and `Cmd+Shift+Z` (redo), dispatching directly to the shared Zustand store.
+The `PopoutWindow` component attaches `keydown` listeners in the popup window for `Cmd+Z` (undo) and `Cmd+Shift+Z` (redo), dispatching directly to the shared React store.
 
 ### Mobile / iPad
 
@@ -658,37 +643,18 @@ The `PopoutWindow` component attaches `keydown` listeners in the popup window fo
 
 ### OAuth token handling
 - The Google OAuth access token is stored in `useRef` + `sessionStorage` (survives page refresh, cleared on tab close). Never `localStorage`.
-- The token is exposed via React Context as `useGoogleAuth().accessToken`. Only `store.tsx` and `ProjectManager.tsx` legitimately consume it for Drive API calls. Never pass it to components that don't need it.
+- The token is exposed via React Context as `useGoogleAuth().accessToken`. Consumers include `store.tsx`, `ProjectManager.tsx`, `App.tsx`, `GoogleSignIn.tsx`, and `SyncStatusIcon.tsx`. Never pass it to components that don't need it.
 - Never log the access token. In OAuth error handlers, log only `error?.message`, not the full error object.
 - Never expose the token in URLs, DOM `data-*` attributes, or rendered output.
 
 ### Environment variables
-- All client-side env vars MUST use the `VITE_` prefix (Vite requirement).
+- Client-side env vars that Vite bundles MUST use the `VITE_` prefix (e.g. `VITE_GOOGLE_CLIENT_ID`). Some vars (like `GEMINI_API_KEY`, `APP_URL`) are injected by AI Studio at runtime and don't need the prefix.
 - Expected vars: `VITE_GOOGLE_CLIENT_ID` (Google Drive OAuth), `GEMINI_API_KEY` (AI Studio injects), `APP_URL` (AI Studio injects).
-- Add new env vars to both `.env.example` and the `ImportMetaEnv` interface in `src/vite-env.d.ts`.
-- The CI deploy workflow (`.github/workflows/deploy.yml`) must pass `VITE_GOOGLE_CLIENT_ID` from a GitHub repository secret.
+- Add new Vite-bundled env vars to `.env.example`.
 
 ### Dependencies
 - Do not add `@google/genai`, `dotenv`, or `express` — they are unused in this SPA codebase.
 - Before adding any new dependency, confirm it's imported in at least one source file.
-
-### Google Drive OAuth Setup (one-time per developer/deployment)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → create or select a project.
-2. **APIs & Services → Library** → search "Google Drive API" → Enable.
-3. **APIs & Services → OAuth consent screen**:
-   - User Type: **Internal**
-   - App name: "Lemon Schedule"
-   - Add your email as developer contact
-   - Scopes: add `drive.appdata` (non-sensitive scope, skip verification)
-   - Save
-4. **APIs & Services → Credentials → Create Credentials → OAuth Client ID**:
-   - Application type: **Web application**
-   - Name: "Lemon Schedule Dev"
-   - Authorized JavaScript origins: `http://localhost:3000` (add production URL too if deploying)
-   - Create
-5. Copy the Client ID → add to `.env` as `VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com`
-6. If deploying via CI, add the same ID as a GitHub secret (`VITE_GOOGLE_CLIENT_ID`) in repo Settings → Secrets & Variables → Actions.
 
 ## Schedule Architecture: Daybreak Section Model
 
