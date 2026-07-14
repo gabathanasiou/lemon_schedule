@@ -7,7 +7,7 @@ interface ContextMenuState {
   x: number;
   y: number;
   rowId: string;
-  shootDay: number | null;
+  containerId: number | null;
 }
 
 interface ColorPickerState {
@@ -44,14 +44,14 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const inClipboard = useMemo(
-    () => augmentedRows.filter(r => r.shootDay === -1).length,
+    () => augmentedRows.filter(r => r.containerId === -1).length,
     [augmentedRows]
   );
 
   const existingDays = useMemo(() => {
     const days = new Set<number>();
     for (const r of augmentedRows) {
-      if (r.shootDay !== null && r.shootDay !== -1 && r.shootDay !== undefined) days.add(r.shootDay);
+      if (r.containerId !== null && r.containerId !== -1 && r.containerId !== undefined) days.add(r.containerId);
     }
     return Array.from(days).sort((a, b) => a - b);
   }, [augmentedRows]);
@@ -59,7 +59,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const scheduledRows = useMemo(() => {
     const map: Record<number, ScheduleRow[]> = {};
     for (const r of augmentedRows) {
-      const d = r.shootDay ?? 0;
+      const d = r.containerId ?? 0;
       if (!map[d]) map[d] = [];
       map[d].push(r);
     }
@@ -70,22 +70,22 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     const removedRows = Array.from(removedIds).map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
     if (removedRows.length === 0) return;
     removedRows.sort((a, b) => {
-      if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+      if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
     const candidates: string[] = [];
     for (const r of removedRows) {
-      const next = augmentedRows.filter(x => x.shootDay === r.shootDay && x.order > r.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
+      const next = augmentedRows.filter(x => x.containerId === r.containerId && x.order > r.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
       if (next) candidates.push(next.id);
     }
     if (candidates.length === 0) {
       const first = removedRows[0];
-      const prev = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
+      const prev = augmentedRows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
       if (prev) candidates.push(prev.id);
     }
     if (candidates.length === 0) {
       const firstRemoved = removedRows[0];
-      const startIdx = firstRemoved.shootDay !== null ? existingDays.indexOf(firstRemoved.shootDay) : -1;
+      const startIdx = firstRemoved.containerId !== null ? existingDays.indexOf(firstRemoved.containerId) : -1;
       for (let i = startIdx + 1; i < existingDays.length; i++) {
         const rows = scheduledRows[existingDays[i]] || [];
         if (rows.length > 0) { candidates.push(rows[0].id); break; }
@@ -104,15 +104,15 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     const removedRows = Array.from(removedIds).map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
     if (removedRows.length === 0) return;
     removedRows.sort((a, b) => {
-      if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+      if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
     const first = removedRows[0];
-    const prev = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
+    const prev = augmentedRows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
     if (prev) { setSelectedRowIds(new Set([prev.id])); return; }
-    const next = augmentedRows.filter(x => x.shootDay === first.shootDay && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
+    const next = augmentedRows.filter(x => x.containerId === first.containerId && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
     if (next) { setSelectedRowIds(new Set([next.id])); return; }
-    const startIdx = first.shootDay !== null ? existingDays.indexOf(first.shootDay) : -1;
+    const startIdx = first.containerId !== null ? existingDays.indexOf(first.containerId) : -1;
     for (let i = startIdx - 1; i >= 0; i--) {
       const rows = scheduledRows[existingDays[i]] || [];
       if (rows.length > 0) { setSelectedRowIds(new Set([rows[rows.length - 1].id])); return; }
@@ -126,7 +126,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const cutSelected = useCallback(() => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const ids = Array.from(selectedRowIds);
-    const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: -1 } : r);
+    const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     selectPrevAfterRemove(new Set(ids as string[]));
   }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion, dispatch, selectPrevAfterRemove]);
@@ -136,9 +136,9 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     const targetRow = augmentedRows.find(r => r.id === targetRowId);
 
     const clipboardItems = augmentedRows
-      .filter(r => r.shootDay === -1)
+      .filter(r => r.containerId === -1)
       .sort((a, b) => {
-        if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+        if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
         return a.order - b.order;
       })
       .map(r => ({ ...r }));
@@ -152,12 +152,12 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       overDay = parseInt(targetRowId.replace('empty-', ''), 10);
       insertIdx = activeVersion.rows.length;
 
-      const dayRows = activeVersion.rows.filter(r => r.shootDay === overDay).sort((a, b) => a.order - b.order);
+      const dayRows = activeVersion.rows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
       if (dayRows.length > 0) {
         insertIdx = activeVersion.rows.indexOf(dayRows[0]);
       }
     } else if (targetRow) {
-      overDay = targetRow.shootDay;
+      overDay = targetRow.containerId;
       if (overDay === null) overDay = null;
       insertIdx = activeVersion.rows.indexOf(targetRow) + 1;
     } else {
@@ -165,15 +165,15 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     }
 
     let maxOrder = activeVersion.rows
-      .filter(r => r.shootDay === overDay)
+      .filter(r => r.containerId === overDay)
       .reduce((mx, r) => Math.max(mx, r.order), 0);
 
     for (const item of clipboardItems) {
-      item.shootDay = overDay;
+      item.containerId = overDay;
       item.order = ++maxOrder;
     }
 
-    const newRows = activeVersion.rows.filter(r => r.shootDay !== -1);
+    const newRows = activeVersion.rows.filter(r => r.containerId !== -1);
     const insertPos = Math.min(insertIdx, newRows.length);
     newRows.splice(insertPos, 0, ...clipboardItems);
     newRows.forEach((r, i) => r.order = i);
@@ -185,7 +185,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!contextMenu || !activeVersion) return;
-    const { rowId, shootDay } = contextMenu;
+    const { rowId, containerId } = contextMenu;
     const rowIndex = augmentedRows.findIndex(r => r.id === rowId);
     const isDummy = rowId.startsWith('empty-');
 
@@ -194,11 +194,11 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const newRow: ScheduleRow = {
         id: newId,
         type: action === 'add_note' ? 'NOTE' : 'BREAK',
-        shootDay,
+        containerId,
         order: 0,
         ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
       };
-      const dayRows = activeVersion.rows.filter(r => r.shootDay === shootDay).sort((a, b) => a.order - b.order);
+      const dayRows = activeVersion.rows.filter(r => r.containerId === containerId).sort((a, b) => a.order - b.order);
       const firstDayRow = dayRows[0];
       const insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
       const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
@@ -218,11 +218,11 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     let newRowIds: string[] = [];
     if (action === 'add_note') {
       const newId = generateUUID();
-      newRows.push({ id: newId, type: 'NOTE', shootDay, order: row.order + 0.5, noteText: '' });
+      newRows.push({ id: newId, type: 'NOTE', containerId, order: row.order + 0.5, noteText: '' });
       newRowIds.push(newId);
     } else if (action === 'add_break') {
       const newId = generateUUID();
-      newRows.push({ id: newId, type: 'BREAK', shootDay, order: row.order + 0.5, breakLabel: 'LUNCH', breakDuration: 60 });
+      newRows.push({ id: newId, type: 'BREAK', containerId, order: row.order + 0.5, breakLabel: 'LUNCH', breakDuration: 60 });
       newRowIds.push(newId);
     } else if (action === 'duplicate' && row.type === 'SCENE') {
       const newId = generateUUID();
@@ -253,21 +253,21 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
-      if (row.shootDay == null && row.type !== 'DAYBREAK') {
-        const containerRows = newRows.filter(r => r.shootDay != null && r.shootDay !== -1);
+      if (row.containerId == null && row.type !== 'DAYBREAK') {
+        const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
         const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
-        newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: 1, order: maxOrder + 1 } : r);
+        newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: 1, order: maxOrder + 1 } : r);
       } else {
         newRows = newRows.filter(r => r.id !== rowId);
       }
     } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
-      newRows = newRows.map(r => r.id === rowId ? { ...r, shootDay: null, order: 999999 } : r);
+      newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: null, order: 999999 } : r);
     }
 
     newRows = newRows.sort((a, b) => {
-      if (a.shootDay === null && b.shootDay !== null) return 1;
-      if (a.shootDay !== null && b.shootDay === null) return -1;
-      if (a.shootDay !== b.shootDay) return (a.shootDay || 0) - (b.shootDay || 0);
+      if (a.containerId === null && b.containerId !== null) return 1;
+      if (a.containerId !== null && b.containerId === null) return -1;
+      if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
     newRows.forEach((r, i) => r.order = i);
@@ -297,10 +297,10 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       } else if (!selectedRowIds.has(rowId)) {
         setSelectedRowIds(new Set([rowId]));
       }
-      const shootDayAttr = rowEl.getAttribute('data-shoot-day');
-      const shootDay = shootDayAttr === 'null' ? null : parseInt(shootDayAttr!, 10);
+      const containerIdAttr = rowEl.getAttribute('data-container-id');
+      const containerId = containerIdAttr === 'null' ? null : parseInt(containerIdAttr!, 10);
       options?.prependSelect?.();
-      setContextMenu({ x: e.clientX, y: e.clientY, rowId, shootDay });
+      setContextMenu({ x: e.clientX, y: e.clientY, rowId, containerId });
     } else {
       setContextMenu(null);
     }

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useProject } from '../store';
-import { Scene, ScheduleRow, ShootDayMeta, CustomCategoryDef } from '../types';
+import { Scene, ScheduleRow, DayMeta, CustomCategoryDef } from '../types';
 import { formatPageCount } from '../lib/utils';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';
@@ -71,7 +71,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
           if (d != null) secIndices.add(d);
         }
         const sortedSections = [...secIndices].sort((a, b) => a - b);
-        const shootDaysStr = sortedSections.map(d => formatSectionDate(d)).join(', ');
+        const daysStr = sortedSections.map(d => formatSectionDate(d)).join(', ');
 
         let displayName = el.name;
         if (cat === 'cast') {
@@ -84,7 +84,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
           name: displayName,
           scenes: sceneNumbers,
           totalPages,
-          shootDays: shootDaysStr,
+          days: daysStr,
         };
       });
   }, [selectedCategory, project.scenes, sceneToSection, castMembers, formatSectionDate]);
@@ -144,7 +144,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('pages', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-zinc-800 cursor-default">
-                  {el.shootDays || '—'}
+                  {el.days || '—'}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('days', e)} />
                 </td>
               </tr>

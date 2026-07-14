@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta, CastMember, CustomCategoryDef } from '../../types';
+import { Scene, ScheduleRow, DayMeta, CastMember, CustomCategoryDef } from '../../types';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { naturalSortSceneStrings } from '../../lib/utils';
 
@@ -31,7 +31,7 @@ interface BreakdownSheetProps {
   title: string;
   scenes: Scene[];
   rows: ScheduleRow[];
-  dayMeta: Record<number, ShootDayMeta>;
+  dayMeta: Record<number, DayMeta>;
   castMembers: CastMember[];
   customCategories: CustomCategoryDef[];
   sortOrder: 'sheet' | 'scene';
@@ -83,7 +83,7 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
 
   const sceneToDay = useMemo(() => {
     const m = new Map<string, number>();
-    for (const r of rows) if (r.type === 'SCENE' && r.sceneId) m.set(r.sceneId, r.shootDay);
+    for (const r of rows) if (r.type === 'SCENE' && r.sceneId) m.set(r.sceneId, r.containerId);
     return m;
   }, [rows]);
 

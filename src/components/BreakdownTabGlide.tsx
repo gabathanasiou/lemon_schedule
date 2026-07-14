@@ -355,7 +355,6 @@ export function GlideBreakdownTab({
         backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
         makeup: '', sfx: '', vfx: '', sound: '', music: '',
         animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-        shootDay: null,
         [colDef.key]: val,
       };
       if (!newScene.sceneNumber) {
@@ -500,7 +499,7 @@ export function GlideBreakdownTab({
         props: s.props || '', wardrobe: s.wardrobe || '', makeup: s.makeup || '',
         sfx: s.sfx || '', vfx: s.vfx || '', sound: s.sound || '', music: s.music || '',
         animalsAndWranglers: s.animalsAndWranglers || '', weapons: s.weapons || '', greenery: s.greenery || '', artDept: s.artDept || '',
-        shootDay: null,
+        containerId: null,
       };
       if (scene.pageCount && scene.pageCount.trim()) {
         const decimal = parsePageCount(scene.pageCount);
@@ -535,7 +534,7 @@ export function GlideBreakdownTab({
       backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
       makeup: '', sfx: '', vfx: '', sound: '', music: '',
       animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-      shootDay: null,
+      containerId: null,
     }});
   }, [dispatch, getNextSceneNumber]);
 
@@ -549,7 +548,6 @@ export function GlideBreakdownTab({
       backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
       makeup: '', sfx: '', vfx: '', sound: '', music: '',
       animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-      shootDay: null,
     };
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
   }, [dispatch, getNextSceneNumber]);

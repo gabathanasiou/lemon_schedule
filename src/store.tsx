@@ -62,7 +62,7 @@ function migrateDayMetaToNonShootDates(parsed: any) {
       || (!v.nonShootDates && Object.keys(v.dayMeta).length > 1);
 
     if (isOldProject) {
-      v.daybreakStartDate = workEntries.length > 0 ? workEntries[0][1].date : v.daybreakStartDate;
+      v.productionStart = workEntries.length > 0 ? workEntries[0][1].date : v.productionStart;
       for (const [, m] of nonWorkEntries) {
         v.nonShootDates.push({
           date: m.date,
@@ -89,10 +89,10 @@ function migrateDayMetaToNonShootDates(parsed: any) {
 
       v.dayMeta = Object.fromEntries(workEntries.map(([k, m]) => [
         k,
-        { shootDay: m.shootDay, unitCall: m.unitCall || '08:00', date: m.date, order: m.order },
+        { unitCall: m.unitCall || '08:00', date: m.date, order: m.order },
       ]));
-    } else if (!v.daybreakStartDate && workEntries.length > 0) {
-      v.daybreakStartDate = workEntries[0][1].date;
+    } else if (!v.productionStart && workEntries.length > 0) {
+      v.productionStart = workEntries[0][1].date;
     }
   }
 }
@@ -193,7 +193,7 @@ export function loadProjectFromStorage(id: string): Project | null {
 const BUILTIN_SCENE_KEYS = new Set([
   'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay', 'intExt', 'set', 'dayNight',
   'description', 'cast', 'notes', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe',
-  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'shootDay',
+  'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
 ]);
 
 export const PROTECTED_CATEGORIES = new Set(['cast', 'set', 'notes']);
@@ -248,9 +248,8 @@ function makeBlankProject(title = 'Untitled Project'): Project {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       rows: [],
-      dayMeta: {
-        1: { shootDay: 1, unitCall: '08:00', date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })() }
-      }
+      productionStart: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
+      dayMeta: {}
     }],
     activeVersionId: id,
     trash: [],
@@ -570,7 +569,8 @@ function reducer(state: State, action: Action): State {
           createdAt: Date.now(),
           updatedAt: Date.now(),
           rows: [],
-          dayMeta: { 1: { shootDay: 1, unitCall: '08:00', date: new Date().toISOString().slice(0, 10) } }
+          productionStart: new Date().toISOString().slice(0, 10),
+          dayMeta: {}
         };
       }
       return applyChange({

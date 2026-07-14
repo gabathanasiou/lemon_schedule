@@ -15,8 +15,8 @@ export function useDaybreakSections() {
 
   const containerRows = useMemo(() => {
     if (!activeVersion) return [];
-    return activeVersion.rows.filter(r => r.shootDay != null).sort((a, b) => {
-      if ((a.shootDay || 0) !== (b.shootDay || 0)) return (a.shootDay || 0) - (b.shootDay || 0);
+    return activeVersion.rows.filter(r => r.containerId != null).sort((a, b) => {
+      if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
   }, [activeVersion]);
@@ -43,7 +43,7 @@ export function useDaybreakSections() {
     return dt.toISOString().slice(0, 10);
   };
 
-  const startDate = activeVersion?.daybreakStartDate || new Date().toISOString().slice(0, 10);
+  const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
   const nonShootSet = useMemo(() => {
     return new Set((activeVersion?.nonShootDates || []).map(n => n.date));
   }, [activeVersion?.nonShootDates]);

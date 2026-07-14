@@ -6,7 +6,7 @@ import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palett
 import { IS_COARSE } from '../lib/device';
 
 export const StripboardContextMenuContent: React.FC<{
-  contextMenu: { x: number; y: number; rowId: string; shootDay: number | null };
+  contextMenu: { x: number; y: number; rowId: string; containerId: number | null };
   setContextMenu: (v: null) => void;
   augmentedRows: ScheduleRow[];
   selectedRowIds: Set<string>;
@@ -50,7 +50,7 @@ export const StripboardContextMenuContent: React.FC<{
           <ContextMenuDivider />
           <ContextMenuItem variant="danger" onClick={() => {
             const ids = Array.from(selectedRowIds);
-            const newRows = activeVersion!.rows.map((r: ScheduleRow) => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+            const newRows = activeVersion!.rows.map((r: ScheduleRow) => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
             dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
             selectNextAfterRemove?.(new Set(ids as string[]));
             setContextMenu(null);
@@ -85,7 +85,7 @@ export const StripboardContextMenuContent: React.FC<{
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
               )}
               <ContextMenuDivider />
-              {row?.shootDay != null && (
+              {row?.containerId != null && (
                 <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
               )}
             </>
@@ -105,7 +105,7 @@ export const StripboardContextMenuContent: React.FC<{
                 <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_daybreak'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Daybreak</ContextMenuItem>
               )}
               <ContextMenuDivider />
-              {row?.type !== 'DAYBREAK' && row?.shootDay != null && (
+              {row?.type !== 'DAYBREAK' && row?.containerId != null && (
                 <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
               )}
               <ContextMenuItem onClick={() => { handleContextMenuAction('delete'); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>

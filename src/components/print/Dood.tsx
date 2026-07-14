@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta, CastMember, NonShootDate } from '../../types';
+import { Scene, ScheduleRow, DayMeta, CastMember, NonShootDate } from '../../types';
 import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
@@ -105,7 +105,7 @@ function getElementDisplayName(elementId: string, isCast: boolean, castMemberNam
 function deriveDood(
   scenes: Scene[],
   scheduleRows: ScheduleRow[],
-  dayMeta: Record<number, ShootDayMeta>,
+  dayMeta: Record<number, DayMeta>,
   elementIds: string[],
   dayInts: number[],
   includeNonShooting: boolean,
@@ -121,8 +121,8 @@ function deriveDood(
     if (row.type !== 'SCENE' || !row.sceneId) continue;
     const scene = scenes.find(s => s.id === row.sceneId);
     if (!scene) continue;
-    if (!scenesByDay.has(row.shootDay)) scenesByDay.set(row.shootDay, []);
-    scenesByDay.get(row.shootDay)!.push(scene);
+    if (!scenesByDay.has(row.containerId)) scenesByDay.set(row.containerId, []);
+    scenesByDay.get(row.containerId)!.push(scene);
   }
 
   const shootingDays = new Set(scenesByDay.keys());
@@ -206,7 +206,7 @@ interface DoodProps {
   title: string;
   scenes: Scene[];
   scheduleRows: ScheduleRow[];
-  dayMeta: Record<number, ShootDayMeta>;
+  dayMeta: Record<number, DayMeta>;
   nonShootDates?: NonShootDate[];
   castMembers?: CastMember[];
   elementIds: string[];

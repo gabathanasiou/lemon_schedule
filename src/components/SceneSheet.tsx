@@ -171,7 +171,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         weapons: '',
         greenery: '',
         artDept: '',
-        shootDay: null,
+        containerId: null,
       }
     });
     const newIdx = scenes.length;

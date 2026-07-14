@@ -3,7 +3,7 @@ import { Scene, ScheduleRow, RibbonRow } from '../types';
 import { CellBorders } from '../lib/persist';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { SortableRow } from './SortableRow';
+import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
@@ -133,13 +133,13 @@ export const BoneyardBlock: React.FC<{
     const newRow: ScheduleRow = type === 'NOTE' ? {
       id: generateUUID(),
       type: 'NOTE',
-      shootDay: null,
+      containerId: null,
       order: newOrder,
       noteText: ''
     } : {
       id: generateUUID(),
       type: 'BREAK',
-      shootDay: null,
+      containerId: null,
       order: newOrder,
       breakLabel: 'LUNCH',
       breakDuration: 60
@@ -152,18 +152,18 @@ export const BoneyardBlock: React.FC<{
     const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
     if (!activeVersion) return;
 
-    const scheduled = activeVersion.rows.filter(r => r.shootDay !== null);
+    const scheduled = activeVersion.rows.filter(r => r.containerId !== null);
 
     const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
     const missingScenes = state.present.scenes.filter(s => !sceneIdsInRows.has(s.id));
     
     const boneyard: ScheduleRow[] = [
-      ...activeVersion.rows.filter(r => r.shootDay === null),
+      ...activeVersion.rows.filter(r => r.containerId === null),
       ...missingScenes.map(s => ({
         id: generateUUID(),
         type: 'SCENE' as const,
         sceneId: s.id,
-        shootDay: null,
+        containerId: null,
         order: 999999,
         estimatedDuration: 30
       }))
@@ -335,7 +335,7 @@ export const BoneyardBlock: React.FC<{
                   {showGhosts && insertBeforeId === r.id && (
                     <StackedGhosts rows={activeDragRows} scenes={projectScenes} ribbon={ribbon} colWidths={colWidths} />
                   )}
-                    <SortableRow 
+                    <SortableRibbon 
                       row={r}
                       scenes={projectScenes}
                       isCompact

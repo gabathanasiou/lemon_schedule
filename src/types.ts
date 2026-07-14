@@ -29,13 +29,12 @@ export interface Scene {
   weapons: string;
   greenery: string;
   artDept: string;
-  shootDay: number | null;
 }
 
 export interface ScheduleRow {
   id: string;
   type: RowType;
-  shootDay: number;
+  containerId: number | null;
   order: number;
   
   // SCENE specific
@@ -59,8 +58,7 @@ export interface ScheduleRow {
   daybreakDate?: string;
 }
 
-export interface ShootDayMeta {
-  shootDay: number;
+export interface DayMeta {
   unitCall: string; // HH:mm
   date: string; // e.g. "SATURDAY 6TH JUNE 2026"
   order?: number;
@@ -78,9 +76,10 @@ export interface ScheduleVersion {
   createdAt: number;
   updatedAt: number;
   rows: ScheduleRow[];
-  dayMeta: Record<number, ShootDayMeta>; // key is shootDay
+  dayMeta: Record<number, DayMeta>; // key is containerId
   nonShootDates?: NonShootDate[];
-  daybreakStartDate?: string;
+  productionStart?: string;
+  legacy?: boolean;
 }
 
 export interface TrashItem {
@@ -122,7 +121,7 @@ export interface RuleViolation {
   castId?: string;
   message: string;
   detail?: string;
-  shootDay?: number;
+  containerId?: number;
   sceneId?: string;
   sceneIds?: string[];
 }

@@ -3,9 +3,9 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
-import { SortableRow } from './SortableRow';
+import { SortableRibbon } from './SortableRibbon';
 import SectionHeader from './SectionHeader';
-import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
+import { ScheduleRow, DayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
@@ -146,7 +146,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; rib
   );
 };
 
-export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: ShootDayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: DayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
@@ -164,7 +164,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     data: { type: 'STRIP_END', dayInt }
   });
 
-  const updateMeta = (updates: Partial<ShootDayMeta>) => {
+  const updateMeta = (updates: Partial<DayMeta>) => {
     if (!activeVersion) return;
     dispatch({
       type: 'UPDATE_VERSION',
@@ -195,7 +195,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
       return dt.toISOString().slice(0, 10);
     };
     const todayStr = new Date().toISOString().slice(0, 10);
-    const startDate = activeVersion?.daybreakStartDate || todayStr;
+    const startDate = activeVersion?.productionStart || todayStr;
     const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
     let nextDate = startDate;
     while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
@@ -264,7 +264,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
       }
     }
     return { computedRows, totalPages, totalShootTime: runningElapsed - totalBreakTime, totalBreakTime, runningElapsed };
-  }, [rows, meta?.unitCall, project.scenes, activeVersion?.daybreakStartDate, activeVersion?.nonShootDates]);
+  }, [rows, meta?.unitCall, project.scenes, activeVersion?.productionStart, activeVersion?.nonShootDates]);
 
   const sectionViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
@@ -329,7 +329,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
           dayLabel={`DAY #${displayDay}`}
           callTime={meta?.unitCall || '08:00'}
           onCallTimeChange={val => updateMeta({ unitCall: val })}
-          dateStr={(activeVersion?.daybreakStartDate || meta?.date) ? formatDateLong(activeVersion?.daybreakStartDate || meta?.date || '') : ''}
+          dateStr={(activeVersion?.productionStart || meta?.date) ? formatDateLong(activeVersion?.productionStart || meta?.date || '') : ''}
           palette={project.colorPalette}
           isSelected={selectedIds.has(`empty-${dayInt}`)}
           ribbon={ribbon}
@@ -353,7 +353,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
                 {showGhosts && insertBeforeId === r.id && (
                   <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
                 )}
-                  <SortableRow 
+                  <SortableRibbon 
                     row={r} 
                     scenes={project.scenes} 
                     isSelected={selectedIds.has(r.id)}

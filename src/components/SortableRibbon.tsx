@@ -34,7 +34,7 @@ function darkenHex(hex: string): string {
 }
 
 const sortableRowPropsEqual = (a: any, b: any) => {
-  if (a.row.id !== b.row.id || a.row.type !== b.row.type || a.row.shootDay !== b.row.shootDay || a.row.order !== b.row.order) return false;
+  if (a.row.id !== b.row.id || a.row.type !== b.row.type || a.row.containerId !== b.row.containerId || a.row.order !== b.row.order) return false;
   if (a.row.estimatedDuration !== b.row.estimatedDuration) return false;
   if (a.row.noteText !== b.row.noteText || a.row.noteColor !== b.row.noteColor || a.row.noteTextColor !== b.row.noteTextColor) return false;
   if (a.row.breakLabel !== b.row.breakLabel || a.row.breakDuration !== b.row.breakDuration) return false;
@@ -1294,7 +1294,7 @@ const SortableRowContent: React.FC<{
   return null;
 }, sortableRowPropsEqual);
 
-export const SortableRow: React.FC<{
+export const SortableRibbon: React.FC<{
   row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number },
   scenes: Scene[],
   isOverlay?: boolean,
@@ -1347,7 +1347,7 @@ export const SortableRow: React.FC<{
       onClick={onSelectToggle}
       onDoubleClick={(e) => onDoubleClick?.(row.id, e.shiftKey)}
       data-row-id={row.id}
-      data-shoot-day={row.shootDay}
+      data-container-id={row.containerId}
       className={`group relative transition-colors shrink-0 outline-none border-b-[2px] border-black ${isOverlay ? 'scale-[1.02] shadow-2xl cursor-grabbing ring-2 ring-black' : ''} ${isSelected && !isFaded ? 'z-10' : ''} ${isFaded ? 'opacity-30' : ''} ${!textEditingEnabled && !isOverlay ? 'cursor-grab' : ''}`}
     >
       <SortableRowContent

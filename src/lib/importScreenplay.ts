@@ -660,7 +660,6 @@ export function commitImport({
       weapons: breakdownFields.weapons || '',
       greenery: breakdownFields.greenery || '',
       artDept: breakdownFields.artDept || '',
-      shootDay: null,
     };
 
     for (const catName of newCustomCategories) {
@@ -672,7 +671,6 @@ export function commitImport({
       'intExt', 'set', 'dayNight', 'description', 'cast', 'notes', 'location',
       'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
       'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
-      'shootDay',
     ]);
     for (const [key, val] of Object.entries(breakdownFields)) {
       if (!BUILTIN_SCENE_KEYS.has(key)) {

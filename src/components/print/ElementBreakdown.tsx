@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, ShootDayMeta, CastMember, CustomCategoryDef } from '../../types';
+import { Scene, ScheduleRow, DayMeta, CastMember, CustomCategoryDef } from '../../types';
 import { formatPageCount } from '../../lib/utils';
 import { DEFAULT_CATEGORY_LABELS } from '../../store';
 import { getFieldItems } from '../../lib/categories';
@@ -31,7 +31,7 @@ interface ElementBreakdownProps {
   title: string;
   scenes: Scene[];
   rows: ScheduleRow[];
-  dayMeta: Record<number, ShootDayMeta>;
+  dayMeta: Record<number, DayMeta>;
   castMembers: CastMember[];
   customCategories: CustomCategoryDef[];
   category: string;
@@ -57,14 +57,14 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
   const sceneToDay = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of rows) {
-      if (r.type === 'SCENE' && r.sceneId) m.set(r.sceneId, r.shootDay);
+      if (r.type === 'SCENE' && r.sceneId) m.set(r.sceneId, r.containerId);
     }
     return m;
   }, [rows]);
 
-  const getDayDate = (shootDay: number | null): string => {
-    if (shootDay == null) return '';
-    const meta = dayMeta[shootDay];
+  const getDayDate = (containerId: number | null): string => {
+    if (containerId == null) return '';
+    const meta = dayMeta[containerId];
     if (!meta?.date) return '';
     const d = new Date(meta.date + 'T00:00:00');
     return isNaN(d.getTime()) ? meta.date : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });

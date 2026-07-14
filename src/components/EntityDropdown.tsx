@@ -16,7 +16,7 @@
  *
  * ### Calling code MUST:
  * - Pass `displayMode="id"` when rendering cast fields (stores IDs in `scene.cast`)
- * - Use `e.id` for cast deduplication/existence checks in `SortableRow.updateScene`
+ * - Use `e.id` for cast deduplication/existence checks in `SortableRibbon.updateScene`
  * - Use `e.name` for non-cast deduplication/existence checks everywhere
  * - In `store.tsx:ADD_ELEMENT`: cast uses `element.id`, non-cast uses `element.name`
  *
@@ -119,7 +119,7 @@ interface EntityDropdownProps {
  * - SceneSheet cast field
  * - BreakdownTab cast editors
  * - BreakdownTab generic element editors (following the fix to use multi)
- * - SortableRow cast fields
+ * - SortableRibbon cast fields
  * - PrintDialog shoot day picker
  * - Various dialog cast pickers (RuleFormFields, DoodDialog, etc.)
  *
@@ -136,7 +136,7 @@ interface EntityDropdownProps {
  * **Used in:**
  * - SceneSheet set field
  * - BreakdownTab SetEditor
- * - SortableRow set fields (dynamic ENTITY_FIELDS and explicit set column)
+ * - SortableRibbon set fields (dynamic ENTITY_FIELDS and explicit set column)
  *
  * ### `select` — single selection, immediate commit
  * Like multi but single-value. Entire `val` is the search query (not the last segment).
@@ -147,7 +147,7 @@ interface EntityDropdownProps {
  * **Where to use:** legacy single-select fields that don't accept commas.
  * **Prefer `single` mode for new code** — it handles commas safely.
  *
- * **Used in:** SortableRow dynamic ENTITY_FIELDS for non-set fields (fallback
+ * **Used in:** SortableRibbon dynamic ENTITY_FIELDS for non-set fields (fallback
  * when text editing is disabled).
  *
  * ## Display Modes (prop: `displayMode`)

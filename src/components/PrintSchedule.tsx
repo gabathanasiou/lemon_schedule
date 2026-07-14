@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
+import { Project, ScheduleRow, Scene, DayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
 import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
@@ -64,7 +64,7 @@ function formatDateLong(dateStr: string): string {
 interface DaySectionProps {
   dayInt: number;
   rows: ScheduleRow[];
-  meta?: ShootDayMeta;
+  meta?: DayMeta;
   scenes: Scene[];
   showTimes: boolean;
   showDurations: boolean;
@@ -846,24 +846,24 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
       id: `row-synth-${s.id}`,
       type: 'SCENE',
       sceneId: s.id,
-      shootDay: null,
+      containerId: null,
       order: 999999,
       estimatedDuration: 30,
     });
   }
 
   const scheduledRows = augmentedRows.reduce((acc, row) => {
-    if (row.shootDay !== null) {
-      if (!acc[row.shootDay]) acc[row.shootDay] = [];
-      acc[row.shootDay].push(row);
+    if (row.containerId !== null) {
+      if (!acc[row.containerId]) acc[row.containerId] = [];
+      acc[row.containerId].push(row);
     }
     return acc;
   }, {} as Record<number, ScheduleRow[]>);
 
   Object.values(scheduledRows).forEach(dayRows => dayRows.sort((a, b) => a.order - b.order));
 
-  const allRows = augmentedRows.filter(r => r.shootDay != null).sort((a, b) => {
-    if ((a.shootDay || 0) !== (b.shootDay || 0)) return (a.shootDay || 0) - (b.shootDay || 0);
+  const allRows = augmentedRows.filter(r => r.containerId != null).sort((a, b) => {
+    if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
     return a.order - b.order;
   });
 
@@ -879,7 +879,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   })();
 
   const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return dt.toISOString().slice(0, 10); };
-  const startDate = activeVersion?.daybreakStartDate || new Date().toISOString().slice(0, 10);
+  const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
   const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
   const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (let i = 0; i < sections.length; i++) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(i, c); c = addDays(c, 1); } return m; })();
 
@@ -935,7 +935,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 key={e.sectionIndex}
                 dayInt={e.sectionIndex}
                 rows={e.rows}
-                meta={{ shootDay: e.sectionIndex, unitCall: '08:00', date: e.date }}
+                meta={{ containerId: e.sectionIndex, unitCall: '08:00', date: e.date }}
                 scenes={scenes}
                 showTimes={showTimes}
                 showDurations={showDurations}

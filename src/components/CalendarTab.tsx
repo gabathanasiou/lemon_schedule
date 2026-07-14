@@ -3,7 +3,7 @@ import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, D
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
-import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
+import { ScheduleRow, Scene, DayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
@@ -113,7 +113,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
       onClick={(e) => onToggle?.(row.id, e)}
       onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id, e.shiftKey); }}
       data-row-id={row.id}
-      data-shoot-day={row.shootDay == null ? 'null' : row.shootDay}
+      data-container-id={row.containerId == null ? 'null' : row.containerId}
       className={`${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
       <SceneCardContent row={row} scene={scene} displayField={displayField} violations={violations} isSelected={isSelected} selBg={sel.background} selColor={sel.color} />
     </div>
@@ -354,12 +354,12 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [startDate, setStartDate] = useState(today);
 
   useEffect(() => {
-    if (activeVersion?.daybreakStartDate) setStartDate(activeVersion.daybreakStartDate);
-  }, [activeVersion?.daybreakStartDate]);
+    if (activeVersion?.productionStart) setStartDate(activeVersion.productionStart);
+  }, [activeVersion?.productionStart]);
 
   const containerDay = useMemo(() => {
     if (!activeVersion) return 1;
-    const days = activeVersion.rows.filter(r => r.shootDay != null).map(r => r.shootDay!);
+    const days = activeVersion.rows.filter(r => r.containerId != null).map(r => r.containerId!);
     return days.length > 0 ? Math.min(...days) : 1;
   }, [activeVersion]);
 
@@ -367,15 +367,15 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setStartDate(d);
     if (activeVersion) {
       const dayMeta = { ...activeVersion.dayMeta };
-      dayMeta[containerDay] = { ...(dayMeta[containerDay] || { unitCall: '08:00', date: '', shootDay: containerDay }), date: d };
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, daybreakStartDate: d, dayMeta } });
+      dayMeta[containerDay] = { ...(dayMeta[containerDay] || { unitCall: '08:00', date: '', containerId: containerDay }), date: d };
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, productionStart: d, dayMeta } });
     }
   }, [activeVersion, dispatch, containerDay]);
 
   const didInit = useRef(false);
   useEffect(() => {
     if (!activeVersion || didInit.current) return;
-    if (activeVersion.daybreakStartDate) return;
+    if (activeVersion.productionStart) return;
     didInit.current = true;
     const sd = activeVersion.dayMeta?.[containerDay]?.date || new Date().toISOString().slice(0, 10);
     updateStartDate(sd);
@@ -403,7 +403,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
-  const [statusModal, setStatusModal] = useState<{ shootDay: number; dateKey: string } | null>(null);
+  const [statusModal, setStatusModal] = useState<{ containerId: number; dateKey: string } | null>(null);
   const [modalStatus, setModalStatus] = useState('work');
   const [modalCastIds, setModalCastIds] = useState('');
   const [autoDayOffOpen, setAutoDayOffOpen] = useState(false);
@@ -541,8 +541,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const containerRows = useMemo(() => {
     if (!activeVersion) return [];
-    return activeVersion.rows.filter(r => r.shootDay != null).sort((a, b) => {
-      if ((a.shootDay || 0) !== (b.shootDay || 0)) return (a.shootDay || 0) - (b.shootDay || 0);
+    return activeVersion.rows.filter(r => r.containerId != null).sort((a, b) => {
+      if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
   }, [activeVersion]);
@@ -658,7 +658,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const augmentedRows = useMemo(() => [
     ...(activeVersion?.rows || []),
-    ...missingScenes.map((s, i) => ({ id: `row-synth-${s.id}`, type: 'SCENE' as const, sceneId: s.id, shootDay: null as number | null, order: 999999 + i, estimatedDuration: 30 })),
+    ...missingScenes.map((s, i) => ({ id: `row-synth-${s.id}`, type: 'SCENE' as const, sceneId: s.id, containerId: null as number | null, order: 999999 + i, estimatedDuration: 30 })),
   ], [activeVersion?.rows, missingScenes]);
 
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
@@ -720,8 +720,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
-      if (r.shootDay === null && r.type !== 'DAYBREAK') return true;
-      if (r.shootDay != null && !sectionRowIds.has(r.id) && r.type !== 'DAYBREAK') return true;
+      if (r.containerId === null && r.type !== 'DAYBREAK') return true;
+      if (r.containerId != null && !sectionRowIds.has(r.id) && r.type !== 'DAYBREAK') return true;
       return false;
     }).sort((a, b) => a.order - b.order);
   }, [augmentedRows, activeDragIds, showBreaks, sectionRowIds]);
@@ -739,12 +739,12 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const sortBoneyard = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;
-    const scheduled = activeVersion.rows.filter(r => r.shootDay !== null);
+    const scheduled = activeVersion.rows.filter(r => r.containerId !== null);
     const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
     const missingScenes = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
     const boneyard: ScheduleRow[] = [
-      ...activeVersion.rows.filter(r => r.shootDay === null),
-      ...missingScenes.map(s => ({ id: generateUUID(), type: 'SCENE' as const, sceneId: s.id, shootDay: null as number | null, order: 999999, estimatedDuration: 30 })),
+      ...activeVersion.rows.filter(r => r.containerId === null),
+      ...missingScenes.map(s => ({ id: generateUUID(), type: 'SCENE' as const, sceneId: s.id, containerId: null as number | null, order: 999999, estimatedDuration: 30 })),
     ];
     boneyard.sort((a, b) => {
       if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
@@ -831,7 +831,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
             const rA = augmentedRows.find(r => r.id === a);
             const rB = augmentedRows.find(r => r.id === b);
             if (rA && rB) {
-              if (rA.shootDay !== rB.shootDay) return (rA.shootDay || 0) - (rB.shootDay || 0);
+              if (rA.containerId !== rB.containerId) return (rA.containerId || 0) - (rB.containerId || 0);
               return rA.order - rB.order;
             }
             return 0;
@@ -923,10 +923,10 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (targetSectionIndex === null) {
       newRows.filter(r => draggingIds.includes(r.id)).forEach(r => {
         const idx = newRows.findIndex(nr => nr.id === r.id);
-        if (idx !== -1) newRows[idx] = { ...newRows[idx], shootDay: null, order: 999999 };
+        if (idx !== -1) newRows[idx] = { ...newRows[idx], containerId: null, order: 999999 };
       });
       newRows.sort((a, b) => {
-        if ((a.shootDay === null) !== (b.shootDay === null)) return a.shootDay === null ? 1 : -1;
+        if ((a.containerId === null) !== (b.containerId === null)) return a.containerId === null ? 1 : -1;
         return a.order - b.order;
       });
       newRows.forEach((r, i) => r.order = i);
@@ -957,7 +957,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     const draggingItems = draggingIds
       .map(id => augmentedRows.find(r => r.id === id) || activeVersion.rows.find(r => r.id === id))
       .filter(Boolean) as ScheduleRow[];
-    const newItems = draggingItems.map(item => ({ ...item, shootDay: 1 }));
+    const newItems = draggingItems.map(item => ({ ...item, containerId: 1 }));
 
     const before = newRows.slice(0, insertAt).filter(r => !draggingIds.includes(r.id));
     const after = newRows.slice(insertAt).filter(r => !draggingIds.includes(r.id));
@@ -1108,7 +1108,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     activeTool={activeTool}
                     onContextMenu={(e, dateKey) => {
                       setContextMenuDate(dateKey);
-                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', shootDay: null });
+                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', containerId: null });
                     }}
                     label={workingLabels.get(day.dateKey) ?? null}
                     rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}

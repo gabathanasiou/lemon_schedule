@@ -243,7 +243,7 @@ All ribbon cells MUST use `getRibbonCellBaseStyle(cell, cellPaddingV?, cellPaddi
 `edgePadding` is stored per `RibbonDesign` (`edgePadding?: number`, default 3), editable in the ribbon designer toolbar ("Edge:" input, 0–12px). The store action is `SET_RIBBON_EDGE_PADDING`. Applied as `paddingTop`/`paddingBottom` on the outer scene ribbon container (not on individual cells or between rows).
 
 Rendering locations that must pass `cellPaddingV`, `cellPaddingH`, and `edgePadding`:
-- `SortableRow.tsx` (props, passed from `ScheduleTab` → `DayBlock` → `SortableRow` and `UnscheduledBlock` → `SortableRow`)
+- `SortableRibbon.tsx` (props, passed from `ScheduleTab` → `DayBlock` → `SortableRibbon` and `UnscheduledBlock` → `SortableRibbon`)
 - `PrintSchedule.tsx` → `DaySection` (props, passed from `App.tsx`)
 - `PrintDialog.tsx` (resolved from selected ribbon design)
 - `RibbonTab.tsx` (from `activeDesign`)
@@ -289,8 +289,8 @@ Global view setting for interior cell borders in scene ribbons. Persisted to loc
 - Always one-sided (right/bottom only) → no doubling between stacked rows or adjacent cells
 
 **Usages:**
-- `ScheduleTab.tsx` — View dropdown submenu "Cell Borders" with None/Vertical/Horizontal/Both; passed through `DayBlock`/`UnscheduledBlock` → `SortableRow`
-- `SortableRow.tsx:renderCellFlex` — applies `getCellBorderProps` to each scene cell using `rowStyle.color`
+- `ScheduleTab.tsx` — View dropdown submenu "Cell Borders" with None/Vertical/Horizontal/Both; passed through `DayBlock`/`UnscheduledBlock` → `SortableRibbon`
+- `SortableRibbon.tsx:renderCellFlex` — applies `getCellBorderProps` to each scene cell using `rowStyle.color`
 - `RibbonTab.tsx` — Live Preview section applies borders with `useCellBorders()`
 - `PrintDialog.tsx` — Cell Borders selector in print dialog, defaults to current `useCellBorders()` value; saved in `PrintOptions.cellBorders`; applied in preview
 - `PrintSchedule.tsx` — accepts `cellBorders` prop, applies in `renderSceneCellFlex` using scene's resolved text color
@@ -306,7 +306,7 @@ When checking if an element already exists:
 - **Cast** (`key === 'cast'`) → compare by `e.id`
 - **All other categories** → compare by `e.name || e.id`
 
-This rule applies to `SortableRow.tsx:updateScene` (the auto-register check), `store.tsx:ADD_ELEMENT` (deduplication), and EntityDropdown's `displayMode` (always use `"id"` for cast).
+This rule applies to `SortableRibbon.tsx:updateScene` (the auto-register check), `store.tsx:ADD_ELEMENT` (deduplication), and EntityDropdown's `displayMode` (always use `"id"` for cast).
 
 ## Glide Breakdown Tab (`src/components/BreakdownTabGlide.tsx`)
 
@@ -404,9 +404,9 @@ const drawCell = (args, draw) => {
 ```
 
 ## Types (`src/types.ts`)
-- `Scene`: 22 fields including `id`, `sceneNumber`, `pageCount`, `pageCountDecimal`, `scriptDay`, `intExt`, `set`, `dayNight`, `description`, `cast`, `notes`, `shootDay`, `ghostOf`, plus entity arrays (`backgroundActors`, `stunts`, `vehicles`, `props`, `wardrobe`, `makeup`, `sfx`, `vfx`, `sound`, `music`, `animalsAndWranglers`, `weapons`, `greenery`, `artDept`)
+- `Scene`: 21 fields including `id`, `sceneNumber`, `pageCount`, `pageCountDecimal`, `scriptDay`, `intExt`, `set`, `dayNight`, `description`, `cast`, `notes`, `ghostOf`, plus entity arrays (`backgroundActors`, `stunts`, `vehicles`, `props`, `wardrobe`, `makeup`, `sfx`, `vfx`, `sound`, `music`, `animalsAndWranglers`, `weapons`, `greenery`, `artDept`)
 - `ScheduleRow`: `type` is `'SCENE' | 'BREAK' | 'NOTE' | 'DAYBREAK'`. Row-type-specific fields: `sceneId?`, `estimatedDuration?`, `descriptionOverride?`, `breakLabel?`, `breakDuration?`, `isTimed?`, `noteText?`, `noteColor?`, `noteTextColor?`, `daybreakLabel?`, `daybreakCallTime?`, `daybreakDate?`
-- `ScheduleVersion`: `{ id, name, createdAt, updatedAt, rows: ScheduleRow[], dayMeta: Record<number, ShootDayMeta>, nonShootDates?, daybreakStartDate? }`
+- `ScheduleVersion`: `{ id, name, createdAt, updatedAt, rows: ScheduleRow[], dayMeta: Record<number, DayMeta>, nonShootDates?, productionStart? }`
 - `Project`: 21 fields including `id`, `title`, `draftNumber`, `scenes`, `versions`, `activeVersionId`, `rules`, `castMembers`, `customCategories`, `hiddenCategories`, `categoryLabels`, `breakdownElements`, `sceneRibbon`, `ribbonDesigns`, `activeRibbonId`, `colorPalette`, plus trash arrays (`trash`, `versionTrash`, `rulesTrash`, `colorRulesTrash`, `ribbonTrash`, `elementsTrash`, `categoryTrash`)
 
 ### Help Modal (`src/components/HelpModal.tsx`)
@@ -530,8 +530,8 @@ DAYBREAK rows split the stripboard into logical **sections**. Each daybreak rend
 `src/components/SectionHeader.tsx` — renders the **`SectionHeader`** in both ribbon and non-ribbon modes. A single source of truth; any style change applies everywhere.
 
 **Used by:**
-1. `SortableRow.tsx` — ribbon daybreak: shown when `hasNextDaybreak` after the "End of Day" grid row.
-2. `SortableRow.tsx` — non-ribbon daybreak: shown when `hasNextDaybreak` below the "End of Day" table row.
+1. `SortableRibbon.tsx` — ribbon daybreak: shown when `hasNextDaybreak` after the "End of Day" grid row.
+2. `SortableRibbon.tsx` — non-ribbon daybreak: shown when `hasNextDaybreak` below the "End of Day" table row.
 3. `StripBlock.tsx` — top of each day block: shown only when at least one `DAYBREAK` row exists in the version. Provides the call time input for the day.
 
 **Props:** `dayLabel`, `callTime`, `onCallTimeChange`, `dateStr?`, `palette?`, `isSelected?`, `ribbon?`, `colWidths?`, `cellPaddingV?`, `cellPaddingH?`. If `ribbon` is provided it renders the CSS grid variant; otherwise the `schedule-table` variant.
