@@ -310,7 +310,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
               </th>
               {data.days.map((d, ci) => (
                 <th key={d.sectionIndex} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  {d.isShooting ? chronoDayMap.get(d.sectionIndex) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'HOL' : ''}
+                  {d.isShooting ? chronoDayMap.get(d.sectionIndex) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'DO' : ''}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
               ))}

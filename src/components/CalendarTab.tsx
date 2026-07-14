@@ -153,7 +153,7 @@ const DayCell: React.FC<{
     disabled: !!nonShootStatus,
   });
 
-  const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'HOL' : null;
+  const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'DO' : null;
   const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-green-50' : '';
   const hdr = getDayHeaderColors(palette);
   const headerColor = nonShootStatus === 'hold' ? 'bg-red-600 text-white'
@@ -163,7 +163,7 @@ const DayCell: React.FC<{
     : 'bg-zinc-200 text-zinc-600';
   const headerStyle = sectionLabel && !nonShootStatus ? { background: hdr.background, color: hdr.color } : undefined;
 
-  const headerLabel = nonShootStatus === 'hold' ? 'HOLD' : nonShootStatus === 'travel' ? 'TRAVEL' : nonShootStatus === 'holiday' ? 'HOLIDAY' : sectionLabel || '';
+  const headerLabel = nonShootStatus === 'hold' ? 'HOLD' : nonShootStatus === 'travel' ? 'TRAVEL' : nonShootStatus === 'holiday' ? 'DAY OFF' : sectionLabel || '';
 
   const isNonShoot = !!nonShootStatus;
   const isWorking = sectionIndex != null;
@@ -1023,7 +1023,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
               { key: 'work', label: 'W', title: 'Work' },
               { key: 'hold', label: 'H', title: 'Hold' },
               { key: 'travel', label: 'T', title: 'Travel' },
-              { key: 'holiday', label: 'HOL', title: 'Holiday' },
+              { key: 'holiday', label: 'DO', title: 'Day Off' },
               { key: 'remove', label: <Eraser className="w-3 h-3" />, title: 'Erase' },
             ].map(t => (
               <button key={t.key || 'none'} type="button"
@@ -1104,7 +1104,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuDate(null); }}>
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'hold'); setContextMenu(null); setContextMenuDate(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'travel'); setContextMenu(null); setContextMenuDate(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
-          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'holiday'); setContextMenu(null); setContextMenuDate(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
+          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'holiday'); setContextMenu(null); setContextMenuDate(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Day Off</ContextMenuItem>
           {nonShootDateMap.has(contextMenuDate) && (
             <>
               <ContextMenuDivider />

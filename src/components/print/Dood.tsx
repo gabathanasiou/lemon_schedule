@@ -328,7 +328,7 @@ const Dood: React.FC<DoodProps> = ({
                   <th className="dood-col-cast">Shooting Day</th>
                   {group.days.map((d, ci) => (
                     <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
-                      {d.isShooting ? chronoDayMap.get(d.dayInt) : d.nonShootStatus === 'hold' ? 'H' : d.nonShootStatus === 'travel' ? 'T' : d.nonShootStatus === 'holiday' ? 'HOL' : ''}
+                      {d.isShooting ? chronoDayMap.get(d.dayInt) : d.nonShootStatus === 'hold' ? 'H' : d.nonShootStatus === 'travel' ? 'T' : d.nonShootStatus === 'holiday' ? 'DO' : ''}
                     </th>
                   ))}
                   {isLast && showTotals && (
