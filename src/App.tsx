@@ -464,6 +464,21 @@ function AppContent() {
     );
   }
 
+  if (printOptions) {
+    const vName = version?.name?.replace(/^v/, '').split(' -')[0] || version?.name?.split(' ')[0] || version?.name || '';
+    const title = (project.title || 'Schedule').replace(/[<>:"/\\|?*]/g, '');
+    const times = printOptions.showTimes ? 'Timed' : 'NoTimes';
+    const days = printOptions.selectedDays.length === 0 ? 'None'
+      : printOptions.selectedDays.length === 1 ? `Day${printOptions.selectedDays[0]}`
+      : `Days${printOptions.selectedDays.length}`;
+    const fileName = `${title}_${vName}_${times}_${days}`;
+    return (
+      <div>
+        <PrintSchedule project={project} showTimes={printOptions.showTimes} showDurations={printOptions.showDurations} showCastList={printOptions.showCastList} showExportDate={printOptions.showExportDate} showPageNumbers={printOptions.showPageNumbers} selectedDays={printOptions.selectedDays} includeStatusDays={printOptions.includeStatusDays} fileName={fileName} ribbon={printOptions.selectedRibbonId ? project.ribbonDesigns.find(d => d.id === printOptions.selectedRibbonId)?.rows : undefined} colWidths={printOptions.selectedRibbonId ? project.ribbonDesigns.find(d => d.id === printOptions.selectedRibbonId)?.colWidths : undefined} cellPaddingV={printOptions.selectedRibbonId ? project.ribbonDesigns.find(d => d.id === printOptions.selectedRibbonId)?.cellPaddingV : undefined} cellPaddingH={printOptions.selectedRibbonId ? project.ribbonDesigns.find(d => d.id === printOptions.selectedRibbonId)?.cellPaddingH : undefined} edgePadding={printOptions.selectedRibbonId ? project.ribbonDesigns.find(d => d.id === printOptions.selectedRibbonId)?.edgePadding : undefined} cellBorders={printOptions.cellBorders} viewMode={printOptions.viewMode} />
+      </div>
+    );
+  }
+
   if (noProject) {
     return <ProjectManager />;
   }
