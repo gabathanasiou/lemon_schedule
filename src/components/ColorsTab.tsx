@@ -150,6 +150,8 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
       selectedStripText: DEFAULT_COLOR_PALETTE.selectedStripText,
       dayHeaderBg: DEFAULT_COLOR_PALETTE.dayHeaderBg,
       dayHeaderText: DEFAULT_COLOR_PALETTE.dayHeaderText,
+      dayFooterBg: DEFAULT_COLOR_PALETTE.dayFooterBg,
+      dayFooterText: DEFAULT_COLOR_PALETTE.dayFooterText,
       noteBg: DEFAULT_COLOR_PALETTE.noteBg,
       noteText: DEFAULT_COLOR_PALETTE.noteText,
       fallbackStripBg: DEFAULT_COLOR_PALETTE.fallbackStripBg,
@@ -194,6 +196,8 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           selectedStripText: data.selectedStripText || DEFAULT_COLOR_PALETTE.selectedStripText,
           dayHeaderBg: data.dayHeaderBg || DEFAULT_COLOR_PALETTE.dayHeaderBg,
           dayHeaderText: data.dayHeaderText || DEFAULT_COLOR_PALETTE.dayHeaderText,
+          dayFooterBg: data.dayFooterBg || DEFAULT_COLOR_PALETTE.dayFooterBg,
+          dayFooterText: data.dayFooterText || DEFAULT_COLOR_PALETTE.dayFooterText,
           noteBg: data.noteBg || DEFAULT_COLOR_PALETTE.noteBg,
           noteText: data.noteText || DEFAULT_COLOR_PALETTE.noteText,
           fallbackStripBg: data.fallbackStripBg,
@@ -641,10 +645,11 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
             <Sun className={`${SEC_ICO} text-zinc-500`} />
             <span className={`${SEC_TXT} font-bold text-zinc-500 uppercase tracking-wider`}>Interface Colors</span>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             {([
               ['Selected Strip', palette.selectedStripBg, palette.selectedStripText, (bg: string, text: string) => handleMetaChange({ selectedStripBg: bg, selectedStripText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.selectedStripBg, text: DEFAULT_COLOR_PALETTE.selectedStripText })],
               ['Day Header', palette.dayHeaderBg, palette.dayHeaderText, (bg: string, text: string) => handleMetaChange({ dayHeaderBg: bg, dayHeaderText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.dayHeaderBg, text: DEFAULT_COLOR_PALETTE.dayHeaderText })],
+              ['Day Footer', palette.dayFooterBg, palette.dayFooterText, (bg: string, text: string) => handleMetaChange({ dayFooterBg: bg, dayFooterText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.dayFooterBg, text: DEFAULT_COLOR_PALETTE.dayFooterText })],
               ['Note Banner', palette.noteBg, palette.noteText, (bg: string, text: string) => handleMetaChange({ noteBg: bg, noteText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.noteBg, text: DEFAULT_COLOR_PALETTE.noteText })],
               ['Fallback', getFallbackStripColors(palette).background, getFallbackStripColors(palette).color, (bg: string, text: string) => handleMetaChange({ fallbackStripBg: bg, fallbackStripText: text }), () => ({ bg: DEFAULT_COLOR_PALETTE.fallbackStripBg!, text: DEFAULT_COLOR_PALETTE.fallbackStripText! })],
             ] as const).map(([label, bg, text, commit, resetDefaults]) => (

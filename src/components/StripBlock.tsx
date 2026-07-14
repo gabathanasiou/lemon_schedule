@@ -7,7 +7,7 @@ import { SortableRow } from './SortableRow';
 import SectionHeader from './SectionHeader';
 import { ScheduleRow, ShootDayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
@@ -38,8 +38,9 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   }
 
   if (row.type === 'DAYBREAK') {
+    const df = getDayFooterColors(palette);
     return (
-      <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: '#ffffff', color: '#18181b' }}>
+      <div className={`opacity-30 flex items-stretch ${h} border-b shrink-0 ${sz}`} style={{ background: df.background, color: df.color }}>
         <div className="flex-1 flex items-center justify-center px-3">{row.daybreakLabel || 'End of Day'}</div>
       </div>
     );

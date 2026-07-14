@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
-import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors } from '../lib/ribbonUtils';
+import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -59,8 +59,9 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : row.type === 'DAYBREAK' ? row.daybreakLabel || 'End of Day' : null;
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
-    const bg = row.type === 'DAYBREAK' ? '#ffffff' : row.noteColor || nb.background;
-    const fg = row.type === 'DAYBREAK' ? '#18181b' : row.noteTextColor || nb.color;
+    const df = getDayFooterColors(palette);
+    const bg = row.type === 'DAYBREAK' ? df.background : row.noteColor || nb.background;
+    const fg = row.type === 'DAYBREAK' ? df.color : row.noteTextColor || nb.color;
     return (
       <div style={{ background: bg, color: fg }} className={`${sz} font-semibold truncate border-b border-black select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}

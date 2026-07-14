@@ -230,6 +230,8 @@ export const DEFAULT_COLOR_PALETTE: SceneColorPalette = {
   selectedStripText: '#ffffff',
   dayHeaderBg: '#000000',
   dayHeaderText: '#ffffff',
+  dayFooterBg: '#ffffff',
+  dayFooterText: '#000000',
   noteBg: '#3f0000',
   noteText: '#ffffff',
   fallbackStripBg: '#a77b00',
@@ -248,6 +250,11 @@ export function getSelectedStripColors(palette?: SceneColorPalette): { backgroun
 
 export function getDayHeaderColors(palette?: SceneColorPalette): { background: string; color: string } {
   return palette ? { background: palette.dayHeaderBg, color: palette.dayHeaderText } : { background: '#000000', color: '#ffffff' };
+}
+
+export function getDayFooterColors(palette?: SceneColorPalette): { background: string; color: string } {
+  if (!palette || !palette.dayFooterBg) return { background: '#ffffff', color: '#000000' };
+  return { background: palette.dayFooterBg, color: palette.dayFooterText || '#000000' };
 }
 
 export function getNoteBannerColors(palette?: SceneColorPalette): { background: string; color: string } {

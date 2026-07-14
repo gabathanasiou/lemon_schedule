@@ -160,6 +160,8 @@ export interface SceneColorPalette {
   selectedStripText: string;
   dayHeaderBg: string;
   dayHeaderText: string;
+  dayFooterBg: string;
+  dayFooterText: string;
   noteBg: string;
   noteText: string;
   fallbackStripBg?: string;

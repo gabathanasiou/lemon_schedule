@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleRow, Scene, ShootDayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
-import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups, getDayHeaderColors } from '../lib/ribbonUtils';
+import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
@@ -418,6 +418,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
             }
             if (r.type === 'DAYBREAK') {
               const dh = getDayHeaderColors(colorPalette);
+              const df = getDayFooterColors(colorPalette);
               const sTotal = (r as any).sectionTotal || 0;
               const sPages = (r as any).sectionPages || 0;
               const sShoot = (r as any).sectionShoot || 0;
@@ -429,7 +430,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                 const showStats = sTotal > 0;
                 return (
                   <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000' }}>
-                    <div style={{ background: '#ffffff', color: '#18181b' }}>
+                    <div style={{ background: df.background, color: df.color }}>
                       <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' ') }}>
                         {cells.map((cell, ci) => {
                           if (ci === mainCellIdx) {
@@ -501,7 +502,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
               return (
                 <table key={r.id} className="print-table" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' } as any}>
                   <tbody>
-                    <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px`, background: '#ffffff', color: '#18181b' } as any}>
+                    <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px`, background: df.background, color: df.color } as any}>
                       <>
                         <td className="print-col-sc" />
                         {showTimes && <td className="print-col-call">{sEndTime || (r as any).computedCallTime}</td>}
