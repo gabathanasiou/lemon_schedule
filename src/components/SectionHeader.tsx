@@ -14,6 +14,7 @@ interface SectionHeaderProps {
   colWidths?: number[];
   cellPaddingV?: number;
   cellPaddingH?: number;
+  edgePadding?: number;
 }
 
 const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -27,6 +28,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   colWidths,
   cellPaddingV,
   cellPaddingH,
+  edgePadding,
 }) => {
   const dh = getDayHeaderColors(palette);
   const sel = getSelectedStripColors(palette);
@@ -52,7 +54,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       : cells.map((c, i) => ({ i, w: cw[i] ?? 0 })).reduce((a, b) => a.w >= b.w ? a : b, { i: 0, w: 0 }).i;
 
     return (
-      <div style={{ background: bg, color: fg }}>
+      <div style={{ background: bg, color: fg, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
           {cells.map((cell, ci) => {
             if (ci === mainCellIdx) {
@@ -62,10 +64,11 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
                   ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
                   textAlign: 'center', padding: pad, overflow: 'visible',
                   whiteSpace: 'normal', wordBreak: 'break-word',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}>
                   <strong>{dayLabel}</strong>
                   {dateStr && (
-                    <div style={{ fontSize: '7pt', opacity: 0.8, marginTop: 1 }}>{dateStr}</div>
+                    <span style={{ fontSize: '7pt', opacity: 0.8 }}>{dateStr}</span>
                   )}
                 </div>
               );
@@ -78,12 +81,23 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
                   textAlign: 'center', padding: pad, overflow: 'visible',
                 }}>
                   <CellInput
-                    value={callTime}
+                    value={callTime || '08:00'}
                     onChange={onCallTimeChange}
                     clearOnType
                     col="duration"
-                    className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                    className="text-center"
                   />
+                </div>
+              );
+            }
+            if (cell.field === 'duration') {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center', padding: pad, overflow: 'visible',
+                }}>
+                  <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
                 </div>
               );
             }
@@ -114,19 +128,21 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
           <td className="col-sc" />
           <td className="col-call">
             <CellInput
-              value={callTime}
+              value={callTime || '08:00'}
               onChange={onCallTimeChange}
               clearOnType
               col="duration"
               className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
             />
           </td>
-          <td className="col-dur" />
+          <td className="col-dur" style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+          </td>
           <td className="col-ie" />
           <td className="col-set" style={{ textAlign: 'center' }}>
             <strong>{dayLabel}</strong>
             {dateStr && (
-              <div style={{ fontSize: '7pt', opacity: 0.8 }}>{dateStr}</div>
+              <span style={{ fontSize: '7pt', opacity: 0.8 }}>{dateStr}</span>
             )}
           </td>
           <td className="col-dn" />

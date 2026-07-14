@@ -503,6 +503,20 @@ const SortableRowContent: React.FC<{
     const nextDaybreakNum = (row as any).hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
     const nextLabel = nextDaybreakNum > 0 ? `START OF DAY ${nextDaybreakNum}` : '';
 
+    const nextDateStr = useMemo(() => {
+      if (!row.daybreakDate) return '';
+      const v = state.present.versions.find(p => p.id === activeVersionId);
+      const skip = new Set((v?.nonShootDates || []).map((n: { date: string }) => n.date));
+      const addOne = (dstr: string) => {
+        const p = dstr.split('-').map(Number);
+        return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10);
+      };
+      let d = addOne(row.daybreakDate);
+      while (skip.has(d)) d = addOne(d);
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }, [row.daybreakDate, state.present.versions, activeVersionId]);
+
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
       const cw = colWidths ?? cells.map(() => 100 / cells.length);
@@ -515,15 +529,25 @@ const SortableRowContent: React.FC<{
       const notePadV = getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1);
       const daybreakPadV = Math.max(cellPaddingV ?? 6, Math.floor(notePadV / 2));
       const daybreakPadPx = `${daybreakPadV}px ${cellPaddingH ?? 6}px`;
+      const lastCellIdx = cells.length - 1;
+      const pageCountCell = (() => {
+        for (const r of ribbon) {
+          const found = r.cells.find(c => c.field === 'pageCount');
+          if (found) return found;
+        }
+        return null;
+      })();
+      const pageCountColIdx = cells.findIndex((_, ci) =>
+        ribbon.some(r => ci < r.cells.length && r.cells[ci].field === 'pageCount')
+      );
 
       return (
         <div className="flex items-stretch min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
-            <div style={{ ...daybreakStyle }}>
+            <div className="flex-1 min-w-0 flex flex-col" style={{ ...daybreakStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
               <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                 {cells.map((cell, ci) => {
                   if (ci === mainCellIdx) {
-                    const showStats = sectionTotal > 0;
                     return (
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
@@ -544,11 +568,34 @@ const SortableRowContent: React.FC<{
                             {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
                           </span>
                         )}
-                        {showStats && (
-                          <span style={{ fontSize: '7pt', opacity: 0.75 }}>
-                            {formatPageCount(sectionPages)} pgs · {formatDuration(sectionShoot)} shoot{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}
-                          </span>
-                        )}
+                      </div>
+                    );
+                  }
+                  if (ci === lastCellIdx && sectionTotal > 0) {
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        whiteSpace: 'normal', wordBreak: 'break-word',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                      }}>
+                        <span style={{ fontSize: '7pt', opacity: 0.75 }}>
+                          EST: {formatDuration(sectionShoot)}{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}
+                        </span>
+                      </div>
+                    );
+                  }
+                  if (ci === pageCountColIdx && sectionPages > 0) {
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                      }}>
+                        <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
+                        <span style={{ fontSize: '7pt', opacity: 0.75 }}>{formatPageCount(sectionPages)} pgs</span>
                       </div>
                     );
                   }
@@ -584,14 +631,16 @@ const SortableRowContent: React.FC<{
             {(row as any).hasNextDaybreak && (
               <SectionHeader
                 dayLabel={nextLabel}
-                callTime={row.daybreakCallTime || ''}
+                callTime={row.daybreakCallTime || '08:00'}
                 onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
+                dateStr={nextDateStr}
                 palette={state.present.colorPalette}
                 isSelected={isSelected && !isFaded}
                 ribbon={ribbon}
                 colWidths={colWidths}
                 cellPaddingV={cellPaddingV}
                 cellPaddingH={cellPaddingH}
+                edgePadding={edgePadding}
               />
             )}
           </div>
@@ -616,7 +665,13 @@ const SortableRowContent: React.FC<{
                     </td>
                     <td className="col-dn" />
                     <td className="col-cast" />
-                    <td className="col-pgs" />
+                    <td className="col-pgs" style={{ textAlign: 'center' }}>
+                      {sectionTotal > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                          <span style={{ fontSize: '7pt', opacity: 0.75 }}>{formatPageCount(sectionPages)} pgs · EST: {formatDuration(sectionShoot)}{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}</span>
+                        </div>
+                      )}
+                    </td>
                   </>
                 ) : (
                   <td colSpan={4} className="col-set">
@@ -629,12 +684,14 @@ const SortableRowContent: React.FC<{
           {nextDaybreakNum > 0 && (
             <SectionHeader
               dayLabel={nextLabel}
-              callTime={row.daybreakCallTime || ''}
+              callTime={row.daybreakCallTime || '08:00'}
               onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
+              dateStr={nextDateStr}
               palette={state.present.colorPalette}
               isSelected={isSelected && !isFaded}
               cellPaddingV={cellPaddingV}
               cellPaddingH={cellPaddingH}
+              edgePadding={0}
             />
           )}
         </div>

@@ -307,7 +307,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           }).filter(Boolean) as ScheduleRow[];
           dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
         } else {
-          const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
+          const hasDaybreak = ids.some(id => {
+            const r = activeVersion.rows.find(rr => rr.id === id);
+            return r && r.type === 'DAYBREAK';
+          });
+          const newRows = hasDaybreak
+            ? activeVersion.rows.filter(r => !(ids.includes(r.id) && r.type === 'DAYBREAK')).map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r)
+            : activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, shootDay: null, order: 999999 } : r);
           dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
         }
         selectNextAfterRemove(new Set(ids as string[]));
@@ -1683,7 +1689,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
-               {existingDays.map((dayInt, i) => (
+                {existingDays.map((dayInt, i) => (
                 <StripBlock 
                   key={dayInt} 
                   dayInt={dayInt} 
