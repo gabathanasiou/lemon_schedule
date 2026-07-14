@@ -518,9 +518,35 @@ The `PopoutWindow` component attaches `keydown` listeners in the popup window fo
 
 ## Schedule Architecture: Daybreak Section Model
 
-DAYBREAK rows split the stripboard into logical **sections**. Each daybreak renders two visual rows:
+DAYBREAK rows split the stripboard into logical **sections**. Each daybreak renders up to two visual rows:
 
 | Name | Role | Styling | Content |
 |---|---|---|---|
 | **`SectionFooter`** | Closes the section above it. Shows cumulative totals, end time, and date for the just-finished section. | White background (`#ffffff`) with dark text (`#18181b`). Rendered as `row-note` in non-ribbon mode, or a CSS grid in ribbon mode. | "End of Day #N", date, section pages, shoot time, break time, end time. |
+| **`Next Day Header`** | Opens the section below it. Provides the call time input that governs the upcoming section. | Dark palette background (`getDayHeaderColors`). Shows when `hasNextDaybreak` is true. | "START OF DAY #N", call time `CellInput`, date. |
+
+### Pinned Daybreak (Section 0)
+
+Every blank schedule version starts with a **pinned** DAYBREAK row (`pinned: true`) at `containerId: 1, order: 0`. This is the default section 0 marker — it is not a production day.
+
+| Rule | Behavior |
+|---|---|
+| **Visibility** | Only shown when at least one other (non-pinned) DAYBREAK exists in the version |
+| **Draggable** | No — `useSortable({ disabled: true })` |
+| **Deletable** | No — all delete/cut/boneyard paths skip pinned rows |
+| **Insertion above** | Blocked — drag-end and paste shift `insertIndex` to 1 when day has a pinned daybreak at position 0 |
+| **Footer** | Suppressed — `!row.pinned` guards on footer rendering |
+| **Next-day header** | Shown when other daybreaks exist — displays "START OF DAY 1" with call time input |
+| **Section 0 semantics** | Does not count as a production day; `sectionDateMap` does not advance the date for pinned sections; `sectionLabelMap` returns empty label for pinned sections; `productionSections` export excludes it |
+
+### Call Time Model
+
+The **daybreak above** a section is the source of truth for that section's base call time.
+
+| Concept | Definition |
+|---|---|
+| **`sectionBaseTime`** | Set from the preceding daybreak's `daybreakCallTime` when a DAYBREAK row is processed in `computedRows` |
+| **`computedCallTime`** | For each SCENE/BREAK/NOTE row: `sectionBaseTime + accumulated section elapsed` |
+| **`nextDaybreakMap`** | Maps each daybreak row ID to its **own** `daybreakCallTime` — displayed in the "START OF DAY N" header. Editing this input updates the daybreak row's own `daybreakCallTime`, which governs the section below it. |
+| **Calendar section swap** | When swapping day sections in the Calendar view, the `daybreakCallTime` values of the daybreaks **above** each section are exchanged (`blocks[N-1].daybreakRow.daybreakCallTime`), so call times travel with the content. The pinned daybreak participates in swaps involving section 1. |
 |
