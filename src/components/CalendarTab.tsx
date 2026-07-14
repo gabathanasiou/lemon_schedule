@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, ShootDayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -405,6 +405,10 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [statusModal, setStatusModal] = useState<{ shootDay: number; dateKey: string } | null>(null);
   const [modalStatus, setModalStatus] = useState('work');
   const [modalCastIds, setModalCastIds] = useState('');
+  const [autoDayOffOpen, setAutoDayOffOpen] = useState(false);
+  const [autoDayOffDays, setAutoDayOffDays] = useState<Set<number>>(new Set([5, 6]));
+  const [autoDayOffFrom, setAutoDayOffFrom] = useState('');
+  const [autoDayOffTo, setAutoDayOffTo] = useState('');
 
   const handleNonShootToggle = useCallback((dateKey: string, status: 'hold' | 'travel' | 'holiday' | null) => {
     if (!activeVersion) return;
@@ -422,6 +426,34 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
   }, [activeVersion, dispatch]);
+
+  const handleApplyAutoDaysOff = useCallback(() => {
+    if (!activeVersion || !autoDayOffFrom || !autoDayOffTo) return;
+    const from = new Date(autoDayOffFrom + 'T00:00:00');
+    const to = new Date(autoDayOffTo + 'T00:00:00');
+    const current = activeVersion.nonShootDates || [];
+    const targetDates = new Set<string>();
+    const cursor = new Date(from);
+    while (cursor <= to) {
+      const jsDay = cursor.getDay();
+      const monBased = jsDay === 0 ? 6 : jsDay - 1;
+      if (autoDayOffDays.has(monBased)) {
+        targetDates.add(toDateKey(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    let next = current.filter(ns => {
+      if (ns.date < autoDayOffFrom || ns.date > autoDayOffTo) return true;
+      return targetDates.has(ns.date);
+    });
+    for (const date of targetDates) {
+      if (!next.find(ns => ns.date === date)) {
+        next.push({ date, status: 'holiday' as const });
+      }
+    }
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
+    setAutoDayOffOpen(false);
+  }, [activeVersion, autoDayOffFrom, autoDayOffTo, autoDayOffDays, dispatch]);
 
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -501,6 +533,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   );
 
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
+
+  const openAutoDayOff = useCallback(() => {
+    const from = days[0]?.dateKey || '';
+    const to = days[days.length - 1]?.dateKey || '';
+    setAutoDayOffFrom(from);
+    setAutoDayOffTo(to);
+    setAutoDayOffOpen(true);
+  }, [days]);
 
   const containerRows = useMemo(() => {
     if (!activeVersion) return [];
@@ -966,6 +1006,13 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
               />
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={openAutoDayOff}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600"
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                Days Off
+              </button>
               <DropdownMenu
                 open={viewMenuOpen}
                 onOpenChange={setViewMenuOpen}
@@ -1165,6 +1212,61 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                 style={{ background: colorPicker.bg, color: colorPicker.text }}
                 placeholder="Banner text..."
               />
+            </div>
+          </div>
+        </Modal>
+      )}
+      {autoDayOffOpen && (
+        <Modal open onClose={() => setAutoDayOffOpen(false)} title="Auto Day Off" width="max-w-sm"
+          footer={
+            <ModalFooter>
+              <button onClick={() => setAutoDayOffOpen(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+              <button onClick={handleApplyAutoDaysOff} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
+            </ModalFooter>
+          }
+        >
+          <div className="p-6 space-y-5">
+            <div>
+              <span className="text-xs text-zinc-300">Days of the week</span>
+              <div className="flex gap-1.5 mt-2">
+                {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((label, i) => (
+                  <button
+                    key={label}
+                    onClick={() => setAutoDayOffDays(prev => {
+                      const next = new Set(prev);
+                      if (next.has(i)) next.delete(i); else next.add(i);
+                      return next;
+                    })}
+                    className={`w-9 h-8 text-[10px] font-semibold rounded transition-colors ${
+                      autoDayOffDays.has(i)
+                        ? 'bg-zinc-700 text-white'
+                        : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 border border-zinc-800'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-xs text-zinc-300">From</span>
+                <input
+                  type="date"
+                  value={autoDayOffFrom}
+                  onChange={e => setAutoDayOffFrom(e.target.value)}
+                  className="w-full mt-1 text-xs px-2 py-1.5 rounded border border-zinc-700 bg-zinc-900 text-zinc-200 outline-none focus:border-zinc-500"
+                />
+              </div>
+              <div>
+                <span className="text-xs text-zinc-300">To</span>
+                <input
+                  type="date"
+                  value={autoDayOffTo}
+                  onChange={e => setAutoDayOffTo(e.target.value)}
+                  className="w-full mt-1 text-xs px-2 py-1.5 rounded border border-zinc-700 bg-zinc-900 text-zinc-200 outline-none focus:border-zinc-500"
+                />
+              </div>
             </div>
           </div>
         </Modal>
