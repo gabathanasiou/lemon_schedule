@@ -132,6 +132,12 @@ const SortableRowContent: React.FC<{
   const [showViolationModal, setShowViolationModal] = useState(false);
   const violationRef = useRef<HTMLSpanElement>(null);
   const violationTipPos = useRef({ x: 0, y: 0 });
+
+  const hasNextViolations = nextSectionViolations && nextSectionViolations.length > 0;
+  const [showNextViolationTip, setShowNextViolationTip] = useState(false);
+  const [showNextViolationModal, setShowNextViolationModal] = useState(false);
+  const nextViolationRef = useRef<HTMLSpanElement>(null);
+  const nextViolationTipPos = useRef({ x: 0, y: 0 });
   const violationBadge = hasViolations ? (
     <>
       <span
@@ -163,6 +169,40 @@ const SortableRowContent: React.FC<{
         title={scene ? `Scene ${scene.sceneNumber} Violations` : 'Strip Violations'}
         subtitle={scene?.set || ''}
         violations={sceneViolations}
+        castMembers={state.present.castMembers || []}
+      />
+    </>
+  ) : null;
+
+  const nextViolationBadge = hasNextViolations ? (
+    <>
+      <span
+        ref={nextViolationRef}
+        style={{ cursor: 'help', display: 'inline-flex' }}
+        onMouseEnter={() => {
+          if (nextViolationRef.current) {
+            const r = nextViolationRef.current.getBoundingClientRect();
+            nextViolationTipPos.current = { x: r.left + r.width / 2, y: r.top };
+          }
+          setShowNextViolationTip(true);
+        }}
+        onMouseLeave={() => setShowNextViolationTip(false)}
+        onClick={() => setShowNextViolationModal(true)}
+      >
+        <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
+      </span>
+      {showNextViolationTip && createPortal(
+        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+          <ViolationContent violations={nextSectionViolations!} castMembers={state.present.castMembers || []} />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
+        </div>,
+        portalTarget ?? document.body
+      )}
+      <ViolationModal
+        open={showNextViolationModal}
+        onClose={() => setShowNextViolationModal(false)}
+        title="Section Violations"
+        violations={nextSectionViolations!}
         castMembers={state.present.castMembers || []}
       />
     </>
@@ -698,7 +738,9 @@ const SortableRowContent: React.FC<{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                         textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                      }} />
+                      }}>
+                        {ci === lastCellIdx && nextViolationBadge}
+                      </div>
                     );
                   })}
                 </div>
@@ -768,7 +810,9 @@ const SortableRowContent: React.FC<{
                   </td>
                   <td className="col-dn" />
                   <td className="col-cast" />
-                  <td className="col-pgs" />
+                  <td className="col-pgs" style={{ textAlign: 'center' }}>
+                    {nextViolationBadge}
+                  </td>
                 </tr>
               </tbody>
             </table>
