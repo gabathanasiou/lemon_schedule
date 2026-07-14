@@ -109,6 +109,10 @@ const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon,
     nextDaybreakMap.set(daybreaks[i].id, { callTime: daybreaks[i].daybreakCallTime || '08:00' });
   }
 
+  console.log('[PRINT DaySection] rows in:', rows.length, 'computedRows:', computedRows.length, 'daybreaks:', daybreaks.length);
+  console.log('[PRINT DaySection] daybreak rows:', daybreaks.map(d => ({ id: d.id.slice(0,6), callTime: d.daybreakCallTime, hasNext: (d as any).hasNextDaybreak, label: (d as any).daybreakLabel })));
+  console.log('[PRINT DaySection] computedRows types:', computedRows.map(r => r.type));
+
   return (
     <div className="print-day">
       {computedRows.map((r) => {
@@ -364,6 +368,9 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
   const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (const s of sections) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(s.index, c); if (!s.daybreakRow?.pinned) { c = addDays(c, 1); } } return m; })();
 
+  console.log('[PRINT] sections:', sections.map(s => ({ idx: s.index, rows: s.rows.length, hasDb: !!s.daybreakRow, pinned: s.daybreakRow?.pinned })));
+  console.log('[PRINT] selectedDays:', selectedDays);
+
   const sectionEntries = sections.filter(s => !s.daybreakRow?.pinned).map((s) => {
     const content = s.rows.filter(r => selectedDays.includes(s.index));
     const allRows = [...content];
@@ -416,6 +423,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
 
         {sectionEntries.length > 0 && (
           <div className="print-schedule-pages" style={{ counterReset: 'page' }}>
+            {(() => { console.log('[PRINT] sectionEntries:', sectionEntries.map(e => ({ idx: e.sectionIndex, rows: e.rows.length, types: e.rows.map(r => r.type) }))); return null; })()}
             {sectionEntries.map((e, i) => (
               <DaySection
                 key={e.sectionIndex}
