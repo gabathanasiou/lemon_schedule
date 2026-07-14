@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
 import { getElementsFromScenes } from '../../store';
+import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
@@ -31,21 +32,18 @@ function formatDayDateLong(dateStr: string): string {
 export function useDoodDialogData() {
   const { state } = useProject();
   const project = state.present;
-  const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const { sections, sectionDateMap } = useDaybreakSections();
 
   const dayEntries = useMemo(() => {
-    const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
-    const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
-    const containerIds = [...new Set<number>((activeVersion?.rows || []).filter(r => r.containerId != null).map(r => r.containerId as number))].sort((a, b) => a - b);
-    const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
-    let currentDate = startDate;
-    return containerIds.map((cid, i) => {
-      while (nonShootSet.has(currentDate)) currentDate = addDays(currentDate, 1);
-      const entry = { dayInt: cid, date: currentDate, unitCall: '08:00', chrono: i + 1 };
-      currentDate = addDays(currentDate, 1);
-      return entry;
-    });
-  }, [activeVersion]);
+    return sections
+      .filter(s => !s.daybreakRow?.pinned)
+      .map((s, i) => ({
+        dayInt: s.index,
+        date: sectionDateMap.get(s.index) || '',
+        unitCall: '08:00',
+        chrono: i + 1,
+      }));
+  }, [sections, sectionDateMap]);
 
   const allCastIds = useMemo(() => {
     const ids = new Set<string>();

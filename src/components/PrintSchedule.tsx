@@ -26,6 +26,7 @@ interface PrintScheduleProps {
 interface DaySectionProps {
   rows: ScheduleRow[];
   callTime?: string;
+  dateStr?: string;
   scenes: Scene[];
   ribbon?: RibbonRow[];
   colWidths?: number[];
@@ -76,26 +77,63 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, dateStr, scenes, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+  let runningElapsed = 0;
   let sectionElapsed = 0;
+  let sectionStart = 0;
+  let sectionPages = 0;
+  let sectionShoot = 0;
+  let sectionBreak = 0;
   let sectionBaseTime = callTime || '08:00';
   let daybreakCounter = 0;
 
   const computedRows = rows.map(r => {
     const ct = addMinutesToTime(sectionBaseTime, sectionElapsed);
     let dur = 0;
-    if (r.type === 'SCENE') dur = r.estimatedDuration || 0;
-    else if (r.type === 'BREAK') dur = r.breakDuration || 0;
-    else if (r.type === 'NOTE') dur = r.estimatedDuration || 0;
+
     if (r.type === 'DAYBREAK') {
       daybreakCounter += 1;
-      const row = { ...r, computedCallTime: ct, daybreakLabel: `End of Day ${daybreakCounter}` };
+      const sectionTotal = runningElapsed - sectionStart;
+      const sectionEndTime = ct;
+      const row = {
+        ...r,
+        daybreakLabel: `End of Day ${daybreakCounter}`,
+        daybreakDate: dateStr,
+        computedCallTime: ct,
+        computedElapsed: runningElapsed,
+        sectionTotal,
+        sectionPages,
+        sectionShoot,
+        sectionBreak,
+        sectionEndTime,
+      };
       sectionElapsed = 0;
       sectionBaseTime = r.daybreakCallTime || callTime || '08:00';
+      sectionStart = runningElapsed;
+      sectionPages = 0;
+      sectionShoot = 0;
+      sectionBreak = 0;
       return row;
     }
+
+    if (r.type === 'SCENE') {
+      dur = r.estimatedDuration || 0;
+      const scene = scenes.find(s => s.id === r.sceneId);
+      if (scene) {
+        sectionPages += scene.pageCountDecimal;
+      }
+      sectionShoot += dur;
+    } else if (r.type === 'BREAK') {
+      dur = r.breakDuration || 0;
+      sectionBreak += dur;
+    } else if (r.type === 'NOTE') {
+      dur = r.estimatedDuration || 0;
+      sectionShoot += dur;
+    }
+
+    runningElapsed += dur;
     sectionElapsed += dur;
-    return { ...r, computedCallTime: ct };
+    return { ...r, computedCallTime: ct, computedElapsed: runningElapsed };
   });
 
   for (let i = computedRows.length - 1, found = false; i >= 0; i--) {
@@ -107,11 +145,6 @@ const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon,
   const nextDaybreakMap = new Map<string, { callTime: string }>();
   for (let i = 0; i < daybreaks.length - 1; i++) {
     nextDaybreakMap.set(daybreaks[i].id, { callTime: daybreaks[i].daybreakCallTime || '08:00' });
-  }
-
-  if (daybreaks.length > 0) {
-    const d = daybreaks[0] as any;
-    console.log('[PRINT] daybreak pinned:', d.pinned, 'hasNext:', d.hasNextDaybreak, 'label:', d.daybreakLabel, 'type:', d.type);
   }
 
   return (
@@ -368,9 +401,6 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
   const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
   const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (const s of sections) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(s.index, c); if (!s.daybreakRow?.pinned) { c = addDays(c, 1); } } return m; })();
-
-  console.log('[PRINT] sections:', sections.map(s => ({ idx: s.index, rows: s.rows.length, hasDb: !!s.daybreakRow, pinned: s.daybreakRow?.pinned })));
-  console.log('[PRINT] selectedDays:', selectedDays);
 
   const nonPinned = sections.filter(s => !s.daybreakRow?.pinned);
   const sectionEntries = nonPinned.map((s, i) => {

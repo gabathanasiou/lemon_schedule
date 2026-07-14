@@ -116,43 +116,69 @@ function deriveDood(
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
   const isCast = category === 'cast';
   const nonShootByDate = new Map(nonShootDates?.map(n => [n.date, n]) || []);
-  const scenesByDay = new Map<number, Scene[]>();
-  for (const row of scheduleRows) {
-    if (row.type !== 'SCENE' || !row.sceneId) continue;
-    const scene = scenes.find(s => s.id === row.sceneId);
-    if (!scene) continue;
-    if (!scenesByDay.has(row.containerId)) scenesByDay.set(row.containerId, []);
-    scenesByDay.get(row.containerId)!.push(scene);
+
+  const addDays = (d: string, n: number) => {
+    const p = d.split('-').map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10);
+  };
+  const nonShootSet = new Set((nonShootDates || []).map(n => n.date));
+
+  const sortedRows = scheduleRows
+    .filter(r => r.containerId != null)
+    .sort((a, b) => {
+      if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
+      return a.order - b.order;
+    });
+
+  const sections: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
+  let currentRows: ScheduleRow[] = [];
+  let sectionIndex = 0;
+  for (const r of sortedRows) {
+    if (r.type === 'DAYBREAK') {
+      sections.push({ index: sectionIndex, rows: currentRows, daybreakRow: r });
+      currentRows = [];
+      sectionIndex++;
+    } else {
+      currentRows.push(r);
+    }
   }
 
-  const shootingDays = new Set(scenesByDay.keys());
-
-  const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
-  const nonShootSet = new Set((nonShootDates || []).map(n => n.date));
-  const containerIds = [...new Set(scheduleRows.filter(r => r.containerId != null).map(r => r.containerId!))].sort((a, b) => a - b);
-  const containerDateMap = new Map<number, string>();
+  const sectionDateMap = new Map<number, string>();
   let currentDate = productionStart;
-  for (const cid of containerIds) {
+  for (let i = 0; i < sections.length; i++) {
     while (nonShootSet.has(currentDate)) currentDate = addDays(currentDate, 1);
-    containerDateMap.set(cid, currentDate);
-    currentDate = addDays(currentDate, 1);
+    sectionDateMap.set(i, currentDate);
+    if (!sections[i].daybreakRow?.pinned) {
+      currentDate = addDays(currentDate, 1);
+    }
+  }
+
+  const scenesBySection = new Map<number, Scene[]>();
+  for (const s of sections) {
+    for (const r of s.rows) {
+      if (r.type !== 'SCENE' || !r.sceneId) continue;
+      const scene = scenes.find(sc => sc.id === r.sceneId);
+      if (!scene) continue;
+      if (!scenesBySection.has(s.index)) scenesBySection.set(s.index, []);
+      scenesBySection.get(s.index)!.push(scene);
+    }
   }
 
   let sortedDayInts = dayInts
-    .filter(d => containerDateMap.has(d))
-    .sort((a, b) => (containerDateMap.get(a) || '').localeCompare(containerDateMap.get(b) || ''));
+    .filter(d => sectionDateMap.has(d))
+    .sort((a, b) => (sectionDateMap.get(a) || '').localeCompare(sectionDateMap.get(b) || ''));
 
   if (!includeNonShooting) {
-    sortedDayInts = sortedDayInts.filter(d => shootingDays.has(d));
+    sortedDayInts = sortedDayInts.filter(d => scenesBySection.has(d));
   }
 
   const days: DoodDay[] = sortedDayInts.map(d => {
-    const isoDate = containerDateMap.get(d) || '';
+    const isoDate = sectionDateMap.get(d) || '';
     const ns = nonShootByDate.get(isoDate);
     return {
       dayInt: d,
       isoDate,
-      isShooting: shootingDays.has(d),
+      isShooting: scenesBySection.has(d),
       nonShootStatus: ns?.status || undefined,
     };
   });
@@ -173,11 +199,11 @@ function deriveDood(
     let firstDate: string | null = null;
     let lastDate: string | null = null;
     for (const d of sortedDayInts) {
-      const dayScenes = scenesByDay.get(d);
-      if (!dayScenes) continue;
-      if (dayScenes.some(s => getSceneElements(s, category).some(e => e.toLowerCase() === elementId))) {
+      const secScenes = scenesBySection.get(d);
+      if (!secScenes) continue;
+      if (secScenes.some(s => getSceneElements(s, category).some(e => e.toLowerCase() === elementId))) {
         appearSet.add(d);
-        const date = containerDateMap.get(d) || '';
+        const date = sectionDateMap.get(d) || '';
         if (!firstDate || date < firstDate) firstDate = date;
         if (!lastDate || date > lastDate) lastDate = date;
       }
@@ -198,17 +224,13 @@ function deriveDood(
       return 'W';
     });
 
-    const swDays = appearSet.size > 0 ? 1 : 0;
     const workDays = appearSet.size;
     const holdCount = cells.filter(c => c === 'H').length;
     const travelCount = cells.filter(c => c === 'T').length;
-    const totalDays = workDays + holdCount + travelCount;
     const elementName = getElementDisplayName(elementId, isCast, castMemberNames, elementNameMap);
-    const startDate = firstDate;
-    const finishDate = lastDate;
 
-    doodRows.push({ elementId, elementName, cells } as DoodRow);
-    totals.set(elementId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate, finishDate });
+    doodRows.push({ elementId, elementName, cells });
+    totals.set(elementId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate: firstDate, finishDate: lastDate });
   }
 
   return { days, rows: doodRows, totals };

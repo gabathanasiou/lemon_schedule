@@ -547,7 +547,6 @@ const SortableRowContent: React.FC<{
   }
 
   if (row.type === 'DAYBREAK') {
-    console.log('[RIB] rendering daybreak:', row.id?.slice(0,6), 'pinned:', row.pinned, 'hasNext:', (row as any).hasNextDaybreak, 'ribbonLen:', ribbon?.length);
     const dh = getDayHeaderColors(state.present.colorPalette);
     const df = getDayFooterColors(state.present.colorPalette);
     const daybreakStyle: React.CSSProperties = { background: df.background, color: df.color };
