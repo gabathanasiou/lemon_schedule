@@ -934,7 +934,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       targetBlock.content = [...sourceBlock.content];
       sourceBlock.content = swapContent;
 
-      if (sourceIdx > 1 && targetIdx > 1) {
+      if (sourceIdx > 0 && targetIdx > 0) {
         const srcAbove = blocks[sourceIdx - 1].daybreakRow;
         const tgtAbove = blocks[targetIdx - 1].daybreakRow;
         if (srcAbove && tgtAbove) {
