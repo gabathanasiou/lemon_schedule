@@ -79,6 +79,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
 const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   let sectionElapsed = 0;
   let sectionBaseTime = callTime || '08:00';
+  let daybreakCounter = 0;
 
   const computedRows = rows.map(r => {
     const ct = addMinutesToTime(sectionBaseTime, sectionElapsed);
@@ -87,17 +88,32 @@ const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon,
     else if (r.type === 'BREAK') dur = r.breakDuration || 0;
     else if (r.type === 'NOTE') dur = r.estimatedDuration || 0;
     if (r.type === 'DAYBREAK') {
+      daybreakCounter += 1;
+      const row = { ...r, computedCallTime: ct, daybreakLabel: `End of Day ${daybreakCounter}` };
       sectionElapsed = 0;
       sectionBaseTime = r.daybreakCallTime || callTime || '08:00';
-      return { ...r, computedCallTime: ct };
+      return row;
     }
     sectionElapsed += dur;
     return { ...r, computedCallTime: ct };
   });
 
+  for (let i = computedRows.length - 1, found = false; i >= 0; i--) {
+    const cr = computedRows[i] as any;
+    if (cr.type === 'DAYBREAK') { cr.hasNextDaybreak = found; found = true; }
+  }
+
+  const daybreaks = computedRows.filter(r => r.type === 'DAYBREAK');
+  const nextDaybreakMap = new Map<string, { callTime: string }>();
+  for (let i = 0; i < daybreaks.length - 1; i++) {
+    nextDaybreakMap.set(daybreaks[i].id, { callTime: daybreaks[i].daybreakCallTime || '08:00' });
+  }
+
   return (
     <div className="print-day">
-      {computedRows.map((r) => (
+      {computedRows.map((r) => {
+        const ndb = r.type === 'DAYBREAK' ? nextDaybreakMap.get(r.id) : undefined;
+        return (
         <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <SortableRibbon
             row={r as any}
@@ -109,9 +125,11 @@ const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon,
             cellPaddingH={cellPaddingH}
             edgePadding={edgePadding}
             cellBorders={cellBorders}
+            nextDaybreakCallTime={ndb?.callTime}
           />
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
