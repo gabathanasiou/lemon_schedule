@@ -1425,7 +1425,34 @@ export const SortableRibbon: React.FC<{
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
   onUpdateNextDaybreak?: (val: string) => void,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak }) => {
+  readOnly?: boolean,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, readOnly }) => {
+  if (readOnly) {
+    return (
+      <SortableRowContent
+        row={row}
+        scenes={scenes}
+        isSelected={false}
+        isFaded={false}
+        isCompact={false}
+        textEditingEnabled={false}
+        sceneViolations={sceneViolations}
+        sectionViolations={sectionViolations}
+        nextSectionViolations={nextSectionViolations}
+        focusedRowId={null}
+        onRowNavigate={onRowNavigate}
+        ribbon={ribbon}
+        colWidths={colWidths}
+        cellPaddingV={cellPaddingV}
+        cellPaddingH={cellPaddingH}
+        edgePadding={edgePadding}
+        cellBorders={cellBorders}
+        nextDaybreakCallTime={nextDaybreakCallTime}
+        onUpdateNextDaybreak={onUpdateNextDaybreak}
+      />
+    );
+  }
+
   const ctrlOrCmdHeld = useAddMode();
 
   const {
