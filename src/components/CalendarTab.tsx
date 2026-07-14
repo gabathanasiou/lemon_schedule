@@ -407,8 +407,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [modalCastIds, setModalCastIds] = useState('');
   const [autoDayOffOpen, setAutoDayOffOpen] = useState(false);
   const [autoDayOffDays, setAutoDayOffDays] = useState<Set<number>>(new Set([5, 6]));
-  const [autoDayOffFrom, setAutoDayOffFrom] = useState('');
-  const [autoDayOffTo, setAutoDayOffTo] = useState('');
 
   const handleNonShootToggle = useCallback((dateKey: string, status: 'hold' | 'travel' | 'holiday' | null) => {
     if (!activeVersion) return;
@@ -426,34 +424,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
   }, [activeVersion, dispatch]);
-
-  const handleApplyAutoDaysOff = useCallback(() => {
-    if (!activeVersion || !autoDayOffFrom || !autoDayOffTo) return;
-    const from = new Date(autoDayOffFrom + 'T00:00:00');
-    const to = new Date(autoDayOffTo + 'T00:00:00');
-    const current = activeVersion.nonShootDates || [];
-    const targetDates = new Set<string>();
-    const cursor = new Date(from);
-    while (cursor <= to) {
-      const jsDay = cursor.getDay();
-      const monBased = jsDay === 0 ? 6 : jsDay - 1;
-      if (autoDayOffDays.has(monBased)) {
-        targetDates.add(toDateKey(cursor));
-      }
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    let next = current.filter(ns => {
-      if (ns.date < autoDayOffFrom || ns.date > autoDayOffTo) return true;
-      return targetDates.has(ns.date);
-    });
-    for (const date of targetDates) {
-      if (!next.find(ns => ns.date === date)) {
-        next.push({ date, status: 'holiday' as const });
-      }
-    }
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
-    setAutoDayOffOpen(false);
-  }, [activeVersion, autoDayOffFrom, autoDayOffTo, autoDayOffDays, dispatch]);
 
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
@@ -535,12 +505,38 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
 
   const openAutoDayOff = useCallback(() => {
-    const from = days[0]?.dateKey || '';
-    const to = days[days.length - 1]?.dateKey || '';
-    setAutoDayOffFrom(from);
-    setAutoDayOffTo(to);
     setAutoDayOffOpen(true);
-  }, [days]);
+  }, []);
+
+  const handleApplyAutoDaysOff = useCallback(() => {
+    if (!activeVersion || days.length === 0) return;
+    const from = days[0].dateKey;
+    const to = days[days.length - 1].dateKey;
+    const fromDate = new Date(from + 'T00:00:00');
+    const toDate = new Date(to + 'T00:00:00');
+    const current = activeVersion.nonShootDates || [];
+    const targetDates = new Set<string>();
+    const cursor = new Date(fromDate);
+    while (cursor <= toDate) {
+      const jsDay = cursor.getDay();
+      const monBased = jsDay === 0 ? 6 : jsDay - 1;
+      if (autoDayOffDays.has(monBased)) {
+        targetDates.add(toDateKey(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    let next = current.filter(ns => {
+      if (ns.date < from || ns.date > to) return true;
+      return targetDates.has(ns.date);
+    });
+    for (const date of targetDates) {
+      if (!next.find(ns => ns.date === date)) {
+        next.push({ date, status: 'holiday' as const });
+      }
+    }
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
+    setAutoDayOffOpen(false);
+  }, [activeVersion, days, autoDayOffDays, dispatch]);
 
   const containerRows = useMemo(() => {
     if (!activeVersion) return [];
@@ -1246,26 +1242,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     {label}
                   </button>
                 ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <span className="text-xs text-zinc-300">From</span>
-                <input
-                  type="date"
-                  value={autoDayOffFrom}
-                  onChange={e => setAutoDayOffFrom(e.target.value)}
-                  className="w-full mt-1 text-xs px-2 py-1.5 rounded border border-zinc-700 bg-zinc-900 text-zinc-200 outline-none focus:border-zinc-500"
-                />
-              </div>
-              <div>
-                <span className="text-xs text-zinc-300">To</span>
-                <input
-                  type="date"
-                  value={autoDayOffTo}
-                  onChange={e => setAutoDayOffTo(e.target.value)}
-                  className="w-full mt-1 text-xs px-2 py-1.5 rounded border border-zinc-700 bg-zinc-900 text-zinc-200 outline-none focus:border-zinc-500"
-                />
               </div>
             </div>
           </div>
