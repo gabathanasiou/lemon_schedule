@@ -66,7 +66,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const scene = scenes[index];
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
-  const { sceneToSection, formatSectionDate } = useDaybreakSections();
+  const { sceneToSection, sectionLabelMap, sectionDateMap } = useDaybreakSections();
 
   const sectionIdx = scene ? (sceneToSection.get(scene.id) ?? null) : null;
   const hasScheduleInfo = sectionIdx != null;
@@ -329,11 +329,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
             title={onOpenScheduleInPopout ? 'Click to open in Schedule · Shift+Click to open in new window' : 'Click to open in Schedule'}
           >
             {hasScheduleInfo ? (
-              <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-b border-zinc-800">
-                <span className="font-bold text-sm whitespace-nowrap">{formatSectionDate(sectionIdx)}</span>
-              </div>
+              <>
+                <span className="font-bold text-sm whitespace-nowrap">{sectionLabelMap.get(sectionIdx!) ?? `Day ${sectionIdx! + 1}`}</span>
+                <span className="flex-1 text-center text-xs font-semibold opacity-80">
+                  Date: {sectionDateMap.get(sectionIdx!) ? formatDateLong(sectionDateMap.get(sectionIdx!)!) : ''}
+                </span>
+              </>
             ) : (
-              <span className="text-center text-xs font-semibold opacity-80 w-full">Boneyard</span>
+              <span className="text-center text-xs font-semibold opacity-80 w-full">Unscheduled</span>
             )}
           </div>
         );
