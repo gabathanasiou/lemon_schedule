@@ -48,7 +48,6 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
   if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
-  if (a.isFirstDaybreak !== b.isFirstDaybreak) return false;
   return true;
 };
 
@@ -72,9 +71,7 @@ const SortableRowContent: React.FC<{
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
   onUpdateNextDaybreak?: (val: string) => void,
-  isFirstDaybreak?: boolean,
-  dayLabel?: string,
-}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, isFirstDaybreak, dayLabel }) => {
+}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak }) => {
   const { state, dispatch } = useProject();
   const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
@@ -530,7 +527,7 @@ const SortableRowContent: React.FC<{
         const p = dstr.split('-').map(Number);
         return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10);
       };
-      let d = addOne(row.daybreakDate);
+      let d = row.pinned ? row.daybreakDate : addOne(row.daybreakDate);
       while (skip.has(d)) d = addOne(d);
       const dt = new Date(d + 'T00:00:00');
       return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
@@ -563,7 +560,7 @@ const SortableRowContent: React.FC<{
       return (
         <div className="flex items-stretch min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
-              {!isFirstDaybreak && !row.pinned && (
+              {!row.pinned && (
               <div className="flex-1 min-w-0 flex flex-col" style={{
                 ...daybreakStyle,
                 paddingLeft: edgePadding ?? 2,
@@ -650,65 +647,7 @@ const SortableRowContent: React.FC<{
             </div>
             )}
 
-            {isFirstDaybreak && (
-              <div style={{ background: dh.background, color: dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
-                  {cells.map((cell, ci) => {
-                    if (ci === mainCellIdx) {
-                      return (
-                        <div key={cell.id} style={{
-                          gridColumn: ci + 1, gridRow: 1,
-                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
-                        }}>
-                          <strong>{dayLabel || 'DAY #1'}</strong>
-                          {row.daybreakDate && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}</span>}
-                        </div>
-                      );
-                    }
-                    if (cell.field === 'callTime') {
-                      return (
-                        <div key={cell.id} style={{
-                          gridColumn: ci + 1, gridRow: 1,
-                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                        }}>
-                          <CellInput
-                            value={row.daybreakCallTime || '08:00'}
-                            onChange={val => updateRow({ daybreakCallTime: val })}
-                            clearOnType
-                            col="duration"
-                            className="text-center"
-                            noTruncate
-                          />
-                        </div>
-                      );
-                    }
-                    if (cell.field === 'duration') {
-                      return (
-                        <div key={cell.id} style={{
-                          gridColumn: ci + 1, gridRow: 1,
-                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                        }}>
-                          <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={cell.id} style={{
-                        gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                      }} />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {!isFirstDaybreak && (row as any).hasNextDaybreak && (
+            {(row as any).hasNextDaybreak && (
               <div style={{ background: dh.background, color: dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                   {cells.map((cell, ci) => {
@@ -773,7 +712,7 @@ const SortableRowContent: React.FC<{
     return (
       <div className="flex items-stretch min-w-0">
         <div className="flex-1 min-w-0 flex flex-col">
-          {!isFirstDaybreak && !row.pinned && (
+          {!row.pinned && (
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
               <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
@@ -805,36 +744,7 @@ const SortableRowContent: React.FC<{
             </tbody>
           </table>
           )}
-          {isFirstDaybreak && (
-            <table className="schedule-table flex-1 min-w-0">
-              <tbody>
-                <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
-                  <td className="col-sc" />
-                  <td className="col-call">
-                    <CellInput
-                      value={row.daybreakCallTime || '08:00'}
-                      onChange={val => updateRow({ daybreakCallTime: val })}
-                      clearOnType
-                      col="duration"
-                      className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
-                    />
-                  </td>
-                  <td className="col-dur" style={{ textAlign: 'center' }}>
-                    <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
-                  </td>
-                  <td className="col-ie" />
-                  <td className="col-set" style={{ textAlign: 'center' }}>
-                    <strong>{dayLabel || 'DAY #1'}</strong>
-                    {row.daybreakDate && <span style={{ fontSize: '7pt', opacity: 0.8, marginLeft: 6 }}>{(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}</span>}
-                  </td>
-                  <td className="col-dn" />
-                  <td className="col-cast" />
-                  <td className="col-pgs" />
-                </tr>
-              </tbody>
-            </table>
-          )}
-          {!isFirstDaybreak && nextDaybreakNum > 0 && (
+          {nextDaybreakNum > 0 && (
             <table className="schedule-table flex-1 min-w-0">
               <tbody>
                 <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
@@ -1469,9 +1379,7 @@ export const SortableRibbon: React.FC<{
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
   onUpdateNextDaybreak?: (val: string) => void,
-  isFirstDaybreak?: boolean,
-  dayLabel?: string,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, isFirstDaybreak, dayLabel }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak }) => {
   const ctrlOrCmdHeld = useAddMode();
 
   const {
@@ -1528,8 +1436,6 @@ export const SortableRibbon: React.FC<{
         cellBorders={cellBorders}
         nextDaybreakCallTime={nextDaybreakCallTime}
         onUpdateNextDaybreak={onUpdateNextDaybreak}
-        isFirstDaybreak={isFirstDaybreak}
-        dayLabel={dayLabel}
       />
     </div>
   );
