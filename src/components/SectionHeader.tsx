@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CellInput } from './CellInput';
 import { getDayHeaderColors, getSelectedStripColors, getRibbonCellBaseStyle, getNoteBreakPad } from '../lib/ribbonUtils';
-import { RibbonRow, SceneColorPalette } from '../types';
+import { RibbonRow, SceneColorPalette, RuleViolation } from '../types';
+import { Flag } from 'lucide-react';
+import { ViolationTooltip } from './ViolationTooltip';
+import { ViolationModal } from './ViolationModal';
+import { useProject } from '../store';
 
 interface SectionHeaderProps {
   dayLabel: string;
@@ -15,6 +19,7 @@ interface SectionHeaderProps {
   cellPaddingV?: number;
   cellPaddingH?: number;
   edgePadding?: number;
+  sectionViolations?: RuleViolation[];
 }
 
 const SectionHeader: React.FC<SectionHeaderProps> = ({
@@ -29,12 +34,17 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   cellPaddingV,
   cellPaddingH,
   edgePadding,
+  sectionViolations,
 }) => {
   const dh = getDayHeaderColors(palette);
   const sel = getSelectedStripColors(palette);
 
   const bg = isSelected ? sel.background : dh.background;
   const fg = isSelected ? sel.color : dh.color;
+
+  const { state } = useProject();
+  const castMembers = state.present.castMembers || [];
+  const [showViolationModal, setShowViolationModal] = useState(false);
 
   // Ribbon mode
   if (ribbon && ribbon.length > 0 && ribbon[0].cells.length > 0) {
@@ -52,8 +62,10 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
     const mainCellIdx = nonSpecial.length > 0
       ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
       : cells.map((c, i) => ({ i, w: cw[i] ?? 0 })).reduce((a, b) => a.w >= b.w ? a : b, { i: 0, w: 0 }).i;
+    const lastCellIdx = cells.length - 1;
 
     return (
+      <>
       <div style={{ background: bg, color: fg, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
           {cells.map((cell, ci) => {
@@ -102,6 +114,22 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
                 </div>
               );
             }
+            if (ci === lastCellIdx && sectionViolations && sectionViolations.length > 0) {
+              return (
+                <div key={cell.id} style={{
+                  gridColumn: ci + 1, gridRow: 1,
+                  ...getRibbonCellBaseStyle(cell, cpv, cph, 1),
+                  textAlign: 'center', padding: pad, overflow: 'visible',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <ViolationTooltip violations={sectionViolations}>
+                    <span onClick={() => setShowViolationModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700, cursor: 'help' }}>
+                      <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
+                    </span>
+                  </ViolationTooltip>
+                </div>
+              );
+            }
             return (
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
@@ -112,6 +140,14 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
           })}
         </div>
       </div>
+      <ViolationModal
+        open={showViolationModal}
+        onClose={() => setShowViolationModal(false)}
+        title={`${dayLabel} Violations`}
+        violations={sectionViolations || []}
+        castMembers={castMembers}
+      />
+      </>
     );
   }
 
@@ -119,6 +155,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   const notePadV = getNoteBreakPad(cellPaddingV ?? 6, 1);
   const padV = Math.max(cellPaddingV ?? 6, Math.floor(notePadV / 2));
   return (
+    <>
     <table className="schedule-table flex-1 min-w-0">
       <tbody>
         <tr className="row-note" style={{
@@ -148,10 +185,27 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
           </td>
           <td className="col-dn" />
           <td className="col-cast" />
-          <td className="col-pgs" />
+          <td className="col-pgs" style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+            {sectionViolations && sectionViolations.length > 0 && (
+              <ViolationTooltip violations={sectionViolations}>
+                <span onClick={() => setShowViolationModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700, cursor: 'help' }}>
+                  <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
+                </span>
+              </ViolationTooltip>
+            )}
+          </td>
         </tr>
       </tbody>
     </table>
+    <ViolationModal
+      open={showViolationModal}
+      onClose={() => setShowViolationModal(false)}
+      title={`${dayLabel}`}
+      subtitle={`Violations for this section`}
+      violations={sectionViolations || []}
+      castMembers={castMembers}
+    />
+    </>
   );
 };
 

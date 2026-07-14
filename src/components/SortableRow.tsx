@@ -19,6 +19,7 @@ import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 import { createPortal } from 'react-dom';
 import { ViolationContent } from './ViolationTooltip';
+import { ViolationModal } from './ViolationModal';
 
 const ENTITY_KEYS = new Set([
   'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -125,6 +126,7 @@ const SortableRowContent: React.FC<{
 
   const hasViolations = sceneViolations && sceneViolations.length > 0;
   const [showViolationTip, setShowViolationTip] = useState(false);
+  const [showViolationModal, setShowViolationModal] = useState(false);
   const violationRef = useRef<HTMLSpanElement>(null);
   const violationTipPos = useRef({ x: 0, y: 0 });
   const violationBadge = hasViolations ? (
@@ -141,16 +143,25 @@ const SortableRowContent: React.FC<{
           setShowViolationTip(true);
         }}
         onMouseLeave={() => setShowViolationTip(false)}
+        onClick={() => setShowViolationModal(true)}
       >
         <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
       </span>
       {showViolationTip && createPortal(
-        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 8, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
           <ViolationContent violations={sceneViolations} castMembers={state.present.castMembers || []} />
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>,
         portalTarget ?? document.body
       )}
+      <ViolationModal
+        open={showViolationModal}
+        onClose={() => setShowViolationModal(false)}
+        title={scene ? `Scene ${scene.sceneNumber} Violations` : 'Strip Violations'}
+        subtitle={scene?.set || ''}
+        violations={sceneViolations}
+        castMembers={state.present.castMembers || []}
+      />
     </>
   ) : null;
 
@@ -193,6 +204,7 @@ const SortableRowContent: React.FC<{
                     overflow: 'visible',
                     whiteSpace: 'normal',
                     wordBreak: 'break-word',
+                    lineHeight: 1.4,
                   }}>
                     <CellInput
                       value={row.noteText || ''}
@@ -557,11 +569,6 @@ const SortableRowContent: React.FC<{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                         position: 'relative',
                       }}>
-                        {sectionViolations && sectionViolations.length > 0 && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#ef4444', fontSize: '7pt', fontWeight: 700 }}>
-                            <Flag className="w-2.5 h-2.5 fill-red-400" /> {sectionViolations.length}
-                          </span>
-                        )}
                         <span>{row.daybreakLabel || 'End of Day'}</span>
                         {row.daybreakDate && (
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>
@@ -635,13 +642,14 @@ const SortableRowContent: React.FC<{
                 callTime={row.daybreakCallTime || '08:00'}
                 onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
                 dateStr={nextDateStr}
+                sectionViolations={sectionViolations}
                 palette={state.present.colorPalette}
                 isSelected={isSelected && !isFaded}
                 ribbon={ribbon}
                 colWidths={colWidths}
                 cellPaddingV={cellPaddingV}
                 cellPaddingH={cellPaddingH}
-                edgePadding={edgePadding}
+                edgePadding={0}
               />
             )}
           </div>
@@ -688,6 +696,7 @@ const SortableRowContent: React.FC<{
               callTime={row.daybreakCallTime || '08:00'}
               onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
               dateStr={nextDateStr}
+              sectionViolations={sectionViolations}
               palette={state.present.colorPalette}
               isSelected={isSelected && !isFaded}
               cellPaddingV={cellPaddingV}

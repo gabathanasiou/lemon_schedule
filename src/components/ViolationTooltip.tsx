@@ -88,8 +88,8 @@ export const ViolationTooltip: React.FC<{
       {children}
       {show && createPortal(
         <div
-          className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs"
-          style={{ left: pos.x, top: pos.y - 8, transform: 'translate(-50%, -100%)', zIndex: 99999 }}
+          className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs border border-white/20"
+          style={{ left: pos.x, top: pos.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}
         >
           <ViolationContent violations={violations} castMembers={castMembers} />
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />

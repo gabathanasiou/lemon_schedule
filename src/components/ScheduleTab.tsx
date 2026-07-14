@@ -7,9 +7,9 @@ import { StripBlock } from './StripBlock';
 import { BoneyardBlock } from './BoneyardBlock';
 import { SortableRow } from './SortableRow';
 import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
-import { ScheduleRow, Scene } from '../types';
+import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, ArrowUpDown } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, ArrowUpDown, Flag } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -25,6 +25,9 @@ import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 import { useDialog } from './Dialog';
 import { ELEMENT_CATEGORIES } from '../lib/categories';
+import { checkSection } from '../lib/rulesEngine';
+import { addMinutesToTime, formatDateLong } from '../lib/utils';
+import { ShootViolationsModal } from './ViolationModal';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
@@ -52,6 +55,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [autoDaybreakOpen, setAutoDaybreakOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const dialog = useDialog();
+  const [showShootViolations, setShowShootViolations] = useState(false);
 
   const sortCategories = useMemo(() => {
     const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
@@ -324,7 +328,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if (isEditableInput) return;
     const selectedId = [...selectedRowIds][0] as string;
     const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
-    if ((selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE')) || selectedId.startsWith('empty-')) {
+    if ((selectedRow && (selectedRow.type === 'NOTE' || selectedRow.type === 'BREAK' || selectedRow.type === 'SCENE' || selectedRow.type === 'DAYBREAK')) || selectedId.startsWith('empty-')) {
       e.preventDefault();
       setFocusedRowId(selectedId);
       const rowType = selectedRow?.type;
@@ -799,6 +803,54 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }
     return m;
   }, [existingDays]);
+
+  const shootViolations = useMemo(() => {
+    const rules = project.rules || [];
+    const castMembers = project.castMembers || [];
+    if (rules.length === 0) return [];
+    const result: Array<{ dayLabel: string; dateStr?: string; violations: RuleViolation[] }> = [];
+    for (const dayInt of existingDays) {
+      const rows = scheduledRows[dayInt] || [];
+      const meta = activeVersion?.dayMeta[dayInt];
+      let sectionRows: ScheduleRow[] = [];
+      let sectionBaseTime = meta?.unitCall || '08:00';
+      let sectionStartDate = activeVersion?.daybreakStartDate || '';
+      const nonShootSet = new Set((activeVersion?.nonShootDates || []).map((n: { date: string }) => n.date));
+      const addOne = (d: string) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10); };
+      let cursor = sectionStartDate;
+      if (cursor) while (nonShootSet.has(cursor)) cursor = addOne(cursor);
+      let sectionDate = cursor;
+      for (const row of rows) {
+        if (row.type === 'DAYBREAK') {
+          const v = checkSection([...sectionRows], sectionDate, sectionBaseTime, rules, project.scenes, castMembers);
+          if (v.length > 0) {
+            result.push({
+              dayLabel: `DAY #${chronoDayMap.get(dayInt) || dayInt}`,
+              dateStr: sectionDate ? formatDateLong(sectionDate) : undefined,
+              violations: v,
+            });
+          }
+          sectionRows = [];
+          sectionBaseTime = row.daybreakCallTime || meta?.unitCall || '08:00';
+          sectionDate = addOne(sectionDate);
+          while (nonShootSet.has(sectionDate)) sectionDate = addOne(sectionDate);
+        } else {
+          sectionRows.push(row as ScheduleRow);
+        }
+      }
+      if (sectionRows.length > 0) {
+        const v = checkSection([...sectionRows], sectionDate, sectionBaseTime, rules, project.scenes, castMembers);
+        if (v.length > 0) {
+          result.push({
+            dayLabel: `DAY #${chronoDayMap.get(dayInt) || dayInt}`,
+            dateStr: sectionDate ? formatDateLong(sectionDate) : undefined,
+            violations: v,
+          });
+        }
+      }
+    }
+    return result;
+  }, [existingDays, scheduledRows, activeVersion, project.rules, project.scenes, project.castMembers, chronoDayMap]);
 
   const selectionSummary = useMemo(() => {
     if (selectedRowIds.size < 2) return null;
@@ -1573,6 +1625,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               </DropdownSubmenu>
             </DropdownMenu>
             <button
+              onClick={() => setShowShootViolations(true)}
+              className={`flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-red-500 hover:bg-zinc-200 transition-colors cursor-pointer select-none ${shootViolations.length === 0 ? 'opacity-30' : ''}`}
+              title="View All Violations"
+            >
+              <Flag className="w-3.5 h-3.5" />
+            </button>
+            <button
               onClick={() => setShowHelp(true)}
               className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
               title="Keyboard Shortcuts & Help"
@@ -1899,6 +1958,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         </Modal>
       )}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <ShootViolationsModal
+        open={showShootViolations}
+        onClose={() => setShowShootViolations(false)}
+        dayViolations={shootViolations}
+        castMembers={project.castMembers || []}
+      />
     </DndContext>
   </div>
 );
