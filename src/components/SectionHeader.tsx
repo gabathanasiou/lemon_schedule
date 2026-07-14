@@ -66,7 +66,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
 
     return (
       <>
-      <div style={{ background: bg, color: fg, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ background: bg, color: fg, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, width: '100%', boxSizing: 'border-box', borderBottom: '2px solid #000' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
           {cells.map((cell, ci) => {
             if (ci === mainCellIdx) {
@@ -156,7 +156,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   const padV = Math.max(cellPaddingV ?? 6, Math.floor(notePadV / 2));
   return (
     <>
-    <table className="schedule-table flex-1 min-w-0">
+    <table className="schedule-table flex-1 min-w-0" style={{ borderBottom: '2px solid #000' }}>
       <tbody>
         <tr className="row-note" style={{
           background: bg,

@@ -558,8 +558,13 @@ const SortableRowContent: React.FC<{
       return (
         <div className="flex items-stretch min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
-            <div className="flex-1 min-w-0 flex flex-col" style={{ ...daybreakStyle, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+              <div className="flex-1 min-w-0 flex flex-col" style={{
+                ...daybreakStyle,
+                paddingLeft: edgePadding ?? 2,
+                paddingRight: edgePadding ?? 2,
+                ...((row as any).hasNextDaybreak ? { borderBottom: '2px solid #000' } : {}),
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                 {cells.map((cell, ci) => {
                   if (ci === mainCellIdx) {
                     return (
