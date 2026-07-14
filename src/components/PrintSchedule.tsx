@@ -109,9 +109,10 @@ const DaySection: React.FC<DaySectionProps> = ({ rows, callTime, scenes, ribbon,
     nextDaybreakMap.set(daybreaks[i].id, { callTime: daybreaks[i].daybreakCallTime || '08:00' });
   }
 
-  console.log('[PRINT DaySection] rows in:', rows.length, 'computedRows:', computedRows.length, 'daybreaks:', daybreaks.length);
-  console.log('[PRINT DaySection] daybreak rows:', daybreaks.map(d => ({ id: d.id.slice(0,6), callTime: d.daybreakCallTime, hasNext: (d as any).hasNextDaybreak, label: (d as any).daybreakLabel })));
-  console.log('[PRINT DaySection] computedRows types:', computedRows.map(r => r.type));
+  if (daybreaks.length > 0) {
+    const d = daybreaks[0] as any;
+    console.log('[PRINT] daybreak pinned:', d.pinned, 'hasNext:', d.hasNextDaybreak, 'label:', d.daybreakLabel, 'type:', d.type);
+  }
 
   return (
     <div className="print-day">
@@ -371,15 +372,19 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   console.log('[PRINT] sections:', sections.map(s => ({ idx: s.index, rows: s.rows.length, hasDb: !!s.daybreakRow, pinned: s.daybreakRow?.pinned })));
   console.log('[PRINT] selectedDays:', selectedDays);
 
-  const sectionEntries = sections.filter(s => !s.daybreakRow?.pinned).map((s) => {
-    const content = s.rows.filter(r => selectedDays.includes(s.index));
-    const allRows = [...content];
-    if (s.daybreakRow && selectedDays.includes(s.index)) allRows.push(s.daybreakRow as ScheduleRow);
+  const nonPinned = sections.filter(s => !s.daybreakRow?.pinned);
+  const sectionEntries = nonPinned.map((s, i) => {
+    const rows: ScheduleRow[] = [];
+    if (i === 0 && sections.length > 0 && sections[0].daybreakRow?.pinned) {
+      rows.push(sections[0].daybreakRow as ScheduleRow);
+    }
+    rows.push(...s.rows.filter(r => selectedDays.includes(s.index)));
+    if (s.daybreakRow && selectedDays.includes(s.index)) rows.push(s.daybreakRow as ScheduleRow);
     return {
       sectionIndex: s.index,
       date: sectionDateMap.get(s.index) || '',
-      rows: allRows,
-      hasRows: allRows.length > 0,
+      rows,
+      hasRows: rows.length > 0,
     };
   }).filter(e => e.hasRows && e.date);
 
