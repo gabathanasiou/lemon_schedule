@@ -2,13 +2,12 @@ import React, { useMemo, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
-import { addMinutesToTime, formatDateLong } from '../lib/utils';
+import { addMinutesToTime } from '../lib/utils';
 import { SortableRibbon } from './SortableRibbon';
 import { ScheduleRow, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getDayHeaderColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
-import { CellInput } from './CellInput';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -147,12 +146,10 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; rib
 };
 
 export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
-  const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const hasDaybreaks = (activeVersion?.rows || []).some(r => r.type === 'DAYBREAK');
 
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
@@ -173,7 +170,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
   const firstDaybreak = rows.find(r => r.type === 'DAYBREAK');
   const firstDaybreakCallTime = firstDaybreak?.daybreakCallTime || '08:00';
 
-  const { computedRows, totalPages, totalShootTime, totalBreakTime, runningElapsed } = useMemo(() => {
+  const { computedRows } = useMemo(() => {
     let runningElapsed = 0;
     let totalPages = 0;
     let totalBreakTime = 0;
@@ -258,7 +255,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
         found = true;
       }
     }
-    return { computedRows, totalPages, totalShootTime: runningElapsed - totalBreakTime, totalBreakTime, runningElapsed };
+    return { computedRows };
   }, [rows, firstDaybreakCallTime, project.scenes, activeVersion?.productionStart, activeVersion?.nonShootDates]);
 
   const sectionViolationMap = useMemo(() => {
@@ -290,11 +287,6 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     return map;
   }, [computedRows, sectionViolationMap]);
 
-  const firstSectionViolations = useMemo(() => {
-    const first = computedRows.find(r => r.type === 'DAYBREAK');
-    return first ? sectionViolationMap.get(first.id) : undefined;
-  }, [computedRows, sectionViolationMap]);
-
   const mergedSceneViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
     for (const [, violations] of sectionViolationMap) {
@@ -317,10 +309,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     return map;
   }, [computedRows]);
 
-  const firstDaybreakId = firstDaybreak?.id;
-  const sortableRows = computedRows.filter(r => r.id !== firstDaybreakId);
-
-  const dh = getDayHeaderColors(project.colorPalette);
+  const sortableRows = computedRows;
 
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',
@@ -331,87 +320,6 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
   return (
     <div className="flex flex-col">
     <div style={{ ...baseStyle, borderBottom: 'none' }} className="bg-white flex flex-col border-[2px] border-black">
-
-      {firstDaybreak && (
-        <div style={{ background: dh.background, color: dh.color, borderBottom: '2px solid #000' }}>
-          {ribbon && ribbon.length > 0 && colWidths ? (
-            <div style={{ display: 'grid', gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '), paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
-              {ribbon[0].cells.map((cell, ci) => {
-                const nonSpecial = ribbon[0].cells.filter(c => c.field !== 'duration' && c.field !== 'callTime');
-                const mainCellIdx = nonSpecial.length > 0
-                  ? ribbon[0].cells.indexOf(nonSpecial.reduce((a, b) => (colWidths[ribbon[0].cells.indexOf(a)] ?? 0) >= (colWidths[ribbon[0].cells.indexOf(b)] ?? 0) ? a : b))
-                  : 0;
-                if (ci === mainCellIdx) {
-                  return (
-                    <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                      <strong>{`DAY #${displayDay}`}</strong>
-                      {(firstDaybreak as any).daybreakDate && (
-                        <span style={{ fontSize: '7pt', opacity: 0.8 }}>
-                          {formatDateLong((firstDaybreak as any).daybreakDate)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-                if (cell.field === 'callTime') {
-                  return (
-                    <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px` }}>
-                      <CellInput
-                        value={firstDaybreak?.daybreakCallTime || '08:00'}
-                        onChange={val => updateDaybreakRow(firstDaybreak!.id, { daybreakCallTime: val })}
-                        clearOnType
-                        col="duration"
-                        className="text-center"
-                        noTruncate
-                      />
-                    </div>
-                  );
-                }
-                if (cell.field === 'duration') {
-                  return (
-                    <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px` }}>
-                      <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
-                    </div>
-                  );
-                }
-                return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px` }} />;
-              })}
-            </div>
-          ) : (
-            <table className="schedule-table flex-1 min-w-0">
-              <tbody>
-                <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${cellPaddingV ?? 12}px` } as React.CSSProperties}>
-                  <td className="col-sc" />
-                  <td className="col-call">
-                    <CellInput
-                      value={firstDaybreak?.daybreakCallTime || '08:00'}
-                      onChange={val => updateDaybreakRow(firstDaybreak!.id, { daybreakCallTime: val })}
-                      clearOnType
-                      col="duration"
-                      className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
-                    />
-                  </td>
-                  <td className="col-dur" style={{ textAlign: 'center' }}>
-                    <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
-                  </td>
-                  <td className="col-ie" />
-                  <td className="col-set" style={{ textAlign: 'center' }}>
-                    <strong>{`DAY #${displayDay}`}</strong>
-                    {(firstDaybreak as any).daybreakDate && (
-                      <span style={{ fontSize: '7pt', opacity: 0.8, marginLeft: 6 }}>
-                        {formatDateLong((firstDaybreak as any).daybreakDate)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="col-dn" />
-                  <td className="col-cast" />
-                  <td className="col-pgs" />
-                </tr>
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
 
       {/* Drop zone */}
       <div ref={setDropRef} className="flex flex-col min-h-0 bg-white items-stretch relative">
@@ -451,14 +359,14 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
             );
           })}
         </SortableContext>
-        {sortableRows.length === 0 && !firstDaybreak && (
+        {sortableRows.length === 0 && (
           <div className="flex items-center px-4 py-3 text-[9pt] border-b-[2px] border-black italic select-none text-zinc-300"
             style={{ fontFamily: 'Helvetica, sans-serif' }}
           >
             No scenes in this day · right-click for options
           </div>
         )}
-        {sortableRows.length === 0 && !firstDaybreak && <div className="flex-1" />}
+        {sortableRows.length === 0 && <div className="flex-1" />}
       </div>
     </div>
 
