@@ -306,7 +306,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     const map = new Map<string, { callTime: string; rowId: string }>();
     const daybreaks = computedRows.filter(r => r.type === 'DAYBREAK');
     for (let i = 0; i < daybreaks.length - 1; i++) {
-      map.set(daybreaks[i].id, { callTime: daybreaks[i + 1].daybreakCallTime || '08:00', rowId: daybreaks[i + 1].id });
+      map.set(daybreaks[i].id, { callTime: daybreaks[i].daybreakCallTime || '08:00', rowId: daybreaks[i].id });
     }
     return map;
   }, [computedRows]);
