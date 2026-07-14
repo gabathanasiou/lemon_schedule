@@ -937,6 +937,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (sourceBlock.daybreakRow && targetBlock.daybreakRow) {
         const a = sourceBlock.daybreakRow.daybreakCallTime;
         const b = targetBlock.daybreakRow.daybreakCallTime;
+        console.log(`[SWAP] section ${sourceIdx} <-> ${targetIdx} | callTime ${a} <-> ${b} | scenes ${sourceBlock.content.length} <-> ${targetBlock.content.length}`);
         sourceBlock.daybreakRow.daybreakCallTime = b;
         targetBlock.daybreakRow.daybreakCallTime = a;
       }
