@@ -1271,11 +1271,53 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const project = saveProjectRef.current;
       const version = project.versions.find(v => v.id === project.activeVersionId);
       if (!version) return console.log('No active version');
-      console.table(version.rows.filter(r => r.type === 'DAYBREAK').map(r => ({
-        id: r.id.slice(0, 6),
-        callTime: r.daybreakCallTime,
-        pinned: r.pinned,
-      })));
+      const rows = version.rows.filter(r => r.containerId != null).sort((a, b) => {
+        if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
+        return a.order - b.order;
+      });
+      let sectionBase = '08:00';
+      let elapsed = 0;
+      const addMins = (t: string, m: number) => {
+        const [h, min] = t.split(':').map(Number);
+        const d = new Date(0, 0, 0, h, min + m);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+      const table: any[] = [];
+      let sectionNum = 0;
+      for (const r of rows) {
+        if (r.type === 'DAYBREAK') {
+          const call = addMins(sectionBase, elapsed);
+          const section = sectionNum++;
+          table.push({
+            section,
+            type: r.pinned ? 'DAYBREAK(pinned)' : 'DAYBREAK',
+            id: r.id.slice(0, 6),
+            callTime: call,
+            dbCallTime: r.daybreakCallTime,
+            duration: '',
+            sceneNum: '',
+            desc: r.daybreakLabel || (r.pinned ? 'section 0' : `End of Day`),
+          });
+          sectionBase = r.daybreakCallTime || sectionBase;
+          elapsed = 0;
+        } else {
+          const call = addMins(sectionBase, elapsed);
+          const scene = r.sceneId ? project.scenes.find(s => s.id === r.sceneId) : null;
+          const dur = r.type === 'SCENE' ? (r.estimatedDuration || 0) : r.type === 'BREAK' ? (r.breakDuration || 0) : 0;
+          elapsed += dur;
+          table.push({
+            section: sectionNum,
+            type: r.type,
+            id: r.id.slice(0, 6),
+            callTime: call,
+            dbCallTime: '',
+            duration: dur > 0 ? `${dur}m` : '',
+            sceneNum: scene?.sceneNumber || '',
+            desc: r.type === 'NOTE' ? (r.noteText || '').slice(0, 30) : r.type === 'BREAK' ? r.breakLabel : scene?.set || '',
+          });
+        }
+      }
+      console.table(table);
     };
   }, []);
 
