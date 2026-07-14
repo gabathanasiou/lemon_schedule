@@ -500,6 +500,77 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
   }, [activeVersion, dispatch]);
 
+  const handleMakeWorkingDay = useCallback((dateKey: string) => {
+    if (!activeVersion) return;
+    const currentNonShoot = activeVersion.nonShootDates || [];
+    const allRows = activeVersion.rows.map(r => ({ ...r }));
+    const sorted = allRows.filter(r => r.shootDay != null).sort((a, b) =>
+      (a.shootDay || 0) - (b.shootDay || 0) || a.order - b.order
+    );
+    const s: { rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
+    let cr: ScheduleRow[] = [];
+    for (const r of sorted) {
+      if (r.type === 'DAYBREAK') { s.push({ rows: cr, daybreakRow: r }); cr = []; }
+      else { cr.push(r); }
+    }
+
+    const nonShootSet = new Set(currentNonShoot.map(ns => ns.date));
+    const workingDates: string[] = [];
+    let cursor = startDate;
+    for (let i = 0; i < s.length; i++) {
+      while (nonShootSet.has(cursor)) cursor = addDays(cursor, 1);
+      workingDates.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    if (workingDates.includes(dateKey)) return;
+
+    let insertAt = s.length;
+    for (let i = 0; i < workingDates.length; i++) {
+      if (dateKey < workingDates[i]) { insertAt = i; break; }
+    }
+
+    const newDaybreak: ScheduleRow = {
+      id: generateUUID(),
+      type: 'DAYBREAK',
+      daybreakLabel: 'End of Day',
+      daybreakCallTime: '08:00',
+      shootDay: 0,
+      order: 999999,
+    };
+    s.splice(insertAt, 0, { rows: [], daybreakRow: newDaybreak });
+
+    const scheduled: ScheduleRow[] = [];
+    for (let i = 0; i < s.length; i++) {
+      const shootDay = i + 1;
+      for (const r of [...s[i].rows, ...(s[i].daybreakRow ? [s[i].daybreakRow] : [])]) {
+        scheduled.push({ ...r, shootDay });
+      }
+    }
+    const boneyard = allRows.filter(r => r.shootDay === null).sort((a, b) => a.order - b.order);
+    const newRows = [...scheduled, ...boneyard];
+
+    let newNonShoot = currentNonShoot.filter(ns => ns.date !== dateKey);
+    const newWorkingDates: string[] = [];
+    let wc = startDate;
+    const newNSSet = new Set(newNonShoot.map(ns => ns.date));
+    for (let i = 0; i < s.length; i++) {
+      while (newNSSet.has(wc)) wc = addDays(wc, 1);
+      newWorkingDates.push(wc);
+      wc = addDays(wc, 1);
+    }
+    const gapHolidays: NonShootDate[] = [];
+    for (let i = 1; i < newWorkingDates.length; i++) {
+      let gc = addDays(newWorkingDates[i - 1], 1);
+      while (gc < newWorkingDates[i]) {
+        gapHolidays.push({ date: gc, status: 'holiday' });
+        gc = addDays(gc, 1);
+      }
+    }
+    const gapSet = new Set(gapHolidays.map(h => h.date));
+    newNonShoot = [...newNonShoot.filter(ns => !gapSet.has(ns.date)), ...gapHolidays];
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, nonShootDates: newNonShoot } });
+  }, [activeVersion, startDate, dispatch]);
+
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
@@ -777,12 +848,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (activeTool) {
       if (activeTool === 'remove') {
         handleNonShootToggle(dateKey, null);
+      } else if (activeTool === 'work') {
+        handleMakeWorkingDay(dateKey);
       } else {
         handleNonShootToggle(dateKey, activeTool as 'hold' | 'travel' | 'holiday');
       }
       return;
     }
-  }, [handleNonShootToggle, activeTool]);
+  }, [handleNonShootToggle, handleMakeWorkingDay, activeTool]);
 
   const sortBoneyard = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
     if (!activeVersion) return;
@@ -1243,6 +1316,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'hold'); setContextMenu(null); setContextMenuDate(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'travel'); setContextMenu(null); setContextMenuDate(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'holiday'); setContextMenu(null); setContextMenuDate(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Holiday</ContextMenuItem>
+          {!dateSectionMap.has(contextMenuDate) && !nonShootDateMap.has(contextMenuDate) && (
+            <ContextMenuItem onClick={() => { handleMakeWorkingDay(contextMenuDate); setContextMenu(null); setContextMenuDate(null); }} icon={<Briefcase className="w-3.5 h-3.5" />}>Make Working Day</ContextMenuItem>
+          )}
           {nonShootDateMap.has(contextMenuDate) && (
             <>
               <ContextMenuDivider />
