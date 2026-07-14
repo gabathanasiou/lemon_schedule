@@ -124,6 +124,7 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
 };
 
 const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
+  const dh = getDayHeaderColors(colorPalette);
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
@@ -225,27 +226,18 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
   return (
     <div className="print-day">
       {cells ? (
-        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '), background: '#000000', color: '#ffffff', borderBottom: '2px solid #000' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: filteredWidths.map(w => `${w}%`).join(' '), background: dh.background, color: dh.color, borderBottom: '2px solid #000' }}>
           {cells.map((cell, ci) => {
             if (ci === mainCellIdx) {
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+                  textAlign: 'center', padding: noteBreakPadPx,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                 }}>
-                  {dateStr ? formatDateLong(dateStr) : ''}
-                </div>
-              );
-            }
-            if (ci === 0) {
-              return (
-                <div key={cell.id} style={{
-                  gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
-                }}>
-                  DAY #{chronoDay}
+                  <strong>START OF DAY {chronoDay}</strong>
+                  {dateStr && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{formatDateLong(dateStr)}</span>}
                 </div>
               );
             }
@@ -254,7 +246,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+                  textAlign: 'center', padding: noteBreakPadPx,
                 }}>
                   CALL {callTime || ''}
                 </div>
@@ -264,16 +256,16 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
               <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
+                textAlign: 'center', padding: noteBreakPadPx,
               }} />
             );
           })}
         </div>
       ) : (
-        <div className="print-day-header">
-          <span className="print-day-number">DAY #{chronoDay}</span>
-          {dateStr && <span className="print-day-date">{formatDateLong(dateStr)}</span>}
-          <span className="print-day-call">CALL {callTime || ''}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 6pt', background: dh.background, color: dh.color, borderBottom: '2px solid #000', fontSize: '8pt' }}>
+          <strong>START OF DAY {chronoDay}</strong>
+          {dateStr && <span>{formatDateLong(dateStr)}</span>}
+          <span>CALL {callTime || ''}</span>
         </div>
       )}
 
