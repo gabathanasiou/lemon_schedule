@@ -320,10 +320,11 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
   };
 
   return (
-    <div style={baseStyle} className="bg-white flex flex-col border-[2px] border-black">
+    <div style={{ ...baseStyle, borderBottom: 'none' }} className="bg-white flex flex-col border-[2px] border-black">
       
       {/* Section Header — present when daybreaks exist */}
       {hasDaybreaks && (
+        <div style={{ borderBottom: '2px solid #000' }}>
         <SectionHeader
           dayLabel={`DAY #${displayDay}`}
           callTime={meta?.unitCall || '08:00'}
@@ -337,6 +338,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
           cellPaddingH={cellPaddingH}
           sectionViolations={firstSectionViolations}
         />
+        </div>
       )}
 
       {/* Drop zone */}
