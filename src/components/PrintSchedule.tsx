@@ -206,6 +206,15 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
     filteredRibbon && filteredRibbon.some(r => ci < r.cells.length && r.cells[ci].field === 'pageCount')
   ) : -1;
 
+  const pageCountCell = (() => {
+    if (!ribbon) return null;
+    for (const r of ribbon) {
+      const found = r.cells.find(c => c.field === 'pageCount');
+      if (found) return found;
+    }
+    return null;
+  })();
+
   const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
@@ -610,16 +619,18 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                 </div>
               );
             }
-            if (ci === pageCountColIdx && totalPages > 0) {
+            if (ci === pageCountColIdx && totalPages > 0 && pageCountCell) {
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                  ...getRibbonCellBaseStyle(pageCountCell, cellPaddingV, cellPaddingH, 1),
                   padding: noteBreakPadPx,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: pageCountCell.align === 'right' ? 'flex-end' : pageCountCell.align === 'left' ? 'flex-start' : 'center',
+                  justifyContent: 'center', gap: 1,
                 }}>
                   <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
-                  <span style={{ fontSize: '8pt' }}>{formatPageCount(totalPages)} pgs</span>
+                  <span style={{ fontSize: '8pt' }}>{formatPageCount(totalPages)} {pageCountCell.suffix || 'pgs'}</span>
                 </div>
               );
             }
