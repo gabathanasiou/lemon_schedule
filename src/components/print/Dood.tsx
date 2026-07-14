@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, DayMeta, CastMember, NonShootDate } from '../../types';
+import { Scene, ScheduleRow, CastMember, NonShootDate } from '../../types';
 import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
@@ -105,12 +105,12 @@ function getElementDisplayName(elementId: string, isCast: boolean, castMemberNam
 function deriveDood(
   scenes: Scene[],
   scheduleRows: ScheduleRow[],
-  dayMeta: Record<number, DayMeta>,
+  productionStart: string,
+  nonShootDates: NonShootDate[],
   elementIds: string[],
   dayInts: number[],
   includeNonShooting: boolean,
   category: string,
-  nonShootDates?: NonShootDate[],
   castMemberNames?: Map<string, string>,
   elementNameMap?: Map<string, string>,
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
@@ -127,19 +127,31 @@ function deriveDood(
 
   const shootingDays = new Set(scenesByDay.keys());
 
+  const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
+  const nonShootSet = new Set((nonShootDates || []).map(n => n.date));
+  const containerIds = [...new Set(scheduleRows.filter(r => r.containerId != null).map(r => r.containerId!))].sort((a, b) => a - b);
+  const containerDateMap = new Map<number, string>();
+  let currentDate = productionStart;
+  for (const cid of containerIds) {
+    while (nonShootSet.has(currentDate)) currentDate = addDays(currentDate, 1);
+    containerDateMap.set(cid, currentDate);
+    currentDate = addDays(currentDate, 1);
+  }
+
   let sortedDayInts = dayInts
-    .filter(d => dayMeta[d])
-    .sort((a, b) => (dayMeta[a].date || '').localeCompare(dayMeta[b].date || ''));
+    .filter(d => containerDateMap.has(d))
+    .sort((a, b) => (containerDateMap.get(a) || '').localeCompare(containerDateMap.get(b) || ''));
 
   if (!includeNonShooting) {
     sortedDayInts = sortedDayInts.filter(d => shootingDays.has(d));
   }
 
   const days: DoodDay[] = sortedDayInts.map(d => {
-    const ns = nonShootByDate.get(dayMeta[d]?.date || '');
+    const isoDate = containerDateMap.get(d) || '';
+    const ns = nonShootByDate.get(isoDate);
     return {
       dayInt: d,
-      isoDate: dayMeta[d].date || '',
+      isoDate,
       isShooting: shootingDays.has(d),
       nonShootStatus: ns?.status || undefined,
     };
@@ -165,7 +177,7 @@ function deriveDood(
       if (!dayScenes) continue;
       if (dayScenes.some(s => getSceneElements(s, category).some(e => e.toLowerCase() === elementId))) {
         appearSet.add(d);
-        const date = dayMeta[d]?.date || '';
+        const date = containerDateMap.get(d) || '';
         if (!firstDate || date < firstDate) firstDate = date;
         if (!lastDate || date > lastDate) lastDate = date;
       }
@@ -206,7 +218,7 @@ interface DoodProps {
   title: string;
   scenes: Scene[];
   scheduleRows: ScheduleRow[];
-  dayMeta: Record<number, DayMeta>;
+  productionStart?: string;
   nonShootDates?: NonShootDate[];
   castMembers?: CastMember[];
   elementIds: string[];
@@ -220,7 +232,7 @@ const Dood: React.FC<DoodProps> = ({
   title,
   scenes,
   scheduleRows,
-  dayMeta,
+  productionStart,
   nonShootDates,
   castMembers,
   elementIds,
@@ -244,8 +256,8 @@ const Dood: React.FC<DoodProps> = ({
   }, [scenes, category]);
 
   const data = useMemo(() => deriveDood(
-    scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, nonShootDates, castMemberNames, elementNameMap,
-  ), [scenes, scheduleRows, dayMeta, elementIds, dayInts, includeNonShooting, category, nonShootDates, castMemberNames, elementNameMap]);
+    scenes, scheduleRows, productionStart || new Date().toISOString().slice(0, 10), nonShootDates || [], elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap,
+  ), [scenes, scheduleRows, productionStart, nonShootDates, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();

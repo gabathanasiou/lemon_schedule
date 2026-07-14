@@ -33,12 +33,19 @@ export function useDoodDialogData() {
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
-  const dayEntries = useMemo(() =>
-    (Object.entries(activeVersion?.dayMeta || {}) as [string, { date?: string; unitCall?: string }][])
-      .map(([k, v]) => ({ dayInt: Number(k), date: v.date ?? '', unitCall: v.unitCall ?? '08:00' }))
-      .sort((a, b) => (a.date).localeCompare(b.date))
-      .map((d, i) => ({ ...d, chrono: i + 1 })),
-  [activeVersion]);
+  const dayEntries = useMemo(() => {
+    const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
+    const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
+    const containerIds = [...new Set<number>((activeVersion?.rows || []).filter(r => r.containerId != null).map(r => r.containerId as number))].sort((a, b) => a - b);
+    const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
+    let currentDate = startDate;
+    return containerIds.map((cid, i) => {
+      while (nonShootSet.has(currentDate)) currentDate = addDays(currentDate, 1);
+      const entry = { dayInt: cid, date: currentDate, unitCall: '08:00', chrono: i + 1 };
+      currentDate = addDays(currentDate, 1);
+      return entry;
+    });
+  }, [activeVersion]);
 
   const allCastIds = useMemo(() => {
     const ids = new Set<string>();

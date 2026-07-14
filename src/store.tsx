@@ -37,66 +37,6 @@ function loadProjectListFromStorage(): ProjectMeta[] {
   return [];
 }
 
-function migrateDayMetaToNonShootDates(parsed: any) {
-  const versions = parsed.versions || [];
-  for (const v of versions) {
-    if (!v.dayMeta || Object.keys(v.dayMeta).length === 0) continue;
-
-    const entries = Object.entries(v.dayMeta) as [string, any][];
-    const sorted = entries.sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
-
-    const workEntries: [string, any][] = [];
-    const nonWorkEntries: [string, any][] = [];
-    for (const [k, m] of sorted) {
-      if (m.status && m.status !== 'work') {
-        nonWorkEntries.push([k, m]);
-      } else {
-        workEntries.push([k, m]);
-      }
-    }
-
-    if (!v.nonShootDates) v.nonShootDates = [];
-
-    const hasStatus = Object.values(v.dayMeta).some((m: any) => m.status);
-    const isOldProject = nonWorkEntries.length > 0 || hasStatus
-      || (!v.nonShootDates && Object.keys(v.dayMeta).length > 1);
-
-    if (isOldProject) {
-      v.productionStart = workEntries.length > 0 ? workEntries[0][1].date : v.productionStart;
-      for (const [, m] of nonWorkEntries) {
-        v.nonShootDates.push({
-          date: m.date,
-          status: m.status,
-          ...(m.status === 'travel' && m.castIds ? { castIds: m.castIds } : {}),
-        });
-      }
-
-      let prevDate: string | null = null;
-      for (const [, m] of workEntries) {
-        if (prevDate && m.date) {
-          const prev = new Date(prevDate + 'T00:00:00');
-          const cur = new Date(m.date + 'T00:00:00');
-          const diffDays = (cur.getTime() - prev.getTime()) / 86400000;
-          for (let i = 1; i < diffDays; i++) {
-            const gapDate = new Date(prev.getTime() + i * 86400000).toISOString().slice(0, 10);
-            if (!v.nonShootDates.some((n: any) => n.date === gapDate)) {
-              v.nonShootDates.push({ date: gapDate, status: 'holiday' });
-            }
-          }
-        }
-        prevDate = m.date || null;
-      }
-
-      v.dayMeta = Object.fromEntries(workEntries.map(([k, m]) => [
-        k,
-        { unitCall: m.unitCall || '08:00', date: m.date, order: m.order },
-      ]));
-    } else if (!v.productionStart && workEntries.length > 0) {
-      v.productionStart = workEntries[0][1].date;
-    }
-  }
-}
-
 function saveProjectListToStorage(list: ProjectMeta[]) {
   const localOnly = list.filter(p => !p.driveFileId);
   localStorage.setItem(INDEX_KEY, JSON.stringify(localOnly));
@@ -177,7 +117,11 @@ export function loadProjectFromStorage(id: string): Project | null {
         parsed.hiddenCategories = parsed.hiddenCategories || [];
         parsed.categoryLabels = parsed.categoryLabels || {};
 
-        migrateDayMetaToNonShootDates(parsed);
+        for (const v of parsed.versions || []) {
+          if (v.dayMeta) {
+            v.legacy = true;
+          }
+        }
 
         return parsed;
       }
@@ -249,7 +193,6 @@ function makeBlankProject(title = 'Untitled Project'): Project {
       updatedAt: Date.now(),
       rows: [],
       productionStart: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
-      dayMeta: {}
     }],
     activeVersionId: id,
     trash: [],
@@ -570,7 +513,6 @@ function reducer(state: State, action: Action): State {
           updatedAt: Date.now(),
           rows: [],
           productionStart: new Date().toISOString().slice(0, 10),
-          dayMeta: {}
         };
       }
       return applyChange({

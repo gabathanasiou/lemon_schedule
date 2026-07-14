@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useProject } from '../store';
-import { Scene, ScheduleRow, DayMeta, CustomCategoryDef } from '../types';
+import { Scene, ScheduleRow, CustomCategoryDef } from '../types';
 import { formatPageCount } from '../lib/utils';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';

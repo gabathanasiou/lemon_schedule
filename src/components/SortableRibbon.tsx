@@ -14,7 +14,6 @@ import { Flag } from 'lucide-react';
 import { useAddMode, useLastPointerType } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import DurationKeypad from './DurationKeypad';
-import SectionHeader from './SectionHeader';
 import { SelectDropdown } from './SelectDropdown';
 import { SCENE_RIBBON_DEFAULTS } from '../types';
 import { createPortal } from 'react-dom';
@@ -48,6 +47,8 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
+  if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
+  if (a.isFirstDaybreak !== b.isFirstDaybreak) return false;
   return true;
 };
 
@@ -69,7 +70,11 @@ const SortableRowContent: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+  nextDaybreakCallTime?: string,
+  onUpdateNextDaybreak?: (val: string) => void,
+  isFirstDaybreak?: boolean,
+  dayLabel?: string,
+}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, isFirstDaybreak, dayLabel }) => {
   const { state, dispatch } = useProject();
   const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
@@ -558,6 +563,7 @@ const SortableRowContent: React.FC<{
       return (
         <div className="flex items-stretch min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
+              {!isFirstDaybreak && (
               <div className="flex-1 min-w-0 flex flex-col" style={{
                 ...daybreakStyle,
                 paddingLeft: edgePadding ?? 2,
@@ -642,22 +648,122 @@ const SortableRowContent: React.FC<{
                 })}
               </div>
             </div>
+            )}
 
-            {(row as any).hasNextDaybreak && (
-              <SectionHeader
-                dayLabel={nextLabel}
-                callTime={row.daybreakCallTime || '08:00'}
-                onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
-                dateStr={nextDateStr}
-                sectionViolations={nextSectionViolations || sectionViolations}
-                palette={state.present.colorPalette}
-                isSelected={isSelected && !isFaded}
-                ribbon={ribbon}
-                colWidths={colWidths}
-                cellPaddingV={cellPaddingV}
-                cellPaddingH={cellPaddingH}
-                edgePadding={0}
-              />
+            {isFirstDaybreak && (
+              <div style={{ background: dh.background, color: dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+                  {cells.map((cell, ci) => {
+                    if (ci === mainCellIdx) {
+                      return (
+                        <div key={cell.id} style={{
+                          gridColumn: ci + 1, gridRow: 1,
+                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                        }}>
+                          <strong>{dayLabel || 'DAY #1'}</strong>
+                          {row.daybreakDate && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}</span>}
+                        </div>
+                      );
+                    }
+                    if (cell.field === 'callTime') {
+                      return (
+                        <div key={cell.id} style={{
+                          gridColumn: ci + 1, gridRow: 1,
+                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        }}>
+                          <CellInput
+                            value={row.daybreakCallTime || '08:00'}
+                            onChange={val => updateRow({ daybreakCallTime: val })}
+                            clearOnType
+                            col="duration"
+                            className="text-center"
+                            noTruncate
+                          />
+                        </div>
+                      );
+                    }
+                    if (cell.field === 'duration') {
+                      return (
+                        <div key={cell.id} style={{
+                          gridColumn: ci + 1, gridRow: 1,
+                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        }}>
+                          <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                      }} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {!isFirstDaybreak && (row as any).hasNextDaybreak && (
+              <div style={{ background: dh.background, color: dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
+                  {cells.map((cell, ci) => {
+                    if (ci === mainCellIdx) {
+                      return (
+                        <div key={cell.id} style={{
+                          gridColumn: ci + 1, gridRow: 1,
+                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                        }}>
+                          <strong>{nextLabel}</strong>
+                          {nextDateStr && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{nextDateStr}</span>}
+                        </div>
+                      );
+                    }
+                    if (cell.field === 'callTime') {
+                      return (
+                        <div key={cell.id} style={{
+                          gridColumn: ci + 1, gridRow: 1,
+                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        }}>
+                          <CellInput
+                            value={nextDaybreakCallTime || '08:00'}
+                            onChange={val => onUpdateNextDaybreak?.(val)}
+                            clearOnType
+                            col="duration"
+                            className="text-center"
+                            noTruncate
+                          />
+                        </div>
+                      );
+                    }
+                    if (cell.field === 'duration') {
+                      return (
+                        <div key={cell.id} style={{
+                          gridColumn: ci + 1, gridRow: 1,
+                          ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        }}>
+                          <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={cell.id} style={{
+                        gridColumn: ci + 1, gridRow: 1,
+                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                      }} />
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -667,6 +773,7 @@ const SortableRowContent: React.FC<{
     return (
       <div className="flex items-stretch min-w-0">
         <div className="flex-1 min-w-0 flex flex-col">
+          {!isFirstDaybreak && (
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
               <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
@@ -697,19 +804,64 @@ const SortableRowContent: React.FC<{
               </tr>
             </tbody>
           </table>
-          {nextDaybreakNum > 0 && (
-            <SectionHeader
-              dayLabel={nextLabel}
-              callTime={row.daybreakCallTime || '08:00'}
-              onCallTimeChange={val => updateRow({ daybreakCallTime: val })}
-              dateStr={nextDateStr}
-              sectionViolations={nextSectionViolations || sectionViolations}
-              palette={state.present.colorPalette}
-              isSelected={isSelected && !isFaded}
-              cellPaddingV={cellPaddingV}
-              cellPaddingH={cellPaddingH}
-              edgePadding={0}
-            />
+          )}
+          {isFirstDaybreak && (
+            <table className="schedule-table flex-1 min-w-0">
+              <tbody>
+                <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+                  <td className="col-sc" />
+                  <td className="col-call">
+                    <CellInput
+                      value={row.daybreakCallTime || '08:00'}
+                      onChange={val => updateRow({ daybreakCallTime: val })}
+                      clearOnType
+                      col="duration"
+                      className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                    />
+                  </td>
+                  <td className="col-dur" style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+                  </td>
+                  <td className="col-ie" />
+                  <td className="col-set" style={{ textAlign: 'center' }}>
+                    <strong>{dayLabel || 'DAY #1'}</strong>
+                    {row.daybreakDate && <span style={{ fontSize: '7pt', opacity: 0.8, marginLeft: 6 }}>{(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}</span>}
+                  </td>
+                  <td className="col-dn" />
+                  <td className="col-cast" />
+                  <td className="col-pgs" />
+                </tr>
+              </tbody>
+            </table>
+          )}
+          {!isFirstDaybreak && nextDaybreakNum > 0 && (
+            <table className="schedule-table flex-1 min-w-0">
+              <tbody>
+                <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+                  <td className="col-sc" />
+                  <td className="col-call">
+                    <CellInput
+                      value={nextDaybreakCallTime || '08:00'}
+                      onChange={val => onUpdateNextDaybreak?.(val)}
+                      clearOnType
+                      col="duration"
+                      className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                    />
+                  </td>
+                  <td className="col-dur" style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+                  </td>
+                  <td className="col-ie" />
+                  <td className="col-set" style={{ textAlign: 'center' }}>
+                    <strong>{nextLabel}</strong>
+                    {nextDateStr && <span style={{ fontSize: '7pt', opacity: 0.8, marginLeft: 6 }}>{nextDateStr}</span>}
+                  </td>
+                  <td className="col-dn" />
+                  <td className="col-cast" />
+                  <td className="col-pgs" />
+                </tr>
+              </tbody>
+            </table>
           )}
         </div>
       </div>
@@ -1305,6 +1457,7 @@ export const SortableRibbon: React.FC<{
   textEditingEnabled?: boolean,
   sceneViolations?: RuleViolation[],
   sectionViolations?: RuleViolation[],
+  nextSectionViolations?: RuleViolation[],
   focusedRowId?: string | null,
   onDoubleClick?: (id: string) => void,
   onRowNavigate?: (rowId: string) => void,
@@ -1314,7 +1467,11 @@ export const SortableRibbon: React.FC<{
   cellPaddingH?: number,
   edgePadding?: number,
   cellBorders?: CellBorders,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+  nextDaybreakCallTime?: string,
+  onUpdateNextDaybreak?: (val: string) => void,
+  isFirstDaybreak?: boolean,
+  dayLabel?: string,
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, isFirstDaybreak, dayLabel }) => {
   const ctrlOrCmdHeld = useAddMode();
 
   const {
@@ -1368,6 +1525,10 @@ export const SortableRibbon: React.FC<{
         cellPaddingH={cellPaddingH}
         edgePadding={edgePadding}
         cellBorders={cellBorders}
+        nextDaybreakCallTime={nextDaybreakCallTime}
+        onUpdateNextDaybreak={onUpdateNextDaybreak}
+        isFirstDaybreak={isFirstDaybreak}
+        dayLabel={dayLabel}
       />
     </div>
   );

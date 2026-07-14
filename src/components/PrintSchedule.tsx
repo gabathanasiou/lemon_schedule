@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Project, ScheduleRow, Scene, DayMeta, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
+import { Project, ScheduleRow, Scene, RibbonRow, RibbonCell, SceneColorEntry, ColorRule, SceneColorPalette } from '../types';
 import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getCellBorderProps, getFallbackStripColors, computeMergeGroups, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
@@ -64,7 +64,8 @@ function formatDateLong(dateStr: string): string {
 interface DaySectionProps {
   dayInt: number;
   rows: ScheduleRow[];
-  meta?: DayMeta;
+  callTime?: string;
+  dateStr?: string;
   scenes: Scene[];
   showTimes: boolean;
   showDurations: boolean;
@@ -122,12 +123,12 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
   );
 };
 
-const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
+const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
   let runningElapsed = 0;
   let totalPages = 0;
   let totalBreakTime = 0;
   let sectionElapsed = 0;
-  let sectionBaseTime = meta?.unitCall || '08:00';
+  let sectionBaseTime = callTime || '08:00';
   let sectionStart = 0;
   let sectionPages = 0;
   let sectionShoot = 0;
@@ -151,7 +152,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         sectionEndTime,
       };
       sectionElapsed = 0;
-      sectionBaseTime = r.daybreakCallTime || meta?.unitCall || '08:00';
+      sectionBaseTime = r.daybreakCallTime || callTime || '08:00';
       sectionStart = runningElapsed;
       sectionPages = 0;
       sectionShoot = 0;
@@ -233,7 +234,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                   textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
                 }}>
-                  {meta?.date ? formatDateLong(meta.date) : ''}
+                  {dateStr ? formatDateLong(dateStr) : ''}
                 </div>
               );
             }
@@ -255,7 +256,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                   textAlign: 'center', padding: noteBreakPadPx, overflow: 'visible',
                 }}>
-                  CALL {meta?.unitCall || ''}
+                  CALL {callTime || ''}
                 </div>
               );
             }
@@ -271,8 +272,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
       ) : (
         <div className="print-day-header">
           <span className="print-day-number">DAY #{chronoDay}</span>
-          {meta?.date && <span className="print-day-date">{formatDateLong(meta.date)}</span>}
-          <span className="print-day-call">CALL {meta?.unitCall || ''}</span>
+          {dateStr && <span className="print-day-date">{formatDateLong(dateStr)}</span>}
+          <span className="print-day-call">CALL {callTime || ''}</span>
         </div>
       )}
 
@@ -608,7 +609,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                   textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
                 }}>
                   End of Day #{chronoDay}
-                  {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
+                  {runningElapsed > 0 && <span> · {addMinutesToTime(callTime || '08:00', runningElapsed)}</span>}
                 </div>
               );
             }
@@ -619,7 +620,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                   textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, overflow: 'visible',
                 }}>
-                  {meta?.date ? formatDateLong(meta.date) : ''}
+                  {dateStr ? formatDateLong(dateStr) : ''}
                 </div>
               );
             }
@@ -640,9 +641,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, meta, scenes, sho
         <div className="print-day-footer">
           <span className="print-footer-end-label">
             End of Day #{chronoDay}
-            {runningElapsed > 0 && <span> · {addMinutesToTime(meta?.unitCall || '08:00', runningElapsed)}</span>}
+            {runningElapsed > 0 && <span> · {addMinutesToTime(callTime || '08:00', runningElapsed)}</span>}
           </span>
-          {meta?.date && <span className="print-footer-date">{formatDateLong(meta.date)}</span>}
+          {dateStr && <span className="print-footer-date">{formatDateLong(dateStr)}</span>}
           <div className="print-footer-stats">
             {totalPages > 0 && <span>Total Pages: <strong>{formatPageCount(totalPages)} pgs</strong></span>}
             <span>EST. TIME: <strong>{formatDuration(runningElapsed - totalBreakTime)}</strong>{totalBreakTime > 0 && <span> + <strong>{formatDuration(totalBreakTime)}</strong></span>}</span>
@@ -935,7 +936,8 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 key={e.sectionIndex}
                 dayInt={e.sectionIndex}
                 rows={e.rows}
-                meta={{ containerId: e.sectionIndex, unitCall: '08:00', date: e.date }}
+                callTime={sections.find(s => s.index === e.sectionIndex)?.daybreakRow?.daybreakCallTime || '08:00'}
+                dateStr={e.date}
                 scenes={scenes}
                 showTimes={showTimes}
                 showDurations={showDurations}

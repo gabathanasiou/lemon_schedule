@@ -349,11 +349,7 @@ function AppContent() {
       const parts = [title, vName];
       if (!printOptions.showTimes) parts.push('NoTimes');
 
-      const allDaysSorted = Object.keys(version?.dayMeta || {}).map(Number).sort((a, b) => {
-        const da = version?.dayMeta?.[a]?.date || '';
-        const db = version?.dayMeta?.[b]?.date || '';
-        return da.localeCompare(db);
-      });
+      const allDaysSorted = [...new Set<number>((version?.rows || []).filter(r => r.containerId != null).map(r => r.containerId as number))].sort((a, b) => a - b);
       const dayToChrono = new Map(allDaysSorted.map((d, i) => [d, i + 1]));
       const selectedChronos = printOptions.selectedDays
         .map(d => dayToChrono.get(d) || d)
@@ -421,7 +417,7 @@ function AppContent() {
           title={project.title || 'Production Schedule'}
           scenes={project.scenes}
           scheduleRows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
+          productionStart={version?.productionStart}
           nonShootDates={version?.nonShootDates}
           castMembers={project.castMembers || []}
           elementIds={elementIds}
@@ -441,7 +437,6 @@ function AppContent() {
           title={project.title || 'Production Schedule'}
           scenes={project.scenes}
           rows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
           castMembers={project.castMembers || []}
           customCategories={project.customCategories || []}
           sortOrder={breakdownSheetOptions.sortOrder}
@@ -459,7 +454,8 @@ function AppContent() {
           title={project.title || 'Production Schedule'}
           scenes={project.scenes}
           rows={version?.rows || []}
-          dayMeta={version?.dayMeta || {}}
+          productionStart={version?.productionStart}
+          nonShootDates={version?.nonShootDates}
           castMembers={project.castMembers || []}
           customCategories={project.customCategories || []}
           category={elementBreakdownOptions.category}

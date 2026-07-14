@@ -787,13 +787,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     augmentedRows.filter(r => r.containerId === null && r.type !== 'DAYBREAK' && !activeDragIds.has(r.id)).sort((a, b) => a.order - b.order),
   [augmentedRows, activeDragIds]);
 
-  const existingDays = useMemo(() => Array.from(new Set([
-    ...Object.keys(activeVersion.dayMeta || {}).map(Number),
-  ])).sort((a, b) => {
-    const dateA = activeVersion.dayMeta?.[a]?.date || '';
-    const dateB = activeVersion.dayMeta?.[b]?.date || '';
-    return dateA.localeCompare(dateB);
-  }), [activeVersion.dayMeta]);
+  const existingDays = useMemo(() => {
+    const ids = Array.from(new Set<number>(
+      activeVersion.rows.filter(r => r.containerId != null).map(r => r.containerId as number)
+    )).sort((a, b) => a - b);
+    return ids.length > 0 ? ids : [1];
+  }, [activeVersion.rows]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -811,9 +810,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const result: Array<{ dayLabel: string; dateStr?: string; violations: RuleViolation[] }> = [];
     for (const dayInt of existingDays) {
       const rows = scheduledRows[dayInt] || [];
-      const meta = activeVersion?.dayMeta[dayInt];
+      const firstDaybreak = rows.find(r => r.type === 'DAYBREAK');
+      const firstDaybreakCallTime = firstDaybreak?.daybreakCallTime || '08:00';
       let sectionRows: ScheduleRow[] = [];
-      let sectionBaseTime = meta?.unitCall || '08:00';
+      let sectionBaseTime = firstDaybreakCallTime;
       let sectionStartDate = activeVersion?.productionStart || '';
       const nonShootSet = new Set((activeVersion?.nonShootDates || []).map((n: { date: string }) => n.date));
       const addOne = (d: string) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10); };
@@ -831,7 +831,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             });
           }
           sectionRows = [];
-          sectionBaseTime = row.daybreakCallTime || meta?.unitCall || '08:00';
+          sectionBaseTime = row.daybreakCallTime || firstDaybreakCallTime;
           sectionDate = addOne(sectionDate);
           while (nonShootSet.has(sectionDate)) sectionDate = addOne(sectionDate);
         } else {
@@ -1372,12 +1372,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
            return r;
          }).map(r => r.containerId === -1 ? { ...r, containerId: overDay } : r);
          
-         const newMeta = { ...activeVersion.dayMeta };
-         const tempMeta = newMeta[activeDay];
-         newMeta[activeDay] = newMeta[overDay];
-         newMeta[overDay] = tempMeta;
-
-         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows, dayMeta: newMeta } });
+          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
       }
       return;
     }
@@ -1753,7 +1748,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   key={dayInt} 
                   dayInt={dayInt} 
                   rows={scheduledRows[dayInt] || []}
-                  meta={activeVersion?.dayMeta[dayInt]}
                   selectedIds={selectedRowIds}
                   activeDragIds={activeDragIds}
                   onRowClick={handleRowClick}

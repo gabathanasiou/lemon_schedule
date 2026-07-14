@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useProject } from '../store';
-import { Scene, ScheduleRow, DayMeta, CustomCategoryDef } from '../types';
+import { Scene, ScheduleRow, CustomCategoryDef } from '../types';
 import { getLabel, DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';
 import { useDaybreakSections } from '../lib/useDaybreakSections';

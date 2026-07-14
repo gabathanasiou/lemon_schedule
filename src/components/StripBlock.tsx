@@ -1,14 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { SortableRibbon } from './SortableRibbon';
-import SectionHeader from './SectionHeader';
-import { ScheduleRow, DayMeta, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
+import { ScheduleRow, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
-import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
+import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getDayHeaderColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
+import { CellInput } from './CellInput';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -146,7 +146,7 @@ export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; rib
   );
 };
 
-export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: DayMeta, selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, meta, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
+export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selectedIds?: Set<string>, activeDragIds?: Set<string>, onRowClick?: (id: string, e: React.MouseEvent) => void, textEditingEnabled: boolean, insertBeforeId?: string | null, activeRowId?: string | null, activeDragRow?: ScheduleRow | null, activeDragRows?: ScheduleRow[], chronoDay?: number, focusedRowId?: string | null, onRowDoubleClick?: (id: string, shiftKey?: boolean) => void, onRowNavigate?: (rowId: string) => void, ribbon?: RibbonRow[], colWidths?: number[], cellPaddingV?: number, cellPaddingH?: number, edgePadding?: number, cellBorders?: CellBorders }> = ({ dayInt, rows, selectedIds = new Set(), activeDragIds = new Set(), onRowClick, textEditingEnabled, insertBeforeId, activeRowId, activeDragRow, activeDragRows = [], chronoDay, focusedRowId, onRowDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders }) => {
   const displayDay = chronoDay ?? dayInt;
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const { state, dispatch } = useProject();
@@ -164,26 +164,21 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     data: { type: 'STRIP_END', dayInt }
   });
 
-  const updateMeta = (updates: Partial<DayMeta>) => {
+  const updateDaybreakRow = useCallback((rowId: string, updates: Partial<ScheduleRow>) => {
     if (!activeVersion) return;
-    dispatch({
-      type: 'UPDATE_VERSION',
-      payload: {
-        id: activeVersion.id,
-        dayMeta: {
-          ...activeVersion.dayMeta,
-          [dayInt]: { ...(activeVersion.dayMeta[dayInt] || { unitCall: '08:00', date: '' }), ...updates }
-        }
-      }
-    });
-  };
+    const newRows = activeVersion.rows.map(r => r.id === rowId ? { ...r, ...updates } : r);
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+  }, [activeVersion, dispatch]);
+
+  const firstDaybreak = rows.find(r => r.type === 'DAYBREAK');
+  const firstDaybreakCallTime = firstDaybreak?.daybreakCallTime || '08:00';
 
   const { computedRows, totalPages, totalShootTime, totalBreakTime, runningElapsed } = useMemo(() => {
     let runningElapsed = 0;
     let totalPages = 0;
     let totalBreakTime = 0;
     let sectionElapsed = 0;
-    let sectionBaseTime = meta?.unitCall || '08:00';
+    let sectionBaseTime = firstDaybreakCallTime;
     let sectionStart = 0;
     let sectionPages = 0;
     let sectionShoot = 0;
@@ -222,7 +217,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
         nextDate = addDays(nextDate, 1);
         while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
         sectionElapsed = 0;
-        sectionBaseTime = r.daybreakCallTime || meta?.unitCall || '08:00';
+        sectionBaseTime = r.daybreakCallTime || firstDaybreakCallTime;
         sectionStart = runningElapsed;
         sectionPages = 0;
         sectionShoot = 0;
@@ -264,25 +259,25 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
       }
     }
     return { computedRows, totalPages, totalShootTime: runningElapsed - totalBreakTime, totalBreakTime, runningElapsed };
-  }, [rows, meta?.unitCall, project.scenes, activeVersion?.productionStart, activeVersion?.nonShootDates]);
+  }, [rows, firstDaybreakCallTime, project.scenes, activeVersion?.productionStart, activeVersion?.nonShootDates]);
 
   const sectionViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
     let sectionRows: ScheduleRow[] = [];
-    let sectionBaseTime = meta?.unitCall || '08:00';
+    let sectionBaseTime = firstDaybreakCallTime;
     for (const row of computedRows) {
       if (row.type === 'DAYBREAK') {
         const sectionDate = (row as any).daybreakDate;
         const v = checkSection(sectionRows, sectionDate, sectionBaseTime, project.rules || [], project.scenes, project.castMembers || []);
         if (v.length > 0) map.set(row.id, v);
         sectionRows = [];
-        sectionBaseTime = row.daybreakCallTime || meta?.unitCall || '08:00';
+        sectionBaseTime = row.daybreakCallTime || firstDaybreakCallTime;
       } else {
         sectionRows.push(row as ScheduleRow);
       }
     }
     return map;
-  }, [computedRows, project.rules, project.scenes, project.castMembers, meta?.unitCall]);
+  }, [computedRows, project.rules, project.scenes, project.castMembers, firstDaybreakCallTime]);
 
   const nextSectionViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
@@ -313,6 +308,20 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
     return map;
   }, [sectionViolationMap]);
 
+  const nextDaybreakMap = useMemo(() => {
+    const map = new Map<string, { callTime: string; rowId: string }>();
+    const daybreaks = computedRows.filter(r => r.type === 'DAYBREAK');
+    for (let i = 0; i < daybreaks.length - 1; i++) {
+      map.set(daybreaks[i].id, { callTime: daybreaks[i + 1].daybreakCallTime || '08:00', rowId: daybreaks[i + 1].id });
+    }
+    return map;
+  }, [computedRows]);
+
+  const firstDaybreakId = firstDaybreak?.id;
+  const sortableRows = computedRows.filter(r => r.id !== firstDaybreakId);
+
+  const dh = getDayHeaderColors(project.colorPalette);
+
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',
     fontSize: '8pt',
@@ -322,23 +331,85 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
   return (
     <div className="flex flex-col">
     <div style={{ ...baseStyle, borderBottom: 'none' }} className="bg-white flex flex-col border-[2px] border-black">
-      
-      {/* Section Header — present when daybreaks exist */}
-      {hasDaybreaks && (
-        <div style={{ borderBottom: '2px solid #000' }}>
-        <SectionHeader
-          dayLabel={`DAY #${displayDay}`}
-          callTime={meta?.unitCall || '08:00'}
-          onCallTimeChange={val => updateMeta({ unitCall: val })}
-          dateStr={(activeVersion?.productionStart || meta?.date) ? formatDateLong(activeVersion?.productionStart || meta?.date || '') : ''}
-          palette={project.colorPalette}
-          isSelected={selectedIds.has(`empty-${dayInt}`)}
-          ribbon={ribbon}
-          colWidths={colWidths}
-          cellPaddingV={cellPaddingV}
-          cellPaddingH={cellPaddingH}
-          sectionViolations={firstSectionViolations}
-        />
+
+      {firstDaybreak && (
+        <div style={{ background: dh.background, color: dh.color, borderBottom: '2px solid #000' }}>
+          {ribbon && ribbon.length > 0 && colWidths ? (
+            <div style={{ display: 'grid', gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '), paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+              {ribbon[0].cells.map((cell, ci) => {
+                const nonSpecial = ribbon[0].cells.filter(c => c.field !== 'duration' && c.field !== 'callTime');
+                const mainCellIdx = nonSpecial.length > 0
+                  ? ribbon[0].cells.indexOf(nonSpecial.reduce((a, b) => (colWidths[ribbon[0].cells.indexOf(a)] ?? 0) >= (colWidths[ribbon[0].cells.indexOf(b)] ?? 0) ? a : b))
+                  : 0;
+                if (ci === mainCellIdx) {
+                  return (
+                    <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                      <strong>{`DAY #${displayDay}`}</strong>
+                      {(firstDaybreak as any).daybreakDate && (
+                        <span style={{ fontSize: '7pt', opacity: 0.8 }}>
+                          {formatDateLong((firstDaybreak as any).daybreakDate)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                if (cell.field === 'callTime') {
+                  return (
+                    <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px` }}>
+                      <CellInput
+                        value={firstDaybreak?.daybreakCallTime || '08:00'}
+                        onChange={val => updateDaybreakRow(firstDaybreak!.id, { daybreakCallTime: val })}
+                        clearOnType
+                        col="duration"
+                        className="text-center"
+                        noTruncate
+                      />
+                    </div>
+                  );
+                }
+                if (cell.field === 'duration') {
+                  return (
+                    <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px` }}>
+                      <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+                    </div>
+                  );
+                }
+                return <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, textAlign: 'center', padding: `${cellPaddingV ?? 6}px ${cellPaddingH ?? 6}px` }} />;
+              })}
+            </div>
+          ) : (
+            <table className="schedule-table flex-1 min-w-0">
+              <tbody>
+                <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${cellPaddingV ?? 12}px` } as React.CSSProperties}>
+                  <td className="col-sc" />
+                  <td className="col-call">
+                    <CellInput
+                      value={firstDaybreak?.daybreakCallTime || '08:00'}
+                      onChange={val => updateDaybreakRow(firstDaybreak!.id, { daybreakCallTime: val })}
+                      clearOnType
+                      col="duration"
+                      className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                    />
+                  </td>
+                  <td className="col-dur" style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
+                  </td>
+                  <td className="col-ie" />
+                  <td className="col-set" style={{ textAlign: 'center' }}>
+                    <strong>{`DAY #${displayDay}`}</strong>
+                    {(firstDaybreak as any).daybreakDate && (
+                      <span style={{ fontSize: '7pt', opacity: 0.8, marginLeft: 6 }}>
+                        {formatDateLong((firstDaybreak as any).daybreakDate)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="col-dn" />
+                  <td className="col-cast" />
+                  <td className="col-pgs" />
+                </tr>
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -347,8 +418,9 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
-        <SortableContext items={React.useMemo(() => rows.map(r => r.id), [rows])} strategy={verticalListSortingStrategy}>
-          {computedRows.map((r) => {
+        <SortableContext items={React.useMemo(() => sortableRows.map(r => r.id), [sortableRows])} strategy={verticalListSortingStrategy}>
+          {sortableRows.map((r) => {
+            const nextDb = r.type === 'DAYBREAK' ? nextDaybreakMap.get(r.id) : undefined;
             return (
               <React.Fragment key={r.id}>
                 {showGhosts && insertBeforeId === r.id && (
@@ -372,19 +444,21 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
                     cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
                     edgePadding={edgePadding}
                     cellBorders={cellBorders}
+                    nextDaybreakCallTime={nextDb?.callTime}
+                    onUpdateNextDaybreak={nextDb ? (val: string) => updateDaybreakRow(nextDb.rowId, { daybreakCallTime: val }) : undefined}
                   />
               </React.Fragment>
             );
           })}
         </SortableContext>
-        {computedRows.length === 0 && (
+        {sortableRows.length === 0 && !firstDaybreak && (
           <div className="flex items-center px-4 py-3 text-[9pt] border-b-[2px] border-black italic select-none text-zinc-300"
             style={{ fontFamily: 'Helvetica, sans-serif' }}
           >
             No scenes in this day · right-click for options
           </div>
         )}
-        {computedRows.length === 0 && <div className="flex-1" />}
+        {sortableRows.length === 0 && !firstDaybreak && <div className="flex-1" />}
       </div>
     </div>
 

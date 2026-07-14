@@ -3,7 +3,7 @@ import { DndContext, useDraggable, useDroppable, DragEndEvent, DragStartEvent, D
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useProject } from '../store';
-import { ScheduleRow, Scene, DayMeta, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
+import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
@@ -376,9 +376,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const updateStartDate = useCallback((d: string) => {
     setStartDate(d);
     if (activeVersion) {
-      const dayMeta = { ...activeVersion.dayMeta };
-      dayMeta[containerDay] = { ...(dayMeta[containerDay] || { unitCall: '08:00', date: '', containerId: containerDay }), date: d };
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, productionStart: d, dayMeta } });
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, productionStart: d } });
     }
   }, [activeVersion, dispatch, containerDay]);
 
@@ -387,7 +385,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (!activeVersion || didInit.current) return;
     if (activeVersion.productionStart) return;
     didInit.current = true;
-    const sd = activeVersion.dayMeta?.[containerDay]?.date || new Date().toISOString().slice(0, 10);
+    const sd = new Date().toISOString().slice(0, 10);
     updateStartDate(sd);
   }, [activeVersion, updateStartDate]);
 
@@ -638,7 +636,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const violationMap = useMemo(() => {
     const m = new Map<string, RuleViolation[]>();
     if (!activeVersion || !showConflicts) return m;
-    let baseTime = activeVersion.dayMeta?.[1]?.unitCall || '08:00';
+    const firstDaybreak = activeVersion.rows.find(r => r.type === 'DAYBREAK');
+    let baseTime = firstDaybreak?.daybreakCallTime || '08:00';
     for (const s of sections) {
       const dateKey = sectionDateMap.get(s.index);
       if (!dateKey) continue;
@@ -933,33 +932,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       targetBlock.content = [...sourceBlock.content];
       sourceBlock.content = swapContent;
 
-      // Call time for section N is:
-      // - N == 0: dayMeta.unitCall
-      // - N > 0: section N-1's daybreakRow.daybreakCallTime
-      const getCallTime = (idx: number): string => {
-        if (idx === 0) return activeVersion.dayMeta?.[containerDay]?.unitCall || '08:00';
-        return blocks[idx - 1]?.daybreakRow?.daybreakCallTime || '08:00';
-      };
-
-      const callA = getCallTime(sourceIdx);
-      const callB = getCallTime(targetIdx);
-
-      // Swap call times by updating the appropriate sources
-      const dayMeta = { ...activeVersion.dayMeta };
-      dayMeta[containerDay] = { ...dayMeta[containerDay] };
-
-      if (sourceIdx === 0) {
-        dayMeta[containerDay].unitCall = callB;
-      } else if (blocks[sourceIdx - 1].daybreakRow) {
-        blocks[sourceIdx - 1].daybreakRow!.daybreakCallTime = callB;
-      }
-
-      if (targetIdx === 0) {
-        dayMeta[containerDay].unitCall = callA;
-      } else if (blocks[targetIdx - 1].daybreakRow) {
-        blocks[targetIdx - 1].daybreakRow!.daybreakCallTime = callA;
-      }
-
       // Rebuild rows from blocks
       const rebuilt: ScheduleRow[] = [];
       for (const block of blocks) {
@@ -969,7 +941,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       const combined = [...boneyard, ...rebuilt];
       combined.forEach((r, i) => r.order = i);
 
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined, dayMeta } });
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
       return;
     }
 

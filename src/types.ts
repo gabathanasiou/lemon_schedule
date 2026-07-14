@@ -58,12 +58,6 @@ export interface ScheduleRow {
   daybreakDate?: string;
 }
 
-export interface DayMeta {
-  unitCall: string; // HH:mm
-  date: string; // e.g. "SATURDAY 6TH JUNE 2026"
-  order?: number;
-}
-
 export interface NonShootDate {
   date: string; // YYYY-MM-DD
   status: 'hold' | 'travel' | 'holiday';
@@ -76,7 +70,6 @@ export interface ScheduleVersion {
   createdAt: number;
   updatedAt: number;
   rows: ScheduleRow[];
-  dayMeta: Record<number, DayMeta>; // key is containerId
   nonShootDates?: NonShootDate[];
   productionStart?: string;
   legacy?: boolean;

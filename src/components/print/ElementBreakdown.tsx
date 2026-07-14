@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, DayMeta, CastMember, CustomCategoryDef } from '../../types';
+import { Scene, ScheduleRow, CastMember, CustomCategoryDef, NonShootDate } from '../../types';
 import { formatPageCount } from '../../lib/utils';
 import { DEFAULT_CATEGORY_LABELS } from '../../store';
 import { getFieldItems } from '../../lib/categories';
@@ -31,7 +31,8 @@ interface ElementBreakdownProps {
   title: string;
   scenes: Scene[];
   rows: ScheduleRow[];
-  dayMeta: Record<number, DayMeta>;
+  productionStart?: string;
+  nonShootDates?: NonShootDate[];
   castMembers: CastMember[];
   customCategories: CustomCategoryDef[];
   category: string;
@@ -49,7 +50,7 @@ function getElementValues(scene: any, category: string): string[] {
   return getFieldItems(category, raw);
 }
 
-const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows, dayMeta, castMembers, customCategories, category }) => {
+const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows, productionStart, nonShootDates, castMembers, customCategories, category }) => {
   const now = new Date();
   const genStr = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
   const catLabel = getCategoryLabel(category, customCategories);
@@ -62,12 +63,26 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
     return m;
   }, [rows]);
 
+  const sectionDateMap = useMemo(() => {
+    const m = new Map<number, string>();
+    const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
+    const nonShootSet = new Set((nonShootDates || []).map(n => n.date));
+    const containerIds = [...new Set<number>(rows.filter(r => r.containerId != null && r.type === 'SCENE').map(r => r.containerId as number))].sort((a, b) => a - b);
+    let currentDate = productionStart || new Date().toISOString().slice(0, 10);
+    for (const cid of containerIds) {
+      while (nonShootSet.has(currentDate)) currentDate = addDays(currentDate, 1);
+      m.set(cid, currentDate);
+      currentDate = addDays(currentDate, 1);
+    }
+    return m;
+  }, [rows, productionStart, nonShootDates]);
+
   const getDayDate = (containerId: number | null): string => {
     if (containerId == null) return '';
-    const meta = dayMeta[containerId];
-    if (!meta?.date) return '';
-    const d = new Date(meta.date + 'T00:00:00');
-    return isNaN(d.getTime()) ? meta.date : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    const dateStr = sectionDateMap.get(containerId);
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
   };
 
   const elements = useMemo(() => {
