@@ -169,7 +169,6 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
 
   const firstDaybreak = rows.find(r => r.type === 'DAYBREAK');
   const firstDaybreakCallTime = firstDaybreak?.daybreakCallTime || '08:00';
-  console.log('[STRIP day', dayInt, '] firstDaybreakCallTime:', firstDaybreakCallTime, 'rows:', rows.filter(r => r.type === 'DAYBREAK').map(r => ({ id: r.id?.slice(0,6), callTime: r.daybreakCallTime, pinned: r.pinned })));
 
   const { computedRows } = useMemo(() => {
     let runningElapsed = 0;
@@ -309,7 +308,6 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     for (let i = 0; i < daybreaks.length - 1; i++) {
       map.set(daybreaks[i].id, { callTime: daybreaks[i].daybreakCallTime || '08:00', rowId: daybreaks[i].id });
     }
-    console.log('[STRIP day', dayInt, '] nextDaybreakMap:', [...map.entries()].map(([id, v]) => ({ id: id.slice(0,6), callTime: v.callTime, rowId: v.rowId.slice(0,6) })));
     return map;
   }, [computedRows]);
 

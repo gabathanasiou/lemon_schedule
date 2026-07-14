@@ -763,21 +763,17 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const sceneIdsInRows = useMemo(() => new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId)), [activeVersion.rows]);
   const missingScenesInRows = useMemo(() => project.scenes.filter(s => !sceneIdsInRows.has(s.id)), [project.scenes, sceneIdsInRows]);
   
-  const augmentedRows = useMemo(() => {
-    const result = [
-      ...activeVersion.rows,
-      ...missingScenesInRows.map((s, i) => ({
-        id: `row-synth-${s.id}`,
-        type: 'SCENE' as const,
-        sceneId: s.id,
-        containerId: null,
-        order: 999999 + i,
-        estimatedDuration: 30
-      }))
-    ];
-    console.log('[SCHEDULE] augmentedRows daybreak callTimes:', result.filter(r => r.type === 'DAYBREAK').map(r => ({ id: r.id.slice(0,6), callTime: r.daybreakCallTime, pinned: r.pinned })));
-    return result;
-  }, [activeVersion.rows, missingScenesInRows]);
+  const augmentedRows = useMemo(() => [
+    ...activeVersion.rows,
+    ...missingScenesInRows.map((s, i) => ({
+      id: `row-synth-${s.id}`,
+      type: 'SCENE' as const,
+      sceneId: s.id,
+      containerId: null,
+      order: 999999 + i,
+      estimatedDuration: 30
+    }))
+  ], [activeVersion.rows, missingScenesInRows]);
 
   const scheduledRows = useMemo(() => {
     const grouped = augmentedRows.filter(r => !activeDragIds.has(r.id) && r.containerId !== -1).reduce((acc, row) => {
