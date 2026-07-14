@@ -324,6 +324,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], meta?: 
           colWidths={colWidths}
           cellPaddingV={cellPaddingV}
           cellPaddingH={cellPaddingH}
+          sectionViolations={violations}
         />
       )}
 
