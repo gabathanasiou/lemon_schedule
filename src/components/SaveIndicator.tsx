@@ -131,6 +131,22 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
   }
 
   if (isCloudProject && driveSaveError) {
+    if (!navigator.onLine) {
+      return (
+        <div
+          className="relative"
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+        >
+          <WifiOff className="w-3.5 h-3.5 text-zinc-400" />
+          {showTooltip && (
+            <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+              Working offline
+            </div>
+          )}
+        </div>
+      );
+    }
     return (
       <div
         className="relative"

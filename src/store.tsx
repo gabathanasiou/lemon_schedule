@@ -1182,6 +1182,7 @@ interface ProjectContextType {
   driveSaveError: boolean;
   storageQuotaError: boolean;
   retryDriveSync: () => Promise<void>;
+  closeProject: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -1395,6 +1396,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             }
             setDriveSaveError(true);
           }
+        } else {
+          lastSaveFailedRef.current = true;
+          setRealOnline(false);
+          setDriveSaveError(true);
         }
       } else {
         try {
@@ -1427,16 +1432,36 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken, isOnline]);
 
   // Clear sync errors and force a fresh sync when the user re-authenticates
+  // Also block editing when the user signs out while editing a cloud project
   const prevSignedInRef = useRef(auth.isSignedIn);
   useEffect(() => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectId);
     if (auth.isSignedIn && !prevSignedInRef.current) {
-      const meta = projectListRef.current.find(p => p.id === currentProjectId);
       if (meta?.driveFileId) {
         setDriveSaveError(false);
+      }
+    } else if (!auth.isSignedIn && prevSignedInRef.current) {
+      if (meta?.driveFileId) {
+        setRealOnline(false);
+        setDriveSaveError(true);
       }
     }
     prevSignedInRef.current = auth.isSignedIn;
   }, [auth.isSignedIn, currentProjectId]);
+
+  // When the token becomes invalid (silent refresh failed), block editing
+  const prevNeedsReauthRef = useRef(auth.needsReauth);
+  useEffect(() => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectId);
+    if (!meta?.driveFileId) return;
+    if (auth.needsReauth && !prevNeedsReauthRef.current) {
+      setRealOnline(false);
+      setDriveSaveError(true);
+    } else if (!auth.needsReauth && prevNeedsReauthRef.current) {
+      setDriveSaveError(false);
+    }
+    prevNeedsReauthRef.current = auth.needsReauth;
+  }, [auth.needsReauth, currentProjectId]);
 
   // Catch-up sync when reconnecting after being offline with a pending error
   const prevOnlineRef = useRef(isOnline);
@@ -1727,6 +1752,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentProjectId]);
 
+  const closeProject = useCallback(() => {
+    setCurrentProjectId(null);
+  }, []);
+
   const retryDriveSync = useCallback(async () => {
     if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
@@ -1741,6 +1770,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       if (err?.message?.includes('401')) {
         auth.refreshToken();
+        setTimeout(async () => {
+          try {
+            const token = sessionStorage.getItem('lemon_google_token');
+            if (token && meta?.driveFileId) {
+              await pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId);
+              setDriveSaveError(false);
+              lastSaveFailedRef.current = false;
+              setRealOnline(true);
+            }
+          } catch {
+            setDriveSaveError(true);
+          }
+        }, 2000);
       } else {
         lastSaveFailedRef.current = true;
         setRealOnline(false);
@@ -1768,6 +1810,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       driveSaveError,
       storageQuotaError,
       retryDriveSync,
+      closeProject,
     }}>
       {children}
     </ProjectContext.Provider>

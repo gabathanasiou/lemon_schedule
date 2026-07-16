@@ -5,7 +5,7 @@ import { Project } from '../types';
 import { exportProjectFromStorage } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData } from '../lib/googleDriveStorage';
-import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
+import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
@@ -70,6 +70,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [driveMetas, setDriveMetas] = useState<ProjectMeta[]>([]);
   const [driveLoading, setDriveLoading] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
+  const [driveAuthError, setDriveAuthError] = useState(false);
   const [driveCorrupt, setDriveCorrupt] = useState(false);
   const [driveTotalCount, setDriveTotalCount] = useState<number | null>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -112,6 +113,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setDriveError(null);
     setDriveCorrupt(false);
     setDriveTotalCount(null);
+    setDriveAuthError(false);
     listDriveProjectMetas(auth.accessToken)
       .then(metas => {
         setDriveTotalCount(metas.length);
@@ -132,7 +134,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         setLastRefreshedAt(Date.now());
       })
       .catch(e => {
-        setDriveError(e?.message || 'Failed to load cloud projects');
+        const msg = e?.message || 'Failed to load cloud projects';
+        const isAuthError = msg.includes('401');
+        setDriveError(msg);
+        setDriveAuthError(isAuthError);
+        if (isAuthError) auth.refreshToken();
         setDriveLoading(false);
         setLastRefreshedAt(Date.now());
       });
@@ -151,6 +157,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setDriveError(null);
     setDriveCorrupt(false);
     setDriveTotalCount(null);
+    setDriveAuthError(false);
     listDriveProjectMetas(auth.accessToken)
       .then(metas => {
         setDriveTotalCount(metas.length);
@@ -171,7 +178,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         setLastRefreshedAt(Date.now());
       })
       .catch(e => {
-        setDriveError(e?.message || 'Failed to load cloud projects');
+        const msg = e?.message || 'Failed to load cloud projects';
+        const isAuthError = msg.includes('401');
+        setDriveError(msg);
+        setDriveAuthError(isAuthError);
+        if (isAuthError) auth.refreshToken();
         setDriveLoading(false);
         setLastRefreshedAt(Date.now());
       });
@@ -565,12 +576,21 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-amber-600" />
             <p className="text-sm font-medium text-zinc-400">Failed to load</p>
             <p className="text-xs mt-1 text-zinc-600 mb-3">{driveError}</p>
-            <button
-              onClick={refetchDrive}
-              className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
-            >
-              <RefreshCw className="w-3 h-3" /> Retry
-            </button>
+            {driveAuthError ? (
+              <button
+                onClick={() => auth.signIn()}
+                className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-blue-900 text-blue-100 hover:bg-blue-800 transition-colors"
+              >
+                <CloudOff className="w-3 h-3" /> Sign in again
+              </button>
+            ) : (
+              <button
+                onClick={refetchDrive}
+                className="flex items-center gap-1 mx-auto px-3 py-1.5 rounded text-[10px] font-medium bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" /> Retry
+              </button>
+            )}
           </div>
           </div>
         ) : !hasProjects ? (

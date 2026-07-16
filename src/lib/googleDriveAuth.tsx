@@ -47,40 +47,6 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
   const accessTokenRef = useRef<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const doSilentRefresh = useCallback(() => {
-    const gis = (window as any).google?.accounts?.oauth2;
-    if (!gis) return;
-    const client = gis.initTokenClient({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/drive.appdata',
-      callback: (response: any) => {
-        if (response.access_token) {
-          accessTokenRef.current = response.access_token;
-          sessionStorage.setItem(TOKEN_KEY, response.access_token);
-          setNeedsReauth(false);
-          setTokenVersion(v => v + 1);
-          scheduleTokenRefresh(response.access_token, response.expires_in);
-        } else {
-          setNeedsReauth(true);
-        }
-      },
-      error_callback: (error: any) => {
-        console.warn('GIS token client error:', error?.type);
-        setNeedsReauth(true);
-      },
-    });
-    client.requestAccessToken({ prompt: '' });
-  }, []);
-
-  const scheduleTokenRefresh = useCallback((token: string, expiresIn?: number) => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    const ttl = expiresIn ?? 3600;
-    const delay = Math.max((ttl - 300) * 1000, 30_000);
-    refreshTimerRef.current = setTimeout(() => {
-      doSilentRefresh();
-    }, delay);
-  }, [doSilentRefresh]);
-
   const fetchUserInfo = useCallback(async (token: string) => {
     try {
       const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -96,6 +62,41 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
       // network error — keep token for retry
     }
   }, []);
+
+  const doSilentRefresh = useCallback(() => {
+    const gis = (window as any).google?.accounts?.oauth2;
+    if (!gis) return;
+    const client = gis.initTokenClient({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.appdata',
+      callback: (response: any) => {
+        if (response.access_token) {
+          accessTokenRef.current = response.access_token;
+          sessionStorage.setItem(TOKEN_KEY, response.access_token);
+          setNeedsReauth(false);
+          setTokenVersion(v => v + 1);
+          fetchUserInfo(response.access_token);
+          scheduleTokenRefresh(response.access_token, response.expires_in);
+        } else {
+          setNeedsReauth(true);
+        }
+      },
+      error_callback: (error: any) => {
+        console.warn('GIS token client error:', error?.type);
+        setNeedsReauth(true);
+      },
+    });
+    client.requestAccessToken({ prompt: '' });
+  }, [fetchUserInfo]);
+
+  const scheduleTokenRefresh = useCallback((token: string, expiresIn?: number) => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    const ttl = expiresIn ?? 3600;
+    const delay = Math.max((ttl - 300) * 1000, 30_000);
+    refreshTimerRef.current = setTimeout(() => {
+      doSilentRefresh();
+    }, delay);
+  }, [doSilentRefresh]);
 
   const login = useGoogleLogin({
     scope: 'https://www.googleapis.com/auth/drive.appdata',

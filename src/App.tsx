@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ProjectProvider, useProject, DEFAULT_CATEGORY_LABELS } from './store';
+import { ProjectProvider, useProject, useIsCloudProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
 import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
@@ -48,7 +48,7 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } f
 import { generateUUID, exportProjectFromStorage } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
@@ -61,7 +61,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -529,36 +529,59 @@ function AppContent() {
         </div>
       )}
       {/* OFFLINE BANNER */}
-      {readOnly && (
-        <div className="bg-red-600 text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden">
-          <span className="font-medium">No Internet Connection - editing is disabled</span>
-          <button
-            onClick={handleRetryConnection}
-            className="ml-3 px-2.5 py-1 rounded bg-red-700 hover:bg-red-500 transition-colors font-semibold"
-          >
-            Retry Connection
-          </button>
-        </div>
-      )}
-      {showOfflineModal && (
-        <Modal open={showOfflineModal} onClose={() => setShowOfflineModal(false)} title="You're offline" icon={<WifiOff className="w-5 h-5 text-zinc-400" />} width="max-w-md"
-          footer={
-            <ModalFooter>
+      {readOnly && (() => {
+        const isAuthIssue = isCloudProject && (!driveCtx.isSignedIn || driveCtx.needsReauth);
+        return (
+          <div className={`${isAuthIssue ? 'bg-amber-600' : 'bg-red-600'} text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden`}>
+            <span className="font-medium">
+              {isAuthIssue
+                ? (driveCtx.needsReauth ? 'Session expired - sign in to resume editing' : 'Signed out of Google Drive - editing is disabled')
+                : 'No Internet Connection - editing is disabled'}
+            </span>
+            {isAuthIssue ? (
               <button
-                onClick={() => setShowOfflineModal(false)}
-                className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors"
+                onClick={() => driveCtx.signIn()}
+                className="ml-3 px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
               >
-                OK
+                Sign in
               </button>
-            </ModalFooter>
-          }
-        >
-          <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
-            Lemon Schedule requires an internet connection. You can continue to browse your project,
-            but all editing controls are currently disabled.
+            ) : (
+              <button
+                onClick={handleRetryConnection}
+                className="ml-3 px-2.5 py-1 rounded bg-red-700 hover:bg-red-500 transition-colors font-semibold"
+              >
+                Retry Connection
+              </button>
+            )}
           </div>
-        </Modal>
-      )}
+        );
+      })()}
+      {showOfflineModal && (() => {
+        const isAuthIssue = isCloudProject && (!driveCtx.isSignedIn || driveCtx.needsReauth);
+        return (
+          <Modal open={showOfflineModal} onClose={() => setShowOfflineModal(false)}
+            title={isAuthIssue ? 'Signed out' : "You're offline"}
+            icon={isAuthIssue ? <CloudOff className="w-5 h-5 text-amber-400" /> : <WifiOff className="w-5 h-5 text-zinc-400" />}
+            width="max-w-md"
+            footer={
+              <ModalFooter>
+                <button
+                  onClick={() => { setShowOfflineModal(false); if (isAuthIssue) driveCtx.signIn(); }}
+                  className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors"
+                >
+                  {isAuthIssue ? 'Sign in' : 'OK'}
+                </button>
+              </ModalFooter>
+            }
+          >
+            <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
+              {isAuthIssue
+                ? 'You have been signed out of Google Drive. Sign in again to resume editing your cloud project.'
+                : 'Lemon Schedule requires an internet connection. You can continue to browse your project, but all editing controls are currently disabled.'}
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* HEADER */}
       <header className={`flex items-center justify-between ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
@@ -614,7 +637,7 @@ function AppContent() {
               </DropdownSubmenu>
               <DropdownDivider />
               {driveCtx.isSignedIn ? (
-                <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
+                <DropdownItem onClick={() => { setShowFileMenu(false); if (isCloudProject) closeProject(); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
                   Sign out{driveCtx.user ? ` (${driveCtx.user.name})` : ''}
                 </DropdownItem>
               ) : (
