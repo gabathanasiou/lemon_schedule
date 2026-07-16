@@ -363,7 +363,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const { productionDays, productionSections, sectionDateMap: hookSectionDateMap, productionChronoDayMap } = useDaybreakSections();
 
   const today = new Date().toISOString().slice(0, 10);
-  const [startDate, setStartDate] = useState(today);
+  const [startDate, setStartDate] = useState(() => activeVersion?.productionStart || today);
 
   useEffect(() => {
     if (activeVersion?.productionStart) setStartDate(activeVersion.productionStart);
@@ -447,6 +447,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   activeDragIdsRef.current = activeDragIds;
   const selectedRowIdsRef = useRef(selectedRowIds);
   selectedRowIdsRef.current = selectedRowIds;
+  const lastClickedIdRef = useRef(lastClickedId);
+  lastClickedIdRef.current = lastClickedId;
+  const boneyardFlatRef = useRef<string[]>([]);
 
   const collisionDetection = useCallback<CollisionDetection>((args) => {
     const { pointerCoordinates, droppableContainers } = args;
@@ -694,7 +697,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }).sort((a, b) => a.order - b.order);
   }, [augmentedRows, activeDragIds, showBreaks, sectionRowIds]);
 
-  const handleToggle = useCallback((dateKey: string) => {
+  boneyardFlatRef.current = boneyardRows.map(r => r.id);
+
+  const handleToggle = useCallback((dateKe: string) => {
     if (activeTool) {
       if (activeTool === 'remove') {
         handleNonShootToggle(dateKey, null);
@@ -705,7 +710,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }
   }, [handleNonShootToggle, activeTool]);
 
-  const sortBoneyard = useCallback((criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
+  const sortBoneyard = useCallback((criterion: string) => {
     if (!activeVersion) return;
     const scheduled = activeVersion.rows.filter(r => r.containerId !== null);
     const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
@@ -724,8 +729,13 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (criterion === 'scene_number') return sA.sceneNumber.localeCompare(sB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' });
       if (criterion === 'script_day') return sA.scriptDay.localeCompare(sB.scriptDay, undefined, { numeric: true, sensitivity: 'base' });
       if (criterion === 'page_count') return sB.pageCountDecimal - sA.pageCountDecimal;
-      if (criterion === 'set_name') return sA.set.localeCompare(sB.set);
-      return 0;
+      if (criterion === 'duration') return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
+      if (criterion === 'int_ext') return (sA.intExt || '').localeCompare(sB.intExt || '');
+      if (criterion === 'day_night') return (sA.dayNight || '').localeCompare(sB.dayNight || '');
+      if (criterion === 'set_name' || criterion === 'set') return sA.set.localeCompare(sB.set);
+      const valA = String((sA as any)?.[criterion] ?? '');
+      const valB = String((sB as any)?.[criterion] ?? '');
+      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
     });
     const combined = [...scheduled, ...boneyard];
     combined.forEach((r, i) => { r.order = i; });
@@ -1013,10 +1023,82 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const monthName = new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelectedRowIds(new Set()); };
+    const isInEditable = (el: EventTarget | null) => {
+      const t = el as HTMLElement | null;
+      if (!t) return false;
+      return (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) && !(t as HTMLInputElement).readOnly;
+    };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSelectedRowIds(new Set()); return; }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
+        if (isInEditable(e.target)) return;
+        const ids = boneyardFlatRef.current;
+        if (ids.length > 0) {
+          e.preventDefault();
+          setSelectedRowIds(new Set(ids));
+          setLastClickedId(ids[0]);
+          scrollToRow(ids[0]);
+        }
+        return;
+      }
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      if (isInEditable(e.target)) return;
+      const flat = boneyardFlatRef.current;
+      if (flat.length === 0) return;
+      e.preventDefault();
+      const isShift = e.shiftKey;
+      const isDown = e.key === 'ArrowDown';
+      const currentIds = Array.from(selectedRowIdsRef.current).filter(id => flat.includes(id));
+      const anchor = lastClickedIdRef.current;
+      if (isShift) {
+        const anchorIdx = anchor ? flat.indexOf(anchor) : -1;
+        if (anchorIdx === -1) {
+          setSelectedRowIds(new Set([flat[0]]));
+          setLastClickedId(flat[0]);
+          scrollToRow(flat[0]);
+          return;
+        }
+        const indices = currentIds.map(id => flat.indexOf(id)).filter(i => i >= 0);
+        let from: number, to: number;
+        if (indices.length === 0) {
+          from = anchorIdx;
+          to = isDown ? Math.min(anchorIdx + 1, flat.length - 1) : Math.max(anchorIdx - 1, 0);
+        } else {
+          const minIdx = Math.min(...indices);
+          const maxIdx = Math.max(...indices);
+          if (isDown) {
+            if (minIdx < anchorIdx) { from = minIdx + 1; to = maxIdx; }
+            else { from = anchorIdx; to = Math.min(maxIdx + 1, flat.length - 1); }
+          } else {
+            if (maxIdx > anchorIdx) { from = minIdx; to = maxIdx - 1; }
+            else { from = Math.max(minIdx - 1, 0); to = anchorIdx; }
+          }
+        }
+        setSelectedRowIds(new Set(flat.slice(from, to + 1)));
+        scrollToRow(flat[isDown ? to : from]);
+      } else {
+        if (currentIds.length === 0) {
+          setSelectedRowIds(new Set([flat[0]]));
+          setLastClickedId(flat[0]);
+          scrollToRow(flat[0]);
+          return;
+        }
+        const refId = anchor && currentIds.includes(anchor) ? anchor : (isDown ? currentIds[currentIds.length - 1] : currentIds[0]);
+        const idx = flat.indexOf(refId);
+        if (isDown && idx < flat.length - 1) {
+          setSelectedRowIds(new Set([flat[idx + 1]]));
+          setLastClickedId(flat[idx + 1]);
+          scrollToRow(flat[idx + 1]);
+        } else if (!isDown && idx > 0) {
+          setSelectedRowIds(new Set([flat[idx - 1]]));
+          setLastClickedId(flat[idx - 1]);
+          scrollToRow(flat[idx - 1]);
+        }
+      }
+    };
     currentWindow.addEventListener('keydown', handler);
     return () => currentWindow.removeEventListener('keydown', handler);
-  }, [currentWindow]);
+  }, [currentWindow, scrollToRow, setSelectedRowIds, setLastClickedId]);
 
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
