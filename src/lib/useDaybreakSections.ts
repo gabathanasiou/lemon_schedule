@@ -12,7 +12,7 @@ export function useDaybreakSections() {
 
   const containerRows = useMemo(() => {
     if (!activeVersion) return [];
-    return activeVersion.rows.filter(r => r.containerId != null).sort((a, b) => {
+    return activeVersion.rows.filter(r => r.containerId != null && r.containerId !== -1).sort((a, b) => {
       if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });

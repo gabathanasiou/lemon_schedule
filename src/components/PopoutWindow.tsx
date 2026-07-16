@@ -50,6 +50,17 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
   }, [win, dispatch]);
 
   useEffect(() => {
+    if (!win) return;
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      e.preventDefault();
+    };
+    win.addEventListener('contextmenu', onContextMenu);
+    return () => win.removeEventListener('contextmenu', onContextMenu);
+  }, [win]);
+
+  useEffect(() => {
     const styleText = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
       .map(el => el.outerHTML)
       .join('');

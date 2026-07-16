@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useProject } from '../store';
+import { useProject, useIsCloudProject } from '../store';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -34,6 +34,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const { state, dispatch, readOnly } = useProject();
   const currentWindow = useCurrentWindow();
   const currentDocument = useCurrentDocument();
+  const isCloud = useIsCloudProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   const { sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
@@ -1551,8 +1552,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
-        <span className="text-xs font-semibold text-zinc-500">Stripboard</span>
+      <div className="flex items-center justify-end px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
         <div className="flex items-center gap-2">
             {selectionSummary && (
               <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
@@ -1568,13 +1568,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 {bufferSummary.count} in buffer
               </span>
             )}
-            <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
-            <span className="text-zinc-300 select-none">·</span>
             <span className="text-xs text-zinc-500 shrink-0">{productionSections.length} days</span>
             <div className="w-px h-4 bg-zinc-200" />
             <button
               onClick={handleDeleteAllDaybreaks}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white transition-colors cursor-pointer select-none"
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
               title="Clear All Day Breaks"
             >
               <Eraser className="w-3.5 h-3.5 shrink-0" />
@@ -1586,7 +1584,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               width="w-44"
               theme="light"
               trigger={
-                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
                   <Wand2 className="w-3.5 h-3.5 shrink-0" />
                   Auto
                   <ChevronDown className="w-3 h-3 shrink-0" />
@@ -1604,7 +1602,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               width="w-56"
               theme="light"
               trigger={
-                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
                   <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
                   Sort
                   <ChevronDown className="w-3 h-3 shrink-0" />
@@ -1688,7 +1686,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             </button>
             <button
               onClick={() => !readOnly && setTextEditingEnabled(p => !p)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
             >
               <Pencil className="w-3.5 h-3.5 shrink-0" />
               Edit
@@ -1696,7 +1694,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             {onPrint && (
               <button
                 onClick={onPrint}
-                className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 text-white transition-colors"
+                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
               >
                 <Printer className="w-3.5 h-3.5 shrink-0" />
                 Print

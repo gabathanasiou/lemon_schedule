@@ -5,7 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
-import { useProject } from '../store';
+import { useProject, useIsCloudProject } from '../store';
 import { generateUUID } from '../lib/utils';
 import { Plus, ChevronLeft, ChevronRight, StickyNote, Coffee, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
@@ -66,6 +66,7 @@ export const BoneyardBlock: React.FC<{
   forceExpanded?: boolean,
 }> = React.memo(({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
+  const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
   const currentDocumentRef = useRef(currentDocument);
   currentDocumentRef.current = currentDocument;
@@ -292,11 +293,11 @@ export const BoneyardBlock: React.FC<{
               </button>
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <button onClick={() => addRow('NOTE')} className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white" title="Add Note Ribbon">
+              <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Note Ribbon">
                 <StickyNote className="w-3.5 h-3.5 shrink-0" />
                 Note
               </button>
-              <button onClick={() => addRow('BREAK')} className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white" title="Add Break Ribbon">
+              <button onClick={() => addRow('BREAK')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Break Ribbon">
                 <Coffee className="w-3.5 h-3.5 shrink-0" />
                 Break
               </button>
@@ -307,7 +308,7 @@ export const BoneyardBlock: React.FC<{
                 width="w-56"
                 theme="light"
                 trigger={
-                  <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                  <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
                     <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
                     Sort
                     <ChevronDown className="w-3 h-3 shrink-0" />

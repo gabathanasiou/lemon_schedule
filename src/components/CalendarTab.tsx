@@ -95,7 +95,7 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
   );
 };
 
-const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick }) => {
+const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick, onContextMenu }) => {
   const { state } = useProject();
   const sel = getSelectedStripColors(state.present.colorPalette);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -114,6 +114,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
       onClick={(e) => onToggle?.(row.id, e)}
       onDoubleClick={(e) => { e.preventDefault(); onDoubleClick?.(row.id, e.shiftKey); }}
+      onContextMenu={(e) => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onContextMenu(e); } }}
       data-row-id={row.id}
       data-container-id={row.containerId == null ? 'null' : row.containerId}
       className={`${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
@@ -143,9 +144,10 @@ const DayCell: React.FC<{
   activeRowId?: string | null;
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
+  onRowContextMenu?: (e: React.MouseEvent) => void;
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, palette, activeDragDay }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, palette, activeDragDay }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -226,7 +228,7 @@ const DayCell: React.FC<{
                   {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
                 </div>
               )}
-              <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
+<SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
               {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === `day-${dateKey}` && (
                 <div className="opacity-40 flex flex-col gap-0">
                   {activeDragRows.slice(0, 3).map(dr => (
@@ -258,7 +260,8 @@ const BoneyardSidebar: React.FC<{
   onSort?: (criterion: string) => void;
   sortCategories?: { key: string; label: string }[];
   onRowDoubleClick?: (id: string) => void;
-}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, sortCategories = [], onRowDoubleClick }) => {
+  onRowContextMenu?: (e: React.MouseEvent) => void;
+}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, sortCategories = [], onRowDoubleClick, onRowContextMenu }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'BONEYARD' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
@@ -389,7 +392,7 @@ const BoneyardSidebar: React.FC<{
                 {activeDragRows.length > 2 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 2} more</div>}
               </div>
             )}
-            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} />
+            <SceneCard row={r} scene={scenes.find(s => s.id === r.sceneId)} displayField={displayField} violations={sceneViolationMap.get(r.sceneId || '')} isSelected={selectedIds?.has(r.id) ?? false} isFaded={activeDragIds?.has(r.id) ?? false} onToggle={onRowClick} onDoubleClick={onRowDoubleClick} onContextMenu={onRowContextMenu} />
             {activeRowId && activeDragRows.length > 0 && i === arr.length - 1 && insertBeforeId === 'end-boneyard' && (
               <div className="opacity-40 flex flex-col gap-0">
                 {activeDragRows.slice(0, 2).map(dr => (
@@ -705,6 +708,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     cutSelected,
     pasteClipboard,
     handleContextMenuAction,
+    createOnContextMenu,
     selectNextAfterRemove,
   } = useStripboardContextMenu({
     selectedRowIds,
@@ -720,6 +724,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     project,
   });
 
+  const handleRowContextMenu = useCallback((e: React.MouseEvent) => {
+    setContextMenuDate(null);
+    (createOnContextMenu()(e));
+  }, [createOnContextMenu]);
+
   const rowsByDate = useMemo(() => {
     const map = new Map<string, ScheduleRow[]>();
     if (!activeVersion) return map;
@@ -727,6 +736,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       const dateKey = sectionDateMap.get(s.index);
       if (!dateKey) continue;
       const allRows = s.rows.filter(r => {
+        if (r.containerId === -1) return false;
         if (activeDragIds.has(r.id)) return false;
         if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
         return true;
@@ -748,6 +758,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const boneyardRows = useMemo(() => {
     return augmentedRows.filter(r => {
       if (activeDragIds.has(r.id)) return false;
+      if (r.containerId === -1) return false;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
       if (r.containerId === null && r.type !== 'DAYBREAK') return true;
       if (r.containerId != null && !sectionRowIds.has(r.id) && r.type !== 'DAYBREAK') return true;
@@ -809,6 +820,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   }, [project.customCategories]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
+    if (e.altKey) return;
+    if (marqueeJustEndedRef.current) {
+      marqueeJustEndedRef.current = false;
+      return;
+    }
     if (e.metaKey || e.ctrlKey) {
       e.stopPropagation();
       setSelectedRowIds(prev => {
@@ -827,11 +843,16 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       setLastClickedId(id);
     } else if (e.shiftKey && lastClickedId) {
       e.stopPropagation();
-      const allIds = augmentedRows.map(r => r.id);
+      const clickedRow = activeVersion?.rows.find(r => r.id === id);
+      const anchorRow = activeVersion?.rows.find(r => r.id === lastClickedId);
+      const isBoneyard = (clickedRow && (clickedRow.containerId === null || clickedRow.containerId === -1)) ||
+        (anchorRow && (anchorRow.containerId === null || anchorRow.containerId === -1));
+      const allIds = isBoneyard ? boneyardFlatRef.current : augmentedRows.map(r => r.id);
       const idxA = allIds.indexOf(lastClickedId);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) setSelectedRowIds(new Set(allIds.slice(Math.min(idxA, idxB), Math.max(idxA, idxB) + 1)));
     } else {
+      e.stopPropagation();
       setSelectedRowIds(new Set([id]));
       setLastClickedId(id);
     }
@@ -1166,13 +1187,105 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     return () => currentWindow.removeEventListener('keydown', handler);
   }, [currentWindow, scrollToRow, setSelectedRowIds, setLastClickedId]);
 
+  useEffect(() => {
+    const isInEditable = (el: EventTarget | null) => {
+      const t = el as HTMLElement | null;
+      if (!t) return false;
+      return (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) && !(t as HTMLInputElement).readOnly;
+    };
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'x' || e.key === 'X')) {
+        if (isInEditable(e.target)) return;
+        e.preventDefault();
+        cutSelected();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V')) {
+        if (isInEditable(e.target)) return;
+        e.preventDefault();
+        if (selectedRowIdsRef.current.size === 1) {
+          pasteClipboard([...selectedRowIdsRef.current][0] as string);
+        }
+        return;
+      }
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedRowIdsRef.current.size > 0) {
+        if (isInEditable(e.target)) return;
+        if (!activeVersion) return;
+        e.preventDefault();
+        const ids = Array.from(selectedRowIdsRef.current).filter((id): id is string => {
+          const r = activeVersion.rows.find(rr => rr.id === id);
+          return !r?.pinned;
+        });
+        if (ids.length === 0) return;
+        const allRows = [...activeVersion.rows];
+        for (const id of ids) {
+          if (id.startsWith('row-synth-') && !allRows.some(r => r.id === id)) {
+            const sceneId = id.replace('row-synth-', '');
+            allRows.push({ id, type: 'SCENE' as const, sceneId, containerId: null as number | null, order: allRows.length, estimatedDuration: 30 });
+          }
+        }
+        const allInBoneyard = ids.every(id => {
+          const r = allRows.find(rr => rr.id === id);
+          return r && r.containerId == null;
+        });
+        if (allInBoneyard && ids.some(id => {
+          const r = allRows.find(rr => rr.id === id);
+          return r && r.type !== 'DAYBREAK';
+        })) {
+          const containerRows = allRows.filter(r => r.containerId != null && r.containerId !== -1);
+          const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
+          const newRows = allRows.map(r => {
+            if (ids.includes(r.id) && r.type !== 'DAYBREAK') {
+              return { ...r, containerId: 1, order: maxOrder + 1 + ids.indexOf(r.id) };
+            }
+            if (ids.includes(r.id) && r.type === 'DAYBREAK') {
+              return null;
+            }
+            return r;
+          }).filter(Boolean) as ScheduleRow[];
+          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        } else {
+          const hasDaybreak = ids.some(id => {
+            const r = allRows.find(rr => rr.id === id);
+            return r && r.type === 'DAYBREAK';
+          });
+          const newRows = hasDaybreak
+            ? allRows.filter(r => !(ids.includes(r.id) && r.type === 'DAYBREAK')).map(r => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r)
+            : allRows.map(r => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
+          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        }
+        selectNextAfterRemove(new Set(ids as string[]));
+        return;
+      }
+      if (e.key === 'Enter' && selectedRowIdsRef.current.size === 1) {
+        if (isInEditable(e.target)) return;
+        const selectedId = [...selectedRowIdsRef.current][0] as string;
+        const selectedRow = activeVersion?.rows.find(r => r.id === selectedId);
+        if (selectedRow?.type === 'SCENE' && selectedRow.sceneId) {
+          e.preventDefault();
+          if (!IS_COARSE && e.shiftKey && onOpenSceneInPopout) {
+            onOpenSceneInPopout(selectedRow.sceneId);
+          } else {
+            onOpenScene?.(selectedRow.sceneId);
+          }
+        } else if (selectedRow?.type === 'NOTE') {
+          e.preventDefault();
+          setColorPicker({ rowId: selectedRow.id, bg: selectedRow.noteColor || '#591b1b', text: selectedRow.noteTextColor || '#ffffff', noteText: selectedRow.noteText || '', originalBg: selectedRow.noteColor || '#591b1b', originalText: selectedRow.noteTextColor || '#ffffff', originalNoteText: selectedRow.noteText || '' });
+        }
+        return;
+      }
+    };
+    currentWindow.addEventListener('keydown', handler);
+    return () => currentWindow.removeEventListener('keydown', handler);
+  }, [currentWindow, activeVersion, dispatch, cutSelected, pasteClipboard, selectNextAfterRemove, setColorPicker, onOpenScene, onOpenSceneInPopout]);
+
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
     <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}>
-        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} sortCategories={sortCategories} onRowDoubleClick={handleRowDoubleClick} />
+        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} sortCategories={sortCategories} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
@@ -1311,6 +1424,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     activeRowId={activeId}
                     activeDragDay={activeDragDay}
                     onRowDoubleClick={handleRowDoubleClick}
+                    onRowContextMenu={handleRowContextMenu}
                     palette={project.colorPalette}
                   />
                 );

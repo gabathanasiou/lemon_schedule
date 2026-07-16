@@ -48,7 +48,7 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } f
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
@@ -123,6 +123,16 @@ function AppContent() {
       window.removeEventListener('keyup', onUp);
       window.removeEventListener('blur', onBlur);
     };
+  }, []);
+
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      e.preventDefault();
+    };
+    window.addEventListener('contextmenu', onContextMenu);
+    return () => window.removeEventListener('contextmenu', onContextMenu);
   }, []);
 
   useEffect(() => {
@@ -309,16 +319,10 @@ function AppContent() {
     }
   }, [dialog, state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
   const [showFileMenu, setShowFileMenu] = useState(false);
-  const [compactTabs, setCompactTabs] = useState(window.innerWidth < 900);
-  const [tabDropdownOpen, setTabDropdownOpen] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
   const [subHeaderTargets, setSubHeaderTargets] = useState<Record<string, HTMLDivElement | null>>({});
   const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
   const [reportSidebarCollapsed, setReportSidebarCollapsed] = useState<Record<string, boolean>>({});
-  useEffect(() => {
-    const onResize = () => setCompactTabs(window.innerWidth < 900);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
   const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
@@ -327,6 +331,22 @@ function AppContent() {
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
   const topTabContainerRef = useRef<HTMLDivElement>(null);
+  const [tabScrollMask, setTabScrollMask] = useState('none');
+  const checkTabScroll = useCallback(() => {
+    const el = topTabContainerRef.current;
+    if (!el) return;
+    const atLeft = el.scrollLeft <= 2;
+    const atRight = el.scrollLeft >= el.scrollWidth - el.clientWidth - 2;
+    if (atLeft && atRight) setTabScrollMask('none');
+    else if (atLeft) setTabScrollMask('linear-gradient(to left, transparent, black 12px)');
+    else if (atRight) setTabScrollMask('linear-gradient(to right, transparent, black 12px)');
+    else setTabScrollMask('linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)');
+  }, []);
+  useEffect(() => {
+    checkTabScroll();
+    window.addEventListener('resize', checkTabScroll);
+    return () => window.removeEventListener('resize', checkTabScroll);
+  }, [checkTabScroll]);
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
 
@@ -346,6 +366,7 @@ function AppContent() {
   const isCloudProject = !!projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
   const inactiveTabText = isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800';
+  const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
 
   const storage = useStorage();
   const ctx = useProject();
@@ -594,9 +615,8 @@ function AppContent() {
       })()}
 
       {/* HEADER */}
-      <header className={`flex items-center justify-between ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center gap-2">
+      <header className={`flex items-center ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
+        <div className="flex items-center gap-2 shrink-0">
             <DropdownMenu
               open={showFileMenu}
               onOpenChange={setShowFileMenu}
@@ -607,7 +627,7 @@ function AppContent() {
                 <button
                   className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
                 >
-                  <span>File</span>
+                  <span className="hidden md:inline">File</span>
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               }
@@ -661,111 +681,76 @@ function AppContent() {
               </DropdownItem>
             </DropdownMenu>
             <SaveIndicator isCloudProject={isCloudProject} />
-            <input 
-              value={project.title} 
-              onChange={e => {
-                dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}});
-              }}
-              onBlur={e => {
-                renameProject(currentProjectId!, e.target.value, projectList.find(p => p.id === currentProjectId)?.driveFileId);
-              }}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-              className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
-            />
-          </div>
-          <div ref={topTabContainerRef} className="flex items-end gap-1 self-end rounded p-0.5">
-            {compactTabs ? (
-              <DropdownMenu
-                open={tabDropdownOpen}
-                onOpenChange={setTabDropdownOpen}
-                width="w-44"
-                align="left"
-                theme={isCloudProject ? 'blue' : 'dark'}
-                trigger={
-                  <button className="px-3 py-1.5 rounded text-xs font-semibold transition-colors bg-white text-zinc-900 flex items-center gap-1">
-                    <span>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
-                    <ChevronDown className="w-3 h-3 text-zinc-400" />
-                  </button>
-                }
+            {editingTitle ? (
+              <input 
+                autoFocus
+                value={project.title} 
+                onChange={e => {
+                  dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}});
+                }}
+                onBlur={e => {
+                  setEditingTitle(false);
+                  renameProject(currentProjectId!, e.target.value, projectList.find(p => p.id === currentProjectId)?.driveFileId);
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); (e.target as HTMLInputElement).blur(); } }}
+                className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
+              />
+            ) : (
+              <span
+                onClick={() => setEditingTitle(true)}
+                className="text-white font-medium px-1 truncate max-w-[120px] cursor-pointer hover:opacity-80"
+                title={project.title}
               >
-                {(['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'] as const).map(tab => {
-                  const Icon = tab === 'breakdown' ? ClipboardList : tab === 'schedule' ? CalendarClock : tab === 'calendar' ? CalendarDays : tab === 'design' ? Layout : tab === 'rules' ? Gavel : FileText;
-                  return (
-                    <DropdownItem
-                      key={tab}
-                      onClick={() => { setActiveTab(tab); setTabDropdownOpen(false); }}
-                      icon={<Icon className="w-3.5 h-3.5" />}
-                      rightAction={!IS_COARSE ? {
-                        icon: <ExternalLink className="w-3 h-3" />,
-                        title: "Open in separate window",
-                        onClick: () => {
-                          setTabDropdownOpen(false);
-                          if (!poppedOutTabs.has(tab)) {
-                            togglePopout(tab);
-                            if (tab === activeTab) {
-                              const allTabs = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'];
-                              const next = allTabs.find(t => t !== tab && !poppedOutTabs.has(t)) || allTabs.find(t => t !== tab);
-                              if (next) setActiveTab(next as any);
-                            }
-                          } else {
-                            closePopout(tab);
-                          }
-                        },
-                      } : undefined}
-                    >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </DropdownItem>
-                  );
-                })}
-              </DropdownMenu>
-            ) : (<>
+                {project.title}
+              </span>
+            )}
+          </div>
+          <div ref={topTabContainerRef} onScroll={checkTabScroll} className="flex items-center gap-1 rounded p-0.5 overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'breakdown' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'breakdown' ? activeTabClass : inactiveTabText}`}
             >
               Breakdown
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'schedule' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'schedule' ? activeTabClass : inactiveTabText}`}
             >
               Schedule
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'calendar' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'calendar' ? activeTabClass : inactiveTabText}`}
             >
               Calendar
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'design' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'design' ? activeTabClass : inactiveTabText}`}
             >
               Design
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'rules' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'rules' ? activeTabClass : inactiveTabText}`}
             >
               Rules
             </button>
             <button 
               onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
               onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${activeTab === 'reports' ? 'bg-white text-zinc-900' : inactiveTabText}`}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'reports' ? activeTabClass : inactiveTabText}`}
             >
               Reports
             </button>
-            </>)}
           </div>
-        </div>
 
-        <div className="flex items-center space-x-3 font-mono text-xs">
+        <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
           <div className="flex items-center gap-1 border border-white/10 rounded bg-white/5">
             <button
               onClick={() => dispatch({ type: 'UNDO' })}
@@ -784,7 +769,6 @@ function AppContent() {
               <Redo2 className="w-3.5 h-3.5" />
             </button>
           </div>
-
           <div className="border border-white/10 rounded bg-white/5">
           <ItemManagerDropdown
             open={showVersionsMenu}
@@ -815,20 +799,19 @@ function AppContent() {
             onTrash={() => setShowTrash(true)}
             readOnly={false}
             theme={isCloudProject ? 'blue' : 'dark'}
-            label={compactTabs ? '' : 'Version'}
+            label="Version"
             header="SCHEDULE VERSIONS"
             itemLabel="Version"
             trigger={
               <button
                 className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white whitespace-nowrap ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
               >
-                <span>{compactTabs ? <strong>{version?.name || 'Select Version'}</strong> : <>Version: <strong>{version?.name || 'Select Version'}</strong></>}</span>
+                <span><span className="hidden md:inline">Version: </span><strong>{version?.name || 'Select Version'}</strong></span>
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
             }
           />
           </div>
-
         </div>
       </header>
 

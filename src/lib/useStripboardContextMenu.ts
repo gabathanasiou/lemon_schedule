@@ -127,7 +127,13 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const ids = Array.from(selectedRowIds).filter(id => !activeVersion.rows.find(r => r.id === id)?.pinned);
     if (ids.length === 0) return;
-    const newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
+    let newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
+    for (const id of ids) {
+      if (id.startsWith('row-synth-') && !newRows.some(r => r.id === id)) {
+        const sceneId = id.replace('row-synth-', '');
+        newRows.push({ id, type: 'SCENE' as const, sceneId, containerId: -1 as number | null, order: newRows.length, estimatedDuration: 30 });
+      }
+    }
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     selectPrevAfterRemove(new Set(ids as string[]));
   }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion, dispatch, selectPrevAfterRemove]);
