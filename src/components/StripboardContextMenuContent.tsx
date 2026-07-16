@@ -108,9 +108,11 @@ export const StripboardContextMenuContent: React.FC<{
               ) : (
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
               )}
-              <ContextMenuDivider />
               {row?.containerId != null && (
-                <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+                <>
+                  <ContextMenuDivider />
+                  <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
+                </>
               )}
             </>
           )}
