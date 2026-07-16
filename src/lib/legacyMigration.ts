@@ -115,6 +115,18 @@ function migrateLegacyVersion(v: ScheduleVersion): ScheduleVersion {
     });
   }
 
+  // 5. Trailing DAYBREAK to close the last section
+  newRows.push({
+    id: generateUUID(),
+    type: 'DAYBREAK',
+    containerId: 1,
+    order: order++,
+    daybreakLabel: 'DAYBREAK',
+    daybreakCallTime: '',
+    daybreakDate: '',
+    pinned: false,
+  });
+
   delete (v as any).dayMeta;
   delete (v as any).legacy;
 
