@@ -239,6 +239,14 @@ const DayCell: React.FC<{
               )}
             </React.Fragment>
           ))}
+          {rows.length === 0 && sectionIndex != null && activeRowId && activeDragRows.length > 0 && insertBeforeId === `day-${dateKey}` && (
+            <div className="opacity-40 flex flex-col gap-0">
+              {activeDragRows.slice(0, 3).map(dr => (
+                <SceneCardContent key={dr.id} row={dr} scene={scenes.find(s => s.id === dr.sceneId)} displayField={displayField} />
+              ))}
+              {activeDragRows.length > 3 && <div className="text-[8px] text-zinc-400 text-center">+{activeDragRows.length - 3} more</div>}
+            </div>
+          )}
         </SortableContext>
         <div ref={setEndRef} className="h-1 w-full shrink-0" />
       </div>
@@ -1085,9 +1093,17 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (idx !== -1 && !sectionRowIds.has(r.id)) newRows.splice(idx, 1);
     });
 
-    const firstSectionRow = targetSection.rows[0];
-    const firstIdx = firstSectionRow ? newRows.findIndex(r => r.id === firstSectionRow.id) : newRows.length;
-    const insertAt = firstSectionRow ? firstIdx + insertIndex : newRows.length;
+    let insertAt: number;
+    if (targetSection.rows.length > 0) {
+      const firstSectionRow = targetSection.rows[0];
+      const firstIdx = newRows.findIndex(r => r.id === firstSectionRow.id);
+      insertAt = firstIdx !== -1 ? firstIdx + insertIndex : newRows.length;
+    } else if (targetSection.daybreakRow) {
+      const daybreakIdx = newRows.findIndex(r => r.id === targetSection.daybreakRow!.id);
+      insertAt = daybreakIdx !== -1 ? daybreakIdx : newRows.length;
+    } else {
+      insertAt = newRows.length;
+    }
 
     const draggingItems = draggingIds
       .map(id => augmentedRows.find(r => r.id === id) || activeVersion.rows.find(r => r.id === id))
