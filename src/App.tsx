@@ -693,61 +693,63 @@ function AppContent() {
                   renameProject(currentProjectId!, e.target.value, projectList.find(p => p.id === currentProjectId)?.driveFileId);
                 }}
                 onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); (e.target as HTMLInputElement).blur(); } }}
-                className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
+                className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans max-w-[60px] md:max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
               />
             ) : (
               <span
                 onClick={() => setEditingTitle(true)}
-                className="text-white font-medium px-1 truncate max-w-[120px] cursor-pointer hover:opacity-80"
+                className="text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] cursor-pointer hover:opacity-80"
                 title={project.title}
               >
                 {project.title}
               </span>
             )}
           </div>
-          <div ref={topTabContainerRef} onScroll={checkTabScroll} className="flex items-center gap-1 rounded p-0.5 overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
-            <button 
-              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
-              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'breakdown' ? activeTabClass : inactiveTabText}`}
-            >
-              Breakdown
-            </button>
-            <button 
-              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
-              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'schedule' ? activeTabClass : inactiveTabText}`}
-            >
-              Schedule
-            </button>
-            <button 
-              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
-              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'calendar' ? activeTabClass : inactiveTabText}`}
-            >
-              Calendar
-            </button>
-            <button 
-              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
-              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'design' ? activeTabClass : inactiveTabText}`}
-            >
-              Design
-            </button>
-            <button 
-              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
-              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'rules' ? activeTabClass : inactiveTabText}`}
-            >
-              Rules
-            </button>
-            <button 
-              onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
-              onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'reports' ? activeTabClass : inactiveTabText}`}
-            >
-              Reports
-            </button>
+          <div ref={topTabContainerRef} onScroll={checkTabScroll} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
+            <div className="flex items-center gap-1 mx-auto shrink-0 w-fit">
+              <button
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'breakdown' ? activeTabClass : inactiveTabText}`}
+              >
+                Breakdown
+              </button>
+              <button
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'schedule' ? activeTabClass : inactiveTabText}`}
+              >
+                Schedule
+              </button>
+              <button
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'calendar' ? activeTabClass : inactiveTabText}`}
+              >
+                Calendar
+              </button>
+              <button
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'design' ? activeTabClass : inactiveTabText}`}
+              >
+                Design
+              </button>
+              <button
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'rules' ? activeTabClass : inactiveTabText}`}
+              >
+                Rules
+              </button>
+              <button
+                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
+                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'reports' ? activeTabClass : inactiveTabText}`}
+              >
+                Reports
+              </button>
+            </div>
           </div>
 
         <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
