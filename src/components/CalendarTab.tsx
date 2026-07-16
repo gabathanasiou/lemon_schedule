@@ -25,6 +25,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 
@@ -359,6 +360,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const currentWindow = useCurrentWindow();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const { productionDays, productionSections, sectionDateMap: hookSectionDateMap, productionChronoDayMap } = useDaybreakSections();
 
   const today = new Date().toISOString().slice(0, 10);
   const [startDate, setStartDate] = useState(today);
@@ -547,67 +549,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setAutoDayOffOpen(false);
   }, [activeVersion, days, autoDayOffDays, dispatch]);
 
-  const containerRows = useMemo(() => {
-    if (!activeVersion) return [];
-    return activeVersion.rows.filter(r => r.containerId != null).sort((a, b) => {
-      if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-      return a.order - b.order;
-    });
-  }, [activeVersion]);
-
-  const sections = useMemo(() => {
-    const s: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
-    let currentRows: ScheduleRow[] = [];
-    let sectionIndex = 0;
-    for (const r of containerRows) {
-      if (r.type === 'DAYBREAK') {
-        s.push({ index: sectionIndex, rows: currentRows, daybreakRow: r });
-        currentRows = [];
-        sectionIndex++;
-      } else {
-        currentRows.push(r);
-      }
-    }
-    return s;
-  }, [containerRows]);
-
-  const calendarSections = useMemo(() => sections.filter(s => !s.daybreakRow?.pinned), [sections]);
-
-  const addDays = (d: string, n: number) => {
-    const parts = d.split('-').map(Number);
-    const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
-    return dt.toISOString().slice(0, 10);
-  };
-
   const nonShootDateMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const ns of nonShootDates) m.set(ns.date, ns.status);
     return m;
   }, [nonShootDates]);
 
-  const sectionDateMap = useMemo(() => {
-    const m = new Map<number, string>();
-    let current = startDate;
-    for (const s of calendarSections) {
-      while (nonShootDateMap.has(current)) current = addDays(current, 1);
-      m.set(s.index, current);
-      current = addDays(current, 1);
-    }
-    return m;
-  }, [calendarSections, startDate, nonShootDateMap]);
-
-  const chronoDayMap = useMemo(() => {
-    const m = new Map<number, number>();
-    let chrono = 1;
-    for (const s of calendarSections) {
-      m.set(s.index, chrono++);
-    }
-    return m;
-  }, [calendarSections]);
+  const sectionDateMap = hookSectionDateMap;
+  const chronoDayMap = productionChronoDayMap;
+  const sections = productionDays;
+  const calendarSections = productionSections;
 
   const workingLabels = useMemo(() => {
     const labels = new Map<string, string>();
-    const workingDates = [...new Set<string>(sectionDateMap.values())].filter(d => !nonShootDateMap.has(d)).sort();
+    const workingDates = [...new Set<string>(
+      productionSections.map(s => sectionDateMap.get(s.index)).filter((d): d is string => !!d && !nonShootDateMap.has(d))
+    )].sort();
     if (workingDates.length === 0) return labels;
     labels.set(workingDates[0], 'SW');
     if (workingDates.length > 1) labels.set(workingDates[workingDates.length - 1], 'FW');
@@ -615,7 +572,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       labels.set(workingDates[i], 'W');
     }
     return labels;
-  }, [sections, nonShootDateMap]);
+  }, [productionSections, sectionDateMap, nonShootDateMap]);
 
   const availableFields = useMemo(() => {
     const hiddenSet = new Set(project.hiddenCategories || []);

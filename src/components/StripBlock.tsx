@@ -2,12 +2,12 @@ import React, { useMemo, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
-import { addMinutesToTime } from '../lib/utils';
 import { SortableRibbon } from './SortableRibbon';
 import { ScheduleRow, Scene, RibbonRow, SceneColorPalette, RuleViolation } from '../types';
 import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
@@ -150,6 +150,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
   const { state, dispatch } = useProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const { computedRows: allComputedRows, nextSectionDateMap, daybreakRowToSection } = useDaybreakSections();
 
   const { setNodeRef: setDropRef } = useDroppable({
     id: `day-${dayInt}`,
@@ -170,95 +171,28 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
   const firstDaybreak = rows.find(r => r.type === 'DAYBREAK');
   const firstDaybreakCallTime = firstDaybreak?.daybreakCallTime || '08:00';
 
-  const { computedRows } = useMemo(() => {
-    let runningElapsed = 0;
-    let totalPages = 0;
-    let totalBreakTime = 0;
-    let sectionElapsed = 0;
-    let sectionBaseTime = firstDaybreakCallTime;
-    let sectionStart = 0;
-    let sectionPages = 0;
-    let sectionShoot = 0;
-    let sectionBreak = 0;
-    let daybreakCounter = 0;
-    const addDays = (d: string, n: number) => {
-      const parts = d.split('-').map(Number);
-      const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
-      return dt.toISOString().slice(0, 10);
-    };
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const startDate = activeVersion?.productionStart || todayStr;
-    const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
-    let nextDate = startDate;
-    while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
-    const computedRows = rows.map(r => {
-      const callTime = addMinutesToTime(sectionBaseTime, sectionElapsed);
-      let dur = 0;
+  const rowIdSet = useMemo(() => new Set(rows.map(r => r.id)), [rows]);
+  const computedRows = useMemo(
+    () => allComputedRows.filter(cr => rowIdSet.has(cr.id)),
+    [allComputedRows, rowIdSet],
+  );
 
+  const formatNextDate = (iso: string): string => {
+    if (!iso) return '';
+    const dt = new Date(iso + 'T00:00:00');
+    if (isNaN(dt.getTime())) return '';
+    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  const nextDateStrByRow = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of computedRows) {
       if (r.type === 'DAYBREAK') {
-        if (!r.pinned) daybreakCounter += 1;
-        const sectionTotal = runningElapsed - sectionStart;
-        const sectionEndTime = callTime;
-        const row: any = {
-          ...r,
-          daybreakLabel: r.pinned ? '' : `End of Day ${daybreakCounter}`,
-          daybreakDate: nextDate,
-          computedCallTime: callTime,
-          computedElapsed: runningElapsed,
-          sectionTotal,
-          sectionPages,
-          sectionShoot,
-          sectionBreak,
-          sectionEndTime,
-        };
-        if (!r.pinned) {
-          nextDate = addDays(nextDate, 1);
-          while (nonShootSet.has(nextDate)) nextDate = addDays(nextDate, 1);
-        }
-        sectionElapsed = 0;
-        sectionBaseTime = r.daybreakCallTime || firstDaybreakCallTime;
-        sectionStart = runningElapsed;
-        sectionPages = 0;
-        sectionShoot = 0;
-        sectionBreak = 0;
-        return row;
-      }
-
-      if (r.type === 'SCENE') {
-        dur = r.estimatedDuration || 0;
-        const scene = project.scenes.find(s => s.id === r.sceneId);
-        if (scene) {
-          totalPages += scene.pageCountDecimal;
-          sectionPages += scene.pageCountDecimal;
-        }
-        sectionShoot += dur;
-      } else if (r.type === 'BREAK') {
-        dur = r.breakDuration || 0;
-        totalBreakTime += dur;
-        sectionBreak += dur;
-      } else if (r.type === 'NOTE') {
-        dur = r.estimatedDuration || 0;
-        sectionShoot += dur;
-      }
-
-      runningElapsed += dur;
-      sectionElapsed += dur;
-
-      return {
-        ...r,
-        computedCallTime: callTime,
-        computedElapsed: runningElapsed
-      };
-    });
-    for (let i = computedRows.length - 1, found = false; i >= 0; i--) {
-      const cr = computedRows[i] as any;
-      if (cr.type === 'DAYBREAK') {
-        cr.hasNextDaybreak = found;
-        found = true;
+        const sec = daybreakRowToSection.get(r.id);
+        m.set(r.id, sec != null ? formatNextDate(nextSectionDateMap.get(sec) || '') : '');
       }
     }
-    return { computedRows };
-  }, [rows, firstDaybreakCallTime, project.scenes, activeVersion?.productionStart, activeVersion?.nonShootDates]);
+    return m;
+  }, [computedRows, daybreakRowToSection, nextSectionDateMap]);
 
   const sectionViolationMap = useMemo(() => {
     const map = new Map<string, RuleViolation[]>();
@@ -361,6 +295,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
                     cellBorders={cellBorders}
                     nextDaybreakCallTime={nextDb?.callTime}
                     onUpdateNextDaybreak={nextDb ? (val: string) => updateDaybreakRow(nextDb.rowId, { daybreakCallTime: val }) : undefined}
+                    nextDateStr={r.type === 'DAYBREAK' ? nextDateStrByRow.get(r.id) : undefined}
                   />
               </React.Fragment>
             );

@@ -3,6 +3,7 @@ import { Scene, ScheduleRow, CastMember, NonShootDate } from '../../types';
 import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
+import { addDays, buildNonShootSet, splitSections } from '../../lib/daybreakUtils';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -117,11 +118,7 @@ function deriveDood(
   const isCast = category === 'cast';
   const nonShootByDate = new Map(nonShootDates?.map(n => [n.date, n]) || []);
 
-  const addDays = (d: string, n: number) => {
-    const p = d.split('-').map(Number);
-    return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10);
-  };
-  const nonShootSet = new Set((nonShootDates || []).map(n => n.date));
+  const nonShootSet = buildNonShootSet(nonShootDates);
 
   const sortedRows = scheduleRows
     .filter(r => r.containerId != null)
@@ -130,18 +127,7 @@ function deriveDood(
       return a.order - b.order;
     });
 
-  const sections: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
-  let currentRows: ScheduleRow[] = [];
-  let sectionIndex = 0;
-  for (const r of sortedRows) {
-    if (r.type === 'DAYBREAK') {
-      sections.push({ index: sectionIndex, rows: currentRows, daybreakRow: r });
-      currentRows = [];
-      sectionIndex++;
-    } else {
-      currentRows.push(r);
-    }
-  }
+  const sections = splitSections(sortedRows);
 
   const sectionDateMap = new Map<number, string>();
   let currentDate = productionStart;

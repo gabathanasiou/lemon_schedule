@@ -71,7 +71,7 @@ export const ShootViolationsModal: React.FC<ShootViolationsModalProps> = ({
       width="max-w-xl"
       footer={
         <ModalFooter>
-          <span className="text-[10px] text-zinc-500 mr-auto">{totalViolations} violation{totalViolations !== 1 ? 's' : ''} across {dayViolations.length} section{dayViolations.length !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-zinc-500 mr-auto">{totalViolations} violation{totalViolations !== 1 ? 's' : ''} across {dayViolations.length} day{dayViolations.length !== 1 ? 's' : ''}</span>
           <button onClick={onClose} className="text-[11px] px-3 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">Close</button>
         </ModalFooter>
       }

@@ -1,12 +1,9 @@
 import { useMemo } from 'react';
 import { useProject } from '../store';
-import { ScheduleRow, Scene } from '../types';
+import { ScheduleRow } from '../types';
+import { addDays, buildNonShootSet, splitSections, computeRowData, ProductionDay, ComputedRow, SectionSums } from './daybreakUtils';
 
-export interface DaybreakSection {
-  index: number;
-  rows: ScheduleRow[];
-  daybreakRow?: ScheduleRow;
-}
+export type { ProductionDay, ComputedRow, SectionSums };
 
 export function useDaybreakSections() {
   const { state } = useProject();
@@ -21,55 +18,34 @@ export function useDaybreakSections() {
     });
   }, [activeVersion]);
 
-  const sections: DaybreakSection[] = useMemo(() => {
-    const s: DaybreakSection[] = [];
-    let currentRows: ScheduleRow[] = [];
-    let sectionIndex = 0;
-    for (const r of containerRows) {
-      if (r.type === 'DAYBREAK') {
-        s.push({ index: sectionIndex, rows: currentRows, daybreakRow: r });
-        currentRows = [];
-        sectionIndex++;
-      } else {
-        currentRows.push(r);
-      }
-    }
-    return s;
-  }, [containerRows]);
+  const productionDays: ProductionDay[] = useMemo(() => splitSections(containerRows), [containerRows]);
 
-  const firstSectionPinned = sections[0]?.daybreakRow?.pinned ?? false;
+  const firstSectionPinned = productionDays[0]?.daybreakRow?.pinned ?? false;
 
   const productionSections = useMemo(() =>
-    firstSectionPinned ? sections.filter((s, i) => i !== 0 || !s.daybreakRow?.pinned) : sections,
-  [sections, firstSectionPinned]);
+    firstSectionPinned ? productionDays.filter((s, i) => i !== 0 || !s.daybreakRow?.pinned) : productionDays,
+    [productionDays, firstSectionPinned]);
 
-  const addDays = (d: string, n: number) => {
-    const parts = d.split('-').map(Number);
-    const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + n));
-    return dt.toISOString().slice(0, 10);
-  };
+  const nonShootSet = useMemo(() => buildNonShootSet(activeVersion?.nonShootDates), [activeVersion?.nonShootDates]);
 
   const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
-  const nonShootSet = useMemo(() => {
-    return new Set((activeVersion?.nonShootDates || []).map(n => n.date));
-  }, [activeVersion?.nonShootDates]);
 
   const sectionDateMap = useMemo(() => {
     const m = new Map<number, string>();
     let current = startDate;
-    for (let i = 0; i < sections.length; i++) {
+    for (let i = 0; i < productionDays.length; i++) {
       while (nonShootSet.has(current)) current = addDays(current, 1);
       m.set(i, current);
-      if (!sections[i].daybreakRow?.pinned) {
+      if (!productionDays[i].daybreakRow?.pinned) {
         current = addDays(current, 1);
       }
     }
     return m;
-  }, [sections, startDate, nonShootSet]);
+  }, [productionDays, startDate, nonShootSet]);
 
   const sectionLabelMap = useMemo(() => {
     const m = new Map<number, string>();
-    sections.forEach((s, i) => {
+    productionDays.forEach((s, i) => {
       if (s.daybreakRow?.pinned) {
         m.set(s.index, '');
       } else {
@@ -77,11 +53,40 @@ export function useDaybreakSections() {
       }
     });
     return m;
-  }, [sections, firstSectionPinned]);
+  }, [productionDays, firstSectionPinned]);
+
+  const nextSectionDateMap = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const s of productionDays) {
+      m.set(s.index, sectionDateMap.get(s.index + 1) || '');
+    }
+    return m;
+  }, [productionDays, sectionDateMap]);
+
+  const chronoDayMap = useMemo(() => {
+    const m = new Map<number, number>();
+    let counter = 0;
+    for (const s of productionDays) {
+      if (s.daybreakRow?.pinned) continue;
+      counter++;
+      m.set(s.index, counter);
+    }
+    return m;
+  }, [productionDays]);
+
+  const productionChronoDayMap = useMemo(() => {
+    const m = new Map<number, number>();
+    let counter = 0;
+    for (const s of productionSections) {
+      counter++;
+      m.set(s.index, counter);
+    }
+    return m;
+  }, [productionSections]);
 
   const sceneToSection = useMemo(() => {
     const m = new Map<string, number>();
-    for (const s of sections) {
+    for (const s of productionDays) {
       for (const r of s.rows) {
         if (r.type === 'SCENE' && r.sceneId) {
           m.set(r.sceneId, s.index);
@@ -89,7 +94,23 @@ export function useDaybreakSections() {
       }
     }
     return m;
-  }, [sections]);
+  }, [productionDays]);
+
+  const daybreakRowToSection = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of productionDays) {
+      if (s.daybreakRow) m.set(s.daybreakRow.id, s.index);
+    }
+    return m;
+  }, [productionDays]);
+
+  const firstDaybreak = useMemo(() => productionDays.find(p => p.daybreakRow)?.daybreakRow, [productionDays]);
+  const callTimeBase = firstDaybreak?.daybreakCallTime || '08:00';
+
+  const { computedRows, sectionSums } = useMemo(
+    () => computeRowData(containerRows, productionDays, project.scenes, sectionDateMap, sectionLabelMap, callTimeBase),
+    [containerRows, productionDays, project.scenes, sectionDateMap, sectionLabelMap, callTimeBase],
+  );
 
   const formatSectionDate = (sectionIndex: number): string => {
     const d = sectionDateMap.get(sectionIndex);
@@ -101,7 +122,8 @@ export function useDaybreakSections() {
   };
 
   return {
-    sections,
+    productionDays,
+    sections: productionDays,
     productionSections,
     sectionDateMap,
     sectionLabelMap,
@@ -110,5 +132,12 @@ export function useDaybreakSections() {
     nonShootSet,
     activeVersion,
     project,
+    chronoDayMap,
+    productionChronoDayMap,
+    nextSectionDateMap,
+    daybreakRowToSection,
+    computedRows,
+    sectionSums,
+    startDate,
   };
 }

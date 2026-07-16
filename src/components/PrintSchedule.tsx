@@ -4,6 +4,8 @@ import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad,
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
+import { computeRowData } from '../lib/daybreakUtils';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function filterIndices(cells: RibbonCell[], colWidths: number[], showTimes: boolean, showDurations: boolean): { keep: boolean[]; filteredWidths: number[] } {
   const keep: boolean[] = cells.map(c => {
@@ -125,64 +127,19 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
 
 const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
   const dh = getDayHeaderColors(colorPalette);
-  let runningElapsed = 0;
-  let totalPages = 0;
-  let totalBreakTime = 0;
-  let sectionElapsed = 0;
-  let sectionBaseTime = callTime || '08:00';
-  let sectionStart = 0;
-  let sectionPages = 0;
-  let sectionShoot = 0;
-  let sectionBreak = 0;
-
-  const computedRows = rows.map(r => {
-    const callTime = addMinutesToTime(sectionBaseTime, sectionElapsed);
-    let dur = 0;
-
-    if (r.type === 'DAYBREAK') {
-      const sectionTotal = runningElapsed - sectionStart;
-      const sectionEndTime = callTime;
-      const row = {
-        ...r,
-        computedCallTime: callTime,
-        computedElapsed: runningElapsed,
-        sectionTotal,
-        sectionPages,
-        sectionShoot,
-        sectionBreak,
-        sectionEndTime,
-      };
-      sectionElapsed = 0;
-      sectionBaseTime = r.daybreakCallTime || callTime || '08:00';
-      sectionStart = runningElapsed;
-      sectionPages = 0;
-      sectionShoot = 0;
-      sectionBreak = 0;
-      return row;
-    }
-
-    if (r.type === 'SCENE') {
-      dur = r.estimatedDuration || 0;
-      const scene = scenes.find(s => s.id === r.sceneId);
-      if (scene) {
-        totalPages += scene.pageCountDecimal;
-        sectionPages += scene.pageCountDecimal;
-      }
-      sectionShoot += dur;
-    } else if (r.type === 'BREAK') {
-      dur = r.breakDuration || 0;
-      totalBreakTime += dur;
-      sectionBreak += dur;
-    } else if (r.type === 'NOTE') {
-      dur = r.estimatedDuration || 0;
-      sectionShoot += dur;
-    }
-
-    runningElapsed += dur;
-    sectionElapsed += dur;
-
-    return { ...r, computedCallTime: callTime, computedElapsed: runningElapsed };
-  });
+  const localDays = [{ index: 0, rows, daybreakRow: undefined as ScheduleRow | undefined }];
+  const { computedRows, sectionSums } = computeRowData(
+    rows,
+    localDays,
+    scenes,
+    new Map([[0, dateStr || '']]),
+    new Map([[0, '']]),
+    callTime,
+  );
+  const sums = sectionSums.get(0);
+  const totalPages = sums?.pages ?? 0;
+  const totalBreakTime = sums?.break ?? 0;
+  const runningElapsed = sums?.total ?? 0;
 
   const rawCells = (ribbon && ribbon.length > 0) ? ribbon[0].cells : null;
   const cw = colWidths ?? [];
@@ -839,55 +796,14 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   const VIEW_WIDTHS: Record<string, number | null> = { portrait: 730, landscape: 1060, full: null };
   const contentMaxWidth = viewMode ? VIEW_WIDTHS[viewMode] : null;
 
+  const { productionDays, sectionDateMap, chronoDayMap } = useDaybreakSections();
+
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
   if (!activeVersion) return null;
 
   const scenes = project.scenes;
-  const augmentedRows: ScheduleRow[] = activeVersion.rows.map(r => ({ ...r }));
-  const missingScenes = project.scenes.filter(s => !augmentedRows.some(r => r.sceneId === s.id));
-  for (const s of missingScenes) {
-    augmentedRows.push({
-      id: `row-synth-${s.id}`,
-      type: 'SCENE',
-      sceneId: s.id,
-      containerId: null,
-      order: 999999,
-      estimatedDuration: 30,
-    });
-  }
 
-  const scheduledRows = augmentedRows.reduce((acc, row) => {
-    if (row.containerId !== null) {
-      if (!acc[row.containerId]) acc[row.containerId] = [];
-      acc[row.containerId].push(row);
-    }
-    return acc;
-  }, {} as Record<number, ScheduleRow[]>);
-
-  Object.values(scheduledRows).forEach(dayRows => dayRows.sort((a, b) => a.order - b.order));
-
-  const allRows = augmentedRows.filter(r => r.containerId != null).sort((a, b) => {
-    if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-    return a.order - b.order;
-  });
-
-  const sections: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = (() => {
-    const s: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
-    let current: ScheduleRow[] = [];
-    let idx = 0;
-    for (const r of allRows) {
-      if (r.type === 'DAYBREAK') { s.push({ index: idx, rows: current, daybreakRow: r }); current = []; idx++; }
-      else { current.push(r); }
-    }
-    return s;
-  })();
-
-  const addDays = (d: string, n: number) => { const p = d.split('-').map(Number); const dt = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)); return dt.toISOString().slice(0, 10); };
-  const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
-  const nonShootSet = new Set((activeVersion?.nonShootDates || []).map(n => n.date));
-  const sectionDateMap = (() => { const m = new Map<number, string>(); let c = startDate; for (const s of sections) { while (nonShootSet.has(c)) c = addDays(c, 1); m.set(s.index, c); if (!s.daybreakRow?.pinned) { c = addDays(c, 1); } } return m; })();
-
-  const sectionEntries = sections.map((s, secIdx) => ({
+  const sectionEntries = productionDays.map((s) => ({
     sectionIndex: s.index,
     date: sectionDateMap.get(s.index) || '',
     rows: s.rows.filter(r => selectedDays.includes(s.index)),
@@ -895,13 +811,6 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
   })).filter(e => e.hasRows && e.date);
 
   sectionEntries.sort((a, b) => a.date.localeCompare(b.date));
-
-  const chronoDayMap = useMemo(() => {
-    const m = new Map<number, number>();
-    let counter = 0;
-    for (const e of sectionEntries) { counter++; m.set(e.sectionIndex, counter); }
-    return m;
-  }, []);
 
   const printedSceneIds = new Set<string>();
   for (const e of sectionEntries) {
@@ -939,7 +848,7 @@ const PrintSchedule: React.FC<PrintScheduleProps> = ({ project, showTimes, showD
                 key={e.sectionIndex}
                 dayInt={e.sectionIndex}
                 rows={e.rows}
-                callTime={sections.find(s => s.index === e.sectionIndex)?.daybreakRow?.daybreakCallTime || '08:00'}
+                callTime={productionDays.find(s => s.index === e.sectionIndex)?.daybreakRow?.daybreakCallTime || '08:00'}
                 dateStr={e.date}
                 scenes={scenes}
                 showTimes={showTimes}

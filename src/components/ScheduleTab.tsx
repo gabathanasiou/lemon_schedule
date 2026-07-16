@@ -28,6 +28,7 @@ import { ELEMENT_CATEGORIES } from '../lib/categories';
 import { checkSection } from '../lib/rulesEngine';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
+import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
@@ -35,6 +36,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const currentDocument = useCurrentDocument();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const { sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [cellBorders, setCellBorders] = useCellBorders();
 
@@ -820,43 +822,46 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       const firstDaybreakCallTime = firstDaybreak?.daybreakCallTime || '08:00';
       let sectionRows: ScheduleRow[] = [];
       let sectionBaseTime = firstDaybreakCallTime;
-      let sectionStartDate = activeVersion?.productionStart || '';
-      const nonShootSet = new Set((activeVersion?.nonShootDates || []).map((n: { date: string }) => n.date));
-      const addOne = (d: string) => { const p = d.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10); };
-      let cursor = sectionStartDate;
-      if (cursor) while (nonShootSet.has(cursor)) cursor = addOne(cursor);
-      let sectionDate = cursor;
+      let pendingSection: number | null = firstDaybreak ? (daybreakRowToSection.get(firstDaybreak.id) ?? null) : null;
+      let pendingDate = pendingSection != null ? (hookSectionDateMap.get(pendingSection) || '') : '';
+      let lastDaybreakSection: number | null = pendingSection;
       for (const row of rows) {
         if (row.type === 'DAYBREAK') {
+          const sec = daybreakRowToSection.get(row.id);
+          const sectionDate = sec != null ? (hookSectionDateMap.get(sec) || '') : pendingDate;
           const v = checkSection([...sectionRows], sectionDate, sectionBaseTime, rules, project.scenes, castMembers);
           if (v.length > 0) {
             result.push({
-              dayLabel: `DAY #${chronoDayMap.get(dayInt) || dayInt}`,
+              dayLabel: `DAY #${sectionChronoDayMap.get(sec ?? 0) ?? sec ?? dayInt}`,
               dateStr: sectionDate ? formatDateLong(sectionDate) : undefined,
               violations: v,
             });
           }
           sectionRows = [];
           sectionBaseTime = row.daybreakCallTime || firstDaybreakCallTime;
-          sectionDate = addOne(sectionDate);
-          while (nonShootSet.has(sectionDate)) sectionDate = addOne(sectionDate);
+          lastDaybreakSection = sec;
+          pendingSection = sec != null ? sec + 1 : null;
+          pendingDate = pendingSection != null ? (hookNextSectionDateMap.get(sec ?? -1) || hookSectionDateMap.get(pendingSection) || '') : '';
         } else {
           sectionRows.push(row as ScheduleRow);
         }
       }
       if (sectionRows.length > 0) {
-        const v = checkSection([...sectionRows], sectionDate, sectionBaseTime, rules, project.scenes, castMembers);
-        if (v.length > 0) {
-          result.push({
-            dayLabel: `DAY #${chronoDayMap.get(dayInt) || dayInt}`,
-            dateStr: sectionDate ? formatDateLong(sectionDate) : undefined,
-            violations: v,
-          });
+        const sectionDate = lastDaybreakSection != null ? (hookNextSectionDateMap.get(lastDaybreakSection) || hookSectionDateMap.get(pendingSection ?? -1) || '') : pendingDate;
+        if (sectionDate) {
+          const v = checkSection([...sectionRows], sectionDate, sectionBaseTime, rules, project.scenes, castMembers);
+          if (v.length > 0) {
+            result.push({
+              dayLabel: `DAY #${sectionChronoDayMap.get(pendingSection ?? lastDaybreakSection ?? 0) || dayInt}`,
+              dateStr: formatDateLong(sectionDate),
+              violations: v,
+            });
+          }
         }
       }
     }
     return result;
-  }, [existingDays, scheduledRows, activeVersion, project.rules, project.scenes, project.castMembers, chronoDayMap]);
+  }, [existingDays, scheduledRows, project.rules, project.scenes, project.castMembers, sectionChronoDayMap, hookSectionDateMap, daybreakRowToSection, hookNextSectionDateMap]);
 
   const selectionSummary = useMemo(() => {
     if (selectedRowIds.size < 2) return null;
@@ -940,7 +945,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     } else if (action === 'add_daybreak') {
       const newId = generateUUID();
       newRows.push({
-        id: newId, type: 'DAYBREAK', containerId, order: row.order + 0.5, daybreakLabel: 'DAYBREAK'
+        id: newId, type: 'DAYBREAK', containerId, order: row.order + 0.5, daybreakLabel: 'DAYBREAK', daybreakCallTime: '08:00'
       });
       newRowIds.push(newId);
     } else if (action === 'duplicate' && row.type === 'SCENE') {
@@ -1079,6 +1084,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           containerId: row.containerId,
           order: 0,
           daybreakLabel: 'DAYBREAK',
+          daybreakCallTime: '08:00',
         });
         accumulator = 0;
       }
@@ -1099,6 +1105,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         containerId: result[result.length - 1].containerId,
         order: 0,
         daybreakLabel: 'DAYBREAK',
+        daybreakCallTime: '08:00',
       });
     }
 
@@ -1540,7 +1547,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             )}
             <span className="text-xs font-semibold text-zinc-800 truncate max-w-[160px]">Version {activeVersion?.name}</span>
             <span className="text-zinc-300 select-none">·</span>
-            <span className="text-xs text-zinc-500 shrink-0">{existingDays.length} days</span>
+            <span className="text-xs text-zinc-500 shrink-0">{productionSections.length} days</span>
             <div className="w-px h-4 bg-zinc-200" />
             <button
               onClick={handleDeleteAllDaybreaks}
@@ -1642,11 +1649,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               </DropdownSubmenu>
             </DropdownMenu>
             <button
-              onClick={() => setShowShootViolations(true)}
-              className={`flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-red-500 hover:bg-zinc-200 transition-colors cursor-pointer select-none ${shootViolations.length === 0 ? 'opacity-30' : ''}`}
+              onClick={() => shootViolations.length > 0 && setShowShootViolations(true)}
+              className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
               title="View All Violations"
             >
-              <Flag className="w-3.5 h-3.5" />
+              <Flag className={`w-3.5 h-3.5 ${shootViolations.length > 0 ? 'text-red-500' : ''}`} />
+              {shootViolations.length > 0 && <span className="shrink-0">{shootViolations.length}</span>}
             </button>
             <button
               onClick={() => setShowHelp(true)}

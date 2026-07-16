@@ -48,6 +48,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
   if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
+  if (a.nextDateStr !== b.nextDateStr) return false;
   return true;
 };
 
@@ -71,7 +72,8 @@ const SortableRowContent: React.FC<{
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
   onUpdateNextDaybreak?: (val: string) => void,
-}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak }) => {
+  nextDateStr?: string,
+}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr }) => {
   const { state, dispatch } = useProject();
   const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
@@ -559,20 +561,6 @@ const SortableRowContent: React.FC<{
     const sectionEndTime = (row as any).sectionEndTime || '';
     const nextDaybreakNum = (row as any).hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
     const nextLabel = nextDaybreakNum > 0 ? `START OF DAY ${nextDaybreakNum}` : '';
-
-    const nextDateStr = useMemo(() => {
-      if (!row.daybreakDate) return '';
-      const v = state.present.versions.find(p => p.id === activeVersionId);
-      const skip = new Set((v?.nonShootDates || []).map((n: { date: string }) => n.date));
-      const addOne = (dstr: string) => {
-        const p = dstr.split('-').map(Number);
-        return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10);
-      };
-      let d = row.pinned ? row.daybreakDate : addOne(row.daybreakDate);
-      while (skip.has(d)) d = addOne(d);
-      const dt = new Date(d + 'T00:00:00');
-      return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    }, [row.daybreakDate, state.present.versions, activeVersionId]);
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
       const cells = ribbon[0].cells;
@@ -1425,8 +1413,9 @@ export const SortableRibbon: React.FC<{
   cellBorders?: CellBorders,
   nextDaybreakCallTime?: string,
   onUpdateNextDaybreak?: (val: string) => void,
+  nextDateStr?: string,
   readOnly?: boolean,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, readOnly }) => {
+}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly }) => {
   if (readOnly) {
     return (
       <SortableRowContent
@@ -1449,6 +1438,7 @@ export const SortableRibbon: React.FC<{
         cellBorders={cellBorders}
         nextDaybreakCallTime={nextDaybreakCallTime}
         onUpdateNextDaybreak={onUpdateNextDaybreak}
+        nextDateStr={nextDateStr}
       />
     );
   }
@@ -1509,6 +1499,7 @@ export const SortableRibbon: React.FC<{
         cellBorders={cellBorders}
         nextDaybreakCallTime={nextDaybreakCallTime}
         onUpdateNextDaybreak={onUpdateNextDaybreak}
+        nextDateStr={nextDateStr}
       />
     </div>
   );

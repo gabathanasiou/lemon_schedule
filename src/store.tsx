@@ -121,6 +121,11 @@ export function loadProjectFromStorage(id: string): Project | null {
           if (v.dayMeta) {
             v.legacy = true;
           }
+          for (const r of v.rows || []) {
+            if (r.type === 'DAYBREAK' && r.daybreakCallTime == null) {
+              r.daybreakCallTime = '08:00';
+            }
+          }
         }
 
         return parsed;
@@ -197,6 +202,7 @@ function makeBlankProject(title = 'Untitled Project'): Project {
         containerId: 1,
         order: 0,
         daybreakLabel: 'DAYBREAK',
+        daybreakCallTime: '08:00',
         pinned: true,
       }],
       productionStart: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
@@ -524,6 +530,7 @@ function reducer(state: State, action: Action): State {
             containerId: 1,
             order: 0,
             daybreakLabel: 'DAYBREAK',
+            daybreakCallTime: '08:00',
             pinned: true,
           }],
           productionStart: new Date().toISOString().slice(0, 10),
@@ -1232,7 +1239,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(legacyData);
         if (parsed.scenes && parsed.versions) {
           const id = generateUUID();
-          localStorage.setItem(getProjectStorageKey(id), legacyData);
+          for (const v of parsed.versions || []) {
+            for (const r of v.rows || []) {
+              if (r.type === 'DAYBREAK' && r.daybreakCallTime == null) {
+                r.daybreakCallTime = '08:00';
+              }
+            }
+          }
+          localStorage.setItem(getProjectStorageKey(id), JSON.stringify(parsed));
           localStorage.removeItem(LEGACY_KEY);
           const meta: ProjectMeta = { id, title: parsed.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
           saveProjectListToStorage([meta]);
