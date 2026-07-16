@@ -1245,15 +1245,20 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const commitDigits = useCallback(() => {
     const data = digitDataRef.current;
     if (!data.buffer) return;
-    const dayNum = parseInt(data.buffer, 10);
     const daybreaks = daybreakOrderRef.current;
-    if (dayNum < 1 || dayNum > daybreaks.length + 1) {
+    if (daybreaks.filter(d => !d.pinned).length === 0) {
       setDigitBuffer('');
       digitDataRef.current.buffer = '';
       return;
     }
-    if (dayNum <= daybreaks.length) {
-      const targetDaybreak = daybreaks[dayNum - 1];
+    const dayNum = parseInt(data.buffer, 10);
+    if (dayNum < 1 || dayNum > daybreaks.length) {
+      setDigitBuffer('');
+      digitDataRef.current.buffer = '';
+      return;
+    }
+    if (dayNum < daybreaks.length) {
+      const targetDaybreak = daybreaks[dayNum];
       const newRows = data.rows.map(r => {
         if (data.rowIds.includes(r.id)) {
           return { ...r, containerId: 1, order: targetDaybreak.order - 0.5 + data.rowIds.indexOf(r.id) * 0.01 };
@@ -1301,6 +1306,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       if (!/^[0-9]$/.test(e.key)) return;
       const boneyardSelected = activeVersion.rows.filter(r => selectedRowIds.has(r.id) && (r.containerId === null || r.containerId === -1));
       if (boneyardSelected.length === 0) return;
+      if (daybreakOrderRef.current.filter(d => !d.pinned).length === 0) return;
       e.preventDefault();
       const next = digitDataRef.current.buffer + e.key;
       digitDataRef.current = {
