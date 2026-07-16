@@ -74,6 +74,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⌥</Kbd> + Click</>} action="Start marquee selection from on top of a ribbon" />
           <Row keys={<><Kbd>⌘</Kbd> hold</>} action="Add Mode: disable drag, enable marquee from ribbons, click toggles" />
           <Row keys={<><Kbd>⎋</Kbd> Esc</>} action="Clear all ribbon selections" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>A</Kbd></>} action="Select all ribbons in current context (stripboard or boneyard)" />
         </Section>
 
         <Section title="Navigation">
@@ -114,9 +115,12 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
 
         <Section title="Boneyard Sidebar">
           <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Boneyard" />
-          <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, or Set" />
+          <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, Duration, INT/EXT, Day/Night, or any category" />
           <Row keys={<>Collapse</>} action="Collapse sidebar to save space (persisted)" />
           <Row keys={<>Resize edge</>} action="Drag right edge to resize sidebar (200px – 600px)" />
+          <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move selection up / down through boneyard ribbons (Schedule + Calendar)" />
+          <Row keys={<><Kbd>⇧</Kbd> + <Kbd>↑</Kbd>/<Kbd>↓</Kbd></>} action="Extend / contract boneyard selection range (Schedule + Calendar)" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>A</Kbd></>} action="Select all boneyard ribbons (Schedule + Calendar)" />
         </Section>
 
         <Section title="Mouse">

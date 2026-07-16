@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScheduleRow } from '../types';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink, Send } from 'lucide-react';
 
 import { IS_COARSE } from '../lib/device';
 
@@ -44,21 +44,45 @@ export const StripboardContextMenuContent: React.FC<{
 
   return (
     <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} containerRef={containerRef}>
-      {selectedRowIds.size > 1 ? (
-        <>
-          <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
-          <ContextMenuDivider />
-          <ContextMenuItem variant="danger" onClick={() => {
-            const ids = Array.from(selectedRowIds);
-            const newRows = activeVersion!.rows.map((r: ScheduleRow) => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
-            dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-            selectNextAfterRemove?.(new Set(ids as string[]));
-            setContextMenu(null);
-          }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-            Remove {selectedRowIds.size} Ribbons
-          </ContextMenuItem>
-        </>
-      ) : (
+         {selectedRowIds.size > 1 ? (() => {
+            const allInBoneyard = Array.from(selectedRowIds).every(id => {
+              const r = activeVersion!.rows.find(rr => rr.id === id);
+              return r && r.containerId == null;
+            });
+            return (
+            <>
+              <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
+              <ContextMenuDivider />
+              {allInBoneyard ? (
+                <ContextMenuItem variant="danger" onClick={() => {
+                  const ids = Array.from(selectedRowIds).filter(id => {
+                    const r = activeVersion.rows.find(rr => rr.id === id);
+                    return !r?.pinned && r?.type !== 'DAYBREAK';
+                  });
+                  if (ids.length === 0) return;
+                  const containerRows = activeVersion!.rows.filter((r: ScheduleRow) => r.containerId != null && r.containerId !== -1);
+                  const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
+                  const newRows = activeVersion!.rows.map((r: ScheduleRow) => ids.includes(r.id) ? { ...r, containerId: 1, order: maxOrder + 1 + ids.indexOf(r.id) } : r);
+                  dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                  selectNextAfterRemove?.(new Set(ids as string[]));
+                  setContextMenu(null);
+                }} icon={<Send className="w-3.5 h-3.5" />}>
+                  Send {selectedRowIds.size} to Stripboard
+                </ContextMenuItem>
+              ) : (
+                <ContextMenuItem variant="danger" onClick={() => {
+                  const ids = Array.from(selectedRowIds);
+                  const newRows = activeVersion!.rows.map((r: ScheduleRow) => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
+                  dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                  selectNextAfterRemove?.(new Set(ids as string[]));
+                  setContextMenu(null);
+                }} icon={<Trash2 className="w-3.5 h-3.5" />}>
+                  Remove {selectedRowIds.size} Ribbons
+                </ContextMenuItem>
+              )}
+            </>
+            );
+          })() : (
         <>
           {inClipboard > 0 && (
             <>

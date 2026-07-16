@@ -9,7 +9,7 @@ import { SortableRibbon } from './SortableRibbon';
 import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, ArrowUpDown, Flag } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, ArrowUpDown, Flag, Send } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -288,6 +288,23 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !textEditingEnabled) {
+        const target = e.target as HTMLElement;
+        if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
+        if (!activeVersion) return;
+        e.preventDefault();
+        const isBoneyard = Array.from(selectedRowIds).some(id => {
+          const row = activeVersion.rows.find(r => r.id === id);
+          return row && (row.containerId === null || row.containerId === -1);
+        }) || (selectedRowIds.size === 0 && boneyardLastIdRef.current !== null);
+        const ids = isBoneyard ? boneyardFlatRef.current : flatRowIdsRef.current.filter(id => !id.startsWith('empty-'));
+        if (ids.length > 0) {
+          setSelectedRowIds(new Set(ids));
+          setLastClickedId(ids[0]);
+          scrollToRow(ids[0]);
+        }
+        return;
+      }
       if ((e.key === 'Backspace' || e.key === 'Delete') && selectedRowIds.size > 0 && !textEditingEnabled) {
         const target = e.target as HTMLElement;
         if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly) return;
@@ -388,7 +405,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           const shiftFlat = isBoneyard ? flat : flat.filter(id => !id.startsWith('empty-'));
           if (shiftFlat.length === 0) return;
           const anchor = lastClickedIdRef.current;
-          const anchorIdx = (anchor && (!isBoneyard && !anchor.startsWith('empty-'))) ? shiftFlat.indexOf(anchor) : -1;
+          const anchorIdx = (anchor && (isBoneyard || !anchor.startsWith('empty-'))) ? shiftFlat.indexOf(anchor) : -1;
           if (anchorIdx === -1) {
             setSelectedRowIds(new Set([shiftFlat[0]]));
             setLastClickedId(shiftFlat[0]);
@@ -987,7 +1004,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       return;
     } else if (action === 'delete') {
       if (row.pinned) { setContextMenu(null); return; }
-      if (row.containerId == null && row.type !== 'DAYBREAK') {
+      if (row.containerId == null && row.type === 'SCENE') {
         const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
         const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
         newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: 1, order: maxOrder + 1 } : r);
@@ -1874,23 +1891,45 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           const row = contextMenu ? augmentedRows.find(r => r.id === contextMenu.rowId) : null;
           const inClipboard = augmentedRows.filter(r => r.containerId === -1).length;
           if (selectedRowIds.size > 1) {
+            const allInBoneyard = Array.from(selectedRowIds).every(id => {
+              const r = activeVersion.rows.find(rr => rr.id === id);
+              return r && r.containerId == null;
+            });
             return (
               <>
                 <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
                 <ContextMenuDivider />
-                <ContextMenuItem variant="danger" onClick={() => {
+                {allInBoneyard ? (
+                  <ContextMenuItem variant="danger" onClick={() => {
+                    const ids = Array.from(selectedRowIds).filter(id => {
+                      const r = activeVersion.rows.find(rr => rr.id === id);
+                      return !r?.pinned && r?.type !== 'DAYBREAK';
+                    });
+                    if (ids.length === 0) return;
+                    const containerRows = activeVersion!.rows.filter(r => r.containerId != null && r.containerId !== -1);
+                    const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
+                    const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, containerId: 1, order: maxOrder + 1 + ids.indexOf(r.id) } : r);
+                    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                    selectNextAfterRemove(new Set(ids as string[]));
+                    setContextMenu(null);
+                  }} icon={<Send className="w-3.5 h-3.5" />}>
+                    Send {selectedRowIds.size} to Stripboard
+                  </ContextMenuItem>
+                ) : (
+                  <ContextMenuItem variant="danger" onClick={() => {
         const ids = Array.from(selectedRowIds).filter(id => {
           const r = activeVersion.rows.find(rr => rr.id === id);
           return !r?.pinned;
         });
         if (ids.length === 0) return;
-                  const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
-                  dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                  selectNextAfterRemove(new Set(ids as string[]));
-                  setContextMenu(null);
-                }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                  Remove {selectedRowIds.size} Ribbons
-                </ContextMenuItem>
+                    const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
+                    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
+                    selectNextAfterRemove(new Set(ids as string[]));
+                    setContextMenu(null);
+                  }} icon={<Trash2 className="w-3.5 h-3.5" />}>
+                    Remove {selectedRowIds.size} Ribbons
+                  </ContextMenuItem>
+                )}
               </>
             );
           }

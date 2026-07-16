@@ -2,7 +2,7 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
-import { exportProjectFromStorage } from '../lib/utils';
+import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData } from '../lib/googleDriveStorage';
 import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
@@ -245,32 +245,52 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
 
   const hasProjects = sortedList.length > 0;
 
-  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (data.scenes && data.versions) {
-          importProjectFromData(data as Project);
-          onClose?.();
-        } else {
-          dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
-        }
-      } catch {
-        dialog.alert({ title: 'Invalid File', message: 'Could not read file.' });
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.scenes || !data.versions) {
+        dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
+        return;
       }
+      const newId = importProjectFromData(data as Project);
+      if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
+        const proj = loadProjectFromStorage(newId);
+        if (proj) {
+          const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
+          updateProjectMeta(newId, { driveFileId });
+        }
+      }
+      onClose?.();
+    } catch {
+      dialog.alert({ title: 'Invalid File', message: 'Could not read file.' });
+    } finally {
       setImporting(false);
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
-  const handleExportJSON = (e: React.MouseEvent, p: ProjectMeta) => {
+  const handleExportJSON = async (e: React.MouseEvent, p: ProjectMeta) => {
     e.stopPropagation();
-    if (p.driveFileId) return;
+    if (p.id === currentProjectId) {
+      exportProjectData(JSON.stringify(state.present), p.title);
+      return;
+    }
+    if (p.driveFileId) {
+      try {
+        setExportingId(p.id);
+        const proj = await readDriveProject(auth.accessToken!, p.driveFileId);
+        exportProjectData(JSON.stringify(proj), p.title);
+      } catch (err: any) {
+        dialog.alert({ title: 'Export Failed', message: err?.message || 'Could not load project from Drive.' });
+      } finally {
+        setExportingId(null);
+      }
+      return;
+    }
     exportProjectFromStorage(p.id, p.title);
   };
 
@@ -306,6 +326,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   };
 
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   const handleMoveToDrive = async (p: ProjectMeta) => {
     const ok = await dialog.confirm({ title: `Move "${p.title}" to Drive?`, message: 'This will upload the project to Google Drive and sync future changes.' });
@@ -389,7 +410,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               >
               <Plus className="w-3.5 h-3.5" /> New Project
               </button>
-              <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
             </>
           ) : auth.isSignedIn ? (
             <>
@@ -416,6 +436,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <Cloud className="w-3.5 h-3.5" /> Sign in with Google
             </button>
           )}
+          <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
         </ModalFooter>
       }
     >
@@ -652,7 +673,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             {sortedList.map(p => {
               const isActive = p.id === currentProjectId;
               const isRenaming = renamingId === p.id;
-              const isBusy = openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id;
+              const isBusy = openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id || exportingId === p.id;
 
               return (
                 <div
@@ -737,9 +758,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                           onClick={e => handleExportJSON(e, p)}
                           disabled={isBusy}
                           className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
-                            title="Export"
+                          title="Export"
                         >
-                          <Save className={`${PM_ICON} text-zinc-400`} />
+                          {exportingId === p.id
+                            ? <Loader2 className={`${PM_ICON} text-zinc-400 animate-spin`} />
+                            : <Save className={`${PM_ICON} text-zinc-400`} />}
                         </button>
                         {activeTab === 'local' && auth.isSignedIn && (
                           <button

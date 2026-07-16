@@ -45,7 +45,7 @@ import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/ru
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
-import { generateUUID, exportProjectFromStorage } from './lib/utils';
+import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, ClipboardList, CalendarClock, CalendarDays, Layout, Gavel, FileText, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
@@ -494,7 +494,7 @@ function AppContent() {
   }
 
   const handleExportJSON = () => {
-    exportProjectFromStorage(currentProjectId, project.title || 'Export');
+    exportProjectData(JSON.stringify(project), project.title || 'Export');
   };
   
   const handleExportCSV = () => {

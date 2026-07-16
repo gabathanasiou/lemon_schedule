@@ -266,7 +266,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       return;
     } else if (action === 'delete') {
       if (row.pinned) { setContextMenu(null); return; }
-      if (row.containerId == null && row.type !== 'DAYBREAK') {
+      if (row.containerId == null && row.type === 'SCENE') {
         const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
         const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
         newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: 1, order: maxOrder + 1 } : r);

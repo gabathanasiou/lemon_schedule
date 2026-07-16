@@ -7,10 +7,14 @@ import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject } from '../store';
 import { generateUUID } from '../lib/utils';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, StickyNote, Coffee, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 import { IS_COARSE } from '../lib/device';
 import { useCurrentDocument } from '../lib/popoutTarget';
+import { ELEMENT_CATEGORIES } from '../lib/categories';
+import DropdownMenu from './DropdownMenu';
+import DropdownItem from './DropdownItem';
+import DropdownDivider from './DropdownDivider';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
@@ -69,6 +73,14 @@ export const BoneyardBlock: React.FC<{
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
   });
   const [showSortMenu, setShowSortMenu] = useState(false);
+
+  const sortCategories = useMemo(() => {
+    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
+    for (const cc of state.present.customCategories) {
+      cats.push({ key: cc.key, label: cc.label });
+    }
+    return cats;
+  }, [state.present.customCategories]);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 340; } catch { return 340; }
   });
@@ -148,7 +160,7 @@ export const BoneyardBlock: React.FC<{
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: [...activeVersion.rows, newRow] } });
   };
 
-  const sortBoneyard = (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => {
+  const sortBoneyard = (criterion: string) => {
     const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
     if (!activeVersion) return;
 
@@ -184,10 +196,18 @@ export const BoneyardBlock: React.FC<{
         return sceneA.scriptDay.localeCompare(sceneB.scriptDay, undefined, { numeric: true, sensitivity: 'base' });
       } else if (criterion === 'page_count') {
         return sceneB.pageCountDecimal - sceneA.pageCountDecimal;
-      } else if (criterion === 'set_name') {
+      } else if (criterion === 'duration') {
+        return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
+      } else if (criterion === 'int_ext') {
+        return (sceneA.intExt || '').localeCompare(sceneB.intExt || '');
+      } else if (criterion === 'day_night') {
+        return (sceneA.dayNight || '').localeCompare(sceneB.dayNight || '');
+      } else if (criterion === 'set_name' || criterion === 'set') {
         return sceneA.set.localeCompare(sceneB.set);
       }
-      return 0;
+      const valA = String((sceneA as any)?.[criterion] ?? '');
+      const valB = String((sceneB as any)?.[criterion] ?? '');
+      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
     });
 
     const combined = [...scheduled, ...boneyard];
@@ -256,73 +276,56 @@ export const BoneyardBlock: React.FC<{
         </div>
       ) : (
         <div className="flex flex-col h-full" style={{ width: '100%' }}>
-          <div className="p-4 border-b border-zinc-200 bg-zinc-50 shadow-sm sticky top-0 z-10 flex flex-col gap-3">
+          <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-50 border-zinc-200">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-sm tracking-widest text-zinc-800">BONEYARD</h2>
-                <p className="text-xs text-zinc-500 mt-1">{rows.length} Items</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-zinc-800 font-bold text-sm tracking-widest shrink-0">BONEYARD</span>
+                <span className="text-zinc-300 select-none shrink-0">·</span>
+                <span className="text-xs text-zinc-500 shrink-0">{rows.length} Items</span>
               </div>
-              
-              <div className="flex items-center space-x-1">
-                {/* Sort Dropdown */}
-                <div className="relative">
-                  <button 
-                    onClick={() => setShowSortMenu(p => !p)}
-                    className="px-2.5 py-1 text-xs font-bold bg-white border border-zinc-300 hover:bg-zinc-100 hover:text-black text-zinc-600 rounded shadow-sm flex items-center gap-1 transition-colors cursor-pointer"
-                  >
-                    Sort ▾
-                  </button>
-                  
-                  {showSortMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                      <div className="absolute right-0 top-full mt-1.5 w-48 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col text-[11px] font-sans font-semibold">
-                        <button 
-                          onClick={() => { sortBoneyard('scene_number'); setShowSortMenu(false); }}
-                          className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
-                        >
-                          Sort by Scene Number
-                        </button>
-                        <button 
-                          onClick={() => { sortBoneyard('script_day'); setShowSortMenu(false); }}
-                          className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
-                        >
-                          Sort by Script Day
-                        </button>
-                        <button 
-                          onClick={() => { sortBoneyard('page_count'); setShowSortMenu(false); }}
-                          className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
-                        >
-                          Sort by Page Count (Longest)
-                        </button>
-                        <button 
-                          onClick={() => { sortBoneyard('set_name'); setShowSortMenu(false); }}
-                          className="w-full text-left px-3 py-2 hover:bg-zinc-900 rounded hover:text-white transition-colors cursor-pointer"
-                        >
-                          Sort by Set/Location
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <button 
-                  onClick={() => { setIsCollapsed(true); onCollapseChange?.(true); }}
-                  className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer"
-                  title="Collapse Sidebar"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={() => { setIsCollapsed(true); onCollapseChange?.(true); }}
+                className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer shrink-0"
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <button onClick={() => addRow('NOTE')} className="flex-1 text-xs font-bold bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-100 py-1.5 rounded flex items-center justify-center gap-1 shadow-sm cursor-pointer">
-                 <Plus className="w-3 h-3" /> NOTE
+            <div className="flex items-center gap-2 mt-2">
+              <button onClick={() => addRow('NOTE')} className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white" title="Add Note Ribbon">
+                <StickyNote className="w-3.5 h-3.5 shrink-0" />
+                Note
               </button>
-              <button onClick={() => addRow('BREAK')} className="flex-1 text-xs font-bold bg-white border border-zinc-300 text-zinc-600 hover:bg-zinc-100 py-1.5 rounded flex items-center justify-center gap-1 shadow-sm cursor-pointer">
-                 <Plus className="w-3 h-3" /> BREAK
+              <button onClick={() => addRow('BREAK')} className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white" title="Add Break Ribbon">
+                <Coffee className="w-3.5 h-3.5 shrink-0" />
+                Break
               </button>
+              <div className="w-px h-4 bg-zinc-200" />
+              <DropdownMenu
+                open={showSortMenu}
+                onOpenChange={setShowSortMenu}
+                width="w-56"
+                theme="light"
+                trigger={
+                  <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                    <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+                    Sort
+                    <ChevronDown className="w-3 h-3 shrink-0" />
+                  </button>
+                }
+              >
+                <DropdownItem onClick={() => sortBoneyard('scene_number')}>Scene Number</DropdownItem>
+                <DropdownItem onClick={() => sortBoneyard('script_day')}>Script Day</DropdownItem>
+                <DropdownItem onClick={() => sortBoneyard('page_count')}>Page Count</DropdownItem>
+                <DropdownItem onClick={() => sortBoneyard('duration')}>Duration</DropdownItem>
+                <DropdownDivider />
+                <DropdownItem onClick={() => sortBoneyard('int_ext')}>INT / EXT</DropdownItem>
+                <DropdownItem onClick={() => sortBoneyard('day_night')}>Day / Night</DropdownItem>
+                <DropdownDivider />
+                {sortCategories.map(c => (
+                  <DropdownItem key={c.key} onClick={() => sortBoneyard(c.key)}>{c.label}</DropdownItem>
+                ))}
+              </DropdownMenu>
             </div>
           </div>
           

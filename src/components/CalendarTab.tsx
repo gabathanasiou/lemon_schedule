@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ArrowUpDown } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -28,6 +28,7 @@ import DropdownSubmenu from './DropdownSubmenu';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
+const SIDEBAR_COLLAPSED_KEY = 'lemon_schedule_calendar_sidebar_collapsed';
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
@@ -254,13 +255,17 @@ const BoneyardSidebar: React.FC<{
   activeDragIds?: Set<string>;
   selectedIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
-  onSort?: (criterion: 'scene_number' | 'script_day' | 'page_count' | 'set_name') => void;
+  onSort?: (criterion: string) => void;
+  sortCategories?: { key: string; label: string }[];
   onRowDoubleClick?: (id: string) => void;
-}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onRowDoubleClick }) => {
+}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, sortCategories = [], onRowDoubleClick }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'BONEYARD' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 200; } catch { return 200; }
+  });
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'; } catch { return false; }
   });
   const panelRef = useRef<HTMLDivElement>(null);
   const widthRef = useRef(width);
@@ -272,6 +277,10 @@ const BoneyardSidebar: React.FC<{
     widthRef.current = width;
     localStorage.setItem(SIDEBAR_KEY, String(width));
   }, [width]);
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+  }, [isCollapsed]);
 
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -298,27 +307,74 @@ const BoneyardSidebar: React.FC<{
 
   return (
     <div ref={panelRef}
-      className="border-r border-zinc-200 bg-zinc-50 flex flex-col shrink-0 relative overflow-hidden"
-      style={{ width: `${width}px` }}
+      className={`${isCollapsed ? 'w-[44px] bg-zinc-50' : 'bg-zinc-50'} border-r border-zinc-200 flex flex-col shrink-0 relative overflow-hidden`}
+      style={isCollapsed ? undefined : { width: `${width}px` }}
     >
-      <div className="px-3 py-2 border-b border-zinc-200 font-semibold text-[11px] text-zinc-600 bg-white flex items-center justify-between">
-        <span>BONEYARD</span>
+      {isCollapsed ? (
+        <div
+          className="flex flex-col items-center py-4 h-full cursor-pointer hover:bg-zinc-100 w-full"
+          onClick={() => setIsCollapsed(false)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }}
+            className="p-1.5 hover:bg-zinc-200 rounded transition-colors text-zinc-500 hover:text-zinc-800 mb-6 cursor-pointer"
+            title="Expand Sidebar"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+          <div className="flex-1 flex items-center justify-center">
+            <span
+              className="text-zinc-400 font-bold tracking-widest text-[11px] select-none uppercase whitespace-nowrap"
+              style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
+            >
+              BONEYARD ({rows.length})
+            </span>
+          </div>
+        </div>
+      ) : (
+        <>
+      <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-50 border-zinc-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-zinc-800 font-bold text-sm tracking-widest shrink-0">BONEYARD</span>
+            <span className="text-zinc-300 select-none shrink-0">·</span>
+            <span className="text-xs text-zinc-500 shrink-0">{rows.length} Items</span>
+          </div>
+          <button
+            onClick={() => setIsCollapsed(true)}
+            className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer shrink-0"
+            title="Collapse Sidebar"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        </div>
         {onSort && (
-          <div className="relative">
-            <button onClick={() => setShowSortMenu(p => !p)} className="text-[10px] text-zinc-400 hover:text-zinc-600 font-normal">
-              Sort ▾
-            </button>
-            {showSortMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowSortMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-50 text-zinc-300 p-1 flex flex-col text-[10px] font-sans font-semibold">
-                  <button onClick={() => { onSort('scene_number'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Scene Number</button>
-                  <button onClick={() => { onSort('script_day'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Script Day</button>
-                  <button onClick={() => { onSort('page_count'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Page Count (Longest)</button>
-                  <button onClick={() => { onSort('set_name'); setShowSortMenu(false); }} className="w-full text-left px-2 py-1.5 hover:bg-zinc-900 rounded hover:text-white">Set / Location</button>
-                </div>
-              </>
-            )}
+          <div className="flex items-center gap-2 mt-2">
+            <DropdownMenu
+              open={showSortMenu}
+              onOpenChange={setShowSortMenu}
+              width="w-56"
+              theme="light"
+              trigger={
+                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
+                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+                  Sort
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </button>
+              }
+            >
+              <DropdownItem onClick={() => onSort('scene_number')}>Scene Number</DropdownItem>
+              <DropdownItem onClick={() => onSort('script_day')}>Script Day</DropdownItem>
+              <DropdownItem onClick={() => onSort('page_count')}>Page Count</DropdownItem>
+              <DropdownItem onClick={() => onSort('duration')}>Duration</DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => onSort('int_ext')}>INT / EXT</DropdownItem>
+              <DropdownItem onClick={() => onSort('day_night')}>Day / Night</DropdownItem>
+              <DropdownDivider />
+              {sortCategories.map(c => (
+                <DropdownItem key={c.key} onClick={() => onSort(c.key)}>{c.label}</DropdownItem>
+              ))}
+            </DropdownMenu>
           </div>
         )}
       </div>
@@ -351,6 +407,8 @@ const BoneyardSidebar: React.FC<{
         onPointerDown={handleResizeStart}
         data-no-longpress
       />
+        </>
+      )}
     </div>
   );
 };
@@ -699,7 +757,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   boneyardFlatRef.current = boneyardRows.map(r => r.id);
 
-  const handleToggle = useCallback((dateKe: string) => {
+  const handleToggle = useCallback((dateKey: string) => {
     if (activeTool) {
       if (activeTool === 'remove') {
         handleNonShootToggle(dateKey, null);
@@ -741,6 +799,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     combined.forEach((r, i) => { r.order = i; });
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
   }, [activeVersion, project.scenes, dispatch]);
+
+  const sortCategories = useMemo(() => {
+    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
+    for (const cc of project.customCategories) {
+      cats.push({ key: cc.key, label: cc.label });
+    }
+    return cats;
+  }, [project.customCategories]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -1106,7 +1172,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}>
-        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} onRowDoubleClick={handleRowDoubleClick} />
+        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} sortCategories={sortCategories} onRowDoubleClick={handleRowDoubleClick} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
