@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, WifiOff, Save, Cloud, CloudOff, HardDrive } from 'lucide-react';
 import { useProject } from '../store';
+import { useGoogleAuth } from '../lib/googleDriveAuth';
 
 export interface SaveState {
   status: 'idle' | 'saving' | 'saved' | 'offline';
@@ -45,6 +46,7 @@ export function useSaveIndicator(): SaveState {
 export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) {
   const { status, lastSavedAt } = useSaveIndicator();
   const { driveSaveError, storageQuotaError, retryDriveSync } = useProject();
+  const auth = useGoogleAuth();
   const [showTooltip, setShowTooltip] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
@@ -99,6 +101,29 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
             Storage full — changes not saved
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (isCloudProject && auth.needsReauth) {
+    return (
+      <div
+        className="relative"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <button
+          onClick={() => auth.signIn()}
+          className="cursor-pointer"
+          title="Sign in to resume sync — click to re-authenticate"
+        >
+          <CloudOff className="w-3.5 h-3.5 text-amber-400" />
+        </button>
+        {showTooltip && (
+          <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
+            Sign in to resume sync
           </div>
         )}
       </div>

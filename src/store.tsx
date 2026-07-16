@@ -1199,8 +1199,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const presentRef = useRef(state.present);
   presentRef.current = state.present;
 
-  // Offline detection — block all mutations when offline
+  // Offline detection — block cloud project mutations when offline; local projects keep working
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [realOnline, setRealOnline] = useState(navigator.onLine);
+  const lastSaveFailedRef = useRef(false);
+  const projectListRef = useRef(projectList);
+  projectListRef.current = projectList;
   useEffect(() => {
     const goOffline = () => setIsOnline(false);
     const goOnline = () => setIsOnline(true);
@@ -1211,10 +1215,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('online', goOnline);
     };
   }, []);
+  const isCurrentCloudProject = useCallback(() => {
+    const meta = projectListRef.current.find(p => p.id === currentProjectId);
+    return !!meta?.driveFileId;
+  }, [currentProjectId]);
   const guardedDispatch = useCallback((action: Action) => {
-    if (!isOnline && action.type !== 'LOAD') return;
+    if (!realOnline && action.type !== 'LOAD' && isCurrentCloudProject()) return;
     dispatch(action);
-  }, [isOnline]);
+  }, [realOnline, isCurrentCloudProject]);
 
   // On mount: migrate legacy data or load project list (no auto-open)
   useEffect(() => {
@@ -1338,6 +1346,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               auth.accessToken, project, meta.driveFileId,
             );
             driveFileIdRef.current = newFileId;
+            lastSaveFailedRef.current = false;
+            setRealOnline(true);
             setProjectList(prev => {
               const updated = prev.map(p =>
                 p.id === currentProjectId
@@ -1352,6 +1362,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             console.error('Drive save failed:', err);
             if (err?.message?.includes('401')) {
               auth.refreshToken();
+              setTimeout(async () => {
+                try {
+                  const token = sessionStorage.getItem('lemon_google_token');
+                  if (token && meta?.driveFileId) {
+                    await pushProjectAndUpdateIndex(token, project, meta.driveFileId);
+                    setDriveSaveError(false);
+                    lastSaveFailedRef.current = false;
+                    setRealOnline(true);
+                  }
+                } catch {
+                  // Give up — user can manually retry
+                }
+              }, 2000);
+            } else {
+              lastSaveFailedRef.current = true;
+              setRealOnline(false);
             }
             setDriveSaveError(true);
           }
@@ -1385,6 +1411,58 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
   }, [state.present, currentProjectId, auth.isSignedIn, auth.accessToken, isOnline]);
+
+  // Clear sync errors and force a fresh sync when the user re-authenticates
+  const prevSignedInRef = useRef(auth.isSignedIn);
+  useEffect(() => {
+    if (auth.isSignedIn && !prevSignedInRef.current) {
+      const meta = projectListRef.current.find(p => p.id === currentProjectId);
+      if (meta?.driveFileId) {
+        setDriveSaveError(false);
+      }
+    }
+    prevSignedInRef.current = auth.isSignedIn;
+  }, [auth.isSignedIn, currentProjectId]);
+
+  // Catch-up sync when reconnecting after being offline with a pending error
+  const prevOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (isOnline && !prevOnlineRef.current) {
+      const meta = projectListRef.current.find(p => p.id === currentProjectId);
+      if (meta?.driveFileId && driveSaveError) {
+        const token = sessionStorage.getItem('lemon_google_token');
+        if (token) {
+          pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId)
+            .then(() => { setDriveSaveError(false); lastSaveFailedRef.current = false; setRealOnline(true); })
+            .catch(() => {});
+        }
+      }
+    }
+    prevOnlineRef.current = isOnline;
+  }, [isOnline, currentProjectId, driveSaveError]);
+
+  // Heartbeat: conditional HEAD ping when navigator says online but last save failed
+  useEffect(() => {
+    if (!navigator.onLine || !lastSaveFailedRef.current) return;
+    if (realOnline) return;
+
+    const ping = async () => {
+      try {
+        const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=kind', {
+          method: 'HEAD',
+        });
+        if (res.ok || res.status === 401 || res.status === 403) {
+          setRealOnline(true);
+          lastSaveFailedRef.current = false;
+        }
+      } catch {
+        // Still offline
+      }
+    };
+
+    const interval = setInterval(ping, 30_000);
+    return () => clearInterval(interval);
+  }, [realOnline]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1636,15 +1714,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   }, [currentProjectId]);
 
   const retryDriveSync = useCallback(async () => {
-    if (!currentProjectId || !auth.accessToken) return;
+    if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
     if (!meta?.driveFileId) return;
+    const token = sessionStorage.getItem('lemon_google_token') ?? auth.accessToken;
+    if (!token) return;
     try {
-      await pushProjectAndUpdateIndex(auth.accessToken, { ...presentRef.current }, meta.driveFileId);
+      await pushProjectAndUpdateIndex(token, { ...presentRef.current }, meta.driveFileId);
       setDriveSaveError(false);
+      lastSaveFailedRef.current = false;
+      setRealOnline(true);
     } catch (err: any) {
       if (err?.message?.includes('401')) {
         auth.refreshToken();
+      } else {
+        lastSaveFailedRef.current = true;
+        setRealOnline(false);
       }
       setDriveSaveError(true);
     }
@@ -1657,7 +1742,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       projectList,
       currentProjectId,
       initialized,
-      readOnly: !isOnline,
+      readOnly: !realOnline,
       createProject,
       openProject,
       deleteProject,

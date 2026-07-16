@@ -18,6 +18,8 @@ interface GoogleAuthContextValue {
   signOut: () => void;
   isReady: boolean;
   refreshToken: () => void;
+  needsReauth: boolean;
+  tokenVersion: number;
 }
 
 const GoogleAuthContext = createContext<GoogleAuthContextValue>({
@@ -28,6 +30,8 @@ const GoogleAuthContext = createContext<GoogleAuthContextValue>({
   signOut: () => {},
   isReady: false,
   refreshToken: () => {},
+  needsReauth: false,
+  tokenVersion: 0,
 });
 
 export function useGoogleAuth() {
@@ -38,16 +42,10 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState<GoogleUser | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [needsReauth, setNeedsReauth] = useState(false);
+  const [tokenVersion, setTokenVersion] = useState(0);
   const accessTokenRef = useRef<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const scheduleTokenRefresh = useCallback((token: string) => {
-    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-    // Refresh 5 minutes before expiry (tokens live ~1 hour)
-    refreshTimerRef.current = setTimeout(() => {
-      doSilentRefresh();
-    }, 55 * 60 * 1000);
-  }, []);
 
   const doSilentRefresh = useCallback(() => {
     const gis = (window as any).google?.accounts?.oauth2;
@@ -59,18 +57,29 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
         if (response.access_token) {
           accessTokenRef.current = response.access_token;
           sessionStorage.setItem(TOKEN_KEY, response.access_token);
-          scheduleTokenRefresh(response.access_token);
+          setNeedsReauth(false);
+          setTokenVersion(v => v + 1);
+          scheduleTokenRefresh(response.access_token, response.expires_in);
         } else {
-          accessTokenRef.current = null;
-          setIsSignedIn(false);
-          setUser(null);
-          sessionStorage.removeItem(TOKEN_KEY);
-          sessionStorage.removeItem(SESSION_KEY);
+          setNeedsReauth(true);
         }
+      },
+      error_callback: (error: any) => {
+        console.warn('GIS token client error:', error?.type);
+        setNeedsReauth(true);
       },
     });
     client.requestAccessToken({ prompt: '' });
-  }, [scheduleTokenRefresh]);
+  }, []);
+
+  const scheduleTokenRefresh = useCallback((token: string, expiresIn?: number) => {
+    if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+    const ttl = expiresIn ?? 3600;
+    const delay = Math.max((ttl - 300) * 1000, 30_000);
+    refreshTimerRef.current = setTimeout(() => {
+      doSilentRefresh();
+    }, delay);
+  }, [doSilentRefresh]);
 
   const fetchUserInfo = useCallback(async (token: string) => {
     try {
@@ -81,11 +90,7 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         setUser({ name: data.name, email: data.email, picture: data.picture });
       } else if (res.status === 401) {
-        accessTokenRef.current = null;
-        setIsSignedIn(false);
-        setUser(null);
-        sessionStorage.removeItem(TOKEN_KEY);
-        sessionStorage.removeItem(SESSION_KEY);
+        setNeedsReauth(true);
       }
     } catch {
       // network error — keep token for retry
@@ -97,10 +102,12 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
     onSuccess: async (tokenResponse) => {
       accessTokenRef.current = tokenResponse.access_token;
       setIsSignedIn(true);
+      setNeedsReauth(false);
+      setTokenVersion(v => v + 1);
       sessionStorage.setItem(SESSION_KEY, '1');
       sessionStorage.setItem(TOKEN_KEY, tokenResponse.access_token);
       await fetchUserInfo(tokenResponse.access_token);
-      scheduleTokenRefresh(tokenResponse.access_token);
+      scheduleTokenRefresh(tokenResponse.access_token, tokenResponse.expires_in);
     },
     onError: (error) => {
       console.error('Google sign-in error:', error?.error_description ?? error);
@@ -116,6 +123,7 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
     accessTokenRef.current = null;
     setIsSignedIn(false);
     setUser(null);
+    setNeedsReauth(false);
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     googleLogout();
@@ -142,6 +150,8 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
         isSignedIn,
         user,
         accessToken: accessTokenRef.current,
+        tokenVersion,
+        needsReauth,
         signIn,
         signOut,
         isReady,
@@ -171,6 +181,8 @@ export function GoogleAuthProvider({
           signOut: () => {},
           isReady: true,
           refreshToken: () => {},
+          needsReauth: false,
+          tokenVersion: 0,
         }}
       >
         {children}
