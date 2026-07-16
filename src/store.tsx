@@ -6,11 +6,15 @@ import { isMultiValue, getFieldItems } from './lib/categories';
 import { useGoogleAuth } from './lib/googleDriveAuth';
 import { pushProjectAndUpdateIndex, removeFromDrive } from './lib/syncManager';
 import { readDriveProject, removeFromDriveIndex } from './lib/googleDriveStorage';
+import { migrateLegacyProject, LegacyMigrationResult } from './lib/legacyMigration';
 import Papa from 'papaparse';
 
 const LEGACY_KEY = 'a-little-bit-of-hope-project';
 const INDEX_KEY = 'lemon_schedule_project_index';
 const PROJECT_KEY_PREFIX = 'lemon_schedule_project_v1_';
+
+// Module-level store for communicating legacy migration notices from standalone functions
+let _pendingLegacyMigrationNotice: LegacyMigrationResult | null = null;
 
 export interface ProjectMeta {
   id: string;
@@ -118,9 +122,6 @@ export function loadProjectFromStorage(id: string): Project | null {
         parsed.categoryLabels = parsed.categoryLabels || {};
 
         for (const v of parsed.versions || []) {
-          if (v.dayMeta) {
-            v.legacy = true;
-          }
           for (const r of v.rows || []) {
             if (r.type === 'DAYBREAK' && r.daybreakCallTime == null) {
               r.daybreakCallTime = '08:00';
@@ -128,7 +129,12 @@ export function loadProjectFromStorage(id: string): Project | null {
           }
         }
 
-        return parsed;
+        const migrationResult = migrateLegacyProject(parsed);
+        if (migrationResult.migrated) {
+          _pendingLegacyMigrationNotice = migrationResult;
+        }
+
+        return migrationResult.project;
       }
     }
   } catch (e) {
@@ -1183,6 +1189,7 @@ interface ProjectContextType {
   storageQuotaError: boolean;
   retryDriveSync: () => Promise<void>;
   closeProject: () => void;
+  consumeLegacyMigrationNotice: () => LegacyMigrationResult | null;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -1247,12 +1254,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
-          localStorage.setItem(getProjectStorageKey(id), JSON.stringify(parsed));
+          const migrationResult = migrateLegacyProject(parsed);
+          if (migrationResult.migrated) {
+            _pendingLegacyMigrationNotice = migrationResult;
+          }
+          localStorage.setItem(getProjectStorageKey(id), JSON.stringify(migrationResult.project));
           localStorage.removeItem(LEGACY_KEY);
-          const meta: ProjectMeta = { id, title: parsed.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
+          const meta: ProjectMeta = { id, title: migrationResult.project.title || 'Project', lastModified: Date.now(), createdAt: Date.now() };
           saveProjectListToStorage([meta]);
           setProjectList([meta]);
-          dispatch({ type: 'LOAD', payload: parsed });
+          dispatch({ type: 'LOAD', payload: migrationResult.project });
           setCurrentProjectId(id);
           setInitialized(true);
           return;
@@ -1733,10 +1744,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const importProjectFromData = useCallback((data: Project): string => {
     flushCurrentProject();
     const id = generateUUID();
-    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(data));
-    const meta: ProjectMeta = { id, title: data.title || 'Imported Project', lastModified: Date.now(), createdAt: Date.now() };
+    const migrationResult = migrateLegacyProject(data);
+    if (migrationResult.migrated) {
+      _pendingLegacyMigrationNotice = migrationResult;
+    }
+    localStorage.setItem(getProjectStorageKey(id), JSON.stringify(migrationResult.project));
+    const meta: ProjectMeta = { id, title: migrationResult.project.title || 'Imported Project', lastModified: Date.now(), createdAt: Date.now() };
     setProjectList(prev => { const u = [...prev, meta]; saveProjectListToStorage(u); return u; });
-    dispatch({ type: 'LOAD', payload: data });
+    dispatch({ type: 'LOAD', payload: migrationResult.project });
     setCurrentProjectId(id);
     return id;
   }, [flushCurrentProject]);
@@ -1791,6 +1806,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentProjectId, auth.accessToken, projectList]);
 
+  const consumeLegacyMigrationNotice = useCallback((): LegacyMigrationResult | null => {
+    const result = _pendingLegacyMigrationNotice;
+    _pendingLegacyMigrationNotice = null;
+    return result;
+  }, []);
+
   return (
     <ProjectContext.Provider value={{
       state,
@@ -1811,6 +1832,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       storageQuotaError,
       retryDriveSync,
       closeProject,
+      consumeLegacyMigrationNotice,
     }}>
       {children}
     </ProjectContext.Provider>

@@ -61,7 +61,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -124,6 +124,16 @@ function AppContent() {
       window.removeEventListener('blur', onBlur);
     };
   }, []);
+
+  useEffect(() => {
+    const notice = consumeLegacyMigrationNotice();
+    if (notice) {
+      dialog.alert({
+        title: 'Legacy Project Converted',
+        message: `This project was created before the daybreak system and has been automatically converted. ${notice.versionCount} version(s) across ${notice.dayCount} production day(s) were migrated. Some scheduling details may need review.`,
+      });
+    }
+  }, [consumeLegacyMigrationNotice, dialog, currentProjectId]);
 
   const handleOpenSheet = useCallback((rowIndex: number) => {
     setBrSubTab('sheet');
