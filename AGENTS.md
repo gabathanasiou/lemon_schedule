@@ -598,9 +598,24 @@ The schedule has exactly three **container blocks**, identified by `containerId`
 
 Right-clicking empty space in a Calendar day opens a minimal context menu: Paste Below, Add Note Below, Add Break Below.
 
-- **Target computation**: `bodyTargetRowId` — last row in the section's `rows`, or the row just before the closing daybreak for empty sections (matching drag-drop position).
-- **Rendered inline** in `CalendarTab`, not via `StripboardContextMenuContent` — avoids exposing row-specific items like Duplicate/Delete.
-- **`contextMenuBodyTarget`** state gates both the menu rendering and guards `StripboardContextMenuContent` from showing for body clicks.
-- `handleContextMenuAction` and `pasteClipboard` work unmodified since they target the real row ID. |
+**Target computation**: `bodyTargetRowId` — last row in the section's `rows`, or the row just before the closing daybreak for empty sections (matching drag-drop position).
+
+**Rendered inline** in `CalendarTab`, not via `StripboardContextMenuContent` — avoids exposing row-specific items like Duplicate/Delete.
+
+**`contextMenuBodyTarget`** state gates both the menu rendering and guards `StripboardContextMenuContent` from showing for body clicks.
+
+`handleContextMenuAction` and `pasteClipboard` work unmodified since they target the real row ID. |
+
+**Insert position rules** (derived from the DAYBREAK section layout, see above):
+
+```
+[DAYBREAK 0 pinned] [content 1] [DAYBREAK 1] [content 2] [DAYBREAK 2] ...
+```
+
+- **Day has rows**: target = last row → insert after it (end of section) ✅
+- **Day is empty**: target = row just before the closing daybreak → insert after it (beginning of empty section) ✅
+- **First production day empty**: target = pinned daybreak → insert after it ✅
+
+Same logic applies to drag-drop in Calendar (`handleDragEnd`) and context menu paste/add.
 
 |
