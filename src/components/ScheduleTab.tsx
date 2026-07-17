@@ -1378,12 +1378,20 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       });
       dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: newRows } });
     }
-    const lastScheduledId = data.rowIds[data.rowIds.length - 1];
-    const lastIdx = newRows.findIndex(r => r.id === lastScheduledId);
-    const next = newRows.slice(lastIdx + 1).find(r => r.containerId === null || r.containerId === -1);
-    if (next) {
-      setSelectedRowIds(new Set([next.id]));
-      setLastClickedId(next.id);
+    const scheduledIds = new Set(data.rowIds);
+    const remainingBoneyard = data.rows
+      .filter(r => r.containerId === null && !scheduledIds.has(r.id))
+      .sort((a, b) => a.order - b.order);
+    if (remainingBoneyard.length > 0) {
+      const lastScheduled = data.rows
+        .filter(r => data.rowIds.includes(r.id))
+        .sort((a, b) => b.order - a.order)[0];
+      const next = lastScheduled
+        ? remainingBoneyard.find(r => r.order > lastScheduled.order)
+        : null;
+      const selection = next || remainingBoneyard[0];
+      setSelectedRowIds(new Set([selection.id]));
+      setLastClickedId(selection.id);
     }
     setDigitBuffer('');
     digitDataRef.current.buffer = '';
@@ -1943,6 +1951,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
         {(() => {
           const row = contextMenu ? activeVersion.rows.find(r => r.id === contextMenu.rowId) : null;
+          const isDummy = contextMenu?.rowId.startsWith('empty-') ?? false;
           const inClipboard = activeVersion.rows.filter(r => r.containerId === -1).length;
           if (selectedRowIds.size > 1) {
             const allInBoneyard = Array.from(selectedRowIds).every(id => {
@@ -1989,6 +1998,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           }
           return (
             <>
+              {!isDummy && (
+                <>
               <ContextMenuItem onClick={() => {
                 const isBoneyard = row?.containerId == null;
                 const ids = isBoneyard
@@ -2006,6 +2017,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 setContextMenu(null);
               }} icon={<CheckSquare className="w-3.5 h-3.5" />}>Select All</ContextMenuItem>
               <ContextMenuDivider />
+                </>
+              )}
               {inClipboard > 0 && (
                 <>
                   <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }} icon={<ClipboardPaste className="w-3.5 h-3.5" />}>Paste Below ({inClipboard})</ContextMenuItem>

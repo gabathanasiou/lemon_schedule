@@ -303,9 +303,11 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
         </SortableContext>
         {sortableRows.length === 0 && (
           <div className="flex items-center px-4 py-3 text-[9pt] border-b-[2px] border-black italic select-none text-zinc-300"
+            data-row-id={`empty-${dayInt}`}
+            data-container-id={dayInt}
             style={{ fontFamily: 'Helvetica, sans-serif' }}
           >
-            No scenes in this day · right-click for options
+            right-click for options
           </div>
         )}
         {sortableRows.length === 0 && <div className="flex-1" />}
