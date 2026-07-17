@@ -66,8 +66,10 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
     if (!label) return null;
     const nb = getNoteBannerColors(palette);
     const df = getDayFooterColors(palette);
-    const bg = row.type === 'DAYBREAK' ? df.background : row.noteColor || nb.background;
-    const fg = row.type === 'DAYBREAK' ? df.color : row.noteTextColor || nb.color;
+    const rawBg = row.type === 'DAYBREAK' ? df.background : row.noteColor || nb.background;
+    const rawFg = row.type === 'DAYBREAK' ? df.color : row.noteTextColor || nb.color;
+    const bg = isSelected && selBg ? selBg : rawBg;
+    const fg = isSelected && selColor ? selColor : rawFg;
     return (
       <div style={{ background: bg, color: fg }} className={`${sz} font-semibold truncate border-b border-black select-none cursor-grab ${row.type === 'NOTE' ? 'italic' : ''}`}>
         {label}
@@ -121,7 +123,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
       onContextMenu={(e) => { if (onContextMenu) { e.preventDefault(); e.stopPropagation(); onContextMenu(e); } }}
       data-row-id={row.id}
       data-container-id={row.containerId == null ? 'null' : row.containerId}
-      className={`${isSelected && !isFaded ? 'shadow-[4px_0_0_0_#000000,-4px_0_0_0_#000000,0_2px_0_0_#000000,0_-2px_0_0_#000000] z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
+      className={`${isSelected && !isFaded ? 'z-10' : ''} ${isFaded ? 'opacity-30' : ''}`}>
       <SceneCardContent row={row} scene={scene} displayField={displayField} violations={violations} isSelected={isSelected} selBg={sel.background} selColor={sel.color} />
     </div>
   );
@@ -149,9 +151,10 @@ const DayCell: React.FC<{
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
   onRowContextMenu?: (e: React.MouseEvent) => void;
+  onBodyContextMenu?: (e: React.MouseEvent, targetRowId: string, containerId: number) => void;
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, palette, activeDragDay }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, palette, activeDragDay }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -220,7 +223,16 @@ const DayCell: React.FC<{
           )}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5">
+      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5"
+        onContextMenu={(e) => {
+          if ((e.target as HTMLElement).closest('[data-row-id]')) return;
+          const sortedRows = [...rows].sort((a, b) => a.order - b.order);
+          if (sortedRows.length === 0) return;
+          const lastRow = sortedRows[sortedRows.length - 1];
+          e.preventDefault();
+          onBodyContextMenu?.(e, lastRow.id, lastRow.containerId as number);
+        }}
+      >
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
@@ -1506,6 +1518,10 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     activeDragDay={activeDragDay}
                     onRowDoubleClick={handleRowDoubleClick}
                     onRowContextMenu={handleRowContextMenu}
+                    onBodyContextMenu={(e, targetRowId, containerId) => {
+                      setContextMenuDate(null);
+                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: targetRowId, containerId });
+                    }}
                     palette={project.colorPalette}
                   />
                 );
