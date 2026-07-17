@@ -103,6 +103,16 @@ import Modal, { ModalFooter } from './components/Modal';
 </Modal>
 ```
 
+**Modal body design rules** — follow these for every new Modal:
+
+1. **Padding wrapper**: Always wrap body content in `<div className="p-6 space-y-5">` for consistent internal padding. The Modal shell does NOT apply padding itself.
+2. **Description text**: Use `<p className="text-xs text-zinc-400 leading-relaxed">` for any explanatory paragraph.
+3. **Labeled rows**: Each setting/field row uses `<div className="flex items-center justify-between py-1">`. Label: `<span className="text-xs text-zinc-300">`. Subdued counts/annotations: `<span className="text-zinc-500">`.
+4. **Segmented toggle buttons** (binary choice): Selected button: `bg-white text-zinc-900`. Default button: `text-zinc-500 hover:text-zinc-300`. Container: `<div className="flex border border-zinc-700 rounded p-0.5">`. Button: `px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer`. No gap between buttons — they sit flush.
+5. **Footer buttons**: Cancel: `px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`. Confirm/action: `px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`.
+
+Reference: existing Color Picker modal in `ScheduleTab.tsx`.
+
 #### `ContextMenu` (`src/components/ContextMenu.tsx`)
 Fixed-position context menu for right-click/long-press. Exports `ContextMenu`, `ContextMenuItem`, `ContextMenuDivider`. White theme, viewport-aware positioning.
 

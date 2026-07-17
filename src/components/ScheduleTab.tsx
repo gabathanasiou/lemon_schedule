@@ -59,6 +59,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [autoDaybreakOpen, setAutoDaybreakOpen] = useState(false);
+  const [autoDaybreakCleanup, setAutoDaybreakCleanup] = useState<{ mode: 'duration' | 'pages'; threshold: number } | null>(null);
+  const [autoDaybreakNotesAction, setAutoDaybreakNotesAction] = useState<'boneyard' | 'delete'>('boneyard');
+  const [autoDaybreakBreaksAction, setAutoDaybreakBreaksAction] = useState<'boneyard' | 'delete'>('boneyard');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -947,7 +950,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       newRows.forEach((r, i) => r.order = i);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
       setSelectedRowIds(new Set([newId]));
-      setFocusedRowId(newId);
+      if (type === 'NOTE') setFocusedRowId(newId);
       scrollToRow(newId);
       setContextMenu(null);
       return;
@@ -1036,7 +1039,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     if (newRowIds.length > 0) {
       setSelectedRowIds(new Set(newRowIds));
-      setFocusedRowId(newRowIds[0]);
+      if (action === 'add_note' || action === 'duplicate_note') setFocusedRowId(newRowIds[0]);
       scrollToRow(newRowIds[0]);
     }
     if (action === 'delete' || action === 'boneyard') {
@@ -1073,20 +1076,39 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const threshold = mode === 'duration' ? parseDuration(val) : parsePageCount(val);
     if (isNaN(threshold) || threshold <= 0) return;
 
-    let rows = [...activeVersion.rows];
+    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
+    const hasNotes = activeVersion.rows.some(r => r.containerId !== null && r.type === 'NOTE');
+    const hasBreaks = activeVersion.rows.some(r => r.containerId !== null && r.type === 'BREAK');
 
-    const hasDaybreaks = rows.some(r => r.type === 'DAYBREAK');
-    if (hasDaybreaks) {
-      const ok = await dialog.confirm({
-        title: 'Existing Day Breaks',
-        message: 'Existing day breaks will be removed before auto-placing new ones. Continue?',
-        danger: true,
-      });
-      if (!ok) return;
-      rows = rows.filter(r => r.type !== 'DAYBREAK' || r.pinned);
+    if (hasDaybreaks || hasNotes || hasBreaks) {
+      setAutoDaybreakCleanup({ mode, threshold });
+      return;
     }
 
+    executeAutoDaybreak(mode, threshold, 'boneyard', 'boneyard');
+  };
+
+  const executeAutoDaybreak = (mode: 'duration' | 'pages', threshold: number, notesAction: 'boneyard' | 'delete', breaksAction: 'boneyard' | 'delete') => {
+    if (!activeVersion) return;
+
     dispatch({ type: 'BATCH_START' });
+
+    let rows = [...activeVersion.rows];
+    rows = rows.filter(r => r.type !== 'DAYBREAK' || r.pinned);
+
+    const notesToProcess = rows.filter(r => r.containerId !== null && r.type === 'NOTE');
+    const breaksToProcess = rows.filter(r => r.containerId !== null && r.type === 'BREAK');
+
+    if (notesAction === 'boneyard') {
+      rows = rows.map(r => notesToProcess.find(n => n.id === r.id) ? { ...r, containerId: null } : r);
+    } else {
+      rows = rows.filter(r => !notesToProcess.find(n => n.id === r.id));
+    }
+    if (breaksAction === 'boneyard') {
+      rows = rows.map(r => breaksToProcess.find(b => b.id === r.id) ? { ...r, containerId: null } : r);
+    } else {
+      rows = rows.filter(r => !breaksToProcess.find(b => b.id === r.id));
+    }
 
     const pinnedRows = rows.filter(r => r.pinned);
 
@@ -1103,8 +1125,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
     for (const row of scheduled) {
       const scene = row.sceneId ? project.scenes.find(s => s.id === row.sceneId) : null;
+      const rowValue = mode === 'duration'
+        ? (row.estimatedDuration || 0)
+        : (scene?.pageCountDecimal || 0);
 
-      if (accumulator > 0 && accumulator >= threshold) {
+      if (accumulator > 0 && accumulator + rowValue > threshold) {
         result.push({
           id: generateUUID(),
           type: 'DAYBREAK' as const,
@@ -1116,12 +1141,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         accumulator = 0;
       }
 
-      if (mode === 'duration') {
-        accumulator += (row.estimatedDuration || 0);
-      } else {
-        accumulator += scene?.pageCountDecimal || 0;
-      }
-
+      accumulator += rowValue;
       result.push(row);
     }
 
@@ -1598,6 +1618,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <PageToolbar theme="light" justify="end">
+            <button
+              onClick={() => shootViolations.length > 0 && setShowShootViolations(true)}
+              className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
+              title="View All Violations"
+            >
+              <Flag className={`w-3.5 h-3.5 ${shootViolations.length > 0 ? 'text-red-500' : ''}`} />
+              {shootViolations.length > 0 && <span className="shrink-0">{shootViolations.length}</span>}
+            </button>
+            <div className="w-px h-4 bg-zinc-200" />
             {selectionSummary && (
               <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -1614,14 +1643,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             )}
             <span className="text-xs text-zinc-500 shrink-0">{productionSections.length} days</span>
             <div className="w-px h-4 bg-zinc-200" />
-            <button
-              onClick={handleDeleteAllDaybreaks}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-              title="Clear All Day Breaks"
-            >
-              <Eraser className="w-3.5 h-3.5 shrink-0" />
-              Clear
-            </button>
             <DropdownMenu
               open={autoDaybreakOpen}
               onOpenChange={setAutoDaybreakOpen}
@@ -1630,7 +1651,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               trigger={
                 <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
                   <Wand2 className="w-3.5 h-3.5 shrink-0" />
-                  Auto
+                   Auto Day Breaks
                   <ChevronDown className="w-3 h-3 shrink-0" />
                 </button>
               }
@@ -1702,27 +1723,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               </DropdownSubmenu>
             </DropdownMenu>
             <button
-              onClick={() => shootViolations.length > 0 && setShowShootViolations(true)}
-              className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
-              title="View All Violations"
-            >
-              <Flag className={`w-3.5 h-3.5 ${shootViolations.length > 0 ? 'text-red-500' : ''}`} />
-              {shootViolations.length > 0 && <span className="shrink-0">{shootViolations.length}</span>}
-            </button>
-            <button
-              onClick={() => setShowHelp(true)}
-              className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
-              title="Keyboard Shortcuts & Help"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </button>
-            <button
               onClick={() => !readOnly && setTextEditingEnabled(p => !p)}
               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
             >
               <Pencil className="w-3.5 h-3.5 shrink-0" />
               Edit
             </button>
+            <div className="w-px h-4 bg-zinc-200" />
             {onPrint && (
               <button
                 onClick={onPrint}
@@ -1732,6 +1739,14 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 Print
               </button>
             )}
+            <div className="w-px h-4 bg-zinc-200" />
+            <button
+              onClick={() => setShowHelp(true)}
+              className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
+              title="Keyboard Shortcuts & Help"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
       </PageToolbar>
       <style>{`
         .schedule-table {
@@ -2067,6 +2082,68 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           </div>
         </Modal>
       )}
+      {autoDaybreakCleanup && (() => {
+        const daybreakCount = activeVersion?.rows.filter(r => r.type === 'DAYBREAK' && !r.pinned).length ?? 0;
+        const noteCount = activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'NOTE').length ?? 0;
+        const breakCount = activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'BREAK').length ?? 0;
+        const segBase = `px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer`;
+        const segSel = `bg-white text-zinc-900`;
+        const segDef = `text-zinc-500 hover:text-zinc-300`;
+        const parts: string[] = [];
+        if (daybreakCount > 0) parts.push(`${daybreakCount} day break${daybreakCount !== 1 ? 's' : ''}`);
+        if (noteCount > 0) parts.push(`${noteCount} note${noteCount !== 1 ? 's' : ''}`);
+        if (breakCount > 0) parts.push(`${breakCount} break${breakCount !== 1 ? 's' : ''}`);
+        const summary = parts.join(', ').replace(/, ([^,]+)$/, ' and $1');
+        return (
+          <Modal open onClose={() => setAutoDaybreakCleanup(null)} title="Prepare Stripboard" width="max-w-sm"
+            footer={
+              <ModalFooter>
+                <button onClick={() => setAutoDaybreakCleanup(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button onClick={() => {
+                  const c = autoDaybreakCleanup;
+                  setAutoDaybreakCleanup(null);
+                  executeAutoDaybreak(c.mode, c.threshold, autoDaybreakNotesAction, autoDaybreakBreaksAction);
+                }} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Place Day Breaks</button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6 space-y-5">
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {daybreakCount > 0 && (noteCount > 0 || breakCount > 0)
+                  ? <>Existing day breaks will be removed. {summary} found — choose how to handle notes and breaks.</>
+                  : daybreakCount > 0
+                  ? <>Existing day breaks will be removed before auto-placing new ones.</>
+                  : <>{summary} found in the stripboard — choose how to handle them.</>
+                }
+              </p>
+              {daybreakCount > 0 && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-xs text-zinc-300">Day Breaks <span className="text-zinc-500">({daybreakCount})</span></span>
+                  <span className="text-xs text-zinc-500">Will be removed</span>
+                </div>
+              )}
+              {noteCount > 0 && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-xs text-zinc-300">Notes <span className="text-zinc-500">({noteCount})</span></span>
+                  <div className="flex border border-zinc-700 rounded p-0.5">
+                    <button className={`${segBase} ${autoDaybreakNotesAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('boneyard')}>Boneyard</button>
+                    <button className={`${segBase} ${autoDaybreakNotesAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('delete')}>Delete</button>
+                  </div>
+                </div>
+              )}
+              {breakCount > 0 && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-xs text-zinc-300">Breaks <span className="text-zinc-500">({breakCount})</span></span>
+                  <div className="flex border border-zinc-700 rounded p-0.5">
+                    <button className={`${segBase} ${autoDaybreakBreaksAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('boneyard')}>Boneyard</button>
+                    <button className={`${segBase} ${autoDaybreakBreaksAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('delete')}>Delete</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Modal>
+        );
+      })()}
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <ShootViolationsModal
         open={showShootViolations}
