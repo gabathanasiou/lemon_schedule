@@ -158,12 +158,6 @@ export function computeRowData(
         sums,
       });
 
-      console.debug(
-        `[SectionTotals] Section ${sectionIndex} "${label || '(pinned)'}" | ` +
-        `EST: ${sectionShoot}m | Pages: ${sectionPages > 0 ? sectionPages.toFixed(3) : '0'} | ` +
-        `Break: ${sectionBreak}m | Total: ${sectionTotal}m | Date: ${date} | NextDaybreak: ${hasNextDaybreak}`
-      );
-
       contentRows = [];
       daybreakSeen++;
       sectionIndex++;
@@ -213,12 +207,6 @@ export function computeRowData(
     break: sectionBreak,
     endTime: sectionEndTime,
   });
-
-  console.debug(
-    `[SectionTotals] Trailing section ${sectionIndex} | ` +
-    `EST: ${sectionShoot}m | Pages: ${sectionPages > 0 ? sectionPages.toFixed(3) : '0'} | ` +
-    `Break: ${sectionBreak}m | Total: ${sectionTotal}m`
-  );
 
   return { computedRows, sections, sectionDateMap, sectionLabelMap, sectionSums };
 }
