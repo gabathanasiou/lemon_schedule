@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { useProject } from '../store';
 import { ScheduleRow } from '../types';
-import { addDays, buildNonShootSet, splitSections, computeRowData, ProductionDay, ComputedRow, SectionSums } from './daybreakUtils';
+import { addDays, buildNonShootSet, computeRowData, ProductionDay, ComputedRow, SectionSums, SectionInfo } from './daybreakUtils';
 
-export type { ProductionDay, ComputedRow, SectionSums };
+export type { ProductionDay, ComputedRow, SectionSums, SectionInfo };
 
 export function useDaybreakSections() {
   const { state } = useProject();
@@ -18,61 +18,48 @@ export function useDaybreakSections() {
     });
   }, [activeVersion]);
 
-  const productionDays: ProductionDay[] = useMemo(() => splitSections(containerRows), [containerRows]);
-
-  const firstSectionPinned = productionDays[0]?.daybreakRow?.pinned ?? false;
-
-  const productionSections = useMemo(() =>
-    firstSectionPinned ? productionDays.filter((s, i) => i !== 0 || !s.daybreakRow?.pinned) : productionDays,
-    [productionDays, firstSectionPinned]);
-
   const nonShootSet = useMemo(() => buildNonShootSet(activeVersion?.nonShootDates), [activeVersion?.nonShootDates]);
 
   const startDate = activeVersion?.productionStart || new Date().toISOString().slice(0, 10);
 
-  const sectionDateMap = useMemo(() => {
-    const m = new Map<number, string>();
-    let current = startDate;
-    for (let i = 0; i < productionDays.length; i++) {
-      while (nonShootSet.has(current)) current = addDays(current, 1);
-      m.set(i, current);
-      if (!productionDays[i].daybreakRow?.pinned) {
-        current = addDays(current, 1);
-      }
-    }
-    return m;
-  }, [productionDays, startDate, nonShootSet]);
+  const firstDaybreak = useMemo(() => containerRows.find(r => r.type === 'DAYBREAK'), [containerRows]);
+  const callTimeBase = firstDaybreak?.daybreakCallTime || '08:00';
 
-  const sectionLabelMap = useMemo(() => {
-    const m = new Map<number, string>();
-    productionDays.forEach((s, i) => {
-      if (s.daybreakRow?.pinned) {
-        m.set(s.index, '');
-      } else {
-        m.set(s.index, `Day ${i - (firstSectionPinned ? 1 : 0) + 1}`);
-      }
-    });
-    return m;
-  }, [productionDays, firstSectionPinned]);
+  const {
+    computedRows,
+    sections,
+    sectionDateMap,
+    sectionLabelMap,
+    sectionSums,
+  } = useMemo(
+    () => computeRowData(containerRows, project.scenes, startDate, nonShootSet, callTimeBase),
+    [containerRows, project.scenes, startDate, nonShootSet, callTimeBase],
+  );
+
+  const productionDays: ProductionDay[] = sections;
+
+  const firstSectionPinned = sections[0]?.isPinned ?? false;
+
+  const productionSections = useMemo(() =>
+    firstSectionPinned ? sections.filter((_, i) => i !== 0 || !sections[i].isPinned) : sections,
+    [sections, firstSectionPinned]);
 
   const nextSectionDateMap = useMemo(() => {
     const m = new Map<number, string>();
-    for (const s of productionDays) {
+    for (const s of sections) {
       m.set(s.index, sectionDateMap.get(s.index + 1) || '');
     }
     return m;
-  }, [productionDays, sectionDateMap]);
+  }, [sections, sectionDateMap]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
-    let counter = 0;
-    for (const s of productionDays) {
-      if (s.daybreakRow?.pinned) continue;
-      counter++;
-      m.set(s.index, counter);
+    for (const s of sections) {
+      if (s.isPinned) continue;
+      m.set(s.index, s.chronoDay);
     }
     return m;
-  }, [productionDays]);
+  }, [sections]);
 
   const productionChronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -86,7 +73,7 @@ export function useDaybreakSections() {
 
   const sceneToSection = useMemo(() => {
     const m = new Map<string, number>();
-    for (const s of productionDays) {
+    for (const s of sections) {
       for (const r of s.rows) {
         if (r.type === 'SCENE' && r.sceneId) {
           m.set(r.sceneId, s.index);
@@ -94,23 +81,15 @@ export function useDaybreakSections() {
       }
     }
     return m;
-  }, [productionDays]);
+  }, [sections]);
 
   const daybreakRowToSection = useMemo(() => {
     const m = new Map<string, number>();
-    for (const s of productionDays) {
+    for (const s of sections) {
       if (s.daybreakRow) m.set(s.daybreakRow.id, s.index);
     }
     return m;
-  }, [productionDays]);
-
-  const firstDaybreak = useMemo(() => productionDays.find(p => p.daybreakRow)?.daybreakRow, [productionDays]);
-  const callTimeBase = firstDaybreak?.daybreakCallTime || '08:00';
-
-  const { computedRows, sectionSums } = useMemo(
-    () => computeRowData(containerRows, productionDays, project.scenes, sectionDateMap, sectionLabelMap, callTimeBase),
-    [containerRows, productionDays, project.scenes, sectionDateMap, sectionLabelMap, callTimeBase],
-  );
+  }, [sections]);
 
   const formatSectionDate = (sectionIndex: number): string => {
     const d = sectionDateMap.get(sectionIndex);
@@ -123,7 +102,7 @@ export function useDaybreakSections() {
 
   return {
     productionDays,
-    sections: productionDays,
+    sections,
     productionSections,
     sectionDateMap,
     sectionLabelMap,

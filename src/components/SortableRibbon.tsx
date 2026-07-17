@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
+import { ComputedRow } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
@@ -53,7 +54,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
 };
 
 const SortableRowContent: React.FC<{ 
-  row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number }, 
+  row: ComputedRow,
   scenes: Scene[], 
   isSelected?: boolean,
   isFaded?: boolean,
@@ -554,12 +555,12 @@ const SortableRowContent: React.FC<{
     const daybreakStyle: React.CSSProperties = { background: df.background, color: df.color };
     if (isSelected && !isFaded) { daybreakStyle.background = sel.background; daybreakStyle.color = sel.color; }
 
-    const sectionTotal = (row as any).sectionTotal || 0;
-    const sectionPages = (row as any).sectionPages || 0;
-    const sectionShoot = (row as any).sectionShoot || 0;
-    const sectionBreak = (row as any).sectionBreak || 0;
-    const sectionEndTime = (row as any).sectionEndTime || '';
-    const nextDaybreakNum = (row as any).hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
+    const sectionTotal = row.sectionTotal || 0;
+    const sectionPages = row.sectionPages || 0;
+    const sectionShoot = row.sectionShoot || 0;
+    const sectionBreak = row.sectionBreak || 0;
+    const sectionEndTime = row.sectionEndTime || '';
+    const nextDaybreakNum = row.hasNextDaybreak ? parseInt((row.daybreakLabel || '').match(/\d+/)?.[0] || '0', 10) + 1 : 0;
     const nextLabel = nextDaybreakNum > 0 ? `START OF DAY ${nextDaybreakNum}` : '';
 
     if (ribbon && ribbon.length > 0 && !isCompact) {
@@ -594,7 +595,7 @@ const SortableRowContent: React.FC<{
                 ...daybreakStyle,
                 paddingLeft: edgePadding ?? 2,
                 paddingRight: edgePadding ?? 2,
-                ...((row as any).hasNextDaybreak ? { borderBottom: '2px solid #000' } : {}),
+                ...(row.hasNextDaybreak ? { borderBottom: '2px solid #000' } : {}),
               }}>
                 <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                 {cells.map((cell, ci) => {
@@ -676,7 +677,7 @@ const SortableRowContent: React.FC<{
             </div>
             )}
 
-            {(row as any).hasNextDaybreak && (
+            {row.hasNextDaybreak && (
               <div style={{ background: dh.background, color: dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                   {cells.map((cell, ci) => {

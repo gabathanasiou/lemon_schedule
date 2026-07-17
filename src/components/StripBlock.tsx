@@ -200,13 +200,13 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     let sectionBaseTime = firstDaybreakCallTime;
     for (const row of computedRows) {
       if (row.type === 'DAYBREAK') {
-        const sectionDate = (row as any).daybreakDate;
+        const sectionDate = row.daybreakDate;
         const v = checkSection(sectionRows, sectionDate, sectionBaseTime, project.rules || [], project.scenes, project.castMembers || []);
         if (v.length > 0) map.set(row.id, v);
         sectionRows = [];
         sectionBaseTime = row.daybreakCallTime || firstDaybreakCallTime;
       } else {
-        sectionRows.push(row as ScheduleRow);
+        sectionRows.push(row);
       }
     }
     return map;

@@ -4,7 +4,7 @@ import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad,
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
-import { computeRowData } from '../lib/daybreakUtils';
+import { computeRowData, ComputedRow } from '../lib/daybreakUtils';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function filterIndices(cells: RibbonCell[], colWidths: number[], showTimes: boolean, showDurations: boolean): { keep: boolean[]; filteredWidths: number[] } {
@@ -127,13 +127,11 @@ const CastListPrint: React.FC<{ castMembers: Project['castMembers']; relevantCas
 
 const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr, scenes, showTimes, showDurations, chronoDay, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, sceneColors, fallbackOverride, colorRules, colorPalette }) => {
   const dh = getDayHeaderColors(colorPalette);
-  const localDays = [{ index: 0, rows, daybreakRow: undefined as ScheduleRow | undefined }];
   const { computedRows, sectionSums } = computeRowData(
     rows,
-    localDays,
     scenes,
-    new Map([[0, dateStr || '']]),
-    new Map([[0, '']]),
+    dateStr || new Date().toISOString().slice(0, 10),
+    new Set(),
     callTime,
   );
   const sums = sectionSums.get(0);
@@ -382,12 +380,13 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
             if (r.type === 'DAYBREAK') {
               const dh = getDayHeaderColors(colorPalette);
               const df = getDayFooterColors(colorPalette);
-              const sTotal = (r as any).sectionTotal || 0;
-              const sPages = (r as any).sectionPages || 0;
-              const sShoot = (r as any).sectionShoot || 0;
-              const sBreak = (r as any).sectionBreak || 0;
-              const sEndTime = (r as any).sectionEndTime || '';
-              const sCallTime = (r as any).daybreakCallTime || '';
+              const cr = r as ComputedRow;
+              const sTotal = cr.sectionTotal || 0;
+              const sPages = cr.sectionPages || 0;
+              const sShoot = cr.sectionShoot || 0;
+              const sBreak = cr.sectionBreak || 0;
+              const sEndTime = cr.sectionEndTime || '';
+              const sCallTime = cr.daybreakCallTime || '';
 
               if (cells) {
                 const showStats = sTotal > 0;
@@ -405,7 +404,7 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                                 overflow: 'visible', whiteSpace: 'normal', wordBreak: 'break-word',
                                 fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                               }}>
-                                <span>{(r as any).daybreakLabel || 'End of Day'}</span>
+                                <span>{cr.daybreakLabel || 'End of Day'}</span>
                                 {showStats && (
                                   <span style={{ fontSize: '7pt', opacity: 0.75 }}>
                                     {formatPageCount(sPages)} pgs · {formatDuration(sShoot)} shoot{sBreak > 0 ? <span> + {formatDuration(sBreak)} break</span> : null}
@@ -468,10 +467,10 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                     <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px`, background: df.background, color: df.color } as any}>
                       <>
                         <td className="print-col-sc" />
-                        {showTimes && <td className="print-col-call">{sEndTime || (r as any).computedCallTime}</td>}
+                        {showTimes && <td className="print-col-call">{sEndTime || cr.computedCallTime}</td>}
                         {showDurations && <td className="print-col-dur">{sTotal > 0 ? formatDuration(sTotal) : ''}</td>}
                         <td className="print-col-ie" />
-                        <td className="print-col-set" style={{textAlign: 'center'}}>{(r as any).daybreakLabel || 'End of Day'}</td>
+                        <td className="print-col-set" style={{textAlign: 'center'}}>{cr.daybreakLabel || 'End of Day'}</td>
                         <td className="print-col-dn" />
                         <td className="print-col-cast" />
                         <td className="print-col-pgs" />
