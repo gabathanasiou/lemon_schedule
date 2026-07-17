@@ -720,7 +720,7 @@ const SortableRowContent: React.FC<{
             )}
 
             {row.hasNextDaybreak && (
-              <div style={{ background: dh.background, color: dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
+              <div style={{ background: (isSelected && !isFaded) ? sel.background : dh.background, color: (isSelected && !isFaded) ? sel.color : dh.color, paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: cw.map(w => `${w}%`).join(' ') }}>
                   {cells.map((cell, ci) => {
                     if (ci === mainCellIdx) {
@@ -822,7 +822,7 @@ const SortableRowContent: React.FC<{
           {nextDaybreakNum > 0 && (
             <table className="schedule-table flex-1 min-w-0">
               <tbody>
-                <tr className="row-note" style={{ background: dh.background, color: dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+                <tr className="row-note" style={{ background: (isSelected && !isFaded) ? sel.background : dh.background, color: (isSelected && !isFaded) ? sel.color : dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                   <td className="col-sc" />
                   <td className="col-call">
                     <CellInput
@@ -1315,121 +1315,7 @@ const SortableRowContent: React.FC<{
       );
     }
 
-    return (
-        <div className="flex items-stretch min-w-0">
-          <table className="schedule-table flex-1 min-w-0">
-            <tbody>
-              <tr style={rowStyle}>
-                <td className="col-sc relative">
-                  <CellInput
-                    value={scene.sceneNumber}
-                    onChange={val => updateScene({sceneNumber: val})}
-                    className={`${inputClass} text-center`}
-                    readOnly={!textEditingEnabled}
-                  />
-                  {violationBadge}
-                </td>
-                {!isCompact && <td className="col-call">{row.computedCallTime}</td>}
-                {!isCompact && <td className="col-dur">
-                  {isTouchMode ? (
-                    <DurationKeypad
-                      value={row.estimatedDuration || 0}
-                      onChange={val => updateRow({estimatedDuration: val})}
-                      display={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
-                      className={`${inputClass} text-center`}
-                      autoFocus={focusedRowId === row.id}
-                      onOpen={() => onRowNavigate?.(row.id)}
-                    />
-                  ) : (
-                    <CellInput
-                      value={row.estimatedDuration === 0 ? '↑' : formatDuration(row.estimatedDuration || 0)}
-                      onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
-                      clearOnType
-                      col="duration"
-                      className={`${inputClass} text-center`}
-                      autoFocus={focusedRowId === row.id}
-                      onRowNavigate={onRowNavigate}
-                    />
-                  )}
-                </td>}
-                <td className="col-ie">
-                  <SelectDropdown
-                    value={scene.intExt}
-                    onChange={val => updateScene({intExt: val as any})}
-                    options={getIntExtOptions(state.present.colorPalette)}
-                    className="text-left w-full"
-                    readOnly={!textEditingEnabled}
-                  />
-                </td>
-                <td className="col-set">
-                  <EntityDropdown
-                    value={scene.set}
-                    onChange={val => updateEntityField('set', val)}
-                    items={entityItemsMap['set'] || []}
-                    mode="single"
-                    uppercase
-                    keepAlphabetical
-                    panelMinWidth="min-w-[220px]"
-                    positioning="fixed"
-                    className="text-left w-full uppercase text-xs"
-                    readOnly={!textEditingEnabled}
-                    placeholder={fieldLabels['set'] || 'Set'}
-                  />
-                </td>
-                <td className="col-dn">
-                  <SelectDropdown
-                    value={scene.dayNight}
-                    onChange={val => updateScene({dayNight: val as any})}
-                    options={getDayNightOptions(state.present.colorPalette)}
-                    className="text-left w-full"
-                    readOnly={!textEditingEnabled}
-                  />
-                </td>
-                <td className="col-cast">
-                  <EntityDropdown
-                    value={scene.cast}
-                    onChange={val => updateScene({cast: val})}
-                    className="text-left w-full text-xs"
-                    readOnly={!textEditingEnabled}
-                    mode="multi"
-                    positioning="fixed"
-                    placeholder="Cast"
-                    displayMode="id"
-                    renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
-                  />
-                </td>
-                <td className="col-pgs">
-                  <CellInput
-                    value={scene.pageCount}
-                    suffix="pgs"
-                    onChange={val => {
-                      if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }
-                    }}
-                    className={`${inputClass} text-left`}
-                    readOnly={!textEditingEnabled}
-                  />
-                </td>
-              </tr>
-              <tr style={rowStyle}>
-                <td className="col-sc" />
-                {!isCompact && <td className="col-call" />}
-                {!isCompact && <td className="col-dur" />}
-                <td colSpan={5} className="col-desc">
-                  <CellInput
-                    value={scene.description}
-                    onChange={val => updateScene({description: val})}
-                    className={`${inputClass} text-left`}
-                    readOnly={!textEditingEnabled}
-                    placeholder="Scene Description"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-    );
   }
-
   return null;
 }, sortableRowPropsEqual);
 
