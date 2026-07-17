@@ -151,38 +151,28 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
     if (targetRowId.startsWith('empty-')) {
       overDay = parseInt(targetRowId.replace('empty-', ''), 10);
-      insertIdx = activeVersion.rows.length;
-
-      const dayRows = activeVersion.rows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-      if (dayRows.length > 0) {
-        const first = dayRows[0];
-        if (first.pinned) {
-          insertIdx = activeVersion.rows.indexOf(first) + 1;
-        } else {
-          insertIdx = activeVersion.rows.indexOf(first);
-        }
-      }
+      const dayRows = activeVersion.rows
+        .filter(r => r.containerId === overDay && r.containerId !== -1)
+        .sort((a, b) => a.order - b.order);
+      insertIdx = dayRows.length > 0 && dayRows[0]?.pinned ? 1 : 0;
     } else if (targetRow) {
       overDay = targetRow.containerId;
-      if (overDay === null) overDay = null;
-      insertIdx = activeVersion.rows.indexOf(targetRow) + 1;
+      const dayRows = activeVersion.rows
+        .filter(r => r.containerId === overDay && r.containerId !== -1)
+        .sort((a, b) => a.order - b.order);
+      const targetIdx = dayRows.findIndex(r => r.id === targetRowId);
+      insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
     } else {
       return;
     }
 
-    let maxOrder = activeVersion.rows
-      .filter(r => r.containerId === overDay)
-      .reduce((mx, r) => Math.max(mx, r.order), 0);
+    clipboardItems.forEach(item => item.containerId = overDay);
 
-    for (const item of clipboardItems) {
-      item.containerId = overDay;
-      item.order = ++maxOrder;
-    }
-
-    const newRows = activeVersion.rows.filter(r => r.containerId !== -1);
-    const insertPos = Math.min(insertIdx, newRows.length);
-    newRows.splice(insertPos, 0, ...clipboardItems);
-    newRows.forEach((r, i) => r.order = i);
+    let newRows = activeVersion.rows.filter(r => r.containerId !== -1);
+    const dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
+    dayRows.splice(insertIdx, 0, ...clipboardItems);
+    dayRows.forEach((r, i) => r.order = i);
+    newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setSelectedRowIds(new Set(clipboardItems.map(r => r.id)));
