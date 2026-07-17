@@ -17,7 +17,7 @@ Daybreak-related data (day labels, dates, call times, section totals, chrono day
 | **`SectionSums`** | Per-day summary stats: total elapsed, pages, shoot time, break time, end time. |
 | **`useDaybreakSections`** | The single-source-of-truth React hook. Reads `activeVersion.rows`, builds `ProductionDay[]`, computes all dates/labels/sums. |
 
-**Note:** Don't confuse `ComputedRow` (our new term for rows with daybreak data) with `augmentedRows` in ScheduleTab/CalendarTab — that existing variable adds missing-scene placeholder rows, a different concern entirely.
+**Note:** `ComputedRow` is distinct from the old `augmentedRows` pattern (now removed — every scene in the project always has a real `ScheduleRow` in every version, so no synthetic/ghost rows exist).
 
 ## Current State: Duplication Matrix
 

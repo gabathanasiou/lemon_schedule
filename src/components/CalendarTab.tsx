@@ -692,14 +692,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     return m;
   }, [violationMap]);
 
-  const sceneIdsInRows = new Set(activeVersion?.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
-  const missingScenes = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
-
-  const augmentedRows = useMemo(() => [
-    ...(activeVersion?.rows || []),
-    ...missingScenes.map((s, i) => ({ id: `row-synth-${s.id}`, type: 'SCENE' as const, sceneId: s.id, containerId: null as number | null, order: 999999 + i, estimatedDuration: 30 })),
-  ], [activeVersion?.rows, missingScenes]);
-
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
 
@@ -720,7 +712,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   } = useStripboardContextMenu({
     selectedRowIds,
     setSelectedRowIds,
-    augmentedRows,
+    rows: (activeVersion?.rows || []),
     activeVersion,
     activeDragIds,
     textEditingEnabled: false,
@@ -763,7 +755,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const sectionRowIds = useMemo(() => new Set(sections.flatMap(s => s.rows.map(r => r.id))), [sections]);
 
   const boneyardRows = useMemo(() => {
-    return augmentedRows.filter(r => {
+    return (activeVersion?.rows || []).filter(r => {
       if (activeDragIds.has(r.id)) return false;
       if (r.containerId === -1) return false;
       if (!showBreaks && (r.type === 'BREAK' || r.type === 'NOTE' || r.type === 'DAYBREAK')) return false;
@@ -771,7 +763,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (r.containerId != null && !sectionRowIds.has(r.id) && r.type !== 'DAYBREAK') return true;
       return false;
     }).sort((a, b) => a.order - b.order);
-  }, [augmentedRows, activeDragIds, showBreaks, sectionRowIds]);
+  }, [(activeVersion?.rows || []), activeDragIds, showBreaks, sectionRowIds]);
 
   boneyardFlatRef.current = boneyardRows.map(r => r.id);
 
@@ -789,12 +781,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const sortBoneyard = useCallback((criterion: string, direction: 'asc' | 'desc') => {
     if (!activeVersion) return;
     const scheduled = activeVersion.rows.filter(r => r.containerId !== null);
-    const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
-    const missingScenes = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
-    const boneyard: ScheduleRow[] = [
-      ...activeVersion.rows.filter(r => r.containerId === null),
-      ...missingScenes.map(s => ({ id: generateUUID(), type: 'SCENE' as const, sceneId: s.id, containerId: null as number | null, order: 999999, estimatedDuration: 30 })),
-    ];
+    const boneyard: ScheduleRow[] = activeVersion.rows.filter(r => r.containerId === null);
     const sign = direction === 'desc' ? -1 : 1;
     boneyard.sort((a, b) => {
       if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
@@ -926,7 +913,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       const anchorRow = activeVersion?.rows.find(r => r.id === lastClickedId);
       const isBoneyard = (clickedRow && (clickedRow.containerId === null || clickedRow.containerId === -1)) ||
         (anchorRow && (anchorRow.containerId === null || anchorRow.containerId === -1));
-      const allIds = isBoneyard ? boneyardFlatRef.current : augmentedRows.map(r => r.id);
+      const allIds = isBoneyard ? boneyardFlatRef.current : (activeVersion?.rows || []).map(r => r.id);
       const idxA = allIds.indexOf(lastClickedId);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) setSelectedRowIds(new Set(allIds.slice(Math.min(idxA, idxB), Math.max(idxA, idxB) + 1)));
@@ -972,18 +959,18 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     return activeDragIds.size > 1
       ? Array.from(activeDragIds)
           .sort((a, b) => {
-            const rA = augmentedRows.find(r => r.id === a);
-            const rB = augmentedRows.find(r => r.id === b);
+            const rA = (activeVersion?.rows || []).find(r => r.id === a);
+            const rB = (activeVersion?.rows || []).find(r => r.id === b);
             if (rA && rB) {
               if (rA.containerId !== rB.containerId) return (rA.containerId || 0) - (rB.containerId || 0);
               return rA.order - rB.order;
             }
             return 0;
           })
-          .map(id => augmentedRows.find(r => r.id === id)!)
+          .map(id => (activeVersion?.rows || []).find(r => r.id === id)!)
           .filter(Boolean)
-      : [augmentedRows.find(r => r.id === activeId)!].filter(Boolean);
-  }, [activeId, activeType, activeDragIds, augmentedRows]);
+      : [(activeVersion?.rows || []).find(r => r.id === activeId)!].filter(Boolean);
+  }, [activeId, activeType, activeDragIds, (activeVersion?.rows || [])]);
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
@@ -1003,7 +990,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (currentSelection.size > 0) setSelectedRowIds(new Set());
       setActiveDragIds(new Set([draggedId]));
     }
-    setActiveDragRow(augmentedRows.find(r => r.id === draggedId) || null);
+    setActiveDragRow((activeVersion?.rows || []).find(r => r.id === draggedId) || null);
     setActiveDragDay(null);
   };
 
@@ -1096,8 +1083,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     const allSelected = new Set(activeDragIds);
     const draggingIds = allSelected.size > 1 ? Array.from(allSelected) : [draggedId];
     draggingIds.sort((a, b) => {
-      const rA = augmentedRows.find(r => r.id === a);
-      const rB = augmentedRows.find(r => r.id === b);
+      const rA = (activeVersion?.rows || []).find(r => r.id === a);
+      const rB = (activeVersion?.rows || []).find(r => r.id === b);
       if (rA && rB) return rA.order - rB.order;
       return 0;
     });
@@ -1111,7 +1098,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     } else if (typeof over.id === 'string' && over.id.startsWith('end-')) {
       targetDateKey = over.id.slice(4);
     } else {
-      const overRow = augmentedRows.find(r => r.id === over.id);
+      const overRow = (activeVersion?.rows || []).find(r => r.id === over.id);
       if (overRow) {
         for (const s of sections) {
           if (s.rows.some(rr => rr.id === overRow.id)) {
@@ -1129,10 +1116,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (targetDateKey && nonShootDateMap.has(targetDateKey)) return;
 
     const newRows = activeVersion.rows.map(r => ({ ...r }));
-    const sanitizeRow = (r: ScheduleRow) => {
-      if (r.id.startsWith('row-synth-')) return { ...r, id: generateUUID() };
-      return r;
-    };
 
     if (targetSectionIndex === null) {
       newRows.filter(r => draggingIds.includes(r.id)).forEach(r => {
@@ -1144,8 +1127,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         return a.order - b.order;
       });
       newRows.forEach((r, i) => r.order = i);
-      const persistentRows = newRows.map(sanitizeRow);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
       return;
     }
 
@@ -1177,7 +1159,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }
 
     const draggingItems = draggingIds
-      .map(id => augmentedRows.find(r => r.id === id) || activeVersion.rows.find(r => r.id === id))
+      .map(id => (activeVersion?.rows || []).find(r => r.id === id))
       .filter(Boolean) as ScheduleRow[];
     const newItems = draggingItems.map(item => ({ ...item, containerId: 1 }));
 
@@ -1186,8 +1168,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     const combined = [...before, ...newItems, ...after];
     combined.forEach((r, i) => r.order = i);
 
-    const persistentRows = combined.map(sanitizeRow);
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: persistentRows } });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
     setSelectedRowIds(new Set(draggingIds));
   };
 
@@ -1305,12 +1286,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         });
         if (ids.length === 0) return;
         const allRows = [...activeVersion.rows];
-        for (const id of ids) {
-          if (id.startsWith('row-synth-') && !allRows.some(r => r.id === id)) {
-            const sceneId = id.replace('row-synth-', '');
-            allRows.push({ id, type: 'SCENE' as const, sceneId, containerId: null as number | null, order: allRows.length, estimatedDuration: 30 });
-          }
-        }
         const allInBoneyard = ids.every(id => {
           const r = allRows.find(rr => rr.id === id);
           return r && r.containerId == null;
@@ -1573,7 +1548,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         <StripboardContextMenuContent
           contextMenu={contextMenu}
           setContextMenu={setContextMenu}
-          augmentedRows={augmentedRows}
+          rows={(activeVersion?.rows || [])}
           selectedRowIds={selectedRowIds}
           inClipboard={inClipboard}
           cutSelected={cutSelected}

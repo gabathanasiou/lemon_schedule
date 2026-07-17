@@ -215,20 +215,7 @@ export const BoneyardBlock: React.FC<{
 
     const scheduled = activeVersion.rows.filter(r => r.containerId !== null);
 
-    const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
-    const missingScenes = state.present.scenes.filter(s => !sceneIdsInRows.has(s.id));
-    
-    const boneyard: ScheduleRow[] = [
-      ...activeVersion.rows.filter(r => r.containerId === null),
-      ...missingScenes.map(s => ({
-        id: generateUUID(),
-        type: 'SCENE' as const,
-        sceneId: s.id,
-        containerId: null,
-        order: 999999,
-        estimatedDuration: 30
-      }))
-    ];
+    const boneyard: ScheduleRow[] = activeVersion.rows.filter(r => r.containerId === null);
 
     const sign = direction === 'desc' ? -1 : 1;
 

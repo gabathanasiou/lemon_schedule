@@ -23,7 +23,7 @@ interface ColorPickerState {
 export interface StripboardContextMenuConfig {
   selectedRowIds: Set<string>;
   setSelectedRowIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  augmentedRows: ScheduleRow[];
+  rows: ScheduleRow[];
   activeVersion: ScheduleVersion | undefined;
   activeDragIds: Set<string>;
   textEditingEnabled: boolean;
@@ -36,7 +36,7 @@ export interface StripboardContextMenuConfig {
 
 export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const {
-    selectedRowIds, setSelectedRowIds, augmentedRows, activeVersion,
+    selectedRowIds, setSelectedRowIds, rows, activeVersion,
     activeDragIds, textEditingEnabled, dispatch, setFocusedRowId,
     scrollToRow, setColorPicker, project,
   } = config;
@@ -44,30 +44,30 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const inClipboard = useMemo(
-    () => augmentedRows.filter(r => r.containerId === -1).length,
-    [augmentedRows]
+    () => rows.filter(r => r.containerId === -1).length,
+    [rows]
   );
 
   const existingDays = useMemo(() => {
     const days = new Set<number>();
-    for (const r of augmentedRows) {
+    for (const r of rows) {
       if (r.containerId !== null && r.containerId !== -1 && r.containerId !== undefined) days.add(r.containerId);
     }
     return Array.from(days).sort((a, b) => a - b);
-  }, [augmentedRows]);
+  }, [rows]);
 
   const scheduledRows = useMemo(() => {
     const map: Record<number, ScheduleRow[]> = {};
-    for (const r of augmentedRows) {
+    for (const r of rows) {
       const d = r.containerId ?? 0;
       if (!map[d]) map[d] = [];
       map[d].push(r);
     }
     return map;
-  }, [augmentedRows]);
+  }, [rows]);
 
   const selectNextAfterRemove = useCallback((removedIds: Set<string>) => {
-    const removedRows = Array.from(removedIds).map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
+    const removedRows = Array.from(removedIds).map(id => rows.find(r => r.id === id)!).filter(Boolean);
     if (removedRows.length === 0) return;
     removedRows.sort((a, b) => {
       if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
@@ -75,12 +75,12 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     });
     const candidates: string[] = [];
     for (const r of removedRows) {
-      const next = augmentedRows.filter(x => x.containerId === r.containerId && x.order > r.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
+      const next = rows.filter(x => x.containerId === r.containerId && x.order > r.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
       if (next) candidates.push(next.id);
     }
     if (candidates.length === 0) {
       const first = removedRows[0];
-      const prev = augmentedRows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
+      const prev = rows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
       if (prev) candidates.push(prev.id);
     }
     if (candidates.length === 0) {
@@ -98,19 +98,19 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       }
     }
     if (candidates.length > 0) setSelectedRowIds(new Set([candidates[0]]));
-  }, [augmentedRows, existingDays, scheduledRows, setSelectedRowIds]);
+  }, [rows, existingDays, scheduledRows, setSelectedRowIds]);
 
   const selectPrevAfterRemove = useCallback((removedIds: Set<string>) => {
-    const removedRows = Array.from(removedIds).map(id => augmentedRows.find(r => r.id === id)!).filter(Boolean);
+    const removedRows = Array.from(removedIds).map(id => rows.find(r => r.id === id)!).filter(Boolean);
     if (removedRows.length === 0) return;
     removedRows.sort((a, b) => {
       if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
     const first = removedRows[0];
-    const prev = augmentedRows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
+    const prev = rows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
     if (prev) { setSelectedRowIds(new Set([prev.id])); return; }
-    const next = augmentedRows.filter(x => x.containerId === first.containerId && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
+    const next = rows.filter(x => x.containerId === first.containerId && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
     if (next) { setSelectedRowIds(new Set([next.id])); return; }
     const startIdx = first.containerId !== null ? existingDays.indexOf(first.containerId) : -1;
     for (let i = startIdx - 1; i >= 0; i--) {
@@ -121,28 +121,22 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const rows = scheduledRows[existingDays[i]] || [];
       if (rows.length > 0) { setSelectedRowIds(new Set([rows[0].id])); return; }
     }
-  }, [augmentedRows, existingDays, scheduledRows, setSelectedRowIds]);
+  }, [rows, existingDays, scheduledRows, setSelectedRowIds]);
 
   const cutSelected = useCallback(() => {
     if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
     const ids = Array.from(selectedRowIds).filter(id => !activeVersion.rows.find(r => r.id === id)?.pinned);
     if (ids.length === 0) return;
     let newRows = activeVersion.rows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
-    for (const id of ids) {
-      if (id.startsWith('row-synth-') && !newRows.some(r => r.id === id)) {
-        const sceneId = id.replace('row-synth-', '');
-        newRows.push({ id, type: 'SCENE' as const, sceneId, containerId: -1 as number | null, order: newRows.length, estimatedDuration: 30 });
-      }
-    }
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     selectPrevAfterRemove(new Set(ids as string[]));
   }, [selectedRowIds, activeDragIds, textEditingEnabled, activeVersion, dispatch, selectPrevAfterRemove]);
 
   const pasteClipboard = useCallback((targetRowId: string) => {
     if (activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
-    const targetRow = augmentedRows.find(r => r.id === targetRowId);
+    const targetRow = rows.find(r => r.id === targetRowId);
 
-    const clipboardItems = augmentedRows
+    const clipboardItems = rows
       .filter(r => r.containerId === -1)
       .sort((a, b) => {
         if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
@@ -193,12 +187,12 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setSelectedRowIds(new Set(clipboardItems.map(r => r.id)));
     if (clipboardItems.length > 0) scrollToRow(clipboardItems[0].id);
-  }, [activeDragIds, textEditingEnabled, activeVersion, augmentedRows, dispatch, setSelectedRowIds, scrollToRow]);
+  }, [activeDragIds, textEditingEnabled, activeVersion, rows, dispatch, setSelectedRowIds, scrollToRow]);
 
   const handleContextMenuAction = useCallback((action: string) => {
     if (!contextMenu || !activeVersion) return;
     const { rowId, containerId } = contextMenu;
-    const rowIndex = augmentedRows.findIndex(r => r.id === rowId);
+    const rowIndex = rows.findIndex(r => r.id === rowId);
     const isDummy = rowId.startsWith('empty-');
 
     if (isDummy && (action === 'add_note' || action === 'add_break')) {
@@ -230,9 +224,9 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     }
 
     if (rowIndex === -1) return;
-    const row = augmentedRows[rowIndex];
+    const row = rows[rowIndex];
 
-    let newRows = augmentedRows.map(r => ({ ...r }));
+    let newRows = rows.map(r => ({ ...r }));
     let newRowIds: string[] = [];
     if (action === 'add_note') {
       const newId = generateUUID();
@@ -301,7 +295,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       selectNextAfterRemove(new Set([rowId] as string[]));
     }
     setContextMenu(null);
-  }, [contextMenu, activeVersion, augmentedRows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu]);
+  }, [contextMenu, activeVersion, rows, project, dispatch, setSelectedRowIds, setFocusedRowId, scrollToRow, setColorPicker, selectNextAfterRemove, setContextMenu]);
 
   const createOnContextMenu = useCallback((options?: {
     prependSelect?: () => void;

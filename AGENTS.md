@@ -219,6 +219,8 @@ Text color: white for INT NIGHT / EXT NIGHT, black for all others.
   ```
   Supports nesting — only the outermost commit pushes to undo history. `MERGE_ELEMENTS` is already atomic (single action, single undo entry).
 
+- **Scene→Row Invariant:** Every scene in `project.scenes` always has a corresponding `ScheduleRow` in every version's `rows` array. `NEW_VERSION` seeds rows for all scenes. `ADD_SCENE` / `RESTORE_SCENE` / `IMPORT_SCENES` push rows to all versions. `DELETE_SCENE` removes them. `LOAD` runs `ensureAllScenesHaveRows()` to fill missing rows on existing projects. There are no ghost/synthetic rows — `activeVersion.rows` is the single source of truth for all row lookups.
+
 #### Drag Ghost Rendering (DayBlock.tsx)
 - Ghost rows for `day-{day}` appear **before** the SortableContext (consolidated single location).
 - Ghost rows for `end-{day}` appear **after** the SortableContext, above the footer.

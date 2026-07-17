@@ -303,9 +303,32 @@ interface State {
   _batchBase?: Project;
 }
 
+function ensureAllScenesHaveRows(project: Project): Project {
+  return {
+    ...project,
+    versions: project.versions.map(v => {
+      const sceneIdsInRows = new Set(v.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
+      const missing = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
+      if (missing.length === 0) return v;
+      const maxBoneyardOrder = v.rows
+        .filter(r => r.containerId === null)
+        .reduce((max, r) => Math.max(max, r.order), 0);
+      const newRows = missing.map((s, i) => ({
+        id: generateUUID(),
+        type: 'SCENE' as const,
+        sceneId: s.id,
+        containerId: null as number | null,
+        order: maxBoneyardOrder + 1 + i,
+        estimatedDuration: 30,
+      }));
+      return { ...v, rows: [...v.rows, ...newRows] };
+    }),
+  };
+}
+
 function reducer(state: State, action: Action): State {
   if (action.type === 'LOAD') {
-    const p = action.payload;
+    let p = action.payload;
     if (p.ribbonDesigns) {
       p.ribbonDesigns = p.ribbonDesigns.map((d: any) => {
         if ((d.cellPaddingV === undefined && d.cellPaddingH === undefined) && d.cellPadding !== undefined) {
@@ -334,6 +357,7 @@ function reducer(state: State, action: Action): State {
       if (!p.colorPalette.dayFooterBg) p.colorPalette.dayFooterBg = '#ffffff';
       if (!p.colorPalette.dayFooterText) p.colorPalette.dayFooterText = '#000000';
     }
+    p = ensureAllScenesHaveRows(p);
     return {
       past: [],
       present: {
@@ -411,7 +435,23 @@ function reducer(state: State, action: Action): State {
     case 'ADD_SCENE':
       return applyChange({
         ...state.present,
-        scenes: [...state.present.scenes, action.payload]
+        scenes: [...state.present.scenes, action.payload],
+        versions: state.present.versions.map(v => {
+          const maxBoneyardOrder = v.rows
+            .filter(r => r.containerId === null)
+            .reduce((max, r) => Math.max(max, r.order), 0);
+          return {
+            ...v,
+            rows: [...v.rows, {
+              id: generateUUID(),
+              type: 'SCENE' as const,
+              sceneId: action.payload.id,
+              containerId: null as number | null,
+              order: maxBoneyardOrder + 1,
+              estimatedDuration: 30,
+            }],
+          };
+        }),
       });
 
     case 'UPDATE_SCENE': {
@@ -452,7 +492,25 @@ function reducer(state: State, action: Action): State {
       return applyChange({
         ...state.present,
         scenes: [...state.present.scenes, item.scene],
-        trash: state.present.trash.filter(t => t.scene.id !== action.payload)
+        trash: state.present.trash.filter(t => t.scene.id !== action.payload),
+        versions: state.present.versions.map(v => {
+          const alreadyHasRow = v.rows.some(r => r.sceneId === item.scene.id);
+          if (alreadyHasRow) return v;
+          const maxBoneyardOrder = v.rows
+            .filter(r => r.containerId === null)
+            .reduce((max, r) => Math.max(max, r.order), 0);
+          return {
+            ...v,
+            rows: [...v.rows, {
+              id: generateUUID(),
+              type: 'SCENE' as const,
+              sceneId: item.scene.id,
+              containerId: null as number | null,
+              order: maxBoneyardOrder + 1,
+              estimatedDuration: 30,
+            }],
+          };
+        }),
       });
     }
 
@@ -526,6 +584,14 @@ function reducer(state: State, action: Action): State {
           rows: parent.rows.map(r => ({ ...r, id: generateUUID() }))
         };
       } else {
+        const sceneRows = state.present.scenes.map((s, i) => ({
+          id: generateUUID(),
+          type: 'SCENE' as const,
+          sceneId: s.id,
+          containerId: null as number | null,
+          order: 1 + i,
+          estimatedDuration: 30,
+        }));
         newVersion = {
           id: newId,
           name: action.payload.name,
@@ -539,7 +605,7 @@ function reducer(state: State, action: Action): State {
             daybreakLabel: 'DAYBREAK',
             daybreakCallTime: '08:00',
             pinned: true,
-          }],
+          }, ...sceneRows],
           productionStart: new Date().toISOString().slice(0, 10),
         };
       }
@@ -599,7 +665,21 @@ function reducer(state: State, action: Action): State {
     case 'IMPORT_SCENES':
       return applyChange({
         ...state.present,
-        scenes: [...state.present.scenes, ...action.payload]
+        scenes: [...state.present.scenes, ...action.payload],
+        versions: state.present.versions.map(v => {
+          const maxBoneyardOrder = v.rows
+            .filter(r => r.containerId === null)
+            .reduce((max, r) => Math.max(max, r.order), 0);
+          const newRows = action.payload.map((s, i) => ({
+            id: generateUUID(),
+            type: 'SCENE' as const,
+            sceneId: s.id,
+            containerId: null as number | null,
+            order: maxBoneyardOrder + 1 + i,
+            estimatedDuration: 30,
+          }));
+          return { ...v, rows: [...v.rows, ...newRows] };
+        }),
       });
 
     case 'ADD_RULE':

@@ -8,7 +8,7 @@ import { IS_COARSE } from '../lib/device';
 export const StripboardContextMenuContent: React.FC<{
   contextMenu: { x: number; y: number; rowId: string; containerId: number | null };
   setContextMenu: (v: null) => void;
-  augmentedRows: ScheduleRow[];
+  rows: ScheduleRow[];
   selectedRowIds: Set<string>;
   inClipboard: number;
   cutSelected: () => void;
@@ -25,7 +25,7 @@ export const StripboardContextMenuContent: React.FC<{
 }> = ({
   contextMenu,
   setContextMenu,
-  augmentedRows,
+  rows,
   selectedRowIds,
   inClipboard,
   cutSelected,
@@ -40,7 +40,7 @@ export const StripboardContextMenuContent: React.FC<{
   extraItems,
   containerRef,
 }) => {
-  const row = augmentedRows.find(r => r.id === contextMenu.rowId);
+  const row = rows.find(r => r.id === contextMenu.rowId);
 
   return (
     <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} containerRef={containerRef}>
