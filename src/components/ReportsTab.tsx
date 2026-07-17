@@ -5,7 +5,7 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/c
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
 import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
-import MiniTab from './MiniTab';
+import PageToolbar from './PageToolbar';
 import { PopoutPlaceholder } from './PopoutWindow';
 
 function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): string {
@@ -52,7 +52,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <MiniTab
+      <PageToolbar
         theme="dark"
         tabs={[
           { id: 'doods', label: 'Day Out of Days' },

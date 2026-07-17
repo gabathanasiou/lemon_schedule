@@ -4,19 +4,21 @@ import { ExternalLink } from 'lucide-react';
 import { IS_COARSE } from '../lib/device';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 
-interface MiniTabItem {
+export interface ToolbarTab {
   id: string;
   label: string;
 }
 
-interface MiniTabProps {
-  tabs: MiniTabItem[];
-  activeTab: string;
-  onChange: (id: string) => void;
-  rightContent?: React.ReactNode;
-  theme?: 'light' | 'dark';
+interface PageToolbarProps {
+  tabs?: ToolbarTab[];
+  activeTab?: string;
+  onChange?: (id: string) => void;
   onPopout?: (tabId: string) => void;
   shiftHeld?: boolean;
+  children?: React.ReactNode;
+  rightContent?: React.ReactNode;
+  justify?: 'between' | 'end' | 'start';
+  theme?: 'light' | 'dark';
 }
 
 const THEME = {
@@ -30,7 +32,13 @@ const THEME = {
   },
 } as const;
 
-export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme = 'light', onPopout, shiftHeld = false }: MiniTabProps) {
+const JUSTIFY = {
+  between: 'justify-between',
+  end: 'justify-end',
+  start: 'justify-start',
+} as const;
+
+export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shiftHeld = false, children, rightContent, justify = 'between', theme = 'light' }: PageToolbarProps) {
   const t = THEME[theme];
   const isCloud = useIsCloudProject();
   const activeBg = theme === 'light' && isCloud ? 'bg-blue-950' : 'bg-zinc-950';
@@ -62,33 +70,36 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
 
   return (
     <div ref={scrollRef} onScroll={checkScroll} className={`overflow-x-auto border-b shrink-0 ${t.bar} [&::-webkit-scrollbar]:hidden`} style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
-      <div className="flex items-center justify-between gap-2 shrink-0 w-fit min-w-full px-3 pt-2 pb-2">
-        <div className="flex items-center gap-1 shrink-0">
-        {tabs.map(tab => {
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (shiftHeld && !IS_COARSE && onPopout) {
-                  onPopout(tab.id);
-                } else {
-                  onChange(tab.id);
-                }
-              }}
-              onContextMenu={onPopout && !IS_COARSE ? (e: React.MouseEvent) => {
-                e.preventDefault();
-                setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
-              } : undefined}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors shrink-0 whitespace-nowrap ${
-                active ? `${activeBg} ${activeText}` : inactiveHover
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-        </div>
+      <div className={`flex items-center ${JUSTIFY[justify]} gap-2 shrink-0 w-fit min-w-full px-3 pt-2 pb-2`}>
+        {tabs && tabs.length > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
+          {tabs.map(tab => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (shiftHeld && !IS_COARSE && onPopout) {
+                    onPopout(tab.id);
+                  } else {
+                    onChange?.(tab.id);
+                  }
+                }}
+                onContextMenu={onPopout && !IS_COARSE ? (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
+                } : undefined}
+                className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors shrink-0 whitespace-nowrap ${
+                  active ? `${activeBg} ${activeText}` : inactiveHover
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+          </div>
+        )}
+        {children && <div className="flex items-center gap-2 shrink-0">{children}</div>}
         {rightContent && <div className="flex items-center gap-2 shrink-0">{rightContent}</div>}
       </div>
       {contextMenu && onPopout && (

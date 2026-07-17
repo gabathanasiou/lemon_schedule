@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import MiniTab from './MiniTab';
+import PageToolbar from './PageToolbar';
 import RibbonTab from './RibbonTab';
 import { ColorsTab } from './ColorsTab';
 import { PopoutPlaceholder } from './PopoutWindow';
@@ -22,7 +22,7 @@ export default function DesignTab({ subTab, onSubTabChange, poppedOutSubTabs, on
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <MiniTab
+      <PageToolbar
         theme="dark"
         tabs={[
           { id: 'ribbons', label: 'Ribbon Designer' },

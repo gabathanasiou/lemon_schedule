@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
-import MiniTab from './MiniTab';
+import PageToolbar from './PageToolbar';
 import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
 
@@ -36,7 +36,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
-      <MiniTab
+      <PageToolbar
         tabs={[
           { id: 'sheet', label: 'Sheet' },
           { id: 'elements', label: 'Element Manager' },

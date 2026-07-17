@@ -26,23 +26,24 @@ In `App.tsx`, the main header (`bg-zinc-950`) contains tabs: Breakdown, Schedule
 **Inactive tab**: `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded px-3 py-1.5 text-xs font-semibold` (cloud: `hover:bg-blue-900/60`)
 **Compact mode** (`< 900px`): tabs collapse into a dropdown button. **Shift+click**: pops out. **Right-click**: context menu.
 
-### MiniTab Component (`src/components/MiniTab.tsx`)
-A reusable sub-tab bar used in Breakdown, Design, and Reports tabs.
+### PageToolbar Component (`src/components/PageToolbar.tsx`)
+A reusable page toolbar with optional sub-tabs. Used by all pages for their top toolbar bar. Supports horizontal scroll with fade indicators when content overflows.
 
 | Prop | Type | Description |
 |---|---|---|
-| `tabs` | `{ id, label }[]` | Tab items |
-| `activeTab` | `string` | Currently active tab id |
-| `onChange` | `(id: string) => void` | Tab switch handler |
-| `rightContent` | `ReactNode` | Controls rendered on the right side of the bar |
+| `tabs` | `{ id, label }[]` (optional) | Tab items. Omit for pages without sub-tabs. |
+| `activeTab` | `string` (optional) | Currently active tab id |
+| `onChange` | `(id: string) => void` (optional) | Tab switch handler |
+| `children` | `ReactNode` (optional) | Content rendered between tabs and rightContent |
+| `rightContent` | `ReactNode` (optional) | Controls rendered on the right side of the bar |
+| `justify` | `'between' \| 'end' \| 'start'` | Flex justification. Default `'between'` |
 | `theme` | `'light' \| 'dark'` | `light` (default): white bar with `bg-zinc-950` active tab. `dark`: `bg-zinc-900` bar |
 | `onPopout` | `(tabId: string) => void` | Pop-out handler (fires from right-click or Shift+click) |
 | `shiftHeld` | `boolean` | Whether Shift key is currently held |
 
 **Active tab**: `bg-zinc-950 text-white rounded px-3 py-1.5` (cloud projects: `bg-blue-950 text-blue-50`). Dark theme uses same active bg.
 **Inactive tab**: `text-zinc-500 hover:text-zinc-900` (dark: `text-zinc-500 hover:text-zinc-300`).
-**Bar**: `px-3 pt-2 pb-2 border-b shrink-0` with theme-dependent bg/border.
-**Truncation**: tab buttons use `truncate max-w-[160px]` — labels overflow with ellipsis.
+**Scroll**: Tab buttons use `shrink-0 whitespace-nowrap`. When content overflows, the entire toolbar scrolls horizontally with hidden scrollbar and fade indicators at the edges (12px gradient mask).
 **Right-click**: shows context menu "Open in New Window" (gated behind `!IS_COARSE`).
 **Shift+click**: pops out the clicked sub-tab.
 
@@ -50,18 +51,20 @@ A reusable sub-tab bar used in Breakdown, Design, and Reports tabs.
 - `BreakdownTab` — `theme="light"`, tabs: Sheet / Element Manager / Glide Breakdown
 - `DesignTab` — `theme="dark"`, tabs: Ribbon Designer / Colors
 - `ReportsTab` — `theme="dark"`, tabs: Day Out of Days / Element Breakdown
+- `ScheduleTab` — `theme="light" justify="end"`, no tabs, toolbar controls as children
+- `CalendarTab` — two instances: `theme="light" justify="between"` (month nav + right controls) and `theme="light" justify="start"` (tool selector)
 
-### MiniTab Header Portal Pattern
+### PageToolbar Header Portal Pattern
 
-When a child component needs toolbar controls inside the MiniTab's `rightContent`, use the portal pattern:
+When a child component needs toolbar controls inside the PageToolbar's `rightContent`, use the portal pattern:
 
 1. **Parent** provides a `<div ref={el => portalRef.current = el}>` in `rightContent`
 2. **Child** accepts `headerTarget?: HTMLElement | null`, renders via `createPortal(headerContent, headerTarget)` — falls back to inline rendering when `headerTarget` is null
 
 Components using this: `ElementManager`, `SceneSheet`, `GlideBreakdownTab`, `ColorsTab`, `RibbonTab`.
 
-### Cloud Project Coloring (MiniTab & Portaled Controls)
-When the active project is a Google Drive cloud project, the app header switches to `bg-blue-950`. All `theme="light"` MiniTab elements must follow: active tab `bg-blue-950`, buttons `bg-blue-950 hover:bg-blue-900`. Import `useIsCloudProject` from `'../store'` and derive classes conditionally. `theme="dark"` MiniTabs unaffected.
+### Cloud Project Coloring (PageToolbar & Portaled Controls)
+When the active project is a Google Drive cloud project, the app header switches to `bg-blue-950`. All `theme="light"` PageToolbar elements must follow: active tab `bg-blue-950`, buttons `bg-blue-950 hover:bg-blue-900`. Import `useIsCloudProject` from `'../store'` and derive classes conditionally. `theme="dark"` PageToolbars unaffected.
 
 ## UI Component Library (`src/components/`)
 
@@ -205,7 +208,7 @@ Text color: white for INT NIGHT / EXT NIGHT, black for all others.
 
 ### Store (`src/store.tsx`)
 - `useProject()` hook returns `{ state, dispatch, currentProjectId, projectList, readOnly, initialized, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
-- `useIsCloudProject()` hook returns `boolean` — true when the current project has a `driveFileId` (Google Drive/cloud). Used by MiniTab and portaled header controls to switch from `bg-zinc-950` / `bg-zinc-900` to `bg-blue-950` / `bg-blue-900` or to `bg-blue-900` (matching the blue app header).
+- `useIsCloudProject()` hook returns `boolean` — true when the current project has a `driveFileId` (Google Drive/cloud). Used by PageToolbar and portaled header controls to switch from `bg-zinc-950` / `bg-zinc-900` to `bg-blue-950` / `bg-blue-900` or to `bg-blue-900` (matching the blue app header).
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
 - Actions: `UPDATE_PROJECT`, `NEW_VERSION`, `DELETE_VERSION`, `RENAME_VERSION`, `SET_ACTIVE_VERSION`, `ADD_SCENE`, `UPDATE_SCENE`, `DELETE_SCENE`, `UNDO`, `REDO`, etc.
 - **Batching:** For bulk operations that dispatch many actions (import, paste), wrap in `BATCH_START` / `BATCH_COMMIT` to make the entire operation one undoable unit:
@@ -310,7 +313,7 @@ This rule applies to `SortableRibbon.tsx:updateScene` (the auto-register check),
 
 ## Glide Breakdown Tab (`src/components/BreakdownTabGlide.tsx`)
 
-Canvas-based spreadsheet using `@glideapps/glide-data-grid` v6.0.4-alpha24. Renders as the "Glide Breakdown" MiniTab under the Breakdown tab.
+Canvas-based spreadsheet using `@glideapps/glide-data-grid` v6.0.4-alpha24. Renders as the "Glide Breakdown" sub-tab under the Breakdown tab.
 
 ### Column Indexing & `rowMarkerOffset`
 
@@ -440,7 +443,7 @@ Multi-window support allowing tabs and sub-tabs to be opened in separate browser
 4. Pass the pop-out handler to child components that need cross-tab navigation (`onOpenSceneInPopout`, etc.)
 5. Add the tab to the compact dropdown with `rightAction` for "Open in New Window"
 
-### Sub-tab (MiniTab) Pop-outs
+### Sub-tab (PageToolbar) Pop-outs
 
 **State** (in `App.tsx`):
 - `poppedOutSubTabs: Record<string, Set<string>>` — keyed by parent ID (`breakdown`, `design`, `reports`)
@@ -448,15 +451,15 @@ Multi-window support allowing tabs and sub-tabs to be opened in separate browser
 - `toggleSubPopout(parentId, subTabId)` — opens/closes sub-tab popup. If popping out the active sub-tab, auto-switches to next available
 - `closeSubPopout(parentId, subTabId)` — cleanup
 
-**Rendering**: 7 `<PopoutWindow>` components (3 Breakdown + 2 Design + 2 Reports), rendered at App level. Each contains `<VersionToolbar>` + `<MiniTab>` (decorative, single tab) + the sub-component.
+**Rendering**: 7 `<PopoutWindow>` components (3 Breakdown + 2 Design + 2 Reports), rendered at App level. Each contains `<VersionToolbar>` + `<PageToolbar>` (decorative, single tab) + the sub-component.
 
 **State is lifted to App.tsx** — sub-tab popups survive tab switches. Closing a popped-out parent tab closes all its sub-tab popups.
 
 **How to add a new sub-tab with pop-out:**
-1. Add the sub-tab to the parent component's `MiniTab` tabs array
-2. Add a `<PopoutWindow>` in App.tsx under `SUB-TAB POPOUT WINDOWS` rendering the sub-component with `<VersionToolbar>` and `<MiniTab>`
+1. Add the sub-tab to the parent component's `PageToolbar` tabs array
+2. Add a `<PopoutWindow>` in App.tsx under `SUB-TAB POPOUT WINDOWS` rendering the sub-component with `<VersionToolbar>` and `<PageToolbar>`
 3. Add the sub-tab ID to the parent's `toggleSubPopout` auto-switch logic
-4. The `<MiniTab>` in the popup is decorative (single tab, `onChange={() => {}}`)
+4. The `<PageToolbar>` in the popup is decorative (single tab, `onChange={() => {}}`)
 
 ### Shift+Click and Right-click Behavior
 

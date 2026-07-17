@@ -19,7 +19,7 @@ import ElementBreakdownView from './components/ElementBreakdownView';
 import { SceneSheet } from './components/SceneSheet';
 import { ElementManager } from './components/ElementManager';
 import { GlideBreakdownTab } from './components/BreakdownTabGlide';
-import MiniTab from './components/MiniTab';
+import PageToolbar from './components/PageToolbar';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from './lib/categories';
 import { getElementsFromScenes } from './store';
 import { ProjectManager } from './components/ProjectManager';
@@ -884,7 +884,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'sheet')} />
-            <MiniTab
+            <PageToolbar
               tabs={[{ id: 'sheet', label: 'Sheet' }]}
               activeTab="sheet"
               onChange={() => {}}
@@ -900,7 +900,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'elements')} />
-            <MiniTab
+            <PageToolbar
               tabs={[{ id: 'elements', label: 'Element Manager' }]}
               activeTab="elements"
               onChange={() => {}}
@@ -916,7 +916,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'glide')} />
-            <MiniTab
+            <PageToolbar
               tabs={[{ id: 'glide', label: 'Glide Breakdown' }]}
               activeTab="glide"
               onChange={() => {}}
@@ -932,7 +932,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closeSubPopout('design', 'ribbons')} />
-            <MiniTab
+            <PageToolbar
               theme="dark"
               tabs={[{ id: 'ribbons', label: 'Ribbon Designer' }]}
               activeTab="ribbons"
@@ -949,7 +949,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closeSubPopout('design', 'colors')} />
-            <MiniTab
+            <PageToolbar
               theme="dark"
               tabs={[{ id: 'colors', label: 'Colors' }]}
               activeTab="colors"
@@ -966,7 +966,7 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closeSubPopout('reports', 'doods')} />
-            <MiniTab
+            <PageToolbar
               theme="dark"
               tabs={[{ id: 'doods', label: 'Day Out of Days' }]}
               activeTab="doods"
@@ -1032,16 +1032,21 @@ function AppContent() {
         <PopoutWindow title={`${project.title || 'Untitled'} — Element Breakdown`} win={popoutSubWindowsRef.current.get('sub_reports_elementBreakdown')!} onClose={() => closeSubPopout('reports', 'elementBreakdown')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Breakdown" onClose={() => closeSubPopout('reports', 'elementBreakdown')} />
-            <div className="flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-900 border-zinc-800">
-              <span className="px-3 py-1.5 text-xs font-semibold rounded-b-md text-white bg-zinc-950">Element Breakdown</span>
-              <div className="flex items-center gap-2">
-                <button onClick={() => { setPrintDialogCategory(reportsCategory); setShowElementBreakdownDialog(true); }} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
-                  <Printer className="w-3.5 h-3.5" />
-                  Print
-                </button>
-                <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="flex items-center gap-2" />
-              </div>
-            </div>
+            <PageToolbar
+              theme="dark"
+              tabs={[{ id: 'elementBreakdown', label: 'Element Breakdown' }]}
+              activeTab="elementBreakdown"
+              onChange={() => {}}
+              rightContent={
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setPrintDialogCategory(reportsCategory); setShowElementBreakdownDialog(true); }} className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors">
+                    <Printer className="w-3.5 h-3.5" />
+                    Print
+                  </button>
+                  <div ref={el => { if (el && subHeaderTargets['sub_reports_elementBreakdown'] !== el) setSubHeaderTargets(prev => ({ ...prev, sub_reports_elementBreakdown: el })); }} className="flex items-center gap-2" />
+                </div>
+              }
+            />
             <div className="flex-1 min-h-0 flex">
               {reportSidebarCollapsed['elementBreakdown'] ? (
                 <div className="w-9 shrink-0 bg-zinc-900 border-r border-zinc-800 flex flex-col items-center pt-3">

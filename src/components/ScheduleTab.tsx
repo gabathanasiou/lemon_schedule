@@ -31,6 +31,7 @@ import { checkSection } from '../lib/rulesEngine';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import PageToolbar from './PageToolbar';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
@@ -1610,8 +1611,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-end px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
-        <div className="flex items-center gap-2">
+      <PageToolbar theme="light" justify="end">
             {selectionSummary && (
               <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
@@ -1744,8 +1744,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 Print
               </button>
             )}
-          </div>
-        </div>
+      </PageToolbar>
       <style>{`
         .schedule-table {
           width: 100%;
