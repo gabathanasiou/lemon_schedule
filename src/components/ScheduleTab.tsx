@@ -31,6 +31,7 @@ import { checkSection } from '../lib/rulesEngine';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import { getContainerBlock, getContainerBlockForId, makeEmptyContainerIds, ContainerIds, LastSelectedByContainer } from '../lib/containers';
 import PageToolbar from './PageToolbar';
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
@@ -168,9 +169,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       e.stopPropagation();
       const clickedRow = activeVersion.rows.find(r => r.id === id);
       const anchorRow = activeVersion.rows.find(r => r.id === lastClickedId);
-      const isBoneyard = (clickedRow && (clickedRow.containerId === null || clickedRow.containerId === -1)) ||
-        (anchorRow && (anchorRow.containerId === null || anchorRow.containerId === -1));
-      const allIds = isBoneyard ? boneyardFlatRef.current : flatRowIdsRef.current;
+      const isBoneyard = (clickedRow && getContainerBlock(clickedRow) !== 'stripboard') ||
+        (anchorRow && getContainerBlock(anchorRow) !== 'stripboard');
+      const allIds = isBoneyard ? containerIdsRef.current.boneyard as string[] : flatRowIdsRef.current;
       const idxA = allIds.indexOf(lastClickedId);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) {
@@ -205,7 +206,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     if (candidates.length === 0) {
       const firstRemoved = removedRows[0];
       const dayOrder = existingDays;
-      const startIdx = firstRemoved.containerId !== null ? dayOrder.indexOf(firstRemoved.containerId) : -1;
+      const startIdx = getContainerBlock(firstRemoved) !== 'boneyard' ? dayOrder.indexOf(firstRemoved.containerId as number) : -1;
       // Try next days first
       for (let i = startIdx + 1; i < dayOrder.length; i++) {
         const rows = scheduledRows[dayOrder[i]] || [];
@@ -235,7 +236,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     const next = activeVersion.rows.filter(x => x.containerId === first.containerId && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
     if (next) { setSelectedRowIds(new Set([next.id])); return; }
     const dayOrder = existingDays;
-    const startIdx = first.containerId !== null ? dayOrder.indexOf(first.containerId) : -1;
+    const startIdx = getContainerBlock(first) !== 'boneyard' ? dayOrder.indexOf(first.containerId as number) : -1;
     for (let i = startIdx - 1; i >= 0; i--) {
       const rows = scheduledRows[dayOrder[i]] || [];
       if (rows.length > 0) { setSelectedRowIds(new Set([rows[rows.length - 1].id])); return; }
@@ -330,13 +331,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if (!activeVersion) return;
         e.preventDefault();
         const isBoneyard = selectedRowIds.size > 0
-          ? Array.from(selectedRowIds).some(id => boneyardFlatRef.current.includes(id))
-          : boneyardLastIdRef.current !== null;
-        const ids = isBoneyard ? boneyardFlatRef.current : flatRowIdsRef.current.filter(id => {
-          if (id.startsWith('empty-')) return false;
-          const r = activeVersion.rows.find(rr => rr.id === id);
-          return !r?.pinned;
-        });
+          ? Array.from(selectedRowIds).some(id => containerIdsRef.current.boneyard.includes(id))
+          : lastSelectedRef.current.boneyard !== null;
+        const ids = isBoneyard ? containerIdsRef.current.boneyard : containerIdsRef.current.stripboard;
         if (ids.length > 0) {
           setSelectedRowIds(new Set(ids));
           setLastClickedId(ids[0]);
@@ -355,7 +352,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           return !r?.pinned;
         });
         if (ids.length === 0) return;
-        const allInBoneyard = ids.every(id => boneyardFlatRef.current.includes(id));
+        const allInBoneyard = ids.every(id => containerIdsRef.current.boneyard.includes(id));
         if (allInBoneyard && ids.some(id => {
           const r = mutableRows.find(rr => rr.id === id);
           return r && r.type !== 'DAYBREAK';
@@ -433,9 +430,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         const isDown = e.key === 'ArrowDown';
         const currentIds = Array.from(selectedRowIds);
         const isBoneyard = currentIds.length > 0
-          ? currentIds.some(id => boneyardFlatRef.current.includes(id))
-          : boneyardLastIdRef.current !== null;
-        const flat = isBoneyard ? boneyardFlatRef.current : flatRowIdsRef.current;
+          ? currentIds.some(id => containerIdsRef.current.boneyard.includes(id))
+          : lastSelectedRef.current.boneyard !== null;
+        const flat = isBoneyard ? containerIdsRef.current.boneyard as string[] : flatRowIdsRef.current;
         if (flat.length === 0) return;
           if (isShift) {
           const shiftFlat = isBoneyard ? flat : flat.filter(id => !id.startsWith('empty-'));
@@ -479,14 +476,14 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           scrollToRow(shiftFlat[scrollTarget]);
         } else {
           if (currentIds.length === 0) {
-            if (boneyardLastIdRef.current !== null && boneyardFlatRef.current.length > 0) {
-              const firstBoneyard = boneyardFlatRef.current[0];
+            if (lastSelectedRef.current.boneyard !== null && containerIdsRef.current.boneyard.length > 0) {
+              const firstBoneyard = containerIdsRef.current.boneyard[0];
               setSelectedRowIds(new Set([firstBoneyard]));
               setLastClickedId(firstBoneyard);
               scrollToRow(firstBoneyard);
               return;
             }
-            const firstReal = flatRowIdsRef.current.find(id => !id.startsWith('empty-'));
+            const firstReal = containerIdsRef.current.stripboard[0];
             if (!firstReal) return;
             setSelectedRowIds(new Set([firstReal]));
             setLastClickedId(firstReal);
@@ -532,10 +529,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   useEffect(() => {
     for (const id of selectedRowIds) {
       const row = activeVersion.rows.find(r => r.id === id);
-      if (row && (row.containerId === null || row.containerId === -1)) {
-        boneyardLastIdRef.current = id;
-      } else if (row && row.containerId !== null && row.containerId !== -1) {
-        stripboardLastIdRef.current = id;
+      if (row) {
+        const block = getContainerBlock(row);
+        lastSelectedRef.current[block] = id;
       }
     }
   }, [selectedRowIds, activeVersion]);
@@ -548,16 +544,16 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       if (!activeVersion) return;
       if (sidebarCollapsedRef.current) return;
       e.preventDefault();
-      const hasBoneyard = Array.from(selectedRowIds).some(id => boneyardFlatRef.current.includes(id));
-      if (hasBoneyard) {
-        const id = stripboardLastIdRef.current || flatRowIdsRef.current.find(i => !i.startsWith('empty-')) || null;
+      const inBoneyard = Array.from(selectedRowIds).some(id => containerIdsRef.current.boneyard.includes(id));
+      if (inBoneyard) {
+        const id = lastSelectedRef.current.stripboard || containerIdsRef.current.stripboard[0] || null;
         if (id) {
           setSelectedRowIds(new Set([id]));
           setLastClickedId(id);
           scrollToRow(id);
         }
       } else {
-        const id = boneyardLastIdRef.current || boneyardFlatRef.current[0] || null;
+        const id = lastSelectedRef.current.boneyard || containerIdsRef.current.boneyard[0] || null;
         if (id) {
           setSelectedRowIds(new Set([id]));
           setLastClickedId(id);
@@ -573,10 +569,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     sidebarCollapsedRef.current = collapsed;
     if (collapsed) {
       setSelectedRowIds(prev => {
-        const stripboardOnly = new Set(Array.from(prev).filter(id => {
-          const row = activeVersion.rows.find(r => r.id === id);
-          return row && row.containerId !== null && row.containerId !== -1;
-        }));
+        const stripboardOnly = new Set(Array.from(prev).filter(id => !containerIdsRef.current.boneyard.includes(id)));
         return stripboardOnly.size > 0 ? stripboardOnly : new Set();
       });
     }
@@ -1322,10 +1315,17 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     if (!dayRows || dayRows.length === 0) return [`empty-${dayInt}`];
     return [`empty-${dayInt}`, ...dayRows.map(r => r.id)];
   });
-  const boneyardFlatRef = useRef<string[]>([]);
-  boneyardFlatRef.current = boneyardRows.map(r => r.id);
-  const stripboardLastIdRef = useRef<string | null>(null);
-  const boneyardLastIdRef = useRef<string | null>(null);
+  const containerIdsRef = useRef<ContainerIds>(makeEmptyContainerIds());
+  containerIdsRef.current = {
+    boneyard: boneyardRows.map(r => r.id),
+    stripboard: flatRowIdsRef.current.filter(id => {
+      if (id.startsWith('empty-')) return false;
+      const r = activeVersion?.rows.find(rr => rr.id === id);
+      return !r?.pinned;
+    }),
+    clipboard: activeVersion?.rows.filter(r => r.containerId === -1).map(r => r.id) || [],
+  };
+  const lastSelectedRef = useRef<LastSelectedByContainer>({ boneyard: null, stripboard: null, clipboard: null });
   const sidebarCollapsedRef = useRef(false);
 
   const [digitBuffer, setDigitBuffer] = useState('');
@@ -1380,7 +1380,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }
     const scheduledIds = new Set(data.rowIds);
     const remainingBoneyard = data.rows
-      .filter(r => r.containerId === null && !scheduledIds.has(r.id))
+      .filter(r => getContainerBlock(r) === 'boneyard' && !scheduledIds.has(r.id))
       .sort((a, b) => a.order - b.order);
     if (remainingBoneyard.length > 0) {
       const lastScheduled = data.rows
@@ -1409,7 +1409,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         return;
       }
       if (!/^[0-9]$/.test(e.key)) return;
-      const boneyardSelected = activeVersion.rows.filter(r => selectedRowIds.has(r.id) && (r.containerId === null || r.containerId === -1));
+      const boneyardSelected = activeVersion.rows.filter(r => selectedRowIds.has(r.id) && getContainerBlock(r) !== 'stripboard');
       if (boneyardSelected.length === 0) return;
       if (daybreakOrderRef.current.filter(d => !d.pinned).length === 0) return;
       e.preventDefault();
@@ -1956,7 +1956,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           if (selectedRowIds.size > 1) {
             const allInBoneyard = Array.from(selectedRowIds).every(id => {
               const r = activeVersion.rows.find(rr => rr.id === id);
-              return r && r.containerId == null;
+              return r && getContainerBlock(r) === 'boneyard';
             });
             return (
               <>
@@ -2001,14 +2001,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               {!isDummy && (
                 <>
               <ContextMenuItem onClick={() => {
-                const isBoneyard = row?.containerId == null;
-                const ids = isBoneyard
-                  ? boneyardFlatRef.current
-                  : flatRowIdsRef.current.filter(id => {
-                      if (id.startsWith('empty-')) return false;
-                      const r = activeVersion.rows.find(rr => rr.id === id);
-                      return !r?.pinned;
-                    });
+                const isBoneyard = row ? getContainerBlock(row) === 'boneyard' : false;
+                const ids = isBoneyard ? containerIdsRef.current.boneyard : containerIdsRef.current.stripboard;
                 if (ids.length > 0) {
                   setSelectedRowIds(new Set(ids));
                   setLastClickedId(ids[0]);
@@ -2044,7 +2038,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   ) : (
                     <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
                   )}
-              {row?.containerId != null && (
+              {row && getContainerBlock(row) === 'stripboard' && (
                 <>
                   <ContextMenuDivider />
                   <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
@@ -2067,7 +2061,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                     <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_daybreak')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Daybreak</ContextMenuItem>
                   )}
                   <ContextMenuDivider />
-                  {row?.containerId != null && (
+              {row && getContainerBlock(row) === 'stripboard' && (
                     <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
                   )}
                   <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>

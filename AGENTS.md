@@ -564,4 +564,34 @@ The **daybreak above** a section is the source of truth for that section's base 
 | **`computedCallTime`** | For each SCENE/BREAK/NOTE row: `sectionBaseTime + accumulated section elapsed` |
 | **`nextDaybreakMap`** | Maps each daybreak row ID to its **own** `daybreakCallTime` — displayed in the "START OF DAY N" header. Editing this input updates the daybreak row's own `daybreakCallTime`, which governs the section below it. |
 | **Calendar section swap** | When swapping day sections in the Calendar view, the `daybreakCallTime` values of the daybreaks **above** each section are exchanged (`blocks[N-1].daybreakRow.daybreakCallTime`), so call times travel with the content. The pinned daybreak participates in swaps involving section 1. |
+
+### Container Model (`src/lib/containers.ts`)
+
+The schedule has exactly three **container blocks**, identified by `containerId` on each `ScheduleRow`:
+
+| Container | `containerId` | `ContainerBlock` | Purpose |
+|---|---|---|---|
+| Boneyard | `null` | `'boneyard'` | Unscheduled scenes sidebar |
+| Stripboard | `1` (always) | `'stripboard'` | The single schedule container |
+| Clipboard | `-1` | `'clipboard'` | Temporary cut buffer (invisible, pasted elsewhere) |
+
+**Key rules:**
+- **Never add more stripboard containers.** The stripboard is `containerId: 1` — no `containerId: 2, 3, ...` day blocks. Sections within the stripboard are managed via DAYBREAK rows, not separate containerIds.
+- **Navigation is container-based.** Tab, Arrow keys, Cmd+A, Shift+click, and Select All all scope to the user's current container and respect each container's independent last-selected cursor.
+
+**API (`src/lib/containers.ts`):**
+- `getContainerBlock(row)` — returns `ContainerBlock` for any row. **Use this instead of raw `containerId` checks.**
+- `getContainerBlockForId(id, rows)` — lookup by row ID.
+- `isInBoneyard(id, rows)` — convenience check.
+
+**Refs in `ScheduleTab.tsx`:**
+- `containerIdsRef` — `Record<ContainerBlock, string[]>` with pre-filtered per-container ID lists. The `stripboard` list **already excludes `empty-` placeholders and pinned rows** — consumers don't need their own filters.
+- `lastSelectedRef` — `Record<ContainerBlock, string | null>` tracking each container's independent last-selected cursor. Updated in the `selectedRowIds` effect.
+
+**Adding a 4th container:**
+1. Add the `containerId` value
+2. Add a case to `getContainerBlock()` in `src/lib/containers.ts`
+3. Add an entry to `ContainerIds` type and `makeEmptyContainerIds()`
+4. Add entries to `containerIdsRef` and `lastSelectedRef` in `ScheduleTab.tsx`
+
 |
