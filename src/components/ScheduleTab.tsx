@@ -9,12 +9,14 @@ import { SortableRibbon } from './SortableRibbon';
 import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, ArrowUpDown, Flag, Send } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, Flag, Send } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import SortDropdown, { SortCriterion, compareByCustomOrder } from './SortDropdown';
+import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
 import HelpModal from './HelpModal';
 import { FloatingTooltip } from './FloatingTooltip';
 import Modal from './Modal';
@@ -24,7 +26,7 @@ import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 import { useDialog } from './Dialog';
-import { ELEMENT_CATEGORIES } from '../lib/categories';
+import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import { checkSection } from '../lib/rulesEngine';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
@@ -57,16 +59,33 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [showHelp, setShowHelp] = useState(false);
   const [autoDaybreakOpen, setAutoDaybreakOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [customSortOrders, setCustomSortOrders] = useState<Record<string, string[]>>({});
+  const customSortOrdersRef = useRef(customSortOrders);
+  customSortOrdersRef.current = customSortOrders;
+  const { customOrderModal, openCustomOrderModal, closeCustomOrderModal } = useCustomOrderSort();
   const dialog = useDialog();
   const [showShootViolations, setShowShootViolations] = useState(false);
 
   const sortCategories = useMemo(() => {
-    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
+    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label, icon: CAT_ICONS[c.key] ? React.createElement(CAT_ICONS[c.key], { className: 'w-3.5 h-3.5' }) : undefined }));
     for (const cc of project.customCategories) {
-      cats.push({ key: cc.key, label: cc.label });
+      const Icon = getCustomIcon(cc.icon || 'Tag');
+      cats.push({ key: cc.key, label: cc.label, icon: React.createElement(Icon, { className: 'w-3.5 h-3.5' }) });
     }
     return cats;
   }, [project.customCategories]);
+
+  const intExtSortLabel = useMemo(() => {
+    const opts = project.colorPalette?.intExtOptions;
+    return opts?.length ? opts.slice(0, 2).join(' / ') : undefined;
+  }, [project.colorPalette?.intExtOptions]);
+
+  const dayNightSortLabel = useMemo(() => {
+    const opts = project.colorPalette?.dayNightOptions;
+    return opts?.length ? opts.slice(0, 2).join(' / ') : undefined;
+  }, [project.colorPalette?.dayNightOptions]);
 
   const marqueeMode = useMarqueeMode();
 
@@ -1134,7 +1153,33 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     dispatch({ type: 'BATCH_COMMIT' });
   };
 
-  const handleSort = async (criterion: string) => {
+  const handleCustomSort = (criterion: string) => {
+    const isIntExt = criterion === 'int_ext';
+    const options = isIntExt
+      ? (project.colorPalette?.intExtOptions || ['INT', 'EXT', 'INT/EXT'])
+      : (project.colorPalette?.dayNightOptions || ['DAY', 'NIGHT', 'MORNING', 'EVENING']);
+    const title = options.slice(0, 2).join(' / ');
+    openCustomOrderModal(criterion, title, options);
+  };
+
+  const handleCustomOrderSort = (criterion: string, order: string[]) => {
+    setSortBy(criterion);
+    setSortDir('asc');
+    const next = { ...customSortOrders, [criterion]: order };
+    setCustomSortOrders(next);
+    customSortOrdersRef.current = next;
+    handleSort(criterion, 'asc');
+  };
+
+  const getCustomOrderCmp = (criterion: string) => {
+    const order = customSortOrdersRef.current[criterion];
+    if (!order) return null;
+    if (criterion === 'int_ext') return compareByCustomOrder(order, s => s.intExt);
+    if (criterion === 'day_night') return compareByCustomOrder(order, s => s.dayNight);
+    return null;
+  };
+
+  const handleSort = useCallback(async (criterion: string, direction: 'asc' | 'desc') => {
     if (!activeVersion) return;
 
     const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned);
@@ -1162,6 +1207,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       days.get(d)!.push(row);
     }
 
+    const sign = direction === 'desc' ? -1 : 1;
+
     for (const [day, dayRows] of days) {
       const sceneRows = dayRows.filter(r => r.type === 'SCENE');
       const nonSceneRows = dayRows.filter(r => r.type !== 'SCENE');
@@ -1173,24 +1220,34 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if (criterion === 'scene_number') {
           const numA = sceneA ? parseInt(sceneA.sceneNumber, 10) || 0 : 0;
           const numB = sceneB ? parseInt(sceneB.sceneNumber, 10) || 0 : 0;
-          if (numA !== numB) return numA - numB;
-          return (sceneA?.sceneNumber || '').localeCompare(sceneB?.sceneNumber || '');
+          if (numA !== numB) return (numA - numB) * sign;
+          return (sceneA?.sceneNumber || '').localeCompare(sceneB?.sceneNumber || '') * sign;
         }
         if (criterion === 'script_day') {
           const numA = parseInt(sceneA?.scriptDay || '0', 10) || 0;
           const numB = parseInt(sceneB?.scriptDay || '0', 10) || 0;
-          if (numA !== numB) return numA - numB;
-          return (sceneA?.scriptDay || '').localeCompare(sceneB?.scriptDay || '');
+          if (numA !== numB) return (numA - numB) * sign;
+          return (sceneA?.scriptDay || '').localeCompare(sceneB?.scriptDay || '') * sign;
         }
         if (criterion === 'page_count') {
-          return (sceneB?.pageCountDecimal || 0) - (sceneA?.pageCountDecimal || 0);
+          return ((sceneA?.pageCountDecimal || 0) - (sceneB?.pageCountDecimal || 0)) * sign;
         }
         if (criterion === 'duration') {
-          return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
+          return ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
+        }
+        if (criterion === 'int_ext') {
+          const customCmp = getCustomOrderCmp('int_ext');
+          if (customCmp && sceneA && sceneB) return customCmp(sceneA, sceneB);
+          return ((sceneA?.intExt || '') as string).localeCompare((sceneB?.intExt || '') as string) * sign;
+        }
+        if (criterion === 'day_night') {
+          const customCmp = getCustomOrderCmp('day_night');
+          if (customCmp && sceneA && sceneB) return customCmp(sceneA, sceneB);
+          return ((sceneA?.dayNight || '') as string).localeCompare((sceneB?.dayNight || '') as string) * sign;
         }
         const valA = String((sceneA as any)?.[criterion] ?? '');
         const valB = String((sceneB as any)?.[criterion] ?? '');
-        return valA.localeCompare(valB);
+        return valA.localeCompare(valB) * sign;
       });
 
       const merged = [...sceneRows, ...nonSceneRows];
@@ -1204,12 +1261,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }
 
     const combined = [...pinnedRows, ...sortedScheduled, ...boneyard];
-    combined.forEach((r, i) => r.order = i);
+    const finalRows = combined.map((r, i) => ({ ...r, order: i }));
 
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: finalRows } });
     dispatch({ type: 'BATCH_COMMIT' });
-    setSortMenuOpen(false);
-  };
+  }, [activeVersion, project.scenes, dispatch, dialog]);
 
   const applyNoteColor = () => {
     if (!colorPicker || !activeVersion) return;
@@ -1596,31 +1652,17 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               <DropdownDivider />
               <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Eraser className="w-3.5 h-3.5" />} variant="danger">Clear All</DropdownItem>
             </DropdownMenu>
-            <DropdownMenu
+            <SortDropdown
               open={sortMenuOpen}
               onOpenChange={setSortMenuOpen}
-              width="w-56"
-              theme="light"
-              trigger={
-                <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
-                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
-                  Sort
-                  <ChevronDown className="w-3 h-3 shrink-0" />
-                </button>
-              }
-            >
-              <DropdownItem onClick={() => handleSort('scene_number')} icon={<Eye className="w-3.5 h-3.5" />}>Scene Number</DropdownItem>
-              <DropdownItem onClick={() => handleSort('script_day')} icon={<Sunrise className="w-3.5 h-3.5" />}>Script Day</DropdownItem>
-              <DropdownItem onClick={() => handleSort('page_count')} icon={<FileText className="w-3.5 h-3.5" />}>Page Count</DropdownItem>
-              <DropdownItem onClick={() => handleSort('duration')} icon={<Clock className="w-3.5 h-3.5" />}>Duration</DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => handleSort('int_ext')}>INT / EXT</DropdownItem>
-              <DropdownItem onClick={() => handleSort('day_night')}>Day / Night</DropdownItem>
-              <DropdownDivider />
-              {sortCategories.map(c => (
-                <DropdownItem key={c.key} onClick={() => handleSort(c.key)}>{c.label}</DropdownItem>
-              ))}
-            </DropdownMenu>
+              sortBy={sortBy}
+              sortDir={sortDir}
+              onSort={handleSort}
+              onCustomSort={handleCustomSort}
+              categories={sortCategories}
+              intExtLabel={intExtSortLabel}
+              dayNightLabel={dayNightSortLabel}
+            />
             <div className="w-px h-4 bg-zinc-200" />
             <DropdownMenu
               open={ribbonMenuOpen}
@@ -1757,6 +1799,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               return;
             }
             setSelectedRowIds(new Set());
+            setSortMenuOpen(false);
+            setRibbonMenuOpen(false);
+            setAutoDaybreakOpen(false);
           }}
           onContextMenu={(e) => {
               const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
@@ -1791,6 +1836,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());
             setContextMenu(null);
+            setSortMenuOpen(false);
+            setRibbonMenuOpen(false);
+            setAutoDaybreakOpen(false);
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
@@ -2036,6 +2084,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         onClose={() => setShowShootViolations(false)}
         dayViolations={shootViolations}
         castMembers={project.castMembers || []}
+      />
+      <CustomOrderSortModal
+        open={customOrderModal?.open ?? false}
+        onClose={closeCustomOrderModal}
+        title={customOrderModal?.title ?? ''}
+        options={customOrderModal?.options ?? []}
+        onSort={(order) => {
+          if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
+        }}
       />
     </DndContext>
   </div>

@@ -7,14 +7,14 @@ import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject, useIsCloudProject } from '../store';
 import { generateUUID } from '../lib/utils';
-import { Plus, ChevronLeft, ChevronRight, StickyNote, Coffee, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, StickyNote, Coffee } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 import { IS_COARSE } from '../lib/device';
 import { useCurrentDocument } from '../lib/popoutTarget';
-import { ELEMENT_CATEGORIES } from '../lib/categories';
-import DropdownMenu from './DropdownMenu';
-import DropdownItem from './DropdownItem';
-import DropdownDivider from './DropdownDivider';
+import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
+import SortDropdown from './SortDropdown';
+import { compareByCustomOrder } from './SortDropdown';
+import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
 const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
@@ -74,14 +74,31 @@ export const BoneyardBlock: React.FC<{
     try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
   });
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [customSortOrders, setCustomSortOrders] = useState<Record<string, string[]>>({});
+  const customSortOrdersRef = useRef(customSortOrders);
+  customSortOrdersRef.current = customSortOrders;
+  const { customOrderModal, openCustomOrderModal, closeCustomOrderModal } = useCustomOrderSort();
 
   const sortCategories = useMemo(() => {
-    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
+    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label, icon: CAT_ICONS[c.key] ? React.createElement(CAT_ICONS[c.key], { className: 'w-3.5 h-3.5' }) : undefined }));
     for (const cc of state.present.customCategories) {
-      cats.push({ key: cc.key, label: cc.label });
+      const Icon = getCustomIcon(cc.icon || 'Tag');
+      cats.push({ key: cc.key, label: cc.label, icon: React.createElement(Icon, { className: 'w-3.5 h-3.5' }) });
     }
     return cats;
   }, [state.present.customCategories]);
+
+  const intExtSortLabel = useMemo(() => {
+    const opts = state.present.colorPalette?.intExtOptions;
+    return opts?.length ? opts.slice(0, 2).join(' / ') : undefined;
+  }, [state.present.colorPalette?.intExtOptions]);
+
+  const dayNightSortLabel = useMemo(() => {
+    const opts = state.present.colorPalette?.dayNightOptions;
+    return opts?.length ? opts.slice(0, 2).join(' / ') : undefined;
+  }, [state.present.colorPalette?.dayNightOptions]);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 340; } catch { return 340; }
   });
@@ -161,7 +178,25 @@ export const BoneyardBlock: React.FC<{
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: [...activeVersion.rows, newRow] } });
   };
 
-  const sortBoneyard = (criterion: string) => {
+  const handleCustomSort = (criterion: string) => {
+    const isIntExt = criterion === 'int_ext';
+    const options = isIntExt
+      ? (state.present.colorPalette?.intExtOptions || ['INT', 'EXT', 'INT/EXT'])
+      : (state.present.colorPalette?.dayNightOptions || ['DAY', 'NIGHT', 'MORNING', 'EVENING']);
+    const title = options.slice(0, 2).join(' / ');
+    openCustomOrderModal(criterion, title, options);
+  };
+
+  const handleCustomOrderSort = (criterion: string, order: string[]) => {
+    setSortBy(criterion);
+    setSortDir('asc');
+    const next = { ...customSortOrders, [criterion]: order };
+    setCustomSortOrders(next);
+    customSortOrdersRef.current = next;
+    sortBoneyard(criterion, 'asc');
+  };
+
+  const sortBoneyard = (criterion: string, direction: 'asc' | 'desc') => {
     const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
     if (!activeVersion) return;
 
@@ -182,6 +217,8 @@ export const BoneyardBlock: React.FC<{
       }))
     ];
 
+    const sign = direction === 'desc' ? -1 : 1;
+
     boneyard.sort((a, b) => {
       if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
       if (a.type === 'SCENE' && b.type !== 'SCENE') return -1;
@@ -192,31 +229,33 @@ export const BoneyardBlock: React.FC<{
       if (!sceneA || !sceneB) return 0;
 
       if (criterion === 'scene_number') {
-        return sceneA.sceneNumber.localeCompare(sceneB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' });
+        return sceneA.sceneNumber.localeCompare(sceneB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }) * sign;
       } else if (criterion === 'script_day') {
-        return sceneA.scriptDay.localeCompare(sceneB.scriptDay, undefined, { numeric: true, sensitivity: 'base' });
+        return sceneA.scriptDay.localeCompare(sceneB.scriptDay, undefined, { numeric: true, sensitivity: 'base' }) * sign;
       } else if (criterion === 'page_count') {
-        return sceneB.pageCountDecimal - sceneA.pageCountDecimal;
+        return ((sceneA.pageCountDecimal || 0) - (sceneB.pageCountDecimal || 0)) * sign;
       } else if (criterion === 'duration') {
-        return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
+        return ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
       } else if (criterion === 'int_ext') {
-        return (sceneA.intExt || '').localeCompare(sceneB.intExt || '');
+        const customCmp = customSortOrdersRef.current['int_ext'] ? compareByCustomOrder(customSortOrdersRef.current['int_ext'], s => s.intExt) : null;
+        if (customCmp) return customCmp(sceneA, sceneB);
+        return ((sceneA.intExt || '') as string).localeCompare((sceneB.intExt || '') as string) * sign;
       } else if (criterion === 'day_night') {
-        return (sceneA.dayNight || '').localeCompare(sceneB.dayNight || '');
+        const customCmp = customSortOrdersRef.current['day_night'] ? compareByCustomOrder(customSortOrdersRef.current['day_night'], s => s.dayNight) : null;
+        if (customCmp) return customCmp(sceneA, sceneB);
+        return ((sceneA.dayNight || '') as string).localeCompare((sceneB.dayNight || '') as string) * sign;
       } else if (criterion === 'set_name' || criterion === 'set') {
-        return sceneA.set.localeCompare(sceneB.set);
+        return sceneA.set.localeCompare(sceneB.set) * sign;
       }
       const valA = String((sceneA as any)?.[criterion] ?? '');
       const valB = String((sceneB as any)?.[criterion] ?? '');
-      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' }) * sign;
     });
 
     const combined = [...scheduled, ...boneyard];
-    combined.forEach((r, i) => {
-      r.order = i;
-    });
+    const finalRows = combined.map((r, i) => ({ ...r, order: i }));
 
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: finalRows } });
   };
 
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
@@ -292,7 +331,7 @@ export const BoneyardBlock: React.FC<{
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Note Ribbon">
                 <StickyNote className="w-3.5 h-3.5 shrink-0" />
                 Note
@@ -302,31 +341,17 @@ export const BoneyardBlock: React.FC<{
                 Break
               </button>
               <div className="w-px h-4 bg-zinc-200" />
-              <DropdownMenu
+              <SortDropdown
                 open={showSortMenu}
                 onOpenChange={setShowSortMenu}
-                width="w-56"
-                theme="light"
-                trigger={
-                  <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
-                    <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
-                    Sort
-                    <ChevronDown className="w-3 h-3 shrink-0" />
-                  </button>
-                }
-              >
-                <DropdownItem onClick={() => sortBoneyard('scene_number')}>Scene Number</DropdownItem>
-                <DropdownItem onClick={() => sortBoneyard('script_day')}>Script Day</DropdownItem>
-                <DropdownItem onClick={() => sortBoneyard('page_count')}>Page Count</DropdownItem>
-                <DropdownItem onClick={() => sortBoneyard('duration')}>Duration</DropdownItem>
-                <DropdownDivider />
-                <DropdownItem onClick={() => sortBoneyard('int_ext')}>INT / EXT</DropdownItem>
-                <DropdownItem onClick={() => sortBoneyard('day_night')}>Day / Night</DropdownItem>
-                <DropdownDivider />
-                {sortCategories.map(c => (
-                  <DropdownItem key={c.key} onClick={() => sortBoneyard(c.key)}>{c.label}</DropdownItem>
-                ))}
-              </DropdownMenu>
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSort={sortBoneyard}
+                onCustomSort={handleCustomSort}
+                categories={sortCategories}
+                intExtLabel={intExtSortLabel}
+                dayNightLabel={dayNightSortLabel}
+              />
             </div>
           </div>
           
@@ -384,6 +409,15 @@ export const BoneyardBlock: React.FC<{
           data-no-longpress
         />
       )}
+      <CustomOrderSortModal
+        open={customOrderModal?.open ?? false}
+        onClose={closeCustomOrderModal}
+        title={customOrderModal?.title ?? ''}
+        options={customOrderModal?.options ?? []}
+        onSort={(order) => {
+          if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
+        }}
+      />
     </div>
   );
 }, boneyardBlockPropsEqual);

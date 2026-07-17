@@ -41,9 +41,29 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
 
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; tabId: string } | null>(null);
 
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollMask, setScrollMask] = React.useState('none');
+  const checkScroll = React.useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atLeft = el.scrollLeft <= 2;
+    const atRight = el.scrollLeft >= el.scrollWidth - el.clientWidth - 2;
+    if (atLeft && atRight) setScrollMask('none');
+    else if (atLeft) setScrollMask('linear-gradient(to left, transparent, black 12px)');
+    else if (atRight) setScrollMask('linear-gradient(to right, transparent, black 12px)');
+    else setScrollMask('linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)');
+  }, []);
+
+  React.useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll]);
+
   return (
-    <div className={`flex items-center justify-between px-3 pt-2 pb-2 border-b shrink-0 ${t.bar}`}>
-      <div className="flex items-center gap-1 min-w-0 flex-1 mr-2">
+    <div ref={scrollRef} onScroll={checkScroll} className={`overflow-x-auto border-b shrink-0 ${t.bar} [&::-webkit-scrollbar]:hidden`} style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
+      <div className="flex items-center justify-between gap-2 shrink-0 w-fit min-w-full px-3 pt-2 pb-2">
+        <div className="flex items-center gap-1 shrink-0">
         {tabs.map(tab => {
           const active = activeTab === tab.id;
           return (
@@ -60,7 +80,7 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
                 e.preventDefault();
                 setContextMenu({ x: e.clientX, y: e.clientY, tabId: tab.id });
               } : undefined}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors truncate max-w-[160px] ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors shrink-0 whitespace-nowrap ${
                 active ? `${activeBg} ${activeText}` : inactiveHover
               }`}
             >
@@ -68,8 +88,9 @@ export default function MiniTab({ tabs, activeTab, onChange, rightContent, theme
             </button>
           );
         })}
+        </div>
+        {rightContent && <div className="flex items-center gap-2 shrink-0">{rightContent}</div>}
       </div>
-      {rightContent && <div className="flex items-center gap-2">{rightContent}</div>}
       {contextMenu && onPopout && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)}>
           <ContextMenuItem onClick={() => { onPopout(contextMenu.tabId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>

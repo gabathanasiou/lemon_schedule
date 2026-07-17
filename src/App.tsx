@@ -1091,7 +1091,14 @@ function AppContent() {
       )}
 
       {/* CONTENT */}
-      <main key={currentProjectId} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <main key={currentProjectId} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('button, input, select, [role="button"], [role="menuitem"]')) return;
+          setShowFileMenu(false);
+          setShowVersionsMenu(false);
+          setTabContextMenu(null);
+        }}
+      >
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (

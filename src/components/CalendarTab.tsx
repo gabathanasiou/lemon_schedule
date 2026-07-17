@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -25,6 +25,9 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import SortDropdown from './SortDropdown';
+import { compareByCustomOrder } from './SortDropdown';
+import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
@@ -265,11 +268,16 @@ const BoneyardSidebar: React.FC<{
   activeDragIds?: Set<string>;
   selectedIds?: Set<string>;
   onRowClick?: (id: string, e: React.MouseEvent) => void;
-  onSort?: (criterion: string) => void;
+  onSort?: (criterion: string, direction: 'asc' | 'desc') => void;
+  onCustomSort?: (criterion: string) => void;
+  sortBy?: string | null;
+  sortDir?: 'asc' | 'desc';
   sortCategories?: { key: string; label: string }[];
+  intExtSortLabel?: string;
+  dayNightSortLabel?: string;
   onRowDoubleClick?: (id: string) => void;
   onRowContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, sortCategories = [], onRowDoubleClick, onRowContextMenu }) => {
+}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onCustomSort, sortBy, sortDir = 'asc' as 'asc' | 'desc', sortCategories = [], intExtSortLabel, dayNightSortLabel, onRowDoubleClick, onRowContextMenu }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'BONEYARD' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
@@ -361,31 +369,17 @@ const BoneyardSidebar: React.FC<{
         </div>
         {onSort && (
           <div className="flex items-center gap-2 mt-2">
-            <DropdownMenu
+            <SortDropdown
               open={showSortMenu}
               onOpenChange={setShowSortMenu}
-              width="w-56"
-              theme="light"
-              trigger={
-                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none bg-zinc-900 hover:bg-zinc-800 text-white">
-                  <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
-                  Sort
-                  <ChevronDown className="w-3 h-3 shrink-0" />
-                </button>
-              }
-            >
-              <DropdownItem onClick={() => onSort('scene_number')}>Scene Number</DropdownItem>
-              <DropdownItem onClick={() => onSort('script_day')}>Script Day</DropdownItem>
-              <DropdownItem onClick={() => onSort('page_count')}>Page Count</DropdownItem>
-              <DropdownItem onClick={() => onSort('duration')}>Duration</DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => onSort('int_ext')}>INT / EXT</DropdownItem>
-              <DropdownItem onClick={() => onSort('day_night')}>Day / Night</DropdownItem>
-              <DropdownDivider />
-              {sortCategories.map(c => (
-                <DropdownItem key={c.key} onClick={() => onSort(c.key)}>{c.label}</DropdownItem>
-              ))}
-            </DropdownMenu>
+              sortBy={sortBy ?? null}
+              sortDir={sortDir}
+              onSort={onSort}
+              onCustomSort={onCustomSort}
+              categories={sortCategories}
+              intExtLabel={intExtSortLabel}
+              dayNightLabel={dayNightSortLabel}
+            />
           </div>
         )}
       </div>
@@ -787,7 +781,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }
   }, [handleNonShootToggle, activeTool]);
 
-  const sortBoneyard = useCallback((criterion: string) => {
+  const sortBoneyard = useCallback((criterion: string, direction: 'asc' | 'desc') => {
     if (!activeVersion) return;
     const scheduled = activeVersion.rows.filter(r => r.containerId !== null);
     const sceneIdsInRows = new Set(activeVersion.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
@@ -796,6 +790,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       ...activeVersion.rows.filter(r => r.containerId === null),
       ...missingScenes.map(s => ({ id: generateUUID(), type: 'SCENE' as const, sceneId: s.id, containerId: null as number | null, order: 999999, estimatedDuration: 30 })),
     ];
+    const sign = direction === 'desc' ? -1 : 1;
     boneyard.sort((a, b) => {
       if (a.type !== 'SCENE' && b.type === 'SCENE') return 1;
       if (a.type === 'SCENE' && b.type !== 'SCENE') return -1;
@@ -803,29 +798,79 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       const sA = project.scenes.find(s => s.id === a.sceneId);
       const sB = project.scenes.find(s => s.id === b.sceneId);
       if (!sA || !sB) return 0;
-      if (criterion === 'scene_number') return sA.sceneNumber.localeCompare(sB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' });
-      if (criterion === 'script_day') return sA.scriptDay.localeCompare(sB.scriptDay, undefined, { numeric: true, sensitivity: 'base' });
-      if (criterion === 'page_count') return sB.pageCountDecimal - sA.pageCountDecimal;
-      if (criterion === 'duration') return (b.estimatedDuration || 0) - (a.estimatedDuration || 0);
-      if (criterion === 'int_ext') return (sA.intExt || '').localeCompare(sB.intExt || '');
-      if (criterion === 'day_night') return (sA.dayNight || '').localeCompare(sB.dayNight || '');
-      if (criterion === 'set_name' || criterion === 'set') return sA.set.localeCompare(sB.set);
+      if (criterion === 'scene_number') return sA.sceneNumber.localeCompare(sB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+      if (criterion === 'script_day') return sA.scriptDay.localeCompare(sB.scriptDay, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+      if (criterion === 'page_count') return ((sA.pageCountDecimal || 0) - (sB.pageCountDecimal || 0)) * sign;
+      if (criterion === 'duration') return ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
+      if (criterion === 'int_ext') {
+        const customCmp = customSortOrdersRef.current['int_ext'] ? compareByCustomOrder(customSortOrdersRef.current['int_ext'], s => s.intExt) : null;
+        if (customCmp) return customCmp(sA, sB);
+        return ((sA.intExt || '') as string).localeCompare((sB.intExt || '') as string) * sign;
+      }
+      if (criterion === 'day_night') {
+        const customCmp = customSortOrdersRef.current['day_night'] ? compareByCustomOrder(customSortOrdersRef.current['day_night'], s => s.dayNight) : null;
+        if (customCmp) return customCmp(sA, sB);
+        return ((sA.dayNight || '') as string).localeCompare((sB.dayNight || '') as string) * sign;
+      }
+      if (criterion === 'set_name' || criterion === 'set') return sA.set.localeCompare(sB.set) * sign;
       const valA = String((sA as any)?.[criterion] ?? '');
       const valB = String((sB as any)?.[criterion] ?? '');
-      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' }) * sign;
     });
     const combined = [...scheduled, ...boneyard];
-    combined.forEach((r, i) => { r.order = i; });
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+    const finalRows = combined.map((r, i) => ({ ...r, order: i }));
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: finalRows } });
   }, [activeVersion, project.scenes, dispatch]);
 
-  const sortCategories = useMemo(() => {
-    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label }));
+  const sortCategoryEntries = useMemo(() => {
+    const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label, icon: CAT_ICONS[c.key] ? React.createElement(CAT_ICONS[c.key], { className: 'w-3.5 h-3.5' }) : undefined }));
     for (const cc of project.customCategories) {
-      cats.push({ key: cc.key, label: cc.label });
+      const Icon = getCustomIcon(cc.icon || 'Tag');
+      cats.push({ key: cc.key, label: cc.label, icon: React.createElement(Icon, { className: 'w-3.5 h-3.5' }) });
     }
     return cats;
   }, [project.customCategories]);
+
+  const [calSortBy, setCalSortBy] = useState<string | null>(null);
+  const [calSortDir, setCalSortDir] = useState<'asc' | 'desc'>('asc');
+  const [customSortOrders, setCustomSortOrders] = useState<Record<string, string[]>>({});
+  const customSortOrdersRef = useRef(customSortOrders);
+  customSortOrdersRef.current = customSortOrders;
+  const { customOrderModal, openCustomOrderModal, closeCustomOrderModal } = useCustomOrderSort();
+
+  const handleCustomSort = useCallback((criterion: string) => {
+    const isIntExt = criterion === 'int_ext';
+    const options = isIntExt
+      ? (project.colorPalette?.intExtOptions || ['INT', 'EXT', 'INT/EXT'])
+      : (project.colorPalette?.dayNightOptions || ['DAY', 'NIGHT', 'MORNING', 'EVENING']);
+    const title = options.slice(0, 2).join(' / ');
+    openCustomOrderModal(criterion, title, options);
+  }, [project.colorPalette, openCustomOrderModal]);
+
+  const handleCustomOrderSort = useCallback((criterion: string, order: string[]) => {
+    setCalSortBy(criterion);
+    setCalSortDir('asc');
+    const next = { ...customSortOrders, [criterion]: order };
+    setCustomSortOrders(next);
+    customSortOrdersRef.current = next;
+    sortBoneyard(criterion, 'asc');
+  }, [customSortOrders, sortBoneyard]);
+
+  const intExtSortLabel = useMemo(() => {
+    const opts = project.colorPalette?.intExtOptions;
+    return opts?.length ? opts.slice(0, 2).join(' / ') : undefined;
+  }, [project.colorPalette?.intExtOptions]);
+
+  const dayNightSortLabel = useMemo(() => {
+    const opts = project.colorPalette?.dayNightOptions;
+    return opts?.length ? opts.slice(0, 2).join(' / ') : undefined;
+  }, [project.colorPalette?.dayNightOptions]);
+
+  const handleCalSort = useCallback((criterion: string, direction: 'asc' | 'desc') => {
+    setCalSortBy(criterion);
+    setCalSortDir(direction);
+    sortBoneyard(criterion, direction);
+  }, [sortBoneyard]);
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     if (e.altKey) return;
@@ -1300,8 +1345,17 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   return (
     <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}>
-        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={sortBoneyard} sortCategories={sortCategories} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
+      <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}
+        onClick={(e) => {
+          if (marqueeJustEndedRef.current) { marqueeJustEndedRef.current = false; return; }
+          if ((e.target as HTMLElement).closest('[data-row-id], button, input, select, [role="button"], [role="menuitem"]')) return;
+          setSelectedRowIds(new Set());
+          setViewMenuOpen(false);
+          setContextMenuDate(null);
+          setContextMenu(null);
+        }}
+      >
+        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-white">
             <div className="flex items-center gap-3">
@@ -1392,7 +1446,13 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
               >{t.label}</button>
             ))}
           </div>
-          <div ref={calendarGridRef} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          <div ref={calendarGridRef} onClick={(e) => {
+            if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
+            setSelectedRowIds(new Set());
+            setViewMenuOpen(false);
+            setContextMenuDate(null);
+            setContextMenu(null);
+          }} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
@@ -1570,6 +1630,15 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           </div>
         </Modal>
       )}
+      <CustomOrderSortModal
+        open={customOrderModal?.open ?? false}
+        onClose={closeCustomOrderModal}
+        title={customOrderModal?.title ?? ''}
+        options={customOrderModal?.options ?? []}
+        onSort={(order) => {
+          if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
+        }}
+      />
     </DndContext>
     </>
   );
