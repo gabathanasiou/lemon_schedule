@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useDropdownTheme, getDropdownClasses } from './DropdownMenu';
 import { IS_COARSE } from '../lib/device';
@@ -34,13 +34,17 @@ export default function DropdownItem({
   const theme = useDropdownTheme();
   const d = getDropdownClasses(theme);
   const isLight = theme === 'light';
+  const skipClickRef = useRef(false);
 
   const variantStyles = variant === 'danger' ? d.itemDanger : d.itemDefault;
 
   return (
     <RadixDropdownMenu.Item
       className={`w-full text-left ${d.itemPad} rounded flex items-center gap-2 transition-colors active:transition-none outline-none cursor-pointer select-none ${variantStyles} ${disabled ? 'opacity-30 pointer-events-none' : ''} ${className}`}
-      onSelect={(e) => { if (keepOpen) e.preventDefault(); onClick(); }}
+      onSelect={(e) => {
+        if (skipClickRef.current) { skipClickRef.current = false; return; }
+        if (keepOpen) e.preventDefault(); onClick();
+      }}
       onTouchStart={() => {}}
       onPointerDown={(e) => {
         if ((e as any).pointerType === 'pen') {
@@ -61,6 +65,7 @@ export default function DropdownItem({
           onPointerDown={(e) => {
             e.stopPropagation();
             e.preventDefault();
+            skipClickRef.current = true;
             rightAction.onClick();
           }}
           onClick={(e) => {

@@ -26,7 +26,7 @@ import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
 import SortDropdown from './SortDropdown';
-import { compareByCustomOrder } from './SortDropdown';
+import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
 import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import PageToolbar from './PageToolbar';
@@ -273,12 +273,14 @@ const BoneyardSidebar: React.FC<{
   onCustomSort?: (criterion: string) => void;
   sortBy?: string | null;
   sortDir?: 'asc' | 'desc';
+  lockedCriteria?: string[];
+  onToggleLock?: (criterion: string) => void;
   sortCategories?: { key: string; label: string }[];
   intExtSortLabel?: string;
   dayNightSortLabel?: string;
   onRowDoubleClick?: (id: string) => void;
   onRowContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onCustomSort, sortBy, sortDir = 'asc' as 'asc' | 'desc', sortCategories = [], intExtSortLabel, dayNightSortLabel, onRowDoubleClick, onRowContextMenu }) => {
+}> = ({ rows, scenes, displayField, sceneViolationMap, activeDragRows = [], insertBeforeId, activeRowId, activeDragIds, selectedIds, onRowClick, onSort, onCustomSort, sortBy, sortDir = 'asc' as 'asc' | 'desc', lockedCriteria = [], onToggleLock, sortCategories = [], intExtSortLabel, dayNightSortLabel, onRowDoubleClick, onRowContextMenu }) => {
   const { setNodeRef, isOver } = useDroppable({ id: 'boneyard', data: { type: 'BONEYARD' } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
@@ -375,6 +377,8 @@ const BoneyardSidebar: React.FC<{
               onOpenChange={setShowSortMenu}
               sortBy={sortBy ?? null}
               sortDir={sortDir}
+              lockedCriteria={lockedCriteria}
+              onToggleLock={onToggleLock ?? (() => {})}
               onSort={onSort}
               onCustomSort={onCustomSort}
               categories={sortCategories}
@@ -799,24 +803,34 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       const sA = project.scenes.find(s => s.id === a.sceneId);
       const sB = project.scenes.find(s => s.id === b.sceneId);
       if (!sA || !sB) return 0;
-      if (criterion === 'scene_number') return sA.sceneNumber.localeCompare(sB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }) * sign;
-      if (criterion === 'script_day') return sA.scriptDay.localeCompare(sB.scriptDay, undefined, { numeric: true, sensitivity: 'base' }) * sign;
-      if (criterion === 'page_count') return ((sA.pageCountDecimal || 0) - (sB.pageCountDecimal || 0)) * sign;
-      if (criterion === 'duration') return ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
-      if (criterion === 'int_ext') {
+
+      const locks = lockedCriteriaRef.current.filter(l => l !== criterion);
+      if (locks.length > 0) {
+        const tie = getLockedTiebreakerResult(locks, '', sA, sB, customSortOrdersRef.current, a.estimatedDuration, b.estimatedDuration);
+        if (tie !== 0) return tie;
+      }
+
+      let cmp = 0;
+      if (criterion === 'scene_number') cmp = sA.sceneNumber.localeCompare(sB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+      else if (criterion === 'script_day') cmp = sA.scriptDay.localeCompare(sB.scriptDay, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+      else if (criterion === 'page_count') cmp = ((sA.pageCountDecimal || 0) - (sB.pageCountDecimal || 0)) * sign;
+      else if (criterion === 'duration') cmp = ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
+      else if (criterion === 'int_ext') {
         const customCmp = customSortOrdersRef.current['int_ext'] ? compareByCustomOrder(customSortOrdersRef.current['int_ext'], s => s.intExt) : null;
-        if (customCmp) return customCmp(sA, sB);
-        return ((sA.intExt || '') as string).localeCompare((sB.intExt || '') as string) * sign;
-      }
-      if (criterion === 'day_night') {
+        if (customCmp) cmp = customCmp(sA, sB);
+        else cmp = ((sA.intExt || '') as string).localeCompare((sB.intExt || '') as string) * sign;
+      } else if (criterion === 'day_night') {
         const customCmp = customSortOrdersRef.current['day_night'] ? compareByCustomOrder(customSortOrdersRef.current['day_night'], s => s.dayNight) : null;
-        if (customCmp) return customCmp(sA, sB);
-        return ((sA.dayNight || '') as string).localeCompare((sB.dayNight || '') as string) * sign;
+        if (customCmp) cmp = customCmp(sA, sB);
+        else cmp = ((sA.dayNight || '') as string).localeCompare((sB.dayNight || '') as string) * sign;
+      } else if (criterion === 'set_name' || criterion === 'set') cmp = sA.set.localeCompare(sB.set) * sign;
+      else {
+        const valA = String((sA as any)?.[criterion] ?? '');
+        const valB = String((sB as any)?.[criterion] ?? '');
+        cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' }) * sign;
       }
-      if (criterion === 'set_name' || criterion === 'set') return sA.set.localeCompare(sB.set) * sign;
-      const valA = String((sA as any)?.[criterion] ?? '');
-      const valB = String((sB as any)?.[criterion] ?? '');
-      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+
+      return cmp;
     });
     const combined = [...scheduled, ...boneyard];
     const finalRows = combined.map((r, i) => ({ ...r, order: i }));
@@ -837,7 +851,18 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [customSortOrders, setCustomSortOrders] = useState<Record<string, string[]>>({});
   const customSortOrdersRef = useRef(customSortOrders);
   customSortOrdersRef.current = customSortOrders;
+  const [lockedCriteria, setLockedCriteria] = useState<string[]>([]);
+  const lockedCriteriaRef = useRef(lockedCriteria);
+  lockedCriteriaRef.current = lockedCriteria;
   const { customOrderModal, openCustomOrderModal, closeCustomOrderModal } = useCustomOrderSort();
+
+  const handleToggleLock = useCallback((criterion: string) => {
+    setLockedCriteria(prev => {
+      const next = prev.includes(criterion) ? prev.filter(c => c !== criterion) : [...prev, criterion];
+      lockedCriteriaRef.current = next;
+      return next;
+    });
+  }, []);
 
   const handleCustomSort = useCallback((criterion: string) => {
     const isIntExt = criterion === 'int_ext';
@@ -1356,7 +1381,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           setContextMenu(null);
         }}
       >
-        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
+        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <PageToolbar theme="light" justify="between"
             children={

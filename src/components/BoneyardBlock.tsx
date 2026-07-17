@@ -13,7 +13,7 @@ import { IS_COARSE } from '../lib/device';
 import { useCurrentDocument } from '../lib/popoutTarget';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import SortDropdown from './SortDropdown';
-import { compareByCustomOrder } from './SortDropdown';
+import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
 import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
@@ -79,7 +79,18 @@ export const BoneyardBlock: React.FC<{
   const [customSortOrders, setCustomSortOrders] = useState<Record<string, string[]>>({});
   const customSortOrdersRef = useRef(customSortOrders);
   customSortOrdersRef.current = customSortOrders;
+  const [lockedCriteria, setLockedCriteria] = useState<string[]>([]);
+  const lockedCriteriaRef = useRef(lockedCriteria);
+  lockedCriteriaRef.current = lockedCriteria;
   const { customOrderModal, openCustomOrderModal, closeCustomOrderModal } = useCustomOrderSort();
+
+  const handleToggleLock = useCallback((criterion: string) => {
+    setLockedCriteria(prev => {
+      const next = prev.includes(criterion) ? prev.filter(c => c !== criterion) : [...prev, criterion];
+      lockedCriteriaRef.current = next;
+      return next;
+    });
+  }, []);
 
   const sortCategories = useMemo(() => {
     const cats = ELEMENT_CATEGORIES.map(c => ({ key: c.key, label: c.label, icon: CAT_ICONS[c.key] ? React.createElement(CAT_ICONS[c.key], { className: 'w-3.5 h-3.5' }) : undefined }));
@@ -230,28 +241,39 @@ export const BoneyardBlock: React.FC<{
       const sceneB = state.present.scenes.find(s => s.id === b.sceneId);
       if (!sceneA || !sceneB) return 0;
 
+      const locks = lockedCriteriaRef.current.filter(l => l !== criterion);
+      if (locks.length > 0) {
+        const tie = getLockedTiebreakerResult(locks, '', sceneA, sceneB, customSortOrdersRef.current, a.estimatedDuration, b.estimatedDuration);
+        if (tie !== 0) return tie;
+      }
+
+      let cmp = 0;
+
       if (criterion === 'scene_number') {
-        return sceneA.sceneNumber.localeCompare(sceneB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+        cmp = sceneA.sceneNumber.localeCompare(sceneB.sceneNumber, undefined, { numeric: true, sensitivity: 'base' }) * sign;
       } else if (criterion === 'script_day') {
-        return sceneA.scriptDay.localeCompare(sceneB.scriptDay, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+        cmp = sceneA.scriptDay.localeCompare(sceneB.scriptDay, undefined, { numeric: true, sensitivity: 'base' }) * sign;
       } else if (criterion === 'page_count') {
-        return ((sceneA.pageCountDecimal || 0) - (sceneB.pageCountDecimal || 0)) * sign;
+        cmp = ((sceneA.pageCountDecimal || 0) - (sceneB.pageCountDecimal || 0)) * sign;
       } else if (criterion === 'duration') {
-        return ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
+        cmp = ((a.estimatedDuration || 0) - (b.estimatedDuration || 0)) * sign;
       } else if (criterion === 'int_ext') {
         const customCmp = customSortOrdersRef.current['int_ext'] ? compareByCustomOrder(customSortOrdersRef.current['int_ext'], s => s.intExt) : null;
-        if (customCmp) return customCmp(sceneA, sceneB);
-        return ((sceneA.intExt || '') as string).localeCompare((sceneB.intExt || '') as string) * sign;
+        if (customCmp) cmp = customCmp(sceneA, sceneB);
+        else cmp = ((sceneA.intExt || '') as string).localeCompare((sceneB.intExt || '') as string) * sign;
       } else if (criterion === 'day_night') {
         const customCmp = customSortOrdersRef.current['day_night'] ? compareByCustomOrder(customSortOrdersRef.current['day_night'], s => s.dayNight) : null;
-        if (customCmp) return customCmp(sceneA, sceneB);
-        return ((sceneA.dayNight || '') as string).localeCompare((sceneB.dayNight || '') as string) * sign;
+        if (customCmp) cmp = customCmp(sceneA, sceneB);
+        else cmp = ((sceneA.dayNight || '') as string).localeCompare((sceneB.dayNight || '') as string) * sign;
       } else if (criterion === 'set_name' || criterion === 'set') {
-        return sceneA.set.localeCompare(sceneB.set) * sign;
+        cmp = sceneA.set.localeCompare(sceneB.set) * sign;
+      } else {
+        const valA = String((sceneA as any)?.[criterion] ?? '');
+        const valB = String((sceneB as any)?.[criterion] ?? '');
+        cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' }) * sign;
       }
-      const valA = String((sceneA as any)?.[criterion] ?? '');
-      const valB = String((sceneB as any)?.[criterion] ?? '');
-      return valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' }) * sign;
+
+      return cmp;
     });
 
     const combined = [...scheduled, ...boneyard];
@@ -348,6 +370,8 @@ export const BoneyardBlock: React.FC<{
                 onOpenChange={setShowSortMenu}
                 sortBy={sortBy}
                 sortDir={sortDir}
+                lockedCriteria={lockedCriteria}
+                onToggleLock={handleToggleLock}
                 onSort={sortBoneyard}
                 onCustomSort={handleCustomSort}
                 categories={sortCategories}
