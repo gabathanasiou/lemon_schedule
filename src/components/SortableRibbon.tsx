@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
@@ -135,12 +135,42 @@ const SortableRowContent: React.FC<{
   const [showViolationModal, setShowViolationModal] = useState(false);
   const violationRef = useRef<HTMLSpanElement>(null);
   const violationTipPos = useRef({ x: 0, y: 0 });
+  const sceneTipRef = useRef<HTMLDivElement>(null);
+  const [sceneTipOffset, setSceneTipOffset] = useState(0);
+
+  useLayoutEffect(() => {
+    if (showViolationTip && sceneTipRef.current) {
+      const r = sceneTipRef.current.getBoundingClientRect();
+      const vw = window.innerWidth;
+      let offset = 0;
+      if (r.left < 8) offset = 8 - r.left;
+      else if (r.right > vw - 8) offset = (vw - 8) - r.right;
+      setSceneTipOffset(offset);
+    } else {
+      setSceneTipOffset(0);
+    }
+  }, [showViolationTip]);
 
   const hasNextViolations = nextSectionViolations && nextSectionViolations.length > 0;
   const [showNextViolationTip, setShowNextViolationTip] = useState(false);
   const [showNextViolationModal, setShowNextViolationModal] = useState(false);
   const nextViolationRef = useRef<HTMLSpanElement>(null);
   const nextViolationTipPos = useRef({ x: 0, y: 0 });
+  const nextTipRef = useRef<HTMLDivElement>(null);
+  const [nextTipOffset, setNextTipOffset] = useState(0);
+
+  useLayoutEffect(() => {
+    if (showNextViolationTip && nextTipRef.current) {
+      const r = nextTipRef.current.getBoundingClientRect();
+      const vw = window.innerWidth;
+      let offset = 0;
+      if (r.left < 8) offset = 8 - r.left;
+      else if (r.right > vw - 8) offset = (vw - 8) - r.right;
+      setNextTipOffset(offset);
+    } else {
+      setNextTipOffset(0);
+    }
+  }, [showNextViolationTip]);
   const violationBadge = hasViolations ? (
     <>
       <span
@@ -160,9 +190,9 @@ const SortableRowContent: React.FC<{
         <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
       </span>
       {showViolationTip && createPortal(
-        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+        <div ref={sceneTipRef} className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: `translate(calc(-50% + ${sceneTipOffset}px), -100%)`, zIndex: 99999 }}>
           <ViolationContent compact violations={sceneViolations} castMembers={state.present.castMembers || []} />
-          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
+          <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${sceneTipOffset}px)` }} />
         </div>,
         portalTarget ?? document.body
       )}
@@ -196,9 +226,9 @@ const SortableRowContent: React.FC<{
         <span style={{ fontSize: '8pt', fontWeight: 700, color: '#ef4444' }}>{nextSectionViolations!.length}</span>
       </span>
       {showNextViolationTip && createPortal(
-        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+        <div ref={nextTipRef} className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: `translate(calc(-50% + ${nextTipOffset}px), -100%)`, zIndex: 99999 }}>
           <ViolationContent compact violations={nextSectionViolations!} castMembers={state.present.castMembers || []} />
-          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
+          <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${nextTipOffset}px)` }} />
         </div>,
         portalTarget ?? document.body
       )}

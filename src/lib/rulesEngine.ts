@@ -46,12 +46,11 @@ export function checkSection(
         }
       }
       if (exceeded) {
-        const hours = totalMin / 60;
-        const exceed = hours - rule.maxHours;
+        const exceed = totalMin / 60 - rule.maxHours;
         const castName = formatCastId(rule.castId, castMembers);
         violations.push({
           ruleId: rule.id, ruleType: 'MAX_HOURS', castId: rule.castId,
-          message: `${castName}: ${hours.toFixed(1)}h scheduled — limit is ${rule.maxHours}h (+${exceed.toFixed(1)}h over)`,
+          message: `${castName}: ${maxHoursDetail(rule.maxHours, exceed)}`,
           detail: maxHoursDetail(rule.maxHours, exceed),
           containerId: 0,
           sceneIds: flaggedScenes,
