@@ -587,6 +587,16 @@ const SortableRowContent: React.FC<{
         ribbon.some(r => ci < r.cells.length && r.cells[ci].field === 'pageCount')
       );
 
+      const durationColIdx = cells.findIndex(c => c.field === 'duration');
+      const durationCell = (() => {
+        for (const r of ribbon) {
+          const found = r.cells.find(c => c.field === 'duration');
+          if (found) return found;
+        }
+        return null;
+      })();
+      const estColIdx = mainCellIdx === cells.length - 1 && durationColIdx >= 0 ? durationColIdx : lastCellIdx;
+
       return (
         <div className="flex items-stretch min-w-0">
           <div className="flex-1 min-w-0 flex flex-col">
@@ -618,14 +628,16 @@ const SortableRowContent: React.FC<{
                       </div>
                     );
                   }
-                  if (ci === lastCellIdx && sectionTotal > 0) {
+                  if (ci === estColIdx && sectionTotal > 0) {
+                    const estCell = (estColIdx === durationColIdx && durationCell) ? durationCell : cell;
+                    const estAlign = estCell.align === 'right' ? 'flex-end' : estCell.align === 'left' ? 'flex-start' : 'center';
                     return (
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
-                        ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                        ...getRibbonCellBaseStyle(estCell, cellPaddingV, cellPaddingH, 1),
                         padding: daybreakPadPx, overflow: 'visible',
                         whiteSpace: 'normal', wordBreak: 'break-word',
-                        display: 'flex', flexDirection: 'column', alignItems: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center', justifyContent: 'center', gap: 1,
+                        display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1,
                       }}>
                         <span style={{ fontSize: '8pt' }}>
                           EST: {formatDuration(sectionShoot)}{sectionBreak > 0 ? <span> + {formatDuration(sectionBreak)} break</span> : null}

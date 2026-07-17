@@ -170,6 +170,17 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
     return null;
   })();
 
+  const durationColIdx = cells ? cells.findIndex(c => c.field === 'duration') : -1;
+  const durationCell = ribbon ? (() => {
+    for (const r of ribbon) {
+      const found = r.cells.find(c => c.field === 'duration');
+      if (found) return found;
+    }
+    return null;
+  })() : null;
+
+  const estColIdx = mainCellIdx === cells?.length - 1 && durationColIdx >= 0 ? durationColIdx : (cells ? cells.length - 1 : -1);
+
   const cellPrintStyle = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
 
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
@@ -590,12 +601,14 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                 </div>
               );
             }
-            if (ci === cells.length - 1 && runningElapsed > 0) {
+            if (ci === estColIdx && runningElapsed > 0) {
+              const estCell = (estColIdx === durationColIdx && durationCell) ? durationCell : cell;
+              const estAlign = estCell.align === 'right' ? 'flex-end' : estCell.align === 'left' ? 'flex-start' : 'center';
               return (
                 <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
-                  ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  padding: noteBreakPadPx, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                  ...getRibbonCellBaseStyle(estCell, cellPaddingV, cellPaddingH, 1),
+                  padding: noteBreakPadPx, display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1,
                 }}>
                   <span style={{ fontSize: '8pt' }}>
                     EST: {formatDuration(runningElapsed - totalBreakTime)}{totalBreakTime > 0 ? <> + {formatDuration(totalBreakTime)} break</> : ''}
