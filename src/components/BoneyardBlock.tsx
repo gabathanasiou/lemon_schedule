@@ -197,6 +197,8 @@ export const BoneyardBlock: React.FC<{
   };
 
   const sortBoneyard = (criterion: string, direction: 'asc' | 'desc') => {
+    setSortBy(criterion);
+    setSortDir(direction);
     const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
     if (!activeVersion) return;
 

@@ -1181,6 +1181,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   const handleSort = useCallback(async (criterion: string, direction: 'asc' | 'desc') => {
     if (!activeVersion) return;
+    setSortBy(criterion);
+    setSortDir(direction);
 
     const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned);
     if (hasDaybreaks) {
