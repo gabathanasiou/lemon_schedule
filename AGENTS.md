@@ -594,4 +594,13 @@ The schedule has exactly three **container blocks**, identified by `containerId`
 3. Add an entry to `ContainerIds` type and `makeEmptyContainerIds()`
 4. Add entries to `containerIdsRef` and `lastSelectedRef` in `ScheduleTab.tsx`
 
+### Calendar Day Body Context Menu (`CalendarTab.tsx`)
+
+Right-clicking empty space in a Calendar day opens a minimal context menu: Paste Below, Add Note Below, Add Break Below.
+
+- **Target computation**: `bodyTargetRowId` — last row in the section's `rows`, or the row just before the closing daybreak for empty sections (matching drag-drop position).
+- **Rendered inline** in `CalendarTab`, not via `StripboardContextMenuContent` — avoids exposing row-specific items like Duplicate/Delete.
+- **`contextMenuBodyTarget`** state gates both the menu rendering and guards `StripboardContextMenuContent` from showing for body clicks.
+- `handleContextMenuAction` and `pasteClipboard` work unmodified since they target the real row ID. |
+
 |
