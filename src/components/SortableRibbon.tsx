@@ -750,6 +750,7 @@ const SortableRowContent: React.FC<{
                             col="duration"
                             className="text-center"
                             noTruncate
+                            onRowNavigate={onRowNavigate}
                           />
                         </div>
                       );
@@ -831,6 +832,7 @@ const SortableRowContent: React.FC<{
                       clearOnType
                       col="duration"
                       className="bg-zinc-800 px-1.5 py-0.5 border border-transparent focus-within:border-zinc-500 text-center"
+                      onRowNavigate={onRowNavigate}
                     />
                   </td>
                   <td className="col-dur" style={{ textAlign: 'center' }}>
