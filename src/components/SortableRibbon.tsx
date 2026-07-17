@@ -160,8 +160,8 @@ const SortableRowContent: React.FC<{
         <Flag className="w-2.5 h-2.5 fill-red-500 text-red-500" />
       </span>
       {showViolationTip && createPortal(
-        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
-          <ViolationContent violations={sceneViolations} castMembers={state.present.castMembers || []} />
+        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+          <ViolationContent compact violations={sceneViolations} castMembers={state.present.castMembers || []} />
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>,
         portalTarget ?? document.body
@@ -196,8 +196,8 @@ const SortableRowContent: React.FC<{
         <span style={{ fontSize: '8pt', fontWeight: 700, color: '#ef4444' }}>{nextSectionViolations!.length}</span>
       </span>
       {showNextViolationTip && createPortal(
-        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-xs border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
-          <ViolationContent violations={nextSectionViolations!} castMembers={state.present.castMembers || []} />
+        <div className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: 'translate(-50%, -100%)', zIndex: 99999 }}>
+          <ViolationContent compact violations={nextSectionViolations!} castMembers={state.present.castMembers || []} />
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>,
         portalTarget ?? document.body

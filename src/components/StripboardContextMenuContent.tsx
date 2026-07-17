@@ -71,7 +71,10 @@ export const StripboardContextMenuContent: React.FC<{
                 </ContextMenuItem>
               ) : (
                 <ContextMenuItem variant="danger" onClick={() => {
-                  const ids = Array.from(selectedRowIds);
+                  const ids = Array.from(selectedRowIds).filter(id => {
+                    const r = activeVersion.rows.find(rr => rr.id === id);
+                    return !r?.pinned;
+                  });
                   const newRows = activeVersion!.rows.map((r: ScheduleRow) => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
                   dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
                   selectNextAfterRemove?.(new Set(ids as string[]));

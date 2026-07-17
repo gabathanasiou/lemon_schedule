@@ -34,7 +34,8 @@ export function formatCastIds(ids: string[], castMembers: CastMember[]): string 
 
 /** Detail for MAX_HOURS violation — shown under cast member header. */
 export function maxHoursDetail(maxHours: number, over: number): string {
-  return `Limit is ${maxHours}h (+${over.toFixed(1)}h over)`;
+  const worked = maxHours + over;
+  return `Can only work ${maxHours}h (scheduled ${worked.toFixed(1)}h)`;
 }
 
 /** Detail for DATE_RESTRICTION violation — shown under cast member header. */

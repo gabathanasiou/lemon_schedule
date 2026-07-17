@@ -37,7 +37,7 @@ export const ViolationModal: React.FC<ViolationModalProps> = ({
         </ModalFooter>
       }
     >
-      <div className="px-5 py-3">
+      <div className="px-5 py-3 max-h-[65vh] overflow-y-auto scrollbar-custom">
         {subtitle && (
           <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-3">{subtitle}</div>
         )}
@@ -76,7 +76,7 @@ export const ShootViolationsModal: React.FC<ShootViolationsModalProps> = ({
         </ModalFooter>
       }
     >
-      <div className="px-5 py-3 space-y-4">
+      <div className="px-5 py-3 space-y-4 max-h-[65vh] overflow-y-auto scrollbar-custom">
         {dayViolations.filter(d => d.violations.length > 0).map((day, i) => (
           <div key={i}>
             <div className="flex items-center gap-2 mb-2">

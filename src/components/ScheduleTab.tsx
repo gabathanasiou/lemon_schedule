@@ -9,7 +9,7 @@ import { SortableRibbon } from './SortableRibbon';
 import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, Flag, Send } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, Flag, Send, CheckSquare } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -332,7 +332,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         const isBoneyard = selectedRowIds.size > 0
           ? Array.from(selectedRowIds).some(id => boneyardFlatRef.current.includes(id))
           : boneyardLastIdRef.current !== null;
-        const ids = isBoneyard ? boneyardFlatRef.current : flatRowIdsRef.current.filter(id => !id.startsWith('empty-'));
+        const ids = isBoneyard ? boneyardFlatRef.current : flatRowIdsRef.current.filter(id => {
+          if (id.startsWith('empty-')) return false;
+          const r = activeVersion.rows.find(rr => rr.id === id);
+          return !r?.pinned;
+        });
         if (ids.length > 0) {
           setSelectedRowIds(new Set(ids));
           setLastClickedId(ids[0]);
@@ -1985,6 +1989,23 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           }
           return (
             <>
+              <ContextMenuItem onClick={() => {
+                const isBoneyard = contextMenu!.containerId == null;
+                const ids = isBoneyard
+                  ? boneyardFlatRef.current
+                  : flatRowIdsRef.current.filter(id => {
+                      if (id.startsWith('empty-')) return false;
+                      const r = activeVersion.rows.find(rr => rr.id === id);
+                      return !r?.pinned;
+                    });
+                if (ids.length > 0) {
+                  setSelectedRowIds(new Set(ids));
+                  setLastClickedId(ids[0]);
+                  scrollToRow(ids[0]);
+                }
+                setContextMenu(null);
+              }} icon={<CheckSquare className="w-3.5 h-3.5" />}>Select All</ContextMenuItem>
+              <ContextMenuDivider />
               {inClipboard > 0 && (
                 <>
                   <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }} icon={<ClipboardPaste className="w-3.5 h-3.5" />}>Paste Below ({inClipboard})</ContextMenuItem>
