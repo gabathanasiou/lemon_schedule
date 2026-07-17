@@ -435,7 +435,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         const flat = isBoneyard ? containerIdsRef.current.boneyard as string[] : flatRowIdsRef.current;
         if (flat.length === 0) return;
           if (isShift) {
-          const shiftFlat = isBoneyard ? flat : flat.filter(id => !id.startsWith('empty-'));
+          const shiftFlat = isBoneyard ? flat : flat.filter(id => !id.startsWith('empty-') && !activeVersion?.rows.find(rr => rr.id === id)?.pinned);
           if (shiftFlat.length === 0) return;
           const anchor = lastClickedIdRef.current;
           const anchorIdx = (anchor && (isBoneyard || !anchor.startsWith('empty-'))) ? shiftFlat.indexOf(anchor) : -1;
@@ -492,15 +492,17 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           }
           const anchor = lastClickedIdRef.current;
           const refId = anchor && currentIds.includes(anchor) ? anchor : (isDown ? currentIds[currentIds.length - 1] : currentIds[0]);
-          const idx = flat.indexOf(refId);
-          if (isDown && idx < flat.length - 1) {
-            setSelectedRowIds(new Set([flat[idx + 1]]));
-            setLastClickedId(flat[idx + 1]);
-            scrollToRow(flat[idx + 1]);
+          const nav = isBoneyard ? containerIdsRef.current.boneyard as string[] : flatRowIdsRef.current.filter(id => !id.startsWith('empty-'));
+          const idx = nav.indexOf(refId);
+          if (idx === -1) return;
+          if (isDown && idx < nav.length - 1) {
+            setSelectedRowIds(new Set([nav[idx + 1]]));
+            setLastClickedId(nav[idx + 1]);
+            scrollToRow(nav[idx + 1]);
           } else if (!isDown && idx > 0) {
-            setSelectedRowIds(new Set([flat[idx - 1]]));
-            setLastClickedId(flat[idx - 1]);
-            scrollToRow(flat[idx - 1]);
+            setSelectedRowIds(new Set([nav[idx - 1]]));
+            setLastClickedId(nav[idx - 1]);
+            scrollToRow(nav[idx - 1]);
           }
         }
       }
@@ -696,7 +698,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       if (offsetFraction !== undefined) {
         targetScroll = container.scrollTop + eRect.top - cRect.top - cRect.height * offsetFraction;
       } else {
-        const buffer = 200;
+    const buffer = 80;
         if (eRect.top < cRect.top + buffer) {
           targetScroll = container.scrollTop + eRect.top - (cRect.top + buffer);
         } else if (eRect.bottom > cRect.bottom - buffer) {
