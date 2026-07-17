@@ -236,7 +236,7 @@ export function ItemManagerDropdown({
   const createLabel = itemLabel || header.replace(/S$/, '').replace(/s$/, '');
 
   return (
-    <DropdownMenu open={open} onOpenChange={(o) => { if (!o) { setEditingId(null); setEditValue(''); } if (!o || !readOnly) onClose(o); }} width="w-80" theme={theme} trigger={trigger}>
+    <DropdownMenu open={open} onOpenChange={(o) => { if (o) { setEditingId(null); setEditValue(''); } else { if (editingId && editValue.trim()) { onRename(editingId, editValue.trim()); } setEditingId(null); setEditValue(''); } if (!o || !readOnly) onClose(o); }} width="w-80" theme={theme} trigger={trigger}>
       <div className={d.headerText}>
         {header}
       </div>
