@@ -1990,7 +1990,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           return (
             <>
               <ContextMenuItem onClick={() => {
-                const isBoneyard = contextMenu!.containerId == null;
+                const isBoneyard = row?.containerId == null;
                 const ids = isBoneyard
                   ? boneyardFlatRef.current
                   : flatRowIdsRef.current.filter(id => {
