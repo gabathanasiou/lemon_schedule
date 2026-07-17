@@ -1630,7 +1630,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     prevNeedsReauthRef.current = auth.needsReauth;
   }, [auth.needsReauth, currentProjectId]);
 
-  // Catch-up sync when reconnecting after being offline with a pending error
+  // Catch-up sync when reconnecting; immediately lock cloud projects when going offline
   const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
     if (isOnline && !prevOnlineRef.current) {
@@ -1642,6 +1642,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             .then(() => { setDriveSaveError(false); lastSaveFailedRef.current = false; setRealOnline(true); })
             .catch(() => {});
         }
+      }
+    } else if (!isOnline && prevOnlineRef.current) {
+      const meta = projectListRef.current.find(p => p.id === currentProjectId);
+      if (meta?.driveFileId) {
+        setRealOnline(false);
+        setDriveSaveError(true);
+        lastSaveFailedRef.current = true;
       }
     }
     prevOnlineRef.current = isOnline;
