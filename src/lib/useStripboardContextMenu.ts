@@ -154,7 +154,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const dayRows = activeVersion.rows
         .filter(r => r.containerId === overDay && r.containerId !== -1)
         .sort((a, b) => a.order - b.order);
-      insertIdx = dayRows.length > 0 && dayRows[0]?.pinned ? 1 : 0;
+      insertIdx = dayRows.length;
     } else if (targetRow) {
       overDay = targetRow.containerId;
       const dayRows = activeVersion.rows
@@ -195,14 +195,8 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
         ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
       };
       const dayRows = activeVersion.rows.filter(r => r.containerId === containerId).sort((a, b) => a.order - b.order);
-      const firstDayRow = dayRows[0];
-      let insertAt: number;
-      if (firstDayRow?.pinned) {
-        const pinnedIdx = activeVersion.rows.indexOf(firstDayRow);
-        insertAt = pinnedIdx + 1;
-      } else {
-        insertAt = firstDayRow ? activeVersion.rows.indexOf(firstDayRow) : activeVersion.rows.length;
-      }
+      const lastDayRow = dayRows[dayRows.length - 1];
+      const insertAt = lastDayRow ? activeVersion.rows.indexOf(lastDayRow) + 1 : activeVersion.rows.length;
       const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
       newRows.forEach((r, i) => r.order = i);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });

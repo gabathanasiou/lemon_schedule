@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -151,10 +151,11 @@ const DayCell: React.FC<{
   monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
   onRowContextMenu?: (e: React.MouseEvent) => void;
-  onBodyContextMenu?: (e: React.MouseEvent, targetRowId: string, containerId: number) => void;
+  onBodyContextMenu?: (e: React.MouseEvent, targetRowId: string) => void;
+  bodyTargetRowId?: string | null;
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, palette, activeDragDay }) => {
+}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -226,11 +227,9 @@ const DayCell: React.FC<{
       <div className="flex-1 overflow-y-auto min-h-0 mx-0.5"
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('[data-row-id]')) return;
-          const sortedRows = [...rows].sort((a, b) => a.order - b.order);
-          if (sortedRows.length === 0) return;
-          const lastRow = sortedRows[sortedRows.length - 1];
+          if (!bodyTargetRowId) return;
           e.preventDefault();
-          onBodyContextMenu?.(e, lastRow.id, lastRow.containerId as number);
+          onBodyContextMenu?.(e, bodyTargetRowId);
         }}
       >
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
@@ -517,6 +516,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   }, [activeVersion, dispatch]);
 
   const [contextMenuDate, setContextMenuDate] = useState<string | null>(null);
+  const [contextMenuBodyTarget, setContextMenuBodyTarget] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -737,6 +737,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const handleRowContextMenu = useCallback((e: React.MouseEvent) => {
     setContextMenuDate(null);
+    setContextMenuBodyTarget(null);
     (createOnContextMenu()(e));
   }, [createOnContextMenu]);
 
@@ -1489,6 +1490,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                 const dateSectionIdx = dateSectionMap.get(day.dateKey) ?? null;
                 const chronoDay = dateSectionIdx != null ? chronoDayMap.get(dateSectionIdx) : undefined;
                 const sectionLabel = chronoDay ? `DAY ${chronoDay}` : undefined;
+                let bodyTargetRowId: string | null = null;
+                if (dateSectionIdx != null) {
+                  const section = sections.find(s => s.index === dateSectionIdx);
+                  if (section) {
+                    const sRows = [...section.rows].sort((a, b) => a.order - b.order);
+                    bodyTargetRowId = sRows.length > 0
+                      ? sRows[sRows.length - 1].id
+                      : section.daybreakRow
+                        ? (() => {
+                            const flatRows = (activeVersion?.rows || []);
+                            const di = flatRows.findIndex(r => r.id === section.daybreakRow!.id);
+                            return di > 0 ? flatRows[di - 1].id : section.daybreakRow!.id;
+                          })()
+                        : null;
+                  }
+                }
                   return (
                   <DayCell key={day.dateKey}
                     dateKey={day.dateKey} date={day.date}
@@ -1518,9 +1535,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     activeDragDay={activeDragDay}
                     onRowDoubleClick={handleRowDoubleClick}
                     onRowContextMenu={handleRowContextMenu}
-                    onBodyContextMenu={(e, targetRowId, containerId) => {
+                    bodyTargetRowId={bodyTargetRowId}
+                    onBodyContextMenu={(e, targetRowId) => {
                       setContextMenuDate(null);
-                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: targetRowId, containerId });
+                      setContextMenuBodyTarget(targetRowId);
+                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: targetRowId, containerId: 1 });
                     }}
                     palette={project.colorPalette}
                   />
@@ -1560,7 +1579,19 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           )}
         </ContextMenu>
       )}
-      {contextMenu && !contextMenuDate && (
+      {contextMenuBodyTarget && contextMenu && (
+        <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuBodyTarget(null); }}>
+          {inClipboard > 0 && (
+            <>
+              <ContextMenuItem onClick={() => { pasteClipboard(contextMenuBodyTarget); setContextMenu(null); setContextMenuBodyTarget(null); }} icon={<ClipboardPaste className="w-3.5 h-3.5" />}>Paste Below ({inClipboard})</ContextMenuItem>
+              <ContextMenuDivider />
+            </>
+          )}
+          <ContextMenuItem onClick={() => { handleContextMenuAction('add_note'); setContextMenu(null); setContextMenuBodyTarget(null); }} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
+          <ContextMenuItem onClick={() => { handleContextMenuAction('add_break'); setContextMenu(null); setContextMenuBodyTarget(null); }} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
+        </ContextMenu>
+      )}
+      {contextMenu && !contextMenuDate && !contextMenuBodyTarget && (
         <StripboardContextMenuContent
           contextMenu={contextMenu}
           setContextMenu={setContextMenu}
