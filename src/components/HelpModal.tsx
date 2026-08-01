@@ -113,7 +113,8 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Scroll</>} action="Vertical scroll shows the whole production; each month is its own block" />
           <Row keys={<>« › ‹ »</>} action="Jump to first / last day, or previous / next month block" />
           <Row keys={<>Today</>} action="Jump to today's week (clamped to the production range)" />
-          <Row keys={<>Drag day header</>} action="Swap two days' content and call times in the stripboard" />
+          <Row keys={<>Drag day header</>} action="Swap two days' content and call times: drop on the center of another day. Drop on a day's left or right edge to insert your day before/after it, pushing the other days (call times travel with each day)" />
+          <Row keys={<>Drag to bottom bar</>} action="Drop a dragged day on the 'insert at end' bar to append it as the last day" />
           <Row keys={<>Right-click day header</>} action="Mark day as Hold / Travel / Day Off (non-shoot date)" />
           <Row keys={<>Right-click ribbon</>} action="Cut / Paste / Duplicate / Delete / Send to Boneyard (mirrors Schedule tab, no Daybreak)" />
         </Section>

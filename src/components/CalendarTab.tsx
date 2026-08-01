@@ -195,7 +195,8 @@ const DayCell: React.FC<{
   bodyTargetRowId?: string | null;
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
+  dropState?: DayDropState;
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState }) => {
   const { readOnly } = useProject();
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -229,13 +230,24 @@ const DayCell: React.FC<{
   const isNonShoot = !!nonShootStatus;
   const isWorking = sectionIndex != null;
 
+  const drop = dropState && dropState !== 'end' && dropState.sectionIndex === sectionIndex ? dropState : null;
+
   return (
     <div ref={setNodeRef} data-date-key={dateKey}
       className={`min-h-[80px] h-full border-r flex flex-col relative
         ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
         ${!isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
-        ${isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
+        ${!drop && isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
     >
+        {drop?.zone === 'insert' && drop.side === 'before' && (
+          <div className="absolute inset-y-0 left-0 w-[4px] bg-blue-500 z-30 pointer-events-none" />
+        )}
+        {drop?.zone === 'insert' && drop.side === 'after' && (
+          <div className="absolute inset-y-0 right-0 w-[4px] bg-blue-500 z-30 pointer-events-none" />
+        )}
+        {drop?.zone === 'swap' && (
+          <div className="absolute inset-0 z-20 pointer-events-none border-2 border-blue-600 bg-blue-500/20" />
+        )}
         <div
           ref={setDragRef}
           {...dragListeners}
@@ -243,7 +255,7 @@ const DayCell: React.FC<{
           onClick={() => activeTool && onToggle(dateKey)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
-          className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
+          className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none leading-none gap-[3px]">
             <span className="text-[8px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-60">{formatFullDate(date)}</span>
@@ -307,6 +319,36 @@ const DayCell: React.FC<{
 const FillerCell: React.FC = () => (
   <div className="min-h-[80px] h-full border-r border-b border-dashed border-zinc-200 bg-zinc-50/30" />
 );
+
+type DayDropState = { zone: 'insert' | 'swap'; side?: 'before' | 'after'; sectionIndex: number } | 'end' | null;
+
+interface DayBlock { content: ScheduleRow[]; daybreakRow?: ScheduleRow; origIdx: number; }
+
+function buildDayBlocks(scheduled: ScheduleRow[]): { blocks: DayBlock[]; tail: ScheduleRow[] } {
+  const blocks: DayBlock[] = [];
+  let currentContent: ScheduleRow[] = [];
+  for (const r of scheduled) {
+    if (r.type === 'DAYBREAK') {
+      blocks.push({ content: currentContent, daybreakRow: r, origIdx: blocks.length });
+      currentContent = [];
+    } else {
+      currentContent.push(r);
+    }
+  }
+  return { blocks, tail: currentContent };
+}
+
+function rebuildRowsFromBlocks(blocks: DayBlock[], tail: ScheduleRow[], boneyard: ScheduleRow[]): ScheduleRow[] {
+  const rebuilt: ScheduleRow[] = [];
+  for (const block of blocks) {
+    rebuilt.push(...block.content);
+    if (block.daybreakRow) rebuilt.push(block.daybreakRow);
+  }
+  rebuilt.push(...tail);
+  const combined = [...boneyard, ...rebuilt];
+  combined.forEach((r, i) => r.order = i);
+  return combined;
+}
 
 const BoneyardSidebar: React.FC<{
   rows: ScheduleRow[];
@@ -553,6 +595,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [activeId, setActiveId] = useState<string | null>(null);
   const [insertBeforeId, setInsertBeforeId] = useState<string | null>(null);
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  const [dayDropState, setDayDropState] = useState<DayDropState>(null);
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
 
   const activeDragIdsRef = useRef(activeDragIds);
   activeDragIdsRef.current = activeDragIds;
@@ -1013,6 +1057,75 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const activeType = activeId ? (activeDragDay !== null ? 'DAY' : 'SCENE_CARD') : null;
 
+  const updateDayDropZone = useCallback((x: number, y: number) => {
+    const container = calendarGridRef.current;
+    if (!container) return;
+    const endStrip = container.querySelector('[data-insert-end]');
+    if (endStrip) {
+      const sr = endStrip.getBoundingClientRect();
+      if (x >= sr.left && x <= sr.right && y >= sr.top && y <= sr.bottom) {
+        setDayDropState(prev => (prev === 'end' ? prev : 'end'));
+        return;
+      }
+    }
+    const dayEls = container.querySelectorAll('[data-date-key]');
+    let inside: { el: Element; rect: DOMRect; sectionIndex: number } | null = null;
+    let nearest: { el: Element; rect: DOMRect; sectionIndex: number; dist: number } | null = null;
+    for (const el of dayEls) {
+      const dateKey = el.getAttribute('data-date-key');
+      if (!dateKey) continue;
+      const sectionIndex = dateSectionMap.get(dateKey);
+      if (sectionIndex == null) continue;
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        inside = { el, rect, sectionIndex };
+        break;
+      }
+      const dx = Math.max(rect.left - x, 0, x - rect.right);
+      const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+      const dist = Math.hypot(dx, dy);
+      if (dist < 24 && (!nearest || dist < nearest.dist)) nearest = { el, rect, sectionIndex, dist };
+    }
+    if (inside) {
+      const ratio = inside.rect.width > 0 ? (x - inside.rect.left) / inside.rect.width : 0.5;
+      if (ratio < 0.3) {
+        setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'insert' && prev.side === 'before' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'insert', side: 'before', sectionIndex: inside.sectionIndex }));
+      } else if (ratio > 0.7) {
+        setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'insert' && prev.side === 'after' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'insert', side: 'after', sectionIndex: inside.sectionIndex }));
+      } else {
+        setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'swap' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'swap', sectionIndex: inside.sectionIndex }));
+      }
+      return;
+    }
+    if (nearest) {
+      const side = x < nearest.rect.left || y < nearest.rect.top ? 'before' : 'after';
+      setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'insert' && prev.side === side && prev.sectionIndex === nearest.sectionIndex ? prev : { zone: 'insert', side, sectionIndex: nearest.sectionIndex }));
+      return;
+    }
+    setDayDropState(prev => (prev === null ? prev : null));
+  }, [dateSectionMap]);
+
+  useEffect(() => {
+    if (activeType !== 'DAY') { dragPointerRef.current = null; setDayDropState(null); return; }
+    const onMove = (e: PointerEvent) => {
+      dragPointerRef.current = { x: e.clientX, y: e.clientY };
+      updateDayDropZone(e.clientX, e.clientY);
+    };
+    const onUp = () => { dragPointerRef.current = null; };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [activeType, updateDayDropZone]);
+
+  const { setNodeRef: setEndStripRef, isOver: isEndStripOver } = useDroppable({
+    id: 'day-insert-end',
+    data: { type: 'DAY_INSERT_END' },
+    disabled: activeType !== 'DAY',
+  });
+
   const activeDragRows = useMemo(() => {
     if (!activeId || activeType !== 'SCENE_CARD') return [];
     return activeDragIds.size > 1
@@ -1070,6 +1183,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setActiveDragDay(null);
     setActiveDragIds(new Set());
     setInsertBeforeId(null);
+    setDayDropState(null);
     if (!over || !activeVersion) return;
 
     const activeData = active.data.current as any;
@@ -1084,31 +1198,58 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         const dateKey = over.id.slice(4);
         targetIdx = dateSectionMap.get(dateKey) ?? null;
       }
-      if (targetIdx == null || sourceIdx === targetIdx) return;
-      if (sourceIdx < 0 || targetIdx < 0 || sourceIdx >= sections.length || targetIdx >= sections.length) return;
+      if (sourceIdx < 0 || sourceIdx >= sections.length) return;
 
       const allRows = activeVersion.rows.map(r => ({ ...r }));
       const boneyard = allRows.filter(r => r.containerId == null);
       const scheduled = allRows.filter(r => r.containerId != null).sort((a, b) => a.order - b.order);
+      const { blocks, tail } = buildDayBlocks(scheduled);
 
-      // Build section blocks matching the sections array structure
-      const blocks: { content: ScheduleRow[]; daybreakRow?: ScheduleRow }[] = [];
-      let currentContent: ScheduleRow[] = [];
-      for (const r of scheduled) {
-        if (r.type === 'DAYBREAK') {
-          blocks.push({ content: currentContent, daybreakRow: r });
-          currentContent = [];
-        } else {
-          currentContent.push(r);
-        }
+      // Insert: drop on a day's edge, in the gap between days, or on the end strip
+      let insertT: number | null = null;
+      const drop = dayDropState;
+      if (over.id === 'day-insert-end') {
+        insertT = blocks.length;
+      } else if (drop === 'end') {
+        insertT = blocks.length;
+      } else if (drop && drop.zone === 'insert') {
+        insertT = (drop.side === 'after' ? drop.sectionIndex + 1 : drop.sectionIndex);
       }
-      // Note: rows after the last DAYBREAK are not included (matching sections derivation)
+
+      if (insertT != null && sourceIdx >= 1) {
+        insertT = Math.max(1, Math.min(blocks.length, insertT));
+        if (sourceIdx === insertT || sourceIdx + 1 === insertT) return;
+
+        // Snapshot each production day's call time (the daybreak above it)
+        const callTimeOfDay = new Map<number, string>();
+        for (let i = 1; i < blocks.length; i++) {
+          callTimeOfDay.set(i, blocks[i - 1].daybreakRow?.daybreakCallTime || '08:00');
+        }
+
+        const moved = blocks.splice(sourceIdx, 1)[0];
+        const targetIndex = insertT > sourceIdx ? insertT - 1 : insertT;
+        blocks.splice(targetIndex, 0, moved);
+        console.log(`[INSERT] section ${sourceIdx} -> position ${insertT} | scenes ${moved.content.length}`);
+
+        // Rotate call times so every day keeps its own call time as it shifts
+        for (let i = 1; i < blocks.length; i++) {
+          const gov = blocks[i - 1].daybreakRow;
+          if (gov) gov.daybreakCallTime = callTimeOfDay.get(blocks[i].origIdx) || '08:00';
+        }
+
+        const combined = rebuildRowsFromBlocks(blocks, tail, boneyard);
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+        return;
+      }
+
+      // Swap: drop on the center of a day cell
+      if (targetIdx == null || sourceIdx === targetIdx) return;
+      if (targetIdx < 0 || targetIdx >= sections.length) return;
 
       const sourceBlock = blocks[sourceIdx];
       const targetBlock = blocks[targetIdx];
       if (!sourceBlock || !targetBlock) return;
 
-      // Swap content between sections
       const swapContent = [...targetBlock.content];
       targetBlock.content = [...sourceBlock.content];
       sourceBlock.content = swapContent;
@@ -1125,15 +1266,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         }
       }
 
-      // Rebuild rows from blocks
-      const rebuilt: ScheduleRow[] = [];
-      for (const block of blocks) {
-        rebuilt.push(...block.content);
-        if (block.daybreakRow) rebuilt.push(block.daybreakRow);
-      }
-      const combined = [...boneyard, ...rebuilt];
-      combined.forEach((r, i) => r.order = i);
-
+      const combined = rebuildRowsFromBlocks(blocks, tail, boneyard);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
       return;
     }
@@ -1512,7 +1645,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   return (
     <>
-    <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => {
+      setActiveId(null);
+      setActiveDragRow(null);
+      setActiveDragDay(null);
+      setActiveDragIds(new Set());
+      setInsertBeforeId(null);
+      setDayDropState(null);
+    }}>
       <div className="flex-1 flex overflow-hidden min-h-0" style={{ fontFamily: 'Helvetica, sans-serif', fontSize: '11px' }}
         onClick={(e) => {
           if (marqueeJustEndedRef.current) { marqueeJustEndedRef.current = false; return; }
@@ -1706,6 +1846,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                           activeDragRows={activeDragRows}
                           activeRowId={activeId}
                           activeDragDay={activeDragDay}
+                          dropState={dayDropState}
                           onRowDoubleClick={handleRowDoubleClick}
                           onRowContextMenu={handleRowContextMenu}
                           bodyTargetRowId={bodyTargetRowId}
@@ -1722,6 +1863,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                 </div>
               );
             })}
+            {activeType === 'DAY' && (
+              <div ref={setEndStripRef} data-insert-end className={`m-2 flex items-center justify-center rounded-md border-2 border-dashed py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${dayDropState === 'end' || isEndStripOver ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-zinc-300 text-zinc-400'}`}>
+                Drop to insert a day at the end
+              </div>
+            )}
           </div>
         </div>
       </div>
