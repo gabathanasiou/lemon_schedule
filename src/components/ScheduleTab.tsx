@@ -2020,6 +2020,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             setSortMenuOpen(false);
             setRibbonMenuOpen(false);
             setAutoDaybreakOpen(false);
+            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>

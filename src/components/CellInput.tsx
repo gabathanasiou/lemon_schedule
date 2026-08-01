@@ -123,6 +123,16 @@ export const CellInput: React.FC<{
   const handlePointerDown = (e: React.PointerEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!readOnly) {
       e.stopPropagation();
+      if (clearOnType && inputRef.current && document.activeElement !== inputRef.current) {
+        e.preventDefault();
+        inputRef.current.focus();
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (!readOnly && clearOnType && inputRef.current && document.activeElement === inputRef.current) {
+      inputRef.current.select();
     }
   };
 
@@ -161,6 +171,7 @@ export const CellInput: React.FC<{
           }}
           onKeyDown={handleKeyDown}
           onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           readOnly={readOnly}
           placeholder={placeholder}
           rows={1}
@@ -183,6 +194,7 @@ export const CellInput: React.FC<{
           }}
           onKeyDown={handleKeyDown}
           onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           readOnly={readOnly}
           placeholder={placeholder}
           className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'}`}

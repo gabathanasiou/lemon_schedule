@@ -174,6 +174,12 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                 value={label}
                 onChange={e => setLabel(e.target.value.toUpperCase())}
                 onFocus={e => e.target.select()}
+                onPointerDown={(e) => {
+                  if (document.activeElement !== e.currentTarget) {
+                    e.preventDefault();
+                    e.currentTarget.focus();
+                  }
+                }}
                 className="flex-1 min-w-0 bg-transparent outline-none text-xs text-zinc-200 placeholder:text-zinc-600"
                 placeholder={type === 'BREAK' ? 'LUNCH' : 'Note text…'}
               />
@@ -193,6 +199,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                   onChange={setDurationStr}
                   onBlur={() => setDurationStr(prev => normalizeDurationStr(prev))}
                   clearOnType
+                  autoFocus
                   col="duration"
                   className="flex-1 text-right text-xs"
                 />
@@ -256,6 +263,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                         onChange={setSplitDurationStr}
                         onBlur={() => setSplitDurationStr(prev => normalizeDurationStr(prev))}
                         clearOnType
+                        autoFocus
                         col="duration"
                         className="flex-1 text-right text-xs"
                       />
@@ -271,6 +279,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                       onChange={setSplitPagesStr}
                       onBlur={() => setSplitPagesStr(prev => normalizePagesStr(prev))}
                       clearOnType
+                      autoFocus
                       col="pageCount"
                       className="flex-1 text-right text-xs"
                     />
