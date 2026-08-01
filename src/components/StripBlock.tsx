@@ -9,6 +9,8 @@ import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDa
 import { checkSection } from '../lib/rulesEngine';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 
+const nextDateCache = new Map<string, string>();
+
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
   if (!scene) return { background: '#ffffff', color: '#18181b' };
   return resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors, getFallbackStripColors(palette), scene, palette?.colorRules);
@@ -179,9 +181,13 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
 
   const formatNextDate = (iso: string): string => {
     if (!iso) return '';
+    const cached = nextDateCache.get(iso);
+    if (cached !== undefined) return cached;
     const dt = new Date(iso + 'T00:00:00');
-    if (isNaN(dt.getTime())) return '';
-    return dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    if (isNaN(dt.getTime())) { nextDateCache.set(iso, ''); return ''; }
+    const s = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    nextDateCache.set(iso, s);
+    return s;
   };
   const nextDateStrByRow = useMemo(() => {
     const m = new Map<string, string>();

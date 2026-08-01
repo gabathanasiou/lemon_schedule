@@ -84,6 +84,16 @@ const SortableRowContent: React.FC<{
 
   const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
 
+  const sceneData = useMemo(() => {
+    if (!scene) return null;
+    return {
+      ...scene,
+      computedCallTime: row.computedCallTime,
+      estimatedDuration: row.estimatedDuration,
+      sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1),
+    };
+  }, [scene, row.computedCallTime, row.estimatedDuration, scenes]);
+
   const updateRow = (updates: Partial<ScheduleRow>) => {
     if (!activeVersionId) return;
     const version = state.present.versions.find(v => v.id === activeVersionId);
@@ -863,7 +873,7 @@ const SortableRowContent: React.FC<{
     if (!field) {
       return <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', borderBottom: '1px solid #000' }} />;
     }
-    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) }) : getFieldValueFromSample(field);
+    const val = sceneData ? getFieldValue(field, sceneData) : getFieldValueFromSample(field);
     const displayText = `${prefix || ''}${val}${suffix || ''}`;
 
     if (field === 'intExt') {
@@ -1073,7 +1083,7 @@ const SortableRowContent: React.FC<{
     }
     if (!field) return <div key={cellId} style={style} />;
 
-    const val = scene ? getFieldValue(field, { ...scene, computedCallTime: row.computedCallTime, estimatedDuration: row.estimatedDuration, sheetNumber: String(scenes.findIndex(s => s.id === scene.id) + 1) }) : getFieldValueFromSample(field);
+    const val = sceneData ? getFieldValue(field, sceneData) : getFieldValueFromSample(field);
     const fieldLabel = fieldLabels[field] || field;
     const emptyStyle: React.CSSProperties = { fontStyle: 'italic', opacity: 0.5 };
 

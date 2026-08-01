@@ -44,10 +44,16 @@ function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+const fullDateCache = new Map<string, string>();
 function formatFullDate(date: Date): string {
+  const key = toDateKey(date);
+  const cached = fullDateCache.get(key);
+  if (cached) return cached;
   const wd = date.toLocaleString('en-US', { weekday: 'short' }).toUpperCase();
   const mo = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-  return `${wd} ${date.getDate()} ${mo}`;
+  const s = `${wd} ${date.getDate()} ${mo}`;
+  fullDateCache.set(key, s);
+  return s;
 }
 
 interface CalendarMonth { year: number; month: number; }
