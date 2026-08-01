@@ -1,6 +1,28 @@
-import { Project, Scene, ScheduleVersion, ScheduleRow, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, RibbonCell, CustomCategoryDef, ElementTrashItem, CategoryTrashItem, SceneColorPalette, ColorRule, ColorRuleTrashItem } from '../types';
-import { generateUUID, parsePageCount, normalizePunctuation } from '../lib/utils';
+import { Project, Scene, ScheduleVersion, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule } from '../types';
+import { generateUUID, normalizePunctuation } from '../lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
+import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
+import {
+  caseUpdateProject, caseAddScene, caseUpdateScene, caseDeleteScene, caseRestoreScene,
+  caseEmptyTrash, caseSortScenes, caseSortScenesBy, caseInsertSceneAt, caseUpdateVersion,
+  caseNewVersion, caseDeleteVersion, caseRestoreVersionFromTrash, caseRenameVersion,
+  caseSetActiveVersion, caseImportScenes,
+} from './actions/schedule';
+import {
+  caseAddRule, caseUpdateRule, caseDeleteRule, caseRestoreRuleFromTrash,
+  caseAddCastMember, caseUpdateCastMember, caseDeleteCastMember,
+  caseAddElement, caseUpdateElement, caseDeleteElement, caseMergeElements, caseRestoreElementFromTrash,
+  caseAddCustomCategory, caseRenameCustomCategory, caseUpdateCustomCategory,
+  caseDeleteCustomCategory, caseRestoreCategoryFromTrash, caseHideCategory, caseShowCategory,
+  caseRestoreHiddenCategory, caseSetCategoryLabel,
+} from './actions/breakdown';
+import {
+  caseUpdateSceneRibbon, caseAddRibbonDesign, caseUpdateRibbonDesign, caseDeleteRibbonDesign,
+  caseRestoreRibbonFromTrash, caseSetRibbonCellPaddingV, caseSetRibbonCellPaddingH,
+  caseSetRibbonEdgePadding, caseRenameRibbonDesign, caseSetActiveRibbon,
+  caseSetColorPalette, caseAddColorRule, caseUpdateColorRule, caseDeleteColorRule,
+  caseRestoreColorRuleFromTrash, caseReorderColorRules,
+} from './actions/design';
 import { isMultiValue, getFieldItems } from '../lib/categories';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -160,59 +182,6 @@ export interface State {
   _batchBase?: Project;
 }
 
-function ensurePinnedDaybreak(rows: ScheduleRow[]): ScheduleRow[] {
-  const pinnedRows = rows.filter(r => r.pinned);
-  if (pinnedRows.length === 1) {
-    const pinned = pinnedRows[0];
-    if (pinned.containerId === 1 && pinned.order === 0 && pinned.type === 'DAYBREAK') {
-      return rows;
-    }
-  }
-  let result = rows.filter(r => !r.pinned);
-  const pinned: ScheduleRow = pinnedRows.length > 0
-    ? { ...pinnedRows[0], containerId: 1, order: 0, type: 'DAYBREAK' as const, pinned: true }
-    : {
-        id: generateUUID(),
-        type: 'DAYBREAK' as const,
-        containerId: 1,
-        order: 0,
-        daybreakLabel: 'DAYBREAK',
-        daybreakCallTime: '08:00',
-        pinned: true,
-      };
-  result = result.map(r =>
-    r.containerId === 1 ? { ...r, order: r.order + 1 } : r
-  );
-  return [pinned, ...result];
-}
-
-function ensureAllScenesHaveRows(project: Project): Project {
-  return {
-    ...project,
-    versions: project.versions.map(v => {
-      const sceneIdsInRows = new Set(v.rows.filter(r => r.type === 'SCENE').map(r => r.sceneId));
-      const missing = project.scenes.filter(s => !sceneIdsInRows.has(s.id));
-      let rows = v.rows;
-      if (missing.length > 0) {
-        const maxBoneyardOrder = rows
-          .filter(r => r.containerId === null)
-          .reduce((max, r) => Math.max(max, r.order), 0);
-        const newRows = missing.map((s, i) => ({
-          id: generateUUID(),
-          type: 'SCENE' as const,
-          sceneId: s.id,
-          containerId: null as number | null,
-          order: maxBoneyardOrder + 1 + i,
-          estimatedDuration: 30,
-        }));
-        rows = [...rows, ...newRows];
-      }
-      rows = ensurePinnedDaybreak(rows);
-      return { ...v, rows };
-    }),
-  };
-}
-
 export function reducer(state: State, action: Action): State {
   if (action.type === 'LOAD') {
     let p = action.payload;
@@ -316,806 +285,59 @@ export function reducer(state: State, action: Action): State {
   };
 
   switch (action.type) {
-    case 'UPDATE_PROJECT':
-      return applyChange({ ...state.present, ...action.payload });
-
-    case 'ADD_SCENE':
-      return applyChange({
-        ...state.present,
-        scenes: [...state.present.scenes, action.payload],
-        versions: state.present.versions.map(v => {
-          const maxBoneyardOrder = v.rows
-            .filter(r => r.containerId === null)
-            .reduce((max, r) => Math.max(max, r.order), 0);
-          return {
-            ...v,
-            rows: [...v.rows, {
-              id: generateUUID(),
-              type: 'SCENE' as const,
-              sceneId: action.payload.id,
-              containerId: null as number | null,
-              order: maxBoneyardOrder + 1,
-              estimatedDuration: 30,
-            }],
-          };
-        }),
-      });
-
-    case 'UPDATE_SCENE': {
-      let pageCountDecimal = state.present.scenes.find(s => s.id === action.payload.id)?.pageCountDecimal;
-      if (action.payload.pageCount !== undefined) {
-         // Re-parse page count
-         pageCountDecimal = parsePageCount(action.payload.pageCount);
-      }
-      return applyChange({
-        ...state.present,
-        scenes: state.present.scenes.map(s => s.id === action.payload.id ? { ...s, ...action.payload, ...(pageCountDecimal !== undefined ? { pageCountDecimal } : {}) } : s)
-      });
-    }
-
-    case 'DELETE_SCENE': {
-      const scene = state.present.scenes.find(s => s.id === action.payload);
-      if (!scene) return state;
-      const activeVersion = state.present.versions.find(v => v.id === state.present.activeVersionId);
-      const trashItem: TrashItem = {
-        scene: { ...scene },
-        deletedAt: Date.now(),
-        versionName: activeVersion?.name || 'Unknown'
-      };
-      return applyChange({
-        ...state.present,
-        scenes: state.present.scenes.filter(s => s.id !== action.payload),
-        versions: state.present.versions.map(v => ({
-          ...v,
-          rows: v.rows.filter(r => r.sceneId !== action.payload)
-        })),
-        trash: [...state.present.trash, trashItem]
-      });
-    }
-
-    case 'RESTORE_SCENE': {
-      const item = state.present.trash.find(t => t.scene.id === action.payload);
-      if (!item) return state;
-      return applyChange({
-        ...state.present,
-        scenes: [...state.present.scenes, item.scene],
-        trash: state.present.trash.filter(t => t.scene.id !== action.payload),
-        versions: state.present.versions.map(v => {
-          const alreadyHasRow = v.rows.some(r => r.sceneId === item.scene.id);
-          if (alreadyHasRow) return v;
-          const maxBoneyardOrder = v.rows
-            .filter(r => r.containerId === null)
-            .reduce((max, r) => Math.max(max, r.order), 0);
-          return {
-            ...v,
-            rows: [...v.rows, {
-              id: generateUUID(),
-              type: 'SCENE' as const,
-              sceneId: item.scene.id,
-              containerId: null as number | null,
-              order: maxBoneyardOrder + 1,
-              estimatedDuration: 30,
-            }],
-          };
-        }),
-      });
-    }
-
-    case 'EMPTY_TRASH': {
-      return applyChange({
-        ...state.present,
-        trash: [],
-        versionTrash: [],
-        rulesTrash: [],
-        colorRulesTrash: [],
-        ribbonTrash: [],
-        elementsTrash: [],
-        categoryTrash: [],
-      });
-    }
-
-    case 'SORT_SCENES': {
-      const sorted = [...state.present.scenes].sort((a, b) => 
-        a.sceneNumber.localeCompare(b.sceneNumber, undefined, { numeric: true, sensitivity: 'base' })
-      );
-      return applyChange({ ...state.present, scenes: sorted });
-    }
-
-    case 'SORT_SCENES_BY': {
-      const { key, direction } = action.payload;
-      const numericKeys = new Set(['pageCount', 'pageCountDecimal', 'scriptDay']);
-      const sorted = [...state.present.scenes].sort((a, b) => {
-        const aVal = (a as any)[key] ?? '';
-        const bVal = (b as any)[key] ?? '';
-        if (aVal === '' && bVal === '') return 0;
-        if (aVal === '') return 1;
-        if (bVal === '') return -1;
-        let cmp: number;
-        if (numericKeys.has(key)) {
-          cmp = (parseFloat(aVal) || 0) - (parseFloat(bVal) || 0);
-        } else {
-          cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
-        }
-        return direction === 'asc' ? cmp : -cmp;
-      });
-      return applyChange({ ...state.present, scenes: sorted });
-    }
-
-    case 'INSERT_SCENE_AT': {
-      const { index, scene } = action.payload;
-      const updated = [...state.present.scenes.slice(0, index), scene, ...state.present.scenes.slice(index)];
-      return applyChange({ ...state.present, scenes: updated });
-    }
-
-    case 'UPDATE_VERSION': {
-      const payload = { ...action.payload };
-      if (payload.rows) {
-        payload.rows = ensurePinnedDaybreak(payload.rows);
-      }
-      return applyChange({
-        ...state.present,
-        versions: state.present.versions.map(v => v.id === payload.id ? { ...v, ...payload, updatedAt: Date.now() } : v)
-      });
-    }
-
-    case 'NEW_VERSION': {
-      let newVersion: ScheduleVersion;
-      const newId = action.payload.id || generateUUID();
-      const parent = action.payload.cloneFromId 
-        ? state.present.versions.find(v => v.id === action.payload.cloneFromId)
-        : null;
-
-      if (parent) {
-        newVersion = {
-          ...parent,
-          id: newId,
-          name: action.payload.name,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          rows: parent.rows.map(r => ({ ...r, id: generateUUID() }))
-        };
-      } else {
-        const sceneRows = state.present.scenes.map((s, i) => ({
-          id: generateUUID(),
-          type: 'SCENE' as const,
-          sceneId: s.id,
-          containerId: null as number | null,
-          order: 1 + i,
-          estimatedDuration: 30,
-        }));
-        newVersion = {
-          id: newId,
-          name: action.payload.name,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          rows: [{
-            id: generateUUID(),
-            type: 'DAYBREAK',
-            containerId: 1,
-            order: 0,
-            daybreakLabel: 'DAYBREAK',
-            daybreakCallTime: '08:00',
-            pinned: true,
-          }, ...sceneRows],
-          productionStart: new Date().toISOString().slice(0, 10),
-        };
-      }
-      return applyChange({
-        ...state.present,
-        versions: [...state.present.versions, newVersion],
-        activeVersionId: newVersion.id
-      });
-    }
-
-    case 'DELETE_VERSION': {
-      const versionId = action.payload;
-      const version = state.present.versions.find(v => v.id === versionId);
-      if (!version) return state;
-      const newVersions = state.present.versions.filter(v => v.id !== versionId);
-      
-      if (newVersions.length === 0) return state;
-
-      const newActiveId = state.present.activeVersionId === versionId
-        ? newVersions[0].id
-        : state.present.activeVersionId;
-
-      const trashItem: VersionTrashItem = {
-        version: { ...version },
-        deletedAt: Date.now()
-      };
-      
-      return applyChange({
-        ...state.present,
-        versions: newVersions,
-        activeVersionId: newActiveId,
-        versionTrash: [...(state.present.versionTrash || []), trashItem]
-      });
-    }
-
-    case 'RESTORE_VERSION_FROM_TRASH': {
-      const item = (state.present.versionTrash || []).find(t => t.version.id === action.payload);
-      if (!item) return state;
-      return applyChange({
-        ...state.present,
-        versions: [...state.present.versions, item.version],
-        versionTrash: (state.present.versionTrash || []).filter(t => t.version.id !== action.payload)
-      });
-    }
-
-    case 'RENAME_VERSION': {
-      const { id, name } = action.payload;
-      return applyChange({
-        ...state.present,
-        versions: state.present.versions.map(v => v.id === id ? { ...v, name, updatedAt: Date.now() } : v)
-      });
-    }
-
-    case 'SET_ACTIVE_VERSION':
-      return applyChange({ ...state.present, activeVersionId: action.payload });
-      
-    case 'IMPORT_SCENES':
-      return applyChange({
-        ...state.present,
-        scenes: [...state.present.scenes, ...action.payload],
-        versions: state.present.versions.map(v => {
-          const maxBoneyardOrder = v.rows
-            .filter(r => r.containerId === null)
-            .reduce((max, r) => Math.max(max, r.order), 0);
-          const newRows = action.payload.map((s, i) => ({
-            id: generateUUID(),
-            type: 'SCENE' as const,
-            sceneId: s.id,
-            containerId: null as number | null,
-            order: maxBoneyardOrder + 1 + i,
-            estimatedDuration: 30,
-          }));
-          return { ...v, rows: [...v.rows, ...newRows] };
-        }),
-      });
-
-    case 'ADD_RULE':
-      return applyChange({
-        ...state.present,
-        rules: [...(state.present.rules || []), action.payload]
-      });
-
-    case 'UPDATE_RULE':
-      return applyChange({
-        ...state.present,
-        rules: (state.present.rules || []).map(r => r.id === action.payload.id ? action.payload : r)
-      });
-
-    case 'DELETE_RULE': {
-      const rule = (state.present.rules || []).find(r => r.id === action.payload);
-      if (!rule) return state;
-      const trashItem: RuleTrashItem = {
-        rule: { ...rule },
-        deletedAt: Date.now(),
-      };
-      return applyChange({
-        ...state.present,
-        rules: (state.present.rules || []).filter(r => r.id !== action.payload),
-        rulesTrash: [...(state.present.rulesTrash || []), trashItem],
-      });
-    }
-
-    case 'RESTORE_RULE_FROM_TRASH': {
-      const item = (state.present.rulesTrash || []).find(t => t.rule.id === action.payload);
-      if (!item) return state;
-      return applyChange({
-        ...state.present,
-        rules: [...(state.present.rules || []), item.rule],
-        rulesTrash: (state.present.rulesTrash || []).filter(t => t.rule.id !== action.payload),
-      });
-    }
-
-    case 'ADD_CAST_MEMBER': {
-      const cms = [...(state.present.castMembers || []), action.payload];
-      const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
-      return applyChange({
-        ...state.present,
-        breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
-        castMembers: cms,
-      });
-    }
-
-    case 'UPDATE_CAST_MEMBER': {
-      const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c);
-      const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
-      return applyChange({
-        ...state.present,
-        breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
-        castMembers: cms,
-      });
-    }
-
-    case 'DELETE_CAST_MEMBER': {
-      const id = action.payload;
-      const cms = (state.present.castMembers || []).filter(c => c.id !== id);
-      const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
-      return applyChange({
-        ...state.present,
-        scenes: state.present.scenes.map(scene => {
-          const items = scene.cast.split(',').map(x => x.trim()).filter(x => x !== id);
-          return { ...scene, cast: items.join(', ') };
-        }),
-        breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
-        castMembers: cms,
-      });
-    }
-
-    case 'ADD_ELEMENT': {
-      const { category, element } = action.payload;
-      const existing = state.present.breakdownElements[category] || [];
-      const dedupKey = element.id || element.name.toLowerCase();
-      const existingIdx = existing.findIndex(e => (e.id || e.name.toLowerCase()) === dedupKey);
-      if (existingIdx >= 0 || (category === 'cast' && element.id && (state.present.castMembers || []).some(c => c.id === element.id))) {
-        let updated = existingIdx >= 0
-          ? existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element } : e))
-          : [...existing, element];
-        return applyChange({
-          ...state.present,
-          breakdownElements: { ...state.present.breakdownElements, [category]: updated },
-          castMembers: category === 'cast'
-            ? (state.present.castMembers || []).map(c => c.id === element.id ? { ...c, ...element } : c)
-            : state.present.castMembers,
-        });
-      }
-      return applyChange({
-        ...state.present,
-        breakdownElements: { ...state.present.breakdownElements, [category]: [...existing, element] },
-        castMembers: category === 'cast' ? [...(state.present.castMembers || []), element] : state.present.castMembers,
-      });
-    }
-
-    case 'UPDATE_ELEMENT': {
-      const { category, id, updates } = action.payload;
-      let list = state.present.breakdownElements[category] || [];
-      if (list.length === 0) {
-        if (category === 'cast') {
-          list = (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }));
-        } else {
-          const ids = new Set<string>();
-          for (const s of state.present.scenes) {
-            const val = getSceneFieldValue(s, category);
-            if (!val) continue;
-            for (const item of getFieldItems(category, val)) ids.add(item);
-          }
-          list = [...ids].sort().map(item => ({ id: item, name: item }));
-        }
-      }
-      const isCast = category === 'cast';
-      let old = isCast
-        ? list.find(e => e.id === id)
-        : list.find(e => e.id.toLowerCase() === id.toLowerCase());
-      if (!old) {
-        const newElement = { id: updates.id || id, name: updates.name || '' };
-        return applyChange({
-          ...state.present,
-          breakdownElements: { ...state.present.breakdownElements, [category]: [...list, newElement] },
-          castMembers: isCast
-            ? [...(state.present.castMembers || []), newElement]
-            : state.present.castMembers || [],
-        });
-      }
-      const newElement = { ...old, ...updates };
-      const newList = list.map(e => (isCast ? e.id === id : e.id.toLowerCase() === id.toLowerCase()) ? newElement : e);
-
-      let newScenes = state.present.scenes;
-      if (isCast && updates.id && updates.id !== id) {
-        const oldLower = id.toLowerCase();
-        newScenes = state.present.scenes.map(scene => {
-          const val = getSceneFieldValue(scene, category);
-          if (!val) return scene;
-          const items = val.split(',').map(x => x.trim());
-          const idx = items.findIndex(x => x.toLowerCase() === oldLower);
-          if (idx < 0) return scene;
-          items[idx] = updates.id!;
-          return { ...scene, [category]: items.join(', ') };
-        });
-      } else if (!isCast && updates.name && updates.name !== old.name) {
-        if (!isMultiValue(category, state.present.customCategories)) {
-          const oldUpper = old.name.toUpperCase();
-          newScenes = state.present.scenes.map(scene => {
-            const val = getSceneFieldValue(scene, category);
-            if (!val || val.toUpperCase() !== oldUpper) return scene;
-            return { ...scene, [category]: updates.name! };
-          });
-        } else {
-          const oldLower = old.name.toLowerCase();
-          newScenes = state.present.scenes.map(scene => {
-            const val = getSceneFieldValue(scene, category);
-            if (!val) return scene;
-            const items = val.split(',').map(x => x.trim());
-            const idx = items.findIndex(x => x.toLowerCase() === oldLower);
-            if (idx < 0) return scene;
-            items[idx] = updates.name!;
-            return { ...scene, [category]: items.join(', ') };
-          });
-        }
-      }
-
-      return applyChange({
-        ...state.present,
-        scenes: newScenes,
-        breakdownElements: { ...state.present.breakdownElements, [category]: newList },
-        castMembers: isCast
-          ? (state.present.castMembers || []).map(c => c.id === id ? newElement : c)
-          : state.present.castMembers,
-      });
-    }
-
-    case 'DELETE_ELEMENT': {
-      const { category, id } = action.payload;
-      const isCast = category === 'cast';
-      const list = state.present.breakdownElements[category] || [];
-      const el = list.find(e => e.id === id);
-      const matchValue = isCast ? id : (el?.name ?? id);
-      const matchLower = isCast ? id.toLowerCase() : (el?.name ?? id).toLowerCase();
-      const trashItem: ElementTrashItem = {
-        category,
-        element: el ? { id: el.id, name: el.name } : { id, name: '' },
-        deletedAt: Date.now(),
-      };
-      return applyChange({
-        ...state.present,
-        scenes: state.present.scenes.map(scene => {
-          const val = getSceneFieldValue(scene, category);
-          if (!val) return scene;
-          const items = getFieldItems(category, val).filter(x => x.toLowerCase() !== matchLower);
-          return { ...scene, [category]: items.join(', ') };
-        }),
-        breakdownElements: {
-          ...state.present.breakdownElements,
-          [category]: list.filter(e => e.id !== id),
-        },
-        castMembers: isCast
-          ? (state.present.castMembers || []).filter(c => c.id !== id)
-          : state.present.castMembers,
-        elementsTrash: [...state.present.elementsTrash, trashItem],
-      });
-    }
-
-    case 'MERGE_ELEMENTS': {
-      const { category, sourceIds, targetId, targetName } = action.payload;
-      const isCast = category === 'cast';
-      const list = state.present.breakdownElements[category] || [];
-      const sourceSet = new Set(sourceIds.map(id => id.toLowerCase()));
-      const sourceNames = isCast ? sourceSet : new Set(
-        sourceIds.map(sid => {
-          const elem = list.find(e => e.id.toLowerCase() === sid.toLowerCase());
-          return (elem?.name || elem?.id || '').toLowerCase();
-        }).filter(Boolean)
-      );
-      const matchSet = isCast ? sourceSet : sourceNames;
-
-      const filtered = list.filter(e => !sourceSet.has(e.id.toLowerCase()));
-      if (!filtered.some(e => e.id.toLowerCase() === targetId.toLowerCase())) {
-        filtered.push({ id: targetId, name: targetName });
-      }
-
-      const scenes = state.present.scenes.map(scene => {
-        const val = getSceneFieldValue(scene, category);
-        if (!val) return scene;
-        const items = getFieldItems(category, val);
-        let changed = false;
-        const newItems = items.map(item => {
-          if (matchSet.has(item.toLowerCase())) {
-            changed = true;
-            return targetName;
-          }
-          return item;
-        });
-        if (!changed) return scene;
-        return { ...scene, [category]: newItems.join(', ') };
-      });
-
-      let castMembers = state.present.castMembers;
-      if (isCast) {
-        castMembers = castMembers.filter(c => !sourceSet.has(c.id.toLowerCase()));
-        if (!castMembers.some(c => c.id.toLowerCase() === targetId.toLowerCase())) {
-          castMembers = [...castMembers, { id: targetId, name: targetName }];
-        }
-      }
-
-      return applyChange({
-        ...state.present,
-        scenes,
-        breakdownElements: { ...state.present.breakdownElements, [category]: filtered },
-        castMembers,
-      });
-    }
-
-    case 'RESTORE_ELEMENT_FROM_TRASH': {
-      const item = state.present.elementsTrash.find(t => t.element.id === action.payload);
-      if (!item) return state;
-      const { category, element } = item;
-      const existing = state.present.breakdownElements[category] || [];
-      return applyChange({
-        ...state.present,
-        breakdownElements: {
-          ...state.present.breakdownElements,
-          [category]: [...existing, element],
-        },
-        castMembers: category === 'cast'
-          ? [...(state.present.castMembers || []), element]
-          : state.present.castMembers,
-        elementsTrash: state.present.elementsTrash.filter(t => t.element.id !== action.payload),
-      });
-    }
-
-    case 'ADD_CUSTOM_CATEGORY': {
-      return applyChange({
-        ...state.present,
-        customCategories: [...state.present.customCategories, action.payload],
-      });
-    }
-
-    case 'RENAME_CUSTOM_CATEGORY': {
-      const { key, label } = action.payload;
-      return applyChange({
-        ...state.present,
-        customCategories: state.present.customCategories.map(c =>
-          c.key === key ? { ...c, label } : c
-        ),
-      });
-    }
-
-    case 'UPDATE_CUSTOM_CATEGORY': {
-      const { key, ...updates } = action.payload;
-      return applyChange({
-        ...state.present,
-        customCategories: state.present.customCategories.map(c =>
-          c.key === key ? { ...c, ...updates } : c
-        ),
-      });
-    }
-
-    case 'DELETE_CUSTOM_CATEGORY': {
-      const key = action.payload;
-      const def = state.present.customCategories.find(c => c.key === key);
-      if (!def) return state;
-      const elements = state.present.breakdownElements[key] || [];
-      const sceneValues: Record<string, string> = {};
-      for (const scene of state.present.scenes) {
-        const val = getSceneFieldValue(scene, key);
-        if (val) sceneValues[scene.id] = val;
-      }
-      const trashItem: CategoryTrashItem = {
-        category: { ...def },
-        elements: elements.map(e => ({ id: e.id, name: e.name })),
-        sceneValues,
-        deletedAt: Date.now(),
-      };
-      return applyChange({
-        ...state.present,
-        customCategories: state.present.customCategories.filter(c => c.key !== key),
-        scenes: state.present.scenes.map(s => ({ ...s, [key]: undefined })),
-        breakdownElements: (() => {
-          const next = { ...state.present.breakdownElements };
-          delete next[key];
-          return next;
-        })(),
-        categoryTrash: [...state.present.categoryTrash, trashItem],
-      });
-    }
-
-    case 'RESTORE_CATEGORY_FROM_TRASH': {
-      const item = state.present.categoryTrash.find(t => t.category.key === action.payload);
-      if (!item) return state;
-      return applyChange({
-        ...state.present,
-        customCategories: [...state.present.customCategories, item.category],
-        scenes: state.present.scenes.map(s => {
-          const val = item.sceneValues[s.id];
-          return val ? { ...s, [item.category.key]: val } : s;
-        }),
-        breakdownElements: {
-          ...state.present.breakdownElements,
-          [item.category.key]: item.elements,
-        },
-        categoryTrash: state.present.categoryTrash.filter(t => t.category.key !== action.payload),
-      });
-    }
-
-    case 'HIDE_CATEGORY':
-      return applyChange({
-        ...state.present,
-        hiddenCategories: [...state.present.hiddenCategories.filter(k => k !== action.payload), action.payload],
-      });
-
-    case 'SHOW_CATEGORY':
-      return applyChange({
-        ...state.present,
-        hiddenCategories: state.present.hiddenCategories.filter(k => k !== action.payload),
-      });
-
-    case 'RESTORE_HIDDEN_CATEGORY':
-      return applyChange({
-        ...state.present,
-        hiddenCategories: state.present.hiddenCategories.filter(k => k !== action.payload),
-      });
-
-    case 'SET_CATEGORY_LABEL':
-      return applyChange({
-        ...state.present,
-        categoryLabels: { ...state.present.categoryLabels, [action.payload.key]: action.payload.label },
-      });
-
-    case 'UPDATE_SCENE_RIBBON':
-      return applyChange({
-        ...state.present,
-        sceneRibbon: action.payload,
-      });
-
-    case 'ADD_RIBBON_DESIGN': {
-      const source = action.payload.cloneFromId
-        ? state.present.ribbonDesigns.find(d => d.id === action.payload.cloneFromId)
-        : null;
-      const rows = action.payload.rows
-        ? JSON.parse(JSON.stringify(action.payload.rows))
-        : source
-          ? JSON.parse(JSON.stringify(source.rows))
-          : getDefaultRibbonRows();
-      const colWidths = action.payload.colWidths
-        ? [...action.payload.colWidths]
-        : source?.colWidths
-          ? [...source.colWidths]
-          : getDefaultColWidths();
-      const newDesign: RibbonDesign = {
-        id: action.payload.id || generateUUID(),
-        name: action.payload.name,
-        colWidths,
-        rows,
-        createdAt: Date.now(),
-        cellPaddingV: action.payload.cellPaddingV ?? source?.cellPaddingV ?? 3,
-        cellPaddingH: action.payload.cellPaddingH ?? source?.cellPaddingH ?? 3,
-        edgePadding: action.payload.edgePadding ?? source?.edgePadding ?? 3,
-      };
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: [...state.present.ribbonDesigns, newDesign],
-        activeRibbonId: newDesign.id,
-      });
-    }
-
-    case 'UPDATE_RIBBON_DESIGN':
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, rows: action.payload.rows, colWidths: action.payload.colWidths } : d
-        ),
-      });
-
-    case 'DELETE_RIBBON_DESIGN': {
-      const target = state.present.ribbonDesigns.find(d => d.id === action.payload);
-      if (!target) return state;
-      const remaining = state.present.ribbonDesigns.filter(d => d.id !== action.payload);
-      if (remaining.length === 0) return state;
-      const newActiveId = state.present.activeRibbonId === action.payload
-        ? remaining[0].id
-        : state.present.activeRibbonId;
-      const trashItem: RibbonTrashItem = { design: target, deletedAt: Date.now() };
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: remaining,
-        activeRibbonId: newActiveId,
-        ribbonTrash: [...state.present.ribbonTrash, trashItem],
-      });
-    }
-
-    case 'RESTORE_RIBBON_FROM_TRASH': {
-      const item = state.present.ribbonTrash.find(t => t.design.id === action.payload);
-      if (!item) return state;
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: [...state.present.ribbonDesigns, item.design],
-        ribbonTrash: state.present.ribbonTrash.filter(t => t.design.id !== action.payload),
-      });
-    }
-
-    case 'SET_RIBBON_CELL_PADDING_V':
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, cellPaddingV: action.payload.cellPaddingV } : d
-        ),
-      });
-
-    case 'SET_RIBBON_CELL_PADDING_H':
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, cellPaddingH: action.payload.cellPaddingH } : d
-        ),
-      });
-
-    case 'SET_RIBBON_EDGE_PADDING':
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, edgePadding: action.payload.edgePadding } : d
-        ),
-      });
-
-    case 'RENAME_RIBBON_DESIGN':
-      return applyChange({
-        ...state.present,
-        ribbonDesigns: state.present.ribbonDesigns.map(d =>
-          d.id === action.payload.id ? { ...d, name: action.payload.name } : d
-        ),
-      });
-
-    case 'SET_ACTIVE_RIBBON':
-      return applyChange({
-        ...state.present,
-        activeRibbonId: action.payload,
-      });
-
-    case 'SET_COLOR_PALETTE':
-      return applyChange({
-        ...state.present,
-        colorPalette: action.payload,
-      });
-
-    case 'ADD_COLOR_RULE':
-      return applyChange({
-        ...state.present,
-        colorPalette: {
-          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
-          colorRules: [...(state.present.colorPalette?.colorRules || []), action.payload],
-        },
-      });
-
-    case 'UPDATE_COLOR_RULE':
-      return applyChange({
-        ...state.present,
-        colorPalette: {
-          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
-          colorRules: (state.present.colorPalette?.colorRules || []).map(r =>
-            r.id === action.payload.id ? action.payload : r
-          ),
-        },
-      });
-
-    case 'DELETE_COLOR_RULE': {
-      const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
-      const rule = (palette.colorRules || []).find(r => r.id === action.payload);
-      if (!rule) return state;
-      const trashItem: ColorRuleTrashItem = { rule: { ...rule }, deletedAt: Date.now() };
-      return applyChange({
-        ...state.present,
-        colorRulesTrash: [...(state.present.colorRulesTrash || []), trashItem],
-        colorPalette: {
-          ...palette,
-          colorRules: (palette.colorRules || []).filter(r => r.id !== action.payload),
-        },
-      });
-    }
-
-    case 'RESTORE_COLOR_RULE_FROM_TRASH': {
-      const item = (state.present.colorRulesTrash || []).find(t => t.rule.id === action.payload);
-      if (!item) return state;
-      const palette = state.present.colorPalette || DEFAULT_COLOR_PALETTE;
-      return applyChange({
-        ...state.present,
-        colorRulesTrash: (state.present.colorRulesTrash || []).filter(t => t.rule.id !== action.payload),
-        colorPalette: {
-          ...palette,
-          colorRules: [...(palette.colorRules || []), item.rule],
-        },
-      });
-    }
-
-    case 'REORDER_COLOR_RULES':
-      return applyChange({
-        ...state.present,
-        colorPalette: {
-          ...(state.present.colorPalette || DEFAULT_COLOR_PALETTE),
-          colorRules: action.payload,
-        },
-      });
-
+    case 'UPDATE_PROJECT': return caseUpdateProject(state, action, applyChange);
+    case 'ADD_SCENE': return caseAddScene(state, action, applyChange);
+    case 'UPDATE_SCENE': return caseUpdateScene(state, action, applyChange);
+    case 'DELETE_SCENE': return caseDeleteScene(state, action, applyChange);
+    case 'RESTORE_SCENE': return caseRestoreScene(state, action, applyChange);
+    case 'EMPTY_TRASH': return caseEmptyTrash(state, action, applyChange);
+    case 'SORT_SCENES': return caseSortScenes(state, action, applyChange);
+    case 'SORT_SCENES_BY': return caseSortScenesBy(state, action, applyChange);
+    case 'INSERT_SCENE_AT': return caseInsertSceneAt(state, action, applyChange);
+    case 'UPDATE_VERSION': return caseUpdateVersion(state, action, applyChange);
+    case 'NEW_VERSION': return caseNewVersion(state, action, applyChange);
+    case 'DELETE_VERSION': return caseDeleteVersion(state, action, applyChange);
+    case 'RESTORE_VERSION_FROM_TRASH': return caseRestoreVersionFromTrash(state, action, applyChange);
+    case 'RENAME_VERSION': return caseRenameVersion(state, action, applyChange);
+    case 'SET_ACTIVE_VERSION': return caseSetActiveVersion(state, action, applyChange);
+    case 'IMPORT_SCENES': return caseImportScenes(state, action, applyChange);
+    case 'ADD_RULE': return caseAddRule(state, action, applyChange);
+    case 'UPDATE_RULE': return caseUpdateRule(state, action, applyChange);
+    case 'DELETE_RULE': return caseDeleteRule(state, action, applyChange);
+    case 'RESTORE_RULE_FROM_TRASH': return caseRestoreRuleFromTrash(state, action, applyChange);
+    case 'ADD_CAST_MEMBER': return caseAddCastMember(state, action, applyChange);
+    case 'UPDATE_CAST_MEMBER': return caseUpdateCastMember(state, action, applyChange);
+    case 'DELETE_CAST_MEMBER': return caseDeleteCastMember(state, action, applyChange);
+    case 'ADD_ELEMENT': return caseAddElement(state, action, applyChange);
+    case 'UPDATE_ELEMENT': return caseUpdateElement(state, action, applyChange);
+    case 'DELETE_ELEMENT': return caseDeleteElement(state, action, applyChange);
+    case 'MERGE_ELEMENTS': return caseMergeElements(state, action, applyChange);
+    case 'RESTORE_ELEMENT_FROM_TRASH': return caseRestoreElementFromTrash(state, action, applyChange);
+    case 'ADD_CUSTOM_CATEGORY': return caseAddCustomCategory(state, action, applyChange);
+    case 'RENAME_CUSTOM_CATEGORY': return caseRenameCustomCategory(state, action, applyChange);
+    case 'UPDATE_CUSTOM_CATEGORY': return caseUpdateCustomCategory(state, action, applyChange);
+    case 'DELETE_CUSTOM_CATEGORY': return caseDeleteCustomCategory(state, action, applyChange);
+    case 'RESTORE_CATEGORY_FROM_TRASH': return caseRestoreCategoryFromTrash(state, action, applyChange);
+    case 'HIDE_CATEGORY': return caseHideCategory(state, action, applyChange);
+    case 'SHOW_CATEGORY': return caseShowCategory(state, action, applyChange);
+    case 'RESTORE_HIDDEN_CATEGORY': return caseRestoreHiddenCategory(state, action, applyChange);
+    case 'SET_CATEGORY_LABEL': return caseSetCategoryLabel(state, action, applyChange);
+    case 'UPDATE_SCENE_RIBBON': return caseUpdateSceneRibbon(state, action, applyChange);
+    case 'ADD_RIBBON_DESIGN': return caseAddRibbonDesign(state, action, applyChange);
+    case 'UPDATE_RIBBON_DESIGN': return caseUpdateRibbonDesign(state, action, applyChange);
+    case 'DELETE_RIBBON_DESIGN': return caseDeleteRibbonDesign(state, action, applyChange);
+    case 'RESTORE_RIBBON_FROM_TRASH': return caseRestoreRibbonFromTrash(state, action, applyChange);
+    case 'SET_RIBBON_CELL_PADDING_V': return caseSetRibbonCellPaddingV(state, action, applyChange);
+    case 'SET_RIBBON_CELL_PADDING_H': return caseSetRibbonCellPaddingH(state, action, applyChange);
+    case 'SET_RIBBON_EDGE_PADDING': return caseSetRibbonEdgePadding(state, action, applyChange);
+    case 'RENAME_RIBBON_DESIGN': return caseRenameRibbonDesign(state, action, applyChange);
+    case 'SET_ACTIVE_RIBBON': return caseSetActiveRibbon(state, action, applyChange);
+    case 'SET_COLOR_PALETTE': return caseSetColorPalette(state, action, applyChange);
+    case 'ADD_COLOR_RULE': return caseAddColorRule(state, action, applyChange);
+    case 'UPDATE_COLOR_RULE': return caseUpdateColorRule(state, action, applyChange);
+    case 'DELETE_COLOR_RULE': return caseDeleteColorRule(state, action, applyChange);
+    case 'RESTORE_COLOR_RULE_FROM_TRASH': return caseRestoreColorRuleFromTrash(state, action, applyChange);
+    case 'REORDER_COLOR_RULES': return caseReorderColorRules(state, action, applyChange);
     default:
       return state;
   }
