@@ -15,32 +15,8 @@ import { ModalFooter } from './Modal';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { ColorRuleEditModal } from './ColorRuleEditModal';
-
-function findEntry(entries: SceneColorEntry[], intExt: string, dayNight: string): number {
-  const ie = intExt.toUpperCase();
-  const dn = dayNight.toUpperCase();
-  return entries.findIndex(e => e.intExt.toUpperCase() === ie && e.dayNight.toUpperCase() === dn);
-}
-
-function clonePalette(p: SceneColorPalette): SceneColorPalette {
-  return {
-    ...p,
-    intExtOptions: [...p.intExtOptions],
-    dayNightOptions: [...p.dayNightOptions],
-    sceneColors: p.sceneColors.map(c => ({ ...c })),
-  };
-}
-
-function updateSceneColor(p: SceneColorPalette, intExt: string, dayNight: string, bg: string, text: string): SceneColorPalette {
-  const next = clonePalette(p);
-  const idx = findEntry(next.sceneColors, intExt, dayNight);
-  if (idx >= 0) {
-    next.sceneColors[idx] = { ...next.sceneColors[idx], background: bg, text };
-  } else {
-    next.sceneColors.push({ intExt, dayNight, background: bg, text });
-  }
-  return next;
-}
+import { findEntry, clonePalette, updateSceneColor } from '../lib/paletteOps';
+import ColorRuleCard from './ColorRuleCard';
 
 interface EditState {
   label: string;
@@ -345,101 +321,6 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
     dispatch({ type: 'UPDATE_COLOR_RULE', payload: { ...rule, enabled: !rule.enabled } });
   };
 
-  const getElementName = (cat: string, elementId: string): string => {
-    const elements = state.present.breakdownElements[cat] || [];
-    const el = elements.find(e => (e.id || e.name) === elementId);
-    return el?.name || elementId;
-  };
-
-  const getCategoryLabel = (cat: string): string => {
-    const builtin = ELEMENT_CATEGORIES.find(c => c.key === cat);
-    const custom = (state.present.customCategories || []).find(c => c.key === cat);
-    return state.present.categoryLabels[cat] || builtin?.label || custom?.label || cat;
-  };
-
-  const describeRule = (rule: ColorRule): string => {
-    return rule.conditions.map(c =>
-      `${getCategoryLabel(c.category)} = ${getElementName(c.category, c.elementId)}`
-    ).join('  AND  ');
-  };
-
-  const getCatIcon = (cat: string) => {
-    const custom = (state.present.customCategories || []).find(c => c.key === cat);
-    if (custom) return getCustomIcon(custom.icon || 'Tag');
-    const Icon = CAT_ICONS[cat] || null;
-    return Icon ? <Icon className="w-3 h-3 shrink-0 text-zinc-500" /> : null;
-  };
-
-  const RuleCard: React.FC<{ rule: ColorRule }> = ({ rule }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id });
-    const style: React.CSSProperties = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    };
-    const SECO = IS_COARSE ? 'w-4 h-4' : 'w-3.5 h-3.5';
-
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="flex items-start gap-2 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700/50 hover:border-zinc-600/70 transition-colors group"
-      >
-        <button {...attributes} {...listeners} className="text-zinc-600 hover:text-zinc-400 mt-0.5 cursor-grab active:cursor-grabbing shrink-0">
-          <GripVertical className="w-3.5 h-3.5" />
-        </button>
-        <button onClick={() => handleToggleRule(rule.id)} className="cursor-pointer mt-0.5 shrink-0">
-          <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${rule.enabled ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-            {rule.enabled && <Check className="w-3 h-3 text-zinc-200" />}
-          </span>
-        </button>
-        <div className="flex-1 min-w-0" onClick={() => setEditRule(rule)} style={{ cursor: 'pointer' }}>
-          <div className="space-y-0.5">
-            {rule.conditions.map((c, i) => {
-              const catLabel = getCategoryLabel(c.category);
-              const elName = getElementName(c.category, c.elementId);
-              const isCast = c.category === 'cast';
-              const isLast = i === rule.conditions.length - 1;
-              return (
-                <div key={i} className="flex items-center gap-1 text-xs leading-snug">
-                  {getCatIcon(c.category)}
-                  <span className="font-medium text-zinc-300">{catLabel} <span className="text-zinc-500">=</span></span>
-                  <span className="text-zinc-200 truncate">
-                    {isCast ? `${c.elementId}. ${elName}` : elName}
-                  </span>
-                  {isLast && (
-                    <span className="flex items-center gap-1 ml-2 shrink-0">
-                      {rule.override.type === 'single' ? (
-                        <span className="w-3 h-3 rounded-sm border border-zinc-600 shrink-0" style={{ background: rule.override.background }} />
-                      ) : (
-                        <span className="text-[9px] text-zinc-500">M</span>
-                      )}
-                      <span className="text-[9px] text-zinc-500 capitalize">{rule.override.type}</span>
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDuplicateRule(rule); }}
-            className="text-zinc-600 hover:text-zinc-300 transition-colors opacity-0 group-hover:opacity-100 p-1.5"
-          >
-            <Copy className={SECO} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDeleteRule(rule.id); }}
-            className="text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1.5"
-          >
-            <X className={SECO} />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 overflow-hidden" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif' }}>
       <input ref={importRef} type="file" accept=".json" onChange={handleFileChosen} className="hidden" />
@@ -509,7 +390,9 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
               <SortableContext items={colorRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-1">
                   {colorRules.map(rule => (
-                    <RuleCard key={rule.id} rule={rule} />
+                    <React.Fragment key={rule.id}>
+                    <ColorRuleCard rule={rule} project={state.present} onToggle={handleToggleRule} onEdit={setEditRule} onDuplicate={handleDuplicateRule} onDelete={handleDeleteRule} />
+                    </React.Fragment>
                   ))}
                 </div>
               </SortableContext>
