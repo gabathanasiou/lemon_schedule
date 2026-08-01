@@ -33,6 +33,7 @@ import PageToolbar from './PageToolbar';
 
 const SIDEBAR_KEY = 'lemon_schedule_calendar_sidebar_width';
 const SIDEBAR_COLLAPSED_KEY = 'lemon_schedule_calendar_sidebar_collapsed';
+const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
@@ -180,7 +181,6 @@ const DayCell: React.FC<{
   nonShootStatus?: string;
   sectionIndex?: number;
   sectionLabel?: string;
-  label?: string | null;
   activeTool?: string | null;
   selectedIds?: Set<string>;
   activeDragIds?: Set<string>;
@@ -195,7 +195,7 @@ const DayCell: React.FC<{
   bodyTargetRowId?: string | null;
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
   const { readOnly } = useProject();
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -236,11 +236,6 @@ const DayCell: React.FC<{
         ${!isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
     >
-        {label && (
-          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-white text-[7px] font-bold text-zinc-800 shadow-sm border border-zinc-300 leading-none z-20">
-            {label}
-          </span>
-        )}
         <div
           ref={setDragRef}
           {...dragListeners}
@@ -248,15 +243,14 @@ const DayCell: React.FC<{
           onClick={() => activeTool && onToggle(dateKey)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
-        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
-      >
-        <span className="w-5 shrink-0" />
-        <div className="flex flex-col items-center justify-center flex-1 min-w-0 leading-none gap-[3px]">
-          <span className="text-[8px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-60">{formatFullDate(date)}</span>
-          {headerLabel && (
-            <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{headerLabel}</span>
-          )}
-        </div>
+          className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
+        >
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none leading-none gap-[3px]">
+            <span className="text-[8px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-60">{formatFullDate(date)}</span>
+            {headerLabel && (
+              <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{headerLabel}</span>
+            )}
+          </div>
         <span className="w-5 shrink-0 flex justify-center">
           {violations.length > 0 && (
             <ViolationTooltip violations={violations}>
@@ -264,7 +258,7 @@ const DayCell: React.FC<{
             </ViolationTooltip>
           )}
         </span>
-      </div>
+        </div>
       <div className="flex-1 overflow-y-auto min-h-0 mx-0.5"
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('[data-row-id]')) return;
@@ -708,20 +702,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const chronoDayMap = productionChronoDayMap;
   const sections = productionDays;
   const calendarSections = productionSections;
-
-  const workingLabels = useMemo(() => {
-    const labels = new Map<string, string>();
-    const workingDates = [...new Set<string>(
-      productionSections.map(s => sectionDateMap.get(s.index)).filter((d): d is string => !!d && !nonShootDateMap.has(d))
-    )].sort();
-    if (workingDates.length === 0) return labels;
-    labels.set(workingDates[0], 'SW');
-    if (workingDates.length > 1) labels.set(workingDates[workingDates.length - 1], 'FW');
-    for (let i = 1; i < workingDates.length - 1; i++) {
-      labels.set(workingDates[i], 'W');
-    }
-    return labels;
-  }, [productionSections, sectionDateMap, nonShootDateMap]);
 
   const availableFields = useMemo(() => {
     const hiddenSet = new Set(project.hiddenCategories || []);
@@ -1283,6 +1263,23 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setMeasuredHeights({});
   }, [sectionDateMap, project.scenes, showBreaks]);
 
+  const smoothScrollTo = useCallback((targetTop: number) => {
+    const el = calendarGridRef.current;
+    if (!el) return;
+    const start = el.scrollTop;
+    const delta = targetTop - start;
+    if (Math.abs(delta) < 2) return;
+    const duration = Math.min(350, Math.max(180, Math.abs(delta) * 0.4));
+    const t0 = performance.now();
+    const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      el.scrollTop = start + delta * ease(p);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, []);
+
   const scrollToMonthIndex = useCallback((index: number) => {
     if (index < 0 || index >= calendarMonths.length) return;
     setRenderWindow({
@@ -1290,10 +1287,15 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       end: Math.min(calendarMonths.length - 1, index + 1),
     });
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = calendarGridRef.current?.querySelectorAll('[data-cal-month]')[index] as HTMLElement | undefined;
-      el?.scrollIntoView({ block: 'start' });
+      const container = calendarGridRef.current;
+      if (!container) return;
+      const el = container.querySelectorAll('[data-cal-month]')[index] as HTMLElement | undefined;
+      if (!el) return;
+      const stickyEl = container.querySelector('[data-cal-sticky]');
+      const stickyH = stickyEl instanceof HTMLElement ? stickyEl.offsetHeight : 28;
+      smoothScrollTo(el.offsetTop - stickyH - 6);
     }));
-  }, [calendarMonths]);
+  }, [calendarMonths, smoothScrollTo]);
 
   const goToFirst = useCallback(() => scrollToMonthIndex(0), [scrollToMonthIndex]);
   const goToLast = useCallback(() => scrollToMonthIndex(calendarMonths.length - 1), [scrollToMonthIndex, calendarMonths.length]);
@@ -1314,10 +1316,33 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       end: Math.min(calendarMonths.length - 1, mi + 1),
     });
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = calendarGridRef.current?.querySelector(`[data-date-key="${toDateKey(now)}"]`);
-      el?.scrollIntoView({ block: 'center' });
+      const container = calendarGridRef.current;
+      if (!container) return;
+      const el = container.querySelector(`[data-date-key="${toDateKey(now)}"]`) as HTMLElement | undefined;
+      if (!el) return;
+      const target = el.offsetTop - Math.max(0, (container.clientHeight - el.offsetHeight) / 2);
+      smoothScrollTo(target);
     }));
-  }, [calendarMonths, days, scrollToMonthIndex]);
+  }, [calendarMonths, days, scrollToMonthIndex, smoothScrollTo]);
+
+  const lastScrollSaveRef = useRef(0);
+  const saveScrollPos = useCallback((top: number) => {
+    const now = Date.now();
+    if (now - lastScrollSaveRef.current < 200) return;
+    lastScrollSaveRef.current = now;
+    localStorage.setItem(SCROLL_KEY, String(Math.round(top)));
+  }, []);
+
+  const scrollRestoredRef = useRef(false);
+  useEffect(() => {
+    const el = calendarGridRef.current;
+    if (!el || scrollRestoredRef.current) return;
+    const saved = Number(localStorage.getItem(SCROLL_KEY) || '0');
+    if (saved > 0) {
+      scrollRestoredRef.current = true;
+      el.scrollTop = saved;
+    }
+  }, [calendarMonths]);
 
   useEffect(() => {
     const isInEditable = (el: EventTarget | null) => {
@@ -1604,8 +1629,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
             setViewMenuOpen(false);
             setContextMenuDate(null);
             setContextMenu(null);
-          }} onScroll={() => updateRenderWindow()} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
-            <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
+          }} onScroll={() => { updateRenderWindow(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+            <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50" data-cal-sticky>
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
             <MarqueeOverlay box={marqueeBox} />
@@ -1669,7 +1694,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                             setContextMenuDate(dateKey);
                             setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', containerId: null });
                           }}
-                          label={workingLabels.get(day.dateKey) ?? null}
                           rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
                           displayField={displayField}
                           violations={violationMap.get(day.dateKey) || []}
