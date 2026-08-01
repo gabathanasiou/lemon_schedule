@@ -45,6 +45,7 @@ import ScheduleOverlays from './schedule/ScheduleOverlays';
 import { computeMiddleInsertIndex } from '../lib/daybreakUtils';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
+import { useScheduleDrag } from './schedule/useScheduleDrag';
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const currentWindow = useCurrentWindow();
@@ -1136,165 +1137,21 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     };
   }, []);
 
-  const handleDragStart = (e: DragStartEvent) => {
-    if (isAddModeActive()) return;
-    const draggedId = e.active.id as string;
-    setActiveId(draggedId);
-    setActiveType(e.active.data.current?.type || null);
-    const currentSelection = selectedRowIdsRef.current;
-    if (currentSelection.has(draggedId) && currentSelection.size > 1) {
-      setActiveDragIds(new Set(currentSelection));
-    } else {
-      if (currentSelection.size > 0) {
-        setSelectedRowIds(new Set());
-      }
-      setActiveDragIds(new Set([draggedId]));
-    }
-  };
-
-  const handleDragOver = (e: DragOverEvent) => {
-    const overId = e.over?.id as string | undefined;
-    if (overId && activeType === 'ROW') {
-      if (overId === 'boneyard_bin' || overId === 'end-boneyard') {
-        setInsertBeforeId('end-boneyard');
-        return;
-      }
-      const day = getDayFromId(overId);
-      if (day !== null) {
-        const dayRows = scheduledRows[day] || [];
-        if (dayRows.some(r => r.id === overId)) {
-          setInsertBeforeId(overId);
-        } else {
-          setInsertBeforeId(overId.startsWith('end-') ? overId : `day-${day}`);
-        }
-      } else {
-        const isBoneyardRow = boneyardRows.some(r => r.id === overId);
-        if (isBoneyardRow) {
-          setInsertBeforeId(overId);
-        } else {
-          setInsertBeforeId(null);
-        }
-      }
-    } else {
-      setInsertBeforeId(null);
-    }
-  };
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    const lastInsertBeforeId = insertBeforeId;
-    setActiveId(null);
-    setActiveType(null);
-    setInsertBeforeId(null);
-    setActiveDragIds(new Set());
-    
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    if (activeId === overId) return;
-
-    // Day dragging logic
-    if (active.data.current?.type === 'DAY') {
-      const activeDay = parseInt(activeId.replace('day-wrap-', ''), 10);
-      const overDay = getDayFromId(overId);
-      
-      if (overDay !== null && activeDay !== overDay) {
-         let newRows = activeVersion.rows.map(r => ({ ...r }));
-         newRows = newRows.map(r => {
-           if (r.containerId === activeDay) return { ...r, containerId: -1 }; 
-           if (r.containerId === overDay) return { ...r, containerId: activeDay };
-           return r;
-         }).map(r => r.containerId === -1 ? { ...r, containerId: overDay } : r);
-         
-          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-      }
-      return;
-    }
-
-    const activeRow = activeVersion.rows.find(r => r.id === activeId);
-    
-    if (!activeRow) return;
-
-    let overDay = getDayFromId(overId);
-    if (overId === 'boneyard_bin' || overId === 'end-boneyard' || (overDay === null && activeVersion.rows.some(r => r.id === overId && r.containerId === null))) {
-      overDay = null; // explicit drop to boneyard
-    } else if (overDay === null && !overId.startsWith('day-') && !overId.startsWith('end-')) {
-      return; // invalid drop
-    }
-
-    let draggingIds = [activeId];
-    if (selectedRowIds.has(activeId) && selectedRowIds.size > 1) {
-       draggingIds = Array.from(selectedRowIds);
-       draggingIds.sort((a, b) => {
-          const rA = activeVersion.rows.find(r => r.id === a);
-          const rB = activeVersion.rows.find(r => r.id === b);
-          if (rA && rB) {
-             if (rA.containerId !== rB.containerId) return (rA.containerId || 0) - (rB.containerId || 0);
-             return rA.order - rB.order;
-          }
-          return 0;
-       });
-    }
-
-    let newRows = activeVersion.rows.map(r => ({ ...r }));
-    
-    if (draggingIds.length === 1) {
-      newRows = newRows.filter(r => r.id !== activeId);
-      let dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-      let insertIndex: number;
-      if (lastInsertBeforeId?.startsWith('day-')) {
-        insertIndex = 0;
-      } else if (lastInsertBeforeId?.startsWith('end-')) {
-        insertIndex = dayRows.length;
-      } else if (lastInsertBeforeId && dayRows.some(r => r.id === lastInsertBeforeId)) {
-        insertIndex = dayRows.findIndex(r => r.id === lastInsertBeforeId);
-        if (insertIndex === -1) insertIndex = dayRows.length;
-      } else {
-        insertIndex = dayRows.length;
-      }
-      if (insertIndex === 0 && dayRows.length > 0 && dayRows[0]?.pinned) {
-        insertIndex = 1;
-      }
-      const movedRow = { ...activeRow, containerId: overDay };
-      dayRows.splice(insertIndex, 0, movedRow);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
-      setSelectedRowIds(new Set([activeId]));
-    } else {
-      const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
-      const dayRowsBefore = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-      let rawIndex: number;
-      if (lastInsertBeforeId?.startsWith('day-')) {
-        rawIndex = 0;
-      } else if (lastInsertBeforeId?.startsWith('end-')) {
-        rawIndex = dayRowsBefore.length;
-      } else if (lastInsertBeforeId && dayRowsBefore.some(r => r.id === lastInsertBeforeId)) {
-        rawIndex = dayRowsBefore.findIndex(r => r.id === lastInsertBeforeId);
-        if (rawIndex === -1) rawIndex = dayRowsBefore.length;
-      } else {
-        rawIndex = dayRowsBefore.length;
-      }
-      if (rawIndex === 0 && dayRowsBefore.length > 0 && dayRowsBefore[0]?.pinned) {
-        rawIndex = 1;
-      }
-      const insertIndex = rawIndex === 0 ? 0 : rawIndex - draggingIds.filter(id => {
-        const idx = dayRowsBefore.findIndex(r => r.id === id);
-        return idx >= 0 && idx < rawIndex;
-      }).length;
-
-      newRows = newRows.filter(r => !draggingIds.includes(r.id));
-      const dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-      const newItems = draggingItems.map(item => ({ ...item, containerId: overDay }));
-      dayRows.splice(insertIndex, 0, ...newItems);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
-      setSelectedRowIds(new Set(draggingIds));
-    }
-
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-  };
+  const { handleDragStart, handleDragOver, handleDragEnd } = useScheduleDrag({
+    activeType,
+    setActiveType,
+    setActiveId,
+    insertBeforeId,
+    setInsertBeforeId,
+    setActiveDragIds,
+    setSelectedRowIds,
+    selectedRowIds,
+    selectedRowIdsRef,
+    scheduledRows,
+    boneyardRows,
+    activeVersion,
+    dispatch,
+  });
 
   const activeDragRow = useMemo(() => {
     if (!activeId || activeType !== 'ROW') return null;
