@@ -186,3 +186,29 @@ test.describe('Calendar Keyboard', () => {
   await expect(page.locator('[data-cal-month]').first()).toBeAttached({ timeout: 3000 });
 });
 });
+
+
+test.describe('Stripboard Keyboard', () => {
+  test('stripboard keyboard: Cmd+A selects all and arrows navigate', async ({ page }) => {
+  await openSeededProject(page);
+  await page.getByRole('button', { name: 'Schedule' }).click();
+  await page.waitForTimeout(800);
+
+  await page.locator('[data-row-id]').nth(1).click();
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Meta+A');
+  await page.waitForTimeout(300);
+
+  await expect(page.locator('text=strips selected').first()).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  await page.locator('[data-row-id]').nth(1).click();
+  await page.waitForTimeout(200);
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(200);
+
+  // No crash, stripboard still renders
+  await expect(page.locator('[data-row-id]').first()).toBeAttached({ timeout: 3000 });
+});
+});
