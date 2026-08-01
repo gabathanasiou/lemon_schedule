@@ -129,3 +129,38 @@ test.describe('Print', () => {
     await expect(page.locator('text=Schedule Version').first()).toBeVisible();
   });
 });
+
+
+test.describe('Daybreak Context Actions', () => {
+  test('add day break via context menu creates a DAYBREAK row', async ({ page }) => {
+  await openSeededProject(page);
+  await page.getByRole('button', { name: 'Schedule' }).click();
+  await page.waitForTimeout(800);
+
+  const before = await page.evaluate(() => {
+    try {
+      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+      const project = JSON.parse(localStorage.getItem(key)!);
+      const v = project.versions.find((x: any) => x.id === project.activeVersionId);
+      return v.rows.filter((r: any) => r.type === 'DAYBREAK').length;
+    } catch { return -1; }
+  });
+
+  // Right-click the first scene row (2nd [data-row-id], first is pinned daybreak)
+  const row = page.locator('[data-row-id]').nth(1);
+  await row.click({ button: 'right', force: true });
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Add Day Break Below' }).click();
+  await page.waitForTimeout(600);
+
+  const after = await page.evaluate(() => {
+    try {
+      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+      const project = JSON.parse(localStorage.getItem(key)!);
+      const v = project.versions.find((x: any) => x.id === project.activeVersionId);
+      return v.rows.filter((r: any) => r.type === 'DAYBREAK').length;
+    } catch { return -1; }
+  });
+  expect(after).toBe(before + 1);
+});
+});

@@ -43,6 +43,7 @@ import ScheduleContextMenu from './schedule/ScheduleContextMenu';
 import ScheduleModals from './schedule/ScheduleModals';
 import ScheduleOverlays from './schedule/ScheduleOverlays';
 import { computeMiddleInsertIndex } from '../lib/daybreakUtils';
+import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const currentWindow = useCurrentWindow();
@@ -61,7 +62,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [focusedRowId, setFocusedRowId] = useState<string | null>(null);
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, rowId: string, containerId: number | null } | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
   const [forceBoneyardExpanded, setForceBoneyardExpanded] = useState(false);
@@ -198,119 +198,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       setSelectedRowIds(new Set([id]));
       setLastClickedId(id);
     }
-  };
-
-  const selectNextAfterRemove = (removedIds: Set<string>) => {
-    const removedRows = Array.from(removedIds).map(id => activeVersion.rows.find(r => r.id === id)!).filter(Boolean);
-    if (removedRows.length === 0) return;
-    removedRows.sort((a, b) => {
-      if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
-      return a.order - b.order;
-    });
-    const candidates: string[] = [];
-    for (const r of removedRows) {
-      const next = activeVersion.rows.filter(x => x.containerId === r.containerId && x.order > r.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
-      if (next) candidates.push(next.id);
-    }
-    if (candidates.length === 0) {
-      const first = removedRows[0];
-      const prev = activeVersion.rows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
-      if (prev) candidates.push(prev.id);
-    }
-    // If same day is now empty, look across days
-    if (candidates.length === 0) {
-      const firstRemoved = removedRows[0];
-      const dayOrder = existingDays;
-      const startIdx = getContainerBlock(firstRemoved) !== 'boneyard' ? dayOrder.indexOf(firstRemoved.containerId as number) : -1;
-      // Try next days first
-      for (let i = startIdx + 1; i < dayOrder.length; i++) {
-        const rows = scheduledRows[dayOrder[i]] || [];
-        if (rows.length > 0) { candidates.push(rows[0].id); break; }
-      }
-      // Then try previous days
-      if (candidates.length === 0) {
-        for (let i = startIdx - 1; i >= 0; i--) {
-          const rows = scheduledRows[dayOrder[i]] || [];
-          if (rows.length > 0) { candidates.push(rows[rows.length - 1].id); break; }
-        }
-      }
-    }
-    if (candidates.length > 0) setSelectedRowIds(new Set([candidates[0]]));
-  };
-
-  const selectPrevAfterRemove = (removedIds: Set<string>) => {
-    const removedRows = Array.from(removedIds).map(id => activeVersion.rows.find(r => r.id === id)!).filter(Boolean);
-    if (removedRows.length === 0) return;
-    removedRows.sort((a, b) => {
-      if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
-      return a.order - b.order;
-    });
-    const first = removedRows[0];
-    const prev = activeVersion.rows.filter(x => x.containerId === first.containerId && x.order < first.order && !removedIds.has(x.id)).sort((a, b) => b.order - a.order)[0];
-    if (prev) { setSelectedRowIds(new Set([prev.id])); return; }
-    const next = activeVersion.rows.filter(x => x.containerId === first.containerId && x.order > first.order && !removedIds.has(x.id)).sort((a, b) => a.order - b.order)[0];
-    if (next) { setSelectedRowIds(new Set([next.id])); return; }
-    const dayOrder = existingDays;
-    const startIdx = getContainerBlock(first) !== 'boneyard' ? dayOrder.indexOf(first.containerId as number) : -1;
-    for (let i = startIdx - 1; i >= 0; i--) {
-      const rows = scheduledRows[dayOrder[i]] || [];
-      if (rows.length > 0) { setSelectedRowIds(new Set([rows[rows.length - 1].id])); return; }
-    }
-    for (let i = startIdx + 1; i < dayOrder.length; i++) {
-      const rows = scheduledRows[dayOrder[i]] || [];
-      if (rows.length > 0) { setSelectedRowIds(new Set([rows[0].id])); return; }
-    }
-  };
-
-  const cutSelected = () => {
-    if (selectedRowIds.size === 0 || activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
-    const mutableRows = activeVersion.rows.map(r => ({ ...r }));
-    const ids = Array.from(selectedRowIds).filter(id => !mutableRows.find(r => r.id === id)?.pinned);
-    if (ids.length === 0) return;
-    const newRows = mutableRows.map(r => ids.includes(r.id) ? { ...r, containerId: -1 } : r);
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    selectPrevAfterRemove(new Set(ids as string[]));
-  };
-
-  const pasteClipboard = (targetRowId: string) => {
-    if (activeDragIds.size > 0 || textEditingEnabled || !activeVersion) return;
-    const targetRow = activeVersion.rows.find(r => r.id === targetRowId);
-
-    const clipboardItems = activeVersion.rows
-      .filter(r => r.containerId === -1)
-      .sort((a, b) => {
-        if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
-        return a.order - b.order;
-      })
-      .map(r => ({ ...r }));
-
-    if (clipboardItems.length === 0) return;
-
-    // Determine target day: from row or from dummy row ID
-    let overDay: number | null;
-    let insertIdx: number;
-    if (targetRow) {
-      overDay = targetRow.containerId;
-      let dayRows = activeVersion.rows.filter(r => r.containerId === overDay && r.containerId !== -1).sort((a, b) => a.order - b.order);
-      const targetIdx = dayRows.findIndex(r => r.id === targetRowId);
-      insertIdx = targetIdx !== -1 ? targetIdx + 1 : dayRows.length;
-    } else if (targetRowId.startsWith('empty-')) {
-      overDay = parseInt(targetRowId.replace('empty-', ''), 10);
-      const dayRows = activeVersion.rows.filter(r => r.containerId === overDay && r.containerId !== -1).sort((a, b) => a.order - b.order);
-      insertIdx = dayRows.length;
-    } else {
-      return;
-    }
-
-    let newRows = activeVersion.rows.map(r => ({ ...r }));
-    newRows = newRows.filter(r => r.containerId !== -1);
-    clipboardItems.forEach(item => item.containerId = overDay);
-    let dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-    dayRows.splice(insertIdx, 0, ...clipboardItems);
-    dayRows.forEach((r, i) => r.order = i);
-    newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    setSelectedRowIds(new Set(clipboardItems.map(r => r.id)));
   };
 
   useEffect(() => {
@@ -739,6 +626,24 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       requestAnimationFrame(animate);
     });
   };
+  const {
+    contextMenu, setContextMenu,
+    cutSelected, pasteClipboard, handleContextMenuAction,
+    createOnContextMenu, selectNextAfterRemove,
+  } = useStripboardContextMenu({
+    selectedRowIds, setSelectedRowIds,
+    rows: activeVersion.rows,
+    activeVersion,
+    activeDragIds,
+    textEditingEnabled: effectiveTextEditingEnabled,
+    dispatch,
+    setFocusedRowId,
+    scrollToRow,
+    setColorPicker,
+    project,
+    enableDaybreaks: true,
+  });
+
   const activeDragIdsRef = useRef(activeDragIds);
   activeDragIdsRef.current = activeDragIds;
   const activeVersionRef = useRef(activeVersion);
@@ -936,128 +841,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }
     const row = activeVersion.rows.find(r => r.id === id);
     return row ? row.containerId : null;
-  };
-
-  const handleContextMenuAction = (action: string) => {
-    if (!contextMenu || !activeVersion) return;
-    const { rowId, containerId } = contextMenu;
-    const rowIndex = activeVersion.rows.findIndex(r => r.id === rowId);
-    const isDummy = rowId.startsWith('empty-');
-
-    // Dummy rows can only add notes/breaks
-    if (isDummy && (action === 'add_note' || action === 'add_break' || action === 'add_daybreak')) {
-      const newId = generateUUID();
-      const type = action === 'add_note' ? 'NOTE' as const : action === 'add_break' ? 'BREAK' as const : 'DAYBREAK' as const;
-      const newRow: ScheduleRow = {
-        id: newId,
-        type,
-        containerId,
-        order: 0,
-        ...(action === 'add_note' ? { noteText: '' } : action === 'add_break' ? { breakLabel: 'LUNCH', breakDuration: 60 } : { daybreakLabel: 'DAYBREAK' }),
-      };
-      const dayRows = activeVersion.rows.filter(r => r.containerId === containerId).sort((a, b) => a.order - b.order);
-      const lastDayRow = dayRows[dayRows.length - 1];
-      const insertAt = lastDayRow ? activeVersion.rows.indexOf(lastDayRow) + 1 : activeVersion.rows.length;
-      const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
-      newRows.forEach((r, i) => r.order = i);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-      setSelectedRowIds(new Set([newId]));
-      if (type === 'NOTE') setFocusedRowId(newId);
-      scrollToRow(newId);
-      setContextMenu(null);
-      return;
-    }
-
-    if (rowIndex === -1) return;
-    const row = activeVersion.rows[rowIndex];
-
-    let newRows = activeVersion.rows.map(r => ({ ...r }));
-    let newRowIds: string[] = [];
-    if (action === 'add_note') {
-      const newId = generateUUID();
-      newRows.push({
-        id: newId, type: 'NOTE', containerId, order: row.order + 0.5, noteText: ''
-      });
-      newRowIds.push(newId);
-    } else if (action === 'add_break') {
-      const newId = generateUUID();
-      newRows.push({
-        id: newId, type: 'BREAK', containerId, order: row.order + 0.5, breakLabel: 'LUNCH', breakDuration: 60
-      });
-      newRowIds.push(newId);
-    } else if (action === 'add_daybreak') {
-      const newId = generateUUID();
-      newRows.push({
-        id: newId, type: 'DAYBREAK', containerId, order: row.order + 0.5, daybreakLabel: 'DAYBREAK', daybreakCallTime: '08:00'
-      });
-      newRowIds.push(newId);
-    } else if (action === 'duplicate' && row.type === 'SCENE') {
-      const newId = generateUUID();
-      const newRow: ScheduleRow = {
-        ...row, id: newId, order: row.order + 0.5,
-      };
-      const originalScene = project.scenes.find(s => s.id === row.sceneId);
-      if (originalScene) {
-        const baseNumber = originalScene.sceneNumber.replace(/[A-Z]+$/, '');
-        const existingLetters = project.scenes
-          .filter(s => s.sceneNumber.match(new RegExp('^' + baseNumber + '[A-Z]$')))
-          .map(s => s.sceneNumber.slice(-1));
-        let nextLetter = 'A';
-        for (let code = 65; code <= 90; code++) {
-          const letter = String.fromCharCode(code);
-          if (!existingLetters.includes(letter)) {
-            nextLetter = letter;
-            break;
-          }
-        }
-        const newScene: Scene = {
-          ...originalScene,
-          id: generateUUID(),
-          sceneNumber: baseNumber + nextLetter
-        };
-        newRow.sceneId = newScene.id;
-        dispatch({ type: 'ADD_SCENE', payload: newScene });
-      }
-      newRows.push(newRow);
-      newRowIds.push(newId);
-    } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break' || action === 'duplicate_daybreak') && (row.type === 'NOTE' || row.type === 'BREAK' || row.type === 'DAYBREAK')) {
-      const newId = generateUUID();
-      newRows.push({ ...row, id: newId, order: row.order + 0.5 });
-      newRowIds.push(newId);
-    } else if (action === 'change_color' && row.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, text: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, noteText: row.noteText || '', originalBg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, originalText: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, originalNoteText: row.noteText || '' });
-      setContextMenu(null);
-      return;
-    } else if (action === 'delete') {
-      if (row.pinned) { setContextMenu(null); return; }
-      if (row.containerId == null && row.type === 'SCENE') {
-        const containerRows = newRows.filter(r => r.containerId != null && r.containerId !== -1);
-        const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
-        newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: 1, order: maxOrder + 1 } : r);
-      } else {
-        newRows = newRows.filter(r => r.id !== rowId);
-      }
-    } else if (action === 'boneyard' && row.type !== 'DAYBREAK') {
-      newRows = newRows.map(r => r.id === rowId ? { ...r, containerId: null, order: 999999 } : r);
-    }
-
-    newRows = newRows.sort((a, b) => {
-       if (a.containerId === null && b.containerId !== null) return 1;
-       if (a.containerId !== null && b.containerId === null) return -1;
-       if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
-       return a.order - b.order;
-    });
-    newRows.forEach((r, i) => r.order = i);
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    if (newRowIds.length > 0) {
-      setSelectedRowIds(new Set(newRowIds));
-      if (action === 'add_note' || action === 'duplicate_note') setFocusedRowId(newRowIds[0]);
-      scrollToRow(newRowIds[0]);
-    }
-    if (action === 'delete' || action === 'boneyard') {
-      selectNextAfterRemove(new Set([rowId] as string[]));
-    }
-    setContextMenu(null);
   };
 
   const handleDeleteAllDaybreaks = async () => {
@@ -1890,23 +1673,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             setAutoDaybreakOpen(false);
             setBannerMenuOpen(false);
           }}
-          onContextMenu={(e) => {
-              const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
-              if (rowEl) {
-                 e.preventDefault();
-                 const rowId = rowEl.getAttribute('data-row-id')!;
-                 if (getMarqueeMode() === 'tool') {
-                   setSelectedRowIds(prev => prev.has(rowId) ? prev : new Set([...prev, rowId]));
-                 } else if (!selectedRowIds.has(rowId)) {
-                   setSelectedRowIds(new Set([rowId]));
-                 }
-                 const containerIdAttr = rowEl.getAttribute('data-container-id');
-                  const containerId = containerIdAttr === 'null' ? null : parseInt(containerIdAttr!, 10);
-                 setContextMenu({ x: e.clientX, y: e.clientY, rowId, containerId });
-              } else {
-                 setContextMenu(null);
-              }
-          }}
+          onContextMenu={createOnContextMenu()}
       >
             <BoneyardBlock rows={boneyardRows} projectScenes={project.scenes} textEditingEnabled={effectiveTextEditingEnabled} onAction={handleContextMenuAction} contextMenu={contextMenu} setContextMenu={setContextMenu} selectedIds={selectedRowIds} activeDragIds={activeDragIds} onRowClick={handleRowClick} onSelectionChange={(ids, addMode) => setSelectedRowIds(prev => {
                 if (addMode && getMarqueeMode() === 'tool') {

@@ -33,13 +33,15 @@ export interface StripboardContextMenuConfig {
   scrollToRow: (id: string) => void;
   setColorPicker: React.Dispatch<React.SetStateAction<ColorPickerState | null>>;
   project: Project;
+  /** Enables add_daybreak / duplicate_daybreak context actions (ScheduleTab). */
+  enableDaybreaks?: boolean;
 }
 
 export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
   const {
     selectedRowIds, setSelectedRowIds, rows, activeVersion,
     activeDragIds, textEditingEnabled, dispatch, setFocusedRowId,
-    scrollToRow, setColorPicker, project,
+    scrollToRow, setColorPicker, project, enableDaybreaks = false,
   } = config;
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -186,14 +188,15 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     const rowIndex = rows.findIndex(r => r.id === rowId);
     const isDummy = rowId.startsWith('empty-');
 
-    if (isDummy && (action === 'add_note' || action === 'add_break')) {
+    if (isDummy && (action === 'add_note' || action === 'add_break' || (enableDaybreaks && action === 'add_daybreak'))) {
       const newId = generateUUID();
+      const type = action === 'add_note' ? 'NOTE' as const : action === 'add_break' ? 'BREAK' as const : 'DAYBREAK' as const;
       const newRow: ScheduleRow = {
         id: newId,
-        type: action === 'add_note' ? 'NOTE' : 'BREAK',
+        type,
         containerId,
         order: 0,
-        ...(action === 'add_note' ? { noteText: '' } : { breakLabel: 'LUNCH', breakDuration: 60 }),
+        ...(action === 'add_note' ? { noteText: '' } : action === 'add_break' ? { breakLabel: 'LUNCH', breakDuration: 60 } : { daybreakLabel: 'DAYBREAK' }),
       };
       const dayRows = activeVersion.rows.filter(r => r.containerId === containerId).sort((a, b) => a.order - b.order);
       const lastDayRow = dayRows[dayRows.length - 1];
@@ -221,6 +224,10 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const newId = generateUUID();
       newRows.push({ id: newId, type: 'BREAK', containerId, order: row.order + 0.5, breakLabel: 'LUNCH', breakDuration: 60 });
       newRowIds.push(newId);
+    } else if (enableDaybreaks && action === 'add_daybreak') {
+      const newId = generateUUID();
+      newRows.push({ id: newId, type: 'DAYBREAK', containerId, order: row.order + 0.5, daybreakLabel: 'DAYBREAK', daybreakCallTime: '08:00' });
+      newRowIds.push(newId);
     } else if (action === 'duplicate' && row.type === 'SCENE') {
       const newId = generateUUID();
       const newRow: ScheduleRow = { ...row, id: newId, order: row.order + 0.5 };
@@ -241,7 +248,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       }
       newRows.push(newRow);
       newRowIds.push(newId);
-    } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break') && (row.type === 'NOTE' || row.type === 'BREAK')) {
+    } else if ((action === 'duplicate' || action === 'duplicate_note' || action === 'duplicate_break' || (enableDaybreaks && action === 'duplicate_daybreak')) && (row.type === 'NOTE' || row.type === 'BREAK' || (enableDaybreaks && row.type === 'DAYBREAK'))) {
       const newId = generateUUID();
       newRows.push({ ...row, id: newId, order: row.order + 0.5 });
       newRowIds.push(newId);
