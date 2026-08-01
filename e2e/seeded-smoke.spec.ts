@@ -104,3 +104,28 @@ test.describe('Design Tab', () => {
   await expect(page.getByText('Live Preview')).toBeVisible();
 });
 });
+
+test.describe('Print', () => {
+  test('print dialog renders the schedule as printable output', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // Stub window.print so the print view stays mounted (headless fires afterprint synchronously)
+    await page.addInitScript(() => {
+      window.print = () => {};
+    });
+    await openSeededProject(page);
+
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(800);
+    await page.getByRole('button', { name: 'Print' }).click();
+    await page.waitForTimeout(500);
+
+    await page.getByRole('button', { name: 'Print / Save PDF' }).click();
+    await page.waitForTimeout(1200);
+
+    await expect(page.locator('.print-root').first()).toBeAttached({ timeout: 5000 });
+    await expect(page.locator('text=START OF DAY').first()).toBeVisible();
+    await expect(page.locator('text=End of Day').first()).toBeVisible();
+    await expect(page.locator('text=CALL').first()).toBeVisible();
+    await expect(page.locator('text=Schedule Version').first()).toBeVisible();
+  });
+});
