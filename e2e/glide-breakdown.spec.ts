@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { ensureProject } from './helpers';
 
 test.describe('Glide Breakdown Tab', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,12 +8,7 @@ test.describe('Glide Breakdown Tab', () => {
 
   test('renders toolbar and grid container', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
-
-    const newProjectBtn = page.getByRole('button', { name: /New Project/i });
-    if (await newProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await newProjectBtn.click();
-      await page.waitForTimeout(500);
-    }
+    await ensureProject(page);
 
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
@@ -33,12 +29,7 @@ test.describe('Glide Breakdown Tab', () => {
 
   test('View dropdown menu items are clickable', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
-
-    const newProjectBtn = page.getByRole('button', { name: /New Project/i });
-    if (await newProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await newProjectBtn.click();
-      await page.waitForTimeout(500);
-    }
+    await ensureProject(page);
 
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
@@ -57,38 +48,38 @@ test.describe('Glide Breakdown Tab', () => {
 
   test('adds scene via button and verifies persistence between views', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
+    await ensureProject(page);
 
-    const newProjectBtn = page.getByRole('button', { name: /New Project/i });
-    if (await newProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await newProjectBtn.click();
-      await page.waitForTimeout(500);
-    }
-
-    const sceneBreakdownBtn = page.getByRole('button', { name: 'Scene Breakdown' });
-    await expect(sceneBreakdownBtn).toBeVisible({ timeout: 5000 });
-    await sceneBreakdownBtn.click();
+    const sheetBtn = page.getByRole('button', { name: 'Sheet' });
+    await expect(sheetBtn).toBeVisible({ timeout: 5000 });
+    await sheetBtn.click();
     await page.waitForTimeout(500);
 
-    await page.getByRole('button', { name: /Add Scene/ }).click();
+    const createFirst = page.getByRole('button', { name: 'Create First Scene' });
+    await createFirst.click();
     await page.waitForTimeout(300);
 
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await glideBtn.click();
     await page.waitForTimeout(1000);
 
-    await sceneBreakdownBtn.click();
+    await sheetBtn.click();
     await page.waitForTimeout(500);
-    await expect(page.locator('.Spreadsheet__cell').first()).toBeVisible({ timeout: 3000 });
+
+    const sceneCount = await page.evaluate(() => {
+      try {
+        const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+        if (!key) return 0;
+        const project = JSON.parse(localStorage.getItem(key)!);
+        return project.scenes?.length || 0;
+      } catch { return 0; }
+    });
+    expect(sceneCount).toBeGreaterThanOrEqual(1);
   });
 
   test('can add scene directly from Glide Breakdown toolbar', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
-
-    const newProjectBtn = page.getByRole('button', { name: /New Project/i });
-    if (await newProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await newProjectBtn.click();
-      await page.waitForTimeout(500);
-    }
+    await ensureProject(page);
 
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
@@ -121,12 +112,7 @@ test.describe('Glide Breakdown Tab', () => {
 
   test('edits a cell via double-click and commits to store', async ({ page }) => {
     await page.goto('http://localhost:3001/lemon_schedule/');
-
-    const newProjectBtn = page.getByRole('button', { name: /New Project/i });
-    if (await newProjectBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await newProjectBtn.click();
-      await page.waitForTimeout(500);
-    }
+    await ensureProject(page);
 
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
