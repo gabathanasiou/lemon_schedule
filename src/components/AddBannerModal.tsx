@@ -66,7 +66,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
 
   const [type, setType] = useState<BannerType>('BREAK');
   const [label, setLabel] = useState('LUNCH');
-  const [minutes, setMinutes] = useState(30);
+  const [durationStr, setDurationStr] = useState('30m');
   const [noteColor, setNoteColor] = useState('#591b1b');
   const [noteTextColor, setNoteTextColor] = useState('#ffffff');
   const [position, setPosition] = useState<BannerPosition>('middle');
@@ -77,7 +77,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
   const reset = () => {
     setType('BREAK');
     setLabel('LUNCH');
-    setMinutes(30);
+    setDurationStr('30m');
     setNoteColor('#591b1b');
     setNoteTextColor('#ffffff');
     setPosition('middle');
@@ -91,18 +91,28 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
     setLabel(t === 'BREAK' ? 'LUNCH' : '');
   };
 
+  const normalizeDurationStr = (s: string) => {
+    const m = parseDuration(s);
+    return m > 0 ? formatDuration(m) : '';
+  };
+
+  const normalizePagesStr = (s: string) => {
+    const p = parsePageCount(s);
+    return p > 0 ? formatPageCount(p) : '';
+  };
+
   const handleAdd = () => {
     const splitTarget = position === 'middle'
       ? splitMethod === 'duration'
-        ? (splitDurationStr.trim() ? parseDuration(splitDurationStr) : undefined)
+        ? parseDuration(splitDurationStr)
         : splitMethod === 'pages'
-          ? (splitPagesStr.trim() ? parsePageCount(splitPagesStr) : undefined)
+          ? parsePageCount(splitPagesStr)
           : undefined
       : undefined;
     onAdd({
       type,
       label: label.trim() || undefined,
-      minutes,
+      minutes: parseDuration(durationStr),
       position,
       splitMethod,
       splitTarget,
@@ -114,14 +124,23 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
 
   const segBtn = (active: boolean) => `${SEG_BASE} ${active ? SEG_SEL : SEG_DEF}`;
 
-  const splitMissing =
-    position === 'middle'
-      ? splitMethod === 'duration'
-        ? !splitDurationStr.trim()
-        : splitMethod === 'pages'
-          ? !splitPagesStr.trim()
-          : false
-      : false;
+  const bannerDur = parseDuration(durationStr);
+  const splitDur = parseDuration(splitDurationStr);
+  const splitPgs = parsePageCount(splitPagesStr);
+
+  const hasInvalidText =
+    (durationStr.trim() !== '' && !(bannerDur > 0)) ||
+    (splitDurationStr.trim() !== '' && !(splitDur > 0)) ||
+    (splitPagesStr.trim() !== '' && !(splitPgs > 0));
+
+  const bannerMissing = durationStr.trim() === '' || !(bannerDur > 0);
+
+  const splitMissing = position === 'middle' && (
+    (splitMethod === 'duration' && (splitDurationStr.trim() === '' || !(splitDur > 0))) ||
+    (splitMethod === 'pages' && (splitPagesStr.trim() === '' || !(splitPgs > 0)))
+  );
+
+  const canAdd = !hasInvalidText && !bannerMissing && !splitMissing;
 
   return (
     <Modal
@@ -132,7 +151,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
       footer={
         <ModalFooter>
           <button onClick={() => { reset(); onClose(); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-          <button onClick={handleAdd} disabled={splitMissing} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800">Add Banners</button>
+          <button onClick={handleAdd} disabled={!canAdd} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800">Add Banners</button>
         </ModalFooter>
       }
     >
@@ -164,14 +183,15 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
             <FieldBox>
               {isTouchMode ? (
                 <DurationKeypad
-                  value={minutes}
-                  onChange={setMinutes}
+                  value={parseDuration(durationStr) || 0}
+                  onChange={val => setDurationStr(val > 0 ? formatDuration(val) : '')}
                   className="flex-1 text-right text-xs text-zinc-200"
                 />
               ) : (
                 <CellInput
-                  value={formatDuration(minutes)}
-                  onChange={val => setMinutes(parseDuration(val))}
+                  value={durationStr}
+                  onChange={setDurationStr}
+                  onBlur={() => setDurationStr(prev => normalizeDurationStr(prev))}
                   clearOnType
                   col="duration"
                   className="flex-1 text-right text-xs"
@@ -227,13 +247,14 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                       <DurationKeypad
                         value={splitDurationStr ? parseDuration(splitDurationStr) : 0}
                         display={splitDurationStr}
-                        onChange={val => setSplitDurationStr(val ? formatDuration(val) : '')}
+                        onChange={val => setSplitDurationStr(val > 0 ? formatDuration(val) : '')}
                         className="flex-1 text-right text-xs text-zinc-200"
                       />
                     ) : (
                       <CellInput
                         value={splitDurationStr}
                         onChange={setSplitDurationStr}
+                        onBlur={() => setSplitDurationStr(prev => normalizeDurationStr(prev))}
                         clearOnType
                         col="duration"
                         className="flex-1 text-right text-xs"
@@ -247,7 +268,8 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                   <SuffixField suffix="pgs">
                     <CellInput
                       value={splitPagesStr}
-                      onChange={val => setSplitPagesStr(val ? formatPageCount(parsePageCount(val)) : '')}
+                      onChange={setSplitPagesStr}
+                      onBlur={() => setSplitPagesStr(prev => normalizePagesStr(prev))}
                       clearOnType
                       col="pageCount"
                       className="flex-1 text-right text-xs"
