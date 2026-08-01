@@ -116,7 +116,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Drag day header</>} action="Swap two days' content and call times: drop on the center of another day. Drop on a day's left or right edge to insert your day before/after it, pushing the other days (call times travel with each day)" />
           <Row keys={<>Drag to bottom bar</>} action="Drop a dragged day on the 'insert at end' bar to append it as the last day" />
           <Row keys={<>Right-click day header</>} action="Mark day as Hold / Travel / Day Off (non-shoot date)" />
-          <Row keys={<>Right-click ribbon</>} action="Cut / Paste / Duplicate / Delete / Send to Boneyard (mirrors Schedule tab, no Daybreak)" />
+          <Row keys={<>Right-click ribbon</>} action="Cut / Paste / Duplicate / Delete / Send to Boneyard (mirrors Schedule tab, no Day Break)" />
         </Section>
 
         <Section title="Boneyard Sidebar">
@@ -139,13 +139,13 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Toolbar">
-          <Row keys={<>Auto Day Breaks</>} action="Auto-place day break separators across all days (by duration or pages), or clear all" />
-          <Row keys={<>Auto Banners</>} action="Add a NOTE/BREAK banner (custom label + duration) to every day at the top, middle, or bottom; middle can split by ribbons, duration, or pages. Also delete all notes or breaks" />
+          <Row keys={<>Day Breaks</>} action="Add day break separators across all days (by duration or pages), or delete all" />
+          <Row keys={<>Banners</>} action="Add a NOTE/BREAK banner (custom label + duration) to every day at the top, middle, or bottom; middle can split by ribbons, duration, or pages. Also delete all notes or breaks" />
         </Section>
 
         <Section title="Context Menu (Right-click)">
           <Row keys={<>Right-click</>} action="Open context menu on a ribbon" />
-          <Row keys={<>Add Note / Break / Daybreak</>} action="Insert a note, break, or daybreak ribbon below the target" />
+          <Row keys={<>Add Note / Break / Day Break</>} action="Insert a note, break, or day break ribbon below the target" />
           <Row keys={<>Duplicate</>} action="Clone scene (lettered suffix), note, or break" />
           <Row keys={<>Cut to Buffer</>} action="Cut selected ribbons to clipboard" />
           <Row keys={<>Paste Below</>} action="Paste clipboard ribbons below" />

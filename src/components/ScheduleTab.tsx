@@ -9,7 +9,7 @@ import { SortableRibbon } from './SortableRibbon';
 import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, Flag, Send, CheckSquare, CalendarPlus } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Sunset, Wand2, Clock, FileText, Flag, Send, CheckSquare, CalendarPlus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -218,7 +218,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       const anchorRow = activeVersion.rows.find(r => r.id === lastClickedId);
       const isBoneyard = (clickedRow && getContainerBlock(clickedRow) !== 'stripboard') ||
         (anchorRow && getContainerBlock(anchorRow) !== 'stripboard');
-      const allIds = isBoneyard ? containerIdsRef.current.boneyard as string[] : flatRowIdsRef.current;
+      const allIds = isBoneyard ? containerIdsRef.current.boneyard as string[] : containerIdsRef.current.stripboard;
       const idxA = allIds.indexOf(lastClickedId);
       const idxB = allIds.indexOf(id);
       if (idxA >= 0 && idxB >= 0) {
@@ -823,7 +823,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const { marqueeBox, justEndedRef: marqueeJustEndedRef } = useMarquee(
     scheduleScrollRef,
     useCallback((ids, isAddMode) => {
-      const filtered = new Set([...ids].filter(id => !id.startsWith('empty-')));
+      const filtered = new Set([...ids].filter(id => !id.startsWith('empty-') && !activeVersionRef.current?.rows.find(r => r.id === id)?.pinned));
       setSelectedRowIds(prev => isAddMode ? new Set([...prev, ...filtered]) : filtered);
     }, []),
     !textEditingEnabled,
@@ -1208,7 +1208,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const handleAutoDaybreak = async (mode: 'duration' | 'pages') => {
     if (!activeVersion) return;
     const val = await dialog.prompt({
-      title: mode === 'duration' ? 'Auto Day Break by Duration' : 'Auto Day Break by Pages',
+      title: mode === 'duration' ? 'Add Day Break by Duration' : 'Add Day Break by Pages',
       placeholder: mode === 'duration' ? 'e.g. 8h or 1h 30m' : 'e.g. 2 4/8 or 3.5',
       defaultValue: '',
     });
@@ -1805,16 +1805,16 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               theme="light"
               trigger={
                 <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
-                  <Wand2 className="w-3.5 h-3.5 shrink-0" />
-                   Auto Day Breaks
+                  <Sunset className="w-3.5 h-3.5 shrink-0" />
+                   Day Breaks
                   <ChevronDown className="w-3 h-3 shrink-0" />
                 </button>
               }
             >
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('duration'); }} icon={<Clock className="w-3.5 h-3.5" />}>By Duration…</DropdownItem>
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('pages'); }} icon={<FileText className="w-3.5 h-3.5" />}>By Pages…</DropdownItem>
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('duration'); }} icon={<Clock className="w-3.5 h-3.5" />}>Add by Duration</DropdownItem>
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('pages'); }} icon={<FileText className="w-3.5 h-3.5" />}>Add by Pages</DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Eraser className="w-3.5 h-3.5" />} variant="danger">Clear All</DropdownItem>
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All</DropdownItem>
             </DropdownMenu>
             <DropdownMenu
               open={bannerMenuOpen}
@@ -1825,18 +1825,18 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 <button
                   disabled={!hasDaybreakDays}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${!hasDaybreakDays ? 'opacity-40 cursor-not-allowed text-zinc-400' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-                  title={!hasDaybreakDays ? 'Add day breaks first' : 'Auto add note/break banners'}
+                  title={!hasDaybreakDays ? 'Add day breaks first' : 'Add note/break banners to every day'}
                 >
                   <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
-                  Auto Banners
+                  Banners
                   <ChevronDown className="w-3 h-3 shrink-0" />
                 </button>
               }
             >
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Banners…</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Banners</DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('NOTE'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Notes…</DropdownItem>
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('BREAK'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Breaks…</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('NOTE'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Notes</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('BREAK'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Breaks</DropdownItem>
             </DropdownMenu>
             <SortDropdown
               open={sortMenuOpen}
@@ -2186,7 +2186,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   <ContextMenuDivider />
                 </>
               )}
-              {row && (
+              {row && !row.pinned && (
                 <>
                   <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut to Buffer</ContextMenuItem>
                   <ContextMenuDivider />
@@ -2194,11 +2194,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               )}
               <ContextMenuItem onClick={() => handleContextMenuAction('add_note')} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
               <ContextMenuItem onClick={() => handleContextMenuAction('add_break')} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_daybreak')} icon={<Sunrise className="w-3.5 h-3.5" />}>Add Daybreak Below</ContextMenuItem>
-              {row && <ContextMenuDivider />}
+              <ContextMenuItem onClick={() => handleContextMenuAction('add_daybreak')} icon={<Sunset className="w-3.5 h-3.5" />}>Add Day Break Below</ContextMenuItem>
+              {row && !row.pinned && <ContextMenuDivider />}
               {row?.type === 'SCENE' && (
                 <>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
                   <ContextMenuDivider />
                   {!IS_COARSE && shiftHeld && onOpenSceneInPopout ? (
                     <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
@@ -2224,14 +2224,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   {row?.type === 'BREAK' && (
                     <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
                   )}
-                  {row?.type === 'DAYBREAK' && (
-                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_daybreak')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Daybreak</ContextMenuItem>
-                  )}
-                  <ContextMenuDivider />
-              {row && getContainerBlock(row) === 'stripboard' && (
+                  {(row?.type === 'NOTE' || row?.type === 'BREAK') && <ContextMenuDivider />}
+              {row && row?.type !== 'DAYBREAK' && getContainerBlock(row) === 'stripboard' && (
                     <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
                   )}
-                  <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
+                  {!row?.pinned && (
+                    <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
+                  )}
                 </>
               )}
             </>

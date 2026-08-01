@@ -1,7 +1,7 @@
 import React from 'react';
 import { ScheduleRow } from '../types';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
-import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink, Send } from 'lucide-react';
+import { Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, ExternalLink, Send, Sunset } from 'lucide-react';
 
 import { IS_COARSE } from '../lib/device';
 
@@ -93,7 +93,7 @@ export const StripboardContextMenuContent: React.FC<{
               <ContextMenuDivider />
             </>
           )}
-          {row && (
+          {row && !row.pinned && (
             <>
               <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut to Buffer</ContextMenuItem>
               <ContextMenuDivider />
@@ -101,10 +101,10 @@ export const StripboardContextMenuContent: React.FC<{
           )}
           <ContextMenuItem onClick={() => { handleContextMenuAction('add_note'); }} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
           <ContextMenuItem onClick={() => { handleContextMenuAction('add_break'); }} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
-          {row && <ContextMenuDivider />}
+          {row && !row.pinned && <ContextMenuDivider />}
           {row?.type === 'SCENE' && (
             <>
-              <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate (Ghost Scene)</ContextMenuItem>
+              <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
               <ContextMenuDivider />
               {!IS_COARSE && shiftHeld && onOpenSceneInPopout ? (
                 <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
@@ -130,14 +130,13 @@ export const StripboardContextMenuContent: React.FC<{
               {row?.type === 'BREAK' && (
                 <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_break'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
               )}
-              {row?.type === 'DAYBREAK' && (
-                <ContextMenuItem onClick={() => { handleContextMenuAction('duplicate_daybreak'); }} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Daybreak</ContextMenuItem>
-              )}
-              <ContextMenuDivider />
+              {(row?.type === 'NOTE' || row?.type === 'BREAK') && <ContextMenuDivider />}
               {row?.type !== 'DAYBREAK' && row?.containerId != null && (
                 <ContextMenuItem onClick={() => { handleContextMenuAction('boneyard'); }} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
               )}
-              <ContextMenuItem onClick={() => { handleContextMenuAction('delete'); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
+              {!row?.pinned && (
+                <ContextMenuItem onClick={() => { handleContextMenuAction('delete'); }} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
+              )}
             </>
           )}
         </>
