@@ -46,9 +46,10 @@ import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
 import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
+import { formatDriveError } from './lib/googleDriveStorage';
 import { SaveIndicator } from './components/SaveIndicator';
 import { useGoogleAuth } from './lib/googleDriveAuth';
-import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
 import { LongPressMenuProvider } from './lib/useLongPressMenu';
@@ -61,7 +62,7 @@ function formatTime(ts: number): string {
 }
 
 function AppContent() {
-  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice } = useProject();
+  const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
@@ -250,6 +251,7 @@ function AppContent() {
   }, []);
 
   const wasOfflineRef = useRef(false);
+  const [retryingConnection, setRetryingConnection] = useState(false);
 
   useEffect(() => {
     if (readOnly) {
@@ -258,17 +260,25 @@ function AppContent() {
       wasOfflineRef.current = true;
     } else if (wasOfflineRef.current) {
       wasOfflineRef.current = false;
+      setShowOfflineModal(false);
       setShowRestoredBanner(true);
       const timer = setTimeout(() => setShowRestoredBanner(false), 5000);
       return () => clearTimeout(timer);
     }
   }, [readOnly]);
 
-  const handleRetryConnection = useCallback(() => {
-    if (navigator.onLine) {
-      setShowOfflineModal(false);
+  const handleRetryConnection = useCallback(async () => {
+    if (retryingConnection) return;
+    setRetryingConnection(true);
+    const started = Date.now();
+    try {
+      await retryConnectivity();
+    } finally {
+      const elapsed = Date.now() - started;
+      const remaining = Math.max(0, 1000 - elapsed);
+      setTimeout(() => setRetryingConnection(false), remaining);
     }
-  }, []);
+  }, [retryConnectivity, retryingConnection]);
 
   useEffect(() => {
     setShowProjectManager(false);
@@ -315,7 +325,7 @@ function AppContent() {
       }
       setPendingImport({ result, fileName: file.name });
     } catch (e: any) {
-      dialog.alert({ title: 'Import Error', message: e.message || 'Failed to parse file' });
+      dialog.alert({ title: 'Import Error', message: formatDriveError(e, e?.message || 'Failed to parse file') });
     }
   }, [dialog, state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -579,9 +589,11 @@ function AppContent() {
             ) : (
               <button
                 onClick={handleRetryConnection}
-                className="ml-3 px-2.5 py-1 rounded bg-red-700 hover:bg-red-500 transition-colors font-semibold"
+                disabled={retryingConnection}
+                className="ml-3 px-2.5 py-1 rounded bg-red-700 hover:bg-red-500 transition-colors font-semibold disabled:opacity-60 flex items-center gap-1.5"
               >
-                Retry Connection
+                {retryingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
+                {retryingConnection ? 'Reconnecting...' : 'Retry Connection'}
               </button>
             )}
           </div>
@@ -597,10 +609,25 @@ function AppContent() {
             footer={
               <ModalFooter>
                 <button
-                  onClick={() => { setShowOfflineModal(false); if (isAuthIssue) driveCtx.signIn(); }}
-                  className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors"
+                  onClick={() => setShowOfflineModal(false)}
+                  className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
                 >
-                  {isAuthIssue ? 'Sign in' : 'OK'}
+                  OK
+                </button>
+                <button
+                  onClick={() => {
+                    if (isAuthIssue) {
+                      setShowOfflineModal(false);
+                      driveCtx.signIn();
+                    } else {
+                      handleRetryConnection();
+                    }
+                  }}
+                  disabled={!isAuthIssue && retryingConnection}
+                  className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+                >
+                  {!isAuthIssue && retryingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {isAuthIssue ? 'Sign in' : retryingConnection ? 'Reconnecting...' : 'Retry Connection'}
                 </button>
               </ModalFooter>
             }
@@ -608,7 +635,7 @@ function AppContent() {
             <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
               {isAuthIssue
                 ? 'You have been signed out of Google Drive. Sign in again to resume editing your cloud project.'
-                : 'Lemon Schedule requires an internet connection. You can continue to browse your project, but all editing controls are currently disabled.'}
+                : 'This cloud project needs an internet connection to stay in sync. You can keep browsing, but editing is paused until your connection returns.'}
             </div>
           </Modal>
         );
@@ -819,7 +846,7 @@ function AppContent() {
 
       {/* POPOUT WINDOWS */}
       {poppedOutTabs.has('breakdown') && popoutWindowsRef.current.get('breakdown') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Breakdown`} win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Breakdown`} win={popoutWindowsRef.current.get('breakdown')!} onClose={() => closePopout('breakdown')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closePopout('breakdown')} />
             <div className="flex-1 min-h-0 flex flex-col">
@@ -829,7 +856,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutTabs.has('schedule') && popoutWindowsRef.current.get('schedule') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Schedule`} win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Schedule`} win={popoutWindowsRef.current.get('schedule')!} onClose={() => closePopout('schedule')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Schedule" onClose={() => closePopout('schedule')} />
             <div className="flex-1 min-h-0 flex flex-col">
@@ -839,7 +866,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutTabs.has('calendar') && popoutWindowsRef.current.get('calendar') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Calendar`} win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Calendar`} win={popoutWindowsRef.current.get('calendar')!} onClose={() => closePopout('calendar')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Calendar" onClose={() => closePopout('calendar')} />
             <div className="flex-1 min-h-0 flex flex-col">
@@ -849,7 +876,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutTabs.has('design') && popoutWindowsRef.current.get('design') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Design`} win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Design`} win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closePopout('design')} />
             <div className="flex-1 min-h-0 flex flex-col">
@@ -859,7 +886,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutTabs.has('rules') && popoutWindowsRef.current.get('rules') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Rules`} win={popoutWindowsRef.current.get('rules')!} onClose={() => closePopout('rules')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Rules`} win={popoutWindowsRef.current.get('rules')!} onClose={() => closePopout('rules')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Rules" onClose={() => closePopout('rules')} />
             <div className="flex-1 min-h-0 flex flex-col">
@@ -869,7 +896,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutTabs.has('reports') && popoutWindowsRef.current.get('reports') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Reports`} win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Reports`} win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closePopout('reports')} />
             <div className="flex-1 min-h-0 flex flex-col">
@@ -881,7 +908,7 @@ function AppContent() {
 
       {/* SUB-TAB POPOUT WINDOWS */}
       {poppedOutSubTabs.breakdown?.has('sheet') && popoutSubWindowsRef.current.get('sub_breakdown_sheet') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Sheet`} win={popoutSubWindowsRef.current.get('sub_breakdown_sheet')!} onClose={() => closeSubPopout('breakdown', 'sheet')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'sheet')} />
             <PageToolbar
@@ -897,7 +924,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutSubTabs.breakdown?.has('elements') && popoutSubWindowsRef.current.get('sub_breakdown_elements') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Element Manager`} win={popoutSubWindowsRef.current.get('sub_breakdown_elements')!} onClose={() => closeSubPopout('breakdown', 'elements')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'elements')} />
             <PageToolbar
@@ -913,7 +940,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutSubTabs.breakdown?.has('glide') && popoutSubWindowsRef.current.get('sub_breakdown_glide') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Glide Breakdown`} win={popoutSubWindowsRef.current.get('sub_breakdown_glide')!} onClose={() => closeSubPopout('breakdown', 'glide')}>
           <div className="h-screen bg-white flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Breakdown" onClose={() => closeSubPopout('breakdown', 'glide')} />
             <PageToolbar
@@ -929,7 +956,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutSubTabs.design?.has('ribbons') && popoutSubWindowsRef.current.get('sub_design_ribbons') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Ribbon Designer`} win={popoutSubWindowsRef.current.get('sub_design_ribbons')!} onClose={() => closeSubPopout('design', 'ribbons')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closeSubPopout('design', 'ribbons')} />
             <PageToolbar
@@ -946,7 +973,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutSubTabs.design?.has('colors') && popoutSubWindowsRef.current.get('sub_design_colors') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')}>
           <div className="h-screen bg-zinc-950 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Design" onClose={() => closeSubPopout('design', 'colors')} />
             <PageToolbar
@@ -963,7 +990,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutSubTabs.reports?.has('doods') && popoutSubWindowsRef.current.get('sub_reports_doods') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Day Out of Days`} win={popoutSubWindowsRef.current.get('sub_reports_doods')!} onClose={() => closeSubPopout('reports', 'doods')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Reports" onClose={() => closeSubPopout('reports', 'doods')} />
             <PageToolbar
@@ -1029,7 +1056,7 @@ function AppContent() {
         </PopoutWindow>
       )}
       {poppedOutSubTabs.reports?.has('elementBreakdown') && popoutSubWindowsRef.current.get('sub_reports_elementBreakdown') && (
-        <PopoutWindow title={`${project.title || 'Untitled'} — Element Breakdown`} win={popoutSubWindowsRef.current.get('sub_reports_elementBreakdown')!} onClose={() => closeSubPopout('reports', 'elementBreakdown')}>
+        <PopoutWindow title={`${project.title || 'Untitled'} - Element Breakdown`} win={popoutSubWindowsRef.current.get('sub_reports_elementBreakdown')!} onClose={() => closeSubPopout('reports', 'elementBreakdown')}>
           <div className="h-screen bg-zinc-900 flex flex-col text-[13px] overflow-hidden">
             <VersionToolbar projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} tabName="Element Breakdown" onClose={() => closeSubPopout('reports', 'elementBreakdown')} />
             <PageToolbar

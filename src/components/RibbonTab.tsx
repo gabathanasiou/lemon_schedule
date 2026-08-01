@@ -244,7 +244,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     );
   }, [rows, colWidths, numCols, commit]);
 
-  /* Style edits — propagate to merge siblings */
+  /* Style edits - propagate to merge siblings */
   const setVerticalAlign = useCallback((cellId: string, va: 'top' | 'middle' | 'bottom' | undefined) => {
     const ids = mergeSiblingIds(cellId, rows);
     commit(rows.map(r => ({

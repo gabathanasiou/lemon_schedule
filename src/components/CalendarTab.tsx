@@ -102,11 +102,12 @@ const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField
 };
 
 const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick, onContextMenu }) => {
-  const { state } = useProject();
+  const { state, readOnly } = useProject();
   const sel = getSelectedStripColors(state.present.colorPalette);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
+    disabled: readOnly,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -156,6 +157,7 @@ const DayCell: React.FC<{
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
 }> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
+  const { readOnly } = useProject();
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -164,7 +166,7 @@ const DayCell: React.FC<{
   const { setNodeRef: setDragRef, attributes: dragAttributes, listeners: dragListeners, isDragging } = useDraggable({
     id: `day-section-${sectionIndex ?? -1}`,
     data: { type: 'DAY', sectionIndex },
-    disabled: !sectionLabel || !!activeTool,
+    disabled: !sectionLabel || !!activeTool || readOnly,
   });
 
   const { setNodeRef: setEndRef } = useDroppable({

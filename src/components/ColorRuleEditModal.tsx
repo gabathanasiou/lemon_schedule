@@ -337,7 +337,7 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
             })}
           </div>
           {conditions.length === 0 && (
-            <p className={`${CREM_LABEL} text-zinc-600 italic mt-2`}>No conditions — rule will match all scenes.</p>
+            <p className={`${CREM_LABEL} text-zinc-600 italic mt-2`}>No conditions - rule will match all scenes.</p>
           )}
         </div>
 

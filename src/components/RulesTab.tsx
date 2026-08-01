@@ -8,7 +8,7 @@ import { RuleFormModal } from './rules/RuleFormModal';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
 export const RulesTab: React.FC = () => {
-  const { state, dispatch } = useProject();
+  const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const rules = project.rules || [];
   const scenes = project.scenes;
@@ -97,7 +97,8 @@ export const RulesTab: React.FC = () => {
               </div>
               <button
                 onClick={handleAdd}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0"
+                disabled={readOnly}
+                className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold flex items-center gap-1.5 transition-colors shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4" />
                 New Rule
@@ -157,7 +158,8 @@ export const RulesTab: React.FC = () => {
                 </p>
                 <button
                   onClick={handleAdd}
-                  className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
+                  disabled={readOnly}
+                  className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-md text-sm font-semibold inline-flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   Add your first rule
@@ -207,7 +209,7 @@ export const RulesTab: React.FC = () => {
                             <RuleCard
                               key={rule.id}
                               rule={rule}
-                              onEdit={() => handleEdit(rule)}
+                              onEdit={readOnly ? () => {} : () => handleEdit(rule)}
                             />
                           ))}
                         </div>

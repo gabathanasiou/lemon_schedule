@@ -1,6 +1,31 @@
 import type { ProjectMeta } from '../store';
 import type { Project } from '../types';
 
+export function getDriveErrorStatus(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  const match = msg.match(/\b(401|403|404|410|429|5\d\d)\b/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+export function formatDriveError(err: unknown, fallback = 'Google Drive sync failed. Please try again.'): string {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  const status = getDriveErrorStatus(err);
+  if (status === 401 || status === 403) {
+    return 'Your Google sign-in has expired. Sign in again to continue.';
+  }
+  if (status === 429) {
+    return 'Google Drive is receiving too many requests. Please wait a moment and try again.';
+  }
+  if (status && status >= 500) {
+    return 'Google Drive is having issues right now. Please try again in a moment.';
+  }
+  if (/failed to fetch|networkerror|network error|load failed|offline|internet connection/i.test(msg)) {
+    return "You're offline - check your connection and try again.";
+  }
+  return fallback;
+}
+
+
 export interface DriveProjectMeta {
   id: string;
   title: string;

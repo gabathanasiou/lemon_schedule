@@ -94,7 +94,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
   return (
     <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-zinc-950 text-zinc-300">
       <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
-        <span className="text-sm font-bold text-white">Element Breakdown — {selectedLabel}</span>
+        <span className="text-sm font-bold text-white">Element Breakdown - {selectedLabel}</span>
         {hasCustomWidths && (
           <button onClick={resetWidths} className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors">Reset Columns</button>
         )}
@@ -136,7 +136,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-r border-zinc-800 cursor-default">
-                  {el.scenes || '—'}
+                  {el.scenes || '?'}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('scenes', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-r border-zinc-800 whitespace-nowrap cursor-default">
@@ -144,7 +144,7 @@ export default function ElementBreakdownView({ selectedCategory }: ElementBreakd
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('pages', e)} />
                 </td>
                 <td className="relative px-2 py-1.5 text-zinc-400 border-b border-zinc-800 cursor-default">
-                  {el.days || '—'}
+                  {el.days || '?'}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('days', e)} />
                 </td>
               </tr>

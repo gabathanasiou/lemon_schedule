@@ -42,7 +42,7 @@ export default function BreakdownSheetDialog({ onPrint, onClose }: BreakdownShee
   const sortOrder = settings.sortOrder;
   const selectedSceneIds = settings.selectedSceneIds;
 
-  const sceneItems = useMemo(() => scenes.map(s => ({ id: s.id, name: `${s.sceneNumber} — ${s.set || s.description}` })), [scenes]);
+  const sceneItems = useMemo(() => scenes.map(s => ({ id: s.id, name: `${s.sceneNumber} - ${s.set || s.description}` })), [scenes]);
 
   const toggleScene = (id: string) => {
     update({ selectedSceneIds: selectedSceneIds.includes(id) ? selectedSceneIds.filter(x => x !== id) : [...selectedSceneIds, id] });

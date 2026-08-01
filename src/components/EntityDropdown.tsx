@@ -75,7 +75,7 @@ interface EntityDropdownProps {
   sortItems?: (items: EntityItem[], selectedIds: string[]) => EntityItem[];
   /** Custom filter. Defaults to substring match on searchFields. */
   filterItem?: (item: EntityItem, query: string) => boolean;
-  /** Called per item in the dropdown — e.g. to show a badge count. */
+  /** Called per item in the dropdown - e.g. to show a badge count. */
   itemBadge?: (item: EntityItem) => string | null;
   /** Start with the dropdown open (editors that should show suggestions immediately) */
   defaultOpen?: boolean;
@@ -91,22 +91,22 @@ interface EntityDropdownProps {
   panelMinWidth?: string;
   /** Called when the dropdown is dismissed by clicking outside (handleClose). Not called on Enter/Tab commit. */
   onExit?: () => void;
-  /** Called when Tab is pressed — allows passing movement to Glide's onFinishedEditing */
+  /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
   onTabExit?: () => void;
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
   uppercase?: boolean;
   /** Portal target element for the dropdown panel (escapes clipping containers) */
   portalTarget?: HTMLElement | null;
-  /** Skip the auto-append of ', ' when opening a cell — used when a key press replaced the cell value */
+  /** Skip the auto-append of ', ' when opening a cell - used when a key press replaced the cell value */
   skipComma?: boolean;
 }
 
 /**
- * EntityDropdown — shared multi/single-select dropdown for cast, props, sets, shoot days, etc.
+ * EntityDropdown - shared multi/single-select dropdown for cast, props, sets, shoot days, etc.
  *
  * ## Modes (prop: `mode`)
  *
- * ### `multi` (default) — comma-separated input, click-to-toggle
+ * ### `multi` (default) - comma-separated input, click-to-toggle
  * The input IS the comma-separated value. Users type IDs/names separated by commas.
  * The last comma-separated segment acts as the search query.
  * Clicking an item toggles it in/out of the comma-separated list.
@@ -123,10 +123,10 @@ interface EntityDropdownProps {
  * - PrintDialog shoot day picker
  * - Various dialog cast pickers (RuleFormFields, DoodDialog, etc.)
  *
- * ### `single` — search-then-select, commas allowed in value
+ * ### `single` - search-then-select, commas allowed in value
  * The input is a free-text query that filters items. Clicking an item immediately
  * commits `onChange(id)` and closes the dropdown. **Commas in the value are not
- * treated as delimiters** — the entire value is kept as one unit. On Enter/Tab/blur
+ * treated as delimiters** - the entire value is kept as one unit. On Enter/Tab/blur
  * without clicking, the query text is committed as-is.
  *
  * **Where to use:** set fields (scene set names can contain commas like
@@ -138,23 +138,23 @@ interface EntityDropdownProps {
  * - BreakdownTab SetEditor
  * - SortableRibbon set fields (dynamic ENTITY_FIELDS and explicit set column)
  *
- * ### `select` — single selection, immediate commit
+ * ### `select` - single selection, immediate commit
  * Like multi but single-value. Entire `val` is the search query (not the last segment).
  * Clicking an item immediately commits `onChange(id)` and closes. On commit,
  * the value is normalised (split on commas, trimmed). Commas ARE treated as
  * delimiters in `select` mode.
  *
  * **Where to use:** legacy single-select fields that don't accept commas.
- * **Prefer `single` mode for new code** — it handles commas safely.
+ * **Prefer `single` mode for new code** - it handles commas safely.
  *
  * **Used in:** SortableRibbon dynamic ENTITY_FIELDS for non-set fields (fallback
  * when text editing is disabled).
  *
  * ## Display Modes (prop: `displayMode`)
  *
- * - `'id'` — item keys are matched by `itemKey()` returning `m.id`. Used for cast
+ * - `'id'` - item keys are matched by `itemKey()` returning `m.id`. Used for cast
  *   where cast members have numeric IDs.
- * - `'name'` (default) — item keys are matched by `itemKey()` returning `m.name`.
+ * - `'name'` (default) - item keys are matched by `itemKey()` returning `m.name`.
  *   Used for props, wardrobe, sets, and all non-cast categories.
  *
  * ## Items (prop: `items`)
@@ -165,9 +165,9 @@ interface EntityDropdownProps {
  *
  * ## Positioning (prop: `positioning`)
  *
- * - `'relative'` (default) — panel positioned below the input via absolute + top-full.
+ * - `'relative'` (default) - panel positioned below the input via absolute + top-full.
  *   Use for inline form fields, spreadsheet cells.
- * - `'fixed'` — panel positioned with fixed coordinates (avoids overflow clipping).
+ * - `'fixed'` - panel positioned with fixed coordinates (avoids overflow clipping).
  *   Use in compact layouts where the parent has overflow:hidden.
  *
  * ## Editor vs Form Usage
@@ -436,7 +436,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
       {displayMode === 'id' && <span className="text-zinc-400 shrink-0">{item.id}.</span>}
-      <span className="truncate flex-1">{displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '—') : (item.name || '—')}</span>
+      <span className="truncate flex-1">{displayMode === 'id' ? (item.name && item.name !== item.id ? item.name : '?') : (item.name || '?')}</span>
       {showSceneCounts && scenes && (
         <span className="text-[10px] text-zinc-400">
           {scenes.filter(s => s.cast.split(',').map(x => x.trim()).includes(item.id)).length} scenes
@@ -449,7 +449,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   );
 
   if (readOnly && !open) {
-    return <span className={className} onAuxClick={forceOpen}>{value || '—'}</span>;
+    return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;
   }
 
   const displayValue = open

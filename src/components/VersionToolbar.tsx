@@ -32,7 +32,7 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
     <div className={`shrink-0 ${cloudBg} text-zinc-300 select-none print:hidden`}>
       {readOnly && (
         <div className="bg-red-600 text-white px-4 py-1.5 flex items-center justify-between text-xs">
-          <span className="font-medium">No Internet Connection — editing disabled</span>
+          <span className="font-medium">No Internet Connection - editing disabled</span>
         </div>
       )}
       <div className="flex items-center justify-between px-4 py-2">

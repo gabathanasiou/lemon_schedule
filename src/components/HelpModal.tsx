@@ -1,5 +1,5 @@
 /**
- * HelpModal — displays all keyboard shortcuts and controls for the schedule stripboard.
+ * HelpModal - displays all keyboard shortcuts and controls for the schedule stripboard.
  *
  * IMPORTANT: When adding new controls, shortcuts, or interactions to the stripboard,
  * update this modal to reflect them. Each section is a category; add new rows as needed.
@@ -87,7 +87,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Scheduling">
-          <Row keys={<><Kbd>0</Kbd> – <Kbd>9</Kbd></>} action="Quick-schedule: type section number for selected boneyard ribbons" />
+          <Row keys={<><Kbd>0</Kbd> - <Kbd>9</Kbd></>} action="Quick-schedule: type section number for selected boneyard ribbons" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit digit buffer immediately (during quick-schedule)" />
           <Row keys={<>Drag & drop</>} action="Move ribbons between days or reorder within a day" />
         </Section>
@@ -99,8 +99,8 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
         </Section>
 
         <Section title="Touch / iPad">
-          <Row keys={<>Swipe</>} action="Scroll — swipe on ribbons, gaps, margins, or day headers" />
-          <Row keys={<>Press & hold</>} action="Drag a ribbon — hold still (~200ms) then drag. Drags full multi-selection if tapped item is selected" />
+          <Row keys={<>Swipe</>} action="Scroll - swipe on ribbons, gaps, margins, or day headers" />
+          <Row keys={<>Press & hold</>} action="Drag a ribbon - hold still (~200ms) then drag. Drags full multi-selection if tapped item is selected" />
           <Row keys={<>Tap</>} action="Select a single ribbon (deselects any others)" />
           <Row keys={<><Kbd>⊞</Kbd> Select Mode</>} action="Top float bottom-right: tap to enable. Tap ribbons to toggle selection. Drag empty space to marquee. Long-press for context menu" />
           <Row keys={<><Kbd>⌨</Kbd> Keyboard</>} action="Bottom float bottom-right: tap to toggle keyboard input on entity dropdowns. Off = picker-only (no iOS keyboard popup)" />
@@ -119,7 +119,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>+ NOTE / + BREAK</>} action="Create new note or break ribbons in Boneyard" />
           <Row keys={<>Sort dropdown</>} action="Sort by Scene #, Script Day, Page Count, Duration, INT/EXT, Day/Night, or any category" />
           <Row keys={<>Collapse</>} action="Collapse sidebar to save space (persisted)" />
-          <Row keys={<>Resize edge</>} action="Drag right edge to resize sidebar (200px – 600px)" />
+          <Row keys={<>Resize edge</>} action="Drag right edge to resize sidebar (200px - 600px)" />
           <Row keys={<><Kbd>↑</Kbd> <Kbd>↓</Kbd></>} action="Move selection up / down through boneyard ribbons (Schedule + Calendar)" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>↑</Kbd>/<Kbd>↓</Kbd></>} action="Extend / contract boneyard selection range (Schedule + Calendar)" />
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>A</Kbd></>} action="Select all boneyard ribbons (Schedule + Calendar)" />

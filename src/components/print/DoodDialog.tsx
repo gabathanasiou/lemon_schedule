@@ -116,7 +116,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
     if (isCast) {
       return allCastIds.map(id => ({
         id,
-        name: castMembers.find(m => m.id === id)?.name || '—',
+        name: castMembers.find(m => m.id === id)?.name || '?',
       }));
     }
     const stored: { id: string; name: string }[] = (project.breakdownElements || {})[category] || [];
@@ -194,7 +194,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
   const canPrint = selectedElementIds.size > 0 && selectedDayInts.size > 0;
 
   return (
-    <Modal open onClose={onClose} onReset={resetSettings} title={`Day Out of Days — ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
+    <Modal open onClose={onClose} onReset={resetSettings} title={`Day Out of Days - ${categoryLabel}`} icon={<Printer className="w-4 h-4" />} width="max-w-2xl"
       footer={
         <ModalFooter>
           <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
@@ -293,7 +293,7 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
                     {isCast ? (
                       <>
                         <span className="text-zinc-500 shrink-0">{item.id}.</span>
-                        <span className="truncate">{item.name !== '—' ? item.name : '—'}</span>
+                        <span className="truncate">{item.name !== '?' ? item.name : '?'}</span>
                       </>
                     ) : (
                       <span className="truncate">{item.name}</span>

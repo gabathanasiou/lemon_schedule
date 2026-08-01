@@ -206,7 +206,7 @@ export const CastConflictFields: React.FC<{
         placeholder="Search cast members..."
         className="text-xs"
         displayMode="id"
-        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
+        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
       />
     </div>
     <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export const CastConflictFields: React.FC<{
         placeholder="Search cast members..."
         className="text-xs"
         displayMode="id"
-        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
+        renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
       />
     </div>
   </div>
@@ -251,7 +251,7 @@ export const CastSceneFlagFields: React.FC<{
       placeholder="Search cast members..."
       className="text-xs"
       displayMode="id"
-      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>}
+      renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
     />
   </div>
 );

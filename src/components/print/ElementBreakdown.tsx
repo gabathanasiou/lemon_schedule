@@ -163,7 +163,7 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
                     <td style={{textAlign:'center'}}>{s.intExt}</td>
                     <td style={{textAlign:'center'}}>{s.dayNight}</td>
                     <td className="eb-pages">{s.pageCount ? `${s.pageCount} pgs` : ''}</td>
-                    <td style={{textAlign:'center'}}>{sceneToDay.get(s.id) ?? '—'}</td>
+                    <td style={{textAlign:'center'}}>{sceneToDay.get(s.id) ?? '?'}</td>
                     <td>{getDayDate(sceneToDay.get(s.id) ?? null)}</td>
                   </tr>
                 ))}
@@ -177,7 +177,7 @@ const ElementBreakdown: React.FC<ElementBreakdownProps> = ({ title, scenes, rows
         );
       })}
 
-      <div className="eb-footer">{title} — {catLabel} Breakdown — {genStr}</div>
+      <div className="eb-footer">{title} - {catLabel} Breakdown - {genStr}</div>
     </div>
   );
 };

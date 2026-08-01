@@ -32,36 +32,36 @@ export function formatCastIds(ids: string[], castMembers: CastMember[]): string 
   return ids.map(id => formatCastId(id, castMembers)).join(', ');
 }
 
-/** Detail for MAX_HOURS violation — shown under cast member header. */
+/** Detail for MAX_HOURS violation - shown under cast member header. */
 export function maxHoursDetail(maxHours: number, over: number): string {
   const worked = maxHours + over;
   return `Can only work ${maxHours}h (scheduled ${worked.toFixed(1)}h)`;
 }
 
-/** Detail for DATE_RESTRICTION violation — shown under cast member header. */
+/** Detail for DATE_RESTRICTION violation - shown under cast member header. */
 export function dateRestrictionDetail(): string {
   return 'Unavailable on this date';
 }
 
 /** Raw time-window description without "Only available" prefix (for use in full messages). */
 export function timeWindowLabel(ws?: string, we?: string): string {
-  if (ws && we) return `${ws}–${we}`;
+  if (ws && we) return `${ws}-${we}`;
   if (ws) return `after ${ws}`;
   if (we) return `before ${we}`;
   return '';
 }
 
-/** Detail for TIME_WINDOW violation — shown under cast member header (includes "Only available" prefix). */
+/** Detail for TIME_WINDOW violation - shown under cast member header (includes "Only available" prefix). */
 export function timeWindowDetail(ws?: string, we?: string): string {
   return `Only available ${timeWindowLabel(ws, we)}`;
 }
 
-/** Full message for CAST_CONFLICT — shown in "General" section of tooltip. */
+/** Full message for CAST_CONFLICT - shown in "General" section of tooltip. */
 export function castConflictMessage(groupA: string, groupB: string): string {
   return `Cast conflict: ${groupA} and ${groupB} both scheduled this day`;
 }
 
-/** Full message for CAST_SCENE_FLAG — shown in "General" section of tooltip. */
+/** Full message for CAST_SCENE_FLAG - shown in "General" section of tooltip. */
 export function castSceneFlagMessage(castNames: string): string {
   return `Scene includes flagged cast: ${castNames}`;
 }

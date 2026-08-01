@@ -4,7 +4,7 @@ import { useProject, ProjectMeta, loadProjectFromStorage } from '../store';
 import { Project } from '../types';
 import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
-import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData } from '../lib/googleDriveStorage';
+import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData, formatDriveError, getDriveErrorStatus } from '../lib/googleDriveStorage';
 import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
@@ -28,7 +28,7 @@ type ProjectTab = 'local' | 'cloud';
 const sortOptions: { key: SortKey; label: string }[] = [
   { key: 'lastModified', label: 'Last Modified' },
   { key: 'createdAt', label: 'Created' },
-  { key: 'title', label: 'A–Z' },
+  { key: 'title', label: 'A-Z' },
 ];
 
 function formatDate(ts: number): string {
@@ -134,9 +134,8 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         setLastRefreshedAt(Date.now());
       })
       .catch(e => {
-        const msg = e?.message || 'Failed to load cloud projects';
-        const isAuthError = msg.includes('401');
-        setDriveError(msg);
+        setDriveError(formatDriveError(e, 'Failed to load cloud projects'));
+        const isAuthError = getDriveErrorStatus(e) === 401;
         setDriveAuthError(isAuthError);
         if (isAuthError) auth.refreshToken();
         setDriveLoading(false);
@@ -178,9 +177,8 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         setLastRefreshedAt(Date.now());
       })
       .catch(e => {
-        const msg = e?.message || 'Failed to load cloud projects';
-        const isAuthError = msg.includes('401');
-        setDriveError(msg);
+        setDriveError(formatDriveError(e, 'Failed to load cloud projects'));
+        const isAuthError = getDriveErrorStatus(e) === 401;
         setDriveAuthError(isAuthError);
         if (isAuthError) auth.refreshToken();
         setDriveLoading(false);
@@ -209,7 +207,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       setDriveCorrupt(false);
       setDriveTotalCount(0);
     } catch (e: any) {
-      dialog.alert({ title: 'Wipe Failed', message: e?.message || 'Could not delete all Drive files.' });
+      dialog.alert({ title: 'Wipe Failed', message: formatDriveError(e, 'Could not delete all Drive files.') });
     } finally {
       setDeletingAll(false);
     }
@@ -285,7 +283,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         const proj = await readDriveProject(auth.accessToken!, p.driveFileId);
         exportProjectData(JSON.stringify(proj), p.title);
       } catch (err: any) {
-        dialog.alert({ title: 'Export Failed', message: err?.message || 'Could not load project from Drive.' });
+        dialog.alert({ title: 'Export Failed', message: formatDriveError(err, 'Could not load project from Drive.') });
       } finally {
         setExportingId(null);
       }
@@ -300,6 +298,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       setOpeningId(p.id);
       openProject(p.id, p.driveFileId)
         .then(() => onClose?.())
+        .catch(err => {
+          dialog.alert({ title: 'Could Not Open Project', message: formatDriveError(err, 'Could not load the project from Google Drive.') });
+        })
         .finally(() => setOpeningId(null));
     } else {
       if (p.id === currentProjectId) {
@@ -339,7 +340,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       updateProjectMeta(p.id, { driveFileId: newFileId });
       refetchDrive();
     } catch (e: any) {
-      dialog.alert({ title: 'Upload Failed', message: e?.message || 'Could not upload to Drive.' });
+      dialog.alert({ title: 'Upload Failed', message: formatDriveError(e, 'Could not upload to Drive.') });
     } finally {
       setMovingId(null);
     }
@@ -364,7 +365,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       updateProjectMeta(p.id, { driveFileId: undefined });
       refetchDrive();
     } catch (e: any) {
-      dialog.alert({ title: 'Remove Failed', message: e?.message || 'Could not remove from Drive.' });
+      dialog.alert({ title: 'Remove Failed', message: formatDriveError(e, 'Could not remove from Drive.') });
     } finally {
       setMovingId(null);
     }

@@ -106,7 +106,7 @@ const BreakdownSheet: React.FC<BreakdownSheetProps> = ({ title, scenes: rawScene
 
       {scenes.map((scene, si) => (
         <div key={scene.id} className="bs-sheet">
-          {si > 0 && <div className="bs-page-info">Page {si + 1} of {scenes.length} — {genStr}</div>}
+          {si > 0 && <div className="bs-page-info">Page {si + 1} of {scenes.length} - {genStr}</div>}
           <table className="bs-header">
             <tbody>
               <tr><td className="bs-label">Scene Sheet</td><td>{si + 1}</td><td className="bs-label">Scene No.</td><td>{scene.sceneNumber}</td></tr>

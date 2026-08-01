@@ -59,7 +59,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
     setOpen(false);
   };
 
-  if (readOnly) return <span className={className}>{value || '—'}</span>;
+  if (readOnly) return <span className={className}>{value || '?'}</span>;
 
   const inputClasses = standalone
     ? `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`

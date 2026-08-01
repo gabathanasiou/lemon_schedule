@@ -2304,10 +2304,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             <div className="p-6 space-y-5">
               <p className="text-xs text-zinc-400 leading-relaxed">
                 {daybreakCount > 0 && (noteCount > 0 || breakCount > 0)
-                  ? <>Existing day breaks will be removed. {summary} found — choose how to handle notes and breaks.</>
+                  ? <>Existing day breaks will be removed. {summary} found - choose how to handle notes and breaks.</>
                   : daybreakCount > 0
                   ? <>Existing day breaks will be removed before auto-placing new ones.</>
-                  : <>{summary} found in the stripboard — choose how to handle them.</>
+                  : <>{summary} found in the stripboard - choose how to handle them.</>
                 }
               </p>
               {daybreakCount > 0 && (

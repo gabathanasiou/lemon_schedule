@@ -1303,6 +1303,7 @@ interface ProjectContextType {
   driveSaveError: boolean;
   storageQuotaError: boolean;
   retryDriveSync: () => Promise<void>;
+  retryConnectivity: () => Promise<boolean>;
   closeProject: () => void;
   consumeLegacyMigrationNotice: () => LegacyMigrationResult | null;
 }
@@ -1329,20 +1330,72 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const presentRef = useRef(state.present);
   presentRef.current = state.present;
 
-  // Offline detection — block cloud project mutations when offline; local projects keep working
+  // Offline detection - block cloud project mutations when offline; local projects keep working
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [realOnline, setRealOnline] = useState(navigator.onLine);
   const lastSaveFailedRef = useRef(false);
   const projectListRef = useRef(projectList);
   projectListRef.current = projectList;
+  const currentProjectIdRef = useRef(currentProjectId);
+  currentProjectIdRef.current = currentProjectId;
+  const authStateRef = useRef({ isSignedIn: auth.isSignedIn, needsReauth: auth.needsReauth });
+  authStateRef.current = { isSignedIn: auth.isSignedIn, needsReauth: auth.needsReauth };
+  const probeRef = useRef<() => Promise<boolean>>(async () => false);
+
+  // Proactive connectivity probe - the browser `offline` event is slow/unreliable (Wi-Fi
+  // drops can leave navigator.onLine true for a long time), so ping the Drive API on a
+  // 10s interval plus key events. Auth state wins over probe results: an HTTP response
+  // (even 401/403) proves the network is up, but never unlocks editing while the session
+  // is signed out or expired.
   useEffect(() => {
-    const goOffline = () => setIsOnline(false);
-    const goOnline = () => setIsOnline(true);
-    window.addEventListener('offline', goOffline);
-    window.addEventListener('online', goOnline);
+    const currentMeta = () => projectListRef.current.find(p => p.id === currentProjectIdRef.current);
+    const isCloudContext = () => !!currentMeta()?.driveFileId || authStateRef.current.isSignedIn;
+    const probe = async (): Promise<boolean> => {
+      if (!isCloudContext()) return true;
+      try {
+        const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=kind', {
+          method: 'HEAD',
+          cache: 'no-store',
+        });
+        if (res.ok || res.status === 401 || res.status === 403) {
+          setIsOnline(true);
+          lastSaveFailedRef.current = false;
+          const meta = currentMeta();
+          if (meta?.driveFileId && authStateRef.current.isSignedIn && !authStateRef.current.needsReauth) {
+            setRealOnline(true);
+          }
+          return !meta?.driveFileId || (authStateRef.current.isSignedIn && !authStateRef.current.needsReauth);
+        }
+        setIsOnline(false);
+        return false;
+      } catch {
+        setIsOnline(false);
+        if (currentMeta()?.driveFileId) setRealOnline(false);
+        lastSaveFailedRef.current = true;
+        return false;
+      }
+    };
+    probeRef.current = probe;
+    const onOffline = () => {
+      setIsOnline(false);
+      if (currentMeta()?.driveFileId) setRealOnline(false);
+    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') probe(); };
+    const conn = (navigator as any).connection;
+    conn?.addEventListener?.('change', probe);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', probe);
+    window.addEventListener('online', probe);
+    window.addEventListener('offline', onOffline);
+    probe();
+    const interval = setInterval(probe, 10_000);
     return () => {
-      window.removeEventListener('offline', goOffline);
-      window.removeEventListener('online', goOnline);
+      clearInterval(interval);
+      conn?.removeEventListener?.('change', probe);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', probe);
+      window.removeEventListener('online', probe);
+      window.removeEventListener('offline', onOffline);
     };
   }, []);
   const isCurrentCloudProject = useCallback(() => {
@@ -1410,7 +1463,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     postSaveHandlerRef.current = handler;
   }, []);
 
-  // Consolidated save pipeline — localStorage for local projects, Drive for cloud projects
+  // Consolidated save pipeline - localStorage for local projects, Drive for cloud projects
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveProjectRef = useRef(state.present);
   saveProjectRef.current = state.present;
@@ -1504,7 +1557,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         totalPages += s.sums.pages;
         totalBreak += s.sums.break;
       }
-      console.group(`Section Totals — ${sections.length} sections`);
+      console.group(`Section Totals - ${sections.length} sections`);
       console.table(table);
       console.log('Totals:', `EST: ${totalEst}m`, `Pages: ${totalPages.toFixed(3)}`, `Break: ${totalBreak}m`, `Total: ${totalEst + totalBreak}m`);
       console.log('SectionSums map:', Object.fromEntries(sections.map(s => [s.index, s.sums])));
@@ -1554,7 +1607,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     setRealOnline(true);
                   }
                 } catch {
-                  // Give up — user can manually retry
+                  // Give up - user can manually retry
                 }
               }, 2000);
             } else {
@@ -1575,7 +1628,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         } catch (e: any) {
           if (e.name === 'QuotaExceededError') {
             setStorageQuotaError(true);
-            console.error('localStorage quota exceeded — project not saved');
+            console.error('localStorage quota exceeded - project not saved');
           } else {
             console.error('localStorage save failed:', e);
           }
@@ -1653,29 +1706,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }
     prevOnlineRef.current = isOnline;
   }, [isOnline, currentProjectId, driveSaveError]);
-
-  // Heartbeat: conditional HEAD ping when navigator says online but last save failed
-  useEffect(() => {
-    if (!navigator.onLine || !lastSaveFailedRef.current) return;
-    if (realOnline) return;
-
-    const ping = async () => {
-      try {
-        const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=kind', {
-          method: 'HEAD',
-        });
-        if (res.ok || res.status === 401 || res.status === 403) {
-          setRealOnline(true);
-          lastSaveFailedRef.current = false;
-        }
-      } catch {
-        // Still offline
-      }
-    };
-
-    const interval = setInterval(ping, 30_000);
-    return () => clearInterval(interval);
-  }, [realOnline]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1784,6 +1814,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         driveFileIdRef.current = driveFileId;
       } catch (e) {
         console.error('Failed to open cloud project:', e);
+        throw e;
       }
     } else {
       const project = loadProjectFromStorage(id);
@@ -1934,6 +1965,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     setCurrentProjectId(null);
   }, []);
 
+  const retryConnectivity = useCallback(async (): Promise<boolean> => {
+    return probeRef.current();
+  }, []);
+
   const retryDriveSync = useCallback(async () => {
     if (!currentProjectId) return;
     const meta = projectList.find(p => p.id === currentProjectId);
@@ -1994,6 +2029,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       driveSaveError,
       storageQuotaError,
       retryDriveSync,
+      retryConnectivity,
       closeProject,
       consumeLegacyMigrationNotice,
     }}>

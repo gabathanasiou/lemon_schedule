@@ -59,7 +59,7 @@ function GoogleAuthProviderInner({ children }: { children: React.ReactNode }) {
         setNeedsReauth(true);
       }
     } catch {
-      // network error — keep token for retry
+      // network error - keep token for retry
     }
   }, []);
 

@@ -62,7 +62,7 @@ function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string,
 }
 
 export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
-  const { state, dispatch } = useProject();
+  const { state, dispatch, readOnly } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
   const dialog = useDialog();
@@ -366,13 +366,13 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey) {
-        if (e.key === 'n' && e.shiftKey) { e.preventDefault(); addNew(); }
-        if (e.key === 's') { e.preventDefault(); doSave(); }
+        if (e.key === 'n' && e.shiftKey) { e.preventDefault(); if (!readOnly) addNew(); }
+        if (e.key === 's') { e.preventDefault(); if (!readOnly) doSave(); }
       }
     };
     currentDocument.addEventListener('keydown', onKey);
     return () => currentDocument.removeEventListener('keydown', onKey);
-  }, [addNew, doSave, currentDocument]);
+  }, [addNew, doSave, currentDocument, readOnly]);
 
   const hasChangesRef = useRef(hasChanges);
   hasChangesRef.current = hasChanges;
@@ -405,6 +405,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         ref={el => { if (el) inputsRef.current.set(inputId, el); else inputsRef.current.delete(inputId); }}
         type="text"
         value={val}
+        readOnly={readOnly}
         onChange={e => onChange(transform(e.target.value))}
         onKeyDown={handleKey}
         className="w-full border border-zinc-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
@@ -439,12 +440,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       <span className="text-xs font-semibold text-zinc-800">{label}</span>
       <div className="flex items-center gap-1.5">
         {hasChanges && (
-          <button onClick={doRevert} className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-500 hover:bg-zinc-100 transition-colors">
+          <button onClick={doRevert} disabled={readOnly} className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-zinc-500 hover:bg-zinc-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
               <Undo2 className="w-3 h-3" />
               Revert
             </button>
         )}
-        <button onClick={doSave} className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
+        <button onClick={doSave} disabled={readOnly} className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all shadow-sm ${hasChanges ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-900/20' : 'bg-zinc-100 text-zinc-400'}`}>
           <Save className="w-3 h-3" />
           {hasChanges ? 'Save Changes' : 'Saved'}
         </button>
@@ -462,11 +463,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     <>
       <span className="text-xs font-semibold text-zinc-700 mr-2">{label}</span>
       {hasChanges && (
-        <button onClick={doRevert} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors flex items-center gap-1">
+        <button onClick={doRevert} disabled={readOnly} className="bg-white border border-zinc-300 px-2.5 py-1 text-zinc-500 rounded text-[11px] hover:bg-zinc-50 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
           <Undo2 className="w-3 h-3" /> Revert
         </button>
       )}
-      <button onClick={doSave} className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${hasChanges ? (isCloud ? 'bg-blue-950 text-white hover:bg-blue-900' : 'bg-zinc-900 text-white hover:bg-zinc-800') : 'bg-zinc-100 text-zinc-400'}`}>
+      <button onClick={doSave} disabled={readOnly} className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${hasChanges ? (isCloud ? 'bg-blue-950 text-white hover:bg-blue-900' : 'bg-zinc-900 text-white hover:bg-zinc-800') : 'bg-zinc-100 text-zinc-400'} disabled:opacity-40 disabled:cursor-not-allowed`}>
         <Save className="w-3 h-3" /> {hasChanges ? 'Save' : 'Saved'}
       </button>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
@@ -491,12 +492,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         </DropdownItem>
       </DropdownMenu>
       {isCast && (
-        <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+        <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           Auto-ID
         </button>
       )}
       {!isCast && (
-        <button onClick={() => { autoMergeRef.current = true; doSave(); }} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors">
+        <button onClick={() => { autoMergeRef.current = true; doSave(); }} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           Merge Duplicates
         </button>
       )}
@@ -548,7 +549,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                             setShowEditBuiltin(true);
                           }
                         }}
-                        className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
+                        disabled={readOnly}
+                        className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
                       >
                         <Pencil className="w-3 h-3 text-zinc-400" />
                       </button>
@@ -562,7 +564,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                               if (category === key) switchCategory('cast');
                             }
                           }}
-                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
+                          disabled={readOnly}
+                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           <EyeOff className="w-3 h-3 text-zinc-400" />
                         </button>
@@ -573,7 +576,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                             e.stopPropagation();
                             dispatch({ type: 'SHOW_CATEGORY', payload: key });
                           }}
-                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'}`}
+                          disabled={readOnly}
+                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
                           title="Unhide category"
                         >
                           <Eye className="w-3 h-3 text-zinc-400" />
@@ -589,7 +593,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                               if (category === key) switchCategory('cast');
                             }
                           }}
-                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-red-900/50' : 'hover:bg-red-100'}`}
+                          disabled={readOnly}
+                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
                         >
                           <Trash2 className="w-3 h-3 text-red-400" />
                         </button>
@@ -605,7 +610,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           </div>
           <button
             onClick={() => { setShowAddCustom(true); setNewCatName(''); setNewCatIcon('Tag'); }}
-            className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 transition-colors flex items-center gap-2 font-medium"
+            disabled={readOnly}
+            className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3 shrink-0" />
             <span>Add Custom</span>
@@ -639,7 +645,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                       <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
                       <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
                       <td className="px-3 py-1 text-center">
-                        <button onClick={() => deleteRow(r.key)} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100">
+                        <button onClick={() => deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       </td>
@@ -648,7 +654,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                 </tbody>
               </table>
 
-              <button onClick={addNew} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full">
+              <button onClick={addNew} disabled={readOnly} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed">
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add {getLabel(category, 'element', project.categoryLabels)}</span>
               </button>

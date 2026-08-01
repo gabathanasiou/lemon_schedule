@@ -101,7 +101,7 @@ function describeTimeWindow(r: Extract<ProjectRule, { type: 'TIME_WINDOW' }>): s
   const we = r.windowEnd || '23:59';
   const fullDay = ws === '00:00' && we === '23:59';
   if (fullDay) return 'all day';
-  if (r.windowStart && r.windowEnd) return `${r.windowStart} – ${r.windowEnd}`;
+  if (r.windowStart && r.windowEnd) return `${r.windowStart} - ${r.windowEnd}`;
   if (r.windowStart) return `after ${r.windowStart}`;
   return `before ${r.windowEnd}`;
 }

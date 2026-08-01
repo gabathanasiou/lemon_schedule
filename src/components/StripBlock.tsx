@@ -314,7 +314,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
       </div>
     </div>
 
-      {/* Day Footer — end drop target */}
+      {/* Day Footer - end drop target */}
       {showGhosts && insertBeforeId === `end-${dayInt}` && (
         <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
       )}

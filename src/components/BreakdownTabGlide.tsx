@@ -254,6 +254,8 @@ export function GlideBreakdownTab({
 
   const scenesRef = useRef(scenes);
   scenesRef.current = scenes;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const projectRef = useRef(project);
   projectRef.current = project;
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
@@ -376,6 +378,7 @@ export function GlideBreakdownTab({
   }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber]);
 
   const provideEditor = useCallback((cellData: any & { location?: Item }): any => {
+    if (readOnlyRef.current) return undefined;
     const loc = cellData.location;
     if (!loc || cellData.kind !== GridCellKind.Text) return undefined;
     const [col, row] = loc;
@@ -722,12 +725,13 @@ export function GlideBreakdownTab({
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
         setContextMenu({ x, y, row, col });
       }
-      if (col === 0) {
+      if (col === 0 && !readOnlyRef.current) {
         addScene();
       }
       return;
     }
     if (col === 0) {
+      if (readOnlyRef.current) return;
       const scene = scenesRef.current[row];
       if (!scene) return;
       const suppressedUntil = localStorage.getItem('lemon_schedule_suppress_delete_warning');
@@ -799,7 +803,8 @@ export function GlideBreakdownTab({
     <div className="flex items-center justify-end gap-1">
       <button
         onClick={addScene}
-        className={isCloud ? "bg-blue-950 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-blue-900 transition-colors" : "bg-zinc-900 text-white px-3 py-1 rounded text-[11px] font-semibold hover:bg-zinc-800 transition-colors"}
+        disabled={readOnly}
+        className={`${isCloud ? "bg-blue-950 hover:bg-blue-900" : "bg-zinc-900 hover:bg-zinc-800"} text-white px-3 py-1 rounded text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed`}
       >
         + Add Scene
       </button>
@@ -811,14 +816,14 @@ export function GlideBreakdownTab({
           </button>
         }
       >
-        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />}>
+        <DropdownItem onClick={() => { setActionsOpen(false); dispatch({type: 'SORT_SCENES'}); }} icon={<Search className="w-3.5 h-3.5" />} disabled={readOnly}>
           Sort by #
         </DropdownItem>
-        <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />}>
+        <DropdownItem onClick={() => { setActionsOpen(false); cleanEmptyRows(); }} icon={<RotateCcw className="w-3.5 h-3.5" />} disabled={readOnly}>
           Clean Empty
         </DropdownItem>
         <DropdownDivider />
-        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />}>
+        <DropdownItem onClick={() => { setActionsOpen(false); fileInputRef.current?.click(); }} icon={<FileDown className="w-3.5 h-3.5" />} disabled={readOnly}>
           Import CSV
         </DropdownItem>
         <DropdownItem onClick={() => { setActionsOpen(false); exportBreakdownCSV(project); }} icon={<Download className="w-3.5 h-3.5" />}>
@@ -912,6 +917,7 @@ export function GlideBreakdownTab({
           smoothScrollX={smoothScroll}
           smoothScrollY={smoothScroll}
           portalElementRef={gridPortalRef}
+          readonly={readOnly}
           {...({ experimental: { eventTarget: currentDocument } } as any)}
         />
       </div>
@@ -923,19 +929,19 @@ export function GlideBreakdownTab({
             {contextMenu.col !== undefined && (
               <>
                 <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Copy</ContextMenuItem>
-                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Cut</ContextMenuItem>
+                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly}>Cut</ContextMenuItem>
                 {contextMenu.col >= 0 ? (
-                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell || readOnly}>Paste</ContextMenuItem>
                 ) : (
-                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Paste</ContextMenuItem>
                 )}
-                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Clear</ContextMenuItem>
+                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly}>Clear</ContextMenuItem>
                 <ContextMenuDivider />
               </>
             )}
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />}>Insert Above</ContextMenuItem>
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}>Insert Below</ContextMenuItem>
-            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />}>Duplicate</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Insert Above</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Insert Below</ContextMenuItem>
+            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
             {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
               <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
@@ -961,6 +967,7 @@ export function GlideBreakdownTab({
               }}
               variant="danger"
               icon={<Trash2 className="w-3 h-3" />}
+              disabled={readOnly}
             >
               {(() => {
                 const range = getEffectiveRange();
@@ -989,7 +996,7 @@ export function GlideBreakdownTab({
           </>
         )}
         {contextMenu && contextMenu.row === scenes.length && (
-          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />}>Paste</ContextMenuItem>
+          <ContextMenuItem onClick={handlePasteToAddRow} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Paste</ContextMenuItem>
         )}
       </ContextMenu>
 
@@ -1003,12 +1010,14 @@ export function GlideBreakdownTab({
               <ContextMenuItem
                 onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'asc' } }); setSortMenu(null); }}
                 icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
+                disabled={readOnly}
               >
                 {isNumeric ? 'Sort Smallest to Largest' : 'Sort A to Z'}
               </ContextMenuItem>
               <ContextMenuItem
                 onClick={() => { dispatch({ type: 'SORT_SCENES_BY', payload: { key: sortMenu.colKey, direction: 'desc' } }); setSortMenu(null); }}
                 icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
+                disabled={readOnly}
               >
                 {isNumeric ? 'Sort Largest to Smallest' : 'Sort Z to A'}
               </ContextMenuItem>

@@ -97,7 +97,7 @@ function getSceneElements(scene: Scene, category: string): string[] {
 
 function getElementDisplayName(elementId: string, isCast: boolean, castMemberNames?: Map<string, string>, elementNameMap?: Map<string, string>): string {
   if (isCast) {
-    const name = castMemberNames?.get(elementId) || '—';
+    const name = castMemberNames?.get(elementId) || '?';
     return `${elementId.padStart(3, ' ')}.  ${name}`;
   }
   return elementNameMap?.get(elementId.toLowerCase()) || elementId;
@@ -398,7 +398,7 @@ const Dood: React.FC<DoodProps> = ({
       })}
 
       <div className="dood-footer">
-        {title} — Day Out of Days — {genDate} {genTime}
+        {title} - Day Out of Days - {genDate} {genTime}
       </div>
     </div>
   );

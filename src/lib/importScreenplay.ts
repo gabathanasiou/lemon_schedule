@@ -273,7 +273,7 @@ function parseSceneHeading(text: string, previousDayNight?: DayNight | 'DAY'): {
   if (upperPrefix === 'EXT' || upperPrefix.startsWith('EXT') || upperPrefix === 'ΕΞΩΤ') intExt = 'EXT';
   else if (upperPrefix === 'INT/EXT' || upperPrefix === 'INT-EXT' || upperPrefix === 'I/E' || upperPrefix.includes('/') || upperPrefix.includes('-')) intExt = 'INT/EXT';
 
-  const TIME_WORDS = /\s*[–—\-]+\s*(?:LATE\s+|EARLY\s+|NEXT\s+)?(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|CONTINUOUS|LATER|SAME\s+TIME)\s*[-–—]*\s*$/i;
+  const TIME_WORDS = /\s*[\u2013\u2014\-]+\s*(?:LATE\s+|EARLY\s+|NEXT\s+)?(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|CONTINUOUS|LATER|SAME\s+TIME)\s*[-\u2013\u2014]*\s*$/i;
 
   let set = rest;
   let dayNight: DayNight = 'DAY';
@@ -525,7 +525,7 @@ export async function parseFountain(file: File): Promise<ImportResult> {
       currentSceneNumber = (token as any).scene_number || '';
     } else if (token.type === 'character') {
       const name = normalizeCharacterName(token.text || '');
-      if (name && !/^(INT|EXT|EST|I\/E|INT\.?\/EXT|INT[-–—]EXT)[.\s]/i.test(name)) sceneCharacters.add(name);
+      if (name && !/^(INT|EXT|EST|I\/E|INT\.?\/EXT|INT[-\u2013\u2014]EXT)[.\s]/i.test(name)) sceneCharacters.add(name);
     } else if (token.type === 'action') {
       descriptionLines.push((token.text || '').trim());
     }

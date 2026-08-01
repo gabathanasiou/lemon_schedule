@@ -55,6 +55,13 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
   if (status === 'idle') return null;
 
   if (status === 'offline') {
+    const tooltipText = !isCloudProject
+      ? 'Saved locally'
+      : !auth.isSignedIn
+        ? 'Signed out - editing disabled'
+        : auth.needsReauth
+          ? 'Session expired - editing disabled'
+          : 'Offline - editing disabled';
     return (
       <div
         className="relative"
@@ -64,7 +71,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         <WifiOff className={`w-3.5 h-3.5 ${iconColor}`} />
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
-            Saved locally
+            {tooltipText}
           </div>
         )}
       </div>
@@ -100,7 +107,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         <HardDrive className="w-3.5 h-3.5 text-rose-400" />
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
-            Storage full — changes not saved
+            Storage full - changes not saved
           </div>
         )}
       </div>
@@ -117,7 +124,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         <button
           onClick={() => auth.signIn()}
           className="cursor-pointer"
-          title="Sign in to resume sync — click to re-authenticate"
+          title="Sign in to resume sync - click to re-authenticate"
         >
           <CloudOff className="w-3.5 h-3.5 text-amber-400" />
         </button>
@@ -157,7 +164,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
           onClick={async () => { setRetrying(true); await retryDriveSync(); setRetrying(false); }}
           disabled={retrying}
           className="cursor-pointer"
-          title="Sync failed — click to retry"
+          title="Sync failed - click to retry"
         >
           {retrying ? (
             <Loader2 className="w-3.5 h-3.5 text-rose-400 animate-spin" />
@@ -167,7 +174,7 @@ export function SaveIndicator({ isCloudProject }: { isCloudProject?: boolean }) 
         </button>
         {showTooltip && (
           <div className="absolute top-full left-0 mt-1.5 bg-zinc-900 text-zinc-300 text-[11px] px-2 py-1 rounded border border-zinc-700 whitespace-nowrap z-50">
-            Sync failed — click to retry
+            Sync failed - click to retry
           </div>
         )}
       </div>
