@@ -4,9 +4,9 @@ import { useProject } from '../store';
 import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
-  getFieldValueFromSample, getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
-  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle, formatCellText, resolveSceneColor, getCellBorderProps, getFallbackStripColors,
-  computeMergeGroups, getMergeLookup, mergeSiblingIds, normalizeColWidths,
+  getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
+  getCustomFieldDefs, getAlign, getRibbonCellBaseStyle,
+  getMergeLookup, mergeSiblingIds, normalizeColWidths,
 } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
 import {
@@ -14,11 +14,11 @@ import {
   Calendar, StickyNote, UserPlus, Sparkles, Car, Package, Shirt, Scissors,
   Volume1, Video, Volume2, Music, PawPrint, Sword, Leaf, PaintBucket,
   Plus, Trash2, GripHorizontal,
-  Eye, ArrowRightLeft, ArrowUp, ArrowDown,
+  ArrowRightLeft, ArrowUp, ArrowDown,
   ChevronDown, ArrowLeft, ArrowRight,
-  AlignCenter, AlignRight, WrapText, Ellipsis, X, Type, Tag, CircleDot,
+  AlignCenter, AlignRight, WrapText, Ellipsis, X, Type, CircleDot,
   ClipboardList,
-  Check, Pencil,
+  Check,
   PanelTop, Equal, PanelBottom,
 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu';
@@ -29,18 +29,12 @@ import { generateUUID } from '../lib/utils';
 import { useViewMode, useCellBorders } from '../lib/persist';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { Tooltip } from './Tooltip';
-import { RibbonCellText } from './RibbonCellText';
 import RibbonPalette from './ribbon/RibbonPalette';
 import { FIELD_ICONS, getCustomIcon } from './ribbon/ribbonPaletteMeta';
 import RibbonToolbar from './ribbon/RibbonToolbar';
-
-const PREVIEW_STYLE = { bg: '#ffffff', fg: '#464646' };
-
-const PREVIEW_SAMPLES = [
-  { intExt: 'INT', dayNight: 'DAY', sceneNumber: '5' },
-  { intExt: 'EXT', dayNight: 'DAY', sceneNumber: '12' },
-  { intExt: 'INT', dayNight: 'NIGHT', sceneNumber: '20A' },
-];
+import RibbonDesignerGrid from './ribbon/RibbonDesignerGrid';
+import RibbonLivePreview from './ribbon/RibbonLivePreview';
+import RibbonContextMenu from './ribbon/RibbonContextMenu';
 
 function cloneRows(rs: RibbonRow[]): RibbonRow[] {
   return JSON.parse(JSON.stringify(rs));
@@ -728,320 +722,62 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           />
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
-            {/* ══ Designer (CSS Grid) ══ */}
-            <section className={`bg-zinc-900 rounded-lg border border-zinc-800 ${readOnly ? 'opacity-50 pointer-events-none' : ''}`}>
-              <div className="flex items-center gap-2 mb-3 px-5 pt-5">
-                <Pencil className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Designer</span>
-              </div>
+            <RibbonDesignerGrid
+              readOnly={readOnly}
+              rows={rows}
+              colWidths={colWidths}
+              numCols={numCols}
+              selId={selId}
+              setSelId={setSelId}
+              setContextPos={setContextPos}
+              tabBarRef={tabBarRef}
+              gridRef={gridRef}
+              cellRefs={cellRefs}
+              mergeLookup={mergeLookup}
+              cellDragRef={cellDragRef}
+              setCellDrag={setCellDrag}
+              setCellDropTarget={setCellDropTarget}
+              setDropHover={setDropHover}
+              dropHover={dropHover}
+              cellDropTarget={cellDropTarget}
+              startResize={startResize}
+              moveCellToRow={moveCellToRow}
+              assign={assign}
+              customFieldLabels={customFieldLabels}
+              cellPaddingV={activeDesign.cellPaddingV}
+              cellPaddingH={activeDesign.cellPaddingH}
+              edgePadding={activeDesign.edgePadding}
+            />
 
-              <div className="space-y-5 pb-5">
-
-                {/* Column resize tabs */}
-                <div className={`${IS_COARSE ? 'h-10' : 'h-5'} select-none`} style={{ paddingLeft: activeDesign.edgePadding ?? 2, paddingRight: activeDesign.edgePadding ?? 2, border: '1px solid transparent', boxSizing: 'border-box' }}>
-                  <div ref={tabBarRef} className="h-full relative" style={{
-                    display: 'grid',
-                    gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
-                  }}>
-                    {colWidths.map((_w, i) => (
-                      <div key={i} className="relative h-full">
-                        {i < colWidths.length - 1 && (
-                          <div
-                            className={`absolute bottom-0 cursor-col-resize group/tab z-10 flex flex-col items-center justify-end${IS_COARSE ? ' transition-transform group-active/tab:-translate-y-2.5 touch-none px-2.5' : ''} ${readOnly ? 'pointer-events-none opacity-30' : ''}`}
-                            style={{ left: '100%', transform: 'translateX(-50%)' }}
-                            onPointerDown={e => !readOnly && startResize(i, e)}
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-t-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-t-[14px] group-active/tab:border-t-blue-500 transition-all' : 'border-l-[5px] border-r-[5px] border-t-[6px] transition-colors'} border-l-transparent border-r-transparent border-t-zinc-500/40 group-hover/tab:border-t-blue-400`} />
-                            <div className={`${IS_COARSE ? 'w-px h-5 group-active/tab:h-8 group-active/tab:bg-blue-500 transition-all' : 'w-px h-3.5 transition-colors'} mx-auto bg-zinc-500/40 group-hover/tab:bg-blue-400`} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Single CSS Grid */}
-                <div ref={gridRef} className="-mt-5" onClick={() => { if (!readOnly) setSelId(null); }} style={{
-                  display: 'grid',
-                  gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
-                  gridTemplateRows: `repeat(${rows.length}, auto)`,
-                  border: '1px solid #d4d4d8',
-                  background: PREVIEW_STYLE.bg,
-                  color: PREVIEW_STYLE.fg,
-                  fontFamily: 'Helvetica, sans-serif',
-                  fontSize: '8pt',
-                  lineHeight: 1.1,
-                  paddingTop: (activeDesign.edgePadding ?? 2),
-                  paddingBottom: (activeDesign.edgePadding ?? 2),
-                  paddingLeft: (activeDesign.edgePadding ?? 2),
-                  paddingRight: (activeDesign.edgePadding ?? 2),
-                }}>
-                  {rows.map((row, ri) =>
-                    row.cells.map((c, ci) => {
-                      const assigned = Boolean(c.field);
-                      const isSel    = selId === c.id;
-                      const align    = getAlign(c);
-                      const label    = c.field === 'text' ? (c.textContent || 'Text') : FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || c.field || 'Empty';
-                      const mergeInfo = mergeLookup.get(c.id);
-
-                      return (
-                        <div key={c.id}
-                          data-cell-id={c.id}
-                          ref={el => { if (el) cellRefs.current.set(c.id, el); else cellRefs.current.delete(c.id); }}
-                           onClick={e => { if (readOnly) return; e.stopPropagation(); setSelId(c.id); }}
-                           onDoubleClick={e => { if (readOnly) return; e.stopPropagation(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                           onContextMenu={e => { if (readOnly) return; e.stopPropagation(); e.preventDefault(); setSelId(c.id); setContextPos({ x: e.clientX, y: e.clientY }); }}
-                          draggable={!readOnly}
-                          onDragStart={e => { if (readOnly) return; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', 'cell'); const val = { rowId: row.id, cellId: c.id }; cellDragRef.current = val; setCellDrag(val); }}
-                          onDragEnd={() => { if (readOnly) return; cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null); }}
-                          onDragOver={e => {
-                            if (readOnly) return;
-                            const d = cellDragRef.current;
-                            if (d && d.cellId !== c.id) { e.preventDefault(); setCellDropTarget(c.id); e.dataTransfer.dropEffect = 'move'; }
-                            else if (!d) { e.preventDefault(); setDropHover(c.id); }
-                          }}
-                          onDragLeave={() => { if (readOnly) return; setCellDropTarget(null); setDropHover(null); }}
-                          onDrop={e => {
-                            if (readOnly) return;
-                            e.preventDefault();
-                            const d = cellDragRef.current;
-                            if (d) {
-                              const src = rows.find(r2 => r2.id === d.rowId);
-                              const sci = src?.cells.findIndex(cc => cc.id === d.cellId);
-                              if (sci != null && sci >= 0) moveCellToRow(d.rowId, sci, row.id, ci);
-                              cellDragRef.current = null; setCellDrag(null); setCellDropTarget(null);
-                            } else {
-                              const k = e.dataTransfer.getData('text/field');
-                              if (k) assign(c.id, k);
-                              setDropHover(null);
-                            }
-                          }}
-                          style={{
-                            position: 'relative',
-                            ...getRibbonCellBaseStyle(c, activeDesign.cellPaddingV, activeDesign.cellPaddingH),
-                            gridColumn: ci + 1,
-                            gridRow: ri + 1,
-                            padding: `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
-                            borderTop: '1px solid #d4d4d8',
-                            borderRight: '1px solid #d4d4d8',
-                            borderBottom: '1px solid #d4d4d8',
-                            borderLeft: cellDropTarget === c.id ? '3px solid #3b82f6' : '1px solid #d4d4d8',
-                            outline: isSel ? '2px solid #3b82f6' : dropHover === c.id && !cellDragRef.current ? '2px dashed #3b82f6' : 'none',
-                            outlineOffset: -1,
-                            background: cellDropTarget === c.id ? 'rgba(59,130,246,0.15)' : dropHover === c.id && !cellDragRef.current ? 'rgba(59,130,246,0.1)' : isSel ? 'rgba(59,130,246,0.08)' : mergeInfo ? (mergeInfo.group.direction === 'h' ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)') : assigned ? '#ffffff' : '#fafafa',
-                            minHeight: 16,
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                          }}>
-                          <div style={{
-                            display: 'flex', flex: 1, minWidth: 0,
-                            fontWeight: c.field === 'sceneNumber' ? 700 : 500,
-                            textTransform: c.field === 'set' ? 'uppercase' : 'none',
-                            color: assigned ? undefined : '#a1a1aa',
-                            fontStyle: assigned ? undefined : 'italic',
-                          }}>
-                            {(align === 'center' || align === 'right') && <span style={{ flex: '1 1 0' }} />}
-                            <RibbonCellText cell={c} span={1} style={{ flexShrink: 1, minWidth: 0 }}>
-                              {(c.prefix ? '*' : '') + (assigned ? label : 'Empty') + (c.suffix ? '*' : '')}
-                            </RibbonCellText>
-                            {(align === 'left' || align === 'center') && ci < numCols - 1 && <span style={{ flex: '1 1 0' }} />}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-              </div>
-            </section>
-
-            {/* ══ Live Preview (Grid + Merge) ══ */}
-            <section ref={previewSectionRef} className="bg-zinc-900 rounded-lg border border-zinc-800">
-              <div className="flex items-center gap-2 mb-3 px-5 pt-5">
-                <Eye className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Live Preview</span>
-                <span className="ml-auto text-[9px] text-zinc-600">Sample data · {rows.length} rows · {rows.reduce((s, r) => s + r.cells.length, 0)} cells</span>
-              </div>
-
-              <div style={{
-                fontFamily: 'Helvetica, sans-serif', fontSize: '8pt', lineHeight: 1.1, border: '2px solid #000',
-                marginBottom: '20px',
-              }}>
-                {rows.length >= 1 && PREVIEW_SAMPLES.map((sample, si) => {
-                  const rowStyle = resolveSceneColor(sample.intExt || '', sample.dayNight || '', project.colorPalette?.sceneColors, getFallbackStripColors(project.colorPalette));
-                  return (
-                    <div key={si} className="flex items-stretch min-w-0" style={{ borderBottom: si < PREVIEW_SAMPLES.length - 1 ? '2px solid #000' : 'none' }}>
-                      <div className="flex-1 min-w-0 flex flex-col" style={{ ...rowStyle, paddingTop: (activeDesign.edgePadding ?? 2), paddingBottom: (activeDesign.edgePadding ?? 2), paddingLeft: (activeDesign.edgePadding ?? 2), paddingRight: (activeDesign.edgePadding ?? 2) }}>
-                        <div data-preview-grid style={{
-                          display: 'grid',
-                          gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
-                          gridTemplateRows: `repeat(${rows.length}, auto)`,
-                        }}>
-                          {(() => {
-                            const mgroups = computeMergeGroups(rows);
-                            const hiddenIds = new Set<string>();
-                            for (const g of mgroups) {
-                              if (g.direction === 'v') {
-                                for (let ri = g.rowIndex + 1; ri < g.rowIndex + g.span; ri++) {
-                                  const cell = rows[ri]?.cells[g.colIndex];
-                                  if (cell) hiddenIds.add(cell.id);
-                                }
-                              } else {
-                                for (let ci = g.colIndex + 1; ci < g.colIndex + g.span; ci++) {
-                                  const cell = rows[g.rowIndex]?.cells[ci];
-                                  if (cell) hiddenIds.add(cell.id);
-                                }
-                              }
-                            }
-                            const items: { id: string; col: number; row: number; vSpan: number; hSpan: number; cell: RibbonCell }[] = [];
-                            for (let ri = 0; ri < rows.length; ri++) {
-                              for (let ci = 0; ci < rows[ri].cells.length; ci++) {
-                                const cell = rows[ri].cells[ci];
-                                if (hiddenIds.has(cell.id)) continue;
-                                const g = mgroups.find(gg => gg.colIndex === ci && gg.rowIndex === ri);
-                                const vSpan = g?.direction === 'v' ? (g.span || 1) : 1;
-                                const hSpan = g?.direction === 'h' ? (g.span || 1) : 1;
-                                items.push({ id: cell.id, col: ci, row: ri, vSpan, hSpan, cell });
-                              }
-                            }
-                            return items.map(p => {
-                              const c = p.cell;
-                              const span = p.vSpan || 1;
-                              const val = c.field === 'text' ? (c.textContent || '') : c.field === 'sceneNumber' ? sample.sceneNumber : getFieldValueFromSample(c.field);
-                              const fieldLabel = FIELD_MAP[c.field]?.label || customFieldLabels[c.field] || '';
-                              const display = val || fieldLabel;
-                              const lastVisRow = p.row + span - 1;
-                              const lastVisCol = (p.hSpan && p.hSpan > 1) ? p.col + p.hSpan - 1 : p.col;
-                              const cellBorderStyle = getCellBorderProps(cellBorders, rowStyle.color, lastVisCol >= rows[0].cells.length - 1, lastVisRow >= rows.length - 1);
-                              return (
-                                <div key={p.id} style={{
-                                  ...getRibbonCellBaseStyle(c, activeDesign.cellPaddingV, activeDesign.cellPaddingH, span),
-                                  gridColumn: (p.hSpan && p.hSpan > 1) ? `${p.col + 1} / span ${p.hSpan}` : p.col + 1,
-                                  gridRow: span > 1 ? `${p.row + 1} / span ${span}` : p.row + 1,
-                                  padding: span > 1 ? `0px ${activeDesign.cellPaddingH ?? 6}px` : `${activeDesign.cellPaddingV ?? 6}px ${activeDesign.cellPaddingH ?? 6}px`,
-                                  borderRight: lastVisCol < rows[0].cells.length - 1 ? (cellBorders === 'vertical' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
-                                  borderBottom: lastVisRow < rows.length - 1 ? (cellBorders === 'horizontal' || cellBorders === 'both' ? `1px solid ${rowStyle.color}` : '1px solid rgba(0,0,0,0.12)') : 'none',
-                                  ...cellBorderStyle,
-                                }}>
-                                  <RibbonCellText cell={c} span={span} cellPadding={activeDesign.cellPaddingV} style={{ flexShrink: 1, minWidth: 0, fontStyle: val ? 'normal' : 'italic', opacity: val ? 1 : 0.5 }}>
-                                    {formatCellText(val ? c.prefix : undefined, display, val ? c.suffix : undefined)}
-                                  </RibbonCellText>
-                                </div>
-                              );
-                            });
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+            <RibbonLivePreview
+              rows={rows}
+              colWidths={colWidths}
+              palette={project.colorPalette}
+              cellBorders={cellBorders}
+              customFieldLabels={customFieldLabels}
+              previewSectionRef={previewSectionRef}
+              cellPaddingV={activeDesign.cellPaddingV}
+              cellPaddingH={activeDesign.cellPaddingH}
+              edgePadding={activeDesign.edgePadding}
+            />
 
           </div>
         </div>
       </div>
 
-      {contextPos && selCell && (
-        <>
-          <div className="fixed inset-0 z-[110]" onClick={() => setContextPos(null)} onContextMenu={e => {
-            e.preventDefault();
-            const backdrop = e.currentTarget as HTMLElement;
-            backdrop.style.pointerEvents = 'none';
-            const el = document.elementFromPoint(e.clientX, e.clientY);
-            backdrop.style.pointerEvents = '';
-            const cellDiv = el?.closest('[data-cell-id]') as HTMLElement | null;
-            if (cellDiv) {
-              const cid = cellDiv.getAttribute('data-cell-id');
-              if (cid) { setSelId(cid); setContextPos({ x: e.clientX, y: e.clientY }); return; }
-            }
-            setContextPos(null);
-          }} />
-          <div
-            className="fixed z-[120] bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl p-1 flex flex-col max-h-96 w-52"
-            style={{ left: Math.max(0, Math.min(contextPos.x, window.innerWidth - 220)), top: Math.max(0, Math.min(contextPos.y, window.innerHeight - 420)) }}
-          >
-            <div
-              ref={el => {
-                if (el && selCell) {
-                  const active = el.querySelector(`[data-field-key="${(selCell.cell as any).field}"]`) as HTMLElement;
-                  if (active) active.scrollIntoView({ block: 'nearest' });
-                }
-              }}
-              className="overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' } as React.CSSProperties}>
-              {allFields.map(f => {
-                const catDef = (project.customCategories || []).find(c => c.key === f.key);
-                const Icon = FIELD_ICONS[f.key] || (catDef ? getCustomIcon(catDef.icon) : Tag);
-                const isActive = f.key === (selCell.cell as any).field;
-                return (
-                  <button
-                    key={f.key}
-                    data-field-key={f.key}
-                    onClick={() => { assign(selCell.cell.id, f.key); setContextPos(null); }}
-                    className={`w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 ${isActive ? 'bg-blue-600/30 text-blue-300' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
-                  >
-                    {Icon && <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-blue-400' : 'text-zinc-400'}`} />}
-                    <span className="truncate flex-1">{f.label}</span>
-                    {isActive && <Check className="w-3 h-3 text-blue-400 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="shrink-0 border-t border-zinc-800 pt-2">
-
-              {selCell.cell.field && selCell.cell.field !== 'text' && (
-                <div className="flex items-center gap-1 px-1 mb-1.5">
-                  <span className="text-[9px] text-zinc-600 shrink-0">Pfx</span>
-                  <input
-                    value={(selCell.cell as any).prefix || ''}
-                    onChange={e => setAffix(selCell.cell.id, 'prefix', e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') setContextPos(null); }}
-                    placeholder=""
-                    className="flex-1 min-w-0 px-1.5 py-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                  />
-                  <span className="text-[9px] text-zinc-600 shrink-0">Sfx</span>
-                  <input
-                    value={(selCell.cell as any).suffix || ''}
-                    onChange={e => setAffix(selCell.cell.id, 'suffix', e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') setContextPos(null); }}
-                    placeholder=""
-                    className="flex-1 min-w-0 px-1.5 py-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                  />
-                </div>
-              )}
-
-              {selCell.cell.field === 'text' && (
-                <div className="px-1 mb-1">
-                  <input
-                    value={(selCell.cell as any).textContent || ''}
-                    onChange={e => setTextContent(selCell.cell.id, e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') setContextPos(null); }}
-                    placeholder="Text content..."
-                    className="w-full px-1.5 py-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                  />
-                </div>
-              )}
-
-              <button
-                onClick={() => { clearCell(selCell.cell.id); setContextPos(null); }}
-                className="w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-zinc-500 hover:bg-zinc-800 hover:text-white"
-              >
-                <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate flex-1">Clear field</span>
-              </button>
-              <button
-                onClick={() => { removeColumn(selCell.ci); setContextPos(null); }}
-                className="w-full text-left px-3 py-2 text-xs rounded cursor-pointer transition-colors flex items-center gap-2 text-red-400 hover:bg-rose-950/40 hover:text-red-400"
-              >
-                <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate flex-1">Delete Column</span>
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <RibbonContextMenu
+        contextPos={contextPos}
+        setContextPos={setContextPos}
+        selCell={selCell}
+        setSelId={setSelId}
+        allFields={allFields}
+        customCategories={project.customCategories}
+        assign={assign}
+        setAffix={setAffix}
+        setTextContent={setTextContent}
+        clearCell={clearCell}
+        removeColumn={removeColumn}
+      />
     </div>
   );
 }
