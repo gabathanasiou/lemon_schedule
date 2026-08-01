@@ -1610,7 +1610,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           <PageToolbar theme="light" justify="start">
             {[
               { key: null, label: <Pointer className="w-3 h-3" />, title: 'Select' },
-              { key: 'work', label: 'W', title: 'Work' },
               { key: 'hold', label: 'H', title: 'Hold' },
               { key: 'travel', label: 'T', title: 'Travel' },
               { key: 'holiday', label: 'DO', title: 'Day Off' },
