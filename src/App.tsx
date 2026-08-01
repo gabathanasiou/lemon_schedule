@@ -56,6 +56,8 @@ import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
+import AppHeader from './components/AppHeader';
+import OfflineStatus from './components/OfflineStatus';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -563,286 +565,40 @@ function AppContent() {
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
       <input ref={importFileRef} type="file" accept=".csv,.fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
-      {/* RESTORED BANNER */}
-      {showRestoredBanner && (
-        <div className="bg-green-600 text-white px-4 py-1.5 flex items-center justify-center text-xs shrink-0 print:hidden">
-          <span className="font-medium">Connection restored</span>
-        </div>
-      )}
-      {/* OFFLINE BANNER */}
-      {readOnly && (() => {
-        const isAuthIssue = isCloudProject && (!driveCtx.isSignedIn || driveCtx.needsReauth);
-        return (
-          <div className={`${isAuthIssue ? 'bg-amber-600' : 'bg-red-600'} text-white px-4 py-1.5 flex items-center justify-between text-xs shrink-0 print:hidden`}>
-            <span className="font-medium">
-              {isAuthIssue
-                ? (driveCtx.needsReauth ? 'Session expired - sign in to resume editing' : 'Signed out of Google Drive - editing is disabled')
-                : 'No Internet Connection - editing is disabled'}
-            </span>
-            {isAuthIssue ? (
-              <button
-                onClick={() => driveCtx.signIn()}
-                className="ml-3 px-2.5 py-1 rounded bg-amber-700 hover:bg-amber-500 transition-colors font-semibold"
-              >
-                Sign in
-              </button>
-            ) : (
-              <button
-                onClick={handleRetryConnection}
-                disabled={retryingConnection}
-                className="ml-3 px-2.5 py-1 rounded bg-red-700 hover:bg-red-500 transition-colors font-semibold disabled:opacity-60 flex items-center gap-1.5"
-              >
-                {retryingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
-                {retryingConnection ? 'Reconnecting...' : 'Retry Connection'}
-              </button>
-            )}
-          </div>
-        );
-      })()}
-      {showOfflineModal && (() => {
-        const isAuthIssue = isCloudProject && (!driveCtx.isSignedIn || driveCtx.needsReauth);
-        return (
-          <Modal open={showOfflineModal} onClose={() => setShowOfflineModal(false)}
-            title={isAuthIssue ? 'Signed out' : "You're offline"}
-            icon={isAuthIssue ? <CloudOff className="w-5 h-5 text-amber-400" /> : <WifiOff className="w-5 h-5 text-zinc-400" />}
-            width="max-w-md"
-            footer={
-              <ModalFooter>
-                <button
-                  onClick={() => setShowOfflineModal(false)}
-                  className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => {
-                    if (isAuthIssue) {
-                      setShowOfflineModal(false);
-                      driveCtx.signIn();
-                    } else {
-                      handleRetryConnection();
-                    }
-                  }}
-                  disabled={!isAuthIssue && retryingConnection}
-                  className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-60 flex items-center gap-1.5"
-                >
-                  {!isAuthIssue && retryingConnection && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {isAuthIssue ? 'Sign in' : retryingConnection ? 'Reconnecting...' : 'Retry Connection'}
-                </button>
-              </ModalFooter>
-            }
-          >
-            <div className="px-5 py-3 text-zinc-400 text-xs border-b border-zinc-800">
-              {isAuthIssue
-                ? 'You have been signed out of Google Drive. Sign in again to resume editing your cloud project.'
-                : 'This cloud project needs an internet connection to stay in sync. You can keep browsing, but editing is paused until your connection returns.'}
-            </div>
-          </Modal>
-        );
-      })()}
+      <OfflineStatus
+        readOnly={readOnly}
+        isCloudProject={isCloudProject}
+        isSignedIn={driveCtx.isSignedIn}
+        needsReauth={driveCtx.needsReauth}
+        onSignIn={() => driveCtx.signIn()}
+        onRetry={handleRetryConnection}
+        retryingConnection={retryingConnection}
+        showModal={showOfflineModal}
+        setShowModal={setShowOfflineModal}
+        showRestoredBanner={showRestoredBanner}
+      />
 
       {/* HEADER */}
-      <header className={`flex items-center ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
-        <div className="flex items-center gap-2 shrink-0">
-            <DropdownMenu
-              open={showFileMenu}
-              onOpenChange={setShowFileMenu}
-              width="w-56"
-              align="left"
-              theme={isCloudProject ? 'blue' : 'dark'}
-              trigger={
-                <button
-                  className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 font-sans cursor-pointer select-none ${isCloudProject ? 'text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
-                >
-                  <span className="hidden md:inline">File</span>
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              }
-            >
-              <DropdownItem onClick={async () => { setShowFileMenu(false); const name = await dialog.prompt({ title: 'Name the Project', defaultValue: 'Untitled Project', placeholder: 'Project name' }); if (name) { await createProject(name); } }} icon={<Plus className="w-3.5 h-3.5" />}>
-                New Project
-              </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowProjectManager(true); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
-                Project Manager
-              </DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setShowFileMenu(false); importFileRef.current?.click(); }} icon={<FileUp className="w-3.5 h-3.5" />}>
-                Import Screenplay (FDX, Fountain, TXT, CSV)...
-              </DropdownItem>
-              <DropdownDivider />
-              <DropdownSubmenu id="export-file" label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
-                <DropdownItem onClick={() => { setShowFileMenu(false); handleExportCSV(); }}>
-                  Breakdown to CSV
-                </DropdownItem>
-                <DropdownItem onClick={() => { setShowFileMenu(false); handleExportJSON(); }}>
-                  Export Project
-                </DropdownItem>
-              </DropdownSubmenu>
-              <DropdownSubmenu id="print-file" label="Print" icon={<Printer className="w-3.5 h-3.5" />} width="w-48">
-                <DropdownItem onClick={() => { setShowFileMenu(false); setShowPrintDialog(true); }}>
-                  Schedule...
-                </DropdownItem>
-                <DropdownItem onClick={() => { setShowFileMenu(false); setShowDoodDialog(true); }}>
-                  Day Out of Days...
-                </DropdownItem>
-                <DropdownItem onClick={() => { setShowFileMenu(false); setShowBreakdownSheetDialog(true); }}>
-                  Scene Breakdown...
-                </DropdownItem>
-                <DropdownItem onClick={() => { setShowFileMenu(false); setShowElementBreakdownDialog(true); }}>
-                  Element Breakdown...
-                </DropdownItem>
-              </DropdownSubmenu>
-              <DropdownDivider />
-              {driveCtx.isSignedIn ? (
-                <DropdownItem onClick={() => { setShowFileMenu(false); if (isCloudProject) closeProject(); driveCtx.signOut(); }} icon={<LogOut className="w-3.5 h-3.5" />}>
-                  Sign out{driveCtx.user ? ` (${driveCtx.user.name})` : ''}
-                </DropdownItem>
-              ) : (
-                <DropdownItem onClick={() => { setShowFileMenu(false); driveCtx.signIn(); }} icon={<Cloud className="w-3.5 h-3.5" />}>
-                  Sign in with Google Drive...
-                </DropdownItem>
-              )}
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setShowFileMenu(false); setShowTrash(true); }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                Trash...
-              </DropdownItem>
-            </DropdownMenu>
-            <SaveIndicator isCloudProject={isCloudProject} />
-            {editingTitle ? (
-              <input 
-                autoFocus
-                value={project.title} 
-                onChange={e => {
-                  dispatch({type: 'UPDATE_PROJECT', payload: {title: e.target.value}});
-                }}
-                onBlur={e => {
-                  setEditingTitle(false);
-                  renameProject(currentProjectId!, e.target.value, projectList.find(p => p.id === currentProjectId)?.driveFileId);
-                }}
-                onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); (e.target as HTMLInputElement).blur(); } }}
-                className={`bg-transparent border-none text-white font-medium rounded px-1 outline-none font-sans max-w-[60px] md:max-w-[120px] ${isCloudProject ? 'focus:ring-1 focus:ring-blue-600' : 'focus:ring-1 focus:ring-zinc-600'}`}
-              />
-            ) : (
-              <span
-                onClick={() => setEditingTitle(true)}
-                className="text-white font-medium px-1 truncate max-w-[60px] md:max-w-[120px] cursor-pointer hover:opacity-80"
-                title={project.title}
-              >
-                {project.title}
-              </span>
-            )}
-          </div>
-          <div ref={topTabContainerRef} onScroll={checkTabScroll} className="overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', WebkitMaskImage: tabScrollMask, maskImage: tabScrollMask }}>
-            <div className="flex items-center gap-1 mx-auto shrink-0 w-fit">
-              <button
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('breakdown'); } else { setActiveTab('breakdown'); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'breakdown' }); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'breakdown' ? activeTabClass : inactiveTabText}`}
-              >
-                Breakdown
-              </button>
-              <button
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('schedule'); } else { setActiveTab('schedule'); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'schedule' }); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'schedule' ? activeTabClass : inactiveTabText}`}
-              >
-                Schedule
-              </button>
-              <button
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('calendar'); } else { setActiveTab('calendar'); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'calendar' }); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'calendar' ? activeTabClass : inactiveTabText}`}
-              >
-                Calendar
-              </button>
-              <button
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('design'); } else { setActiveTab('design'); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'design' }); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'design' ? activeTabClass : inactiveTabText}`}
-              >
-                Design
-              </button>
-              <button
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('rules'); } else { setActiveTab('rules'); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'rules' }); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'rules' ? activeTabClass : inactiveTabText}`}
-              >
-                Rules
-              </button>
-              <button
-                onClick={() => { if (shiftHeld && !IS_COARSE) { togglePopout('reports'); } else { setActiveTab('reports'); } }}
-                onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); setTabContextMenu({ x: e.clientX, y: e.clientY, tabId: 'reports' }); }}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === 'reports' ? activeTabClass : inactiveTabText}`}
-              >
-                Reports
-              </button>
-            </div>
-          </div>
-
-        <div className="flex items-center space-x-3 font-mono text-xs shrink-0 ml-auto">
-          <div className="flex items-center gap-1 border border-white/10 rounded bg-white/5">
-            <button
-              onClick={() => dispatch({ type: 'UNDO' })}
-              disabled={state.past.length === 0}
-              className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
-              title="Undo (Cmd+Z)"
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => dispatch({ type: 'REDO' })}
-              disabled={state.future.length === 0}
-              className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
-              title="Redo (Cmd+Shift+Z)"
-            >
-              <Redo2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <div className="border border-white/10 rounded bg-white/5">
-          <ItemManagerDropdown
-            open={showVersionsMenu}
-            onClose={(open) => setShowVersionsMenu(open)}
-            items={project.versions.map(v => ({ id: v.id, name: v.name }))}
-            activeId={project.activeVersionId}
-            closeOnSelect
-            onSelect={(id) => dispatch({ type: 'SET_ACTIVE_VERSION', payload: id })}
-            onRename={(id, name) => dispatch({ type: 'RENAME_VERSION', payload: { id, name } })}
-            onDuplicate={(id) => {
-              const v = project.versions.find(x => x.id === id);
-              if (!v) return;
-              const name = `${v.name} Copy`;
-              const newId = generateUUID();
-              dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: id, id: newId } });
-              return newId;
-            }}
-            onDelete={async (id) => {
-              const ok = await dialog.confirm({ title: 'Delete Version?', message: 'This can be restored from Trash.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_version' });
-              if (ok) dispatch({ type: 'DELETE_VERSION', payload: id });
-            }}
-            onCreate={() => {
-              const name = `V${String(project.versions.length + 1).padStart(2, '0')}`;
-              const newId = generateUUID();
-              dispatch({ type: 'NEW_VERSION', payload: { name, cloneFromId: null, id: newId } });
-              return newId;
-            }}
-            onTrash={() => setShowTrash(true)}
-            readOnly={false}
-            theme={isCloudProject ? 'blue' : 'dark'}
-            label="Version"
-            header="SCHEDULE VERSIONS"
-            itemLabel="Version"
-            trigger={
-              <button
-                className={`flex items-center space-x-1.5 rounded transition-colors px-3 py-1.5 cursor-pointer select-none font-sans text-xs text-white whitespace-nowrap ${isCloudProject ? 'hover:bg-blue-900/60' : 'hover:bg-zinc-800'}`}
-              >
-                <span><span className="hidden md:inline">Version: </span><strong>{version?.name || 'Select Version'}</strong></span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-            }
-          />
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isCloudProject={isCloudProject}
+        shiftHeld={shiftHeld}
+        togglePopout={togglePopout}
+        onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}
+        onOpenProjectManager={() => setShowProjectManager(true)}
+        onImportClick={() => importFileRef.current?.click()}
+        onExportCSV={handleExportCSV}
+        onExportJSON={handleExportJSON}
+        onPrintSchedule={() => setShowPrintDialog(true)}
+        onPrintDood={() => setShowDoodDialog(true)}
+        onPrintBreakdownSheet={() => setShowBreakdownSheetDialog(true)}
+        onPrintElementBreakdown={() => setShowElementBreakdownDialog(true)}
+        onShowTrash={() => setShowTrash(true)}
+        driveCtx={driveCtx}
+        closeProject={closeProject}
+        createProject={async (title) => { await createProject(title); }}
+      />
 
       {/* POPOUT WINDOWS */}
       {poppedOutTabs.has('breakdown') && popoutWindowsRef.current.get('breakdown') && (
