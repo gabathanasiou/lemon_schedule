@@ -5,18 +5,13 @@ import { Project } from '../types';
 import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData, formatDriveError, getDriveErrorStatus } from '../lib/googleDriveStorage';
-import { Plus, Download, CloudUpload, Pencil, Copy, Trash2, Check, FolderOpen, CheckCircle2, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, HardDriveDownload, Save, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
+import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
+import ProjectCard from './ProjectCard';
+import NewProjectModal from './NewProjectModal';
+import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
-import { IS_COARSE } from '../lib/device';
-
-const PM_BTN_PAD = IS_COARSE ? 'p-2' : 'p-1.5';
-const PM_ICON = IS_COARSE ? 'w-4 h-4' : 'w-3.5 h-3.5';
-const PM_ICON_SM = IS_COARSE ? 'w-3.5 h-3.5' : 'w-3 h-3';
-const PM_INPUT = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2.5 py-1.5 text-xs';
-const PM_TITLE = IS_COARSE ? 'text-sm' : 'text-xs';
-const PM_SUBTITLE = IS_COARSE ? 'text-xs' : 'text-[10px]';
 
 interface ProjectManagerProps {
   onClose?: () => void;
@@ -83,14 +78,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('Untitled Project');
   const [newProjectCloud, setNewProjectCloud] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (showNewProjectModal && nameInputRef.current) {
-      nameInputRef.current.select();
-    }
-  }, [showNewProjectModal]);
-
   useEffect(() => {
     if (currentProjectId) {
       const meta = projectList.find(p => p.id === currentProjectId);
@@ -442,40 +429,15 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       }
     >
       <div className="relative">
-        {showNewProjectModal && (
-          <div className="absolute inset-0 z-10 bg-zinc-900/95 flex items-center justify-center">
-            <div className="bg-zinc-800 rounded-lg border border-zinc-700 p-5 w-64 space-y-3">
-              <h3 className="text-sm font-bold text-white">{newProjectCloud ? "New Cloud Project" : "New Project"}</h3>
-              <input
-                ref={nameInputRef}
-                value={newProjectName}
-                onChange={e => setNewProjectName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleCreateProject(); }}
-                disabled={creatingCloud}
-                placeholder="Project name"
-                autoFocus
-                className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-50"
-              />
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() => { setShowNewProjectModal(false); setCreatingCloud(false); }}
-                  disabled={creatingCloud}
-                  className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateProject}
-                  disabled={creatingCloud || !newProjectName.trim()}
-                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-zinc-700 text-white hover:bg-zinc-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {creatingCloud && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {creatingCloud ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <NewProjectModal
+          open={showNewProjectModal}
+          isCloud={newProjectCloud}
+          name={newProjectName}
+          onNameChange={setNewProjectName}
+          creating={creatingCloud}
+          onCancel={() => { setShowNewProjectModal(false); setCreatingCloud(false); }}
+          onCreate={handleCreateProject}
+        />
         <div className="px-5 py-3">
         <div className="flex gap-0.5 mb-3">
           <button
@@ -671,134 +633,34 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <div className="max-h-[50vh] overflow-y-auto scrollbar-custom mt-2">
             <div className="space-y-2">
 
-            {sortedList.map(p => {
-              const isActive = p.id === currentProjectId;
-              const isRenaming = renamingId === p.id;
-              const isBusy = openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id || exportingId === p.id;
-
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => { if (!isBusy) handleCardClick(p); }}
-                  onDoubleClick={isRenaming || isBusy ? undefined : () => startRenaming(p)}
-                  className={`group flex items-center gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer select-none ${
-                    isActive
-                      ? 'bg-zinc-800 border-zinc-700 text-white'
-                      : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-zinc-300'
-                  }`}
-                >
-                  {isRenaming ? (
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <input
-                        value={renameTitle}
-                        onChange={e => setRenameTitle(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') confirmRename();
-                          if (e.key === 'Escape') setRenamingId(null);
-                        }}
-                        autoFocus
-                        className={`flex-1 bg-zinc-950 border border-zinc-600 text-white ${PM_INPUT} rounded-md outline-none focus:ring-2 focus:ring-zinc-500`}
-                        onClick={e => e.stopPropagation()}
-                      />
-                      <button
-                        onClick={e => { e.stopPropagation(); confirmRename(); }}
-                        className={`${PM_BTN_PAD} hover:bg-emerald-800/60 rounded-md text-emerald-400 transition-colors`}
-                      >
-                        <Check className={`${PM_ICON}`} />
-                      </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); setRenamingId(null); }}
-                        className={`${PM_BTN_PAD} hover:bg-rose-800/60 rounded-md text-rose-400 transition-colors`}
-                      >
-                        <svg className={`${PM_ICON}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          {(openingId === p.id || deletingId === p.id || movingId === p.id || duplicatingId === p.id) && (
-                            <Loader2 className={`${PM_ICON_SM} text-zinc-400 animate-spin shrink-0`} />
-                          )}
-                          <h3 className={`font-semibold truncate ${PM_TITLE}`}>{p.title}</h3>
-                          {p.driveFileId && (
-                            <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} title="Cloud project" />
-                          )}
-                          {isActive && (
-                            <CheckCircle2 className={`${PM_ICON} text-emerald-400 shrink-0`} />
-                          )}
-                        </div>
-                        <p className={`${PM_SUBTITLE} mt-0.5 ${isActive ? 'text-zinc-500' : 'text-zinc-500'}`}>
-                          {isActive ? 'Currently open' : formatDate(p.lastModified)}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0 hover-reveal transition-opacity" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => startRenaming(p)}
-                          disabled={isBusy}
-                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
-                          title="Rename"
-                        >
-                          <Pencil className={`${PM_ICON} text-zinc-400`} />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setDuplicatingId(p.id);
-                            await duplicateProject(p.id, p.driveFileId);
-                            setDuplicatingId(null);
-                            if (p.driveFileId) refetchDriveRef.current();
-                          }}
-                          disabled={isBusy}
-                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
-                          title="Duplicate"
-                        >
-                          <Copy className={`${PM_ICON} text-zinc-400`} />
-                        </button>
-                        <button
-                          onClick={e => handleExportJSON(e, p)}
-                          disabled={isBusy}
-                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
-                          title="Export"
-                        >
-                          {exportingId === p.id
-                            ? <Loader2 className={`${PM_ICON} text-zinc-400 animate-spin`} />
-                            : <Save className={`${PM_ICON} text-zinc-400`} />}
-                        </button>
-                        {activeTab === 'local' && auth.isSignedIn && (
-                          <button
-                            onClick={() => handleMoveToDrive(p)}
-                            disabled={isBusy}
-                            className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
-                            title="Move to Drive"
-                          >
-                            <CloudUpload className={`${PM_ICON} text-zinc-400`} />
-                          </button>
-                        )}
-                        {activeTab === 'cloud' && (
-                          <button
-                            onClick={() => handleMoveToLocal(p)}
-                            disabled={isBusy}
-                            className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-zinc-700 disabled:opacity-30`}
-                            title="Move to Local"
-                          >
-                            <HardDriveDownload className={`${PM_ICON} text-zinc-400`} />
-                          </button>
-                        )}
-                        <button
-                          onClick={async () => { const ok = await dialog.confirm({ title: `Delete "${p.title}"?`, message: 'This cannot be undone.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_project' }); if (ok) { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); } }}
-                          disabled={isBusy}
-                          className={`${PM_BTN_PAD} rounded-md transition-colors hover:bg-rose-900/40 disabled:opacity-30`}
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-zinc-400 hover:text-rose-400 transition-colors" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            {sortedList.map(p => (
+              <React.Fragment key={p.id}>
+              <ProjectCard
+                p={p}
+                isActive={p.id === currentProjectId}
+                activeTab={activeTab}
+                authSignedIn={auth.isSignedIn}
+                renameTitle={renameTitle}
+                setRenameTitle={setRenameTitle}
+                renamingId={renamingId}
+                setRenamingId={setRenamingId}
+                openingId={openingId}
+                deletingId={deletingId}
+                movingId={movingId}
+                duplicatingId={duplicatingId}
+                exportingId={exportingId}
+                onCardClick={handleCardClick}
+                onStartRenaming={startRenaming}
+                onConfirmRename={confirmRename}
+                onDuplicate={async (p) => { setDuplicatingId(p.id); await duplicateProject(p.id, p.driveFileId); setDuplicatingId(null); if (p.driveFileId) refetchDriveRef.current(); }}
+                onExport={handleExportJSON}
+                onMoveToDrive={handleMoveToDrive}
+                onMoveToLocal={handleMoveToLocal}
+                onDelete={async (p) => { setDeletingId(p.id); await deleteProject(p.id, p.driveFileId); setDeletingId(null); refetchDrive(); }}
+                formatDate={formatDate}
+              />
+              </React.Fragment>
+            ))}
           </div>
             </div>
           </>
