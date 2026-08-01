@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useProject, DEFAULT_CATEGORY_LABELS } from '../store';
-import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport } from '../lib/importScreenplay';
+import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commitImport } from '../lib/import';
 import { Upload, Loader2, GripVertical } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';

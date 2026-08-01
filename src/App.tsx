@@ -44,7 +44,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
-import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/importScreenplay';
+import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/import';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { formatDriveError } from './lib/googleDriveStorage';
 import { SaveIndicator } from './components/SaveIndicator';
