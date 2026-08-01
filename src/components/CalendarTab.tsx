@@ -196,7 +196,8 @@ const DayCell: React.FC<{
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
   dropState?: DayDropState;
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState }) => {
+  flashColor?: 'a' | 'b';
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
   const { readOnly } = useProject();
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -247,6 +248,9 @@ const DayCell: React.FC<{
         )}
         {drop?.zone === 'swap' && (
           <div className="absolute inset-0 z-20 pointer-events-none border-2 border-blue-600 bg-blue-500/20" />
+        )}
+        {flashColor && (
+          <div className={`absolute inset-0 z-30 pointer-events-none ${flashColor === 'a' ? 'cal-day-flash' : 'cal-day-flash-b'}`} />
         )}
         <div
           ref={setDragRef}
@@ -597,6 +601,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [dayDropState, setDayDropState] = useState<DayDropState>(null);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const [flashSections, setFlashSections] = useState<Map<number, 'a' | 'b'>>(new Map());
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashDays = useCallback((entries: [number, 'a' | 'b'][]) => {
+    setFlashSections(new Map(entries));
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setFlashSections(new Map()), 900);
+  }, []);
+  useEffect(() => () => { if (flashTimerRef.current) clearTimeout(flashTimerRef.current); }, []);
 
   const activeDragIdsRef = useRef(activeDragIds);
   activeDragIdsRef.current = activeDragIds;
@@ -1239,6 +1251,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
         const combined = rebuildRowsFromBlocks(blocks, tail, boneyard);
         dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+        flashDays([[targetIndex, 'a']]);
         return;
       }
 
@@ -1268,6 +1281,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
       const combined = rebuildRowsFromBlocks(blocks, tail, boneyard);
       dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: combined } });
+      flashDays([[sourceIdx, 'a'], [targetIdx, 'b']]);
       return;
     }
 
@@ -1645,6 +1659,24 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   return (
     <>
+    <style>{`
+      @keyframes cal-day-flash {
+        0% { background-color: rgba(59,130,246,0.55); }
+        25% { background-color: rgba(59,130,246,0.55); }
+        100% { background-color: rgba(59,130,246,0); }
+      }
+      @keyframes cal-day-flash-b {
+        0% { background-color: rgba(16,185,129,0.55); }
+        25% { background-color: rgba(16,185,129,0.55); }
+        100% { background-color: rgba(16,185,129,0); }
+      }
+      .cal-day-flash {
+        animation: cal-day-flash 0.9s ease-out;
+      }
+      .cal-day-flash-b {
+        animation: cal-day-flash-b 0.9s ease-out;
+      }
+    `}</style>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => {
       setActiveId(null);
       setActiveDragRow(null);
@@ -1847,6 +1879,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                           activeRowId={activeId}
                           activeDragDay={activeDragDay}
                           dropState={dayDropState}
+                          flashColor={dateSectionIdx != null ? (flashSections.get(dateSectionIdx) ?? undefined) : undefined}
                           onRowDoubleClick={handleRowDoubleClick}
                           onRowContextMenu={handleRowContextMenu}
                           bodyTargetRowId={bodyTargetRowId}
