@@ -11,6 +11,23 @@ export const DD_ITEM = (active: boolean) =>
 export const DD_CONTAINER =
   "absolute top-full z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 max-h-48 overflow-y-auto mt-1";
 
+export const DD_ITEM_BASE_LIB = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
+
+export const DD_ITEM_CLASS_LIB = (active: boolean) =>
+  `w-full text-left ${DD_ITEM_BASE_LIB} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 active:text-zinc-900'}`;
+
+const DD_INPUT_TOUCH_LIB = IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm';
+
+export const DD_PANEL_CLASS_LIB = (positioning: string) =>
+  positioning === 'fixed'
+    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col'
+    : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 mt-1 min-w-[180px] flex flex-col';
+
+export const DD_INPUT_CLASS_LIB = (standalone: boolean) =>
+  standalone
+    ? `w-full border border-zinc-300 rounded-md ${DD_INPUT_TOUCH_LIB} focus:outline-none focus:ring-2 focus:ring-zinc-900`
+    : 'text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-left';
+
 export type CloseRef = { current: (() => void) | null };
 
 export const globalDropdownCloseRef: CloseRef = { current: null };

@@ -24,30 +24,19 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { Scene } from '../types';
 import { useProject } from '../store';
-import { useDropdown, sortCastMembers } from '../lib/dropdown';
+import { useDropdown, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB } from '../lib/dropdown';
+import { buildDropdownItems } from '../lib/dropdownItems';
+import DropdownPanel from './DropdownPanel';
+
+export const DD_ITEM_BASE = DD_ITEM_BASE_LIB;
+export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
+export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
+export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { IS_COARSE } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
-
-const DD_ITEM_BASE = IS_COARSE ? 'px-3 py-2 text-sm' : 'px-2 py-1 text-xs';
-
-export const DD_ITEM_CLASS = (active: boolean) =>
-  `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2 ${active ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 active:bg-blue-200' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 active:text-zinc-900'}`;
-
-const DD_INPUT_TOUCH = IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm';
-
-export const DD_PANEL_CLASS = (positioning: string) =>
-  positioning === 'fixed'
-    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col'
-    : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 mt-1 min-w-[180px] flex flex-col';
-
-export const DD_INPUT_CLASS = (standalone: boolean) =>
-  standalone
-    ? `w-full border border-zinc-300 rounded-md ${DD_INPUT_TOUCH} focus:outline-none focus:ring-2 focus:ring-zinc-900`
-    : 'text-inherit placeholder:text-inherit placeholder:opacity-50 bg-transparent w-full h-full outline-none text-left';
 
 export interface EntityItem {
   id: string;
@@ -390,48 +379,20 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     setQuery('');
   }, [mode, val, localIds, query, onChange, sortAndJoin, value, onExit]);
 
-  const defaultFilter = useCallback((item: EntityItem, q: string) => {
-    const lower = q.toLowerCase();
-    return searchFields.some(f => item[f].toLowerCase().includes(lower));
-  }, [searchFields]);
-
-  const doFilter = filterItem ?? defaultFilter;
-  const lastSegment = mode === 'select'
-    ? val.trim()
-    : mode === 'multi'
-    ? val.split(',').map(x => x.trim()).filter(Boolean).pop() || ''
-    : '';
-  const searchQuery = mode === 'multi' || mode === 'select' ? lastSegment : query;
-  const hasExactMatch = searchQuery.length > 0 && items.some(m =>
-    m.id.toLowerCase() === searchQuery.toLowerCase() ||
-    m.name.toLowerCase() === searchQuery.toLowerCase()
+  const { dropdownItems, hasExactMatch, effectiveQuery, syntheticItem } = buildDropdownItems(
+    items, currentIds, itemKey,
+    mode === 'multi' || mode === 'select' ? (mode === 'select' ? val.trim() : val.split(',').map(x => x.trim()).filter(Boolean).pop() || '') : query,
+    val, query, mode,
+    { mode, displayMode, keepAlphabetical, searchFields, filterItem, sortItems },
   );
-  const effectiveQuery = (mode === 'multi' && hasExactMatch) ? '' : searchQuery;
+  const searchQuery = mode === 'multi' || mode === 'select'
+    ? (mode === 'select' ? val.trim() : val.split(',').map(x => x.trim()).filter(Boolean).pop() || '')
+    : query;
   useEffect(() => {
     if (open && effectiveQuery && !hasExactMatch) {
       setHighlightedIndex(0);
     }
   }, [open, effectiveQuery, hasExactMatch]);
-  const filtered = items.filter(m => !effectiveQuery || doFilter(m, effectiveQuery));
-  const doSort = sortItems ?? ((items: EntityItem[], ids: string[]) => {
-    if (keepAlphabetical) return [...items].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-    return sortCastMembers(items, ids, displayMode as 'id' | 'name');
-  });
-  const sorted = ((mode === 'multi' || mode === 'select') && effectiveQuery)
-    ? [...items].sort((a, b) => {
-        const q = searchQuery.toLowerCase();
-        const aMatch = a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q);
-        const bMatch = b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q);
-        if (aMatch !== bMatch) return aMatch ? -1 : 1;
-        const aSel = currentIds.includes(itemKey(a));
-        const bSel = currentIds.includes(itemKey(b));
-        if (aSel !== bSel) return aSel ? -1 : 1;
-        return a.id.localeCompare(b.id, undefined, { numeric: true });
-      })
-    : doSort(filtered, currentIds);
-
-  const syntheticItem: EntityItem = { id: searchQuery, name: searchQuery };
-  const dropdownItems = (effectiveQuery && !hasExactMatch) ? [syntheticItem, ...sorted] : sorted;
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
@@ -585,105 +546,67 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           }
         }}
       />
-      {open && (() => {
-        const panel = (
-        <div
-          ref={panelRef}
-          className={`click-outside-ignore ${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
-          style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
-        >
-          <div ref={scrollRef} className="overflow-y-auto max-h-72" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined}>
-          {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {
-            const checked = currentIds.includes(itemKey(m));
-            const highlighted = highlightedIndex === idx;
-            const isSynthetic = searchQuery && !hasExactMatch && idx === 0;
-            return (
-              <>
-              <button
-                key={isSynthetic ? '__new__' : m.id}
-                data-ei={idx}
-                data-checked={checked ? 'true' : undefined}
-                type="button"
-                onMouseDown={e => e.preventDefault()}
-                onTouchStart={() => {}}
-                onPointerDown={e => { if (e.pointerType === 'pen') { const btn = e.currentTarget; btn.classList.add('pen-pulse'); setTimeout(() => btn.classList.remove('pen-pulse'), 350); } }}
-                onClick={() => {
-                  if (isSynthetic) {
-                    const key = itemKey(m);
-                    if (mode === 'single') {
-                      const sel = uppercase ? key.toUpperCase() : key;
-                      setVal(sel);
-                      setTimeout(() => {
-                        if (sel !== value) { syntheticRef.current = true; onChange(sel); }
-                        setOpen(false);
-                        onExit?.();
-                      }, 0);
-                    } else {
-                      const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                      const committedIds = segments.slice(0, -1);
-                      if (!committedIds.includes(key)) committedIds.push(key);
-                      const joined = sortAndJoin(committedIds.join(', '));
-                      setVal(joined + ', ');
-                      syntheticRef.current = true;
-                      onChange(joined);
-                    }
-                  } else if (mode === 'multi') {
-                    const trimmed = val.trim();
-                    const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
-                    if (hasQuery) {
-                      const segments = val.split(',').map(x => x.trim()).filter(Boolean);
-                      const committedIds = segments.slice(0, -1);
-                      const key = itemKey(m);
-                      const idx = committedIds.indexOf(key);
-                      if (idx >= 0) committedIds.splice(idx, 1);
-                      else committedIds.push(key);
-                      const joined = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
-                      setVal(joined + ', ');
-                      if (joined !== value) onChange(joined);
-                    } else {
-                      toggle(itemKey(m));
-                    }
-                  } else {
-                    toggle(itemKey(m));
-                  }
-                }}
-                onMouseEnter={mode === 'single' ? () => setHighlightedIndex(idx) : undefined}
-className={isSynthetic
-  ? `w-full text-left ${DD_ITEM_BASE} rounded cursor-pointer transition-colors active:transition-none flex items-center gap-2 text-zinc-400 ${highlighted ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-emerald-50 hover:text-emerald-700'} active:bg-emerald-200 active:text-emerald-700`
-  : `${DD_ITEM_CLASS(checked)} ${highlighted ? (checked ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-900') : ''}`
-}
-              >
-                {isSynthetic ? (
-                  <span className="truncate flex-1 italic">Add &quot;{m.name}&quot;</span>
-                ) : (
-                  renderItem ? renderItem(m, checked) : defaultRenderer(m, checked)
-                )}
-              </button>
-              {isSynthetic && (
-                <hr className="border-t border-zinc-200 my-1 mx-1" />
-              )}
-              </>
-              );
-          }) : (
-            <div className="px-2 py-1 text-xs text-zinc-400 text-center">No matches</div>
-          )}
-          </div>
-          {commitHint && (
-            <button
-              onClick={() => commit()}
-              onTouchStart={() => {}}
-              onPointerDown={e => { if (e.pointerType === 'pen') { const btn = e.currentTarget; btn.classList.add('pen-pulse'); setTimeout(() => btn.classList.remove('pen-pulse'), 350); } }}
-              className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0 hover:bg-zinc-50 active:bg-zinc-100 transition-colors active:transition-none w-full cursor-pointer"
-            >
-              Press Enter to commit
-            </button>
-          )}
-        </div>
-        );
-        return portalTarget && positioning === 'fixed'
-          ? createPortal(panel, portalTarget)
-          : panel;
-      })()}
+      {open && (
+        <DropdownPanel
+          positioning={positioning}
+          pos={pos}
+          panelRef={panelRef}
+          scrollRef={scrollRef}
+          panelMinWidth={panelMinWidth}
+          dropdownItems={dropdownItems}
+          currentIds={currentIds}
+          highlightedIndex={highlightedIndex}
+          itemKey={itemKey}
+          searchQuery={searchQuery}
+          hasExactMatch={hasExactMatch}
+          renderItem={renderItem}
+          defaultRenderer={defaultRenderer}
+          onItemClick={(m, isSynthetic) => {
+            if (isSynthetic) {
+              const key = itemKey(m);
+              if (mode === 'single') {
+                const sel = uppercase ? key.toUpperCase() : key;
+                setVal(sel);
+                setTimeout(() => {
+                  if (sel !== value) { syntheticRef.current = true; onChange(sel); }
+                  setOpen(false);
+                  onExit?.();
+                }, 0);
+              } else {
+                const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                const committedIds = segments.slice(0, -1);
+                if (!committedIds.includes(key)) committedIds.push(key);
+                const joined = sortAndJoin(committedIds.join(', '));
+                setVal(joined + ', ');
+                syntheticRef.current = true;
+                onChange(joined);
+              }
+            } else if (mode === 'multi') {
+              const trimmed = val.trim();
+              const hasQuery = trimmed.length > 0 && trimmed[trimmed.length - 1] !== ',';
+              if (hasQuery) {
+                const segments = val.split(',').map(x => x.trim()).filter(Boolean);
+                const committedIds = segments.slice(0, -1);
+                const key = itemKey(m);
+                const idx = committedIds.indexOf(key);
+                if (idx >= 0) committedIds.splice(idx, 1);
+                else committedIds.push(key);
+                const joined = committedIds.length > 0 ? sortAndJoin(committedIds.join(', ')) : key;
+                setVal(joined + ', ');
+                if (joined !== value) onChange(joined);
+              } else {
+                toggle(itemKey(m));
+              }
+            } else {
+              toggle(itemKey(m));
+            }
+          }}
+          onItemHover={mode === 'single' ? (idx) => setHighlightedIndex(idx) : () => {}}
+          commitHint={commitHint}
+          onCommit={() => commit()}
+          portalTarget={portalTarget}
+        />
+      )}
     </div>
   );
 };
