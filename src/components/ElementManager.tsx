@@ -13,52 +13,14 @@ import { ModalFooter } from './Modal';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { useCurrentDocument } from '../lib/popoutTarget';
-
-function loadCategoryElements(project: any, category: string): ProjectElement[] {
-  if (category === 'cast') {
-    const sceneIds = getElementsFromScenes(project.scenes, 'cast');
-    const merged = new Map<string, ProjectElement>();
-    for (const e of sceneIds) merged.set(e.id, { id: e.id, name: '' });
-    for (const m of project.castMembers || []) merged.set(m.id, { id: m.id, name: m.name.toUpperCase() });
-    return [...merged.values()];
-  }
-  const stored: ProjectElement[] = (project.breakdownElements || {})[category] || [];
-  const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
-  const seen = new Set<string>();
-  const items: ProjectElement[] = [];
-  for (const e of stored) {
-    const key = (e.id || e.name).toLowerCase();
-    if (!seen.has(key)) { items.push(e); seen.add(key); }
-  }
-  const sceneElems = getElementsFromScenes(project.scenes, category);
-  for (const e of sceneElems) {
-    const key = (e.id || e.name).toLowerCase();
-    if (!seen.has(key) && !nameMap.has(e.name.toLowerCase())) { items.push(e); seen.add(key); }
-  }
-  return items;
-}
+import { loadCategoryElements, elementKey, countOccurrences } from '../lib/elements';
+import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 
 interface LocalRow {
   key: string;
   id: string;
   name: string;
   occ: number;
-}
-
-function elementKey(e: { id: string; name: string }) { return e.id || e.name || '__new__'; }
-
-function countOccurrences(scenes: any[], cat: string, isC: boolean): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const s of scenes) {
-    const val = isC ? s.cast : (s as any)[cat] as string;
-    if (!val) continue;
-    const items = getFieldItems(cat, val);
-    for (const item of items) {
-      const key = item.toLowerCase();
-      counts.set(key, (counts.get(key) || 0) + 1);
-    }
-  }
-  return counts;
 }
 
 export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
@@ -682,162 +644,35 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
           </Modal>
         )}
 
-        {/* Add Custom Category modal */}
-        {showAddCustom && (
-          <Modal open onClose={() => setShowAddCustom(false)} title="Add Category" icon={<Plus className="w-4 h-4" />} width="max-w-md"
-            footer={
-              <ModalFooter>
-                <button onClick={() => setShowAddCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={createCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">Create</button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Name</label>
-                <input
-                  type="text"
-                  value={newCatName}
-                  onChange={e => setNewCatName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) createCustomCategory(); }}
-                  autoFocus
-                  className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                  placeholder="e.g. Firearms, Period Vehicles..."
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
-                <div className="mt-1 grid grid-cols-4 gap-1.5">
-                  {CUSTOM_ICON_OPTIONS.map(opt => {
-                    const Icon = opt.Icon;
-                    const selected = newCatIcon === opt.name;
-                    return (
-                      <button
-                        key={opt.name}
-                        onClick={() => setNewCatIcon(opt.name)}
-                        className={`p-2 rounded-md transition-colors flex items-center justify-center ${
-                          selected ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Value Type</label>
-                <div className="mt-1 flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setNewCatMultiValue(true)}
-                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
-                  >
-                    Multiple values
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewCatMultiValue(false)}
-                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
-                  >
-                    Single value
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )}
-
-        {/* Edit Custom Category modal */}
-        {showEditCustom && (
-          <Modal open onClose={() => setShowEditCustom(false)} title="Edit Category" icon={<Pencil className="w-4 h-4" />} width="max-w-md"
-            footer={
-              <ModalFooter>
-                <button onClick={() => setShowEditCustom(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={updateCustomCategory} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">Save</button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Name</label>
-                <input
-                  type="text"
-                  value={newCatName}
-                  onChange={e => setNewCatName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) updateCustomCategory(); }}
-                  autoFocus
-                  className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
-                <div className="mt-1 grid grid-cols-4 gap-1.5">
-                  {CUSTOM_ICON_OPTIONS.map(opt => {
-                    const Icon = opt.Icon;
-                    const selected = newCatIcon === opt.name;
-                    return (
-                      <button
-                        key={opt.name}
-                        onClick={() => setNewCatIcon(opt.name)}
-                        className={`p-2 rounded-md transition-colors flex items-center justify-center ${
-                          selected ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Value Type</label>
-                <div className="mt-1 flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setNewCatMultiValue(true)}
-                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
-                  >
-                    Multiple values
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewCatMultiValue(false)}
-                    className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors ${!newCatMultiValue ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'}`}
-                  >
-                    Single value
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )}
-
-        {/* Edit Built-in Category Label modal */}
-        {showEditBuiltin && (
-          <Modal open onClose={() => setShowEditBuiltin(false)} title="Rename Category" icon={<Pencil className="w-4 h-4" />} width="max-w-md"
-            footer={
-              <ModalFooter>
-                <button onClick={() => setShowEditBuiltin(false)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={updateBuiltinLabel} disabled={!newCatName.trim()} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 transition-colors">Save</button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">New label</label>
-                <input
-                  type="text"
-                  value={newCatName}
-                  onChange={e => setNewCatName(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && newCatName.trim()) updateBuiltinLabel(); }}
-                  autoFocus
-                  className="w-full mt-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-xs text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500"
-                />
-              </div>
-            </div>
-          </Modal>
-        )}
+        <AddCustomCategoryModal
+          open={showAddCustom}
+          onClose={() => setShowAddCustom(false)}
+          name={newCatName}
+          onNameChange={setNewCatName}
+          catIcon={newCatIcon}
+          onIconChange={setNewCatIcon}
+          multiValue={newCatMultiValue}
+          onMultiValueChange={setNewCatMultiValue}
+          onSubmit={createCustomCategory}
+        />
+        <EditCustomCategoryModal
+          open={showEditCustom}
+          onClose={() => setShowEditCustom(false)}
+          name={newCatName}
+          onNameChange={setNewCatName}
+          catIcon={newCatIcon}
+          onIconChange={setNewCatIcon}
+          multiValue={newCatMultiValue}
+          onMultiValueChange={setNewCatMultiValue}
+          onSubmit={updateCustomCategory}
+        />
+        <EditBuiltinLabelModal
+          open={showEditBuiltin}
+          onClose={() => setShowEditBuiltin(false)}
+          name={newCatName}
+          onNameChange={setNewCatName}
+          onSubmit={updateBuiltinLabel}
+        />
       </div>
     </div>
   );
