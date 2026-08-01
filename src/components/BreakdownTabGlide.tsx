@@ -35,6 +35,7 @@ import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { planPaste } from '../lib/glidePaste';
+import { createGlideCellEditor } from '../lib/glideEditor';
 import { createBlankScene } from '../lib/sceneFactory';
 
 const BREAKDOWN_CATEGORIES = [
@@ -362,62 +363,19 @@ export function GlideBreakdownTab({
     }
   }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber]);
 
-  const provideEditor = useCallback((cellData: any & { location?: Item }): any => {
-    if (readOnlyRef.current) return undefined;
-    const loc = cellData.location;
-    if (!loc || cellData.kind !== GridCellKind.Text) return undefined;
-    const [col, row] = loc;
-    const dataCol = col - 1;
-    const colDef = COLUMNS[dataCol];
-    if (!colDef) return undefined;
-    const colKey = colDef.key;
-    const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
-    if (!isEntity) return undefined;
-
-    const storedVal = String(scenesRef.current[row]?.[colKey] ?? '');
-    const skipComma = storedVal !== (cellData.data ?? '');
-
-    const editor = (p: any) => {
-      const { value: cellValue, onChange, onFinishedEditing } = p;
-      const currentVal = cellValue?.data ?? '';
-      const latestRef = useRef(cellValue);
-
-      const handleChange = (newVal: string) => {
-        const next = {
-          kind: GridCellKind.Text,
-          data: newVal,
-          displayData: newVal,
-          allowOverlay: true,
-        };
-        latestRef.current = next;
-        onChange(next);
-      };
-
-      const handleClose = () => {
-        onFinishedEditing(latestRef.current);
-      };
-
-      const handleTabClose = () => {
-        onFinishedEditing(latestRef.current, [1, 0] as any);
-      };
-
-      if (colKey === 'intExt') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={intExtOptions} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="INT, EXT, D/E..." />;
-      }
-      if (colKey === 'dayNight') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="DAY, NIGHT, MORNING..." />;
-      }
-      if (colKey === 'set') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
-      }
-      if (colKey === 'cast') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} mode="multi" displayMode="id" skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
-      }
-      const categoryItems = breakdownEditorItems.get(colKey) || [];
-      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={categoryItems} mode={isMultiValue(colKey, project.customCategories) ? 'multi' : 'single'} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
-    };
-    return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
-  }, [COLUMNS, allBreakdownCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, allBreakdownLabels, project.customCategories]);
+  const provideEditor = useMemo(() => createGlideCellEditor({
+    readOnlyRef,
+    columns: COLUMNS,
+    allBreakdownCategories,
+    allBreakdownLabels,
+    customCategories: project.customCategories,
+    scenesRef,
+    intExtOptions,
+    dayNightOptions,
+    setItems,
+    breakdownEditorItems,
+    portalRef,
+  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (!sel.current) return false;
