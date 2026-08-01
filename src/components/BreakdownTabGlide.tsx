@@ -33,6 +33,8 @@ import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
+import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
+import { createBlankScene } from '../lib/sceneFactory';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -58,19 +60,6 @@ const FIXED_COLS = [
   { key: 'cast', label: 'Cast', width: 120 },
   { key: 'notes', label: 'Notes', width: 200 },
 ];
-
-function textCell(data: string, opts?: Partial<{ readonly: boolean; displayData: string; allowOverlay: boolean; align: 'left' | 'right' | 'center'; cursor?: React.CSSProperties['cursor']; themeOverride?: { bgCell?: string } }>): GridCell {
-  return {
-    kind: GridCellKind.Text,
-    data,
-    displayData: opts?.displayData ?? data,
-    allowOverlay: opts?.allowOverlay ?? true,
-    readonly: opts?.readonly ?? false,
-    contentAlign: opts?.align,
-    cursor: opts?.cursor,
-    themeOverride: opts?.themeOverride,
-  } as GridCell;
-}
 
 export function GlideBreakdownTab({
   onOpenSheet,
@@ -350,15 +339,10 @@ export function GlideBreakdownTab({
           : colDef.key === 'set'
             ? newValue.data.toUpperCase()
             : newValue.data;
-      const newScene: Scene = {
-        id: generateUUID(), sceneNumber: colDef.key === 'sceneNumber' ? val : '', pageCount: '', pageCountDecimal: 0,
-        scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
-        description: '', cast: '', notes: '',
-        backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
-        makeup: '', sfx: '', vfx: '', sound: '', music: '',
-        animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
+      const newScene: Scene = createBlankScene({
+        sceneNumber: colDef.key === 'sceneNumber' ? val : '',
         [colDef.key]: val,
-      };
+      } as Partial<Scene>);
       if (!newScene.sceneNumber) {
         const prev = scenesRef.current[scenesRef.current.length - 1];
         const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
@@ -493,17 +477,32 @@ export function GlideBreakdownTab({
     }
 
     for (const s of newScenes) {
-      const scene = {
-        id: generateUUID(), sceneNumber: s.sceneNumber || '', pageCount: s.pageCount || '', pageCountDecimal: 0,
+      const scene: any = createBlankScene({
+        sceneNumber: s.sceneNumber || '',
+        pageCount: s.pageCount || '',
         scriptDay: (s.scriptDay || '').replace(/[^0-9]/g, ''),
-        intExt: s.intExt || '', set: (s.set || '').toUpperCase(), dayNight: s.dayNight || '',
-        description: s.description || '', cast: s.cast || '', notes: s.notes || '',
-        backgroundActors: s.backgroundActors || '', stunts: s.stunts || '', vehicles: s.vehicles || '',
-        props: s.props || '', wardrobe: s.wardrobe || '', makeup: s.makeup || '',
-        sfx: s.sfx || '', vfx: s.vfx || '', sound: s.sound || '', music: s.music || '',
-        animalsAndWranglers: s.animalsAndWranglers || '', weapons: s.weapons || '', greenery: s.greenery || '', artDept: s.artDept || '',
+        intExt: s.intExt || '',
+        set: (s.set || '').toUpperCase(),
+        dayNight: s.dayNight || '',
+        description: s.description || '',
+        cast: s.cast || '',
+        notes: s.notes || '',
+        backgroundActors: s.backgroundActors || '',
+        stunts: s.stunts || '',
+        vehicles: s.vehicles || '',
+        props: s.props || '',
+        wardrobe: s.wardrobe || '',
+        makeup: s.makeup || '',
+        sfx: s.sfx || '',
+        vfx: s.vfx || '',
+        sound: s.sound || '',
+        music: s.music || '',
+        animalsAndWranglers: s.animalsAndWranglers || '',
+        weapons: s.weapons || '',
+        greenery: s.greenery || '',
+        artDept: s.artDept || '',
         containerId: null,
-      };
+      } as any);
       if (scene.pageCount && scene.pageCount.trim()) {
         const decimal = parsePageCount(scene.pageCount);
         scene.pageCount = formatPageCount(decimal);
@@ -530,28 +529,13 @@ export function GlideBreakdownTab({
   const addScene = useCallback(() => {
     const prev = scenesRef.current[scenesRef.current.length - 1];
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
-    dispatch({ type: 'ADD_SCENE', payload: {
-      id: generateUUID(), sceneNumber: nextNum, pageCount: '', pageCountDecimal: 0,
-      scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
-      description: '', cast: '', notes: '',
-      backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
-      makeup: '', sfx: '', vfx: '', sound: '', music: '',
-      animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-      containerId: null,
-    }});
+    dispatch({ type: 'ADD_SCENE', payload: createBlankScene({ sceneNumber: nextNum, containerId: null } as any) });
   }, [dispatch, getNextSceneNumber]);
 
   const insertSceneAt = useCallback((index: number) => {
     const prev = scenesRef.current[index - 1];
     const nextNum = prev ? getNextSceneNumber(prev.sceneNumber) : '1';
-    const newScene: Scene = {
-      id: generateUUID(), sceneNumber: nextNum, pageCount: '', pageCountDecimal: 0,
-      scriptDay: '', intExt: '' as any, set: '', dayNight: '' as any,
-      description: '', cast: '', notes: '',
-      backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
-      makeup: '', sfx: '', vfx: '', sound: '', music: '',
-      animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
-    };
+    const newScene: Scene = createBlankScene({ sceneNumber: nextNum } as any);
     dispatch({ type: 'INSERT_SCENE_AT', payload: { index, scene: newScene } });
   }, [dispatch, getNextSceneNumber]);
 
@@ -586,18 +570,8 @@ export function GlideBreakdownTab({
     const range = getEffectiveRange();
     if (!range) return;
     const { x, y, width, height } = range;
-    const rows: string[] = [];
-    for (let r = y; r < y + height; r++) {
-      if (r >= scenes.length) break;
-      const cols: string[] = [];
-      for (let c = x; c < x + width; c++) {
-        const key = COLUMNS[c]?.key;
-        if (key === 'actions') continue;
-        cols.push(String((scenes[r] as any)[key] ?? ''));
-      }
-      rows.push(cols.join('\t'));
-    }
-    if (rows.length > 0) await clipboardWrite(rows.join('\n'));
+    const text = buildCopyText(scenes, COLUMNS, { x, y, width, height });
+    if (text.length > 0) await clipboardWrite(text);
     setContextMenu(null);
   }, [scenes, COLUMNS, getEffectiveRange]);
 
@@ -605,21 +579,9 @@ export function GlideBreakdownTab({
     const range = getEffectiveRange();
     if (!range) return;
     const { x, y, width, height } = range;
-    const rows: string[] = [];
-    const committers: { row: number; colKey: string }[] = [];
-    for (let r = y; r < y + height; r++) {
-      if (r >= scenes.length) continue;
-      const cols: string[] = [];
-      for (let c = x; c < x + width; c++) {
-        const key = COLUMNS[c]?.key;
-        if (!key || key === 'actions') continue;
-        cols.push(String((scenes[r] as any)[key] ?? ''));
-        committers.push({ row: r, colKey: key });
-      }
-      rows.push(cols.join('\t'));
-    }
-    if (rows.length > 0) {
-      await clipboardWrite(rows.join('\n'));
+    const { text, committers } = buildCutPlan(scenes, COLUMNS, { x, y, width, height });
+    if (text.length > 0) {
+      await clipboardWrite(text);
       dispatch({ type: 'BATCH_START' });
       for (const c of committers) commitEdit(scenes[c.row].id, c.colKey, '');
       dispatch({ type: 'BATCH_COMMIT' });
