@@ -91,9 +91,6 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
   });
 });
 
-import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
-
 test.describe('Design Tab', () => {
   test('design tab renders ribbon designer with palette and toolbar', async ({ page }) => {
   await openSeededProject(page);
