@@ -90,3 +90,20 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
     await page.keyboard.press('Escape');
   });
 });
+
+import { test, expect } from '@playwright/test';
+import { openSeededProject } from './helpers';
+
+test.describe('Design Tab', () => {
+  test('design tab renders ribbon designer with palette and toolbar', async ({ page }) => {
+  await openSeededProject(page);
+  await page.getByRole('button', { name: 'Design' }).click();
+  await page.waitForTimeout(800);
+
+  await expect(page.getByText('Editing:')).toBeVisible();
+  await expect(page.getByText('Fields')).toBeVisible();
+  await expect(page.getByText('Structure', { exact: true })).toBeVisible();
+  await expect(page.getByText('Designer', { exact: true })).toBeVisible();
+  await expect(page.getByText('Live Preview')).toBeVisible();
+});
+});

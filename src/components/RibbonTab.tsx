@@ -30,26 +30,9 @@ import { useViewMode, useCellBorders } from '../lib/persist';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { Tooltip } from './Tooltip';
 import { RibbonCellText } from './RibbonCellText';
-
-const FIELD_ICONS: Record<string, React.ElementType> = {
-  sceneNumber: Hash, callTime: Clock, duration: Timer, intExt: MapPin,
-  set: Building2, dayNight: Sun, cast: Users, pageCount: FileText,
-  sheetNumber: ClipboardList,
-  description: AlignLeft, scriptDay: Calendar, notes: StickyNote,
-  backgroundActors: UserPlus, stunts: Sparkles, vehicles: Car, props: Package,
-  wardrobe: Shirt, makeup: Scissors, sfx: Volume1, vfx: Video,
-  sound: Volume2, music: Music, animalsAndWranglers: PawPrint, weapons: Sword,
-  greenery: Leaf, artDept: PaintBucket, text: Type,
-};
-
-const CUSTOM_ICON_MAP: Record<string, React.ElementType> = {
-  Tag, Package, Car, Shirt, Sword, Sparkles, Volume1, Music,
-  PawPrint, Leaf, PaintBucket, UserPlus, Video, Scissors, Users, Building2, Volume2, CircleDot,
-};
-
-function getCustomIcon(name: string): React.ElementType {
-  return CUSTOM_ICON_MAP[name] || Tag;
-}
+import RibbonPalette from './ribbon/RibbonPalette';
+import { FIELD_ICONS, getCustomIcon } from './ribbon/ribbonPaletteMeta';
+import RibbonToolbar from './ribbon/RibbonToolbar';
 
 const PREVIEW_STYLE = { bg: '#ffffff', fg: '#464646' };
 
@@ -700,309 +683,49 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
       {/* ══ Body ══ */}
       <div className="flex-1 flex overflow-hidden">
         {/* ── Left: Palette ── */}
-        <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto">
-          <div className="p-3 pb-20">
-            <div className="flex items-center gap-1.5 mb-3">
-              <Eye className="w-3.5 h-3.5 text-zinc-500" />
-              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Fields</span>
-              <span className="ml-auto text-[10px] tabular-nums text-zinc-600">{placed}/{total}</span>
-            </div>
-
-            {allCategories.map(cat => {
-              const items = allFields.filter(f => f.category === cat);
-              const catUsed = items.filter(f => used.has(f.key)).length;
-              const catColors: Record<string, string> = {
-                'Scene Info': 'text-blue-400', 'Shooting': 'text-emerald-400',
-                'Cast & Talent': 'text-amber-400', 'Production': 'text-violet-400',
-                'Breakdown': 'text-rose-400', 'VFX & Audio': 'text-cyan-400',
-                'Misc': 'text-zinc-400', 'Special': 'text-pink-400', 'Custom': 'text-fuchsia-400',
-              };
-              const cc = catColors[cat] || 'text-zinc-400';
-              return (
-                <div key={cat} className="mb-3">
-                  <div className="flex items-center gap-1 mb-1 text-left">
-                    <span className={`text-[9px] font-bold uppercase tracking-wide truncate ${cc}`}>{cat}</span>
-                    <span className="ml-auto text-[9px] text-zinc-600">{catUsed}/{items.length}</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    {items.map(f => {
-                      const inUse = used.has(f.key);
-                      const customCat = (project.customCategories || []).find(c => c.key === f.key);
-                      const Icon = FIELD_ICONS[f.key] || (customCat ? getCustomIcon(customCat.icon) : Tag);
-                      return (
-                        <button
-                          key={f.key}
-                          onClick={() => { if (!readOnly && selId) assign(selId, f.key); }}
-                          draggable
-                          onDragStart={e => e.dataTransfer.setData('text/field', f.key)}
-                          className={`w-full text-left px-2 py-1 rounded transition-colors flex items-center gap-1.5 group ${
-                            inUse
-                              ? 'bg-zinc-800 ring-1 ring-inset ring-zinc-700 text-zinc-200 hover:bg-zinc-700'
-                              : 'bg-zinc-800/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-                          }`}
-                        >
-                          {Icon && <Icon className={`w-3 h-3 shrink-0 ${inUse ? 'text-blue-400' : 'text-zinc-600'}`} />}
-                          <span className="text-[10px] truncate">{f.label}</span>
-                          {inUse ? (
-                            <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                          ) : (
-                            <GripHorizontal className="w-2.5 h-2.5 text-zinc-700 ml-auto hover-reveal shrink-0" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
+        <RibbonPalette
+          allCategories={allCategories}
+          allFields={allFields}
+          used={used as Set<string>}
+          placed={placed}
+          total={total}
+          customCategories={project.customCategories || []}
+          readOnly={readOnly}
+          selId={selId}
+          assign={assign}
+        />
 
         {/* ── Canvas ── */}
         <div ref={canvasRef} className="flex-1 overflow-auto bg-zinc-950 p-6 pr-12" onClick={() => setSelId(null)}>
           {/* Toolbar */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg mb-4 divide-y divide-zinc-800 select-none min-w-max" onClick={e => e.stopPropagation()}>
-            {/* Structure */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Structure</span>
-              <Tooltip content="Add Column After">
-                <button onClick={() => selCell && setSelId(addColumn(selCell.ci))} disabled={readOnly || !selCell}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Plus className="w-3 h-3" /> Column
-                </button>
-              </Tooltip>
-              <Tooltip content="Delete Column">
-                <button onClick={() => selCell && removeColumn(selCell.ci)} disabled={readOnly || !selCell || numCols <= 1}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Trash2 className="w-3 h-3" /> Column
-                </button>
-              </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              <Tooltip content="Add Row">
-                <button onClick={() => selCell && addRow()} disabled={readOnly || !selCell}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Plus className="w-3 h-3" /> Row
-                </button>
-              </Tooltip>
-              <Tooltip content="Delete Row">
-                <button onClick={() => selCell && removeRow(selCell.row.id)} disabled={readOnly || !selCell || rows.length <= 1}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-red-950/50 disabled:opacity-30 flex items-center gap-1.5 transition-colors">
-                  <Trash2 className="w-3 h-3" /> Row
-                </button>
-              </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              <Tooltip content="Move Column Left">
-                <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci - 1)} disabled={readOnly || !selCell || selCell.ci === 0}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowLeft className="w-2.5 h-2.5" /> Move
-                </button>
-              </Tooltip>
-              <Tooltip content="Move Column Right">
-                <button onClick={() => selCell && swapCellsAllRows(selCell.ci, selCell.ci + 1)} disabled={readOnly || !selCell || (selCell && selCell.ci >= numCols - 1)}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowRight className="w-2.5 h-2.5" /> Move
-                </button>
-              </Tooltip>
-              <Tooltip content="Move Row Up">
-                <button onClick={() => selCell && moveRow(selCell.row.id, -1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowUp className="w-2.5 h-2.5" /> Move
-                </button>
-              </Tooltip>
-              <Tooltip content="Move Row Down">
-                <button onClick={() => selCell && moveRow(selCell.row.id, 1)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowDown className="w-2.5 h-2.5" /> Move
-                </button>
-              </Tooltip>
-            </div>
-            {/* Cell */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Cell</span>
-              <Tooltip content="Change Field">
-                <button
-                  onClick={e => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
-                  disabled={readOnly || !selCell}
-                  className="h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1 transition-colors">
-                  <ArrowRightLeft className="w-3 h-3" /> Change
-                  <ChevronDown className="w-3 h-3 text-zinc-500 ml-0.5" />
-                </button>
-              </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              <Tooltip content="Copy field from row above">
-                <button onClick={() => selCell && copyFromAbove(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) <= 0}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowDown className="w-2.5 h-2.5" /> Above
-                </button>
-              </Tooltip>
-              <Tooltip content="Copy field from row below">
-                <button onClick={() => selCell && copyFromBelow(selCell.cell.id)} disabled={readOnly || !selCell || rows.findIndex(r => r.id === selCell.row.id) >= rows.length - 1}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowUp className="w-2.5 h-2.5" /> Below
-                </button>
-              </Tooltip>
-              <Tooltip content="Copy field from column left">
-                <button onClick={() => selCell && copyFromLeft(selCell.cell.id)} disabled={readOnly || !selCell || selCell.ci <= 0}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowLeft className="w-2.5 h-2.5" /> Left
-                </button>
-              </Tooltip>
-              <Tooltip content="Copy field from column right">
-                <button onClick={() => selCell && copyFromRight(selCell.cell.id)} disabled={readOnly || !selCell || (selCell && selCell.ci >= selCell.row.cells.length - 1)}
-                  className="h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors">
-                  <ArrowRight className="w-2.5 h-2.5" /> Right
-                </button>
-              </Tooltip>
-            </div>
-            {/* Cell Style */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Style</span>
-              {(['left', 'center', 'right'] as const).map(a => {
-                const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-                const active = selCell?.cell.align === a || (!selCell?.cell.align && getAlign(selCell?.cell) === a);
-                const label = a === 'left' ? 'Align Left' : a === 'center' ? 'Align Center' : 'Align Right';
-                return (
-                  <Tooltip key={a} content={label}>
-                    <button
-                      onClick={() => selCell && setAlign(selId!, active ? undefined : a)}
-                      disabled={readOnly || !selCell}
-                      className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                        active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                      }`}>
-                      <Icon className="w-3 h-3" />
-                    </button>
-                  </Tooltip>
-                );
-              })}
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              {(['top', 'middle', 'bottom'] as const).map(va => {
-                const Icon = va === 'top' ? PanelTop : va === 'middle' ? Equal : PanelBottom;
-                const active = va === 'middle'
-                  ? (!selCell?.cell.verticalAlign || selCell?.cell.verticalAlign === 'middle')
-                  : selCell?.cell.verticalAlign === va;
-                const label = va === 'top' ? 'Align Top' : va === 'middle' ? 'Align Middle' : 'Align Bottom';
-                return (
-                  <Tooltip key={va} content={label}>
-                    <button
-                      onClick={() => selCell && setVerticalAlign(selId!, active && va !== 'middle' ? undefined : va)}
-                      disabled={readOnly || !selCell}
-                      className={`h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors ${
-                        active ? 'bg-blue-900/50 border-blue-700 text-blue-300' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700'
-                      }`}>
-                      <Icon className="w-3 h-3" />
-                    </button>
-                  </Tooltip>
-                );
-              })}
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              <div className="inline-flex rounded overflow-hidden border border-zinc-700">
-                {(['truncate', 'wrap', 'none', 'visible'] as const).map((mode, i) => {
-                  const current = selCell?.cell.truncation === false ? 'none' : selCell?.cell.overflowVisible ? 'visible' : selCell?.cell.wrap ? 'wrap' : 'truncate';
-                  const active = mode === current;
-                  const Icon = mode === 'wrap' ? WrapText : mode === 'none' ? X : mode === 'visible' ? Eye : Ellipsis;
-                  const label = mode === 'wrap' ? 'Wrap' : mode === 'none' ? 'None' : mode === 'visible' ? 'Visible' : 'Truncate';
-                  return (
-                    <Tooltip key={mode} content={`Overflow: ${label}`}>
-                      <button
-                        onClick={() => selCell && !active && setOverflow(selId!, mode)}
-                        disabled={readOnly || !selCell}
-                        className={`h-7 w-7 flex items-center justify-center disabled:opacity-25 transition-colors ${
-                          active ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'
-                        } ${i < 3 ? 'border-r border-zinc-700' : ''}`}>
-                        <Icon className="w-3 h-3" />
-                      </button>
-                    </Tooltip>
-                  );
-                })}
-              </div>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              {selCell?.cell.field === 'text' ? (
-                <Tooltip content="Static Text Content">
-                  <input
-                    value={selCell?.cell.textContent || ''}
-                    onChange={e => selCell && setTextContent(selCell.cell.id, e.target.value)}
-                    placeholder="Text content..."
-                    disabled={readOnly || !selCell}
-                    className="h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30 w-32 shrink-0"
-                  />
-                </Tooltip>
-              ) : (
-                <div className="flex items-center gap-1 shrink-0">
-                  <Tooltip content="Prefix">
-                    <input
-                      value={selCell?.cell.prefix || ''}
-                      onChange={e => selCell?.cell.field && setAffix(selCell.cell.id, 'prefix', e.target.value)}
-                      placeholder="Prefix"
-                      disabled={readOnly || !selCell || !selCell.cell.field}
-                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-25"
-                    />
-                  </Tooltip>
-                  <Tooltip content="Suffix">
-                    <input
-                      value={selCell?.cell.suffix || ''}
-                      onChange={e => selCell?.cell.field && setAffix(selCell.cell.id, 'suffix', e.target.value)}
-                      placeholder="Suffix"
-                      disabled={readOnly || !selCell || !selCell.cell.field}
-                      className="h-7 w-14 px-1.5 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-25"
-                    />
-                  </Tooltip>
-                </div>
-              )}
-            </div>
-            {/* Layout */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-              <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16">Layout</span>
-              <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
-              <Tooltip content="Vertical Cell Padding (px)">
-                <input
-                  type="number"
-                  min={0}
-                  max={24}
-                  value={activeDesign.cellPaddingV ?? 6}
-                  onChange={e => {
-                    if (readOnly) return;
-                    const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                    dispatch({ type: 'SET_RIBBON_CELL_PADDING_V', payload: { id: activeDesign.id, cellPaddingV: v } });
-                  }}
-                  readOnly={readOnly}
-                  className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
-                />
-              </Tooltip>
-              <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
-              <Tooltip content="Horizontal Cell Padding (px)">
-                <input
-                  type="number"
-                  min={0}
-                  max={24}
-                  value={activeDesign.cellPaddingH ?? 6}
-                  onChange={e => {
-                    if (readOnly) return;
-                    const v = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
-                    dispatch({ type: 'SET_RIBBON_CELL_PADDING_H', payload: { id: activeDesign.id, cellPaddingH: v } });
-                  }}
-                  readOnly={readOnly}
-                  className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
-                />
-              </Tooltip>
-              <div className="w-px h-5 bg-zinc-700 mx-0.5" />
-              <span className="text-[10px] text-zinc-500 shrink-0">Edge</span>
-              <Tooltip content="Edge Padding (px)">
-                <input
-                  type="number"
-                  min={0}
-                  max={12}
-                  value={activeDesign.edgePadding ?? 2}
-                  onChange={e => {
-                    if (readOnly) return;
-                    const v = Math.max(0, Math.min(12, parseInt(e.target.value) || 0));
-                    dispatch({ type: 'SET_RIBBON_EDGE_PADDING', payload: { id: activeDesign.id, edgePadding: v } });
-                  }}
-                  readOnly={readOnly}
-                  className="w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50"
-                />
-              </Tooltip>
-            </div>
-          </div>
+          <RibbonToolbar
+            readOnly={readOnly}
+            selCell={selCell}
+            selId={selId}
+            numCols={numCols}
+            rows={rows}
+            onAddColumn={(ci) => setSelId(addColumn(ci))}
+            removeColumn={removeColumn}
+            addRow={addRow}
+            removeRow={removeRow}
+            swapCellsAllRows={swapCellsAllRows}
+            moveRow={moveRow}
+            copyFromAbove={copyFromAbove}
+            copyFromBelow={copyFromBelow}
+            copyFromLeft={copyFromLeft}
+            copyFromRight={copyFromRight}
+            setAlign={setAlign}
+            setVerticalAlign={setVerticalAlign}
+            setOverflow={setOverflow}
+            setTextContent={setTextContent}
+            setAffix={setAffix}
+            onOpenFieldMenu={(e) => { if (!selCell) return; const rect = e.currentTarget.getBoundingClientRect(); setContextPos({ x: rect.left, y: rect.bottom }); }}
+            dispatch={dispatch}
+            designId={activeDesign.id}
+            cellPaddingV={activeDesign.cellPaddingV}
+            cellPaddingH={activeDesign.cellPaddingH}
+            edgePadding={activeDesign.edgePadding}
+          />
           <div className="mx-auto space-y-6" style={{ width: viewWidth ? `${viewWidth}px` : '100%' }}>
 
             {/* ══ Designer (CSS Grid) ══ */}
