@@ -134,6 +134,11 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Trash on day header</>} action="Send all ribbons from that day to boneyard" />
         </Section>
 
+        <Section title="Toolbar">
+          <Row keys={<>Auto Day Breaks</>} action="Auto-place day break separators across all days (by duration or pages), or clear all" />
+          <Row keys={<>Auto Banners</>} action="Add a NOTE/BREAK banner (custom label + duration) to every day at the top, middle, or bottom; middle can split by ribbons, duration, or pages. Also delete all notes or breaks" />
+        </Section>
+
         <Section title="Context Menu (Right-click)">
           <Row keys={<>Right-click</>} action="Open context menu on a ribbon" />
           <Row keys={<>Add Note / Break / Daybreak</>} action="Insert a note, break, or daybreak ribbon below the target" />

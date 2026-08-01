@@ -237,12 +237,12 @@ export default function DurationKeypad({
       </div>
       {open && createPortal(
         <div
-          className="fixed inset-0 z-[300]"
+          className="fixed inset-0 z-[10002]"
           onPointerDown={(e) => { e.nativeEvent.stopImmediatePropagation(); handleCommit(); }}
         >
           <div
             ref={keypadRef}
-            className="fixed z-[301]"
+            className="fixed z-[10003]"
             style={{ top: pos.top, left: pos.left }}
             onPointerDown={e => { e.stopPropagation(); e.nativeEvent.stopImmediatePropagation(); }}
           >

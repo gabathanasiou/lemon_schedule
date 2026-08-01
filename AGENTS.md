@@ -618,4 +618,16 @@ Right-clicking empty space in a Calendar day opens a minimal context menu: Paste
 
 Same logic applies to drag-drop in Calendar (`handleDragEnd`) and context menu paste/add.
 
+### Auto Banners Button (ScheduleTab)
+
+The **Auto Banners** dropdown (next to Auto Day Breaks) adds a NOTE or BREAK banner into **every production day** at once, or bulk-deletes banners.
+
+| Item | Behavior |
+|---|---|
+| **Add Banners…** | Opens `AddBannerModal` (`src/components/AddBannerModal.tsx`): sectioned layout (Banner / Placement). Banner section: NOTE/BREAK type toggle, Label input (auto-uppercased; BREAK defaults to `LUNCH`, NOTE empty), duration (default 30m, type `1h 49m` directly — `CellInput` on mouse / `DurationKeypad` on touch via `useLastPointerType`, in a bordered field box; pages field carries a `pgs` suffix). NOTE type also shows Background/Text Color pickers (defaults `#591b1b`/`#ffffff`, matching the Edit Banner modal). Placement section: Top (after the opening daybreak), Bottom (before the closing daybreak), or Middle (split by ribbons count, or after a required specific duration/pages value — "Add Banners" is disabled until the split target is filled). |
+| **Delete All Notes… / Delete All Breaks…** | Danger-confirmed removal of scheduled banners only (`containerId != null`), renumbering all rows; mirrors `handleDeleteAllDaybreaks`. |
+
+- **Insertion logic** (`handleAddBanners` in `ScheduleTab.tsx`): iterates `sections` from `useDaybreakSections`, skips pinned sections, computes per-day insertion index via the opening daybreak (`sections[i-1].daybreakRow`) / closing daybreak (`sections[i].daybreakRow`) / `computeMiddleInsertIndex` helper, then splices banner rows (`NOTE` → `noteText` (from config label) + `estimatedDuration`, `BREAK` → `breakLabel` (from config label, default `LUNCH`) + `breakDuration`) into the sorted stripboard rows, renumbers `order`, dispatches a single batched `UPDATE_VERSION`.
+- **Disabled state**: the trigger is disabled when the version has no non-pinned DAYBREAK rows (i.e. no daybreak-defined days).
+
 |

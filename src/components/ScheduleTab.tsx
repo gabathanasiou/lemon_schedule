@@ -9,7 +9,7 @@ import { SortableRibbon } from './SortableRibbon';
 import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, Flag, Send, CheckSquare } from 'lucide-react';
+import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Eraser, Wand2, Clock, FileText, Flag, Send, CheckSquare, CalendarPlus } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -31,8 +31,53 @@ import { checkSection } from '../lib/rulesEngine';
 import { addMinutesToTime, formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import AddBannerModal, { AddBannerConfig } from './AddBannerModal';
 import { getContainerBlock, getContainerBlockForId, makeEmptyContainerIds, ContainerIds, LastSelectedByContainer } from '../lib/containers';
 import PageToolbar from './PageToolbar';
+
+function computeMiddleInsertIndex(
+  stripRows: ScheduleRow[],
+  content: ScheduleRow[],
+  scenes: Scene[],
+  config: AddBannerConfig,
+): number | null {
+  const n = content.length;
+  if (n === 0) return null;
+
+  const getRowValue = (r: ScheduleRow): number => {
+    if (config.splitMethod === 'pages') {
+      if (r.type !== 'SCENE' || !r.sceneId) return 0;
+      return scenes.find(s => s.id === r.sceneId)?.pageCountDecimal || 0;
+    }
+    if (r.type === 'SCENE' || r.type === 'NOTE') return r.estimatedDuration || 0;
+    return 0;
+  };
+
+  if (config.splitMethod === 'ribbons') {
+    const splitAt = Math.floor(n / 2);
+    if (splitAt <= 0) return null;
+    const idx = stripRows.findIndex(x => x.id === content[splitAt].id);
+    return idx >= 0 ? idx : null;
+  }
+
+  let total = 0;
+  for (const r of content) total += getRowValue(r);
+  if (total <= 0) return null;
+
+  const target = config.splitTarget != null && config.splitTarget > 0 ? config.splitTarget : total / 2;
+  let acc = 0;
+  for (const r of content) {
+    acc += getRowValue(r);
+    if (acc >= target) {
+      const idx = stripRows.findIndex(x => x.id === r.id);
+      return idx >= 0 ? idx : null;
+    }
+  }
+
+  const last = content[content.length - 1];
+  const lastIdx = stripRows.findIndex(x => x.id === last.id);
+  return lastIdx >= 0 ? lastIdx + 1 : null;
+}
 
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
@@ -41,7 +86,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const isCloud = useIsCloudProject();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
-  const { sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
+  const { sections, sectionDateMap: hookSectionDateMap, daybreakRowToSection, nextSectionDateMap: hookNextSectionDateMap, productionSections, chronoDayMap: sectionChronoDayMap } = useDaybreakSections();
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [cellBorders, setCellBorders] = useCellBorders();
 
@@ -63,6 +108,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [autoDaybreakCleanup, setAutoDaybreakCleanup] = useState<{ mode: 'duration' | 'pages'; threshold: number } | null>(null);
   const [autoDaybreakNotesAction, setAutoDaybreakNotesAction] = useState<'boneyard' | 'delete'>('boneyard');
   const [autoDaybreakBreaksAction, setAutoDaybreakBreaksAction] = useState<'boneyard' | 'delete'>('boneyard');
+  const [bannerMenuOpen, setBannerMenuOpen] = useState(false);
+  const [bannerModalOpen, setBannerModalOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -1058,6 +1105,105 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     dispatch({ type: 'BATCH_COMMIT' });
   };
 
+  const hasDaybreakDays = useMemo(() =>
+    activeVersion?.rows.some(r => r.type === 'DAYBREAK' && !r.pinned && r.containerId != null && r.containerId !== -1) ?? false,
+  [activeVersion]);
+
+  const handleDeleteAllBanners = async (target: 'NOTE' | 'BREAK') => {
+    if (!activeVersion) return;
+    const rows = activeVersion.rows.filter(r => r.containerId != null && r.type === target);
+    if (rows.length === 0) return;
+    const label = target === 'NOTE' ? 'Notes' : 'Breaks';
+    const ok = await dialog.confirm({
+      title: `Delete All ${label}`,
+      message: `Remove all ${rows.length} ${target === 'NOTE' ? 'note' : 'break'} banner${rows.length !== 1 ? 's' : ''} from the stripboard?`,
+      danger: true,
+    });
+    if (!ok) return;
+    const ids = new Set(rows.map(r => r.id));
+    dispatch({ type: 'BATCH_START' });
+    const newRows = activeVersion.rows.filter(r => !ids.has(r.id)).map((r, i) => ({ ...r, order: i }));
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    dispatch({ type: 'BATCH_COMMIT' });
+  };
+
+  const handleAddBanners = (config: AddBannerConfig) => {
+    if (!activeVersion) return;
+    const stripRows = activeVersion.rows
+      .filter(r => r.containerId != null && r.containerId !== -1)
+      .sort((a, b) => {
+        if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
+        return a.order - b.order;
+      });
+
+    type Insertion = { index: number; row: ScheduleRow };
+    const insertions: Insertion[] = [];
+
+    for (let i = 0; i < sections.length; i++) {
+      const s = sections[i];
+      if (s.isPinned) continue;
+      const content = s.rows;
+      const containerId = content[0]?.containerId ?? s.daybreakRow?.containerId ?? 1;
+      const banner: ScheduleRow = {
+        id: generateUUID(),
+        type: config.type,
+        containerId,
+        order: 0,
+        ...(config.type === 'NOTE'
+          ? {
+              noteText: (config.label || '').toUpperCase(),
+              estimatedDuration: config.minutes,
+              noteColor: config.noteColor || '#591b1b',
+              noteTextColor: config.noteTextColor || '#ffffff',
+            }
+          : { breakLabel: (config.label || 'LUNCH').toUpperCase(), breakDuration: config.minutes }),
+      };
+
+      const opening = i > 0 ? sections[i - 1].daybreakRow : undefined;
+      const openingIdx = opening ? stripRows.findIndex(r => r.id === opening.id) : -1;
+      const closing = s.daybreakRow;
+      const closingIdx = closing ? stripRows.findIndex(r => r.id === closing.id) : -1;
+
+      let insertIndex: number;
+      if (config.position === 'top') {
+        insertIndex = openingIdx >= 0 ? openingIdx + 1 : 0;
+      } else if (config.position === 'bottom') {
+        insertIndex = closingIdx >= 0 ? closingIdx : stripRows.length;
+      } else {
+        insertIndex = computeMiddleInsertIndex(stripRows, content, project.scenes, config)
+          ?? (openingIdx >= 0 ? openingIdx + 1 : 0);
+      }
+
+      insertions.push({ index: insertIndex, row: banner });
+    }
+
+    if (insertions.length === 0) return;
+
+    insertions.sort((a, b) => a.index - b.index);
+
+    const newStripRows: ScheduleRow[] = [];
+    let insertionPtr = 0;
+    for (let i = 0; i < stripRows.length; i++) {
+      while (insertionPtr < insertions.length && insertions[insertionPtr].index === i) {
+        newStripRows.push({ ...insertions[insertionPtr].row });
+        insertionPtr++;
+      }
+      newStripRows.push({ ...stripRows[i] });
+    }
+    for (; insertionPtr < insertions.length; insertionPtr++) {
+      newStripRows.push({ ...insertions[insertionPtr].row });
+    }
+
+    newStripRows.forEach((r, i) => { r.order = i; });
+
+    const otherRows = activeVersion.rows.filter(r => r.containerId == null || r.containerId === -1);
+    const newRows = [...newStripRows, ...otherRows];
+
+    dispatch({ type: 'BATCH_START' });
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+    dispatch({ type: 'BATCH_COMMIT' });
+  };
+
   const handleAutoDaybreak = async (mode: 'duration' | 'pages') => {
     if (!activeVersion) return;
     const val = await dialog.prompt({
@@ -1669,6 +1815,28 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               <DropdownDivider />
               <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Eraser className="w-3.5 h-3.5" />} variant="danger">Clear All</DropdownItem>
             </DropdownMenu>
+            <DropdownMenu
+              open={bannerMenuOpen}
+              onOpenChange={setBannerMenuOpen}
+              width="w-48"
+              theme="light"
+              trigger={
+                <button
+                  disabled={!hasDaybreakDays}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${!hasDaybreakDays ? 'opacity-40 cursor-not-allowed text-zinc-400' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+                  title={!hasDaybreakDays ? 'Add day breaks first' : 'Auto add note/break banners'}
+                >
+                  <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
+                  Auto Banners
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </button>
+              }
+            >
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Banners…</DropdownItem>
+              <DropdownDivider />
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('NOTE'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Notes…</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('BREAK'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Breaks…</DropdownItem>
+            </DropdownMenu>
             <SortDropdown
               open={sortMenuOpen}
               onOpenChange={setSortMenuOpen}
@@ -1814,6 +1982,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
             setSortMenuOpen(false);
             setRibbonMenuOpen(false);
             setAutoDaybreakOpen(false);
+            setBannerMenuOpen(false);
           }}
           onContextMenu={(e) => {
               const rowEl = (e.target as HTMLElement).closest('[data-row-id]');
@@ -2168,6 +2337,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           </Modal>
         );
       })()}
+      <AddBannerModal
+        open={bannerModalOpen}
+        onClose={() => setBannerModalOpen(false)}
+        dayCount={productionSections.length}
+        onAdd={handleAddBanners}
+      />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <ShootViolationsModal
         open={showShootViolations}
