@@ -6,7 +6,7 @@ import { useProject } from '../store';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { generateUUID } from '../lib/utils';
 import { resolveSceneColor, getNoteBannerColors, getSelectedStripColors, getFallbackStripColors, getDayHeaderColors, getDayFooterColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, GripVertical, Flag, X, Pointer, Eraser, Trash2, Briefcase, Pause, Plane, Sun, Plus, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -43,18 +43,52 @@ function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-function getCalendarDays(year: number, month: number) {
-  const firstDay = new Date(year, month, 1);
-  const startOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-  const cursor = new Date(year, month, 1 - startOfWeek);
-  const todayKey = toDateKey(new Date());
-  const days: { date: Date; dateKey: string; isCurrentMonth: boolean; isToday: boolean }[] = [];
-  for (let i = 0; i < 42; i++) {
-    const isCurrentMonth = cursor.getMonth() === month;
-    days.push({ date: new Date(cursor), dateKey: toDateKey(cursor), isCurrentMonth, isToday: toDateKey(cursor) === todayKey });
-    cursor.setDate(cursor.getDate() + 1);
+interface CalendarMonth { year: number; month: number; }
+
+function monthsInRange(startYear: number, startMonth: number, endYear: number, endMonth: number): CalendarMonth[] {
+  const months: CalendarMonth[] = [];
+  let y = startYear;
+  let m = startMonth;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    months.push({ year: y, month: m });
+    if (m === 11) { m = 0; y += 1; } else { m += 1; }
   }
-  return days;
+  return months;
+}
+
+function monthWeekCount(year: number, month: number): number {
+  const first = new Date(year, month, 1);
+  const startOff = first.getDay() === 0 ? 6 : first.getDay() - 1;
+  const last = new Date(year, month + 1, 0);
+  const endOff = last.getDay() === 0 ? 6 : last.getDay() - 1;
+  return Math.ceil((startOff + last.getDate() + (6 - endOff)) / 7);
+}
+
+function estimateMonthHeight(year: number, month: number): number {
+  return monthWeekCount(year, month) * 96 + 30;
+}
+
+type MonthSlot = { filler: true; key: string } | { filler: false; key: string; date: Date; dateKey: string; isToday: boolean };
+
+function buildMonthSlots(year: number, month: number): MonthSlot[] {
+  const first = new Date(year, month, 1);
+  const startOff = first.getDay() === 0 ? 6 : first.getDay() - 1;
+  const last = new Date(year, month + 1, 0);
+  const endOff = last.getDay() === 0 ? 6 : last.getDay() - 1;
+  const todayKey = toDateKey(new Date());
+  const slots: MonthSlot[] = [];
+  for (let i = 0; i < startOff; i++) slots.push({ filler: true, key: `${year}-${month}-lead-${i}` });
+  for (let d = 1; d <= last.getDate(); d++) {
+    const date = new Date(year, month, d);
+    const dateKey = toDateKey(date);
+    slots.push({ filler: false, key: dateKey, date, dateKey, isToday: dateKey === todayKey });
+  }
+  for (let i = 0; i < 6 - endOff; i++) slots.push({ filler: true, key: `${year}-${month}-trail-${i}` });
+  return slots;
+}
+
+function monthTitle(year: number, month: number): string {
+  return new Date(year, month, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
 const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; selBg?: string; selColor?: string }> = ({ row, scene, displayField, violations, isSelected, selBg, selColor }) => {
@@ -131,7 +165,7 @@ const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: strin
 };
 
 const DayCell: React.FC<{
-  dateKey: string; date: Date; isCurrentMonth: boolean; isToday: boolean;
+  dateKey: string; date: Date; isToday: boolean;
   rows: ScheduleRow[]; scenes: Scene[]; displayField: string;
   violations: RuleViolation[];
   sceneViolationMap: Map<string, RuleViolation[]>;
@@ -149,14 +183,13 @@ const DayCell: React.FC<{
   activeDragRow?: ScheduleRow | null;
   activeDragRows?: ScheduleRow[];
   activeRowId?: string | null;
-  monthSeparator?: string | null;
   onRowDoubleClick?: (id: string) => void;
   onRowContextMenu?: (e: React.MouseEvent) => void;
   onBodyContextMenu?: (e: React.MouseEvent, targetRowId: string) => void;
   bodyTargetRowId?: string | null;
   palette?: SceneColorPalette;
   activeDragDay?: number | null;
-}> = ({ dateKey, date, isCurrentMonth, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, monthSeparator, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, label, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay }) => {
   const { readOnly } = useProject();
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
@@ -191,21 +224,16 @@ const DayCell: React.FC<{
   const isWorking = sectionIndex != null;
 
   return (
-    <div ref={setNodeRef}
+    <div ref={setNodeRef} data-date-key={dateKey}
       className={`min-h-[80px] h-full border-r flex flex-col relative
         ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
-        ${!isCurrentMonth ? 'bg-zinc-50/50 text-zinc-300' : !isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
+        ${!isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
     >
         {label && (
           <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full bg-white text-[7px] font-bold text-zinc-800 shadow-sm border border-zinc-300 leading-none z-20">
             {label}
           </span>
-        )}
-        {monthSeparator && (
-          <div className="text-center text-[9px] font-bold text-zinc-400 uppercase tracking-wider py-0.5 bg-zinc-50 border-b border-zinc-200">
-            {monthSeparator}
-          </div>
         )}
         <div
           ref={setDragRef}
@@ -214,7 +242,7 @@ const DayCell: React.FC<{
           onClick={() => activeTool && onToggle(dateKey)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
-        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isCurrentMonth ? '' : 'opacity-30'} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
+        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
       >
         <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
         <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
@@ -270,6 +298,10 @@ const DayCell: React.FC<{
     </div>
   );
 };
+
+const FillerCell: React.FC = () => (
+  <div className="min-h-[80px] h-full border-r border-b border-dashed border-zinc-200 bg-zinc-50/30" />
+);
 
 const BoneyardSidebar: React.FC<{
   rows: ScheduleRow[];
@@ -482,14 +514,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const { displayField, showBreaks, showConflicts } = calSettings;
   const updateCal = (patch: Partial<typeof calSettings>) => setCalSettings(prev => ({ ...prev, ...patch }));
 
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(startDate + 'T00:00:00').getMonth());
-  const [currentYear, setCurrentYear] = useState(() => new Date(startDate + 'T00:00:00').getFullYear());
-
-  useEffect(() => {
-    const d = new Date(startDate + 'T00:00:00');
-    setCurrentMonth(d.getMonth());
-    setCurrentYear(d.getFullYear());
-  }, [startDate]);
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
@@ -598,7 +622,36 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         })
   );
 
-  const days = useMemo(() => getCalendarDays(currentYear, currentMonth), [currentYear, currentMonth]);
+  const calendarMonths = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    let lastDate: string | null = null;
+    for (const d of hookSectionDateMap.values()) {
+      if (!lastDate || d > lastDate) lastDate = d;
+    }
+    const end = lastDate ? new Date(lastDate + 'T00:00:00') : new Date(start);
+    return monthsInRange(start.getFullYear(), start.getMonth(), end.getFullYear(), end.getMonth());
+  }, [startDate, hookSectionDateMap]);
+
+  const days = useMemo(() => {
+    const out: { date: Date; dateKey: string; isToday: boolean }[] = [];
+    for (const m of calendarMonths) {
+      for (const slot of buildMonthSlots(m.year, m.month)) {
+        if (slot.filler) continue;
+        const day = slot as Extract<MonthSlot, { filler: false }>;
+        out.push({ date: day.date, dateKey: day.dateKey, isToday: day.isToday });
+      }
+    }
+    return out;
+  }, [calendarMonths]);
+
+  const rangeLabel = useMemo(() => {
+    if (calendarMonths.length === 0) return '';
+    const first = calendarMonths[0];
+    const last = calendarMonths[calendarMonths.length - 1];
+    const f = new Date(first.year, first.month, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    const l = new Date(last.year, last.month, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    return first.year === last.year && first.month === last.month ? f : `${f} - ${l}`;
+  }, [calendarMonths]);
 
   const openAutoDayOff = useCallback(() => {
     setAutoDayOffOpen(true);
@@ -1187,10 +1240,73 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setSelectedRowIds(new Set(draggingIds));
   };
 
-  const goPrev = () => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); };
-  const goNext = () => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); } else setCurrentMonth(m => m + 1); };
+  const [renderWindow, setRenderWindow] = useState({ start: 0, end: 2 });
+  const [measuredHeights, setMeasuredHeights] = useState<Record<string, number>>({});
 
-  const monthName = new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const updateRenderWindow = useCallback(() => {
+    const el = calendarGridRef.current;
+    if (!el) return;
+    const monthEls = el.querySelectorAll('[data-cal-month]');
+    if (monthEls.length === 0) return;
+    const viewTop = el.scrollTop - el.clientHeight;
+    const viewBottom = el.scrollTop + el.clientHeight * 2;
+    let start = -1;
+    let end = -1;
+    monthEls.forEach((m, i) => {
+      const top = (m as HTMLElement).offsetTop;
+      const bottom = top + (m as HTMLElement).offsetHeight;
+      if (bottom >= viewTop && top <= viewBottom) {
+        if (start === -1) start = i;
+        end = i;
+      }
+    });
+    if (start === -1 || end === -1) return;
+    setRenderWindow(prev => (prev.start === start && prev.end === end ? prev : { start, end }));
+  }, []);
+
+  useEffect(() => {
+    updateRenderWindow();
+  }, [calendarMonths, updateRenderWindow]);
+
+  useEffect(() => {
+    setMeasuredHeights({});
+  }, [sectionDateMap, project.scenes, showBreaks]);
+
+  const scrollToMonthIndex = useCallback((index: number) => {
+    if (index < 0 || index >= calendarMonths.length) return;
+    setRenderWindow({
+      start: Math.max(0, index - 1),
+      end: Math.min(calendarMonths.length - 1, index + 1),
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = calendarGridRef.current?.querySelectorAll('[data-cal-month]')[index] as HTMLElement | undefined;
+      el?.scrollIntoView({ block: 'start' });
+    }));
+  }, [calendarMonths]);
+
+  const goToFirst = useCallback(() => scrollToMonthIndex(0), [scrollToMonthIndex]);
+  const goToLast = useCallback(() => scrollToMonthIndex(calendarMonths.length - 1), [scrollToMonthIndex, calendarMonths.length]);
+  const goPrevMonth = useCallback(() => scrollToMonthIndex(Math.max(0, renderWindow.start - 1)), [scrollToMonthIndex, renderWindow.start]);
+  const goNextMonth = useCallback(() => scrollToMonthIndex(Math.min(calendarMonths.length - 1, renderWindow.end + 1)), [scrollToMonthIndex, renderWindow.end, calendarMonths.length]);
+
+  const goToday = useCallback(() => {
+    const now = new Date();
+    const mi = calendarMonths.findIndex(m => m.year === now.getFullYear() && m.month === now.getMonth());
+    if (mi === -1) {
+      const todayKey = toDateKey(now);
+      if (days.length > 0 && todayKey < days[0].dateKey) scrollToMonthIndex(0);
+      else scrollToMonthIndex(calendarMonths.length - 1);
+      return;
+    }
+    setRenderWindow({
+      start: Math.max(0, mi - 1),
+      end: Math.min(calendarMonths.length - 1, mi + 1),
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = calendarGridRef.current?.querySelector(`[data-date-key="${toDateKey(now)}"]`);
+      el?.scrollIntoView({ block: 'center' });
+    }));
+  }, [calendarMonths, days, scrollToMonthIndex]);
 
   useEffect(() => {
     const isInEditable = (el: EventTarget | null) => {
@@ -1375,10 +1491,15 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         <div className="flex-1 flex flex-col overflow-hidden">
           <PageToolbar theme="light" justify="between"
             children={
-              <div className="flex items-center gap-3">
-                <button onClick={goPrev} className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
-                <h2 className="font-semibold text-sm">{monthName}</h2>
-                <button onClick={goNext} className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+              <div className="flex items-center gap-2">
+                <button onClick={goToFirst} title="Jump to first day" className="p-1 hover:bg-zinc-100 rounded"><ChevronsLeft className="w-4 h-4" /></button>
+                <button onClick={goPrevMonth} title="Previous month" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
+                <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
+                <button onClick={goNextMonth} title="Next month" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
+                <button onClick={goToLast} title="Jump to last day" className="p-1 hover:bg-zinc-100 rounded"><ChevronsRight className="w-4 h-4" /></button>
+                <button onClick={goToday} title="Jump to today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
+                  Today
+                </button>
                 <span className="text-zinc-400">|</span>
                 <span className="text-[10px] font-semibold text-zinc-500">START</span>
                 <input
@@ -1472,82 +1593,101 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
             setViewMenuOpen(false);
             setContextMenuDate(null);
             setContextMenu(null);
-          }} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          }} onScroll={() => updateRenderWindow()} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50">
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
             <MarqueeOverlay box={marqueeBox} />
-            <div className="grid grid-cols-7 border-l border-zinc-200">
-               {days.map((day, idx) => {
-                const prev = idx > 0 ? days[idx - 1] : null;
-                const firstOfCurrentMonth = day.isCurrentMonth && (!prev || !prev.isCurrentMonth);
-                const firstOfNextMonth = !day.isCurrentMonth && prev?.isCurrentMonth;
-                const nextYear = currentMonth === 11 ? currentYear + 1 : currentYear;
-                const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-                const monthSeparator = firstOfCurrentMonth
-                  ? new Date(currentYear, currentMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })
-                  : firstOfNextMonth
-                  ? new Date(nextYear, nextMonth).toLocaleString('en-US', { month: 'long', year: 'numeric' })
-                  : null;
-                const dateSectionIdx = dateSectionMap.get(day.dateKey) ?? null;
-                const chronoDay = dateSectionIdx != null ? chronoDayMap.get(dateSectionIdx) : undefined;
-                const sectionLabel = chronoDay ? `DAY ${chronoDay}` : undefined;
-                let bodyTargetRowId: string | null = null;
-                if (dateSectionIdx != null) {
-                  const section = sections.find(s => s.index === dateSectionIdx);
-                  if (section) {
-                    const sRows = [...section.rows].sort((a, b) => a.order - b.order);
-                    bodyTargetRowId = sRows.length > 0
-                      ? sRows[sRows.length - 1].id
-                      : section.daybreakRow
-                        ? (() => {
-                            const flatRows = (activeVersion?.rows || []);
-                            const di = flatRows.findIndex(r => r.id === section.daybreakRow!.id);
-                            return di > 0 ? flatRows[di - 1].id : section.daybreakRow!.id;
-                          })()
-                        : null;
-                  }
-                }
-                  return (
-                  <DayCell key={day.dateKey}
-                    dateKey={day.dateKey} date={day.date}
-                    isCurrentMonth={day.isCurrentMonth} isToday={day.isToday}
-                    nonShootStatus={nonShootDateMap.get(day.dateKey)}
-                    sectionIndex={dateSectionIdx ?? undefined}
-                    sectionLabel={sectionLabel}
-                    monthSeparator={monthSeparator}
-                    activeTool={activeTool}
-                    onContextMenu={(e, dateKey) => {
-                      setContextMenuDate(dateKey);
-                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', containerId: null });
-                    }}
-                    label={workingLabels.get(day.dateKey) ?? null}
-                    rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
-                    displayField={displayField}
-                    violations={violationMap.get(day.dateKey) || []}
-                    sceneViolationMap={sceneViolationMap}
-                    onToggle={handleToggle}
-                    selectedIds={selectedRowIds}
-                    activeDragIds={activeDragIds}
-                    onRowClick={handleRowClick}
-                    insertBeforeId={insertBeforeId}
-                    activeDragRow={activeDragRow}
-                    activeDragRows={activeDragRows}
-                    activeRowId={activeId}
-                    activeDragDay={activeDragDay}
-                    onRowDoubleClick={handleRowDoubleClick}
-                    onRowContextMenu={handleRowContextMenu}
-                    bodyTargetRowId={bodyTargetRowId}
-                    onBodyContextMenu={(e, targetRowId) => {
-                      setContextMenuDate(null);
-                      setContextMenuBodyTarget(targetRowId);
-                      setContextMenu({ x: e.clientX, y: e.clientY, rowId: targetRowId, containerId: 1 });
-                    }}
-                    palette={project.colorPalette}
-                  />
+            {calendarMonths.map((m, mi) => {
+              const key = `${m.year}-${m.month}`;
+              const inWindow = mi >= renderWindow.start && mi <= renderWindow.end;
+              const cached = measuredHeights[key];
+              const est = estimateMonthHeight(m.year, m.month);
+              if (!inWindow) {
+                return (
+                  <div key={key} data-cal-month className="border-l border-t border-zinc-200 bg-white flex items-center justify-center"
+                    style={{ height: cached ?? est }}>
+                    <span className="text-[11px] font-semibold text-zinc-300">{monthTitle(m.year, m.month)}</span>
+                  </div>
                 );
-              })}
-              </div>
+              }
+              return (
+                <div key={key} data-cal-month
+                  ref={(el) => {
+                    if (!el) return;
+                    const h = el.offsetHeight;
+                    if (h > 0 && measuredHeights[key] !== h) {
+                      setMeasuredHeights(prev => (prev[key] === h ? prev : { ...prev, [key]: h }));
+                    }
+                  }}
+                >
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2 py-1 border-l border-t border-r border-zinc-200 bg-zinc-100">
+                    {monthTitle(m.year, m.month)}
+                  </div>
+                  <div className="grid grid-cols-7 border-l border-t border-zinc-200">
+                    {buildMonthSlots(m.year, m.month).map(slot => {
+                      if (slot.filler) return <FillerCell key={slot.key} />;
+                      const day = slot as Extract<MonthSlot, { filler: false }>;
+                      const dateSectionIdx = dateSectionMap.get(day.dateKey) ?? null;
+                      const chronoDay = dateSectionIdx != null ? chronoDayMap.get(dateSectionIdx) : undefined;
+                      const sectionLabel = chronoDay ? `DAY ${chronoDay}` : undefined;
+                      let bodyTargetRowId: string | null = null;
+                      if (dateSectionIdx != null) {
+                        const section = sections.find(s => s.index === dateSectionIdx);
+                        if (section) {
+                          const sRows = [...section.rows].sort((a, b) => a.order - b.order);
+                          bodyTargetRowId = sRows.length > 0
+                            ? sRows[sRows.length - 1].id
+                            : section.daybreakRow
+                              ? (() => {
+                                  const flatRows = (activeVersion?.rows || []);
+                                  const di = flatRows.findIndex(r => r.id === section.daybreakRow!.id);
+                                  return di > 0 ? flatRows[di - 1].id : section.daybreakRow!.id;
+                                })()
+                              : null;
+                        }
+                      }
+                      return (
+                        <DayCell key={day.dateKey}
+                          dateKey={day.dateKey} date={day.date} isToday={day.isToday}
+                          nonShootStatus={nonShootDateMap.get(day.dateKey)}
+                          sectionIndex={dateSectionIdx ?? undefined}
+                          sectionLabel={sectionLabel}
+                          activeTool={activeTool}
+                          onContextMenu={(e, dateKey) => {
+                            setContextMenuDate(dateKey);
+                            setContextMenu({ x: e.clientX, y: e.clientY, rowId: '', containerId: null });
+                          }}
+                          label={workingLabels.get(day.dateKey) ?? null}
+                          rows={rowsByDate.get(day.dateKey) || []} scenes={project.scenes}
+                          displayField={displayField}
+                          violations={violationMap.get(day.dateKey) || []}
+                          sceneViolationMap={sceneViolationMap}
+                          onToggle={handleToggle}
+                          selectedIds={selectedRowIds}
+                          activeDragIds={activeDragIds}
+                          onRowClick={handleRowClick}
+                          insertBeforeId={insertBeforeId}
+                          activeDragRow={activeDragRow}
+                          activeDragRows={activeDragRows}
+                          activeRowId={activeId}
+                          activeDragDay={activeDragDay}
+                          onRowDoubleClick={handleRowDoubleClick}
+                          onRowContextMenu={handleRowContextMenu}
+                          bodyTargetRowId={bodyTargetRowId}
+                          onBodyContextMenu={(e, targetRowId) => {
+                            setContextMenuDate(null);
+                            setContextMenuBodyTarget(targetRowId);
+                            setContextMenu({ x: e.clientX, y: e.clientY, rowId: targetRowId, containerId: 1 });
+                          }}
+                          palette={project.colorPalette}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
