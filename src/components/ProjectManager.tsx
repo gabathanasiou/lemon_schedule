@@ -12,6 +12,7 @@ import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
+import { useDriveProjectList } from '../lib/useDriveProjectList';
 
 interface ProjectManagerProps {
   onClose?: () => void;
@@ -61,120 +62,20 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
 
-  // Drive state
-  const [driveMetas, setDriveMetas] = useState<ProjectMeta[]>([]);
-  const [driveLoading, setDriveLoading] = useState(false);
-  const [driveError, setDriveError] = useState<string | null>(null);
-  const [driveAuthError, setDriveAuthError] = useState(false);
-  const [driveCorrupt, setDriveCorrupt] = useState(false);
-  const [driveTotalCount, setDriveTotalCount] = useState<number | null>(null);
   const [showDebug, setShowDebug] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [creatingCloud, setCreatingCloud] = useState(false);
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<number | null>(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('Untitled Project');
   const [newProjectCloud, setNewProjectCloud] = useState(false);
-  useEffect(() => {
-    if (currentProjectId) {
-      const meta = projectList.find(p => p.id === currentProjectId);
-      setActiveTab(meta?.driveFileId ? 'cloud' : 'local');
-    } else if (auth.isSignedIn) {
-      setActiveTab('cloud');
-    }
-  }, [auth.isSignedIn, currentProjectId]);
-
-  // Fetch Drive index on mount
-  useEffect(() => {
-    if (!auth.isSignedIn || !auth.accessToken) {
-      setDriveMetas([]);
-      setDriveError(null);
-      setDriveCorrupt(false);
-      setDriveTotalCount(null);
-      return;
-    }
-    setDriveLoading(true);
-    setDriveError(null);
-    setDriveCorrupt(false);
-    setDriveTotalCount(null);
-    setDriveAuthError(false);
-    listDriveProjectMetas(auth.accessToken)
-      .then(metas => {
-        setDriveTotalCount(metas.length);
-        if (metas.length > MAX_DRIVE_ENTRIES) {
-          setDriveCorrupt(true);
-          setDriveError(`Drive data is corrupted: ${metas.length.toLocaleString()} entries found (limit is ${MAX_DRIVE_ENTRIES.toLocaleString()}). Use the debug cleanup below to wipe and start fresh.`);
-          setDriveMetas([]);
-        } else {
-          setDriveMetas(metas.map(m => ({
-            id: m.id,
-            title: m.title,
-            lastModified: m.lastModified,
-            createdAt: m.createdAt,
-            driveFileId: m.driveFileId,
-          })));
-        }
-        setDriveLoading(false);
-        setLastRefreshedAt(Date.now());
-      })
-      .catch(e => {
-        setDriveError(formatDriveError(e, 'Failed to load cloud projects'));
-        const isAuthError = getDriveErrorStatus(e) === 401;
-        setDriveAuthError(isAuthError);
-        if (isAuthError) auth.refreshToken();
-        setDriveLoading(false);
-        setLastRefreshedAt(Date.now());
-      });
-  }, [auth.isSignedIn, auth.accessToken]);
-
-  // Refresh cloud list when switching to cloud tab
-  useEffect(() => {
-    if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
-      refetchDriveRef.current();
-    }
-  }, [activeTab]);
-
-  const refetchDrive = () => {
-    if (!auth.accessToken) return;
-    setDriveLoading(true);
-    setDriveError(null);
-    setDriveCorrupt(false);
-    setDriveTotalCount(null);
-    setDriveAuthError(false);
-    listDriveProjectMetas(auth.accessToken)
-      .then(metas => {
-        setDriveTotalCount(metas.length);
-        if (metas.length > MAX_DRIVE_ENTRIES) {
-          setDriveCorrupt(true);
-          setDriveError(`Drive data is corrupted: ${metas.length.toLocaleString()} entries found. Use the debug cleanup to wipe and start fresh.`);
-          setDriveMetas([]);
-        } else {
-          setDriveMetas(metas.map(m => ({
-            id: m.id,
-            title: m.title,
-            lastModified: m.lastModified,
-            createdAt: m.createdAt,
-            driveFileId: m.driveFileId,
-          })));
-        }
-        setDriveLoading(false);
-        setLastRefreshedAt(Date.now());
-      })
-      .catch(e => {
-        setDriveError(formatDriveError(e, 'Failed to load cloud projects'));
-        const isAuthError = getDriveErrorStatus(e) === 401;
-        setDriveAuthError(isAuthError);
-        if (isAuthError) auth.refreshToken();
-        setDriveLoading(false);
-        setLastRefreshedAt(Date.now());
-      });
-  };
-
-  const refetchDriveRef = useRef(refetchDrive);
-  refetchDriveRef.current = refetchDrive;
+  const {
+    driveMetas, driveLoading, driveError, driveAuthError, driveCorrupt,
+    driveTotalCount, lastRefreshedAt, refetchDrive,
+    setDriveMetas, setDriveError, setDriveCorrupt, setDriveTotalCount,
+  } = useDriveProjectList(auth);
 
   const handleDeleteAllDrive = async () => {
     if (!auth.accessToken) return;
@@ -308,7 +209,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     if (renamingId && renameTitle.trim()) {
       const p = sortedList.find(p => p.id === renamingId);
       renameProject(renamingId, renameTitle.trim(), p?.driveFileId);
-      refetchDriveRef.current();
+      refetchDrive();
     }
     setRenamingId(null);
   };
@@ -528,7 +429,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <span className="text-[10px] text-blue-200/40 animate-pulse">Syncing…</span>
               )}
               <button
-                onClick={() => refetchDriveRef.current()}
+                onClick={() => refetchDrive()}
                 disabled={driveLoading}
                 className="p-0.5 rounded hover:bg-white/10 transition-colors disabled:opacity-30"
                 title="Refresh cloud projects"
@@ -652,7 +553,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 onCardClick={handleCardClick}
                 onStartRenaming={startRenaming}
                 onConfirmRename={confirmRename}
-                onDuplicate={async (p) => { setDuplicatingId(p.id); await duplicateProject(p.id, p.driveFileId); setDuplicatingId(null); if (p.driveFileId) refetchDriveRef.current(); }}
+                onDuplicate={async (p) => { setDuplicatingId(p.id); await duplicateProject(p.id, p.driveFileId); setDuplicatingId(null); if (p.driveFileId) refetchDrive(); }}
                 onExport={handleExportJSON}
                 onMoveToDrive={handleMoveToDrive}
                 onMoveToLocal={handleMoveToLocal}
