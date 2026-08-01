@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
-import { ComputedRow } from '../lib/daybreakUtils';
+import { ComputedRow, formatElapsedCaption } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
@@ -39,7 +39,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
   if (a.row.noteText !== b.row.noteText || a.row.noteColor !== b.row.noteColor || a.row.noteTextColor !== b.row.noteTextColor) return false;
   if (a.row.breakLabel !== b.row.breakLabel || a.row.breakDuration !== b.row.breakDuration) return false;
   if (a.row.daybreakLabel !== b.row.daybreakLabel || a.row.daybreakCallTime !== b.row.daybreakCallTime) return false;
-  if (a.row.computedCallTime !== b.row.computedCallTime || a.row.computedElapsed !== b.row.computedElapsed) return false;
+  if (a.row.computedCallTime !== b.row.computedCallTime || a.row.computedElapsed !== b.row.computedElapsed || a.row.computedDayElapsed !== b.row.computedDayElapsed || a.row.previousBreakEndElapsed !== b.row.previousBreakEndElapsed) return false;
   if (a.scenes !== b.scenes) return false;
   if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
   if (a.isCompact !== b.isCompact || a.textEditingEnabled !== b.textEditingEnabled) return false;
@@ -255,6 +255,10 @@ const SortableRowContent: React.FC<{
   const fmt = (prefix: string | undefined, val: string, suffix: string | undefined) =>
     formatCellText(prefix, val, suffix);
 
+  const elapsedCaption = formatElapsedCaption(row);
+
+  const alignTextClass = (cell: RibbonCell) => cell.align === 'right' ? 'text-right' : cell.align === 'left' ? 'text-left' : 'text-center';
+
   const nb = getNoteBannerColors(state.present.colorPalette);
   const sel = getSelectedStripColors(state.present.colorPalette);
 
@@ -310,7 +314,6 @@ const SortableRowContent: React.FC<{
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                    textAlign: 'center',
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
@@ -319,7 +322,7 @@ const SortableRowContent: React.FC<{
                         value={row.estimatedDuration || 0}
                         onChange={val => updateRow({estimatedDuration: val})}
                         display={!row.estimatedDuration ? '' : formatDuration(row.estimatedDuration)}
-                        className={`${inputClass} text-center`}
+                        className={`${inputClass} ${alignTextClass(cell)}`}
                         autoFocus={focusedRowId === row.id}
                         onOpen={() => onRowNavigate?.(row.id)}
                       />
@@ -329,7 +332,9 @@ const SortableRowContent: React.FC<{
                         onChange={val => updateRow({estimatedDuration: parseDuration(val)})}
                         clearOnType
                         col="duration"
-                        className={`${inputClass} text-center`}
+                        className={`${inputClass} ${alignTextClass(cell)}`}
+                        suffix={cell.suffix}
+                        noTruncate={!!cell.overflowVisible || cell.truncation === false}
                         onRowNavigate={onRowNavigate}
                       />
                     )}
@@ -341,15 +346,13 @@ const SortableRowContent: React.FC<{
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center',
                   padding: noteBreakPadPx,
                   overflow: 'visible',
-                }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
+                }}>{v ? <RibbonCellText cell={cell}>{fmt(cell.prefix, v, cell.suffix)}</RibbonCellText> : ''}</div>;
               }
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                textAlign: 'center',
                 padding: noteBreakPadPx,
                 overflow: 'visible',
               }} />;
@@ -439,6 +442,8 @@ const SortableRowContent: React.FC<{
       const mainCellIdx = nonSpecial.length > 0
         ? nonSpecial.reduce((a, b) => a.w >= b.w ? a : b).i
         : cells.map((c, i) => ({i, w: cw[i] ?? 0})).reduce((a, b) => a.w >= b.w ? a : b, {i: 0, w: 0}).i;
+      const durationColIdx = cells.findIndex(c => c.field === 'duration');
+      const estColIdx = mainCellIdx === cells.length - 1 && durationColIdx >= 0 ? durationColIdx : cells.length - 1;
 
       return (
           <div className="flex items-stretch min-w-0">
@@ -477,7 +482,6 @@ const SortableRowContent: React.FC<{
                   <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                    textAlign: 'center',
                     padding: noteBreakPadPx,
                     overflow: 'visible',
                   }}>
@@ -485,7 +489,7 @@ const SortableRowContent: React.FC<{
                       <DurationKeypad
                         value={row.breakDuration || 0}
                         onChange={val => updateRow({breakDuration: val})}
-                        className={`${inputClass} text-center`}
+                        className={`${inputClass} ${alignTextClass(cell)}`}
                         autoFocus={focusedRowId === row.id}
                         onOpen={() => onRowNavigate?.(row.id)}
                       />
@@ -495,10 +499,29 @@ const SortableRowContent: React.FC<{
                         onChange={val => updateRow({breakDuration: parseDuration(val)})}
                         clearOnType
                         col="duration"
-                        className={`${inputClass} text-center`}
+                        className={`${inputClass} ${alignTextClass(cell)}`}
+                        suffix={cell.suffix}
+                        noTruncate={!!cell.overflowVisible || cell.truncation === false}
                         onRowNavigate={onRowNavigate}
                       />
                     )}
+                    {ci === estColIdx && elapsedCaption && (
+                      <span style={{ fontSize: '8pt' }}>{elapsedCaption}</span>
+                    )}
+                  </div>
+                );
+              }
+              if (ci === estColIdx && elapsedCaption) {
+                const estAlign = cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center';
+                return (
+                  <div key={cell.id} style={{
+                    gridColumn: ci + 1, gridRow: 1,
+                    ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
+                    padding: noteBreakPadPx, overflow: 'visible',
+                    whiteSpace: 'normal', wordBreak: 'break-word',
+                    display: 'flex', flexDirection: 'column', alignItems: estAlign, justifyContent: 'center', gap: 1,
+                  }}>
+                    <span style={{ fontSize: '8pt' }}>{elapsedCaption}</span>
                   </div>
                 );
               }
@@ -507,15 +530,13 @@ const SortableRowContent: React.FC<{
                 return <div key={cell.id} style={{
                   gridColumn: ci + 1, gridRow: 1,
                   ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                  textAlign: 'center',
                   padding: noteBreakPadPx,
                   overflow: 'visible',
-                }}>{v ? fmt(cell.prefix, v, cell.suffix) : ''}</div>;
+                }}>{v ? <RibbonCellText cell={cell}>{fmt(cell.prefix, v, cell.suffix)}</RibbonCellText> : ''}</div>;
               }
               return <div key={cell.id} style={{
                 gridColumn: ci + 1, gridRow: 1,
                 ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                textAlign: 'center',
                 padding: noteBreakPadPx,
                 overflow: 'visible',
               }} />;
@@ -536,25 +557,30 @@ const SortableRowContent: React.FC<{
                   <>
                     <td className="col-call">{row.computedCallTime}</td>
                     <td className="col-dur">
-                      {isTouchMode ? (
-                        <DurationKeypad
-                          value={row.breakDuration || 0}
-                          onChange={val => updateRow({breakDuration: val})}
-                          className={`${inputClass} text-center`}
-                          autoFocus={focusedRowId === row.id}
-                          onOpen={() => onRowNavigate?.(row.id)}
-                        />
-                      ) : (
-                        <CellInput
-                          value={formatDuration(row.breakDuration || 0)}
-                          onChange={val => updateRow({breakDuration: parseDuration(val)})}
-                          clearOnType
-                          col="duration"
-                          className={`${inputClass} text-center`}
-                          autoFocus={focusedRowId === row.id}
-                          onRowNavigate={onRowNavigate}
-                        />
-                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                        {isTouchMode ? (
+                          <DurationKeypad
+                            value={row.breakDuration || 0}
+                            onChange={val => updateRow({breakDuration: val})}
+                            className={`${inputClass} text-center`}
+                            autoFocus={focusedRowId === row.id}
+                            onOpen={() => onRowNavigate?.(row.id)}
+                          />
+                        ) : (
+                          <CellInput
+                            value={formatDuration(row.breakDuration || 0)}
+                            onChange={val => updateRow({breakDuration: parseDuration(val)})}
+                            clearOnType
+                            col="duration"
+                            className={`${inputClass} text-center`}
+                            autoFocus={focusedRowId === row.id}
+                            onRowNavigate={onRowNavigate}
+                          />
+                        )}
+                        {elapsedCaption && (
+                          <span>{elapsedCaption}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="col-ie" />
                     <td className="col-set" style={{textAlign: 'center'}}>
@@ -654,12 +680,11 @@ const SortableRowContent: React.FC<{
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
-                        whiteSpace: 'normal', wordBreak: 'break-word',
+                        padding: daybreakPadPx, overflow: 'visible',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                         position: 'relative',
                       }}>
-                        <span>{row.daybreakLabel || 'End of Day'}</span>
+                        <RibbonCellText cell={cell}>{row.daybreakLabel || 'End of Day'}</RibbonCellText>
                         {row.daybreakDate && (
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>
                             {(() => { const d = new Date(row.daybreakDate + 'T00:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }); })()}
@@ -695,7 +720,7 @@ const SortableRowContent: React.FC<{
                         display: 'flex', flexDirection: 'column', alignItems: pc.align === 'right' ? 'flex-end' : pc.align === 'left' ? 'flex-start' : 'center', justifyContent: 'center', gap: 1,
                       }}>
                         <span style={{ fontSize: '7pt', opacity: 0.8 }}>Total:</span>
-                        <span style={{ fontSize: '8pt' }}>{formatPageCount(sectionPages)} {pc.suffix || 'pgs'}</span>
+                        <RibbonCellText cell={pc}>{formatPageCount(sectionPages)} {pc.suffix || 'pgs'}</RibbonCellText>
                       </div>
                     );
                   }
@@ -704,7 +729,7 @@ const SortableRowContent: React.FC<{
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        padding: daybreakPadPx, overflow: 'visible',
                       }} />
                     );
                   }
@@ -713,16 +738,16 @@ const SortableRowContent: React.FC<{
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        padding: daybreakPadPx, overflow: 'visible',
                       }}>
-                        {sectionEndTime ? fmt(cell.prefix, sectionEndTime, cell.suffix) : ''}
+                        {sectionEndTime ? <RibbonCellText cell={cell}>{fmt(cell.prefix, sectionEndTime, cell.suffix)}</RibbonCellText> : ''}
                       </div>
                     );
                   }
                   return <div key={cell.id} style={{
                     gridColumn: ci + 1, gridRow: 1,
                     ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                    textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                    padding: daybreakPadPx, overflow: 'visible',
                   }} />;
                 })}
               </div>
@@ -738,10 +763,10 @@ const SortableRowContent: React.FC<{
                         <div key={cell.id} style={{
                           gridColumn: ci + 1, gridRow: 1,
                           ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                          padding: daybreakPadPx, overflow: 'visible',
                           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                         }}>
-                          <strong>{nextLabel}</strong>
+                          <RibbonCellText cell={cell}><strong>{nextLabel}</strong></RibbonCellText>
                           {nextDateStr && <span style={{ fontSize: '7pt', opacity: 0.8 }}>{nextDateStr}</span>}
                         </div>
                       );
@@ -751,15 +776,16 @@ const SortableRowContent: React.FC<{
                         <div key={cell.id} style={{
                           gridColumn: ci + 1, gridRow: 1,
                           ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                          padding: daybreakPadPx, overflow: 'visible',
                         }}>
                           <CellInput
                             value={nextDaybreakCallTime || '08:00'}
                             onChange={val => onUpdateNextDaybreak?.(val)}
                             clearOnType
                             col="duration"
-                            className="text-center"
-                            noTruncate
+                            className={`${inputClass} ${alignTextClass(cell)}`}
+                            suffix={cell.suffix}
+                            noTruncate={!!cell.overflowVisible || cell.truncation === false}
                             onRowNavigate={onRowNavigate}
                           />
                         </div>
@@ -770,7 +796,7 @@ const SortableRowContent: React.FC<{
                         <div key={cell.id} style={{
                           gridColumn: ci + 1, gridRow: 1,
                           ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                          textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                          padding: daybreakPadPx, overflow: 'visible',
                         }}>
                           <span style={{ fontSize: '7pt', opacity: 0.8 }}>CALL</span>
                         </div>
@@ -780,7 +806,7 @@ const SortableRowContent: React.FC<{
                       <div key={cell.id} style={{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
-                        textAlign: 'center', padding: daybreakPadPx, overflow: 'visible',
+                        padding: daybreakPadPx, overflow: 'visible',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         {ci === lastCellIdx && nextViolationBadge}
@@ -1332,7 +1358,7 @@ const SortableRowContent: React.FC<{
 }, sortableRowPropsEqual);
 
 export const SortableRibbon: React.FC<{
-  row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number },
+  row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number, computedDayElapsed?: number, previousBreakEndElapsed?: number },
   scenes: Scene[],
   isOverlay?: boolean,
   isSelected?: boolean,

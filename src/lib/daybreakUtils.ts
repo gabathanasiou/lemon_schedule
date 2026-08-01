@@ -1,5 +1,5 @@
 import { ScheduleRow, Scene, NonShootDate } from '../types';
-import { addMinutesToTime } from './utils';
+import { addMinutesToTime, formatDuration } from './utils';
 
 export interface ProductionDay {
   index: number;
@@ -10,6 +10,8 @@ export interface ProductionDay {
 export interface ComputedRow extends ScheduleRow {
   computedCallTime: string;
   computedElapsed: number;
+  computedDayElapsed?: number;
+  previousBreakEndElapsed?: number;
   daybreakLabel: string;
   daybreakDate: string;
   hasNextDaybreak: boolean;
@@ -44,6 +46,14 @@ export function addDays(date: string, n: number): string {
 
 export function buildNonShootSet(nonShootDates?: NonShootDate[] | null): Set<string> {
   return new Set((nonShootDates || []).map(n => n.date));
+}
+
+export function formatElapsedCaption(row: { computedDayElapsed?: number; previousBreakEndElapsed?: number }): string | null {
+  if (row.computedDayElapsed == null) return null;
+  if (row.previousBreakEndElapsed != null) {
+    return `+${formatDuration(Math.max(0, row.computedDayElapsed - row.previousBreakEndElapsed))} after previous break`;
+  }
+  return `${formatDuration(row.computedDayElapsed)} after start`;
 }
 
 export function splitSections(rows: ScheduleRow[]): ProductionDay[] {
@@ -95,6 +105,7 @@ export function computeRowData(
   let dateCursor = startDate || new Date().toISOString().slice(0, 10);
   let contentRows: ScheduleRow[] = [];
   let dayCounter = 0;
+  let lastBreakEndElapsed: number | undefined;
 
   const getDate = (isPinned: boolean): string => {
     while (nonShootSet.has(dateCursor)) dateCursor = addDays(dateCursor, 1);
@@ -167,8 +178,11 @@ export function computeRowData(
       sectionShoot = 0;
       sectionBreak = 0;
       sectionPages = 0;
+      lastBreakEndElapsed = undefined;
     } else {
       const callTime = addMinutesToTime(sectionBaseTime, sectionElapsed);
+      const dayElapsed = sectionElapsed;
+      const inSection = daybreakSeen < totalDaybreaks;
       let dur = 0;
 
       if (r.type === 'SCENE') {
@@ -191,7 +205,13 @@ export function computeRowData(
         ...r,
         computedCallTime: callTime,
         computedElapsed: runningElapsed,
+        ...(inSection ? { computedDayElapsed: dayElapsed } : {}),
+        ...(r.type === 'BREAK' && inSection ? { previousBreakEndElapsed: lastBreakEndElapsed } : {}),
       } as ComputedRow);
+
+      if (r.type === 'BREAK' && inSection) {
+        lastBreakEndElapsed = dayElapsed + dur;
+      }
 
       contentRows.push(r);
     }

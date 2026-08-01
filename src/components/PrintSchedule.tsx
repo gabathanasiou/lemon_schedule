@@ -4,7 +4,7 @@ import { getFieldValue, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad,
 import { RibbonCellText } from './RibbonCellText';
 import type { CellBorders, ViewMode } from '../lib/persist';
 import { addMinutesToTime, formatDuration, formatPageCount } from '../lib/utils';
-import { computeRowData, ComputedRow } from '../lib/daybreakUtils';
+import { computeRowData, ComputedRow, formatElapsedCaption } from '../lib/daybreakUtils';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 
 function filterIndices(cells: RibbonCell[], colWidths: number[], showTimes: boolean, showDurations: boolean): { keep: boolean[]; filteredWidths: number[] } {
@@ -321,6 +321,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
               );
             }
             if (r.type === 'BREAK') {
+              const elapsedCaption = formatElapsedCaption(r as ComputedRow);
+              const showElapsed = elapsedCaption && (showTimes || showDurations);
               if (cells) {
                 return (
                   <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', borderBottom: '2px solid #000', background: '#591b1b', color: '#ffffff' }}>
@@ -346,6 +348,22 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                           </div>
                         );
                       }
+                      if (ci === estColIdx && showElapsed && cell.field !== 'duration') {
+                        const capAlign = cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center';
+                        return (
+                          <div key={cell.id} style={{
+                            gridColumn: ci + 1, gridRow: 1,
+                            padding: noteBreakPadPx,
+                            display: 'flex', flexDirection: 'column', alignItems: capAlign, justifyContent: 'center', gap: 1,
+                            overflow: 'visible',
+                            whiteSpace: 'normal',
+                            wordBreak: 'break-word',
+                            fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
+                          }}>
+                            <span>{elapsedCaption}</span>
+                          </div>
+                        );
+                      }
                       let content = '';
                       if (cell.field === 'callTime') {
                         const v = r.computedCallTime || '';
@@ -362,6 +380,9 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                           fontSize: '8pt', lineHeight: 1.1, fontFamily: 'Helvetica, sans-serif',
                         }}>
                           {content}
+                          {ci === estColIdx && showElapsed && (
+                            <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{elapsedCaption}</div>
+                          )}
                         </div>
                       );
                     })}
@@ -375,8 +396,8 @@ const DaySection: React.FC<DaySectionProps> = ({ dayInt, rows, callTime, dateStr
                     <tr className="print-row-break" style={{ '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                       <>
                         <td className="print-col-sc" />
-                        {showTimes && <td className="print-col-call">{r.computedCallTime}</td>}
-                        {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}</td>}
+                        {showTimes && <td className="print-col-call">{r.computedCallTime}{!showDurations && showElapsed ? <div>{elapsedCaption}</div> : null}</td>}
+                        {showDurations && <td className="print-col-dur">{formatDuration(r.breakDuration || 0)}{showElapsed ? <div>{elapsedCaption}</div> : null}</td>}
                         <td className="print-col-ie" />
                         <td className="print-col-set" style={{textAlign: 'center'}}>{r.breakLabel || 'BREAK'}</td>
                         <td className="print-col-dn" />

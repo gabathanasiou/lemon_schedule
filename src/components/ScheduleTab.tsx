@@ -942,12 +942,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   const selectionSummary = useMemo(() => {
     if (selectedRowIds.size < 2) return null;
-    const sceneRows = activeVersion.rows.filter(
-      r => selectedRowIds.has(r.id) && r.type === 'SCENE' && !r.id.startsWith('empty-')
+    const selectedRows = activeVersion.rows.filter(
+      r => selectedRowIds.has(r.id) && r.type !== 'DAYBREAK' && !r.id.startsWith('empty-')
     );
-    if (sceneRows.length === 0) return null;
-    const totalMinutes = sceneRows.reduce((sum, r) => sum + (r.estimatedDuration || 0), 0);
-    return { count: sceneRows.length, totalMinutes };
+    if (selectedRows.length === 0) return null;
+    const totalMinutes = selectedRows.reduce((sum, r) =>
+      sum + (r.type === 'BREAK' ? (r.breakDuration || 0) : (r.estimatedDuration || 0)), 0);
+    return { count: selectedRows.length, totalMinutes };
   }, [selectedRowIds, activeVersion.rows]);
 
   const bufferSummary = useMemo(() => {
