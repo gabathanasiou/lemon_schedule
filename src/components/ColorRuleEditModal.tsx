@@ -4,9 +4,10 @@ import { useProject } from '../store';
 import { ColorRule, ColorRuleCondition, ColorOverride, SceneColorEntry, ProjectElement } from '../types';
 import { generateUUID } from '../lib/utils';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
-import { getIntExtOptions, getDayNightOptions, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
+import { getIntExtOptions, getDayNightOptions, DEFAULT_COLOR_PALETTE, getNoteBannerColors } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
 import Modal, { ModalFooter } from './Modal';
+import ColorField from './ColorField';
 import { Plus, X, ChevronDown, Check } from 'lucide-react';
 
 interface Props {
@@ -363,13 +364,11 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className={`${CREM_LABEL} text-zinc-400`}>BG:</span>
-                <input type="color" value={singleBg} onChange={e => setSingleBg(e.target.value)} className={`${CREM_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
-                <input type="text" readOnly value={singleBg} className={`w-[4.5rem] ${CREM_COLOR_INPUT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none`} />
+                <ColorField value={singleBg} onChange={setSingleBg} hexVariant="sm" swatchClass={IS_COARSE ? 'w-12 h-12' : ''} defaultValue={getNoteBannerColors(palette).background} />
               </div>
               <div className="flex items-center gap-2">
                 <span className={`${CREM_LABEL} text-zinc-400`}>Text:</span>
-                <input type="color" value={singleText} onChange={e => setSingleText(e.target.value)} className={`${CREM_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
-                <input type="text" readOnly value={singleText} className={`w-[4.5rem] ${CREM_COLOR_INPUT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-1.5 py-0.5 outline-none`} />
+                <ColorField value={singleText} onChange={setSingleText} hexVariant="sm" swatchClass={IS_COARSE ? 'w-12 h-12' : ''} defaultValue={getNoteBannerColors(palette).color} />
               </div>
               <div className="w-10 h-10 rounded border border-zinc-700 flex items-center justify-center text-[9px] font-bold" style={{ background: singleBg, color: singleText }}>
                 Aa
@@ -431,17 +430,11 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
           <div className={CREM_CELL_BODY}>
             <div className="flex items-center justify-between">
               <span className={`${CREM_TEXT} text-zinc-300`}>Background</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={cellBg} onChange={e => setCellBg(e.target.value)} className={`${CREM_CELL_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
-                <input type="text" readOnly value={cellBg} className={`w-[5.5rem] ${CREM_TEXT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none`} />
-              </div>
+              <ColorField value={cellBg} onChange={setCellBg} size="lg" swatchClass={IS_COARSE ? 'w-16 h-16' : ''} defaultValue={getNoteBannerColors(palette).background} />
             </div>
             <div className="flex items-center justify-between">
               <span className={`${CREM_TEXT} text-zinc-300`}>Text Color</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={cellText} onChange={e => setCellText(e.target.value)} className={`${CREM_CELL_COLOR} rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5`} />
-                <input type="text" readOnly value={cellText} className={`w-[5.5rem] ${CREM_TEXT} text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none`} />
-              </div>
+              <ColorField value={cellText} onChange={setCellText} size="lg" swatchClass={IS_COARSE ? 'w-16 h-16' : ''} defaultValue={getNoteBannerColors(palette).color} />
             </div>
             <div className="w-full h-10 rounded border border-zinc-700 flex items-center justify-center text-sm font-bold" style={{ background: cellBg, color: cellText }}>
               Aa

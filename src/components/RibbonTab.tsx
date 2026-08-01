@@ -528,6 +528,9 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+        const target = e.target as HTMLElement;
+        const isEditable = (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly;
+        if (isEditable) return;
         const sc = selCellRef.current;
         const clip = cellClipboardRef.current;
         if (sc && clip) {

@@ -316,7 +316,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                   value={projectTitle}
                   onChange={e => setProjectTitle(e.target.value)}
                   placeholder="Leave blank to keep current title"
-                  className="flex-1 bg-zinc-900 border border-zinc-700 text-zinc-200 text-xs px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-zinc-600"
+                  className="flex-1 bg-zinc-950 border border-zinc-700 text-zinc-200 text-xs px-3 py-1.5 rounded-lg outline-none focus:ring-1 focus:ring-zinc-600"
                 />
               </div>
 

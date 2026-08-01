@@ -10,6 +10,7 @@ import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories'
 import { IS_COARSE } from '../lib/device';
 import { RotateCcw, Download, Upload, Palette, Sun, Plus, X, GripVertical, Wand2, Check, ChevronDown, Copy } from 'lucide-react';
 import Modal from './Modal';
+import ColorField from './ColorField';
 import { ModalFooter } from './Modal';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -474,17 +475,11 @@ export const ColorsTab: React.FC<{ headerTarget?: HTMLElement | null }> = ({ hea
           <div className="p-6 space-y-5">
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-300">Background</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={editBg} onChange={e => setEditBg(e.target.value)} className="w-14 h-14 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-                <input type="text" readOnly value={editBg} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-              </div>
+              <ColorField value={editBg} onChange={setEditBg} size="lg" />
             </div>
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-300">Text Color</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={editText} onChange={e => setEditText(e.target.value)} className="w-14 h-14 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0.5" />
-                <input type="text" readOnly value={editText} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-              </div>
+              <ColorField value={editText} onChange={setEditText} size="lg" />
             </div>
             <div className="w-full h-10 rounded border border-zinc-700 flex items-center justify-center text-sm font-bold" style={{ background: editBg, color: editText }}>
               Aa

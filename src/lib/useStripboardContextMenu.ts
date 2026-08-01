@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { ScheduleRow, ScheduleVersion, Project, Scene } from '../types';
 import { generateUUID } from './utils';
 import { getMarqueeMode } from './useLongPressMenu';
+import { getNoteBannerColors } from './ribbonUtils';
 
 interface ContextMenuState {
   x: number;
@@ -245,7 +246,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       newRows.push({ ...row, id: newId, order: row.order + 0.5 });
       newRowIds.push(newId);
     } else if (action === 'change_color' && row.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
+      setColorPicker({ rowId: row.id, bg: row.noteColor || getNoteBannerColors(project.colorPalette).background, text: row.noteTextColor || getNoteBannerColors(project.colorPalette).color, noteText: row.noteText || '', originalBg: row.noteColor || getNoteBannerColors(project.colorPalette).background, originalText: row.noteTextColor || getNoteBannerColors(project.colorPalette).color, originalNoteText: row.noteText || '' });
       setContextMenu(null);
       return;
     } else if (action === 'delete') {

@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import ColorField from './ColorField';
 import { CellInput } from './CellInput';
 import DurationKeypad from './DurationKeypad';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
+import { getNoteBannerColors } from '../lib/ribbonUtils';
+import { useProject } from '../store';
 import { useLastPointerType } from '../lib/useMarquee';
 
 export type BannerType = 'NOTE' | 'BREAK';
@@ -28,10 +31,10 @@ interface AddBannerModalProps {
   onAdd: (config: AddBannerConfig) => void;
 }
 
-const SEG_BASE = 'px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer';
-const SEG_SEL = 'bg-white text-zinc-900';
-const SEG_DEF = 'text-zinc-500 hover:text-zinc-300';
-const SEG_ROW = 'flex border border-zinc-700 rounded p-0.5';
+const SEG_BASE = 'flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer';
+const SEG_SEL = 'bg-zinc-800 text-white';
+const SEG_DEF = 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50';
+const SEG_ROW = 'flex gap-1.5';
 
 const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
   <div className="flex items-center gap-2">
@@ -47,39 +50,31 @@ const Row: React.FC<{ label: React.ReactNode; children: React.ReactNode }> = ({ 
   </div>
 );
 
-const FIELD_BOX = 'flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 focus-within:border-zinc-500 transition-colors w-36';
-
-const FieldBox: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className={FIELD_BOX}>{children}</div>
-);
-
-const SuffixField: React.FC<{ suffix: string; children: React.ReactNode }> = ({ suffix, children }) => (
-  <div className={FIELD_BOX}>
-    {children}
-    <span className="text-[10px] font-medium text-zinc-500 uppercase shrink-0">{suffix}</span>
-  </div>
-);
+import { FieldBox, SuffixField } from './FieldBox';
 
 export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBannerModalProps) {
   const lastPointerType = useLastPointerType();
   const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
+  const { state } = useProject();
+  const nb = getNoteBannerColors(state.present.colorPalette);
 
   const [type, setType] = useState<BannerType>('BREAK');
   const [label, setLabel] = useState('LUNCH');
   const [durationStr, setDurationStr] = useState('30m');
-  const [noteColor, setNoteColor] = useState('#591b1b');
-  const [noteTextColor, setNoteTextColor] = useState('#ffffff');
+  const [noteColor, setNoteColor] = useState(nb.background);
+  const [noteTextColor, setNoteTextColor] = useState(nb.color);
   const [position, setPosition] = useState<BannerPosition>('middle');
   const [splitMethod, setSplitMethod] = useState<BannerSplitMethod>('ribbons');
   const [splitDurationStr, setSplitDurationStr] = useState('');
   const [splitPagesStr, setSplitPagesStr] = useState('');
+  const labelInputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
     setType('BREAK');
     setLabel('LUNCH');
     setDurationStr('30m');
-    setNoteColor('#591b1b');
-    setNoteTextColor('#ffffff');
+    setNoteColor(nb.background);
+    setNoteTextColor(nb.color);
     setPosition('middle');
     setSplitMethod('ribbons');
     setSplitDurationStr('');
@@ -89,6 +84,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
   const handleTypeChange = (t: BannerType) => {
     setType(t);
     setLabel(t === 'BREAK' ? 'LUNCH' : '');
+    requestAnimationFrame(() => labelInputRef.current?.focus());
   };
 
   const normalizeDurationStr = (s: string) => {
@@ -164,13 +160,14 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
         <div className="space-y-1">
           <Row label="Type">
             <div className={SEG_ROW}>
-              <button className={segBtn(type === 'NOTE')} onClick={() => handleTypeChange('NOTE')}>NOTE</button>
               <button className={segBtn(type === 'BREAK')} onClick={() => handleTypeChange('BREAK')}>BREAK</button>
+              <button className={segBtn(type === 'NOTE')} onClick={() => handleTypeChange('NOTE')}>NOTE</button>
             </div>
           </Row>
           <Row label="Label">
             <FieldBox>
               <input
+                ref={labelInputRef}
                 value={label}
                 onChange={e => setLabel(e.target.value.toUpperCase())}
                 onFocus={e => e.target.select()}
@@ -191,7 +188,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                 <DurationKeypad
                   value={parseDuration(durationStr) || 0}
                   onChange={val => setDurationStr(val > 0 ? formatDuration(val) : '')}
-                  className="flex-1 text-right text-xs text-zinc-200"
+                  className="flex-1 text-left text-xs text-zinc-200"
                 />
               ) : (
                 <CellInput
@@ -201,7 +198,8 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                   clearOnType
                   autoFocus
                   col="duration"
-                  className="flex-1 text-right text-xs"
+                  placeholder="1h 20m"
+                  className="flex-1 text-left text-xs"
                 />
               )}
             </FieldBox>
@@ -210,17 +208,11 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
             <>
               <div className="flex items-center justify-between gap-4 py-1.5">
                 <span className="text-xs text-zinc-300">Background</span>
-                <div className="flex items-center gap-2.5">
-                  <input type="color" value={noteColor} onChange={e => setNoteColor(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                  <input type="text" readOnly value={noteColor} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-                </div>
+                <ColorField value={noteColor} onChange={setNoteColor} defaultValue={nb.background} />
               </div>
               <div className="flex items-center justify-between gap-4 py-1.5">
                 <span className="text-xs text-zinc-300">Text Color</span>
-                <div className="flex items-center gap-2.5">
-                  <input type="color" value={noteTextColor} onChange={e => setNoteTextColor(e.target.value)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                  <input type="text" readOnly value={noteTextColor} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-                </div>
+                <ColorField value={noteTextColor} onChange={setNoteTextColor} defaultValue={nb.color} />
               </div>
             </>
           )}
@@ -255,7 +247,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                         value={splitDurationStr ? parseDuration(splitDurationStr) : 0}
                         display={splitDurationStr}
                         onChange={val => setSplitDurationStr(val > 0 ? formatDuration(val) : '')}
-                        className="flex-1 text-right text-xs text-zinc-200"
+                        className="flex-1 text-left text-xs text-zinc-200"
                       />
                     ) : (
                       <CellInput
@@ -265,7 +257,8 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                         clearOnType
                         autoFocus
                         col="duration"
-                        className="flex-1 text-right text-xs"
+                        placeholder="1h 20m"
+                        className="flex-1 text-left text-xs"
                       />
                     )}
                   </FieldBox>
@@ -281,6 +274,7 @@ export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBa
                       clearOnType
                       autoFocus
                       col="pageCount"
+                      placeholder="1 2/8"
                       className="flex-1 text-right text-xs"
                     />
                   </SuffixField>

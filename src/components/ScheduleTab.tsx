@@ -4,9 +4,13 @@ import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { StripBlock } from './StripBlock';
+import ColorField from './ColorField';
+import { FieldBox, SuffixField } from './FieldBox';
+import { CellInput } from './CellInput';
 import { BoneyardBlock } from './BoneyardBlock';
 import { SortableRibbon } from './SortableRibbon';
-import { generateUUID, formatDuration, parseDuration, parsePageCount } from '../lib/utils';
+import { generateUUID, formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
+import { getNoteBannerColors } from '../lib/ribbonUtils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
 import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Sunset, Wand2, Clock, FileText, Flag, Send, CheckSquare, CalendarPlus } from 'lucide-react';
@@ -105,11 +109,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [autoDaybreakOpen, setAutoDaybreakOpen] = useState(false);
+  const [autoDaybreakPrompt, setAutoDaybreakPrompt] = useState<{ mode: 'duration' | 'pages' } | null>(null);
+  const [autoDaybreakRaw, setAutoDaybreakRaw] = useState('');
   const [autoDaybreakCleanup, setAutoDaybreakCleanup] = useState<{ mode: 'duration' | 'pages'; threshold: number } | null>(null);
   const [autoDaybreakNotesAction, setAutoDaybreakNotesAction] = useState<'boneyard' | 'delete'>('boneyard');
   const [autoDaybreakBreaksAction, setAutoDaybreakBreaksAction] = useState<'boneyard' | 'delete'>('boneyard');
   const [bannerMenuOpen, setBannerMenuOpen] = useState(false);
   const [bannerModalOpen, setBannerModalOpen] = useState(false);
+  const [bannerDelete, setBannerDelete] = useState<{ type: 'NOTE' | 'BREAK' } | null>(null);
+  const [bannerDeleteChecked, setBannerDeleteChecked] = useState<Set<string>>(new Set());
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -177,7 +185,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }
     const row = activeVersion.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
+      setColorPicker({ rowId: row.id, bg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, text: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, noteText: row.noteText || '', originalBg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, originalText: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, originalNoteText: row.noteText || '' });
     } else if (row?.type === 'SCENE' && row.sceneId) {
       if (!IS_COARSE && shiftKey && onOpenSceneInPopout) {
         onOpenSceneInPopout(row.sceneId);
@@ -355,6 +363,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isEditable = (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) && !(target as HTMLInputElement).readOnly;
+      if (isEditable) return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'x') {
         e.preventDefault();
         cutSelected();
@@ -1054,7 +1065,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
       newRows.push({ ...row, id: newId, order: row.order + 0.5 });
       newRowIds.push(newId);
     } else if (action === 'change_color' && row.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
+      setColorPicker({ rowId: row.id, bg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, text: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, noteText: row.noteText || '', originalBg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, originalText: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, originalNoteText: row.noteText || '' });
       setContextMenu(null);
       return;
     } else if (action === 'delete') {
@@ -1110,23 +1121,78 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     activeVersion?.rows.some(r => r.type === 'DAYBREAK' && !r.pinned && r.containerId != null && r.containerId !== -1) ?? false,
   [activeVersion]);
 
-  const handleDeleteAllBanners = async (target: 'NOTE' | 'BREAK') => {
+  const bannerLabelOf = useCallback((r: ScheduleRow, type: 'NOTE' | 'BREAK'): string => {
+    const raw = type === 'NOTE' ? (r.noteText || '') : (r.breakLabel || '');
+    return raw.trim().toUpperCase() || '(untitled)';
+  }, []);
+
+  const bannerColorOf = useCallback((r: ScheduleRow, type: 'NOTE' | 'BREAK'): { bg: string; fg: string } => {
+    const nb = getNoteBannerColors(state.present.colorPalette);
+    if (type === 'NOTE' && r.noteColor) {
+      return { bg: r.noteColor, fg: r.noteTextColor || nb.color };
+    }
+    return { bg: nb.background, fg: nb.color };
+  }, [state.present.colorPalette]);
+
+  const bannerKeyOf = useCallback((r: ScheduleRow, type: 'NOTE' | 'BREAK'): string => {
+    const label = bannerLabelOf(r, type);
+    if (type === 'NOTE') {
+      return `${label}||${bannerColorOf(r, type).bg}`;
+    }
+    return label;
+  }, [bannerLabelOf, bannerColorOf]);
+
+  const openBannerDeleteModal = useCallback((type: 'NOTE' | 'BREAK') => {
+    setBannerDeleteChecked(new Set());
+    setBannerDelete({ type });
+  }, []);
+
+  const deleteBanners = useCallback((type: 'NOTE' | 'BREAK', keys: Set<string>) => {
     if (!activeVersion) return;
-    const rows = activeVersion.rows.filter(r => r.containerId != null && r.type === target);
-    if (rows.length === 0) return;
-    const label = target === 'NOTE' ? 'Notes' : 'Breaks';
-    const ok = await dialog.confirm({
-      title: `Delete All ${label}`,
-      message: `Remove all ${rows.length} ${target === 'NOTE' ? 'note' : 'break'} banner${rows.length !== 1 ? 's' : ''} from the stripboard?`,
-      danger: true,
-    });
-    if (!ok) return;
-    const ids = new Set(rows.map(r => r.id));
-    dispatch({ type: 'BATCH_START' });
-    const newRows = activeVersion.rows.filter(r => !ids.has(r.id)).map((r, i) => ({ ...r, order: i }));
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
-    dispatch({ type: 'BATCH_COMMIT' });
-  };
+    const ids = new Set<string>();
+    for (const r of activeVersion.rows) {
+      if (r.containerId != null && r.type === type) {
+        if (keys.has(bannerKeyOf(r, type))) ids.add(r.id);
+      }
+    }
+    if (ids.size === 0) return;
+    const label = type === 'NOTE' ? 'note' : 'break';
+    const doDelete = () => {
+      dispatch({ type: 'BATCH_START' });
+      const newRows = activeVersion.rows.filter(r => !ids.has(r.id)).map((r, i) => ({ ...r, order: i }));
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+      dispatch({ type: 'BATCH_COMMIT' });
+      setBannerDelete(null);
+    };
+    if (ids.size > 1) {
+      dialog.confirm({
+        title: `Delete ${ids.size} ${label} banners?`,
+        message: `Remove ${ids.size} ${label} banner${ids.size !== 1 ? 's' : ''} from the stripboard?`,
+        danger: true,
+      }).then(ok => { if (ok) doDelete(); });
+    } else {
+      doDelete();
+    }
+  }, [activeVersion, dispatch, bannerKeyOf, dialog]);
+
+  const bannerDeleteEntries = useMemo(() => {
+    if (!activeVersion || !bannerDelete) return [];
+    const counts = new Map<string, { key: string; count: number; label: string; bg: string; fg: string }>();
+    for (const r of activeVersion.rows) {
+      if (r.containerId != null && r.type === bannerDelete.type) {
+        const key = bannerKeyOf(r, bannerDelete.type);
+        const existing = counts.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          const colors = bannerColorOf(r, bannerDelete.type);
+          counts.set(key, { key, count: 1, label: bannerLabelOf(r, bannerDelete.type), bg: colors.bg, fg: colors.fg });
+        }
+      }
+    }
+    return [...counts.values()]
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [activeVersion, bannerDelete, bannerKeyOf, bannerColorOf, bannerLabelOf]);
 
   const handleAddBanners = (config: AddBannerConfig) => {
     if (!activeVersion) return;
@@ -1154,8 +1220,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           ? {
               noteText: (config.label || '').toUpperCase(),
               estimatedDuration: config.minutes,
-              noteColor: config.noteColor || '#591b1b',
-              noteTextColor: config.noteTextColor || '#ffffff',
+              noteColor: config.noteColor || getNoteBannerColors(state.present.colorPalette).background,
+              noteTextColor: config.noteTextColor || getNoteBannerColors(state.present.colorPalette).color,
             }
           : { breakLabel: (config.label || 'LUNCH').toUpperCase(), breakDuration: config.minutes }),
       };
@@ -1205,18 +1271,20 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     dispatch({ type: 'BATCH_COMMIT' });
   };
 
-  const handleAutoDaybreak = async (mode: 'duration' | 'pages') => {
+  const handleAutoDaybreak = (mode: 'duration' | 'pages') => {
     if (!activeVersion) return;
-    const val = await dialog.prompt({
-      title: mode === 'duration' ? 'Add Day Break by Duration' : 'Add Day Break by Pages',
-      placeholder: mode === 'duration' ? 'e.g. 8h or 1h 30m' : 'e.g. 2 4/8 or 3.5',
-      defaultValue: '',
-    });
-    if (!val) return;
-    const threshold = mode === 'duration' ? parseDuration(val) : parsePageCount(val);
-    if (isNaN(threshold) || threshold <= 0) return;
+    setAutoDaybreakRaw('');
+    setAutoDaybreakPrompt({ mode });
+  };
 
-    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK');
+  const confirmAutoDaybreak = () => {
+    if (!activeVersion || !autoDaybreakPrompt) return;
+    const mode = autoDaybreakPrompt.mode;
+    const threshold = mode === 'duration' ? parseDuration(autoDaybreakRaw) : parsePageCount(autoDaybreakRaw);
+    if (isNaN(threshold) || threshold <= 0) return;
+    setAutoDaybreakPrompt(null);
+
+    const hasDaybreaks = activeVersion.rows.some(r => r.type === 'DAYBREAK' && !r.pinned);
     const hasNotes = activeVersion.rows.some(r => r.containerId !== null && r.type === 'NOTE');
     const hasBreaks = activeVersion.rows.some(r => r.containerId !== null && r.type === 'BREAK');
 
@@ -1226,6 +1294,14 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     }
 
     executeAutoDaybreak(mode, threshold, 'boneyard', 'boneyard');
+  };
+
+  const normalizeAutoDaybreakRaw = (s: string) => {
+    if (!autoDaybreakPrompt) return s;
+    const v = autoDaybreakPrompt.mode === 'duration' ? parseDuration(s) : parsePageCount(s);
+    return !isNaN(v) && v > 0
+      ? (autoDaybreakPrompt.mode === 'duration' ? formatDuration(v) : formatPageCount(v))
+      : s;
   };
 
   const executeAutoDaybreak = (mode: 'duration' | 'pages', threshold: number, notesAction: 'boneyard' | 'delete', breaksAction: 'boneyard' | 'delete') => {
@@ -1814,7 +1890,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('duration'); }} icon={<Clock className="w-3.5 h-3.5" />}>Add by Duration</DropdownItem>
               <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('pages'); }} icon={<FileText className="w-3.5 h-3.5" />}>Add by Pages</DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All</DropdownItem>
+              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger" disabled={!hasDaybreakDays}>Delete All</DropdownItem>
             </DropdownMenu>
             <DropdownMenu
               open={bannerMenuOpen}
@@ -1823,9 +1899,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               theme="light"
               trigger={
                 <button
-                  disabled={!hasDaybreakDays}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${!hasDaybreakDays ? 'opacity-40 cursor-not-allowed text-zinc-400' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-                  title={!hasDaybreakDays ? 'Add day breaks first' : 'Add note/break banners to every day'}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
+                  title="Add note/break banners to every day, or delete banners"
                 >
                   <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
                   Banners
@@ -1833,10 +1908,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                 </button>
               }
             >
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Banners</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />} disabled={!hasDaybreakDays}>Add Banners</DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('NOTE'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Notes</DropdownItem>
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); handleDeleteAllBanners('BREAK'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete All Breaks</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); openBannerDeleteModal('NOTE'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete Notes</DropdownItem>
+              <DropdownItem onClick={() => { setBannerMenuOpen(false); openBannerDeleteModal('BREAK'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete Breaks</DropdownItem>
             </DropdownMenu>
             <SortDropdown
               open={sortMenuOpen}
@@ -2251,17 +2326,11 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           <div className="p-6 space-y-5">
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-300">Background</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <input type="text" readOnly value={colorPicker.bg} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-              </div>
+              <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).background} />
             </div>
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-300">Text Color</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <input type="text" readOnly value={colorPicker.text} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-              </div>
+              <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).color} />
             </div>
             <div>
               <textarea
@@ -2276,13 +2345,64 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           </div>
         </Modal>
       )}
+      {autoDaybreakPrompt && (() => {
+        const threshold = autoDaybreakPrompt.mode === 'duration'
+          ? parseDuration(autoDaybreakRaw)
+          : parsePageCount(autoDaybreakRaw);
+        const valid = autoDaybreakRaw.trim() !== '' && !isNaN(threshold) && threshold > 0;
+        return (
+          <Modal open onClose={() => setAutoDaybreakPrompt(null)} title={autoDaybreakPrompt.mode === 'duration' ? 'Add Day Break by Duration' : 'Add Day Break by Pages'} width="max-w-sm"
+            footer={
+              <ModalFooter>
+                <button onClick={() => setAutoDaybreakPrompt(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button onClick={confirmAutoDaybreak} disabled={!valid} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Place Day Breaks</button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6 space-y-5" onKeyDown={e => { if (e.key === 'Enter' && valid) confirmAutoDaybreak(); }}>
+              <div className="flex items-center gap-3 py-1">
+                {autoDaybreakPrompt.mode === 'duration' && (
+                  <span className="text-xs text-zinc-300 shrink-0">Duration</span>
+                )}
+                {autoDaybreakPrompt.mode === 'duration' ? (
+                  <FieldBox className="flex-1 min-w-0">
+                    <CellInput
+                      value={autoDaybreakRaw}
+                      onChange={setAutoDaybreakRaw}
+                      onBlur={() => setAutoDaybreakRaw(prev => normalizeAutoDaybreakRaw(prev))}
+                      clearOnType
+                      autoFocus
+                      col="duration"
+                      placeholder="e.g. 8h or 1h 30m"
+                      className="flex-1 text-left text-xs"
+                    />
+                  </FieldBox>
+                ) : (
+                  <SuffixField suffix="pgs" className="flex-1 min-w-0">
+                    <CellInput
+                      value={autoDaybreakRaw}
+                      onChange={setAutoDaybreakRaw}
+                      onBlur={() => setAutoDaybreakRaw(prev => normalizeAutoDaybreakRaw(prev))}
+                      clearOnType
+                      autoFocus
+                      col="pageCount"
+                      placeholder="e.g. 2 4/8 or 3.5"
+                      className="flex-1 text-right text-xs"
+                    />
+                  </SuffixField>
+                )}
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
       {autoDaybreakCleanup && (() => {
         const daybreakCount = activeVersion?.rows.filter(r => r.type === 'DAYBREAK' && !r.pinned).length ?? 0;
         const noteCount = activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'NOTE').length ?? 0;
         const breakCount = activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'BREAK').length ?? 0;
-        const segBase = `px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer`;
-        const segSel = `bg-white text-zinc-900`;
-        const segDef = `text-zinc-500 hover:text-zinc-300`;
+        const segBase = `flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer`;
+        const segSel = `bg-zinc-800 text-white`;
+        const segDef = `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50`;
         const parts: string[] = [];
         if (daybreakCount > 0) parts.push(`${daybreakCount} day break${daybreakCount !== 1 ? 's' : ''}`);
         if (noteCount > 0) parts.push(`${noteCount} note${noteCount !== 1 ? 's' : ''}`);
@@ -2319,7 +2439,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               {noteCount > 0 && (
                 <div className="flex items-center justify-between py-1">
                   <span className="text-xs text-zinc-300">Notes <span className="text-zinc-500">({noteCount})</span></span>
-                  <div className="flex border border-zinc-700 rounded p-0.5">
+                  <div className="flex gap-1.5">
                     <button className={`${segBase} ${autoDaybreakNotesAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('boneyard')}>Boneyard</button>
                     <button className={`${segBase} ${autoDaybreakNotesAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('delete')}>Delete</button>
                   </div>
@@ -2328,7 +2448,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               {breakCount > 0 && (
                 <div className="flex items-center justify-between py-1">
                   <span className="text-xs text-zinc-300">Breaks <span className="text-zinc-500">({breakCount})</span></span>
-                  <div className="flex border border-zinc-700 rounded p-0.5">
+                  <div className="flex gap-1.5">
                     <button className={`${segBase} ${autoDaybreakBreaksAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('boneyard')}>Boneyard</button>
                     <button className={`${segBase} ${autoDaybreakBreaksAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('delete')}>Delete</button>
                   </div>
@@ -2360,6 +2480,79 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
         }}
       />
+      {bannerDelete && (() => {
+        const allChecked = bannerDeleteEntries.length > 0 && bannerDeleteEntries.every(e => bannerDeleteChecked.has(e.key));
+        const checkedKeys = new Set(bannerDeleteEntries.filter(e => bannerDeleteChecked.has(e.key)).map(e => e.key));
+        const checkedCount = bannerDeleteEntries.filter(e => bannerDeleteChecked.has(e.key)).reduce((s, e) => s + e.count, 0);
+        const totalCount = bannerDeleteEntries.reduce((s, e) => s + e.count, 0);
+        return (
+          <Modal open onClose={() => setBannerDelete(null)} title={bannerDelete.type === 'NOTE' ? 'Delete Notes' : 'Delete Breaks'} width="max-w-md"
+            footer={
+              <ModalFooter>
+                <button onClick={() => setBannerDelete(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button
+                  onClick={() => deleteBanners(bannerDelete.type, checkedKeys)}
+                  disabled={checkedCount === 0}
+                  className="px-6 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Delete Selected{checkedCount > 0 ? ` (${checkedCount})` : ''}
+                </button>
+              </ModalFooter>
+            }
+          >
+            <div className="p-6 space-y-5">
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                Choose which {bannerDelete.type === 'NOTE' ? 'note' : 'break'} banners to remove.
+              </p>
+              <div>
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2">
+                  <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                    {totalCount} {bannerDelete.type === 'NOTE' ? 'note' : 'break'} banner{totalCount !== 1 ? 's' : ''}
+                  </h3>
+                  <button
+                    onClick={() => setBannerDeleteChecked(prev => {
+                      const next = new Set(prev);
+                      if (allChecked) bannerDeleteEntries.forEach(e => next.delete(e.key));
+                      else bannerDeleteEntries.forEach(e => next.add(e.key));
+                      return next;
+                    })}
+                    className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium"
+                  >
+                    {allChecked ? 'Deselect all' : 'Select all'}
+                  </button>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-72">
+                  {bannerDeleteEntries.map(e => {
+                    const checked = bannerDeleteChecked.has(e.key);
+                    return (
+                      <button
+                        key={e.key}
+                        onClick={() => setBannerDeleteChecked(prev => {
+                          const next = new Set(prev);
+                          if (next.has(e.key)) next.delete(e.key); else next.add(e.key);
+                          return next;
+                        })}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
+                      >
+                        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
+                          {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                        </span>
+                        <span className="px-2 py-0.5 rounded font-semibold truncate max-w-[16rem] shrink-0" style={{ background: e.bg, color: e.fg }}>
+                          {e.label}
+                        </span>
+                        <span className="text-zinc-500 ml-auto">{e.count}</span>
+                      </button>
+                    );
+                  })}
+                  {bannerDeleteEntries.length === 0 && (
+                    <div className="px-3 py-4 text-xs text-zinc-600 text-center">No banners found.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
     </DndContext>
   </div>
 );

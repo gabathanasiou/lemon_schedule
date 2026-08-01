@@ -25,6 +25,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
+import ColorField from './ColorField';
 import SortDropdown from './SortDropdown';
 import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
 import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
@@ -1054,7 +1055,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }
     const row = activeVersion?.rows.find(r => r.id === id);
     if (row?.type === 'NOTE') {
-      setColorPicker({ rowId: row.id, bg: row.noteColor || '#591b1b', text: row.noteTextColor || '#ffffff', noteText: row.noteText || '', originalBg: row.noteColor || '#591b1b', originalText: row.noteTextColor || '#ffffff', originalNoteText: row.noteText || '' });
+      setColorPicker({ rowId: row.id, bg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, text: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, noteText: row.noteText || '', originalBg: row.noteColor || getNoteBannerColors(state.present.colorPalette).background, originalText: row.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, originalNoteText: row.noteText || '' });
     } else if (row?.type === 'SCENE' && row.sceneId) {
       if (!IS_COARSE && shiftKey && onOpenSceneInPopout) {
         onOpenSceneInPopout(row.sceneId);
@@ -1652,7 +1653,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           }
         } else if (selectedRow?.type === 'NOTE') {
           e.preventDefault();
-          setColorPicker({ rowId: selectedRow.id, bg: selectedRow.noteColor || '#591b1b', text: selectedRow.noteTextColor || '#ffffff', noteText: selectedRow.noteText || '', originalBg: selectedRow.noteColor || '#591b1b', originalText: selectedRow.noteTextColor || '#ffffff', originalNoteText: selectedRow.noteText || '' });
+          setColorPicker({ rowId: selectedRow.id, bg: selectedRow.noteColor || getNoteBannerColors(state.present.colorPalette).background, text: selectedRow.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, noteText: selectedRow.noteText || '', originalBg: selectedRow.noteColor || getNoteBannerColors(state.present.colorPalette).background, originalText: selectedRow.noteTextColor || getNoteBannerColors(state.present.colorPalette).color, originalNoteText: selectedRow.noteText || '' });
         }
         return;
       }
@@ -1983,17 +1984,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           <div className="p-6 space-y-5">
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-300">Background</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={colorPicker.bg} onChange={e => setColorPicker(p => p ? { ...p, bg: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <input type="text" readOnly value={colorPicker.bg} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-              </div>
+              <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).background} />
             </div>
             <div className="flex items-center justify-between py-1">
               <span className="text-xs text-zinc-300">Text Color</span>
-              <div className="flex items-center gap-2.5">
-                <input type="color" value={colorPicker.text} onChange={e => setColorPicker(p => p ? { ...p, text: e.target.value } : null)} className="w-9 h-9 rounded border border-zinc-600 bg-zinc-900 cursor-pointer p-0" />
-                <input type="text" readOnly value={colorPicker.text} className="w-[5.5rem] text-xs text-zinc-300 font-mono bg-zinc-950 border border-zinc-700 rounded px-2 py-1 outline-none select-all" />
-              </div>
+              <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).color} />
             </div>
             <div>
               <textarea

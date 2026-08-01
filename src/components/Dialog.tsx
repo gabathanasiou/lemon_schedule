@@ -250,7 +250,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                 defaultValue={dialog.options.defaultValue || ''}
                 placeholder={dialog.options.placeholder}
                 onKeyDown={e => { if (e.key === 'Enter') resolvePrompt(); }}
-                className={`w-full ${DIALOG_INPUT} bg-zinc-900 border border-zinc-700 rounded-md text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500`}
+                className={`w-full ${DIALOG_INPUT} bg-zinc-950 border border-zinc-700 rounded-md text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500`}
               />
             )}
 
