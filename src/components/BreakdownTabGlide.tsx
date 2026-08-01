@@ -34,6 +34,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
+import { planPaste } from '../lib/glidePaste';
 import { createBlankScene } from '../lib/sceneFactory';
 
 const BREAKDOWN_CATEGORIES = [
@@ -440,81 +441,18 @@ export function GlideBreakdownTab({
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]): boolean => {
     const currentScenes = scenesRef.current;
-    const newScenes: Scene[] = [];
-    const editRows: { row: number; colKey: string; val: string }[] = [];
-
-    if (values.length === 0) return false;
-
     const sel = gridSelectionRef.current?.current?.range;
-    const pasteRows = sel && sel.height > values.length ? sel.height : values.length;
-    const pasteCols = sel && sel.width > Math.max(...values.map(r => r.length)) ? sel.width : Math.max(...values.map(r => r.length));
+    const { editRows, newScenes } = planPaste(target, values, currentScenes, COLUMNS, sel);
+
+    if (editRows.length === 0 && newScenes.length === 0) return false;
 
     dispatch({ type: 'BATCH_START' });
-
-    for (let r = 0; r < pasteRows; r++) {
-      const srcR = r % values.length;
-      const srcRow = values[srcR];
-      const targetRow = target[1] + r;
-      if (targetRow < currentScenes.length) {
-        for (let c = 0; c < pasteCols; c++) {
-          const srcC = c % (srcRow.length || 1);
-          const targetCol = target[0] + c;
-          if (targetCol < COLUMNS.length && COLUMNS[targetCol].key !== 'actions') {
-            editRows.push({ row: targetRow, colKey: COLUMNS[targetCol].key, val: srcRow[srcC] ?? '' });
-          }
-        }
-      } else {
-        const newScene: any = {};
-        for (let c = 0; c < pasteCols; c++) {
-          const srcC = c % (srcRow.length || 1);
-          const colIndex = target[0] + c;
-          if (colIndex < COLUMNS.length) {
-            newScene[COLUMNS[colIndex].key] = srcRow[srcC] ?? '';
-          }
-        }
-        newScenes.push(newScene);
-      }
-    }
-
     for (const s of newScenes) {
-      const scene: any = createBlankScene({
-        sceneNumber: s.sceneNumber || '',
-        pageCount: s.pageCount || '',
-        scriptDay: (s.scriptDay || '').replace(/[^0-9]/g, ''),
-        intExt: s.intExt || '',
-        set: (s.set || '').toUpperCase(),
-        dayNight: s.dayNight || '',
-        description: s.description || '',
-        cast: s.cast || '',
-        notes: s.notes || '',
-        backgroundActors: s.backgroundActors || '',
-        stunts: s.stunts || '',
-        vehicles: s.vehicles || '',
-        props: s.props || '',
-        wardrobe: s.wardrobe || '',
-        makeup: s.makeup || '',
-        sfx: s.sfx || '',
-        vfx: s.vfx || '',
-        sound: s.sound || '',
-        music: s.music || '',
-        animalsAndWranglers: s.animalsAndWranglers || '',
-        weapons: s.weapons || '',
-        greenery: s.greenery || '',
-        artDept: s.artDept || '',
-        containerId: null,
-      } as any);
-      if (scene.pageCount && scene.pageCount.trim()) {
-        const decimal = parsePageCount(scene.pageCount);
-        scene.pageCount = formatPageCount(decimal);
-        scene.pageCountDecimal = decimal;
-      }
-      dispatch({ type: 'ADD_SCENE', payload: scene as Scene });
+      dispatch({ type: 'ADD_SCENE', payload: s });
     }
-
     for (const edit of editRows) {
       commitEdit(currentScenes[edit.row].id, edit.colKey, edit.val);
     }
-
     dispatch({ type: 'BATCH_COMMIT' });
     const damageList: { cell: Item }[] = [];
     for (const edit of editRows) {
