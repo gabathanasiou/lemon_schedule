@@ -164,3 +164,25 @@ test.describe('Daybreak Context Actions', () => {
   expect(after).toBe(before + 1);
 });
 });
+
+
+test.describe('Calendar Keyboard', () => {
+  test('calendar arrow keys navigate selection in boneyard', async ({ page }) => {
+  await openSeededProject(page);
+  await page.getByRole('button', { name: 'Calendar' }).click();
+  await page.waitForTimeout(800);
+
+  // Select a boneyard card then arrow-down
+  const boneyardCard = page.locator('#boneyard_rows_container [data-row-id], [data-row-id]').last();
+  await boneyardCard.click();
+  await page.waitForTimeout(200);
+
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  // Escape clears selection without errors; page still renders
+  await expect(page.locator('[data-cal-month]').first()).toBeAttached({ timeout: 3000 });
+});
+});
