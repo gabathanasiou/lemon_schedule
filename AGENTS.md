@@ -6,6 +6,7 @@
 - `npm run build` — production build
 - `npm run preview` — preview production build
 - **E2E tests:** `npx playwright test` (auto-starts dev server on port 3001; tests in `e2e/`)
+- **E2E helpers:** `e2e/helpers.ts` — `ensureProject(page)` (creates a project from the Project Manager screen), `openSeededProject(page)` (loads the "Town - Jason" demo project from `~/Downloads` into localStorage before boot; set `LEMON_SEED_PATH` to use a different `.lemon` file). `seeded-smoke.spec.ts` exercises the real seeded project (schedule stripboard, calendar, glide, designer, print).
 - **`DISABLE_HMR=true`** — set in env to disable HMR/file watching (AI Studio sets this automatically)
 
 ## Project: Film Production Breakdown & Scheduling App
@@ -210,13 +211,21 @@ Text color: white for INT NIGHT / EXT NIGHT, black for all others.
 - `RuleFormModal.tsx` – modal for creating/editing rules with type selector grid, cast autocomplete, and type-specific fields
 - `RulesTab.tsx` (in `src/components/`, not `rules/`) – grouped rule list with search, type filter bar, collapse/expand by cast group
 
-### Import/Export (`src/lib/importScreenplay.ts`)
+### Import/Export (`src/lib/import/`)
+Directory split with a barrel `src/lib/import/index.ts`:
+- `csv.ts` (PapaParse CSV + `buildCSVLabelToKeyMap`), `fdx.ts` (Final Draft XML), `fountain.ts` (fountain-js)
+- `shared.ts` — `ParsedScene`/`ImportCharacter`/`ImportResult` types, `FDX_CATEGORY_MAP`, `parseSceneHeading`
+- `commitImport.ts` — batched dispatch engine; `exportCsv.ts` — `exportBreakdownCSV`
 - Supports three formats: **CSV** (via PapaParse), **FDX** (Final Draft XML), and **Fountain** (via fountain-js)
 - `commitImport()` wraps all dispatches in `BATCH_START`/`BATCH_COMMIT` for single undo entry
 - CSV column mapping uses `buildCSVLabelToKeyMap()` with fallbacks for custom categories and FDX category names
 - `exportBreakdownCSV()` exports all visible columns with proper escaping
 
-### Store (`src/store.tsx`)
+### Store (`src/store/`)
+Split into a directory with a barrel `src/store/index.ts` (all `import ... from 'store'` call sites work unchanged):
+- `src/store/storage.ts` — localStorage keys, `ProjectMeta`, load/save project list, `loadProjectFromStorage()` migration pipeline
+- `src/store/reducer.ts` — `Action` union (58 types), `State`, `reducer`, `makeBlankProject`, category constants, `getElementsFromScenes`
+- `src/store/provider.tsx` — `ProjectContext`, `ProjectProvider` (connectivity probe, debounced save pipeline, cloud sync, project CRUD), `useProject()`, `useIsCloudProject()`
 - `useProject()` hook returns `{ state, dispatch, currentProjectId, projectList, readOnly, initialized, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
 - `useIsCloudProject()` hook returns `boolean` — true when the current project has a `driveFileId` (Google Drive/cloud). Used by PageToolbar and portaled header controls to switch from `bg-zinc-950` / `bg-zinc-900` to `bg-blue-950` / `bg-blue-900` or to `bg-blue-900` (matching the blue app header).
 - `state.present` is the active `Project`, `state.past/future` for undo/redo.
@@ -321,7 +330,7 @@ When checking if an element already exists:
 - **Cast** (`key === 'cast'`) → compare by `e.id`
 - **All other categories** → compare by `e.name || e.id`
 
-This rule applies to `SortableRibbon.tsx:updateScene` (the auto-register check), `store.tsx:ADD_ELEMENT` (deduplication), and EntityDropdown's `displayMode` (always use `"id"` for cast).
+This rule applies to `SortableRibbon.tsx:updateScene` (the auto-register check), `src/store/reducer.ts:ADD_ELEMENT` (deduplication), and EntityDropdown's `displayMode` (always use `"id"` for cast).
 
 ## Glide Breakdown Tab (`src/components/BreakdownTabGlide.tsx`)
 
@@ -417,6 +426,25 @@ const drawCell = (args, draw) => {
   return draw(args);
 };
 ```
+
+## File Layout (post-refactor)
+
+The codebase was split from a handful of monolithic files into focused modules
+(see `docs/REFACTOR-PLAN.md` for the full plan and rationale). Key structure:
+
+- **`src/store/`** — barrel `index.ts` + `storage.ts` / `reducer.ts` / `provider.tsx`
+- **`src/lib/import/`** — barrel `index.ts` + `csv.ts` / `fdx.ts` / `fountain.ts` / `shared.ts` / `commitImport.ts` / `exportCsv.ts`
+- **`src/lib/` shared modules** — `sceneFactory.ts` (`createBlankScene`), `glideCells.ts` (Glide grid cell factories + copy/cut serializers), `elements.ts` (ElementManager helpers), `paletteOps.ts` (palette mutation helpers), `mergeGroups.ts`, `sceneColors.ts`, `ribbonDefaults.ts` (ribbonUtils re-exports all three so existing imports keep working)
+- **`src/components/schedule/`** — `ScheduleToolbar.tsx`, `ScheduleContextMenu.tsx`, `ScheduleModals.tsx`, `ScheduleOverlays.tsx` (ScheduleTab is the composition root)
+- **`src/components/calendar/`** — `SceneCard.tsx`, `DayCell.tsx`, `BoneyardSidebar.tsx`, `calendarUtils.ts`
+- **`src/components/ribbon/`** — `SortableRowNote/Break/Daybreak/Scene.tsx` (row renderers, share `rowRenderTypes.tsx` `RowRenderCtx`), `RibbonPalette.tsx`, `RibbonToolbar.tsx`, `ribbonPaletteMeta.ts`
+- **`src/components/print/`** — `PrintRowParts.tsx` (row renderers + section header/footer, share `PrintRowCtx`), `CastListPrint.tsx`, `printLayout.ts`, `printStyles.ts`
+- **`src/components/elements/`** — `CategoryModals.tsx` (shared category form)
+- **Top-level components** — `AppHeader.tsx`, `OfflineStatus.tsx`, `ProjectCard.tsx`, `NewProjectModal.tsx`, `ColorRuleCard.tsx` (+ `ColorRuleCardMeta.tsx`), `projectManagerStyles.ts` (shared PM_* classes)
+
+When splitting a component: extract presentational JSX and pure logic only, keep
+state/refs in the composition root, and re-export through a barrel where existing
+import paths must keep working.
 
 ## Types (`src/types.ts`)
 - `Scene`: 21 fields including `id`, `sceneNumber`, `pageCount`, `pageCountDecimal`, `scriptDay`, `intExt`, `set`, `dayNight`, `description`, `cast`, `notes`, `ghostOf`, plus entity arrays (`backgroundActors`, `stunts`, `vehicles`, `props`, `wardrobe`, `makeup`, `sfx`, `vfx`, `sound`, `music`, `animalsAndWranglers`, `weapons`, `greenery`, `artDept`)

@@ -1,6 +1,28 @@
 # Monolith Refactor Plan
 
-Branch: `refactor/split-monoliths` · Started: 2026-08-01
+Branch: `refactor/split-monoliths` · Started: 2026-08-01 · **STATUS: COMPLETE**
+
+## Results (all phases landed)
+
+| File | Before | After |
+|---|---|---|
+| `ScheduleTab.tsx` | 2559 | 2031 (+ `schedule/` 4 files) |
+| `CalendarTab.tsx` | 2052 | 1558 (+ `calendar/` 4 files) |
+| `store.tsx` | 2050 | deleted → `store/` barrel |
+| `SortableRibbon.tsx` | 1473 | 745 (+ `ribbon/` 5 files) |
+| `App.tsx` | 1325 | 1081 (+ `AppHeader`, `OfflineStatus`) |
+| `RibbonTab.tsx` | 1324 | 1047 (+ `ribbon/` 3 files) |
+| `BreakdownTabGlide.tsx` | 1089 | 1051 (+ `lib/glideCells`, `lib/sceneFactory`) |
+| `PrintSchedule.tsx` | 908 | 236 (+ `print/` 4 files) |
+| `ElementManager.tsx` | 865 | 700 (+ `elements/CategoryModals`, `lib/elements`) |
+| `ProjectManager.tsx` | 810 | 672 (+ `ProjectCard`, `NewProjectModal`) |
+| `importScreenplay.ts` | 736 | deleted → `lib/import/` 7 files |
+| `ColorsTab.tsx` | 675 | 558 (+ `ColorRuleCard`, `lib/paletteOps`) |
+| `ribbonUtils.ts` | 541 | 151 (re-export shim + `mergeGroups`/`sceneColors`/`ribbonDefaults`) |
+
+**Dedup consolidation delivered:** `formatDateLong` (PrintSchedule now imports from utils), blank-scene factory 5× → 1, RuleCard remount bug fixed, 3 category modals → 1 shared form, palette helpers moved to lib, ProjectManager drive-fetch duplication documented (left as-is, low risk/benefit).
+
+**Verification:** `npm run lint` (tsc) clean after every commit; Playwright suite grown from 5 broken tests to **13 green** (incl. seeded-project smoke tests for schedule/calendar/glide/designer/print and a print-flow regression test).
 
 ## Goal
 
