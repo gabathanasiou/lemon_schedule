@@ -22,7 +22,28 @@ Branch: `refactor/split-monoliths` · Started: 2026-08-01 · **STATUS: COMPLETE*
 
 **Dedup consolidation delivered:** `formatDateLong` (PrintSchedule now imports from utils), blank-scene factory 5× → 1, RuleCard remount bug fixed, 3 category modals → 1 shared form, palette helpers moved to lib, ProjectManager drive-fetch duplication documented (left as-is, low risk/benefit).
 
-**Verification:** `npm run lint` (tsc) clean after every commit; Playwright suite grown from 5 broken tests to **13 green** (incl. seeded-project smoke tests for schedule/calendar/glide/designer/print and a print-flow regression test).
+**Verification:** `npm run lint` (tsc) clean after every commit; Playwright suite grown from 5 broken tests to **16 green** (incl. seeded-project smoke tests for schedule/calendar/glide/designer/print, print-flow regression, daybreak context action, keyboard navigation).
+
+## Follow-up pass (Aug 2026, 15 more branches)
+
+| Branch | Change | Before → After |
+|---|---|---|
+| `refactor/context-menu-dedup` | ScheduleTab adopts shared `useStripboardContextMenu` (+`enableDaybreaks`); ~230 duplicated lines deleted | 2031 → 1798 |
+| `refactor/entity-dropdown-split` | `DropdownPanel` + `lib/dropdownItems` + DD classes consolidated into `lib/dropdown` | 689 → 613 |
+| `refactor/calendar-keyboard-hook` | `calendar/useCalendarKeyboard` (selection nav + clipboard effects) | 1558 → 1414 |
+| `refactor/glide-paste-engine` | `lib/glidePaste.planPaste()` pure planner | — |
+| `refactor/pm-drive-hook` | `lib/useDriveProjectList` (dup fetch logic removed) | 810 → 573 |
+| `refactor/schedule-keyboard-hook` | `schedule/useScheduleKeyboard` (7 effects) | 1798 → 1552 |
+| `refactor/glide-editor-factory` | `lib/glideEditor.createGlideCellEditor()` | 1051 → 947 |
+| `refactor/color-rule-modal-split` | `rules/ColorRuleFormParts` (condition row, override, matrix editor) | 447 → 276 |
+| `refactor/ribbon-canvas-split` | `RibbonDesignerGrid` / `RibbonLivePreview` / `RibbonContextMenu` | 1047 → 782 |
+| `refactor/app-popouts` | `popout/PopoutFrames` (PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar dedup) | 1081 → 883 |
+| `refactor/store-domain-reducers` | `store/actions/{schedule,breakdown,design}` + `store/rows` | reducer 1143 → 365 |
+| `refactor/schedule-drag-hook` | `schedule/useScheduleDrag` (day swaps, multi-row reorder, boneyard) | 1552 → 1409 |
+| `refactor/boneyard-sort-hook` | `schedule/useBoneyardSort` (locked-criteria scene sorting) | 436 → 327 |
+| `refactor/scene-sheet-split` | `SceneSheetFields` (header table + category grid) | 415 → 372 |
+
+**Final largest files:** ScheduleTab 1409 (composition root), CalendarTab 1142, BreakdownTabGlide 947, App 883, RibbonTab 782 — all down from 1300-2600-line monoliths.
 
 ## Goal
 
