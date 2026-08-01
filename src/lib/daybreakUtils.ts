@@ -1,5 +1,6 @@
 import { ScheduleRow, Scene, NonShootDate } from '../types';
 import { addMinutesToTime, formatDuration } from './utils';
+import type { AddBannerConfig } from '../components/AddBannerModal';
 
 export interface ProductionDay {
   index: number;
@@ -229,4 +230,48 @@ export function computeRowData(
   });
 
   return { computedRows, sections, sectionDateMap, sectionLabelMap, sectionSums };
+}
+
+export function computeMiddleInsertIndex(
+  stripRows: ScheduleRow[],
+  content: ScheduleRow[],
+  scenes: Scene[],
+  config: AddBannerConfig,
+): number | null {
+  const n = content.length;
+  if (n === 0) return null;
+
+  const getRowValue = (r: ScheduleRow): number => {
+    if (config.splitMethod === 'pages') {
+      if (r.type !== 'SCENE' || !r.sceneId) return 0;
+      return scenes.find(s => s.id === r.sceneId)?.pageCountDecimal || 0;
+    }
+    if (r.type === 'SCENE' || r.type === 'NOTE') return r.estimatedDuration || 0;
+    return 0;
+  };
+
+  if (config.splitMethod === 'ribbons') {
+    const splitAt = Math.floor(n / 2);
+    if (splitAt <= 0) return null;
+    const idx = stripRows.findIndex(x => x.id === content[splitAt].id);
+    return idx >= 0 ? idx : null;
+  }
+
+  let total = 0;
+  for (const r of content) total += getRowValue(r);
+  if (total <= 0) return null;
+
+  const target = config.splitTarget != null && config.splitTarget > 0 ? config.splitTarget : total / 2;
+  let acc = 0;
+  for (const r of content) {
+    acc += getRowValue(r);
+    if (acc >= target) {
+      const idx = stripRows.findIndex(x => x.id === r.id);
+      return idx >= 0 ? idx : null;
+    }
+  }
+
+  const last = content[content.length - 1];
+  const lastIdx = stripRows.findIndex(x => x.id === last.id);
+  return lastIdx >= 0 ? lastIdx + 1 : null;
 }

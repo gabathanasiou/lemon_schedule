@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useProject, useIsCloudProject } from '../store';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
 import { StripBlock } from './StripBlock';
 import ColorField from './ColorField';
 import { FieldBox, SuffixField } from './FieldBox';
@@ -13,76 +12,37 @@ import { generateUUID, formatDuration, parseDuration, parsePageCount, formatPage
 import { getNoteBannerColors } from '../lib/ribbonUtils';
 import { ScheduleRow, Scene, RuleViolation } from '../types';
 import { useMarquee, MarqueeOverlay, isAddModeActive, useAddMode, useMarqueeActive } from '../lib/useMarquee';
-import { Pencil, Check, ChevronDown, Printer, HelpCircle, Scissors, ClipboardPaste, StickyNote, Coffee, Copy, Eye, Trash2, Palette, LayoutTemplate, Monitor, Table, ExternalLink, Sunrise, Sunset, Wand2, Clock, FileText, Flag, Send, CheckSquare, CalendarPlus } from 'lucide-react';
+import { Sunrise } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
 import DropdownSubmenu from './DropdownSubmenu';
-import SortDropdown, { SortCriterion, compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
+
 import { CustomOrderSortModal, useCustomOrderSort } from './CustomOrderSortModal';
+import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
 import HelpModal from './HelpModal';
 import { FloatingTooltip } from './FloatingTooltip';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
+import { useViewMode, useCellBorders } from '../lib/persist';
 import { IS_COARSE } from '../lib/device';
 import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { getMarqueeMode } from '../lib/useLongPressMenu';
 import { useDialog } from './Dialog';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import { checkSection } from '../lib/rulesEngine';
-import { addMinutesToTime, formatDateLong } from '../lib/utils';
+import { formatDateLong } from '../lib/utils';
 import { ShootViolationsModal } from './ViolationModal';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import AddBannerModal, { AddBannerConfig } from './AddBannerModal';
-import { getContainerBlock, getContainerBlockForId, makeEmptyContainerIds, ContainerIds, LastSelectedByContainer } from '../lib/containers';
+import { getContainerBlock, makeEmptyContainerIds, ContainerIds, LastSelectedByContainer } from '../lib/containers';
 import PageToolbar from './PageToolbar';
-
-function computeMiddleInsertIndex(
-  stripRows: ScheduleRow[],
-  content: ScheduleRow[],
-  scenes: Scene[],
-  config: AddBannerConfig,
-): number | null {
-  const n = content.length;
-  if (n === 0) return null;
-
-  const getRowValue = (r: ScheduleRow): number => {
-    if (config.splitMethod === 'pages') {
-      if (r.type !== 'SCENE' || !r.sceneId) return 0;
-      return scenes.find(s => s.id === r.sceneId)?.pageCountDecimal || 0;
-    }
-    if (r.type === 'SCENE' || r.type === 'NOTE') return r.estimatedDuration || 0;
-    return 0;
-  };
-
-  if (config.splitMethod === 'ribbons') {
-    const splitAt = Math.floor(n / 2);
-    if (splitAt <= 0) return null;
-    const idx = stripRows.findIndex(x => x.id === content[splitAt].id);
-    return idx >= 0 ? idx : null;
-  }
-
-  let total = 0;
-  for (const r of content) total += getRowValue(r);
-  if (total <= 0) return null;
-
-  const target = config.splitTarget != null && config.splitTarget > 0 ? config.splitTarget : total / 2;
-  let acc = 0;
-  for (const r of content) {
-    acc += getRowValue(r);
-    if (acc >= target) {
-      const idx = stripRows.findIndex(x => x.id === r.id);
-      return idx >= 0 ? idx : null;
-    }
-  }
-
-  const last = content[content.length - 1];
-  const lastIdx = stripRows.findIndex(x => x.id === last.id);
-  return lastIdx >= 0 ? lastIdx + 1 : null;
-}
-
+import ScheduleToolbar from './schedule/ScheduleToolbar';
+import ScheduleContextMenu from './schedule/ScheduleContextMenu';
+import ScheduleModals from './schedule/ScheduleModals';
+import ScheduleOverlays from './schedule/ScheduleOverlays';
+import { computeMiddleInsertIndex } from '../lib/daybreakUtils';
 export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetSceneId, onSceneTargetSeen, savedScrollTop, onScrollChange }: { onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void; onPrint?: () => void; targetSceneId?: string | null; onSceneTargetSeen?: () => void; savedScrollTop?: number; onScrollChange?: (top: number) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const currentWindow = useCurrentWindow();
@@ -1510,20 +1470,6 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     setColorPicker(null);
   };
 
-  const reorderDay = (allRows: ScheduleRow[], day: number | null, activeId: string, overId: string) => {
-    let dayRows = allRows.filter(r => r.containerId === day).sort((a, b) => a.order - b.order);
-    const activeIndex = dayRows.findIndex(r => r.id === activeId);
-    const overIndex = dayRows.findIndex(r => r.id === overId);
-    
-    if (activeIndex !== -1 && overIndex !== -1) {
-      const targetIndex = activeIndex < overIndex ? overIndex - 1 : overIndex;
-      dayRows = arrayMove(dayRows, activeIndex, targetIndex);
-      dayRows.forEach((r, i) => r.order = i);
-      return [...allRows.filter(r => r.containerId !== day), ...dayRows];
-    }
-    return allRows;
-  };
-
   const selectedRowIdsRef = useRef(selectedRowIds);
   selectedRowIdsRef.current = selectedRowIds;
   const lastClickedIdRef = useRef(lastClickedId);
@@ -1848,158 +1794,42 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <PageToolbar theme="light" justify="end">
-            <button
-              onClick={() => shootViolations.length > 0 && setShowShootViolations(true)}
-              className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
-              title="View All Violations"
-            >
-              <Flag className={`w-3.5 h-3.5 ${shootViolations.length > 0 ? 'text-red-500' : ''}`} />
-              {shootViolations.length > 0 && <span className="shrink-0">{shootViolations.length}</span>}
-            </button>
-            <div className="w-px h-4 bg-zinc-200" />
-            {selectionSummary && (
-              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                <span>{selectionSummary.count} strip{selectionSummary.count > 1 ? 's' : ''}</span>
-                <span className="text-amber-500/60">·</span>
-                <span>{formatDuration(selectionSummary.totalMinutes)}</span>
-              </span>
-            )}
-            {bufferSummary && (
-              <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                {bufferSummary.count} in buffer
-              </span>
-            )}
-            <span className="text-xs text-zinc-500 shrink-0">{productionSections.length} days</span>
-            <div className="w-px h-4 bg-zinc-200" />
-            <DropdownMenu
-              open={autoDaybreakOpen}
-              onOpenChange={setAutoDaybreakOpen}
-              width="w-44"
-              theme="light"
-              trigger={
-                <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
-                  <Sunset className="w-3.5 h-3.5 shrink-0" />
-                   Day Breaks
-                  <ChevronDown className="w-3 h-3 shrink-0" />
-                </button>
-              }
-            >
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('duration'); }} icon={<Clock className="w-3.5 h-3.5" />}>Add by Duration</DropdownItem>
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleAutoDaybreak('pages'); }} icon={<FileText className="w-3.5 h-3.5" />}>Add by Pages</DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setAutoDaybreakOpen(false); handleDeleteAllDaybreaks(); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger" disabled={!hasDaybreakDays}>Delete All</DropdownItem>
-            </DropdownMenu>
-            <DropdownMenu
-              open={bannerMenuOpen}
-              onOpenChange={setBannerMenuOpen}
-              width="w-48"
-              theme="light"
-              trigger={
-                <button
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-                  title="Add note/break banners to every day, or delete banners"
-                >
-                  <CalendarPlus className="w-3.5 h-3.5 shrink-0" />
-                  Banners
-                  <ChevronDown className="w-3 h-3 shrink-0" />
-                </button>
-              }
-            >
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); setBannerModalOpen(true); }} icon={<StickyNote className="w-3.5 h-3.5" />} disabled={!hasDaybreakDays}>Add Banners</DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); openBannerDeleteModal('NOTE'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete Notes</DropdownItem>
-              <DropdownItem onClick={() => { setBannerMenuOpen(false); openBannerDeleteModal('BREAK'); }} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">Delete Breaks</DropdownItem>
-            </DropdownMenu>
-            <SortDropdown
-              open={sortMenuOpen}
-              onOpenChange={setSortMenuOpen}
-              sortBy={sortBy}
-              sortDir={sortDir}
-              lockedCriteria={lockedCriteria}
-              onToggleLock={handleToggleLock}
-              onSort={handleSort}
-              onCustomSort={handleCustomSort}
-              categories={sortCategories}
-              intExtLabel={intExtSortLabel}
-              dayNightLabel={dayNightSortLabel}
-            />
-            <div className="w-px h-4 bg-zinc-200" />
-            <DropdownMenu
-              open={ribbonMenuOpen}
-              onOpenChange={setRibbonMenuOpen}
-              width="w-48"
-              theme="light"
-                trigger={
-                  <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none hover:bg-zinc-200 text-zinc-600">
-                    View
-                    <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-                  </button>
-              }
-            >
-              <DropdownSubmenu id="ribbon-layout" label="Ribbon Layout" icon={<LayoutTemplate className="w-3.5 h-3.5" />} width="w-44">
-                {project.ribbonDesigns.map(d => (
-                <DropdownItem
-                    key={d.id}
-                    onClick={() => { dispatch({ type: 'SET_ACTIVE_RIBBON', payload: d.id }); setRibbonMenuOpen(false); }}
-                    icon={project.activeRibbonId === d.id ? <Check className="w-3.5 h-3.5" /> : undefined}
-                  >
-                    {d.name}
-                  </DropdownItem>
-                ))}
-              </DropdownSubmenu>
-              <DropdownSubmenu id="stripboard-view" label="Stripboard View" icon={<Monitor className="w-3.5 h-3.5" />} width="w-44">
-                {(['portrait', 'landscape', 'full'] as const).map(m => (
-                  <DropdownItem
-                    key={m}
-                    onClick={() => { setViewMode(m); setRibbonMenuOpen(false); }}
-                    icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
-                  >
-                    {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
-                  </DropdownItem>
-                ))}
-              </DropdownSubmenu>
-              <DropdownDivider />
-              <DropdownSubmenu id="cell-borders" label="Cell Borders" icon={<Table className="w-3.5 h-3.5" />} width="w-44">
-                {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
-                  <DropdownItem
-                    key={m}
-                    onClick={() => { setCellBorders(m); setRibbonMenuOpen(false); }}
-                    icon={cellBorders === m ? <Check className="w-3.5 h-3.5" /> : undefined}
-                  >
-                    {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
-                  </DropdownItem>
-                ))}
-              </DropdownSubmenu>
-            </DropdownMenu>
-            <button
-              onClick={() => !readOnly && setTextEditingEnabled(p => !p)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-            >
-              <Pencil className="w-3.5 h-3.5 shrink-0" />
-              Edit
-            </button>
-            <div className="w-px h-4 bg-zinc-200" />
-            {onPrint && (
-              <button
-                onClick={onPrint}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
-              >
-                <Printer className="w-3.5 h-3.5 shrink-0" />
-                Print
-              </button>
-            )}
-            <div className="w-px h-4 bg-zinc-200" />
-            <button
-              onClick={() => setShowHelp(true)}
-              className="flex items-center justify-center w-7 h-7 rounded-full text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer select-none"
-              title="Keyboard Shortcuts & Help"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </button>
-      </PageToolbar>
+      <ScheduleToolbar
+        shootViolations={shootViolations}
+        onShowViolations={() => setShowShootViolations(true)}
+        selectionSummary={selectionSummary}
+        bufferSummary={bufferSummary}
+        dayCount={productionSections.length}
+        isCloud={isCloud}
+        autoDaybreakOpen={autoDaybreakOpen}
+        setAutoDaybreakOpen={setAutoDaybreakOpen}
+        handleAutoDaybreak={handleAutoDaybreak}
+        handleDeleteAllDaybreaks={handleDeleteAllDaybreaks}
+        hasDaybreakDays={hasDaybreakDays}
+        bannerMenuOpen={bannerMenuOpen}
+        setBannerMenuOpen={setBannerMenuOpen}
+        setBannerModalOpen={setBannerModalOpen}
+        openBannerDeleteModal={openBannerDeleteModal}
+        sortMenuOpen={sortMenuOpen}
+        setSortMenuOpen={setSortMenuOpen}
+        sortState={{ sortBy, sortDir, lockedCriteria, sortCategories, intExtSortLabel, dayNightSortLabel }}
+        handleToggleLock={handleToggleLock}
+        handleSort={handleSort}
+        handleCustomSort={handleCustomSort}
+        ribbonMenuOpen={ribbonMenuOpen}
+        setRibbonMenuOpen={setRibbonMenuOpen}
+        ribbonDesigns={project.ribbonDesigns}
+        activeRibbonId={project.activeRibbonId}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        cellBorders={cellBorders}
+        setCellBorders={setCellBorders}
+        textEditingEnabled={textEditingEnabled}
+        setTextEditingEnabled={setTextEditingEnabled}
+        readOnly={readOnly}
+        onPrint={onPrint}
+        onShowHelp={() => setShowHelp(true)}
+      />
       <style>{`
         .schedule-table {
           width: 100%;
@@ -2128,431 +1958,73 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         </div>
       </div>
 
-      <DragOverlay dropAnimation={null}>
-        {activeDragRow ? (
-          <div className="w-[1024px] max-w-4xl pointer-events-none relative">
-            {activeDragIds.size > 1 && Array.from(activeDragIds).slice(0, 3).reverse().map((id, i, arr) => {
-              const row = activeVersion.rows.find(r => r.id === id);
-              if (!row) return null;
-              const isTop = i === arr.length - 1;
-              const offset = (arr.length - 1 - i) * 4;
-              const opacity = isTop ? 1 : 1 - (arr.length - 1 - i) * 0.2;
-              return (
-                <div key={id} style={{ position: isTop ? 'relative' : 'absolute', top: offset, left: 0, right: 0, opacity, zIndex: isTop ? 10 : 5 - i }}>
-                  <SortableRibbon row={row as any} scenes={project.scenes} isOverlay textEditingEnabled={effectiveTextEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} />
-                </div>
-              );
-            })}
-            {activeDragIds.size === 1 && activeDragIds.has(activeId as string) && (
-              <SortableRibbon row={activeDragRow as any} scenes={project.scenes} isOverlay textEditingEnabled={effectiveTextEditingEnabled} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} />
-            )}
-            {activeDragIds.size > 1 && (
-               <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white z-20">
-                 ×{activeDragIds.size}
-               </div>
-            )}
-          </div>
-        ) : null}
-      </DragOverlay>
-
-      {digitBuffer && (
-        <div className="fixed inset-0 pointer-events-none z-[9999] flex items-start justify-center pt-12">
-          <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-xl shadow-2xl px-6 py-3 flex flex-col items-center gap-1.5 min-w-[140px]">
-            <span className="text-zinc-300 text-xs font-semibold uppercase tracking-widest">Schedule to Section</span>
-            <span className="text-white text-3xl font-bold tabular-nums">{digitBuffer}</span>
-            <div className="w-full h-1 bg-zinc-700 rounded-full overflow-hidden">
-              <div key={digitBuffer} className="h-full bg-blue-500 rounded-full" style={{ animation: `shrink ${BUFFER_MS}ms linear forwards` }} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <FloatingTooltip open={!!selectionSummary || !!bufferSummary}>
-        <div className="bg-zinc-900 text-white text-[10px] rounded shadow-xl whitespace-nowrap leading-relaxed">
-          {selectionSummary && (
-            <>
-              <div className="px-2.5 py-1.5">{selectionSummary.count} strip{selectionSummary.count > 1 ? 's' : ''} selected</div>
-              <div className="border-t border-zinc-700 px-2.5 py-1.5">{formatDuration(selectionSummary.totalMinutes)}</div>
-            </>
-          )}
-          {selectionSummary && bufferSummary && <div className="border-t border-zinc-700" />}
-          {bufferSummary && (
-            <div className="px-2.5 py-1.5">{bufferSummary.count} strip{bufferSummary.count > 1 ? 's' : ''} in buffer</div>
-          )}
-        </div>
-      </FloatingTooltip>
-
-      <style>{`
-        @keyframes shrink {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}</style>
+      <ScheduleOverlays
+        activeId={activeId}
+        activeDragRow={activeDragRow}
+        activeDragIds={activeDragIds}
+        activeDragRows={activeDragRows}
+        scenes={project.scenes}
+        textEditingEnabled={effectiveTextEditingEnabled}
+        ribbon={activeRibbon}
+        colWidths={activeColWidths}
+        cellPaddingV={cellPaddingV}
+        cellPaddingH={cellPaddingH}
+        edgePadding={edgePadding}
+        cellBorders={cellBorders}
+        digitBuffer={digitBuffer}
+        bufferMs={BUFFER_MS}
+        selectionSummary={selectionSummary}
+        bufferSummary={bufferSummary}
+      />
 
       {/* Context Menu */}
-      <ContextMenu open={!!contextMenu} x={contextMenu?.x ?? 0} y={contextMenu?.y ?? 0} onClose={() => setContextMenu(null)}>
-        {(() => {
-          const row = contextMenu ? activeVersion.rows.find(r => r.id === contextMenu.rowId) : null;
-          const isDummy = contextMenu?.rowId.startsWith('empty-') ?? false;
-          const inClipboard = activeVersion.rows.filter(r => r.containerId === -1).length;
-          if (selectedRowIds.size > 1) {
-            const allInBoneyard = Array.from(selectedRowIds).every(id => {
-              const r = activeVersion.rows.find(rr => rr.id === id);
-              return r && getContainerBlock(r) === 'boneyard';
-            });
-            return (
-              <>
-                <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut {selectedRowIds.size} to Buffer</ContextMenuItem>
-                <ContextMenuDivider />
-                {allInBoneyard ? (
-                  <ContextMenuItem variant="danger" onClick={() => {
-                    const ids = Array.from(selectedRowIds).filter(id => {
-                      const r = activeVersion.rows.find(rr => rr.id === id);
-                      return !r?.pinned && r?.type !== 'DAYBREAK';
-                    });
-                    if (ids.length === 0) return;
-                    const containerRows = activeVersion!.rows.filter(r => r.containerId != null && r.containerId !== -1);
-                    const maxOrder = containerRows.length > 0 ? Math.max(...containerRows.map(r => r.order)) : -1;
-                    const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, containerId: 1, order: maxOrder + 1 + ids.indexOf(r.id) } : r);
-                    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                    selectNextAfterRemove(new Set(ids as string[]));
-                    setContextMenu(null);
-                  }} icon={<Send className="w-3.5 h-3.5" />}>
-                    Send {selectedRowIds.size} to Stripboard
-                  </ContextMenuItem>
-                ) : (
-                  <ContextMenuItem variant="danger" onClick={() => {
-        const ids = Array.from(selectedRowIds).filter(id => {
-          const r = activeVersion.rows.find(rr => rr.id === id);
-          return !r?.pinned;
-        });
-        if (ids.length === 0) return;
-                    const newRows = activeVersion!.rows.map(r => ids.includes(r.id) ? { ...r, containerId: null, order: 999999 } : r);
-                    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion!.id, rows: newRows } });
-                    selectNextAfterRemove(new Set(ids as string[]));
-                    setContextMenu(null);
-                  }} icon={<Trash2 className="w-3.5 h-3.5" />}>
-                    Remove {selectedRowIds.size} Ribbons
-                  </ContextMenuItem>
-                )}
-              </>
-            );
-          }
-          return (
-            <>
-              {!isDummy && (
-                <>
-              <ContextMenuItem onClick={() => {
-                const isBoneyard = row ? getContainerBlock(row) === 'boneyard' : false;
-                const ids = isBoneyard ? containerIdsRef.current.boneyard : containerIdsRef.current.stripboard;
-                if (ids.length > 0) {
-                  setSelectedRowIds(new Set(ids));
-                  setLastClickedId(ids[0]);
-                  scrollToRow(ids[0]);
-                }
-                setContextMenu(null);
-              }} icon={<CheckSquare className="w-3.5 h-3.5" />}>Select All</ContextMenuItem>
-              <ContextMenuDivider />
-                </>
-              )}
-              {inClipboard > 0 && (
-                <>
-                  <ContextMenuItem onClick={() => { pasteClipboard(contextMenu!.rowId); setContextMenu(null); }} icon={<ClipboardPaste className="w-3.5 h-3.5" />}>Paste Below ({inClipboard})</ContextMenuItem>
-                  <ContextMenuDivider />
-                </>
-              )}
-              {row && !row.pinned && (
-                <>
-                  <ContextMenuItem onClick={() => { cutSelected(); setContextMenu(null); }} icon={<Scissors className="w-3.5 h-3.5" />}>Cut to Buffer</ContextMenuItem>
-                  <ContextMenuDivider />
-                </>
-              )}
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_note')} icon={<StickyNote className="w-3.5 h-3.5" />}>Add Note Below</ContextMenuItem>
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_break')} icon={<Coffee className="w-3.5 h-3.5" />}>Add Break Below</ContextMenuItem>
-              <ContextMenuItem onClick={() => handleContextMenuAction('add_daybreak')} icon={<Sunset className="w-3.5 h-3.5" />}>Add Day Break Below</ContextMenuItem>
-              {row && !row.pinned && <ContextMenuDivider />}
-              {row?.type === 'SCENE' && (
-                <>
-                  <ContextMenuItem onClick={() => handleContextMenuAction('duplicate')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate</ContextMenuItem>
-                  <ContextMenuDivider />
-                  {!IS_COARSE && shiftHeld && onOpenSceneInPopout ? (
-                    <ContextMenuItem onClick={() => { if (row.sceneId && onOpenSceneInPopout) onOpenSceneInPopout(row.sceneId); setContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>Open in New Window</ContextMenuItem>
-                  ) : (
-                    <ContextMenuItem onClick={() => { if (row.sceneId && onOpenScene) onOpenScene(row.sceneId); setContextMenu(null); }} icon={<Eye className="w-3.5 h-3.5" />}>Open Sheet</ContextMenuItem>
-                  )}
-              {row && getContainerBlock(row) === 'stripboard' && (
-                <>
-                  <ContextMenuDivider />
-                  <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
-                </>
-              )}
-            </>
-          )}
-              {(row?.type === 'NOTE' || row?.type === 'BREAK' || row?.type === 'DAYBREAK') && (
-                <>
-                  {row?.type === 'NOTE' && (
-                    <>
-                      <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_note')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Note</ContextMenuItem>
-                      <ContextMenuItem onClick={() => handleContextMenuAction('change_color')} icon={<Palette className="w-3.5 h-3.5" />}>Edit Banner</ContextMenuItem>
-                    </>
-                  )}
-                  {row?.type === 'BREAK' && (
-                    <ContextMenuItem onClick={() => handleContextMenuAction('duplicate_break')} icon={<Copy className="w-3.5 h-3.5" />}>Duplicate Break</ContextMenuItem>
-                  )}
-                  {(row?.type === 'NOTE' || row?.type === 'BREAK') && <ContextMenuDivider />}
-              {row && row?.type !== 'DAYBREAK' && getContainerBlock(row) === 'stripboard' && (
-                    <ContextMenuItem onClick={() => handleContextMenuAction('boneyard')} icon={<Trash2 className="w-3.5 h-3.5" />}>Send to Boneyard</ContextMenuItem>
-                  )}
-                  {!row?.pinned && (
-                    <ContextMenuItem onClick={() => handleContextMenuAction('delete')} variant="danger" icon={<Trash2 className="w-3.5 h-3.5" />}>Delete</ContextMenuItem>
-                  )}
-                </>
-              )}
-            </>
-          );
-        })()}
-      </ContextMenu>
+      <ScheduleContextMenu
+        contextMenu={contextMenu}
+        setContextMenu={setContextMenu}
+        version={activeVersion}
+        selectedRowIds={selectedRowIds}
+        setSelectedRowIds={setSelectedRowIds}
+        setLastClickedId={setLastClickedId}
+        scrollToRow={scrollToRow}
+        containerIdsRef={containerIdsRef}
+        cutSelected={cutSelected}
+        pasteClipboard={pasteClipboard}
+        handleContextMenuAction={handleContextMenuAction}
+        selectNextAfterRemove={selectNextAfterRemove}
+        dispatch={dispatch}
+        shiftHeld={shiftHeld}
+        onOpenScene={onOpenScene}
+        onOpenSceneInPopout={onOpenSceneInPopout}
+      />
 
-      {/* Color Picker Modal */}
-      {colorPicker && (
-        <Modal open onClose={() => setColorPicker(null)} title="Edit Banner" width="max-w-md"
-          footer={
-            <ModalFooter>
-              <button onClick={() => setColorPicker(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-              <button onClick={applyNoteColor} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Apply</button>
-            </ModalFooter>
-          }
-        >
-          <div className="p-6 space-y-5">
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Background</span>
-              <ColorField value={colorPicker.bg} onChange={v => setColorPicker(p => p ? { ...p, bg: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).background} />
-            </div>
-            <div className="flex items-center justify-between py-1">
-              <span className="text-xs text-zinc-300">Text Color</span>
-              <ColorField value={colorPicker.text} onChange={v => setColorPicker(p => p ? { ...p, text: v } : null)} defaultValue={getNoteBannerColors(state.present.colorPalette).color} />
-            </div>
-            <div>
-              <textarea
-                value={colorPicker.noteText}
-                onChange={e => setColorPicker(p => p ? { ...p, noteText: e.target.value.toUpperCase() } : null)}
-                rows={3}
-                className="w-full text-xs px-3 py-2 rounded border border-zinc-800 outline-none focus:border-zinc-600 resize-none"
-                style={{ background: colorPicker.bg, color: colorPicker.text }}
-                placeholder="Banner text..."
-              />
-            </div>
-          </div>
-        </Modal>
-      )}
-      {autoDaybreakPrompt && (() => {
-        const threshold = autoDaybreakPrompt.mode === 'duration'
-          ? parseDuration(autoDaybreakRaw)
-          : parsePageCount(autoDaybreakRaw);
-        const valid = autoDaybreakRaw.trim() !== '' && !isNaN(threshold) && threshold > 0;
-        return (
-          <Modal open onClose={() => setAutoDaybreakPrompt(null)} title={autoDaybreakPrompt.mode === 'duration' ? 'Add Day Break by Duration' : 'Add Day Break by Pages'} width="max-w-sm"
-            footer={
-              <ModalFooter>
-                <button onClick={() => setAutoDaybreakPrompt(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={confirmAutoDaybreak} disabled={!valid} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Place Day Breaks</button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5" onKeyDown={e => { if (e.key === 'Enter' && valid) confirmAutoDaybreak(); }}>
-              <div className="flex items-center gap-3 py-1">
-                {autoDaybreakPrompt.mode === 'duration' && (
-                  <span className="text-xs text-zinc-300 shrink-0">Duration</span>
-                )}
-                {autoDaybreakPrompt.mode === 'duration' ? (
-                  <FieldBox className="flex-1 min-w-0">
-                    <CellInput
-                      value={autoDaybreakRaw}
-                      onChange={setAutoDaybreakRaw}
-                      onBlur={() => setAutoDaybreakRaw(prev => normalizeAutoDaybreakRaw(prev))}
-                      clearOnType
-                      autoFocus
-                      col="duration"
-                      placeholder="e.g. 8h or 1h 30m"
-                      className="flex-1 text-left text-xs"
-                    />
-                  </FieldBox>
-                ) : (
-                  <SuffixField suffix="pgs" className="flex-1 min-w-0">
-                    <CellInput
-                      value={autoDaybreakRaw}
-                      onChange={setAutoDaybreakRaw}
-                      onBlur={() => setAutoDaybreakRaw(prev => normalizeAutoDaybreakRaw(prev))}
-                      clearOnType
-                      autoFocus
-                      col="pageCount"
-                      placeholder="e.g. 2 4/8 or 3.5"
-                      className="flex-1 text-right text-xs"
-                    />
-                  </SuffixField>
-                )}
-              </div>
-            </div>
-          </Modal>
-        );
-      })()}
-      {autoDaybreakCleanup && (() => {
-        const daybreakCount = activeVersion?.rows.filter(r => r.type === 'DAYBREAK' && !r.pinned).length ?? 0;
-        const noteCount = activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'NOTE').length ?? 0;
-        const breakCount = activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'BREAK').length ?? 0;
-        const segBase = `flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer`;
-        const segSel = `bg-zinc-800 text-white`;
-        const segDef = `text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50`;
-        const parts: string[] = [];
-        if (daybreakCount > 0) parts.push(`${daybreakCount} day break${daybreakCount !== 1 ? 's' : ''}`);
-        if (noteCount > 0) parts.push(`${noteCount} note${noteCount !== 1 ? 's' : ''}`);
-        if (breakCount > 0) parts.push(`${breakCount} break${breakCount !== 1 ? 's' : ''}`);
-        const summary = parts.join(', ').replace(/, ([^,]+)$/, ' and $1');
-        return (
-          <Modal open onClose={() => setAutoDaybreakCleanup(null)} title="Prepare Stripboard" width="max-w-sm"
-            footer={
-              <ModalFooter>
-                <button onClick={() => setAutoDaybreakCleanup(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={() => {
-                  const c = autoDaybreakCleanup;
-                  setAutoDaybreakCleanup(null);
-                  executeAutoDaybreak(c.mode, c.threshold, autoDaybreakNotesAction, autoDaybreakBreaksAction);
-                }} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Place Day Breaks</button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                {daybreakCount > 0 && (noteCount > 0 || breakCount > 0)
-                  ? <>Existing day breaks will be removed. {summary} found - choose how to handle notes and breaks.</>
-                  : daybreakCount > 0
-                  ? <>Existing day breaks will be removed before auto-placing new ones.</>
-                  : <>{summary} found in the stripboard - choose how to handle them.</>
-                }
-              </p>
-              {daybreakCount > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-zinc-300">Day Breaks <span className="text-zinc-500">({daybreakCount})</span></span>
-                  <span className="text-xs text-zinc-500">Will be removed</span>
-                </div>
-              )}
-              {noteCount > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-zinc-300">Notes <span className="text-zinc-500">({noteCount})</span></span>
-                  <div className="flex gap-1.5">
-                    <button className={`${segBase} ${autoDaybreakNotesAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('boneyard')}>Boneyard</button>
-                    <button className={`${segBase} ${autoDaybreakNotesAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakNotesAction('delete')}>Delete</button>
-                  </div>
-                </div>
-              )}
-              {breakCount > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-xs text-zinc-300">Breaks <span className="text-zinc-500">({breakCount})</span></span>
-                  <div className="flex gap-1.5">
-                    <button className={`${segBase} ${autoDaybreakBreaksAction === 'boneyard' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('boneyard')}>Boneyard</button>
-                    <button className={`${segBase} ${autoDaybreakBreaksAction === 'delete' ? segSel : segDef}`} onClick={() => setAutoDaybreakBreaksAction('delete')}>Delete</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Modal>
-        );
-      })()}
-      <AddBannerModal
-        open={bannerModalOpen}
-        onClose={() => setBannerModalOpen(false)}
-        dayCount={productionSections.length}
-        onAdd={handleAddBanners}
+      <ScheduleModals
+        colorPicker={colorPicker}
+        setColorPicker={setColorPicker}
+        palette={state.present.colorPalette}
+        applyNoteColor={applyNoteColor}
+        autoDaybreakPrompt={autoDaybreakPrompt}
+        setAutoDaybreakPrompt={setAutoDaybreakPrompt}
+        autoDaybreakRaw={autoDaybreakRaw}
+        setAutoDaybreakRaw={setAutoDaybreakRaw}
+        normalizeAutoDaybreakRaw={normalizeAutoDaybreakRaw}
+        confirmAutoDaybreak={confirmAutoDaybreak}
+        autoDaybreakCleanup={autoDaybreakCleanup}
+        setAutoDaybreakCleanup={setAutoDaybreakCleanup}
+        autoDaybreakNotesAction={autoDaybreakNotesAction}
+        setAutoDaybreakNotesAction={setAutoDaybreakNotesAction}
+        autoDaybreakBreaksAction={autoDaybreakBreaksAction}
+        setAutoDaybreakBreaksAction={setAutoDaybreakBreaksAction}
+        executeAutoDaybreak={executeAutoDaybreak}
+        daybreakCount={activeVersion?.rows.filter(r => r.type === 'DAYBREAK' && !r.pinned).length ?? 0}
+        noteCount={activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'NOTE').length ?? 0}
+        breakCount={activeVersion?.rows.filter(r => r.containerId !== null && r.type === 'BREAK').length ?? 0}
+        bannerDelete={bannerDelete}
+        setBannerDelete={setBannerDelete}
+        bannerDeleteEntries={bannerDeleteEntries}
+        bannerDeleteChecked={bannerDeleteChecked}
+        setBannerDeleteChecked={setBannerDeleteChecked}
+        deleteBanners={deleteBanners}
       />
-      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
-      <ShootViolationsModal
-        open={showShootViolations}
-        onClose={() => setShowShootViolations(false)}
-        dayViolations={shootViolations}
-        castMembers={project.castMembers || []}
-      />
-      <CustomOrderSortModal
-        open={customOrderModal?.open ?? false}
-        onClose={closeCustomOrderModal}
-        title={customOrderModal?.title ?? ''}
-        options={customOrderModal?.options ?? []}
-        onSort={(order) => {
-          if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
-        }}
-      />
-      {bannerDelete && (() => {
-        const allChecked = bannerDeleteEntries.length > 0 && bannerDeleteEntries.every(e => bannerDeleteChecked.has(e.key));
-        const checkedKeys = new Set(bannerDeleteEntries.filter(e => bannerDeleteChecked.has(e.key)).map(e => e.key));
-        const checkedCount = bannerDeleteEntries.filter(e => bannerDeleteChecked.has(e.key)).reduce((s, e) => s + e.count, 0);
-        const totalCount = bannerDeleteEntries.reduce((s, e) => s + e.count, 0);
-        return (
-          <Modal open onClose={() => setBannerDelete(null)} title={bannerDelete.type === 'NOTE' ? 'Delete Notes' : 'Delete Breaks'} width="max-w-md"
-            footer={
-              <ModalFooter>
-                <button onClick={() => setBannerDelete(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button
-                  onClick={() => deleteBanners(bannerDelete.type, checkedKeys)}
-                  disabled={checkedCount === 0}
-                  className="px-6 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Delete Selected{checkedCount > 0 ? ` (${checkedCount})` : ''}
-                </button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Choose which {bannerDelete.type === 'NOTE' ? 'note' : 'break'} banners to remove.
-              </p>
-              <div>
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2">
-                  <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                    {totalCount} {bannerDelete.type === 'NOTE' ? 'note' : 'break'} banner{totalCount !== 1 ? 's' : ''}
-                  </h3>
-                  <button
-                    onClick={() => setBannerDeleteChecked(prev => {
-                      const next = new Set(prev);
-                      if (allChecked) bannerDeleteEntries.forEach(e => next.delete(e.key));
-                      else bannerDeleteEntries.forEach(e => next.add(e.key));
-                      return next;
-                    })}
-                    className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium"
-                  >
-                    {allChecked ? 'Deselect all' : 'Select all'}
-                  </button>
-                </div>
-                <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-72">
-                  {bannerDeleteEntries.map(e => {
-                    const checked = bannerDeleteChecked.has(e.key);
-                    return (
-                      <button
-                        key={e.key}
-                        onClick={() => setBannerDeleteChecked(prev => {
-                          const next = new Set(prev);
-                          if (next.has(e.key)) next.delete(e.key); else next.add(e.key);
-                          return next;
-                        })}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
-                      >
-                        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-                          {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                        </span>
-                        <span className="px-2 py-0.5 rounded font-semibold truncate max-w-[16rem] shrink-0" style={{ background: e.bg, color: e.fg }}>
-                          {e.label}
-                        </span>
-                        <span className="text-zinc-500 ml-auto">{e.count}</span>
-                      </button>
-                    );
-                  })}
-                  {bannerDeleteEntries.length === 0 && (
-                    <div className="px-3 py-4 text-xs text-zinc-600 text-center">No banners found.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Modal>
-        );
-      })()}
     </DndContext>
   </div>
 );

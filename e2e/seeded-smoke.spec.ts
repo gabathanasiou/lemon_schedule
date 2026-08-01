@@ -50,3 +50,43 @@ test.describe('Seeded Project Smoke Tests', () => {
     expect(sceneCount).toBeGreaterThan(0);
   });
 });
+
+test.describe('Schedule Tab Toolbar & Context Menu', () => {
+  test('toolbar renders with days count, Edit, Print, Day Breaks and Banners', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(800);
+
+    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Print' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Day Breaks' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Banners' })).toBeVisible();
+    await expect(page.locator('text=days').first()).toBeVisible();
+  });
+
+  test('context menu opens on right-click of a strip', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(800);
+
+    const row = page.locator('[data-row-id]').first();
+    await row.click({ button: 'right', force: true });
+    await page.waitForTimeout(300);
+
+    await expect(page.getByRole('button', { name: 'Add Note Below' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Day Break Below' })).toBeVisible();
+    await page.keyboard.press('Escape');
+  });
+
+  test('view menu shows ribbon layouts and stripboard view', async ({ page }) => {
+    await openSeededProject(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(800);
+
+    await page.getByRole('button', { name: 'View', exact: true }).click();
+    await page.waitForTimeout(200);
+    await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Cell Borders' })).toBeVisible();
+    await page.keyboard.press('Escape');
+  });
+});
