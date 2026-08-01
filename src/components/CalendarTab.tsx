@@ -43,6 +43,12 @@ function toDateKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function formatFullDate(date: Date): string {
+  const wd = date.toLocaleString('en-US', { weekday: 'short' }).toUpperCase();
+  const mo = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+  return `${wd} ${date.getDate()} ${mo}`;
+}
+
 interface CalendarMonth { year: number; month: number; }
 
 function monthsInRange(startYear: number, startMonth: number, endYear: number, endMonth: number): CalendarMonth[] {
@@ -242,11 +248,16 @@ const DayCell: React.FC<{
           onClick={() => activeTool && onToggle(dateKey)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
-        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[26px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
+        className={`flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''} ${isOver && activeDragDay != null && sectionIndex != null ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}
       >
-        <span className="text-[10px] font-bold w-5 text-center leading-none">{date.getDate()}</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider flex-1 text-center">{headerLabel}</span>
-        <span className="w-5 flex justify-center">
+        <span className="w-5 shrink-0" />
+        <div className="flex flex-col items-center justify-center flex-1 min-w-0 leading-none gap-[3px]">
+          <span className="text-[8px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-60">{formatFullDate(date)}</span>
+          {headerLabel && (
+            <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{headerLabel}</span>
+          )}
+        </div>
+        <span className="w-5 shrink-0 flex justify-center">
           {violations.length > 0 && (
             <ViolationTooltip violations={violations}>
               <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
