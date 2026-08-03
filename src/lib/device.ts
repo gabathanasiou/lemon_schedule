@@ -88,6 +88,7 @@ if (IS_BROWSER) {
   let penDownPos: { x: number; y: number } | null = null;
   let lastPenTap: { x: number; y: number; time: number } | null = null;
   const PEN_CLICK = '__penClick';
+  const NATIVE_PICKER_TYPES = new Set(['color', 'file', 'date', 'datetime-local', 'month', 'time', 'week']);
   window.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.pointerType !== 'pen' || e.button !== 0) return;
     penDownPos = { x: e.clientX, y: e.clientY };
@@ -100,6 +101,14 @@ if (IS_BROWSER) {
     if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return; // drag/scroll, not a tap
     const target = e.target as Element | null;
     if (!target || !target.isConnected) return;
+    if (target instanceof HTMLInputElement && NATIVE_PICKER_TYPES.has(target.type)) {
+      // Native pickers (color swatch, file, date…) only open from a trusted
+      // gesture — the synthetic click can't open them and the suppressor below
+      // would eat the real click. Open via showPicker() in this real handler,
+      // and skip suppression so any native click still works.
+      try { target.showPicker(); } catch { /* not supported — native click path only */ }
+      return;
+    }
     const evt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
     (evt as any)[PEN_CLICK] = true;
     lastPenTap = { x: e.clientX, y: e.clientY, time: Date.now() };

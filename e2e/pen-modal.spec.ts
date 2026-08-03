@@ -108,4 +108,51 @@ test.describe('Apple Pencil in modals', () => {
     await page.waitForTimeout(400);
     expect(await saveBtn.isVisible().catch(() => false)).toBe(false);
   });
+
+  test('color picker (ColorField): pen tap opens via showPicker', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(500);
+
+    const noteId = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+      if (!key) return null;
+      const p = JSON.parse(localStorage.getItem(key)!);
+      const v = p.versions?.[p.activeVersionId] || p.versions?.[0];
+      return v?.rows?.find((r: any) => r.type === 'NOTE')?.id ?? null;
+    });
+    expect(noteId).not.toBeNull();
+
+    const noteRow = page.locator(`[data-row-id="${noteId}"]`).first();
+    await expect(noteRow).toBeAttached({ timeout: 5000 });
+    await noteRow.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+    });
+    await page.waitForTimeout(600);
+    await expect(page.getByText('Edit Banner')).toBeVisible({ timeout: 5000 });
+
+    // spy on showPicker
+    await page.evaluate(() => {
+      const w = window as any;
+      w.__pickerCalls = [];
+      const orig = HTMLInputElement.prototype.showPicker;
+      HTMLInputElement.prototype.showPicker = function (this: HTMLInputElement) {
+        w.__pickerCalls.push(this.type);
+        return orig.apply(this);
+      };
+    });
+
+    const swatch = page.locator('[role="dialog"] input[type="color"]').first();
+    await expect(swatch).toBeVisible();
+    await penTap(page, swatch);
+    await page.waitForTimeout(400);
+
+    const calls = await page.evaluate(() => (window as any).__pickerCalls);
+    console.log('PICKER CALLS: ' + JSON.stringify(calls));
+    expect(calls).toContain('color');
+
+    // modal still open, no suppressed follow-up
+    expect(await dialogVisible(page)).toBe(true);
+  });
 });
