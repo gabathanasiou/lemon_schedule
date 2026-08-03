@@ -821,7 +821,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                   type="date"
                   value={startDate}
                   onChange={e => updateStartDate(e.target.value)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded border border-zinc-300 bg-white cursor-pointer"
+                  className="text-[10px] font-semibold px-2 rounded border border-zinc-300 bg-white cursor-pointer h-[25px]"
                 />
               </div>
             }

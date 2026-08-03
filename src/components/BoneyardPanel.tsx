@@ -3,7 +3,6 @@ import { useCurrentDocument } from '../lib/popoutTarget';
 import { ChevronLeft } from 'lucide-react';
 
 interface BoneyardPanelProps {
-  count: number;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   widthKey: string;
@@ -12,6 +11,7 @@ interface BoneyardPanelProps {
   maxWidth: number;
   tone?: 'zinc' | 'white';
   className?: string;
+  titleSlot?: React.ReactNode;
   headerSlot?: React.ReactNode;
   children?: React.ReactNode;
 }
@@ -21,7 +21,7 @@ const TONE_CLASSES = {
   white: 'bg-white border-zinc-300',
 } as const;
 
-export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ count, collapsed, onToggleCollapsed, widthKey, defaultWidth, minWidth, maxWidth, tone = 'zinc', className, headerSlot, children }) => {
+export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggleCollapsed, widthKey, defaultWidth, minWidth, maxWidth, tone = 'zinc', className, titleSlot, headerSlot, children }) => {
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(widthKey); return v ? parseInt(v, 10) : defaultWidth; } catch { return defaultWidth; }
   });
@@ -66,25 +66,26 @@ export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ count, collapsed, 
       className={`${TONE_CLASSES[tone]} border-r flex flex-col shrink-0 relative overflow-hidden ${className ?? ''}`}
       style={{ width: `${width}px` }}
     >
-      <div className="px-3 pt-2 pb-1.5 border-b shrink-0 bg-zinc-50 border-zinc-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 shrink-0 select-none">Boneyard</span>
-            <span className="text-zinc-300 select-none shrink-0">·</span>
-            <span className="text-[10px] font-semibold text-zinc-400 shrink-0">{count}</span>
+      <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200">
+        <div className="flex items-center justify-between min-h-[25px]">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-semibold text-zinc-700 shrink-0 select-none">Boneyard</span>
+            {titleSlot}
           </div>
           <button
             onClick={onToggleCollapsed}
-            className="p-1 -mr-1 hover:bg-zinc-200 rounded text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer shrink-0"
+            className="p-1 -mr-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0"
             title="Collapse Sidebar"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
-        {headerSlot && (
-          <div className="flex flex-wrap items-center gap-2 mt-1.5">{headerSlot}</div>
-        )}
       </div>
+      {headerSlot && (
+        <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-white border-zinc-200 flex flex-wrap items-center gap-2">
+          {headerSlot}
+        </div>
+      )}
       {children}
       <div
         className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"

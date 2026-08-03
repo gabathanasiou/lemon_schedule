@@ -145,7 +145,6 @@ export const BoneyardBlock: React.FC<{
 
   return (
     <BoneyardPanel
-      count={rows.length}
       collapsed={collapsed}
       onToggleCollapsed={() => onCollapseChange?.(!collapsed)}
       widthKey={SIDEBAR_KEY}
@@ -154,6 +153,22 @@ export const BoneyardBlock: React.FC<{
       maxWidth={600}
       tone="white"
       className="z-20 print:hidden"
+      titleSlot={
+        <SortDropdown
+          open={showSortMenu}
+          onOpenChange={setShowSortMenu}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          lockedCriteria={lockedCriteria}
+          onToggleLock={handleToggleLock}
+          onSort={handleSort}
+          onCustomSort={handleCustomSort}
+          categories={sortCategories}
+          intExtLabel={intExtSortLabel}
+          dayNightLabel={dayNightSortLabel}
+          compact
+        />
+      }
       headerSlot={
         <>
           <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Note Ribbon">
@@ -164,20 +179,6 @@ export const BoneyardBlock: React.FC<{
             <Coffee className="w-3.5 h-3.5 shrink-0" />
             Break
           </button>
-          <div className="w-px h-4 bg-zinc-200" />
-          <SortDropdown
-            open={showSortMenu}
-            onOpenChange={setShowSortMenu}
-            sortBy={sortBy}
-            sortDir={sortDir}
-            lockedCriteria={lockedCriteria}
-            onToggleLock={handleToggleLock}
-            onSort={handleSort}
-            onCustomSort={handleCustomSort}
-            categories={sortCategories}
-            intExtLabel={intExtSortLabel}
-            dayNightLabel={dayNightSortLabel}
-          />
         </>
       }
     >

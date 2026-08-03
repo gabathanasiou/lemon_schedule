@@ -38,14 +38,13 @@ export const BoneyardSidebar: React.FC<{
 
   return (
     <BoneyardPanel
-      count={rows.length}
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
       widthKey={SIDEBAR_KEY}
       defaultWidth={200}
       minWidth={160}
       maxWidth={400}
-      headerSlot={onSort ? (
+      titleSlot={onSort ? (
         <SortDropdown
           open={showSortMenu}
           onOpenChange={setShowSortMenu}
@@ -58,6 +57,7 @@ export const BoneyardSidebar: React.FC<{
           categories={sortCategories}
           intExtLabel={intExtSortLabel}
           dayNightLabel={dayNightSortLabel}
+          compact
         />
       ) : undefined}
     >

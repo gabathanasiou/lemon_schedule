@@ -25,6 +25,7 @@ interface SortDropdownProps {
   categories: SortCriterion[];
   intExtLabel?: string;
   dayNightLabel?: string;
+  compact?: boolean;
 }
 
 const BUILTIN_ICONS: Record<string, React.ReactNode> = {
@@ -113,7 +114,7 @@ const MENU_ITEM = IS_COARSE ? 'px-4 py-3 text-xs' : 'px-3 py-2 text-xs';
 const BTN_SIZE = IS_COARSE ? 'w-8 h-8' : 'w-6 h-6';
 const BTN_ICON = 'w-3.5 h-3.5';
 
-function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onToggleLock, onSort, onCustomSort, categories, intExtLabel, dayNightLabel }: SortDropdownProps) {
+function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onToggleLock, onSort, onCustomSort, categories, intExtLabel, dayNightLabel, compact }: SortDropdownProps) {
   const isCloud = useIsCloudProject();
   const d = getDropdownClasses('light');
 
@@ -208,11 +209,17 @@ function SortDropdown({ open, onOpenChange, sortBy, sortDir, lockedCriteria, onT
       width="w-56"
       theme="light"
       trigger={
-        <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
-          <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
-          Sort
-          <ChevronDown className="w-3 h-3 shrink-0" />
-        </button>
+        compact ? (
+          <button className={`flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Sort">
+            <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+          </button>
+        ) : (
+          <button className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}>
+            <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
+            Sort
+            <ChevronDown className="w-3 h-3 shrink-0" />
+          </button>
+        )
       }
     >
       {BUILTIN_CRITERIA.map(renderRow)}
