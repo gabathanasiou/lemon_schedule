@@ -190,22 +190,22 @@ export const BoneyardBlock: React.FC<{
       style={{ width: `${width}px` }}
     >
         <div className="flex flex-col h-full" style={{ width: '100%' }}>
-          <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-50 border-zinc-200">
+          <div className="px-3 pt-2 pb-1.5 border-b shrink-0 bg-zinc-50 border-zinc-200">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-zinc-800 font-bold text-sm tracking-widest shrink-0">BONEYARD</span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 shrink-0 select-none">Boneyard</span>
                 <span className="text-zinc-300 select-none shrink-0">·</span>
-                <span className="text-xs text-zinc-500 shrink-0">{rows.length} Items</span>
+                <span className="text-[10px] font-semibold text-zinc-400 shrink-0">{rows.length}</span>
               </div>
               <button
                 onClick={() => onCollapseChange?.(true)}
-                className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer shrink-0"
+                className="p-1 -mr-1 hover:bg-zinc-200 rounded text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer shrink-0"
                 title="Collapse Sidebar"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Note Ribbon">
                 <StickyNote className="w-3.5 h-3.5 shrink-0" />
                 Note

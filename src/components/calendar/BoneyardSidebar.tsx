@@ -81,23 +81,23 @@ export const BoneyardSidebar: React.FC<{
       className="bg-zinc-50 border-r border-zinc-200 flex flex-col shrink-0 relative overflow-hidden"
       style={{ width: `${width}px` }}
     >
-      <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-50 border-zinc-200">
+      <div className="px-3 pt-2 pb-1.5 border-b shrink-0 bg-zinc-50 border-zinc-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-zinc-800 font-bold text-sm tracking-widest shrink-0">BONEYARD</span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 shrink-0 select-none">Boneyard</span>
             <span className="text-zinc-300 select-none shrink-0">·</span>
-            <span className="text-xs text-zinc-500 shrink-0">{rows.length} Items</span>
+            <span className="text-[10px] font-semibold text-zinc-400 shrink-0">{rows.length}</span>
           </div>
           <button
             onClick={onToggleCollapsed}
-            className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer shrink-0"
+            className="p-1 -mr-1 hover:bg-zinc-200 rounded text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer shrink-0"
             title="Collapse Sidebar"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
         {onSort && (
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-1.5">
             <SortDropdown
               open={showSortMenu}
               onOpenChange={setShowSortMenu}
