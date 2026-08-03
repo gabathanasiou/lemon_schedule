@@ -5,7 +5,7 @@ import { DD_PANEL_CLASS_LIB as DD_PANEL_CLASS, DD_ITEM_CLASS_LIB as DD_ITEM_CLAS
 
 interface DropdownPanelProps {
   positioning: 'relative' | 'fixed' | string;
-  pos: { top: number; left: number; width: number; maxH: number; bottom?: number };
+  pos: { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean };
   panelRef: React.RefObject<HTMLDivElement | null>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   panelMinWidth?: string;
@@ -34,7 +34,7 @@ export default function DropdownPanel({
     <div
       ref={panelRef}
       className={`click-outside-ignore ${DD_PANEL_CLASS(positioning)} ${panelMinWidth || ''}`}
-      style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
+      style={positioning === 'fixed' ? { position: 'fixed', left: pos.left, width: pos.width, visibility: pos.ready ? 'visible' : 'hidden', ...(pos.bottom != null ? { bottom: pos.bottom } : { top: pos.top }) } : {}}
     >
       <div ref={scrollRef} className="overflow-y-auto max-h-72" style={positioning === 'fixed' ? { maxHeight: pos.maxH - 16 } : undefined}>
       {dropdownItems.length > 0 ? dropdownItems.map((m, idx) => {

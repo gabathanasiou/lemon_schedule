@@ -220,7 +220,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
   const committedRef = useRef(false);
   const syntheticRef = useRef(false);
   const [keyboardMode] = useKeyboardMode();
@@ -265,7 +265,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   useEffect(() => {
     committedRef.current = false;
-    if (open) setHighlightedIndex(-1);
+    if (open) {
+      setHighlightedIndex(-1);
+      setPos(p => ({ ...p, ready: false }));
+    }
   }, [open]);
 
   useLayoutEffect(() => {
@@ -335,7 +338,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   useDropdown(open, ref, handleClose, panelRef);
 
-  useFixedPosition(ref, positioning === 'fixed' && open, setPos);
+  useFixedPosition(ref, positioning === 'fixed' && open, (p) => setPos({ ...p, ready: true }));
 
   const toggle = useCallback((id: string) => {
     if (mode === 'single') {
