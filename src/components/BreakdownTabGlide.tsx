@@ -578,11 +578,12 @@ export function GlideBreakdownTab({
     const [col, row] = cell;
     if (row < 0 || row > scenes.length) return;
     if (IS_HARDWARE_KEYBOARD && !e.isDoubleClick) {
-      // On touch, the canvas doesn't take keyboard focus from a tap, so
-      // arrow-key navigation is dead until a cell is edited. With a
-      // hardware keyboard present, focus the grid on every single tap to
-      // behave like the desktop grid.
-      setTimeout(() => gridRef.current?.focus(), 0);
+      // On touch the canvas never takes keyboard focus from a tap (Glide
+      // preventDefaults the tap, and deferred focus is rejected by iOS), so
+      // arrow-key navigation was dead until a cell was edited. With a
+      // hardware keyboard present, focus the grid synchronously within the
+      // tap gesture to behave like the desktop grid.
+      gridRef.current?.focus();
     }
     if (row === scenes.length) {
       if (col < 0 && (e.isTouch || e.button === 2)) {
