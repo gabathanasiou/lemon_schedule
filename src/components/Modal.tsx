@@ -170,11 +170,11 @@ export default function Modal({
         />
         <RadixDialog.Content
           ref={contentRef}
-          className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none select-none ${posClasses} ${sizeClasses}`}
+          className={`fixed z-[10000] bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col focus:outline-none ${posClasses} ${sizeClasses}`}
           style={{ touchAction: 'manipulation', ...(Object.keys(combinedStyle).length > 0 ? combinedStyle : {}) }}
         >
           <div
-            className={`flex items-center justify-between ${HEADER_PX} ${HEADER_PY} border-b border-zinc-800 shrink-0 select-none bg-zinc-950 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`flex items-center justify-between ${HEADER_PX} ${HEADER_PY} border-b border-zinc-800 shrink-0 bg-zinc-950 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -198,7 +198,7 @@ export default function Modal({
             </div>
           </div>
 
-          <div className="overflow-y-auto flex-1 select-none bg-zinc-900 text-zinc-100" style={{ maxHeight: hasSize ? `calc(${size!.h}px - ${HEADER_HEIGHT}px)` : undefined }}>
+          <div className="overflow-y-auto flex-1 bg-zinc-900 text-zinc-100" style={{ maxHeight: hasSize ? `calc(${size!.h}px - ${HEADER_HEIGHT}px)` : undefined }}>
             {children}
           </div>
 

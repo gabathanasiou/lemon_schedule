@@ -1,8 +1,41 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const IS_BROWSER = typeof window !== 'undefined';
 export const IS_COARSE = IS_BROWSER && window.matchMedia('(pointer: coarse)').matches;
 export const IS_TOUCH_CAPABLE = IS_BROWSER && (window.matchMedia('(any-pointer: coarse)').matches || navigator.maxTouchPoints > 0);
+
+/** Apple Pencil events report pointerType 'pen' but must behave exactly like a finger. */
+export function isTouchLike(pointerType?: string | null): boolean {
+  return pointerType === 'touch' || pointerType === 'pen';
+}
+
+let _lastPointerType: string | null = null;
+const _lastPointerTypeListeners = new Set<() => void>();
+
+if (IS_BROWSER) {
+  window.addEventListener('pointerdown', (e) => {
+    _lastPointerType = e.pointerType;
+    _lastPointerTypeListeners.forEach(fn => fn());
+  }, true);
+}
+
+export function getLastPointerType(): string | null { return _lastPointerType; }
+
+export function useLastPointerType(): string | null {
+  const [, tick] = useState(0);
+  const valueRef = useRef(_lastPointerType);
+  useEffect(() => {
+    const fn = () => {
+      if (valueRef.current !== _lastPointerType) {
+        valueRef.current = _lastPointerType;
+        tick(n => n + 1);
+      }
+    };
+    _lastPointerTypeListeners.add(fn);
+    return () => { _lastPointerTypeListeners.delete(fn); };
+  }, []);
+  return _lastPointerType;
+}
 
 const HW_KB_QUERIES = ['(any-hover: hover)', '(any-pointer: fine)'];
 
@@ -42,6 +75,46 @@ if (IS_BROWSER) {
     if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Process' || e.key === 'Unidentified') return;
     setHardwareKeyboard(true);
   });
+  // ── Apple Pencil click shim ──────────────────────────────────────────────
+  // iOS Safari does not synthesize click events for pen taps on overlay
+  // surfaces; Radix modals set body { pointer-events: none }, which is exactly
+  // where the pencil's click gets swallowed (finger taps work fine). While a
+  // modal is open, dispatch a synthetic click on pointerup for pen taps.
+  //
+  // NOTE: no preventDefault on pointerdown — canceling it makes React skip its
+  // capture handlers on portal content, which Radix's dismissable layer uses to
+  // recognize inside-taps, so every pen tap would dismiss the modal.
+  let penDownPos: { x: number; y: number } | null = null;
+  let lastPenTap: { x: number; y: number; time: number } | null = null;
+  const PEN_CLICK = '__penClick';
+  window.addEventListener('pointerdown', (e: PointerEvent) => {
+    if (e.pointerType !== 'pen' || e.button !== 0) return;
+    if (document.body.style.pointerEvents !== 'none') return; // no Radix modal open
+    penDownPos = { x: e.clientX, y: e.clientY };
+  }, true);
+  window.addEventListener('pointerup', (e: PointerEvent) => {
+    if (e.pointerType !== 'pen') return;
+    const down = penDownPos;
+    penDownPos = null;
+    if (!down) return;
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return; // drag/scroll, not a tap
+    const target = e.target as Element | null;
+    if (!target || !target.isConnected) return;
+    const evt = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
+    (evt as any)[PEN_CLICK] = true;
+    lastPenTap = { x: e.clientX, y: e.clientY, time: Date.now() };
+    target.dispatchEvent(evt);
+  }, true);
+  window.addEventListener('click', (e: MouseEvent) => {
+    if ((e as any)[PEN_CLICK]) return; // our own synthetic click
+    // If Safari also fires a native click for the same pen tap, swallow it so
+    // the action doesn't run twice — but only at the tap's coordinates, so
+    // unrelated clicks right after are unaffected.
+    if (lastPenTap && Date.now() - lastPenTap.time < 1000 && Math.hypot(e.clientX - lastPenTap.x, e.clientY - lastPenTap.y) < 12) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
 }
 
 /** Reactive hardware-keyboard detection (media queries + keydown heuristic). */

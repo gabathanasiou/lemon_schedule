@@ -119,7 +119,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
                       key={key}
                       data-cat={key}
                       onSelect={() => setSelectedCategory(key)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${
+                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${
                         active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white focus-visible:bg-zinc-800 focus-visible:text-white'
                       }`}
                     >

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useIsCloudProject } from '../store';
 import { ExternalLink } from 'lucide-react';
-import { IS_COARSE } from '../lib/device';
+import { IS_COARSE, isTouchLike } from '../lib/device';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 
 export interface ToolbarTab {
@@ -77,7 +77,7 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
     return target instanceof Node && !!scrollRef.current?.contains(target);
   }, []);
   const onPointerDownCapture = React.useCallback((e: React.PointerEvent) => {
-    if (e.pointerType !== 'touch') return;
+    if (!isTouchLike(e.pointerType)) return;
     if (!isInsideToolbar(e.target)) return;
     if (replayRef.current) { replayRef.current = false; return; }
     dragRef.current = { x: e.clientX, y: e.clientY, moved: false };

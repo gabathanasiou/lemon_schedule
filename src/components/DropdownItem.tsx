@@ -33,7 +33,6 @@ export default function DropdownItem({
 }: DropdownItemProps) {
   const theme = useDropdownTheme();
   const d = getDropdownClasses(theme);
-  const isLight = theme === 'light';
   const skipClickRef = useRef(false);
 
   const variantStyles = variant === 'danger' ? d.itemDanger : d.itemDefault;
@@ -46,14 +45,6 @@ export default function DropdownItem({
         if (keepOpen) e.preventDefault(); onClick();
       }}
       onTouchStart={() => {}}
-      onPointerDown={(e) => {
-        if ((e as any).pointerType === 'pen') {
-          const el = e.currentTarget;
-          el.classList.add(isLight ? 'pen-pulse' : 'pen-pulse-dark');
-          setTimeout(() => el.classList.remove(isLight ? 'pen-pulse' : 'pen-pulse-dark'), 350);
-          onClick();
-        }
-      }}
       disabled={disabled}
     >
       {icon && <span className={`${d.icon} shrink-0`}>{icon}</span>}

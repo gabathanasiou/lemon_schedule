@@ -538,22 +538,6 @@ function AppContent() {
   return (
     <LongPressMenuProvider>
     <>
-    <style>{`
-      @keyframes pen-flash-light {
-        0% { background-color: rgba(0,0,0,0.08); }
-        100% { background-color: transparent; }
-      }
-      @keyframes pen-flash-dark {
-        0% { background-color: rgba(255,255,255,0.12); }
-        100% { background-color: transparent; }
-      }
-      .pen-pulse {
-        animation: pen-flash-light 0.35s ease-out;
-      }
-      .pen-pulse-dark {
-        animation: pen-flash-dark 0.35s ease-out;
-      }
-    `}</style>
     <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
       {showProjectManager && (
         <ProjectManager onClose={() => setShowProjectManager(false)} />

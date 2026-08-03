@@ -3,13 +3,13 @@ import { PointerSensor, TouchSensor, useSensor, useSensors, type PointerSensorOp
 import { IS_COARSE } from './device';
 
 /**
- * PointerSensor variant that only activates for mouse/pen input.
+ * PointerSensor variant that only activates for mouse input.
  *
  * On coarse devices (e.g. iPad with a connected mouse/trackpad) the app keeps
- * TouchSensor for finger drags but must also accept pointer-based drags —
- * iPadOS Safari does not synthesize touch events for mouse input, so a
- * TouchSensor-only setup makes mouse dragging impossible (while the
- * pointer-driven marquee still works).
+ * TouchSensor for finger/Apple Pencil drags but must also accept pointer-based
+ * mouse drags — iPadOS Safari does not synthesize touch events for mouse
+ * input, so a TouchSensor-only setup makes mouse dragging impossible (while
+ * the pointer-driven marquee still works).
  */
 class MousePointerSensor extends PointerSensor {
   constructor(props: PointerSensorProps) {
@@ -19,7 +19,7 @@ class MousePointerSensor extends PointerSensor {
     {
       eventName: 'onPointerDown' as const,
       handler: ({ nativeEvent: event }: React.PointerEvent, options: PointerSensorOptions) => {
-        if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+        if (event.pointerType === 'mouse') {
           return PointerSensor.activators[0].handler({ nativeEvent: event } as React.PointerEvent, options);
         }
         return false;
@@ -29,10 +29,11 @@ class MousePointerSensor extends PointerSensor {
 }
 
 /**
- * App-wide drag sensors. Desktop: PointerSensor (mouse/pen/touch via pointer
- * events). Coarse devices: TouchSensor (finger, 200ms delay to distinguish
- * scroll) plus MousePointerSensor (mouse/trackpad, distance-based like
- * desktop). When `disabled`, drags are turned off for all input types.
+ * App-wide drag sensors. Desktop: PointerSensor (mouse/touch via pointer
+ * events). Coarse devices: TouchSensor (finger AND Apple Pencil, 200ms delay
+ * to distinguish scroll) plus MousePointerSensor (mouse/trackpad,
+ * distance-based like desktop). When `disabled`, drags are turned off for all
+ * input types.
  */
 export function useAppDragSensors(disabled: boolean, distance = 5): SensorDescriptor<any>[] {
   const touch = useSensor(TouchSensor, {

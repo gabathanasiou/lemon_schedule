@@ -44,10 +44,9 @@ export default function DropdownSubmenu({ id, label, icon, width, side = 'right'
           className={triggerClasses}
           onTouchStart={() => {}}
           onPointerDown={(e) => {
+            // Pen is hover-capable: hover opens the submenu, so a tap would
+            // toggle it closed. Open on tap instead, like a finger.
             if (e.pointerType === 'pen') {
-              const el = e.currentTarget;
-              el.classList.add(isLight ? 'pen-pulse' : 'pen-pulse-dark');
-              setTimeout(() => el.classList.remove(isLight ? 'pen-pulse' : 'pen-pulse-dark'), 350);
               e.preventDefault();
               setActiveSub(subOpen ? null : id);
             }

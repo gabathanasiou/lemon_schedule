@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getMarqueeMode, getTransientMarquee, setTransientMarquee } from './useLongPressMenu';
 import { useCurrentWindow, useCurrentDocument } from './popoutTarget';
-import { IS_TOUCH_CAPABLE } from './device';
+import { IS_TOUCH_CAPABLE, isTouchLike, getLastPointerType, useLastPointerType } from './device';
 
 interface MarqueeBox {
   left: number;
@@ -15,8 +15,6 @@ let _listenersInitialized = false;
 const _marqueeJustEndedRef = { current: false };
 const _addModeListeners = new Set<() => void>();
 
-let _lastPointerType: string | null = null;
-const _lastPointerTypeListeners = new Set<() => void>();
 let _marqueeActive = false;
 const _marqueeActiveListeners = new Set<() => void>();
 
@@ -32,33 +30,19 @@ export function useAddMode(): boolean {
   return _addMode;
 }
 
-export function getLastPointerType(): string | null { return _lastPointerType; }
-
-export function useLastPointerType(): string | null {
-  const [, tick] = useState(0);
-  const valueRef = useRef(_lastPointerType);
-  useEffect(() => {
-    const fn = () => {
-      if (valueRef.current !== _lastPointerType) {
-        valueRef.current = _lastPointerType;
-        tick(n => n + 1);
-      }
-    };
-    _lastPointerTypeListeners.add(fn);
-    return () => { _lastPointerTypeListeners.delete(fn); };
-  }, []);
-  return _lastPointerType;
-}
+/** Re-exported from device.ts — the pointer-type tracker lives there now. */
+export { getLastPointerType, useLastPointerType };
 
 /**
  * Whether to show touch-first UI (e.g. the duration keypad instead of inline
  * inputs). Defaults to the device's touch capability via the
  * `(any-pointer: coarse)` media query, then adapts to the most recent pointer
  * type (trackpad/mouse on touch-capable devices falls back to desktop UI).
+ * Pen counts as touch.
  */
 export function useTouchMode(): boolean {
   const last = useLastPointerType();
-  return IS_TOUCH_CAPABLE ? (last === null || last === 'touch' || last === 'pen') : false;
+  return IS_TOUCH_CAPABLE ? (last === null || isTouchLike(last)) : false;
 }
 
 export function isMarqueeActive(): boolean { return _marqueeActive; }
@@ -101,16 +85,6 @@ function initKeyboardListeners() {
   window.addEventListener('blur', blur);
 }
 
-let _pointerTypeInitialized = false;
-function initPointerTypeListener() {
-  if (_pointerTypeInitialized) return;
-  _pointerTypeInitialized = true;
-  window.addEventListener('pointerdown', (e) => {
-    _lastPointerType = e.pointerType;
-    _lastPointerTypeListeners.forEach(fn => fn());
-  }, true);
-}
-
 export function useMarquee(
   containerRef: React.RefObject<HTMLElement>,
   onSelectionChange: (ids: Set<string>, isAddMode: boolean) => void,
@@ -125,7 +99,6 @@ export function useMarquee(
   useEffect(() => { 
     if (!isEnabled) return;
     initKeyboardListeners();
-    initPointerTypeListener();
   }, [isEnabled]);
 
   useEffect(() => {
@@ -140,7 +113,7 @@ export function useMarquee(
     let autoScrollRaf: number | null = null;
 
     const setRowsDisabled = (v: boolean) => {
-      const isTouchInput = _lastPointerType === 'touch' || _lastPointerType === 'pen';
+      const isTouchInput = isTouchLike(getLastPointerType());
       if (v) {
         _marqueeActive = true;
         _marqueeActiveListeners.forEach(fn => fn());
@@ -197,13 +170,10 @@ export function useMarquee(
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
-      _lastPointerType = e.pointerType;
-      _lastPointerTypeListeners.forEach(fn => fn());
-
       const target = e.target as HTMLElement;
       const onRibbon = target.closest('[data-row-id]');
 
-      if (e.pointerType === 'touch' && !_addMode && getMarqueeMode() === 'off') {
+      if (isTouchLike(e.pointerType) && !_addMode && getMarqueeMode() === 'off') {
         if (target.closest('button, input, select, textarea, [role="button"]')) return;
         return;
       }
@@ -211,7 +181,7 @@ export function useMarquee(
       if (onRibbon && e.altKey) {
         e.stopPropagation();
       } else {
-        if (e.pointerType === 'touch' && getMarqueeMode() === 'tool') return;
+        if (isTouchLike(e.pointerType) && getMarqueeMode() === 'tool') return;
         if (!_addMode && onRibbon) {
           const rowId = onRibbon.getAttribute('data-row-id') || '';
           if (!rowId.startsWith('empty-')) return;
@@ -233,9 +203,7 @@ export function useMarquee(
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!active && e.pointerType === 'touch' && getTransientMarquee()) {
-        _lastPointerType = e.pointerType;
-        _lastPointerTypeListeners.forEach(fn => fn());
+      if (!active && isTouchLike(e.pointerType) && getTransientMarquee()) {
         const rect = container.getBoundingClientRect();
         startX = e.clientX - rect.left + container.scrollLeft;
         startY = e.clientY - rect.top + container.scrollTop;

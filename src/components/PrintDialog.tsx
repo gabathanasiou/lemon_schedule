@@ -173,7 +173,7 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                         <RadixDropdownMenu.Item
                           key={d.id}
                           onSelect={() => update({ selectedRibbonId: d.id })}
-                          className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                          className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${settings.selectedRibbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
                         >
                           <span className="flex-1">{d.name}</span>
                           {settings.selectedRibbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
@@ -199,15 +199,15 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
                       sideOffset={4}
                       collisionPadding={8}
                     >
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('portrait')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                      <RadixDropdownMenu.Item onSelect={() => setViewMode('portrait')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${viewMode === 'portrait' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
                         <span className="flex-1">Portrait</span>
                         {viewMode === 'portrait' && <Check className="w-3 h-3 shrink-0" />}
                       </RadixDropdownMenu.Item>
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('landscape')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                      <RadixDropdownMenu.Item onSelect={() => setViewMode('landscape')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${viewMode === 'landscape' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
                         <span className="flex-1">Landscape</span>
                         {viewMode === 'landscape' && <Check className="w-3 h-3 shrink-0" />}
                       </RadixDropdownMenu.Item>
-                      <RadixDropdownMenu.Item onSelect={() => setViewMode('full')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer select-none ${viewMode === 'full' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
+                      <RadixDropdownMenu.Item onSelect={() => setViewMode('full')} className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${viewMode === 'full' ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}>
                         <span className="flex-1">Full Width</span>
                         {viewMode === 'full' && <Check className="w-3 h-3 shrink-0" />}
                       </RadixDropdownMenu.Item>

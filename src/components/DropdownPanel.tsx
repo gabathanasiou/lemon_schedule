@@ -50,7 +50,6 @@ export default function DropdownPanel({
             type="button"
             onMouseDown={e => e.preventDefault()}
             onTouchStart={() => {}}
-            onPointerDown={e => { if (e.pointerType === 'pen') { const btn = e.currentTarget; btn.classList.add('pen-pulse'); setTimeout(() => btn.classList.remove('pen-pulse'), 350); } }}
             onClick={() => onItemClick(m, isSynthetic)}
             onMouseEnter={onItemHover ? () => onItemHover(idx) : undefined}
 className={isSynthetic
@@ -77,7 +76,6 @@ className={isSynthetic
         <button
           onClick={onCommit}
           onTouchStart={() => {}}
-          onPointerDown={e => { if (e.pointerType === 'pen') { const btn = e.currentTarget; btn.classList.add('pen-pulse'); setTimeout(() => btn.classList.remove('pen-pulse'), 350); } }}
           className="px-2 py-1 text-[10px] text-zinc-400 text-center border-t border-zinc-100 shrink-0 hover:bg-zinc-50 active:bg-zinc-100 transition-colors active:transition-none w-full cursor-pointer"
         >
           Press Enter to commit

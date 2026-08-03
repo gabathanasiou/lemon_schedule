@@ -110,12 +110,6 @@ export default function DropdownMenu({
     ? 'bg-blue-950/95 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl z-[200] text-white p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out'
     : 'bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-xl z-[200] text-zinc-300 p-1 flex flex-col font-sans select-none max-h-[min(75vh,30rem)] overflow-y-auto min-w-0 scrollbar-custom opacity-0 scale-95 data-[state=open]:opacity-100 data-[state=open]:scale-100 transition-all duration-150 ease-out';
 
-  const handlePointerDownOutside = useCallback((e: Event) => {
-    if ((e as any).nativeEvent?.pointerType === 'pen') {
-      e.preventDefault();
-    }
-  }, []);
-
   return (
     <RadixDropdownMenu.Root open={open} onOpenChange={(o) => { if (onOpenChange) onOpenChange(o); else if (!o) onClose(); }} modal={false}>
       <RadixDropdownMenu.Trigger asChild>
@@ -130,7 +124,6 @@ export default function DropdownMenu({
               sideOffset={8}
               collisionPadding={8}
               style={{ touchAction: 'manipulation' }}
-              onPointerDownOutside={handlePointerDownOutside}
             >
               {children}
             </RadixDropdownMenu.Content>

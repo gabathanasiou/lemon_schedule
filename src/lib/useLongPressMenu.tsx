@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IS_COARSE } from './device';
+import { IS_COARSE, isTouchLike } from './device';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 
 type MarqueeMode = 'off' | 'tool';
@@ -135,7 +135,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
     if (!IS_COARSE) return;
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch' || e.button !== 0) return;
+      if (!isTouchLike(e.pointerType) || e.button !== 0) return;
       const target = e.target as HTMLElement;
       const inMarqueeToolZone = !!target.closest('[data-marquee-tool-only]');
       if (inMarqueeToolZone && _marqueeMode !== 'tool') return;
@@ -211,7 +211,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
     };
 
     const onPointerLeave = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch') return;
+      if (!isTouchLike(e.pointerType)) return;
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;

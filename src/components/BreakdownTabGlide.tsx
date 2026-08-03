@@ -28,7 +28,7 @@ import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
-import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
+import { IS_COARSE, useHardwareKeyboard, isTouchLike } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
@@ -172,6 +172,15 @@ export function GlideBreakdownTab({
    *  flags two taps anywhere in the grid within ~1s as a double-click even on
    *  different cells, which would wrongly open the scene sheet). */
   const lastMarkerClickRef = useRef<{ col: number; row: number } | null>(null);
+  /** Glide computes isTouch from pointerType === 'touch' only, so Apple Pencil
+   *  (pointerType 'pen') arrives as a "mouse" click. Track the real pointer so
+   *  pencil taps behave like finger taps. */
+  const lastPointerRef = useRef<string>('touch');
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => { lastPointerRef.current = e.pointerType; };
+    window.addEventListener('pointerdown', onDown, true);
+    return () => window.removeEventListener('pointerdown', onDown, true);
+  }, []);
 
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
@@ -586,9 +595,10 @@ export function GlideBreakdownTab({
 
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
+    const penTouch = isTouchLike(lastPointerRef.current);
     if (row < 0 || row > scenes.length) return;
     if (row === scenes.length) {
-      if (col < 0 && (e.isTouch || e.button === 2)) {
+      if (col < 0 && (penTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
         setContextMenu({ x, y, row, col });
@@ -615,9 +625,9 @@ export function GlideBreakdownTab({
       const prev = lastMarkerClickRef.current;
       const sameCell = prev !== null && prev.col === col && prev.row === row;
       lastMarkerClickRef.current = { col, row };
-      if (sameCell && !e.isTouch) {
-        // Double-CLICK (mouse) opens the scene sheet. Touch double-taps do not —
-        // the context menu's "Open Sheet" is the mobile path.
+      if (sameCell && !penTouch) {
+        // Double-CLICK (mouse) opens the scene sheet. Touch/pen double-taps do
+        // not — the context menu's "Open Sheet" is the mobile path.
         if (!IS_COARSE && shiftHeld && onOpenSheetInPopout) {
           onOpenSheetInPopout(row);
         } else {
@@ -625,14 +635,14 @@ export function GlideBreakdownTab({
         }
         return;
       }
-      // Spurious cross-cell double-click (Glide only checks timing) or a touch
-      // double-tap: fall through and treat this as a single tap on the marker.
+      // Spurious cross-cell double-click (Glide only checks timing) or a
+      // touch/pen double-tap: fall through as a single tap on the marker.
     } else {
       lastMarkerClickRef.current = { col, row };
     }
     // Glide accumulates row markers on touch regardless of rowSelectionMode —
     // when not in Select Mode, replace the selection with just this row.
-    if (e.isTouch && marqueeMode === 'off') {
+    if (penTouch && marqueeMode === 'off') {
       setGridSelection({
         rows: CompactSelection.fromSingleSelection(row),
         columns: CompactSelection.empty(),
@@ -643,7 +653,7 @@ export function GlideBreakdownTab({
         },
       });
     }
-    if (e.isTouch || e.button === 2) {
+    if (penTouch || e.button === 2) {
       const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
       const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
       setContextMenu({ x, y, row, col });
