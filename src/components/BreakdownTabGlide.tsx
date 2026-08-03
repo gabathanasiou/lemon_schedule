@@ -28,7 +28,7 @@ import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll } from '../lib/persist';
-import { IS_COARSE } from '../lib/device';
+import { IS_COARSE, IS_HARDWARE_KEYBOARD } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
@@ -577,6 +577,13 @@ export function GlideBreakdownTab({
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
     if (row < 0 || row > scenes.length) return;
+    if (IS_HARDWARE_KEYBOARD && !e.isDoubleClick) {
+      // On touch, the canvas doesn't take keyboard focus from a tap, so
+      // arrow-key navigation is dead until a cell is edited. With a
+      // hardware keyboard present, focus the grid on every single tap to
+      // behave like the desktop grid.
+      setTimeout(() => gridRef.current?.focus(), 0);
+    }
     if (row === scenes.length) {
       if (col < 0 && (e.isTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
