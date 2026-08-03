@@ -74,6 +74,26 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const editingModeRef = useRef(false);
   editingModeRef.current = effectiveTextEditingEnabled;
   const [isEditPending, startEditTransition] = useTransition();
+  // Only surface the spinner when the edit-mode render actually takes a while;
+  // an instant toggle (per-row edit mode) should never flash it.
+  const [showEditSpinner, setShowEditSpinner] = useState(false);
+  const editSpinnerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isEditPending) {
+      if (!editSpinnerTimerRef.current) {
+        editSpinnerTimerRef.current = setTimeout(() => setShowEditSpinner(true), 150);
+      }
+    } else {
+      if (editSpinnerTimerRef.current) {
+        clearTimeout(editSpinnerTimerRef.current);
+        editSpinnerTimerRef.current = null;
+      }
+      setShowEditSpinner(false);
+    }
+    return () => {
+      if (editSpinnerTimerRef.current) clearTimeout(editSpinnerTimerRef.current);
+    };
+  }, [isEditPending]);
   const toggleEditMode = useCallback(() => {
     startEditTransition(() => {
       setTextEditingEnabled(p => {
@@ -1309,7 +1329,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         setCellBorders={setCellBorders}
         textEditingEnabled={textEditingEnabled}
         setTextEditingEnabled={setTextEditingEnabled}
-        isEditPending={isEditPending}
+        isEditPending={showEditSpinner}
         onToggleEdit={toggleEditMode}
         readOnly={readOnly}
         onPrint={onPrint}
