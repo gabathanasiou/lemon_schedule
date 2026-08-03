@@ -22,5 +22,16 @@ export function advanceRibbonFocus(el: HTMLElement | null | undefined, onRowNavi
   const rows = Array.from(rowEl.parentElement?.querySelectorAll('[data-row-id]') ?? []);
   const ri = rows.indexOf(rowEl);
   const nextRow = rows[ri + 1];
-  if (nextRow) onRowNavigate(nextRow.getAttribute('data-row-id') || '');
+  if (nextRow) {
+    onRowNavigate(nextRow.getAttribute('data-row-id') || '');
+    // the next strip's editors mount on the following commit - focus its
+    // first editor then (Tab entry point; other nav paths focus themselves)
+    setTimeout(() => {
+      const first = nextRow.querySelector<HTMLInputElement | HTMLTextAreaElement>('input:not([type="hidden"]), textarea');
+      if (first) {
+        first.focus();
+        first.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    }, 0);
+  }
 }

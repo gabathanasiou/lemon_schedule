@@ -569,7 +569,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={{ ...style, position: 'relative' }}>
           {isEditable ? (
-            <CellInput autoFocus={focusField === field || (isEditable && focusField === null && field === 'sceneNumber')} value={sv} prefix={prefix} suffix={suffix} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!isEditable} placeholder={fieldLabel} />
+            <CellInput autoFocus={focusField === field} value={sv} prefix={prefix} suffix={suffix} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!isEditable} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
           )}
