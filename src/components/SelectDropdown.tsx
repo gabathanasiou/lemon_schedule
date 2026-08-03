@@ -63,16 +63,22 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
 
   const inputClasses = standalone
     ? `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`
-    : 'bg-transparent outline-none uppercase text-inherit cursor-pointer w-full text-left';
+    : 'bg-transparent outline-none uppercase cursor-pointer w-full text-left h-full';
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+      {!standalone && (
+        <span className="absolute inset-0 truncate pointer-events-none uppercase whitespace-nowrap text-left">
+          {value || placeholder}
+        </span>
+      )}
       <input
         value={value}
         readOnly
         onClick={() => { setHighlightedIndex(options.indexOf(value) >= 0 ? options.indexOf(value) : 0); handleOpen(); }}
-        placeholder={placeholder}
+        placeholder={standalone ? placeholder : ''}
         className={`${inputClasses} ${standalone ? '' : (className || '')}`}
+        style={standalone ? undefined : { color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, options.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }

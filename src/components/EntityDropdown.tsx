@@ -416,7 +416,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     : (value || '');
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
+    <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
+      {!standalone && (
+        <span className="absolute inset-0 truncate pointer-events-none whitespace-nowrap text-left">
+          {displayValue || placeholder}
+        </span>
+      )}
       <input
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
@@ -430,8 +435,9 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         onFocus={forceOpen}
         onClick={forceOpen}
         onBlur={() => commit()}
-        placeholder={placeholder}
+        placeholder={standalone ? placeholder : ''}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')}`}
+        style={standalone ? undefined : { color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {

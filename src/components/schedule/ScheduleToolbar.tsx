@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pencil, Printer, HelpCircle, Clock, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset } from 'lucide-react';
+import { Pencil, Printer, HelpCircle, Clock, FileText, Trash2, StickyNote, CalendarPlus, ChevronDown, Check, LayoutTemplate, Monitor, Table, Flag, Sunset, Loader2 } from 'lucide-react';
 import { useProject } from '../../store';
 import { RibbonDesign } from '../../types';
 import { CellBorders, ViewMode } from '../../lib/persist';
@@ -68,6 +68,8 @@ interface ScheduleToolbarProps {
   // Edit / print / help
   textEditingEnabled: boolean;
   setTextEditingEnabled: (v: boolean | ((p: boolean) => boolean)) => void;
+  isEditPending: boolean;
+  onToggleEdit: () => void;
   readOnly: boolean;
   onPrint?: () => void;
   onShowHelp: () => void;
@@ -84,6 +86,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
     ribbonMenuOpen, setRibbonMenuOpen, ribbonDesigns, activeRibbonId, viewMode, setViewMode,
     cellBorders, setCellBorders,
     textEditingEnabled, setTextEditingEnabled, readOnly, onPrint, onShowHelp,
+    isEditPending, onToggleEdit,
   } = props;
 
   const controls = (
@@ -213,10 +216,14 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
         </DropdownSubmenu>
       </DropdownMenu>
       <button
-        onClick={() => !readOnly && setTextEditingEnabled(p => !p)}
+        onClick={() => !readOnly && onToggleEdit()}
         className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${readOnly ? 'opacity-30 cursor-not-allowed' : ''} ${textEditingEnabled ? 'bg-blue-600 hover:bg-blue-500 text-white' : isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`}
       >
-        <Pencil className="w-3.5 h-3.5 shrink-0" />
+        {isEditPending ? (
+          <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+        ) : (
+          <Pencil className="w-3.5 h-3.5 shrink-0" />
+        )}
         Edit
       </button>
       <div className="w-px h-4 bg-zinc-200" />

@@ -14,8 +14,9 @@ export const CellInput: React.FC<{
   navigateOnEnter?: boolean,
   onRowNavigate?: (rowId: string) => void,
   suffix?: string,
+  prefix?: string,
   noTruncate?: boolean,
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, noTruncate }) => {
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, prefix, noTruncate }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const rawValue = value?.toString() || '';
   const [localVal, setLocalVal] = useState(rawValue);
@@ -25,8 +26,6 @@ export const CellInput: React.FC<{
   useEffect(() => {
     setLocalVal(rawValue);
   }, [value, syncKey]);
-
-  const displayText = rawValue && suffix ? `${rawValue} ${suffix}` : rawValue;
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -145,61 +144,66 @@ export const CellInput: React.FC<{
 
   const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
 
+  const affixClass = `shrink-0 whitespace-nowrap ${spanClassName}`;
+
   return (
-    <div className="relative grid items-center min-w-0 w-full" style={{ gridTemplateColumns: gridCol }}>
-      <span className={`invisible col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
-         {displayText || placeholder || ' '}
-      </span>
-      {readOnly ? (
-        <span className={`col-start-1 row-start-1 ${multiline ? '' : 'truncate'} ${className}`}>
-          {displayText || placeholder}
+    <div className="flex items-center min-w-0 w-full">
+      {prefix && <span className={affixClass}>{prefix}{localVal ? '\u00A0' : ''}</span>}
+      <div className="relative grid items-center min-w-0 flex-1" style={{ gridTemplateColumns: gridCol }}>
+        <span className={`col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
+          {localVal ? `${localVal}${suffix ? `\u00A0${suffix}` : ''}` : (placeholder || ' ')}
         </span>
-      ) : multiline ? (
-        <textarea
-          ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-          data-col={col}
-          value={localVal}
-          onChange={handleChange}
-          onFocus={handleFocus}
-          onBlur={() => {
-            setIsPristine(false);
-            if (localVal !== value?.toString()) {
-               onChange(localVal);
-            }
-            setSyncKey(k => k + 1);
-            onBlur?.();
-          }}
-          onKeyDown={handleKeyDown}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-          readOnly={readOnly}
-          placeholder={placeholder}
-          rows={1}
-          className={`${inputClass} resize-none overflow-hidden whitespace-pre-wrap`}
-        />
-      ) : (
-        <input
-          ref={inputRef as React.RefObject<HTMLInputElement>}
-          data-col={col}
-          value={localVal}
-          onChange={handleChange}
-          onFocus={handleFocus}
-          onBlur={() => {
-            setIsPristine(false);
-            if (localVal !== value?.toString()) {
-               onChange(localVal);
-            }
-            setSyncKey(k => k + 1);
-            onBlur?.();
-          }}
-          onKeyDown={handleKeyDown}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-          readOnly={readOnly}
-          placeholder={placeholder}
-          className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'}`}
-        />
-      )}
+        {readOnly ? (
+          <span className={`col-start-1 row-start-1 ${multiline ? '' : 'truncate'} ${className}`}>
+            {rawValue ? `${rawValue}${suffix ? `\u00A0${suffix}` : ''}` : placeholder}
+          </span>
+        ) : multiline ? (
+          <textarea
+            ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+            data-col={col}
+            value={localVal}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={() => {
+              setIsPristine(false);
+              if (localVal !== value?.toString()) {
+                 onChange(localVal);
+              }
+              setSyncKey(k => k + 1);
+              onBlur?.();
+            }}
+            onKeyDown={handleKeyDown}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            readOnly={readOnly}
+            rows={1}
+            className={`${inputClass} resize-none overflow-hidden whitespace-pre-wrap selection:bg-black/15`}
+            style={{ color: 'transparent', caretColor: '#2563eb' }}
+          />
+        ) : (
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            data-col={col}
+            value={localVal}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={() => {
+              setIsPristine(false);
+              if (localVal !== value?.toString()) {
+                 onChange(localVal);
+              }
+              setSyncKey(k => k + 1);
+              onBlur?.();
+            }}
+            onKeyDown={handleKeyDown}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            readOnly={readOnly}
+            className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'} absolute inset-0 col-start-1 row-start-1 selection:bg-black/15`}
+            style={{ color: 'transparent', caretColor: '#2563eb' }}
+          />
+        )}
+      </div>
     </div>
   );
 };

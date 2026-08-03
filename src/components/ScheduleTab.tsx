@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useProject, useIsCloudProject } from '../store';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
 import { useAppDragSensors } from '../lib/dndSensors';
@@ -66,6 +66,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [activeDragIds, setActiveDragIds] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
+  const [isEditPending, startEditTransition] = useTransition();
+  const toggleEditMode = useCallback(() => {
+    startEditTransition(() => setTextEditingEnabled(p => !p));
+  }, []);
   const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
   const [forceBoneyardExpanded, setForceBoneyardExpanded] = useState(false);
   const [boneyardCollapsed, setBoneyardCollapsed] = useState<boolean>(() => {
@@ -1290,6 +1294,8 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         setCellBorders={setCellBorders}
         textEditingEnabled={textEditingEnabled}
         setTextEditingEnabled={setTextEditingEnabled}
+        isEditPending={isEditPending}
+        onToggleEdit={toggleEditMode}
         readOnly={readOnly}
         onPrint={onPrint}
         onShowHelp={() => setShowHelp(true)}

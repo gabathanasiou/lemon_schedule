@@ -321,7 +321,8 @@ const SortableRowContent: React.FC<{
           {textEditingEnabled ? (
             <CellInput
               value={scene!.pageCount}
-              suffix="pgs"
+              prefix={prefix}
+              suffix={suffix || 'pgs'}
               onChange={val => {
                 if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); }
               }}
@@ -370,6 +371,8 @@ const SortableRowContent: React.FC<{
         <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden', position: 'relative' }}>
           <CellInput
             value={scene!.sceneNumber}
+            prefix={prefix}
+            suffix={suffix}
             onChange={val => updateScene({sceneNumber: val})}
             className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`}
             readOnly={!textEditingEnabled}
@@ -522,7 +525,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <CellInput value={scene!.pageCount} suffix="pgs" onChange={val => { if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); } }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+            <CellInput value={scene!.pageCount} prefix={prefix} suffix={suffix || 'pgs'} onChange={val => { if (val === '') { updateScene({ pageCount: '', pageCountDecimal: 0 }); } else { const decimal = parsePageCount(val); updateScene({ pageCount: formatPageCount(decimal), pageCountDecimal: decimal }); } }} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
           )}
@@ -563,7 +566,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={{ ...style, position: 'relative' }}>
           {textEditingEnabled ? (
-            <CellInput value={sv} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+            <CellInput value={sv} prefix={prefix} suffix={suffix} onChange={val => updateScene({sceneNumber: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} className={inputClass} style={!sv ? emptyStyle : undefined}>{sv ? displayText : fieldLabel}</RibbonCellText>
           )}
@@ -602,7 +605,7 @@ const SortableRowContent: React.FC<{
     return (
       <div key={cellId} style={style}>
         {textEditingEnabled ? (
-          <CellInput value={val} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
+          <CellInput value={val} prefix={prefix} suffix={suffix} onChange={val => updateScene({[field]: val})} className={`${inputClass} ${a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left'}`} readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} multiline={!!wrap} />
         ) : (
           <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!val ? emptyStyle : undefined}>{val ? displayText : fieldLabel}</RibbonCellText>
         )}
