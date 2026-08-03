@@ -11,37 +11,101 @@ async function penTapAt(page: Page, x: number, y: number) {
   }, { x, y });
 }
 
-async function openHelp(page: Page) {
-  await page.getByTitle('Keyboard Shortcuts & Help').click();
-  await page.waitForTimeout(400);
+async function penTap(page: Page, locator: import('@playwright/test').Locator) {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  await penTapAt(page, box!.x + box!.width / 2, box!.y + box!.height / 2);
 }
 
-test('pen tap: neutral item keeps modal open, close button works', async ({ page }) => {
+async function openApp(page: Page) {
   await openSeededProject(page);
   await page.waitForTimeout(600);
-  await page.getByRole('button', { name: 'Schedule' }).click();
-  await page.waitForTimeout(500);
+}
 
-  // 1. pen tap on a neutral modal item must NOT dismiss
-  await openHelp(page);
-  const table = page.locator('[role="dialog"] table').first();
-  await expect(table).toBeVisible();
-  const tb = await table.boundingBox();
-  await penTapAt(page, tb!.x + 50, tb!.y + 20);
-  await page.waitForTimeout(400);
-  expect(await page.evaluate(() => !!document.querySelector('[role="dialog"]'))).toBe(true);
+const dialogVisible = (page: Page) => page.evaluate(() => !!document.querySelector('[role="dialog"]'));
+const customModalVisible = (page: Page) => page.evaluate(() => !!document.querySelector('.fixed.inset-0.z-\\[9999\\]'));
 
-  // 2. pen tap on the Close button must fire the click (synthetic shim)
-  const closeBtn = page.getByRole('button', { name: 'Close' });
-  const cb = await closeBtn.boundingBox();
-  await penTapAt(page, cb!.x + cb!.width / 2, cb!.y + cb!.height / 2);
-  await page.waitForTimeout(400);
-  expect(await page.evaluate(() => !!document.querySelector('[role="dialog"]'))).toBe(false);
+test.describe('Apple Pencil in modals', () => {
+  test('shared Modal (Help): item tap stays open, close tap works', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(500);
+    await page.getByTitle('Keyboard Shortcuts & Help').click();
+    await page.waitForTimeout(400);
 
-  // 3. re-open, pen tap on a modal button (footer) works without dismissing twice
-  await openHelp(page);
-  await expect(table).toBeVisible();
-  await penTapAt(page, tb!.x + 50, tb!.y + 20);
-  await page.waitForTimeout(400);
-  expect(await page.evaluate(() => !!document.querySelector('[role="dialog"]'))).toBe(true);
+    const table = page.locator('[role="dialog"] table').first();
+    await expect(table).toBeVisible();
+    const tb = await table.boundingBox();
+    await penTapAt(page, tb!.x + 50, tb!.y + 20);
+    await page.waitForTimeout(400);
+    expect(await dialogVisible(page)).toBe(true);
+
+    await penTap(page, page.getByRole('button', { name: 'Close' }));
+    await page.waitForTimeout(400);
+    expect(await dialogVisible(page)).toBe(false);
+  });
+
+  test('note editor (Edit Banner): pen taps work', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(500);
+
+    const noteId = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+      if (!key) return null;
+      const p = JSON.parse(localStorage.getItem(key)!);
+      const v = p.versions?.[p.activeVersionId] || p.versions?.[0];
+      return v?.rows?.find((r: any) => r.type === 'NOTE')?.id ?? null;
+    });
+    expect(noteId).not.toBeNull();
+
+    const noteRow = page.locator(`[data-row-id="${noteId}"]`).first();
+    await expect(noteRow).toBeAttached({ timeout: 5000 });
+    await noteRow.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+    });
+    await page.waitForTimeout(600);
+
+    const title = page.getByText('Edit Banner');
+    await expect(title).toBeVisible({ timeout: 5000 });
+
+    // pen tap the note textarea — stays open
+    const textarea = page.locator('[role="dialog"] textarea').first();
+    await expect(textarea).toBeVisible();
+    const ta = await textarea.boundingBox();
+    await penTapAt(page, ta!.x + 20, ta!.y + 20);
+    await page.waitForTimeout(400);
+    expect(await dialogVisible(page)).toBe(true);
+
+    // pen tap Cancel closes
+    await penTap(page, page.getByRole('button', { name: 'Cancel' }));
+    await page.waitForTimeout(400);
+    expect(await dialogVisible(page)).toBe(false);
+  });
+
+  test('custom overlay (RuleFormModal): pen taps work', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: 'Rules' }).click();
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: 'New Rule' }).click();
+    await page.waitForTimeout(400);
+
+    const saveBtn = page.getByRole('button', { name: /Add Rule|Save Changes/ });
+    await expect(saveBtn).toBeVisible({ timeout: 5000 });
+
+    // pen tap on a neutral form area — modal stays open
+    const modal = page.locator('.bg-white.rounded-xl.shadow-2xl').first();
+    const mb = await modal.boundingBox();
+    expect(mb).not.toBeNull();
+    await penTapAt(page, mb!.x + 40, mb!.y + 60);
+    await page.waitForTimeout(400);
+    expect(await customModalVisible(page)).toBe(true);
+
+    // pen tap the X close button
+    const closeBtn = modal.locator('button').first();
+    await penTap(page, closeBtn);
+    await page.waitForTimeout(400);
+    expect(await saveBtn.isVisible().catch(() => false)).toBe(false);
+  });
 });

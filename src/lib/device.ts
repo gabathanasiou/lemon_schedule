@@ -77,9 +77,10 @@ if (IS_BROWSER) {
   });
   // ── Apple Pencil click shim ──────────────────────────────────────────────
   // iOS Safari does not synthesize click events for pen taps on overlay
-  // surfaces; Radix modals set body { pointer-events: none }, which is exactly
-  // where the pencil's click gets swallowed (finger taps work fine). While a
-  // modal is open, dispatch a synthetic click on pointerup for pen taps.
+  // surfaces (modals, popups, menus — Radix or custom). Dispatch a synthetic
+  // click on pointerup for pen taps; if Safari also synthesizes a native click
+  // (some contexts do), a position-based suppressor swallows it so the action
+  // runs exactly once.
   //
   // NOTE: no preventDefault on pointerdown — canceling it makes React skip its
   // capture handlers on portal content, which Radix's dismissable layer uses to
@@ -89,7 +90,6 @@ if (IS_BROWSER) {
   const PEN_CLICK = '__penClick';
   window.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.pointerType !== 'pen' || e.button !== 0) return;
-    if (document.body.style.pointerEvents !== 'none') return; // no Radix modal open
     penDownPos = { x: e.clientX, y: e.clientY };
   }, true);
   window.addEventListener('pointerup', (e: PointerEvent) => {
