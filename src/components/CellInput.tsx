@@ -140,7 +140,7 @@ export const CellInput: React.FC<{
   
   const activeClass = readOnly 
     ? 'cursor-default pointer-events-none' 
-    : 'cursor-text hover:bg-black/[0.04]';
+    : 'cursor-text hover:bg-black/[0.09]';
 
   const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
 

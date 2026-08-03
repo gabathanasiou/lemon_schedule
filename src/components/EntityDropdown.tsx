@@ -416,7 +416,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     : (value || '');
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
+    <div ref={ref} className={standalone ? '' : `relative h-[1lh] hover:bg-black/[0.09] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
       <input
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}

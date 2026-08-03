@@ -46,6 +46,7 @@ export const BoneyardBlock: React.FC<{
   rows: ScheduleRow[], 
   projectScenes: Scene[],
   textEditingEnabled: boolean,
+  editingTarget?: { rowId: string; fieldKey: string | null } | null,
   onAction?: (action: string) => void,
   contextMenu?: any,
   setContextMenu?: any,
@@ -68,7 +69,7 @@ export const BoneyardBlock: React.FC<{
   edgePadding?: number,
   cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = React.memo(({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
+}> = React.memo(({ rows, projectScenes, textEditingEnabled, editingTarget, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
@@ -200,7 +201,8 @@ export const BoneyardBlock: React.FC<{
                   isSelected={selectedIds?.has(r.id) ?? false}
                   isFaded={activeDragIds?.has(r.id) ?? false}
                   onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
-                  textEditingEnabled={textEditingEnabled}
+                  isEditable={r.id === editingTarget?.rowId}
+                  focusField={r.id === editingTarget?.rowId ? editingTarget.fieldKey : null}
                   onDoubleClick={onRowDoubleClick}
                   onRowNavigate={onRowNavigate}
                   ribbon={ribbon}

@@ -14,6 +14,7 @@ interface SelectDropdownProps {
   placeholder?: string;
   positioning?: 'relative' | 'fixed';
   standalone?: boolean;
+  autoFocus?: boolean;
 }
 
 export const SelectDropdown: React.FC<SelectDropdownProps> = ({
@@ -25,6 +26,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   placeholder,
   positioning = 'relative',
   standalone = false,
+  autoFocus = false,
 }) => {
   const [open, setOpen] = useState(false);
   const initialIdx = options.indexOf(value);
@@ -34,6 +36,14 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number });
 
   const handleOpen = useOpenHandler(setOpen);
+
+  useEffect(() => {
+    if (autoFocus && !readOnly && ref.current) {
+      const input = ref.current.querySelector('input');
+      input?.focus();
+      handleOpen();
+    }
+  }, [autoFocus, readOnly, handleOpen]);
 
   useSmartPosition(ref, positioning === 'relative' && open);
 
@@ -66,7 +76,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
     : 'bg-transparent outline-none uppercase cursor-pointer w-full text-left h-full';
 
   return (
-    <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
+    <div ref={ref} className={standalone ? '' : `relative h-[1lh] hover:bg-black/[0.09] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         value={value}
         readOnly

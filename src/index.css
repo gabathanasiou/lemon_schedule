@@ -77,3 +77,16 @@ input, textarea, [contenteditable] {
     opacity: 1;
   }
 }
+
+/* Edit mode: fields that can be tapped-to-edit signal affordance on hover.
+   gated by the container attribute so the mode toggle never re-renders rows. */
+@media (any-hover: hover) {
+  [data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)) {
+    transition: background-color 100ms ease, box-shadow 100ms ease;
+  }
+  [data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)):hover {
+    background: rgba(0, 0, 0, 0.09);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+  }
+}

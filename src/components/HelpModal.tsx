@@ -58,6 +58,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
     >
       <div className={`${HM_CONTENT} overflow-y-auto max-h-[65vh]`}>
         <Section title="Cell Editing (Edit mode)">
+          <Row keys={<>Click a field</>} action="Make that strip editable and open/focus the field (one tap — hover shows which fields are editable)" />
           <Row keys={<><Kbd>⏎</Kbd> Enter</>} action="Commit edit, stay on cell" />
           <Row keys={<><Kbd>⇧</Kbd> + <Kbd>⏎</Kbd></>} action="Commit & jump to same field in next ribbon (selects ribbon)" />
           <Row keys={<><Kbd>⎋</Kbd> Esc</>} action="Cancel edit, revert to original value" />

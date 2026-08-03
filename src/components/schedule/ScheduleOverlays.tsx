@@ -23,7 +23,6 @@ interface ScheduleOverlaysProps {
   activeDragIds: Set<string>;
   activeDragRows: ScheduleRow[];
   scenes: Scene[];
-  textEditingEnabled: boolean;
   ribbon: RibbonDesign;
   colWidths: number[];
   cellPaddingV: number;
@@ -44,7 +43,7 @@ interface ScheduleOverlaysProps {
 }
 
 export default function ScheduleOverlays({
-  activeId, activeDragRow, activeDragIds, activeDragRows, scenes, textEditingEnabled,
+  activeId, activeDragRow, activeDragIds, activeDragRows, scenes,
   ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders,
   digitBuffer, bufferMs, selectionSummary, bufferSummary,
   dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories,
@@ -62,12 +61,12 @@ export default function ScheduleOverlays({
               const opacity = isTop ? 1 : 1 - (arr.length - 1 - i) * 0.2;
               return (
                 <div key={id} style={{ position: isTop ? 'relative' : 'absolute', top: offset, left: 0, right: 0, opacity, zIndex: isTop ? 10 : 5 - i }}>
-                  <SortableRibbon row={row as any} scenes={scenes} scene={row.type === 'SCENE' ? (scenes.find(s => s.id === row.sceneId) ?? null) : null} isOverlay textEditingEnabled={textEditingEnabled} ribbon={ribbon} colWidths={colWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} dispatch={dispatch} activeVersionId={activeVersionId} palette={palette} castMembers={castMembers} breakdownElements={breakdownElements} customCategories={customCategories} hiddenCategories={hiddenCategories} />
+                  <SortableRibbon row={row as any} scenes={scenes} scene={row.type === 'SCENE' ? (scenes.find(s => s.id === row.sceneId) ?? null) : null} isOverlay ribbon={ribbon} colWidths={colWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} dispatch={dispatch} activeVersionId={activeVersionId} palette={palette} castMembers={castMembers} breakdownElements={breakdownElements} customCategories={customCategories} hiddenCategories={hiddenCategories} />
                 </div>
               );
             })}
             {activeDragIds.size === 1 && activeDragIds.has(activeId as string) && (
-              <SortableRibbon row={activeDragRow as any} scenes={scenes} scene={activeDragRow.type === 'SCENE' ? (scenes.find(s => s.id === activeDragRow.sceneId) ?? null) : null} isOverlay textEditingEnabled={textEditingEnabled} ribbon={ribbon} colWidths={colWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} dispatch={dispatch} activeVersionId={activeVersionId} palette={palette} castMembers={castMembers} breakdownElements={breakdownElements} customCategories={customCategories} hiddenCategories={hiddenCategories} />
+              <SortableRibbon row={activeDragRow as any} scenes={scenes} scene={activeDragRow.type === 'SCENE' ? (scenes.find(s => s.id === activeDragRow.sceneId) ?? null) : null} isOverlay ribbon={ribbon} colWidths={colWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} dispatch={dispatch} activeVersionId={activeVersionId} palette={palette} castMembers={castMembers} breakdownElements={breakdownElements} customCategories={customCategories} hiddenCategories={hiddenCategories} />
             )}
             {activeDragIds.size > 1 && (
                <div className="absolute -top-3 -right-3 bg-blue-500 text-white font-bold px-3 py-1 rounded-full shadow-lg text-sm border-2 border-white z-20">
