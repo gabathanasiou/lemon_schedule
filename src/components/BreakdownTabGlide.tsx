@@ -33,6 +33,7 @@ import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
+import { useMarqueeMode } from '../lib/useLongPressMenu';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { planPaste } from '../lib/glidePaste';
 import { createGlideCellEditor } from '../lib/glideEditor';
@@ -103,6 +104,7 @@ export function GlideBreakdownTab({
   const hwKeyboard = useHardwareKeyboard();
   /** Keyboard off + no physical keyboard: text cells are read-only, entity cells become pickers. */
   const kbLocked = IS_COARSE && !hwKeyboard && keyboardMode === 'off';
+  const marqueeMode = useMarqueeMode();
 
   const COLUMNS = useMemo(() => [
     ...FIXED_COLS.map(c => ({ ...c, width: columnWidths[c.key] ?? c.width })),
@@ -166,6 +168,10 @@ export function GlideBreakdownTab({
   }, []);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
+  /** Last row-marker click, to disambiguate Glide's time-based isDoubleClick (it
+   *  flags two taps anywhere in the grid within ~1s as a double-click even on
+   *  different cells, which would wrongly open the scene sheet). */
+  const lastMarkerClickRef = useRef<{ col: number; row: number } | null>(null);
 
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
@@ -606,12 +612,36 @@ export function GlideBreakdownTab({
     }
     if (col >= 0) return;
     if (e.isDoubleClick) {
-      if (!IS_COARSE && shiftHeld && onOpenSheetInPopout) {
-        onOpenSheetInPopout(row);
-      } else {
-        onOpenSheet?.(row);
+      const prev = lastMarkerClickRef.current;
+      const sameCell = prev !== null && prev.col === col && prev.row === row;
+      lastMarkerClickRef.current = { col, row };
+      if (sameCell && !e.isTouch) {
+        // Double-CLICK (mouse) opens the scene sheet. Touch double-taps do not —
+        // the context menu's "Open Sheet" is the mobile path.
+        if (!IS_COARSE && shiftHeld && onOpenSheetInPopout) {
+          onOpenSheetInPopout(row);
+        } else {
+          onOpenSheet?.(row);
+        }
+        return;
       }
-      return;
+      // Spurious cross-cell double-click (Glide only checks timing) or a touch
+      // double-tap: fall through and treat this as a single tap on the marker.
+    } else {
+      lastMarkerClickRef.current = { col, row };
+    }
+    // Glide accumulates row markers on touch regardless of rowSelectionMode —
+    // when not in Select Mode, replace the selection with just this row.
+    if (e.isTouch && marqueeMode === 'off') {
+      setGridSelection({
+        rows: CompactSelection.fromSingleSelection(row),
+        columns: CompactSelection.empty(),
+        current: {
+          cell: [0, row] as Item,
+          range: { x: 0, y: row, width: COLUMNS.length, height: 1 },
+          rangeStack: [],
+        },
+      });
     }
     if (e.isTouch || e.button === 2) {
       const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
@@ -776,6 +806,7 @@ export function GlideBreakdownTab({
           editOnType
           rangeSelect={IS_COARSE ? "cell" : "rect"}
           cellActivationBehavior="double-click"
+          rowSelectionMode={marqueeMode === 'tool' ? 'multi' : 'single'}
           smoothScrollX={smoothScroll}
           smoothScrollY={smoothScroll}
           portalElementRef={gridPortalRef}
