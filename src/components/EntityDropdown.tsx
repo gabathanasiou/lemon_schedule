@@ -266,7 +266,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   useEffect(() => {
     committedRef.current = false;
     if (open) {
-      setHighlightedIndex(-1);
+      if (mode === 'single') {
+        const currentKey = (value || '').trim();
+        const idx = currentKey
+          ? dropdownItems.findIndex((m) => itemKey(m).toUpperCase() === currentKey.toUpperCase())
+          : -1;
+        setHighlightedIndex(idx >= 0 ? idx : 0);
+      } else {
+        setHighlightedIndex(-1);
+      }
       setPos(p => ({ ...p, ready: false }));
     }
   }, [open]);
@@ -395,20 +403,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     }
   }, [open, effectiveQuery, hasExactMatch]);
 
-  // Single-select: open with the current option highlighted so arrows navigate
-  // its neighbours. Runs only on the open transition; multi mode is untouched.
-  const prevOpenRef = useRef(false);
-  useEffect(() => {
-    if (mode !== 'single') return;
-    const justOpened = open && !prevOpenRef.current;
-    prevOpenRef.current = open;
-    if (!justOpened) return;
-    const currentKey = (value || '').trim();
-    const idx = currentKey
-      ? dropdownItems.findIndex((m) => itemKey(m).toUpperCase() === currentKey.toUpperCase())
-      : -1;
-    setHighlightedIndex(idx >= 0 ? idx : 0);
-  }, [open, mode, value, dropdownItems, itemKey]);
 
   const defaultRenderer = (item: EntityItem, checked: boolean) => (
     <>
