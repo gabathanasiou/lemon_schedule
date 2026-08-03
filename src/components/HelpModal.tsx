@@ -98,6 +98,14 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⌫</Kbd> Del / <Kbd>⌫</Kbd></>} action="Send to Boneyard (move selected ribbons to boneyard)" />
         </Section>
 
+        <Section title="Breakdown Grid (Glide)">
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>C</Kbd></>} action="Copy selected cells / row / column" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>X</Kbd></>} action="Cut selected cells (copies + clears)" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>V</Kbd></>} action="Paste clipboard contents at the selected cell" />
+          <Row keys={<>Right-click / Tap row number</>} action="Context menu: Copy / Cut / Paste / Clear / Insert / Duplicate / Delete" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>⏎</Kbd></>} action="Add a scene at the end of the grid" />
+        </Section>
+
         <Section title="Touch / iPad">
           <Row keys={<>Swipe</>} action="Scroll - swipe on ribbons, gaps, margins, or day headers" />
           <Row keys={<>Press & hold</>} action="Drag a ribbon - hold still (~200ms) then drag. Drags full multi-selection if tapped item is selected" />
