@@ -324,7 +324,15 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   }, [targetSceneId, activeVersion, onSceneTargetSeen]);
 
   const scrollToRow = (rowId: string, offsetFraction?: number) => {
+    const dayIdx = existingDays.findIndex(d => (scheduledRows[d] || []).some(r => r.id === rowId));
+    if (dayIdx >= 0 && (dayIdx < renderWindow.start || dayIdx > renderWindow.end)) {
+      setRenderWindow({
+        start: Math.max(0, dayIdx - 1),
+        end: Math.min(existingDays.length - 1, dayIdx + 1),
+      });
+    }
     requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
       let el = scheduleScrollRef.current?.querySelector(`[data-row-id="${rowId}"]`) ?? null;
       let container: HTMLElement | null = el ? scheduleScrollRef.current : null;
 
@@ -362,6 +370,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if (t < 1) requestAnimationFrame(animate);
       };
       requestAnimationFrame(animate);
+      });
     });
   };
   const {
@@ -482,6 +491,68 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     )).sort((a, b) => a - b);
     return ids.length > 0 ? ids : [1];
   }, [activeVersion.rows]);
+
+  // Viewport windowing: only mount the days intersecting the viewport (+ a
+  // viewport of buffer each way), spacers elsewhere — keeps the DOM and the
+  // per-drag-move re-render scope bounded for very long projects.
+  const [renderWindow, setRenderWindow] = useState({ start: 0, end: 2 });
+  const [measuredHeights, setMeasuredHeights] = useState<Record<number, number>>({});
+  const measureElRef = useRef(new Map<number, HTMLDivElement>());
+  const measureCleanupRef = useRef(new Map<number, () => void>());
+
+  const estimateDayHeight = useCallback((dayInt: number) => {
+    return ((scheduledRows[dayInt] || []).length) * 40 + 84;
+  }, [scheduledRows]);
+
+  const updateRenderWindow = useCallback(() => {
+    const el = scheduleScrollRef.current;
+    if (!el) return;
+    const dayEls = el.querySelectorAll('[data-cal-day]');
+    if (dayEls.length === 0) return;
+    const viewTop = el.scrollTop - el.clientHeight;
+    const viewBottom = el.scrollTop + el.clientHeight * 2;
+    let start = -1;
+    let end = -1;
+    dayEls.forEach((d, i) => {
+      const top = (d as HTMLElement).offsetTop;
+      const bottom = top + (d as HTMLElement).offsetHeight;
+      if (bottom >= viewTop && top <= viewBottom) {
+        if (start === -1) start = i;
+        end = i;
+      }
+    });
+    if (start === -1 || end === -1) return;
+    setRenderWindow(prev => (prev.start === start && prev.end === end ? prev : { start, end }));
+  }, []);
+
+  const dayMeasureRef = useCallback((dayInt: number) => (el: HTMLDivElement | null) => {
+    if (measureElRef.current.get(dayInt) === el) return;
+    measureElRef.current.delete(dayInt);
+    measureCleanupRef.current.get(dayInt)?.();
+    measureCleanupRef.current.delete(dayInt);
+    if (!el) return;
+    measureElRef.current.set(dayInt, el);
+    const update = () => {
+      const h = el.offsetHeight;
+      setMeasuredHeights(prev => (prev[dayInt] === h ? prev : { ...prev, [dayInt]: h }));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    measureCleanupRef.current.set(dayInt, () => ro.disconnect());
+  }, []);
+
+  useEffect(() => {
+    measureElRef.current.clear();
+    measureCleanupRef.current.forEach(fn => fn());
+    measureCleanupRef.current.clear();
+    setMeasuredHeights({});
+    setRenderWindow({ start: 0, end: 2 });
+  }, [activeVersion?.id]);
+
+  useEffect(() => {
+    updateRenderWindow();
+  }, [updateRenderWindow, existingDays, scheduledRows]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -1295,7 +1366,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
               })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
         
         {/* Main Schedule Area */}
-        <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
+        <div ref={scheduleScrollRef} onScroll={() => { updateRenderWindow(); if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}
           onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());
@@ -1307,9 +1378,18 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
           }}
         >
           <div style={{ width: viewWidth ? `${viewWidth}px` : '100%', margin: '0 auto' }}>
-                {existingDays.map((dayInt, i) => (
+                {existingDays.map((dayInt, i) => {
+                  const inWindow = i >= renderWindow.start && i <= renderWindow.end;
+                  const cached = measuredHeights[dayInt];
+                  const est = estimateDayHeight(dayInt);
+                  if (!inWindow) {
+                    return (
+                      <div key={dayInt} data-cal-day style={{ height: cached ?? est }} />
+                    );
+                  }
+                  return (
+                    <div key={dayInt} data-cal-day ref={dayMeasureRef(dayInt)}>
                 <StripBlock 
-                  key={dayInt} 
                   dayInt={dayInt} 
                   rows={scheduledRows[dayInt] || []}
                   selectedIds={selectedRowIds}
@@ -1329,7 +1409,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                       cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding}
                      cellBorders={cellBorders}
                   />
-              ))}
+                    </div>
+                  );
+                })}
           </div>
           <MarqueeOverlay box={marqueeBox} />
         </div>
