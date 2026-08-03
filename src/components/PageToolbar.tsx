@@ -68,8 +68,63 @@ export default function PageToolbar({ tabs, activeTab, onChange, onPopout, shift
     return () => window.removeEventListener('resize', checkScroll);
   }, [checkScroll]);
 
+  const dragRef = React.useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const replayRef = React.useRef(false);
+  const isInsideToolbar = React.useCallback((target: EventTarget | null) => {
+    // React dispatches via the fiber tree, so events on portaled content
+    // (dropdown menus) still pass through this component's ancestors —
+    // only handle touches that physically start inside the toolbar DOM.
+    return target instanceof Node && !!scrollRef.current?.contains(target);
+  }, []);
+  const onPointerDownCapture = React.useCallback((e: React.PointerEvent) => {
+    if (e.pointerType !== 'touch') return;
+    if (!isInsideToolbar(e.target)) return;
+    if (replayRef.current) { replayRef.current = false; return; }
+    dragRef.current = { x: e.clientX, y: e.clientY, moved: false };
+    if ((e.target as HTMLElement).closest('[aria-haspopup]')) {
+      // Radix opens menus on pointerdown; delay the open until the tap is confirmed (no drag)
+      e.stopPropagation();
+    }
+  }, [isInsideToolbar]);
+  const onPointerMoveCapture = React.useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || d.moved) return;
+    if (!isInsideToolbar(e.target)) return;
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) d.moved = true;
+  }, [isInsideToolbar]);
+  const onClickCapture = React.useCallback((e: React.MouseEvent) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d) return;
+    if (!isInsideToolbar(e.target)) return;
+    if (d.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    const trigger = (e.target as HTMLElement).closest('[aria-haspopup]');
+    if (trigger) {
+      e.preventDefault();
+      e.stopPropagation();
+      replayRef.current = true;
+      trigger.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        pointerType: 'touch',
+        clientX: d.x,
+        clientY: d.y,
+      }));
+    }
+  }, [isInsideToolbar]);
+
   return (
-    <div ref={scrollRef} onScroll={checkScroll} className={`overflow-x-auto border-b shrink-0 ${t.bar} [&::-webkit-scrollbar]:hidden`} style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
+    <div ref={scrollRef} onScroll={checkScroll}
+      onPointerDownCapture={onPointerDownCapture}
+      onPointerMoveCapture={onPointerMoveCapture}
+      onClickCapture={onClickCapture}
+      className={`overflow-x-auto overscroll-x-contain border-b shrink-0 ${t.bar} [&::-webkit-scrollbar]:hidden touch-pan-x`}
+      style={{ scrollbarWidth: 'none', WebkitMaskImage: scrollMask, maskImage: scrollMask }}>
       <div className={`flex items-center ${JUSTIFY[justify]} gap-2 shrink-0 w-fit min-w-full px-3 pt-2 pb-2`}>
         {tabs && tabs.length > 0 && (
           <div className="flex items-center gap-1 shrink-0">
