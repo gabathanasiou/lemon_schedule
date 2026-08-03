@@ -31,7 +31,7 @@ import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
 import { SceneCardContent } from './calendar/SceneCard';
 import { BoneyardSidebar } from './calendar/BoneyardSidebar';
-import { DayDropState, MonthSlot, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, monthWeekCount, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
+import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
 export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void }> = ({ onOpenScene, onOpenSceneInPopout }) => {
@@ -198,15 +198,19 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         })
   );
 
-  const calendarMonths = useMemo(() => {
-    const start = new Date(startDate + 'T00:00:00');
+  const lastProductionDate = useMemo(() => {
     let lastDate: string | null = null;
     for (const d of hookSectionDateMap.values()) {
       if (!lastDate || d > lastDate) lastDate = d;
     }
-    const end = lastDate ? new Date(lastDate + 'T00:00:00') : new Date(start);
+    return lastDate;
+  }, [hookSectionDateMap]);
+
+  const calendarMonths = useMemo(() => {
+    const start = new Date(startDate + 'T00:00:00');
+    const end = lastProductionDate ? new Date(lastProductionDate + 'T00:00:00') : new Date(start);
     return monthsInRange(start.getFullYear(), start.getMonth(), end.getFullYear(), end.getMonth());
-  }, [startDate, hookSectionDateMap]);
+  }, [startDate, lastProductionDate]);
 
   const days = useMemo(() => {
     const out: { date: Date; dateKey: string; isToday: boolean }[] = [];
@@ -582,7 +586,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     setColorPicker(null);
   }, [colorPicker, activeVersion, dispatch]);
 
-  const { activeType, handleDragStart, handleDragOver, handleDragEnd, setEndStripRef, isEndStripOver } = useCalendarDrag({
+  const { activeType, handleDragStart, handleDragOver, handleDragEnd } = useCalendarDrag({
     activeId, setActiveId,
     activeDragDay, setActiveDragDay,
     activeDragRow, setActiveDragRow,
@@ -793,7 +797,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         }}
       >
         <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div data-marquee-tool-only className="flex-1 flex flex-col overflow-hidden">
           <PageToolbar theme="light" justify="between"
             children={
               <div className="flex items-center gap-2">
@@ -897,16 +901,19 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
             setViewMenuOpen(false);
             setContextMenuDate(null);
             setContextMenu(null);
-          }} onScroll={() => { updateRenderWindow(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          }} onScroll={() => { updateRenderWindow(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50" data-cal-sticky>
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
             <MarqueeOverlay box={marqueeBox} />
             {calendarMonths.map((m, mi) => {
               const key = `${m.year}-${m.month}`;
+              const trim: MonthTrim | undefined = mi === 0 || mi === calendarMonths.length - 1
+                ? { startKey: mi === 0 ? startDate : undefined, endKey: mi === calendarMonths.length - 1 ? (lastProductionDate ?? undefined) : undefined }
+                : undefined;
               const inWindow = mi >= renderWindow.start && mi <= renderWindow.end;
               const cached = measuredHeights[key];
-              const est = estimateMonthHeight(m.year, m.month);
+              const est = estimateMonthHeight(m.year, m.month, trim);
               if (!inWindow) {
                 return (
                   <div key={key} data-cal-month className="border-l border-t border-zinc-200 bg-white flex items-center justify-center"
@@ -928,8 +935,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                   <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2 py-1 border-l border-t border-r border-zinc-200 bg-zinc-100">
                     {monthTitle(m.year, m.month)}
                   </div>
-                  <div className="grid grid-cols-7 border-l border-t border-zinc-200">
-                    {buildMonthSlots(m.year, m.month).map(slot => {
+                  <div className="grid grid-cols-7 border-l border-t border-zinc-200" style={{ gridAutoRows: DAY_CELL_HEIGHT }}>
+                    {buildMonthSlots(m.year, m.month, trim).map(slot => {
                       if (slot.filler) return <FillerCell key={slot.key} />;
                       const day = slot as Extract<MonthSlot, { filler: false }>;
                       const dateSectionIdx = dateSectionMap.get(day.dateKey) ?? null;
@@ -993,11 +1000,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                 </div>
               );
             })}
-            {activeType === 'DAY' && (
-              <div ref={setEndStripRef} data-insert-end className={`m-2 flex items-center justify-center rounded-md border-2 border-dashed py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${dayDropState === 'end' || isEndStripOver ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-zinc-300 text-zinc-400'}`}>
-                Drop to insert a day at the end
-              </div>
-            )}
           </div>
         </div>
       </div>

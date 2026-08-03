@@ -54,8 +54,29 @@ export const DayCell: React.FC<{
     disabled: !!nonShootStatus,
   });
 
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  const [scrollMask, setScrollMask] = React.useState('none');
+  const checkScroll = React.useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const atTop = el.scrollTop <= 2;
+    const atBottom = el.scrollTop >= el.scrollHeight - el.clientHeight - 2;
+    if (atTop && atBottom) setScrollMask('none');
+    else if (atTop) setScrollMask('linear-gradient(to top, transparent, black 12px)');
+    else if (atBottom) setScrollMask('linear-gradient(to bottom, transparent, black 12px)');
+    else setScrollMask('linear-gradient(to bottom, transparent, black 12px, black calc(100% - 12px), transparent)');
+  }, []);
+  React.useEffect(() => {
+    checkScroll();
+    const el = bodyRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(checkScroll);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [checkScroll, rows.length]);
+
   const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'DO' : null;
-  const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-zinc-200' : '';
+  const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-zinc-100' : '';
   const hdr = getDayHeaderColors(palette);
   const headerColor = nonShootStatus === 'hold' ? 'bg-red-600 text-white'
     : nonShootStatus === 'travel' ? 'bg-purple-600 text-white'
@@ -69,7 +90,7 @@ export const DayCell: React.FC<{
   const isNonShoot = !!nonShootStatus;
   const isWorking = sectionIndex != null;
 
-  const drop = dropState && dropState !== 'end' && dropState.sectionIndex === sectionIndex ? dropState : null;
+  const drop = dropState && dropState.sectionIndex === sectionIndex ? dropState : null;
 
   return (
     <div ref={setNodeRef} data-date-key={dateKey}
@@ -94,6 +115,7 @@ export const DayCell: React.FC<{
           ref={setDragRef}
           {...dragListeners}
           {...dragAttributes}
+          data-no-longpress
           onClick={() => activeTool && onToggle(dateKey)}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
@@ -113,7 +135,7 @@ export const DayCell: React.FC<{
           )}
         </span>
         </div>
-      <div className="flex-1 overflow-y-auto min-h-0 mx-0.5"
+      <div ref={bodyRef} onScroll={checkScroll} className="flex-1 overflow-y-auto overscroll-contain min-h-0 mx-0.5" style={{ WebkitMaskImage: scrollMask, maskImage: scrollMask }}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement).closest('[data-row-id]')) return;
           if (!bodyTargetRowId) return;

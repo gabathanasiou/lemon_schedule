@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { useDroppable } from '@dnd-kit/core';
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
 import { ScheduleRow, ScheduleVersion } from '../../types';
 import { isAddModeActive } from '../../lib/useMarquee';
@@ -45,14 +44,6 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
   const updateDayDropZone = useCallback((x: number, y: number) => {
     const container = calendarGridRef.current;
     if (!container) return;
-    const endStrip = container.querySelector('[data-insert-end]');
-    if (endStrip) {
-      const sr = endStrip.getBoundingClientRect();
-      if (x >= sr.left && x <= sr.right && y >= sr.top && y <= sr.bottom) {
-        setDayDropState(prev => (prev === 'end' ? prev : 'end'));
-        return;
-      }
-    }
     const dayEls = container.querySelectorAll('[data-date-key]');
     let inside: { el: Element; rect: DOMRect; sectionIndex: number } | null = null;
     let nearest: { el: Element; rect: DOMRect; sectionIndex: number; dist: number } | null = null;
@@ -74,17 +65,17 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
     if (inside) {
       const ratio = inside.rect.width > 0 ? (x - inside.rect.left) / inside.rect.width : 0.5;
       if (ratio < 0.3) {
-        setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'insert' && prev.side === 'before' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'insert', side: 'before', sectionIndex: inside.sectionIndex }));
+        setDayDropState(prev => (prev && prev.zone === 'insert' && prev.side === 'before' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'insert', side: 'before', sectionIndex: inside.sectionIndex }));
       } else if (ratio > 0.7) {
-        setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'insert' && prev.side === 'after' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'insert', side: 'after', sectionIndex: inside.sectionIndex }));
+        setDayDropState(prev => (prev && prev.zone === 'insert' && prev.side === 'after' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'insert', side: 'after', sectionIndex: inside.sectionIndex }));
       } else {
-        setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'swap' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'swap', sectionIndex: inside.sectionIndex }));
+        setDayDropState(prev => (prev && prev.zone === 'swap' && prev.sectionIndex === inside.sectionIndex ? prev : { zone: 'swap', sectionIndex: inside.sectionIndex }));
       }
       return;
     }
     if (nearest) {
       const side = x < nearest.rect.left || y < nearest.rect.top ? 'before' : 'after';
-      setDayDropState(prev => (prev && prev !== 'end' && prev.zone === 'insert' && prev.side === side && prev.sectionIndex === nearest.sectionIndex ? prev : { zone: 'insert', side, sectionIndex: nearest.sectionIndex }));
+      setDayDropState(prev => (prev && prev.zone === 'insert' && prev.side === side && prev.sectionIndex === nearest.sectionIndex ? prev : { zone: 'insert', side, sectionIndex: nearest.sectionIndex }));
       return;
     }
     setDayDropState(prev => (prev === null ? prev : null));
@@ -105,12 +96,6 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
       window.removeEventListener('pointerup', onUp);
     };
   }, [activeType, updateDayDropZone]);
-
-  const { setNodeRef: setEndStripRef, isOver: isEndStripOver } = useDroppable({
-    id: 'day-insert-end',
-    data: { type: 'DAY_INSERT_END' },
-    disabled: activeType !== 'DAY',
-  });
 
   const handleDragStart = (e: DragStartEvent) => {
     if (isAddModeActive()) return;
@@ -173,14 +158,10 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
       const scheduled = allRows.filter(r => r.containerId != null).sort((a, b) => a.order - b.order);
       const { blocks, tail } = buildDayBlocks(scheduled);
 
-      // Insert: drop on a day's edge, in the gap between days, or on the end strip
+      // Insert: drop on a day's edge or in the gap between days
       let insertT: number | null = null;
       const drop = dayDropState;
-      if (over.id === 'day-insert-end') {
-        insertT = blocks.length;
-      } else if (drop === 'end') {
-        insertT = blocks.length;
-      } else if (drop && drop.zone === 'insert') {
+      if (drop && drop.zone === 'insert') {
         insertT = (drop.side === 'after' ? drop.sectionIndex + 1 : drop.sectionIndex);
       }
 
@@ -334,5 +315,5 @@ export function useCalendarDrag(config: UseCalendarDragConfig) {
     setSelectedRowIds(new Set(draggingIds));
   };
 
-  return { activeType, updateDayDropZone, handleDragStart, handleDragOver, handleDragEnd, setEndStripRef, isEndStripOver };
+  return { activeType, updateDayDropZone, handleDragStart, handleDragOver, handleDragEnd };
 }

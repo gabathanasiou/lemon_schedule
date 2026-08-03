@@ -35,33 +35,81 @@ export function monthsInRange(startYear: number, startMonth: number, endYear: nu
 }
 
 export function monthWeekCount(year: number, month: number): number {
-  const first = new Date(year, month, 1);
-  const startOff = first.getDay() === 0 ? 6 : first.getDay() - 1;
-  const last = new Date(year, month + 1, 0);
-  const endOff = last.getDay() === 0 ? 6 : last.getDay() - 1;
-  return Math.ceil((startOff + last.getDate() + (6 - endOff)) / 7);
+  return monthRowCount(year, month);
 }
 
-export function estimateMonthHeight(year: number, month: number): number {
-  return monthWeekCount(year, month) * 96 + 30;
+export interface MonthTrim { startKey?: string; endKey?: string; }
+
+function weekStartOf(d: Date): Date {
+  const day = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  const out = new Date(d);
+  out.setDate(d.getDate() - day);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function weekEndOf(d: Date): Date {
+  const day = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  const out = new Date(d);
+  out.setDate(d.getDate() + (6 - day));
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+interface MonthGridBounds { lead: number; dayStart: number; dayEnd: number; trail: number; }
+
+function monthGridBounds(year: number, month: number, trim?: MonthTrim): MonthGridBounds {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const startOff = first.getDay() === 0 ? 6 : first.getDay() - 1;
+  const endOff = last.getDay() === 0 ? 6 : last.getDay() - 1;
+  let lead = startOff;
+  let dayStart = 1;
+  let dayEnd = last.getDate();
+  let trail = 6 - endOff;
+  if (trim?.startKey) {
+    const ws = weekStartOf(new Date(trim.startKey + 'T00:00:00'));
+    if (ws.getFullYear() === year && ws.getMonth() === month) {
+      dayStart = ws.getDate();
+      lead = 0;
+    } else {
+      lead = Math.round((first.getTime() - ws.getTime()) / 86400000);
+    }
+  }
+  if (trim?.endKey) {
+    const we = weekEndOf(new Date(trim.endKey + 'T00:00:00'));
+    if (we.getFullYear() === year && we.getMonth() === month) {
+      dayEnd = we.getDate();
+      trail = 0;
+    }
+  }
+  return { lead, dayStart, dayEnd, trail };
+}
+
+export function monthRowCount(year: number, month: number, trim?: MonthTrim): number {
+  const b = monthGridBounds(year, month, trim);
+  return (b.lead + (b.dayEnd - b.dayStart + 1) + b.trail) / 7;
+}
+
+export const DAY_CELL_HEIGHT = 170;
+
+export function estimateMonthHeight(year: number, month: number, trim?: MonthTrim): number {
+  return monthRowCount(year, month, trim) * DAY_CELL_HEIGHT + 30;
 }
 
 export type MonthSlot = { filler: true; key: string } | { filler: false; key: string; date: Date; dateKey: string; isToday: boolean };
 
-export function buildMonthSlots(year: number, month: number): MonthSlot[] {
-  const first = new Date(year, month, 1);
-  const startOff = first.getDay() === 0 ? 6 : first.getDay() - 1;
-  const last = new Date(year, month + 1, 0);
-  const endOff = last.getDay() === 0 ? 6 : last.getDay() - 1;
+export function buildMonthSlots(year: number, month: number, trim?: MonthTrim): MonthSlot[] {
+  const b = monthGridBounds(year, month, trim);
   const todayKey = toDateKey(new Date());
   const slots: MonthSlot[] = [];
-  for (let i = 0; i < startOff; i++) slots.push({ filler: true, key: `${year}-${month}-lead-${i}` });
-  for (let d = 1; d <= last.getDate(); d++) {
+  for (let i = 0; i < b.lead; i++) slots.push({ filler: true, key: `${year}-${month}-lead-${i}` });
+  for (let d = b.dayStart; d <= b.dayEnd; d++) {
     const date = new Date(year, month, d);
     const dateKey = toDateKey(date);
     slots.push({ filler: false, key: dateKey, date, dateKey, isToday: dateKey === todayKey });
   }
-  for (let i = 0; i < 6 - endOff; i++) slots.push({ filler: true, key: `${year}-${month}-trail-${i}` });
+  for (let i = 0; i < b.trail; i++) slots.push({ filler: true, key: `${year}-${month}-trail-${i}` });
   return slots;
 }
 
@@ -69,7 +117,7 @@ export function monthTitle(year: number, month: number): string {
   return new Date(year, month, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
 }
 
-export type DayDropState = { zone: 'insert' | 'swap'; side?: 'before' | 'after'; sectionIndex: number } | 'end' | null;
+export type DayDropState = { zone: 'insert' | 'swap'; side?: 'before' | 'after'; sectionIndex: number } | null;
 
 export interface DayBlock { content: ScheduleRow[]; daybreakRow?: ScheduleRow; origIdx: number; }
 

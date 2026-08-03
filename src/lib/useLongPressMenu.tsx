@@ -135,9 +135,15 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType !== 'touch' || e.button !== 0) return;
       const target = e.target as HTMLElement;
-      if (isInteractiveElement(target)) return;
+      const inMarqueeToolZone = !!target.closest('[data-marquee-tool-only]');
+      if (inMarqueeToolZone && _marqueeMode !== 'tool') return;
       const inRow = !!target.closest('[data-row-id]');
-      if (inRow && _marqueeMode !== 'tool') return;
+      if (inMarqueeToolZone) {
+        if (target.closest('button, input, select, textarea')) return;
+      } else {
+        if (isInteractiveElement(target)) return;
+        if (inRow && _marqueeMode !== 'tool') return;
+      }
 
       const x = e.clientX;
       const y = e.clientY;

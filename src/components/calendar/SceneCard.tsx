@@ -11,7 +11,7 @@ import { ViolationTooltip } from '../ViolationTooltip';
 export const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; selBg?: string; selColor?: string }> = ({ row, scene, displayField, violations, isSelected, selBg, selColor }) => {
   const { state } = useProject();
   const palette = state.present.colorPalette;
-  const sz = IS_COARSE ? 'text-xs px-2 py-1' : 'text-[9px] px-1.5 py-0.5';
+  const sz = IS_COARSE ? 'text-[9px] px-1.5 py-1' : 'text-[9px] px-1.5 py-0.5';
   if (!scene) {
     const label = row.type === 'BREAK' ? row.breakLabel || 'BREAK' : row.type === 'NOTE' ? row.noteText || 'Note' : row.type === 'DAYBREAK' ? row.daybreakLabel || 'End of Day' : null;
     if (!label) return null;
@@ -55,14 +55,13 @@ export const SceneCardContent: React.FC<{ row: ScheduleRow; scene?: Scene; displ
 export const SceneCard: React.FC<{ row: ScheduleRow; scene?: Scene; displayField: string; violations?: RuleViolation[]; isSelected?: boolean; isFaded?: boolean; onToggle?: (id: string, e: React.MouseEvent) => void; onDoubleClick?: (id: string) => void; onContextMenu?: (e: React.MouseEvent) => void }> = ({ row, scene, displayField, violations, isSelected, isFaded, onToggle, onDoubleClick, onContextMenu }) => {
   const { state, readOnly } = useProject();
   const sel = getSelectedStripColors(state.present.colorPalette);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id: row.id,
     data: { type: 'SCENE_CARD', row, scene },
     disabled: readOnly,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
     ...(isDragging ? { opacity: 0.3 } : {}),
     userSelect: 'none' as const,
     WebkitUserSelect: 'none' as const,
