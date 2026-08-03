@@ -185,6 +185,48 @@ export function GlideBreakdownTab({
     rows: CompactSelection.empty(),
   });
   const gridRef = useRef<DataEditorRef>(null);
+  const gridWrapRef = useRef<HTMLDivElement>(null);
+  const kbAnchorRef = useRef<HTMLInputElement>(null);
+
+  // Hardware-keyboard mode: iOS Safari won't give a canvas real keyboard
+  // focus from a finger tap (only inputs), so a hidden input acts as the
+  // keyboard anchor. It takes the real focus, forwards keys to the grid's
+  // canvas, and we synthesize focusin/focusout so Glide renders the desktop
+  // active-cell highlight and navigates with arrow keys.
+  const focusGridForKeyboard = useCallback(() => {
+    kbAnchorRef.current?.focus({ preventScroll: true });
+    gridWrapRef.current?.querySelector('canvas')?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+  }, []);
+  const blurGridForKeyboard = useCallback(() => {
+    gridWrapRef.current?.querySelector('canvas')?.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+  }, []);
+  const onGridPointerUpCapture = useCallback((e: React.PointerEvent) => {
+    if (!IS_HARDWARE_KEYBOARD || e.pointerType !== 'touch') return;
+    if ((e.target as HTMLElement).closest('input, textarea, [contenteditable]')) return;
+    focusGridForKeyboard();
+  }, [focusGridForKeyboard]);
+  const forwardKey = useCallback((e: React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = gridWrapRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    canvas.dispatchEvent(new KeyboardEvent('keydown', {
+      key: e.key, code: e.code, keyCode: e.keyCode, which: e.which,
+      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
+      bubbles: true, cancelable: true,
+    }));
+  }, []);
+  const forwardKeyUp = useCallback((e: React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = gridWrapRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    canvas.dispatchEvent(new KeyboardEvent('keyup', {
+      key: e.key, code: e.code, keyCode: e.keyCode, which: e.which,
+      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
+      bubbles: true, cancelable: true,
+    }));
+  }, []);
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
   const portalRef = useRef<HTMLElement | null>(null);
@@ -375,7 +417,8 @@ export function GlideBreakdownTab({
     setItems,
     breakdownEditorItems,
     portalRef,
-  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems]);
+    refocus: focusGridForKeyboard,
+  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, focusGridForKeyboard]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (!sel.current) return false;
@@ -577,14 +620,6 @@ export function GlideBreakdownTab({
   const onCellClicked = useCallback((cell: Item, e: any) => {
     const [col, row] = cell;
     if (row < 0 || row > scenes.length) return;
-    if (IS_HARDWARE_KEYBOARD && !e.isDoubleClick) {
-      // On touch the canvas never takes keyboard focus from a tap (Glide
-      // preventDefaults the tap, and deferred focus is rejected by iOS), so
-      // arrow-key navigation was dead until a cell was edited. With a
-      // hardware keyboard present, focus the grid synchronously within the
-      // tap gesture to behave like the desktop grid.
-      gridRef.current?.focus();
-    }
     if (row === scenes.length) {
       if (col < 0 && (e.isTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
@@ -752,7 +787,22 @@ export function GlideBreakdownTab({
       )}
 
       {/* Grid */}
-      <div style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div ref={gridWrapRef} onPointerUpCapture={onGridPointerUpCapture} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+        {IS_HARDWARE_KEYBOARD && (
+          <input
+            ref={kbAnchorRef}
+            className="fixed w-px h-px opacity-0 pointer-events-none"
+            style={{ left: 0, top: 0 }}
+            tabIndex={-1}
+            aria-hidden="true"
+            readOnly
+            autoCapitalize="off"
+            autoCorrect="off"
+            onKeyDown={forwardKey}
+            onKeyUp={forwardKeyUp}
+            onBlur={blurGridForKeyboard}
+          />
+        )}
         <DataEditor
           key={fontVersion}
           ref={gridRef}
