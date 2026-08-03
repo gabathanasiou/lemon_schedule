@@ -85,7 +85,7 @@ input, textarea, [contenteditable] {
     transition: background-color 100ms ease;
   }
   [data-edit-mode="1"] [data-row-id] [data-ribbon-field]:not(:has(input)):not(:has(textarea)):hover {
-    background: rgba(0, 0, 0, 0.12);
+    background: rgba(0, 0, 0, 0.09);
     cursor: pointer;
   }
 }
