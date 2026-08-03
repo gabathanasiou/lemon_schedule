@@ -10,6 +10,7 @@ import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
 import SortDropdown, { SortCriterion } from '../SortDropdown';
 import { formatDuration } from '../../lib/utils';
+import { BoneyardExpandButton } from '../BoneyardExpandButton';
 
 interface SelectionSummary {
   count: number;
@@ -34,8 +35,9 @@ interface ScheduleToolbarProps {
   onShowViolations: () => void;
   selectionSummary: SelectionSummary | null;
   bufferSummary: BufferSummary | null;
-  dayCount: number;
   isCloud: boolean;
+  boneyardCollapsed: boolean;
+  onExpandBoneyard: () => void;
   // Auto day breaks
   autoDaybreakOpen: boolean;
   setAutoDaybreakOpen: (v: boolean) => void;
@@ -74,7 +76,8 @@ interface ScheduleToolbarProps {
 export default function ScheduleToolbar(props: ScheduleToolbarProps) {
   const { dispatch } = useProject();
   const {
-    shootViolations, onShowViolations, selectionSummary, bufferSummary, dayCount, isCloud,
+    shootViolations, onShowViolations, selectionSummary, bufferSummary, isCloud,
+    boneyardCollapsed, onExpandBoneyard,
     autoDaybreakOpen, setAutoDaybreakOpen, handleAutoDaybreak, handleDeleteAllDaybreaks, hasDaybreakDays,
     bannerMenuOpen, setBannerMenuOpen, setBannerModalOpen, openBannerDeleteModal,
     sortMenuOpen, setSortMenuOpen, sortState, handleToggleLock, handleSort, handleCustomSort,
@@ -85,6 +88,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
 
   return (
     <PageToolbar theme="light" justify="end">
+      {boneyardCollapsed && <BoneyardExpandButton onClick={onExpandBoneyard} />}
       <button
         onClick={() => shootViolations.length > 0 && onShowViolations()}
         className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
@@ -108,7 +112,6 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
           {bufferSummary.count} in buffer
         </span>
       )}
-      <span className="text-xs text-zinc-500 shrink-0">{dayCount} days</span>
       <div className="w-px h-4 bg-zinc-200" />
       <DropdownMenu
         open={autoDaybreakOpen}

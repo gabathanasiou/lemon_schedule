@@ -7,7 +7,7 @@ import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject, useIsCloudProject } from '../store';
 import { generateUUID } from '../lib/utils';
-import { Plus, ChevronLeft, ChevronRight, StickyNote, Coffee } from 'lucide-react';
+import { Plus, ChevronLeft, StickyNote, Coffee } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 import { IS_COARSE } from '../lib/device';
 import { useCurrentDocument } from '../lib/popoutTarget';
@@ -18,7 +18,7 @@ import { useBoneyardSort } from './schedule/useBoneyardSort';
 import { CustomOrderSortModal } from './CustomOrderSortModal';
 
 const SIDEBAR_KEY = 'lemon_schedule_sidebar_width';
-const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
+export const COLLAPSED_KEY = 'lemon_schedule_sidebar_collapsed';
 
 const boneyardBlockPropsEqual = (a: any, b: any) => {
   if (a.rows !== b.rows) return false;
@@ -37,6 +37,7 @@ const boneyardBlockPropsEqual = (a: any, b: any) => {
   if (a.onRowClick !== b.onRowClick) return false;
   if (a.onSelectionChange !== b.onSelectionChange) return false;
   if (a.onRowDoubleClick !== b.onRowDoubleClick) return false;
+  if (a.collapsed !== b.collapsed) return false;
   return true;
 };
 
@@ -58,6 +59,7 @@ export const BoneyardBlock: React.FC<{
   activeRowId?: string | null,
   onRowNavigate?: (rowId: string) => void,
   onCollapseChange?: (collapsed: boolean) => void,
+  collapsed: boolean,
   ribbon?: RibbonRow[],
   colWidths?: number[],
   cellPaddingV?: number,
@@ -65,15 +67,12 @@ export const BoneyardBlock: React.FC<{
   edgePadding?: number,
   cellBorders?: CellBorders,
   forceExpanded?: boolean,
-}> = React.memo(({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
+}> = React.memo(({ rows, projectScenes, textEditingEnabled, selectedIds, activeDragIds, onRowClick, onSelectionChange, onRowDoubleClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowNavigate, onCollapseChange, collapsed, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, forceExpanded }) => {
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
   const currentDocumentRef = useRef(currentDocument);
   currentDocumentRef.current = currentDocument;
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    try { return localStorage.getItem(COLLAPSED_KEY) === 'true'; } catch { return false; }
-  });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 340; } catch { return 340; }
@@ -86,15 +85,10 @@ export const BoneyardBlock: React.FC<{
   }, [width]);
 
   useEffect(() => {
-    localStorage.setItem(COLLAPSED_KEY, String(isCollapsed));
-  }, [isCollapsed]);
-
-  useEffect(() => {
-    if (forceExpanded && isCollapsed) {
-      setIsCollapsed(false);
+    if (forceExpanded && collapsed) {
       onCollapseChange?.(false);
     }
-  }, [forceExpanded, isCollapsed, onCollapseChange]);
+  }, [forceExpanded, collapsed, onCollapseChange]);
 
   useEffect(() => {
     if (textEditingEnabled) return;
@@ -185,38 +179,16 @@ export const BoneyardBlock: React.FC<{
     currentDocumentRef.current.addEventListener('pointerup', handlePointerUp);
   }, []);
 
+  if (collapsed) return null;
+
   return (
-    <div 
+    <div
       ref={(node: HTMLDivElement | null) => {
         panelRef.current = node;
-        if (isCollapsed && setNodeRef) setNodeRef(node);
       }}
-      className={`${isCollapsed ? 'w-[44px] bg-zinc-50' : 'bg-white'} border-r border-zinc-300 flex flex-col z-20 print:hidden relative shrink-0 overflow-hidden`}
-      style={isCollapsed ? undefined : { width: `${width}px` }}
+      className="bg-white border-r border-zinc-300 flex flex-col z-20 print:hidden relative shrink-0 overflow-hidden"
+      style={{ width: `${width}px` }}
     >
-      {isCollapsed ? (
-        <div 
-          className="flex flex-col items-center py-4 h-full cursor-pointer hover:bg-zinc-100 w-full"
-          onClick={() => { setIsCollapsed(false); onCollapseChange?.(false); }}
-        >
-          <button 
-            onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); onCollapseChange?.(false); }}
-            className="p-1.5 hover:bg-zinc-200 rounded transition-colors text-zinc-500 hover:text-zinc-800 mb-6 cursor-pointer"
-            title="Expand Sidebar"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-          
-          <div className="flex-1 flex items-center justify-center">
-            <span 
-              className="text-zinc-400 font-bold tracking-widest text-[11px] select-none uppercase whitespace-nowrap" 
-              style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
-            >
-              BONEYARD ({rows.length})
-            </span>
-          </div>
-        </div>
-      ) : (
         <div className="flex flex-col h-full" style={{ width: '100%' }}>
           <div className="px-3 pt-2 pb-2 border-b shrink-0 bg-zinc-50 border-zinc-200">
             <div className="flex items-center justify-between">
@@ -226,7 +198,7 @@ export const BoneyardBlock: React.FC<{
                 <span className="text-xs text-zinc-500 shrink-0">{rows.length} Items</span>
               </div>
               <button
-                onClick={() => { setIsCollapsed(true); onCollapseChange?.(true); }}
+                onClick={() => onCollapseChange?.(true)}
                 className="p-1 hover:bg-zinc-200 rounded text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer shrink-0"
                 title="Collapse Sidebar"
               >
@@ -305,14 +277,11 @@ export const BoneyardBlock: React.FC<{
           </div>
           </div>
         </div>
-      )}
-      {!isCollapsed && (
-        <div
-          className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
-          onPointerDown={handleResizeStart}
-          data-no-longpress
-        />
-      )}
+      <div
+        className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
+        onPointerDown={handleResizeStart}
+        data-no-longpress
+      />
       <CustomOrderSortModal
         open={customOrderModal?.open ?? false}
         onClose={closeCustomOrderModal}

@@ -67,6 +67,12 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const [textEditingEnabled, setTextEditingEnabled] = useState(false);
   const effectiveTextEditingEnabled = textEditingEnabled && !readOnly;
   const [forceBoneyardExpanded, setForceBoneyardExpanded] = useState(false);
+  const [boneyardCollapsed, setBoneyardCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('lemon_schedule_sidebar_collapsed') === 'true'; } catch { return false; }
+  });
+  useEffect(() => {
+    localStorage.setItem('lemon_schedule_sidebar_collapsed', String(boneyardCollapsed));
+  }, [boneyardCollapsed]);
   const [colorPicker, setColorPicker] = useState<{ rowId: string; bg: string; text: string; noteText: string; originalBg: string; originalText: string; originalNoteText: string } | null>(null);
   const [ribbonMenuOpen, setRibbonMenuOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -204,6 +210,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
 
   const handleCollapseChange = useCallback((collapsed: boolean) => {
     sidebarCollapsedRef.current = collapsed;
+    setBoneyardCollapsed(collapsed);
     if (collapsed) {
       setSelectedRowIds(prev => {
         const stripboardOnly = new Set(Array.from(prev).filter(id => !containerIdsRef.current.boneyard.includes(id)));
@@ -1193,8 +1200,9 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         onShowViolations={() => setShowShootViolations(true)}
         selectionSummary={selectionSummary}
         bufferSummary={bufferSummary}
-        dayCount={productionSections.length}
         isCloud={isCloud}
+        boneyardCollapsed={boneyardCollapsed}
+        onExpandBoneyard={() => setBoneyardCollapsed(false)}
         autoDaybreakOpen={autoDaybreakOpen}
         setAutoDaybreakOpen={setAutoDaybreakOpen}
         handleAutoDaybreak={handleAutoDaybreak}
@@ -1293,7 +1301,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
                   return next;
                 }
                 return addMode ? new Set([...prev, ...ids]) : ids;
-              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
+              })} insertBeforeId={insertBeforeId} activeDragRow={activeDragRow} activeDragRows={activeDragRows} activeRowId={activeId} onRowNavigate={(rowId) => { setSelectedRowIds(new Set([rowId])); setLastClickedId(rowId); }} onRowDoubleClick={handleRowDoubleClick} onCollapseChange={handleCollapseChange} collapsed={boneyardCollapsed} ribbon={activeRibbon} colWidths={activeColWidths} cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH} edgePadding={edgePadding} cellBorders={cellBorders} forceExpanded={forceBoneyardExpanded} />
         
         {/* Main Schedule Area */}
         <div ref={scheduleScrollRef} onScroll={() => { if (scheduleScrollRef.current) savedScrollTopRef.current = scheduleScrollRef.current.scrollTop; }} className="flex-1 overflow-auto flex flex-col items-center p-8 pb-32 relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}

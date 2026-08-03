@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useProject } from '../store';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
@@ -30,7 +30,8 @@ import { DayCell, FillerCell } from './calendar/DayCell';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
 import { SceneCardContent } from './calendar/SceneCard';
-import { BoneyardSidebar } from './calendar/BoneyardSidebar';
+import { BoneyardSidebar, SIDEBAR_COLLAPSED_KEY } from './calendar/BoneyardSidebar';
+import { BoneyardExpandButton } from './BoneyardExpandButton';
 import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
@@ -83,6 +84,12 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   const [activeDragRow, setActiveDragRow] = useState<ScheduleRow | null>(null);
   const [activeDragDay, setActiveDragDay] = useState<number | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [boneyardCollapsed, setBoneyardCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'; } catch { return false; }
+  });
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(boneyardCollapsed));
+  }, [boneyardCollapsed]);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [statusModal, setStatusModal] = useState<{ containerId: number; dateKey: string } | null>(null);
   const [modalStatus, setModalStatus] = useState('work');
@@ -690,8 +697,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     }));
   }, [calendarMonths, smoothScrollTo]);
 
-  const goToFirst = useCallback(() => scrollToMonthIndex(0), [scrollToMonthIndex]);
-  const goToLast = useCallback(() => scrollToMonthIndex(calendarMonths.length - 1), [scrollToMonthIndex, calendarMonths.length]);
   const goPrevMonth = useCallback(() => scrollToMonthIndex(Math.max(0, renderWindow.start - 1)), [scrollToMonthIndex, renderWindow.start]);
   const goNextMonth = useCallback(() => scrollToMonthIndex(Math.min(calendarMonths.length - 1, renderWindow.end + 1)), [scrollToMonthIndex, renderWindow.end, calendarMonths.length]);
 
@@ -796,16 +801,17 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           setContextMenu(null);
         }}
       >
-        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
+        <BoneyardSidebar rows={boneyardRows} scenes={project.scenes} displayField={displayField} sceneViolationMap={sceneViolationMap} collapsed={boneyardCollapsed} onToggleCollapsed={() => setBoneyardCollapsed(v => !v)} activeDragRows={activeDragRows} insertBeforeId={insertBeforeId} activeRowId={activeId} activeDragIds={activeDragIds} selectedIds={selectedRowIds} onRowClick={handleRowClick} onSort={handleCalSort} onCustomSort={handleCustomSort} sortBy={calSortBy} sortDir={calSortDir} lockedCriteria={lockedCriteria} onToggleLock={handleToggleLock} sortCategories={sortCategoryEntries} intExtSortLabel={intExtSortLabel} dayNightSortLabel={dayNightSortLabel} onRowDoubleClick={handleRowDoubleClick} onRowContextMenu={handleRowContextMenu} />
         <div data-marquee-tool-only className="flex-1 flex flex-col overflow-hidden">
           <PageToolbar theme="light" justify="between"
             children={
               <div className="flex items-center gap-2">
-                <button onClick={goToFirst} title="Jump to first day" className="p-1 hover:bg-zinc-100 rounded"><ChevronsLeft className="w-4 h-4" /></button>
+                {boneyardCollapsed && (
+                  <BoneyardExpandButton onClick={() => setBoneyardCollapsed(false)} />
+                )}
                 <button onClick={goPrevMonth} title="Previous month" className="p-1 hover:bg-zinc-100 rounded"><ChevronLeft className="w-4 h-4" /></button>
                 <h2 className="font-semibold text-sm whitespace-nowrap">{rangeLabel}</h2>
                 <button onClick={goNextMonth} title="Next month" className="p-1 hover:bg-zinc-100 rounded"><ChevronRight className="w-4 h-4" /></button>
-                <button onClick={goToLast} title="Jump to last day" className="p-1 hover:bg-zinc-100 rounded"><ChevronsRight className="w-4 h-4" /></button>
                 <button onClick={goToday} title="Jump to today" className="px-2 py-1 rounded text-[10px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
                   Today
                 </button>
