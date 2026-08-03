@@ -7,10 +7,11 @@ import { SortableRibbon } from './SortableRibbon';
 import { StackedGhosts } from './StripBlock';
 import { useProject, useIsCloudProject } from '../store';
 import { generateUUID } from '../lib/utils';
-import { Plus, ChevronLeft, StickyNote, Coffee } from 'lucide-react';
+import { StickyNote, Coffee } from 'lucide-react';
 import { useMarquee, MarqueeOverlay } from '../lib/useMarquee';
 import { IS_COARSE } from '../lib/device';
 import { useCurrentDocument } from '../lib/popoutTarget';
+import { BoneyardPanel } from './BoneyardPanel';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
 import SortDropdown from './SortDropdown';
 import { compareByCustomOrder, getLockedTiebreakerResult } from './SortDropdown';
@@ -71,18 +72,7 @@ export const BoneyardBlock: React.FC<{
   const { state, dispatch } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
-  const currentDocumentRef = useRef(currentDocument);
-  currentDocumentRef.current = currentDocument;
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [width, setWidth] = useState<number>(() => {
-    try { const v = localStorage.getItem(SIDEBAR_KEY); return v ? parseInt(v, 10) : 340; } catch { return 340; }
-  });
-  const widthRef = useRef(width);
-
-  useEffect(() => {
-    widthRef.current = width;
-    localStorage.setItem(SIDEBAR_KEY, String(width));
-  }, [width]);
 
   useEffect(() => {
     if (forceExpanded && collapsed) {
@@ -102,7 +92,6 @@ export const BoneyardBlock: React.FC<{
     return () => currentDocument.removeEventListener('selectstart', onSelectStart);
   }, [textEditingEnabled, currentDocument]);
 
-  const panelRef = useRef<HTMLDivElement>(null);
   const boneyardMarqueeRef = useRef<HTMLDivElement>(null);
   const showGhosts = activeRowId && activeDragRows.length > 0;
   const sortableItems = useMemo(() => rows.map(r => r.id), [rows]);
@@ -154,134 +143,89 @@ export const BoneyardBlock: React.FC<{
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: [...activeVersion.rows, newRow] } });
   };
 
-  const handleResizeStart = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    const startX = e.clientX;
-    const startWidth = panelRef.current?.offsetWidth || widthRef.current;
-    const handlePointerMove = (e: PointerEvent) => {
-      const newWidth = Math.min(600, Math.max(200, startWidth + e.clientX - startX));
-      widthRef.current = newWidth;
-      if (panelRef.current) {
-        panelRef.current.style.width = `${newWidth}px`;
-      }
-    };
-    const handlePointerUp = () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      setWidth(widthRef.current);
-      currentDocumentRef.current.removeEventListener('pointermove', handlePointerMove);
-      currentDocumentRef.current.removeEventListener('pointerup', handlePointerUp);
-    };
-    currentDocumentRef.current.addEventListener('pointermove', handlePointerMove);
-    currentDocumentRef.current.addEventListener('pointerup', handlePointerUp);
-  }, []);
-
-  if (collapsed) return null;
-
   return (
-    <div
-      ref={(node: HTMLDivElement | null) => {
-        panelRef.current = node;
-      }}
-      className="bg-white border-r border-zinc-300 flex flex-col z-20 print:hidden relative shrink-0 overflow-hidden"
-      style={{ width: `${width}px` }}
+    <BoneyardPanel
+      count={rows.length}
+      collapsed={collapsed}
+      onToggleCollapsed={() => onCollapseChange?.(!collapsed)}
+      widthKey={SIDEBAR_KEY}
+      defaultWidth={340}
+      minWidth={200}
+      maxWidth={600}
+      tone="white"
+      className="z-20 print:hidden"
+      headerSlot={
+        <>
+          <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Note Ribbon">
+            <StickyNote className="w-3.5 h-3.5 shrink-0" />
+            Note
+          </button>
+          <button onClick={() => addRow('BREAK')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Break Ribbon">
+            <Coffee className="w-3.5 h-3.5 shrink-0" />
+            Break
+          </button>
+          <div className="w-px h-4 bg-zinc-200" />
+          <SortDropdown
+            open={showSortMenu}
+            onOpenChange={setShowSortMenu}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            lockedCriteria={lockedCriteria}
+            onToggleLock={handleToggleLock}
+            onSort={handleSort}
+            onCustomSort={handleCustomSort}
+            categories={sortCategories}
+            intExtLabel={intExtSortLabel}
+            dayNightLabel={dayNightSortLabel}
+          />
+        </>
+      }
     >
-        <div className="flex flex-col h-full" style={{ width: '100%' }}>
-          <div className="px-3 pt-2 pb-1.5 border-b shrink-0 bg-zinc-50 border-zinc-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 shrink-0 select-none">Boneyard</span>
-                <span className="text-zinc-300 select-none shrink-0">·</span>
-                <span className="text-[10px] font-semibold text-zinc-400 shrink-0">{rows.length}</span>
-              </div>
-              <button
-                onClick={() => onCollapseChange?.(true)}
-                className="p-1 -mr-1 hover:bg-zinc-200 rounded text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer shrink-0"
-                title="Collapse Sidebar"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-              <button onClick={() => addRow('NOTE')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Note Ribbon">
-                <StickyNote className="w-3.5 h-3.5 shrink-0" />
-                Note
-              </button>
-              <button onClick={() => addRow('BREAK')} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold transition-colors cursor-pointer select-none ${isCloud ? 'bg-blue-950 hover:bg-blue-900 text-white' : 'bg-zinc-900 hover:bg-zinc-800 text-white'}`} title="Add Break Ribbon">
-                <Coffee className="w-3.5 h-3.5 shrink-0" />
-                Break
-              </button>
-              <div className="w-px h-4 bg-zinc-200" />
-              <SortDropdown
-                open={showSortMenu}
-                onOpenChange={setShowSortMenu}
-                sortBy={sortBy}
-                sortDir={sortDir}
-                lockedCriteria={lockedCriteria}
-                onToggleLock={handleToggleLock}
-                onSort={handleSort}
-                onCustomSort={handleCustomSort}
-                categories={sortCategories}
-                intExtLabel={intExtSortLabel}
-                dayNightLabel={dayNightSortLabel}
-              />
-            </div>
-          </div>
-          
-          <div ref={boneyardMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
-             <MarqueeOverlay box={marqueeBox} />
-            <div id="boneyard_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
-            <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
-              {rows.map((r, i, arr) => (
-                <React.Fragment key={r.id}>
-                  {showGhosts && insertBeforeId === r.id && (
-                    <StackedGhosts rows={activeDragRows} scenes={projectScenes} ribbon={ribbon} colWidths={colWidths} />
-                  )}
-                    <SortableRibbon 
-                      row={r}
-                      scenes={projectScenes}
-                      isCompact
-                      isSelected={selectedIds?.has(r.id) ?? false}
-                      isFaded={activeDragIds?.has(r.id) ?? false}
-                      onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
-                      textEditingEnabled={textEditingEnabled}
-                      onDoubleClick={onRowDoubleClick}
-                      onRowNavigate={onRowNavigate}
-                      ribbon={ribbon}
-                      colWidths={colWidths}
-                      cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
-                      edgePadding={edgePadding}
-                      cellBorders={cellBorders}
-                    />
-                </React.Fragment>
-              ))}
-            </SortableContext>
-            {rows.length === 0 && (
-              <>
-                {showGhosts && insertBeforeId === `end-boneyard` && (
-                  <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+      <div ref={boneyardMarqueeRef} className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col min-h-0 bg-white items-stretch relative" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+        <MarqueeOverlay box={marqueeBox} />
+        <div id="boneyard_rows_container" ref={setNodeRef} className="flex-1 flex flex-col min-h-0 items-stretch">
+          <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
+            {rows.map((r, i, arr) => (
+              <React.Fragment key={r.id}>
+                {showGhosts && insertBeforeId === r.id && (
+                  <StackedGhosts rows={activeDragRows} scenes={projectScenes} ribbon={ribbon} colWidths={colWidths} />
                 )}
-                <div className="flex-1" />
-              </>
-            )}
-            {rows.length > 0 && (
-              <div ref={setEndRef} className="pb-20">
-                {showGhosts && insertBeforeId === `end-boneyard` && (
-                  <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
-                )}
-              </div>
-            )}
-          </div>
-          </div>
+                <SortableRibbon
+                  row={r}
+                  scenes={projectScenes}
+                  isCompact
+                  isSelected={selectedIds?.has(r.id) ?? false}
+                  isFaded={activeDragIds?.has(r.id) ?? false}
+                  onSelectToggle={onRowClick ? (e) => onRowClick(r.id, e) : undefined}
+                  textEditingEnabled={textEditingEnabled}
+                  onDoubleClick={onRowDoubleClick}
+                  onRowNavigate={onRowNavigate}
+                  ribbon={ribbon}
+                  colWidths={colWidths}
+                  cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
+                  edgePadding={edgePadding}
+                  cellBorders={cellBorders}
+                />
+              </React.Fragment>
+            ))}
+          </SortableContext>
+          {rows.length === 0 && (
+            <>
+              {showGhosts && insertBeforeId === `end-boneyard` && (
+                <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+              )}
+              <div className="flex-1" />
+            </>
+          )}
+          {rows.length > 0 && (
+            <div ref={setEndRef} className="pb-20">
+              {showGhosts && insertBeforeId === `end-boneyard` && (
+                <StackedGhosts rows={activeDragRows} scenes={projectScenes} />
+              )}
+            </div>
+          )}
         </div>
-      <div
-        className="absolute top-0 bottom-0 right-0 w-1.5 cursor-col-resize hover:bg-blue-400/40 z-30"
-        onPointerDown={handleResizeStart}
-        data-no-longpress
-      />
+      </div>
       <CustomOrderSortModal
         open={customOrderModal?.open ?? false}
         onClose={closeCustomOrderModal}
@@ -291,6 +235,6 @@ export const BoneyardBlock: React.FC<{
           if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
         }}
       />
-    </div>
+    </BoneyardPanel>
   );
 }, boneyardBlockPropsEqual);
