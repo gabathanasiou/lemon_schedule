@@ -46,6 +46,7 @@ export function useTransientMarquee(): boolean {
 }
 
 const LONG_PRESS_MS = 500;
+const RING_DELAY_MS = 250;
 const MOVE_TOLERANCE = 5;
 const RING_SIZE = 88;
 const RING_STROKE = 4;
@@ -126,6 +127,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
   const [indicator, setIndicator] = useState<{ x: number; y: number } | null>(null);
   const currentDocument = useCurrentDocument();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ringTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startRef = useRef<{ x: number; y: number; target: EventTarget | null }>({ x: 0, y: 0, target: null });
   const activeRef = useRef(false);
 
@@ -137,6 +139,10 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       const target = e.target as HTMLElement;
       const inMarqueeToolZone = !!target.closest('[data-marquee-tool-only]');
       if (inMarqueeToolZone && _marqueeMode !== 'tool') return;
+      // Only start long-presses where they're consumed: rows (context menu)
+      // or marquee containers (transient marquee selection). Everything else
+      // (design, rules, reports, glide, toolbars, modals) gets no ring.
+      if (!target.closest('[data-row-id], [data-marquee-container]')) return;
       const inRow = !!target.closest('[data-row-id]');
       if (inMarqueeToolZone) {
         if (target.closest('button, input, select, textarea')) return;
@@ -150,10 +156,13 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       startRef.current = { x, y, target: e.target };
       activeRef.current = true;
 
-      setIndicator({ x, y });
+      // Ring appears after a tiny delay, then runs its full countdown so it
+      // completes exactly when the long-press action fires.
+      ringTimerRef.current = setTimeout(() => setIndicator({ x, y }), RING_DELAY_MS);
 
       timerRef.current = setTimeout(() => {
         if (!activeRef.current) return;
+        if (ringTimerRef.current) { clearTimeout(ringTimerRef.current); ringTimerRef.current = null; }
         setIndicator(null);
 
         const heldTarget = startRef.current.target as HTMLElement | null;
@@ -172,7 +181,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
         } else {
           setTransientMarquee(true);
         }
-      }, LONG_PRESS_MS);
+      }, RING_DELAY_MS + LONG_PRESS_MS);
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -182,6 +191,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       if (Math.sqrt(dx * dx + dy * dy) > MOVE_TOLERANCE) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
+        if (ringTimerRef.current) { clearTimeout(ringTimerRef.current); ringTimerRef.current = null; }
         activeRef.current = false;
         setIndicator(null);
       }
@@ -192,6 +202,10 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
+      if (ringTimerRef.current !== null) {
+        clearTimeout(ringTimerRef.current);
+        ringTimerRef.current = null;
+      }
       activeRef.current = false;
       setIndicator(null);
     };
@@ -201,6 +215,10 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
+      }
+      if (ringTimerRef.current !== null) {
+        clearTimeout(ringTimerRef.current);
+        ringTimerRef.current = null;
       }
       activeRef.current = false;
       setIndicator(null);
@@ -219,6 +237,7 @@ export function LongPressMenuProvider({ children }: { children: React.ReactNode 
       currentDocument.removeEventListener('pointercancel', onPointerUp);
       currentDocument.removeEventListener('pointerleave', onPointerLeave);
       if (timerRef.current !== null) clearTimeout(timerRef.current);
+      if (ringTimerRef.current !== null) clearTimeout(ringTimerRef.current);
     };
   }, []);
 

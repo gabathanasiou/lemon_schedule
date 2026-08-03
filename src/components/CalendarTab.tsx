@@ -892,7 +892,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
               >{t.label}</button>
             ))}
           </PageToolbar>
-          <div ref={calendarGridRef} onClick={(e) => {
+          <div ref={calendarGridRef} data-marquee-container onClick={(e) => {
             if (marqueeJustEndedRef.current || (e.target as HTMLElement).closest('[data-row-id]')) return;
             setSelectedRowIds(new Set());
             setViewMenuOpen(false);
