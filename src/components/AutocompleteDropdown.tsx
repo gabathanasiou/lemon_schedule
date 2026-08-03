@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 're
 import { createPortal } from 'react-dom';
 import { useDropdown, useOpenHandler, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
-import { IS_COARSE } from '../lib/device';
+import { IS_COARSE, IS_HARDWARE_KEYBOARD } from '../lib/device';
 
 
 
@@ -113,7 +113,7 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
     <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
       <input
         autoFocus={autoFocusProp}
-        readOnly={IS_COARSE}
+        readOnly={IS_COARSE && !IS_HARDWARE_KEYBOARD}
         value={open ? val : value}
         onChange={e => { const typed = normalize(e.target.value); setVal(typed); if (highlightTimer.current) clearTimeout(highlightTimer.current); if (showAll) { highlightTimer.current = setTimeout(() => { const idx = options.findIndex(opt => opt.includes(typed)); setHighlightedIndex(idx >= 0 ? idx : 0); }, 150); } else { setHighlightedIndex(0); } if (!open) { standalone ? setOpen(true) : handleOpen(); } }}
         onClick={() => { setVal(value); if (!open) { const full = showAll ? options : options.filter(opt => opt.includes(normalize(value))); const idx = full.findIndex(opt => opt === normalize(value)); setHighlightedIndex(idx >= 0 ? idx : 0); standalone ? setOpen(true) : handleOpen(); } }}

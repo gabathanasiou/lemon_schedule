@@ -35,7 +35,7 @@ export const DD_ITEM_CLASS = DD_ITEM_CLASS_LIB;
 export const DD_PANEL_CLASS = DD_PANEL_CLASS_LIB;
 export const DD_INPUT_CLASS = DD_INPUT_CLASS_LIB;
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
-import { IS_COARSE } from '../lib/device';
+import { IS_COARSE, IS_HARDWARE_KEYBOARD } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
 
 export interface EntityItem {
@@ -421,7 +421,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     <div ref={ref} className={standalone ? '' : `relative ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
       <input
         autoFocus={autoFocusProp}
-        readOnly={IS_COARSE && keyboardMode === 'off'}
+        readOnly={IS_COARSE && !IS_HARDWARE_KEYBOARD && keyboardMode === 'off'}
         value={displayValue}
         onChange={e => {
           const raw = uppercase ? e.target.value.toUpperCase() : e.target.value;
