@@ -27,8 +27,8 @@ import ImportDialog from './ImportDialog';
 import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
-import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll } from '../lib/persist';
-import { IS_COARSE } from '../lib/device';
+import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
+import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
@@ -99,6 +99,10 @@ export function GlideBreakdownTab({
   const [fontVersion, setFontVersion] = useState(0);
   const setFontSize = useCallback((n: number) => { setFontSizeBase(n); setFontVersion(v => v + 1); }, [setFontSizeBase]);
   const [smoothScroll, setSmoothScroll] = useGlideSmoothScroll(IS_COARSE);
+  const [keyboardMode] = useKeyboardMode();
+  const hwKeyboard = useHardwareKeyboard();
+  /** Keyboard off + no physical keyboard: text cells are read-only, entity cells become pickers. */
+  const kbLocked = IS_COARSE && !hwKeyboard && keyboardMode === 'off';
 
   const COLUMNS = useMemo(() => [
     ...FIXED_COLS.map(c => ({ ...c, width: columnWidths[c.key] ?? c.width })),
@@ -191,21 +195,17 @@ export function GlideBreakdownTab({
   useEffect(() => { portalRef.current = portalTarget ?? document.getElementById('portal'); }, [portalTarget]);
   const gridPortalRef = useRef<HTMLElement | null>(null);
   useEffect(() => { gridPortalRef.current = portalTarget ? portalTarget.querySelector('#portal') : document.getElementById('portal'); }, [portalTarget]);
-  const prevScenesLen = useRef(scenes.length);
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    if (!mountedRef.current) { mountedRef.current = true; prevScenesLen.current = scenes.length; return; }
-    if (scenes.length !== prevScenesLen.current || !gridRef.current) {
-      prevScenesLen.current = scenes.length;
-      return;
-    }
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    if (!gridRef.current) return;
     const all: { cell: Item }[] = [];
-    for (let r = 0; r < scenes.length; r++)
+    for (let r = 0; r < scenes.length + 5; r++)
       for (let c = 0; c < COLUMNS.length; c++)
         all.push({ cell: [c, r] });
     setTimeout(() => gridRef.current?.updateCells(all), 0);
-  }, [scenes, COLUMNS]);
+  }, [scenes, COLUMNS, kbLocked]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingCSVImport, setPendingCSVImport] = useState<{ result: ImportResult; fileName: string } | null>(null);
@@ -284,6 +284,10 @@ export function GlideBreakdownTab({
     return String((scene as any)[colKey] ?? '');
   }, []);
 
+  const isEntityCol = useCallback((key: string) =>
+    key === 'cast' || key === 'set' || key === 'intExt' || key === 'dayNight' || allBreakdownCategories.includes(key),
+  [allBreakdownCategories]);
+
   const getCellContent = useCallback(([col, row]: Item): GridCell => {
     const scene = scenesRef.current[row];
     if (!scene) {
@@ -291,7 +295,7 @@ export function GlideBreakdownTab({
         const colDef = COLUMNS[col];
         if (!colDef) return textCell('', { readonly: true });
         if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: '#f3f4f6' } });
-        return textCell('');
+        return textCell('', kbLocked && !isEntityCol(colDef.key) ? { readonly: true, allowOverlay: false } : undefined);
       }
       return {
         kind: GridCellKind.Text,
@@ -319,8 +323,8 @@ export function GlideBreakdownTab({
         : '';
       return textCell(val, { displayData: displayValue });
     }
-    return textCell(val);
-  }, [COLUMNS, getSceneValue]);
+    return textCell(val, kbLocked && !isEntityCol(colKey) ? { readonly: true, allowOverlay: false } : undefined);
+  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked]);
 
   const getNextSceneNumber = useCallback((prevSceneNumber?: string): string => {
     if (!prevSceneNumber) return '';

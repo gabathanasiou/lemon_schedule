@@ -103,7 +103,7 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Press & hold</>} action="Drag a ribbon - hold still (~200ms) then drag. Drags full multi-selection if tapped item is selected" />
           <Row keys={<>Tap</>} action="Select a single ribbon (deselects any others)" />
           <Row keys={<><Kbd>⊞</Kbd> Select Mode</>} action="Top float bottom-right: tap to enable. Tap ribbons to toggle selection. Drag empty space to marquee. Long-press for context menu" />
-          <Row keys={<><Kbd>⌨</Kbd> Keyboard</>} action="Bottom float bottom-right: tap to toggle keyboard input on entity dropdowns. Off = picker-only (no iOS keyboard popup)" />
+          <Row keys={<><Kbd>⌨</Kbd> Keyboard</>} action="Bottom float bottom-right: tap to toggle keyboard input on entity dropdowns and grid cells. Off = picker-only (no soft keyboard popup). Amber = hardware keyboard detected (toggle has no effect)" />
           <Row keys={<>Exit Select Mode</>} action="Long-press any selected ribbon to drag the whole set to a new day" />
           <Row keys={<>Drag edge</>} action="Resize sidebar by dragging the right edge" />
           <Row keys={<>Drag ▸◂</>} action="Resize columns by dragging the divider between any two column headers" />
