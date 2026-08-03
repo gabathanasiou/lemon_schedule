@@ -267,6 +267,20 @@ export function GlideBreakdownTab({
     return [...map.entries()].map(([id, name]) => ({ id, name }));
   }, [scenes, project.breakdownElements]);
 
+  const castItems = useMemo(() => {
+    const seen = new Set<string>();
+    const items: { id: string; name: string }[] = [];
+    for (const e of project.castMembers || []) {
+      if (e.id && !seen.has(e.id)) { items.push(e); seen.add(e.id); }
+    }
+    for (const sc of scenes) {
+      for (const v of (sc.cast || '').split(',').map(x => x.trim()).filter(Boolean)) {
+        if (!seen.has(v)) { items.push({ id: v, name: '' }); seen.add(v); }
+      }
+    }
+    return items;
+  }, [scenes, project.castMembers]);
+
   const breakdownEditorItems = useMemo(() => {
     const map = new Map<string, { id: string; name: string }[]>();
     for (const key of allBreakdownCategories) {
@@ -418,9 +432,10 @@ export function GlideBreakdownTab({
     intExtOptions,
     dayNightOptions,
     setItems,
+    castItems,
     breakdownEditorItems,
     portalRef,
-  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems]);
+  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, castItems, breakdownEditorItems]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (!sel.current) return false;

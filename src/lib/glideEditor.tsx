@@ -15,6 +15,7 @@ export interface GlideEditorOptions {
   intExtOptions: string[];
   dayNightOptions: string[];
   setItems: { id: string; name: string }[];
+  castItems: { id: string; name: string }[];
   breakdownEditorItems: Map<string, { id: string; name: string }[]>;
   portalRef: React.MutableRefObject<HTMLElement | null>;
 }
@@ -27,7 +28,7 @@ export interface GlideEditorOptions {
 export function createGlideCellEditor(opts: GlideEditorOptions) {
   const {
     readOnlyRef, columns, allBreakdownCategories, allBreakdownLabels, customCategories,
-    scenesRef, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, portalRef,
+    scenesRef, intExtOptions, dayNightOptions, setItems, castItems, breakdownEditorItems, portalRef,
   } = opts;
 
   return (cellData: any & { location?: Item }): any => {
@@ -79,7 +80,7 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
         return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
       }
       if (colKey === 'cast') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} mode="multi" displayMode="id" skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
+        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={castItems} mode="multi" displayMode="id" skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
       }
       const categoryItems = breakdownEditorItems.get(colKey) || [];
       return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={categoryItems} mode={isMultiValue(colKey, customCategories) ? 'multi' : 'single'} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
