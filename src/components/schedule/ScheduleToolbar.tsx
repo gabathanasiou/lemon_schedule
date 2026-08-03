@@ -86,9 +86,8 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
     textEditingEnabled, setTextEditingEnabled, readOnly, onPrint, onShowHelp,
   } = props;
 
-  return (
-    <PageToolbar theme="light" justify="end">
-      {boneyardCollapsed && <BoneyardExpandButton onClick={onExpandBoneyard} />}
+  const controls = (
+    <>
       <button
         onClick={() => shootViolations.length > 0 && onShowViolations()}
         className={`flex items-center justify-center gap-1 h-7 px-2 rounded-full text-xs font-semibold transition-colors cursor-pointer select-none ${shootViolations.length > 0 ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-200'}`}
@@ -238,6 +237,15 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
       >
         <HelpCircle className="w-4 h-4" />
       </button>
-    </PageToolbar>
+    </>
+  );
+
+  return (
+    <PageToolbar
+      theme="light"
+      justify={boneyardCollapsed ? 'between' : 'end'}
+      children={boneyardCollapsed ? <BoneyardExpandButton onClick={onExpandBoneyard} /> : controls}
+      rightContent={boneyardCollapsed ? controls : undefined}
+    />
   );
 }
