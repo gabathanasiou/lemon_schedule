@@ -28,7 +28,7 @@ import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll } from '../lib/persist';
-import { IS_COARSE, IS_HARDWARE_KEYBOARD } from '../lib/device';
+import { IS_COARSE } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
@@ -185,48 +185,6 @@ export function GlideBreakdownTab({
     rows: CompactSelection.empty(),
   });
   const gridRef = useRef<DataEditorRef>(null);
-  const gridWrapRef = useRef<HTMLDivElement>(null);
-  const kbAnchorRef = useRef<HTMLInputElement>(null);
-
-  // Hardware-keyboard mode: iOS Safari won't give a canvas real keyboard
-  // focus from a finger tap (only inputs), so a hidden input acts as the
-  // keyboard anchor. It takes the real focus, forwards keys to the grid's
-  // canvas, and we synthesize focusin/focusout so Glide renders the desktop
-  // active-cell highlight and navigates with arrow keys.
-  const focusGridForKeyboard = useCallback(() => {
-    kbAnchorRef.current?.focus({ preventScroll: true });
-    gridWrapRef.current?.querySelector('canvas')?.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
-  }, []);
-  const blurGridForKeyboard = useCallback(() => {
-    gridWrapRef.current?.querySelector('canvas')?.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
-  }, []);
-  const onGridPointerUpCapture = useCallback((e: React.PointerEvent) => {
-    if (!IS_HARDWARE_KEYBOARD || e.pointerType !== 'touch') return;
-    if ((e.target as HTMLElement).closest('input, textarea, [contenteditable]')) return;
-    focusGridForKeyboard();
-  }, [focusGridForKeyboard]);
-  const forwardKey = useCallback((e: React.KeyboardEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const canvas = gridWrapRef.current?.querySelector('canvas');
-    if (!canvas) return;
-    canvas.dispatchEvent(new KeyboardEvent('keydown', {
-      key: e.key, code: e.code, keyCode: e.keyCode, which: e.which,
-      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
-      bubbles: true, cancelable: true,
-    }));
-  }, []);
-  const forwardKeyUp = useCallback((e: React.KeyboardEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const canvas = gridWrapRef.current?.querySelector('canvas');
-    if (!canvas) return;
-    canvas.dispatchEvent(new KeyboardEvent('keyup', {
-      key: e.key, code: e.code, keyCode: e.keyCode, which: e.which,
-      shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, altKey: e.altKey, metaKey: e.metaKey,
-      bubbles: true, cancelable: true,
-    }));
-  }, []);
   const portalTarget = usePortalTarget();
   const currentDocument = useCurrentDocument();
   const portalRef = useRef<HTMLElement | null>(null);
@@ -417,8 +375,7 @@ export function GlideBreakdownTab({
     setItems,
     breakdownEditorItems,
     portalRef,
-    refocus: focusGridForKeyboard,
-  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, focusGridForKeyboard]);
+  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, breakdownEditorItems]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (!sel.current) return false;
@@ -787,22 +744,7 @@ export function GlideBreakdownTab({
       )}
 
       {/* Grid */}
-      <div ref={gridWrapRef} onPointerUpCapture={onGridPointerUpCapture} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
-        {IS_HARDWARE_KEYBOARD && (
-          <input
-            ref={kbAnchorRef}
-            className="fixed w-px h-px opacity-0 pointer-events-none"
-            style={{ left: 0, top: 0 }}
-            tabIndex={-1}
-            aria-hidden="true"
-            readOnly
-            autoCapitalize="off"
-            autoCorrect="off"
-            onKeyDown={forwardKey}
-            onKeyUp={forwardKeyUp}
-            onBlur={blurGridForKeyboard}
-          />
-        )}
+      <div style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
         <DataEditor
           key={fontVersion}
           ref={gridRef}

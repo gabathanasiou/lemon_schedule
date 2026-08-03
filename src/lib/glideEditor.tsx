@@ -17,8 +17,6 @@ export interface GlideEditorOptions {
   setItems: { id: string; name: string }[];
   breakdownEditorItems: Map<string, { id: string; name: string }[]>;
   portalRef: React.MutableRefObject<HTMLElement | null>;
-  /** Re-focus the keyboard anchor after the editor closes (hardware-keyboard mode). */
-  refocus?: () => void;
 }
 
 /**
@@ -29,7 +27,7 @@ export interface GlideEditorOptions {
 export function createGlideCellEditor(opts: GlideEditorOptions) {
   const {
     readOnlyRef, columns, allBreakdownCategories, allBreakdownLabels, customCategories,
-    scenesRef, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, portalRef, refocus,
+    scenesRef, intExtOptions, dayNightOptions, setItems, breakdownEditorItems, portalRef,
   } = opts;
 
   return (cellData: any & { location?: Item }): any => {
@@ -65,12 +63,10 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
 
       const handleClose = () => {
         onFinishedEditing(latestRef.current);
-        refocus?.();
       };
 
       const handleTabClose = () => {
         onFinishedEditing(latestRef.current, [1, 0] as any);
-        refocus?.();
       };
 
       if (colKey === 'intExt') {
