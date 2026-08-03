@@ -3,6 +3,7 @@
 ## Commands
 - `npm run dev` — dev server (port 3000). `npm run lint` — `tsc --noEmit` (no ESLint/prettier). `npm run build` / `npm run preview`.
 - `npx playwright test` — E2E (auto-starts dev server on 3001; tests in `e2e/`).
+- `npx playwright test --config=playwright.perf.config.ts` / `playwright.perf-prod.config.ts` — perf/memory harness (dev :3001 / prod preview :4173; seeds Town; see `docs/PERF-DIAGNOSIS.md`).
 - `e2e/helpers.ts`: `ensureProject(page)` (creates a project from Project Manager), `openSeededProject(page)` (loads "Town - Jason" from `~/Downloads` into localStorage pre-boot; override via `LEMON_SEED_PATH`). `seeded-smoke.spec.ts` exercises the real project: stripboard, calendar, glide, designer, print.
 - `DISABLE_HMR=true` — disable HMR/file watching (AI Studio sets this).
 
@@ -63,9 +64,9 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - **Cloud coloring**: cloud projects switch light PageToolbars to `bg-blue-950` (active tabs/buttons); derive via `useIsCloudProject()`. Dark toolbars unaffected.
 
 ## UI Primitives (use these, not raw HTML)
-- `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle), `Modal`+`ModalFooter` (resizable/draggable), `ContextMenu`/`ContextMenuItem`/`ContextMenuDivider` (fixed-position), `CellInput` (inline text, Enter confirm/Escape cancel), `EntityDropdown` (see below), `PageToolbar`, `ColorField`, `Tooltip`, `FloatingTooltip`.
+- `DropdownMenu`/`DropdownItem`/`DropdownDivider`/`DropdownSubmenu` (Radix click-to-toggle), `Modal`+`ModalFooter` (resizable/draggable), `ContextMenu`/`ContextMenuItem`/`ContextMenuDivider` (fixed-position), `CellInput` (inline text, Enter confirm/Escape cancel; **commits on blur only — never per keystroke**), `EntityDropdown` (see below), `PageToolbar`, `ColorField`, `Tooltip`, `FloatingTooltip`.
 - **Modal body rules**: wrap body in `<div className="p-6 space-y-5">`; labeled rows `flex items-center justify-between py-1` (label `text-xs text-zinc-300`, annotations `text-zinc-500`); segmented toggles `flex border border-zinc-700 rounded p-0.5` (selected `bg-white text-zinc-900`); footer Cancel `text-zinc-400` ghost, action `bg-zinc-800` solid.
-- **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode = search-then-select. Pass `items` to create dropdowns for new entity types. As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves edit mode (never call both in one handler — editor unmounts and can't reopen).
+- **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode = search-then-select. `items` is REQUIRED (no context fallback — pass cast/entity items explicitly). As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves edit mode (never call both in one handler — editor unmounts and can't reopen).
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border border-zinc-800`.
 
 ## Hover & Tap Feedback
@@ -74,8 +75,10 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - Pen = finger = touch: Apple Pencil is `pointerType 'pen'` (`isTouchLike()` in device.ts). Safari doesn't synthesize clicks for pen in overlays (device.ts shim) and never fires `:active` for pen; the pencil's real hover works via the same `any-hover` styles.
 
 ## Store (`src/store/` — barrel `index.ts`)
-- `storage.ts` (keys, ProjectMeta, load/migrate pipeline) · `reducer.ts` (58-type Action union, State, reducer → dispatches to `actions/{schedule,breakdown,design}.ts`; `rows.ts` holds `ensurePinnedDaybreak`/`ensureAllScenesHaveRows`) · `provider.tsx` (`ProjectProvider`, `useProject()`, `useIsCloudProject()`, connectivity probe, debounced save, cloud sync).
+- `storage.ts` (keys, ProjectMeta, load/migrate pipeline) · `reducer.ts` (59-type Action union, State, reducer → dispatches to `actions/{schedule,breakdown,design}.ts`; `rows.ts` holds `ensurePinnedDaybreak`/`ensureAllScenesHaveRows`) · `provider.tsx` (`ProjectProvider`, `useProject()`, `useIsCloudProject()`, connectivity probe, debounced save, cloud sync).
 - `useProject()` → `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
+- **Context value is memoized — never re-create it inline** (`provider.tsx`). Per-row components (`SortableRowContent`, `EntityDropdown`, row renderers) MUST NOT call `useProject()`: they receive `dispatch`, `palette`, `castMembers`, `breakdownElements`, `customCategories`, `hiddenCategories`, and their own `scene` as props from StripBlock/BoneyardBlock/ScheduleOverlays. Adding `useProject()` to a row component re-renders every row on every dispatch.
+- **Row identity is the memo contract**: `computeRowData` (`lib/daybreakUtils.ts`) reuses computed-row objects via a WeakMap + computed-field fingerprint, so unchanged rows keep identity across dispatches (rows are immutable — never mutate a `ComputedRow`). `SortableContext items` MUST be memoized by id-sequence (e.g. `ids.join('|')` key), never by array identity — dnd-kit re-renders all `useSortable` consumers when `items` changes. Prefer `UPDATE_ROW` (single-row patch) over rebuilding `UPDATE_VERSION` rows arrays.
 - Drag ghosts (DayBlock/StripBlock): `day-{day}` ghosts before the SortableContext, `end-{day}` after it; in-row ghosts inside the map via `showGhosts && insertBeforeId === r.id`. Use component-level `showGhosts`, never per-row declarations.
 - Collision detection: `useCallback` with empty deps reading `activeDragIdsRef.current` (stable ref) to filter dragged rows from droppables (falling back to `closestCorners`). `insertBeforeId` distinguishes `day-{day}` (start), `end-{day}` (end), row targets.
 
