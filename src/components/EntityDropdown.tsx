@@ -417,11 +417,6 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
 
   return (
     <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
-      {!standalone && (
-        <span className="absolute inset-0 truncate pointer-events-none whitespace-nowrap text-left">
-          {displayValue || placeholder}
-        </span>
-      )}
       <input
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
@@ -550,6 +545,11 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           }
         }}
       />
+      {!standalone && (
+        <span className={`absolute inset-0 truncate pointer-events-none whitespace-nowrap text-left ${displayValue ? '' : 'italic opacity-50'}`}>
+          {displayValue || placeholder}
+        </span>
+      )}
       {open && (
         <DropdownPanel
           positioning={positioning}

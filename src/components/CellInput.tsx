@@ -150,9 +150,6 @@ export const CellInput: React.FC<{
     <div className="flex items-center min-w-0 w-full">
       {prefix && <span className={affixClass}>{prefix}{localVal ? '\u00A0' : ''}</span>}
       <div className="relative grid items-center min-w-0 flex-1" style={{ gridTemplateColumns: gridCol }}>
-        <span className={`col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${spanClassName}`}>
-          {localVal ? `${localVal}${suffix ? `\u00A0${suffix}` : ''}` : (placeholder || ' ')}
-        </span>
         {readOnly ? (
           <span className={`col-start-1 row-start-1 ${multiline ? '' : 'truncate'} ${className}`}>
             {rawValue ? `${rawValue}${suffix ? `\u00A0${suffix}` : ''}` : placeholder}
@@ -199,9 +196,14 @@ export const CellInput: React.FC<{
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
             readOnly={readOnly}
-            className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'} absolute inset-0 col-start-1 row-start-1 selection:bg-black/15`}
+            className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'} col-start-1 row-start-1 h-[1lh] selection:bg-black/15`}
             style={{ color: 'transparent', caretColor: '#2563eb' }}
           />
+        )}
+        {!readOnly && (
+          <span className={`col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${localVal ? '' : 'italic opacity-50'} ${spanClassName}`}>
+            {localVal ? `${localVal}${suffix ? `\u00A0${suffix}` : ''}` : (placeholder || ' ')}
+          </span>
         )}
       </div>
     </div>

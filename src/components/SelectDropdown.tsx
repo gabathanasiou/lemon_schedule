@@ -67,11 +67,6 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
 
   return (
     <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>
-      {!standalone && (
-        <span className="absolute inset-0 truncate pointer-events-none uppercase whitespace-nowrap text-left">
-          {value || placeholder}
-        </span>
-      )}
       <input
         value={value}
         readOnly
@@ -86,6 +81,11 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
           if (e.key === 'Escape') setOpen(false);
         }}
       />
+      {!standalone && (
+        <span className={`absolute inset-0 truncate pointer-events-none uppercase whitespace-nowrap text-left ${value ? '' : 'italic opacity-50'}`}>
+          {value || placeholder}
+        </span>
+      )}
       {open && (
         <div
           ref={scrollRef}
