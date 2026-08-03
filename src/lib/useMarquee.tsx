@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getMarqueeMode, getTransientMarquee, setTransientMarquee } from './useLongPressMenu';
 import { useCurrentWindow, useCurrentDocument } from './popoutTarget';
+import { IS_TOUCH_CAPABLE } from './device';
 
 interface MarqueeBox {
   left: number;
@@ -43,6 +44,17 @@ export function useLastPointerType(): string | null {
   return _lastPointerType;
 }
 
+/**
+ * Whether to show touch-first UI (e.g. the duration keypad instead of inline
+ * inputs). Defaults to the device's touch capability via the
+ * `(any-pointer: coarse)` media query, then adapts to the most recent pointer
+ * type (trackpad/mouse on touch-capable devices falls back to desktop UI).
+ */
+export function useTouchMode(): boolean {
+  const last = useLastPointerType();
+  return IS_TOUCH_CAPABLE ? (last === null || last === 'touch' || last === 'pen') : false;
+}
+
 export function isMarqueeActive(): boolean { return _marqueeActive; }
 
 export function useMarqueeActive(): boolean {
@@ -83,6 +95,16 @@ function initKeyboardListeners() {
   window.addEventListener('blur', blur);
 }
 
+let _pointerTypeInitialized = false;
+function initPointerTypeListener() {
+  if (_pointerTypeInitialized) return;
+  _pointerTypeInitialized = true;
+  window.addEventListener('pointerdown', (e) => {
+    _lastPointerType = e.pointerType;
+    _lastPointerTypeListeners.forEach(fn => fn());
+  }, true);
+}
+
 export function useMarquee(
   containerRef: React.RefObject<HTMLElement>,
   onSelectionChange: (ids: Set<string>, isAddMode: boolean) => void,
@@ -96,7 +118,8 @@ export function useMarquee(
 
   useEffect(() => { 
     if (!isEnabled) return;
-    initKeyboardListeners(); 
+    initKeyboardListeners();
+    initPointerTypeListener();
   }, [isEnabled]);
 
   useEffect(() => {

@@ -7,7 +7,7 @@ import DurationKeypad from './DurationKeypad';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getNoteBannerColors } from '../lib/ribbonUtils';
 import { useProject } from '../store';
-import { useLastPointerType } from '../lib/useMarquee';
+import { useTouchMode } from '../lib/useMarquee';
 
 export type BannerType = 'NOTE' | 'BREAK';
 export type BannerPosition = 'top' | 'middle' | 'bottom';
@@ -53,8 +53,7 @@ const Row: React.FC<{ label: React.ReactNode; children: React.ReactNode }> = ({ 
 import { FieldBox, SuffixField } from './FieldBox';
 
 export default function AddBannerModal({ open, dayCount, onClose, onAdd }: AddBannerModalProps) {
-  const lastPointerType = useLastPointerType();
-  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
+  const isTouchMode = useTouchMode();
   const { state } = useProject();
   const nb = getNoteBannerColors(state.present.colorPalette);
 

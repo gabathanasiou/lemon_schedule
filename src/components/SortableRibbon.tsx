@@ -12,7 +12,7 @@ import { useProject } from '../store';
 import { usePortalTarget } from '../lib/popoutTarget';
 import { CellInput } from './CellInput';
 import { Flag } from 'lucide-react';
-import { useAddMode, useLastPointerType } from '../lib/useMarquee';
+import { useAddMode, useTouchMode } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import DurationKeypad from './DurationKeypad';
 import { SelectDropdown } from './SelectDropdown';
@@ -77,8 +77,7 @@ const SortableRowContent: React.FC<{
   const portalTarget = usePortalTarget();
   const activeVersionId = state.present.activeVersionId;
 
-  const lastPointerType = useLastPointerType();
-  const isTouchMode = lastPointerType === 'touch' || lastPointerType === 'pen';
+  const isTouchMode = useTouchMode();
 
   const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
 
