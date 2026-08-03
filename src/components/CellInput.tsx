@@ -32,6 +32,7 @@ export const CellInput: React.FC<{
     if (autoFocus && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
+      inputRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
   }, [autoFocus]);
 
@@ -95,6 +96,7 @@ export const CellInput: React.FC<{
           if (nextIndex < allInputs.length) {
             allInputs[nextIndex]?.focus();
             allInputs[nextIndex]?.select();
+            allInputs[nextIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             const rowEl = allInputs[nextIndex]?.closest('[data-row-id]');
             if (rowEl) onRowNavigate?.(rowEl.getAttribute('data-row-id')!);
           }
@@ -116,6 +118,7 @@ export const CellInput: React.FC<{
           if (nextIndex >= 0 && nextIndex < allInputs.length) {
             allInputs[nextIndex]?.focus();
             allInputs[nextIndex]?.select();
+            allInputs[nextIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             const rowEl = allInputs[nextIndex]?.closest('[data-row-id]');
             if (rowEl) {
               onRowNavigate?.(rowEl.getAttribute('data-row-id')!);
@@ -147,7 +150,7 @@ export const CellInput: React.FC<{
   
   const activeClass = readOnly 
     ? 'cursor-default pointer-events-none' 
-    : 'cursor-text hover:bg-black/[0.09] focus:bg-black/[0.09]';
+    : 'cursor-text hover:bg-black/[0.09] focus:bg-black/[0.18]';
 
   const inputClass = `col-start-1 row-start-1 bg-transparent border-transparent outline-none rounded min-w-0 cell-input ${activeClass} ${className.replace('w-full', '').replace('flex-1', '')}`;
 

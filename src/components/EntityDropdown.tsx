@@ -431,7 +431,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         onClick={forceOpen}
         onBlur={() => commit()}
         placeholder={standalone ? placeholder : ''}
-        className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')} ${standalone ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.09]'}`}
+        className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')} ${standalone ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
         style={standalone ? undefined : { color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }

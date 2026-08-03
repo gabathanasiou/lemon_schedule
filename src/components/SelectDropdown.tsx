@@ -76,7 +76,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
 
   const inputClasses = standalone
     ? `w-full border border-zinc-300 rounded-md ${IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-sm'} focus:outline-none focus:ring-2 focus:ring-zinc-900 text-left`
-    : 'bg-transparent outline-none uppercase cursor-pointer w-full text-left h-full hover:bg-black/[0.09] focus:bg-black/[0.09]';
+    : 'bg-transparent outline-none uppercase cursor-pointer w-full text-left h-full hover:bg-black/[0.09] focus:bg-black/[0.18]';
 
   return (
     <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}>

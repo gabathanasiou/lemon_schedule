@@ -15,6 +15,7 @@ export function advanceRibbonFocus(el: HTMLElement | null | undefined, onRowNavi
   if (next) {
     next.focus();
     next.select?.();
+    next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     return;
   }
   if (!onRowNavigate) return;
