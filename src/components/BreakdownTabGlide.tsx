@@ -43,6 +43,32 @@ const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
   'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
 ];
+
+// Native paste interception for the grid. Glide binds its own paste handler on
+// the window in the capture phase when the DataEditor mounts — AFTER this
+// module is imported — and it pastes from an async navigator.clipboard.read(),
+// so a paste event we also handle would paste twice (its async result lands
+// last and wins). Registering here, before any DataEditor exists, guarantees
+// our capture listener runs first, claims the event, and Glide never sees it.
+// Active only while a glide breakdown is mounted (ref + counter guard).
+let glideMounted = 0;
+const glidePasteHandlersRef: { pasteText: (text: string) => void } = { pasteText: () => {} };
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('paste', (e: ClipboardEvent) => {
+    if (glideMounted === 0) return;
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    const text = e.clipboardData?.getData('text/plain');
+    if (!text) return;
+    e.preventDefault();
+    // Glide's own paste handler sits on the same window in the same capture
+    // phase — stopPropagation alone can't stop it (same-node listeners still
+    // run), and its async clipboard read would paste a second time on top.
+    e.stopImmediatePropagation();
+    glidePasteHandlersRef.pasteText(text);
+  }, true);
+}
 const BREAKDOWN_LABELS: Record<string, string> = {
   set: 'Set', backgroundActors: 'Background Actors', stunts: 'Stunts', vehicles: 'Vehicles',
   props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
@@ -478,6 +504,11 @@ export function GlideBreakdownTab({
       if (selectedRows.length === 0) return null;
       return { x: 0, y: selectedRows[0], width: COLUMNS.length, height: selectedRows.length };
     }
+    if (gridSelection.columns.length > 0) {
+      const selectedCols = Array.from({ length: COLUMNS.length }, (_, i) => i).filter(i => gridSelection.columns.hasIndex(i));
+      if (selectedCols.length === 0) return null;
+      return { x: selectedCols[0], y: 0, width: selectedCols.length, height: scenes.length };
+    }
     return null;
   }, [gridSelection, scenes.length, COLUMNS.length]);
 
@@ -508,20 +539,31 @@ export function GlideBreakdownTab({
     setContextMenu(null);
   }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
 
-  const handlePasteFromMenu = useCallback(async () => {
-    let cell = gridSelection.current?.cell;
-    if (!cell && gridSelection.rows.length > 0) {
-      for (let i = 0; i < scenes.length; i++) {
-        if (gridSelection.rows.hasIndex(i)) { cell = [0, i] as Item; break; }
+  const getPasteTarget = useCallback((): Item | null => {
+    const sel = gridSelectionRef.current;
+    let cell = sel.current?.cell;
+    if (!cell && sel.rows.length > 0) {
+      for (let i = 0; i < scenesRef.current.length; i++) {
+        if (sel.rows.hasIndex(i)) { cell = [0, i] as Item; break; }
       }
     }
+    return cell ?? null;
+  }, []);
+
+  const pasteTextAtSelection = useCallback((text: string) => {
+    if (readOnlyRef.current) return;
+    const cell = getPasteTarget();
     if (!cell) return;
+    const pastedRows = text.split(/\r\n|\n|\r/);
+    handlePaste(cell, pastedRows.map(r => r.split('\t')));
+  }, [getPasteTarget, handlePaste]);
+
+  const handlePasteFromMenu = useCallback(async () => {
     const text = await clipboardRead();
     if (!text) return;
-    const pastedRows = text.split(/\r\n|\n|\r/);
-    handlePaste(gridSelection.current.cell, pastedRows.map(r => r.split('\t')));
+    pasteTextAtSelection(text);
     setContextMenu(null);
-  }, [gridSelection, handlePaste]);
+  }, [pasteTextAtSelection]);
 
   const handlePasteToAddRow = useCallback(async () => {
     const text = await clipboardRead();
@@ -565,6 +607,49 @@ export function GlideBreakdownTab({
       addScene();
     }
   }, [addScene]);
+
+  // Physical keyboard (Cmd/Ctrl+C/X/V). iOS Safari won't give the grid canvas
+  // real keyboard focus from a touch tap (activeElement stays on a button), so
+  // Glide's window copy/paste handlers — which check document.activeElement
+  // inside the grid — never run and the shortcuts do nothing. Drive the same
+  // handlers the context menu uses from document-level listeners instead.
+  const clipboardShortcutsRef = useRef<{
+    copy: () => void;
+    cut: () => void;
+    paste: () => void;
+  }>({ copy: () => {}, cut: () => {}, paste: () => {} });
+  clipboardShortcutsRef.current = { copy: handleCopy, cut: handleCut, paste: handlePasteFromMenu };
+  glidePasteHandlersRef.pasteText = pasteTextAtSelection;
+
+  useEffect(() => {
+    glideMounted++;
+    const doc = currentDocument;
+    const isEditableTarget = (t: EventTarget | null) => {
+      if (!(t instanceof HTMLElement)) return false;
+      return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      const key = e.key.toLowerCase();
+      if (key !== 'c' && key !== 'x' && key !== 'v') return;
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const h = clipboardShortcutsRef.current;
+      if (key === 'c') h.copy();
+      else if (key === 'x') { if (!readOnlyRef.current) h.cut(); }
+      // V: preventDefault so the browser's own paste event never fires (it
+      // would land twice — Glide's async clipboard read also pastes). We read
+      // the clipboard ourselves; the window-capture interceptor still handles
+      // paste gestures that don't go through a keydown (menu-bar Paste, etc).
+      else if (key === 'v') void h.paste();
+    };
+    doc.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      glideMounted--;
+      doc.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [currentDocument]);
 
   const onCellContextMenu = useCallback((cell: Item, e: any) => {
     e.preventDefault();

@@ -215,7 +215,17 @@ export function formatDateLong(dateStr: string): string {
   return `${weekday} ${day}${suffix} ${month} ${year}`;
 }
 
+/**
+ * In-app clipboard mirror. The Async Clipboard API can fail on iPad (no user
+ * activation for synthetic pen clicks, missing read permission, older iPadOS),
+ * so every write also lands here and reads fall back to it when the OS
+ * clipboard is unavailable or empty. Copy→Paste then works 1:1 with desktop
+ * even when the OS clipboard refuses.
+ */
+let internalClipboard = '';
+
 export async function clipboardWrite(text: string): Promise<void> {
+  internalClipboard = text;
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -232,8 +242,10 @@ export async function clipboardWrite(text: string): Promise<void> {
 
 export async function clipboardRead(): Promise<string> {
   try {
-    return await navigator.clipboard.readText();
+    const t = await navigator.clipboard.readText();
+    if (t) return t;
   } catch {
-    return '';
+    /* fall through to the in-app mirror */
   }
+  return internalClipboard;
 }
