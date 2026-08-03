@@ -707,7 +707,6 @@ export const SortableRibbon = React.memo(({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
   } = useSortable({
     id: row.id,
@@ -717,7 +716,6 @@ export const SortableRibbon = React.memo(({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
     opacity: isDragging && !isOverlay ? 0.3 : undefined,
     userSelect: 'none' as const,
     WebkitUserSelect: 'none' as const,
