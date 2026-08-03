@@ -266,7 +266,10 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   useEffect(() => {
     committedRef.current = false;
     if (open) {
-      if (mode === 'single') {
+      // Only name-keyed single selects (e.g. Set) highlight the current
+      // option on open; anything ID-keyed or multi (Cast, entities) keeps
+      // the original -1 behavior untouched.
+      if (mode === 'single' && displayMode === 'name') {
         const currentKey = (value || '').trim();
         const idx = currentKey
           ? dropdownItems.findIndex((m) => itemKey(m).toUpperCase() === currentKey.toUpperCase())
