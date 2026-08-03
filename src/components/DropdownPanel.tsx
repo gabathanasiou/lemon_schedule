@@ -30,7 +30,6 @@ export default function DropdownPanel({
   searchQuery, hasExactMatch, renderItem, defaultRenderer,
   onItemClick, onItemHover, commitHint, onCommit, portalTarget,
 }: DropdownPanelProps) {
-  (window as any).__dp = { hl: highlightedIndex, items: dropdownItems.length };
   const panel = (
     <div
       ref={panelRef}
