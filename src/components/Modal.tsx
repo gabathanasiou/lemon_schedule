@@ -63,14 +63,8 @@ export default function Modal({
     setDragPos({ left: r.left, top: r.top });
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const body = document.body;
-    body.style.pointerEvents = '';
-    return () => {
-      body.style.pointerEvents = '';
-    };
-  }, [open]);
+  // NOTE: the Radix dialog stays modal (default) — portaled overlays shown
+  // above it (e.g. DurationKeypad) set their own pointer-events: auto.
 
   const captureRect = useCallback((): { left: number; top: number; width: number; height: number } | null => {
     const el = contentRef.current;
@@ -79,20 +73,32 @@ export default function Modal({
     return { left: r.left, top: r.top, width: r.width, height: r.height };
   }, []);
 
+  const clampPos = useCallback((left: number, top: number) => {
+    const vw = currentWindowRef.current.innerWidth;
+    const vh = currentWindowRef.current.innerHeight;
+    const r = captureRect();
+    const w = r ? r.width : Math.min(vw - MAX_EDGE * 2, 576);
+    const h = r ? r.height : Math.min(vh - MAX_EDGE * 2, 400);
+    return {
+      left: Math.max(MAX_EDGE, Math.min(left, vw - w - MAX_EDGE)),
+      top: Math.max(MAX_EDGE, Math.min(top, vh - h - MAX_EDGE)),
+    };
+  }, [captureRect]);
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     const r = captureRect(); if (!r) return;
-    setDragPos(r);
+    setDragPos(clampPos(r.left, r.top));
     dragRef.current = { startX: e.clientX, startY: e.clientY, posX: r.left, posY: r.top };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  }, [captureRect]);
+  }, [captureRect, clampPos]);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d) return;
     e.preventDefault();
-    setDragPos({ left: d.posX + e.clientX - d.startX, top: d.posY + e.clientY - d.startY });
-  }, []);
+    setDragPos(clampPos(d.posX + e.clientX - d.startX, d.posY + e.clientY - d.startY));
+  }, [clampPos]);
 
   const onPointerUp = useCallback(() => { dragRef.current = null; }, []);
 
@@ -140,8 +146,10 @@ export default function Modal({
 
   const combinedStyle: React.CSSProperties = {
     ...(hasExplicit ? { left: dragPos!.left, top: dragPos!.top } : {}),
-    ...(hasSize ? { width: size!.w, height: size!.h } : {}),
-    maxHeight: hasSize ? `calc(100vh - ${MAX_EDGE * 2}px)` : undefined,
+    ...(hasSize
+      ? { width: size!.w, height: size!.h }
+      : { width: `min(100%, calc(100vw - ${MAX_EDGE * 2}px))` }),
+    maxHeight: `calc(100vh - ${MAX_EDGE * 2}px)`,
   };
 
   const edgeH = IS_COARSE ? 'absolute left-[14px] right-[14px] h-[10px] pointer-events-auto' : 'absolute left-[10px] right-[10px] h-[6px] pointer-events-auto';
