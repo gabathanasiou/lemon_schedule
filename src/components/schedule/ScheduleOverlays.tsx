@@ -4,6 +4,9 @@ import { SortableRibbon } from '../SortableRibbon';
 import { FloatingTooltip } from '../FloatingTooltip';
 import { ScheduleRow, Scene, RibbonDesign } from '../../types';
 import { formatDuration } from '../../lib/utils';
+import { VIEW_WIDTHS } from '../../lib/persist';
+
+const GHOST_WIDTH = VIEW_WIDTHS.portrait ?? 730;
 
 interface SelectionSummary {
   count: number;
@@ -42,7 +45,7 @@ export default function ScheduleOverlays({
     <>
       <DragOverlay dropAnimation={null}>
         {activeDragRow ? (
-          <div className="w-[1024px] max-w-4xl pointer-events-none relative">
+          <div className="pointer-events-none relative" style={{ width: GHOST_WIDTH }}>
             {activeDragIds.size > 1 && Array.from(activeDragIds).slice(0, 3).reverse().map((id, i, arr) => {
               const row = activeDragRows.find(r => r.id === id);
               if (!row) return null;

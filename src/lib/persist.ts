@@ -25,7 +25,7 @@ export function usePersistState<T>(storageKey: string, defaults: T): [T, (value:
 export type ViewMode = 'portrait' | 'landscape' | 'full';
 
 const VIEW_MODE_KEY = 'lemon_schedule_view_mode';
-const VIEW_WIDTHS: Record<ViewMode, number | null> = { portrait: 730, landscape: 1060, full: null };
+export const VIEW_WIDTHS: Record<ViewMode, number | null> = { portrait: 730, landscape: 1060, full: null };
 
 export function useViewMode(): [ViewMode, (m: ViewMode) => void, number | null] {
   const [mode, setMode] = useState<ViewMode>(() => {
