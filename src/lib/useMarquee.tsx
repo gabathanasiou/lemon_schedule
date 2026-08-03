@@ -36,8 +36,14 @@ export function getLastPointerType(): string | null { return _lastPointerType; }
 
 export function useLastPointerType(): string | null {
   const [, tick] = useState(0);
+  const valueRef = useRef(_lastPointerType);
   useEffect(() => {
-    const fn = () => tick(n => n + 1);
+    const fn = () => {
+      if (valueRef.current !== _lastPointerType) {
+        valueRef.current = _lastPointerType;
+        tick(n => n + 1);
+      }
+    };
     _lastPointerTypeListeners.add(fn);
     return () => { _lastPointerTypeListeners.delete(fn); };
   }, []);

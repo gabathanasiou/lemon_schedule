@@ -628,7 +628,26 @@ const SortableRowContent: React.FC<{
   return null;
 }, sortableRowPropsEqual);
 
-export const SortableRibbon: React.FC<{
+const sortableRibbonPropsEqual = (a: any, b: any) => {
+  if (a.row !== b.row) return false;
+  if (a.scenes !== b.scenes) return false;
+  if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
+  if (a.isCompact !== b.isCompact || a.textEditingEnabled !== b.textEditingEnabled) return false;
+  if (a.sceneViolations !== b.sceneViolations) return false;
+  if (a.sectionViolations !== b.sectionViolations || a.nextSectionViolations !== b.nextSectionViolations) return false;
+  if (a.focusedRowId !== b.focusedRowId) return false;
+  if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
+  if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
+  if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
+  if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
+  if (a.nextDateStr !== b.nextDateStr) return false;
+  if (a.readOnly !== b.readOnly) return false;
+  return true;
+};
+
+export const SortableRibbon = React.memo(({
+  row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly,
+}: {
   row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number, computedDayElapsed?: number, previousBreakEndElapsed?: number },
   scenes: Scene[],
   isOverlay?: boolean,
@@ -641,7 +660,7 @@ export const SortableRibbon: React.FC<{
   sectionViolations?: RuleViolation[],
   nextSectionViolations?: RuleViolation[],
   focusedRowId?: string | null,
-  onDoubleClick?: (id: string) => void,
+  onDoubleClick?: (id: string, shiftKey?: boolean) => void,
   onRowNavigate?: (rowId: string) => void,
   ribbon?: RibbonRow[],
   colWidths?: number[],
@@ -653,7 +672,7 @@ export const SortableRibbon: React.FC<{
   onUpdateNextDaybreak?: (val: string) => void,
   nextDateStr?: string,
   readOnly?: boolean,
-}> = ({ row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly }) => {
+}) => {
   if (readOnly) {
     return (
       <SortableRowContent
@@ -741,4 +760,4 @@ export const SortableRibbon: React.FC<{
       />
     </div>
   );
-};
+}, sortableRibbonPropsEqual);
