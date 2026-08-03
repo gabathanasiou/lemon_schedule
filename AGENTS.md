@@ -68,6 +68,11 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 - **EntityDropdown**: multi mode = comma-separated value typed in the input; single mode = search-then-select. Pass `items` to create dropdowns for new entity types. As a cell editor ALWAYS separate commit from exit: `onChange` updates the value, `onExit` leaves edit mode (never call both in one handler — editor unmounts and can't reopen).
 - **Key patterns**: click-to-toggle menus (never `group-hover`); Lucide icons `w-3.5 h-3.5 shrink-0` in menus; dark surfaces `bg-zinc-950/95 backdrop-blur-md border border-zinc-800`.
 
+## Hover & Tap Feedback
+- Hover variants use `@media (any-hover: hover)` (index.css `@custom-variant hover`) — Tailwind's default `(hover: hover)` is false on iPadOS (primary pointer stays coarse), which killed hover for the iPad cursor/pencil. Always use `any-*` media queries for hover; `group-hover` composes `hover` so it's covered. Same for `.hover-reveal` (`(any-hover: hover) and (any-pointer: fine)`).
+- iOS sticky hover (tap → `:hover` sticks until the next tap) IS the tap feedback — no JS flash/pulse workarounds; they double with it and read as delays.
+- Pen = finger = touch: Apple Pencil is `pointerType 'pen'` (`isTouchLike()` in device.ts). Safari doesn't synthesize clicks for pen in overlays (device.ts shim) and never fires `:active` for pen; the pencil's real hover works via the same `any-hover` styles.
+
 ## Store (`src/store/` — barrel `index.ts`)
 - `storage.ts` (keys, ProjectMeta, load/migrate pipeline) · `reducer.ts` (58-type Action union, State, reducer → dispatches to `actions/{schedule,breakdown,design}.ts`; `rows.ts` holds `ensurePinnedDaybreak`/`ensureAllScenesHaveRows`) · `provider.tsx` (`ProjectProvider`, `useProject()`, `useIsCloudProject()`, connectivity probe, debounced save, cloud sync).
 - `useProject()` → `{ state, dispatch, projectList, currentProjectId, readOnly, initialized, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, ... }`.
