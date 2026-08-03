@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useDropdown, useOpenHandler, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
+import { advanceRibbonFocus } from '../lib/ribbonEditNav';
 import { IS_COARSE } from '../lib/device';
 
 
@@ -15,6 +16,7 @@ interface SelectDropdownProps {
   positioning?: 'relative' | 'fixed';
   standalone?: boolean;
   autoFocus?: boolean;
+  onTabExit?: (el: HTMLElement) => void;
 }
 
 export const SelectDropdown: React.FC<SelectDropdownProps> = ({
@@ -27,6 +29,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   positioning = 'relative',
   standalone = false,
   autoFocus = false,
+  onTabExit,
 }) => {
   const [open, setOpen] = useState(false);
   const initialIdx = options.indexOf(value);
@@ -87,7 +90,11 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, options.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
-          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(options[highlightedIndex]); }
+          if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            commit(options[highlightedIndex]);
+            if (e.key === 'Tab') onTabExit?.(ref.current?.querySelector('input') as HTMLInputElement);
+          }
           if (e.key === 'Escape') setOpen(false);
         }}
       />

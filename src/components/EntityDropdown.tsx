@@ -80,7 +80,7 @@ interface EntityDropdownProps {
   /** Called when the dropdown is dismissed by clicking outside (handleClose). Not called on Enter/Tab commit. */
   onExit?: () => void;
   /** Called when Tab is pressed - allows passing movement to Glide's onFinishedEditing */
-  onTabExit?: () => void;
+  onTabExit?: (el?: HTMLElement) => void;
   /** Auto-convert typed and selected values to uppercase (e.g. set fields like "INT. POLICE STATION") */
   uppercase?: boolean;
   /** Portal target element for the dropdown panel (escapes clipping containers) */
@@ -481,7 +481,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
                 ? sortAndJoin(val)
                 : (query || (localIds.length > 0 ? localIds[0] : ''));
             if (newVal !== value || forceCommit) { committedRef.current = true; onChange(newVal); }
-            (onTabExit || onExit)?.();
+            (onTabExit || onExit)?.(ref.current?.querySelector('input') as HTMLInputElement);
             setOpen(false);
             setQuery('');
           }

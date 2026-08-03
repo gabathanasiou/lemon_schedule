@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { advanceRibbonFocus } from '../lib/ribbonEditNav';
 
 export const CellInput: React.FC<{ 
   value?: string | number, 
@@ -66,6 +67,12 @@ export const CellInput: React.FC<{
       return;
     }
     setIsPristine(false);
+
+    if (e.key === 'Tab' && !e.shiftKey && onRowNavigate && e.currentTarget.closest('[data-edit-mode="1"]')) {
+      e.preventDefault();
+      advanceRibbonFocus(e.currentTarget, onRowNavigate);
+      return;
+    }
 
     if (e.key === 'Escape') {
       e.preventDefault();
