@@ -1411,6 +1411,20 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         setBannerDeleteChecked={setBannerDeleteChecked}
         deleteBanners={deleteBanners}
       />
+
+      <AddBannerModal
+        open={bannerModalOpen}
+        onClose={() => setBannerModalOpen(false)}
+        dayCount={productionSections.length}
+        onAdd={handleAddBanners}
+      />
+      <ShootViolationsModal
+        open={showShootViolations}
+        onClose={() => setShowShootViolations(false)}
+        dayViolations={shootViolations}
+        castMembers={project.castMembers || []}
+      />
+      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </DndContext>
   </div>
 );
