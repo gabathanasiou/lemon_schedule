@@ -76,49 +76,68 @@ multipart PATCH on every 500 ms debounced save (`provider.tsx:305`). ~180 KB
 (and growing) per pause in typing, plus JSON.stringify + localStorage write per
 debounce.
 
-## Optimisation list (ranked by expected impact)
+## Optimisation list — status as of 2026-08-03 (all merged to main)
 
-1. **Fix the context re-render storm** (biggest win, ~10× on input latency)
-   - `provider.tsx:746`: wrap the context value in `useMemo` (stabilizes
-     `projectList`, `currentProjectId`, and the `useCallback` actions).
-   - Move `useProject()` out of per-row components: `SortableRowContent`
-     (`SortableRibbon.tsx:76`) should receive state via props from `StripBlock`
-     (which already owns `project.scenes`, palette, categories). Then the
-     existing `React.memo` + comparator actually works and only the edited row
-     re-renders.
-   - Long-term: selector hook (`useProjectSelector(fn)` with shallow compare) or
-     split contexts (project data / list / actions). Actions are already stable
-     `useCallback`s — only `state` churns.
-2. **Buffer stripboard cell edits** — commit on blur/Enter like SceneSheet:
-   local draft in `CellInput`, dispatch once per commit instead of per char.
-   Removes ~8 dispatches per field edit (≈ 1 s of main-thread work on Town).
-3. **Cheap per-render wins in `SortableRowContent`** — `entityItemsMap` rebuilds
-   from all scenes (fine, memoized), but `computeMergeGroups`, `getFieldValue`
-   per cell, and `getRibbonCellBaseStyle` run on every re-render of every row;
-   memoize per (row, ribbon, colWidths) or precompute the merged ribbon layout
-   once per ribbon design in `StripBlock`.
-4. **Stripboard navigation** (~34 ms/key): reduce `onDragOver`/collision work
-   during drags and debounce `insertBeforeId` updates; consider limiting
-   re-render of droppable rows to the affected day.
-5. **Cloud save**: raise debounce to ~2 s idle for Drive pushes, or delta-sync
-   only changed sections instead of full-file PATCH. (Cost grows with project
-   size; Town is already ~180 KB.)
-6. **Clipboard container (-1) rows are never pruned** (`useStripboardContextMenu.ts:133`)
-   — repeated Cut accumulates rows in state and on disk until Paste-all. If
-   single-buffer semantics are desired, clear previous `containerId === -1` rows
-   on the next Cut (currently a design decision, not a bug).
-7. **Debounce localStorage save** already at 500 ms — `JSON.stringify(project)`
-   measured ~1 ms for Town; acceptable. Revisit only for much larger projects.
-8. **Minor cleanups** (no perf impact, hygiene):
-   - Debug helpers leaked on `window`: `__dumpSchedule` (`provider.tsx:206`).
-   - `device.ts:68` permanent 2 s `setInterval(resync)` — measured ~0.75 ms/s;
-     gate on `document.visibilityState` to drop idle cost on iPad.
+1. **Fix the context re-render storm** — ✅ DONE (`opt/context-split`, 85ae1c7)
+   - Provider value wrapped in `useMemo` (`provider.tsx`).
+   - `useProject()` removed from `SortableRowContent`/`SortableRowScene`/
+     `EntityDropdown`; palette, castMembers, breakdownElements, categories,
+     dispatch and the row's own `scene` arrive via props; `EntityDropdown`'s
+     context fallback replaced by explicit `items` (all callers pass them).
+   - `computeRowData` now caches computed rows in a WeakMap keyed by the raw row
+     with a computed-field fingerprint, so unchanged rows keep object identity
+     across dispatches and the row memo actually hits.
+   - New `UPDATE_ROW` action (single-row update without rebuilding row arrays).
+   - `SortableContext items` keyed by id-sequence instead of array identity
+     (dnd-kit re-renders every useSortable consumer when items changes).
+   - Measured: 1 keystroke now **3 ms script, 0 row re-renders** (was ~100 ms
+     with the whole stripboard re-rendering). Prod A/B (Town, edit+undo churn,
+     2 runs each, same harness): **5 536/5 607 ms -> 3 322/3 325 ms (1.67x)**.
+   - Dev-mode harness: edit churn 5 611 -> ~3 325 ms, tab-switch 1 471 -> ~900 ms,
+     nav 1 356 -> ~415 ms.
+
+2. **Buffer stripboard cell edits** — ✅ ALREADY DONE (verified, no change needed)
+   `CellInput` keeps `localVal` state and dispatches only on blur
+   (`CellInput.tsx:166`), so typing never dispatches per character. Confirmed by
+   probe: a keystroke is 3 ms / 0 renders; the commit on blur is the only
+   dispatch. The original doc claim was wrong.
+
+3. **Cheap per-render wins in row components** — ✅ DONE (part of 85ae1c7)
+   Row identity stability + per-row `scene` prop means rows only re-render when
+   their own data changed; `entityItemsMap`/`castItems` stay memoized per row
+   and only recompute when their inputs change.
+
+4. **Drag / navigation cost** — ✅ MEASURED, no change needed
+   Prod profile of a full drag gesture: ~50 ms script total (dnd-kit collision +
+   ghost + drop reorder). Arrow-key nav: ~10 ms/key in prod (was never
+   context-bound). An RAF-coalescing experiment for `insertBeforeId` showed no
+   measurable win (React's Object.is bail already covers identical values) and
+   was reverted.
+
+5. **Cloud save debounce / delta sync** — ⏸ SKIPPED by request (cloud unchanged)
+
+6. **Clipboard (-1) rows never pruned** — ⏸ SKIPPED (design decision: repeated
+   Cut accumulates until Paste-all; changing to single-buffer semantics needs a
+   product decision)
+
+7. **localStorage save** — ✅ VERIFIED FINE: `JSON.stringify` of Town is ~0.3 ms;
+   500 ms debounce stands.
+
+8. **Minor cleanups** — ✅ DONE (`opt/cleanups`, c9bc8a2)
+   - Removed `window.__dumpSchedule` / `__dumpSectionTotals` debug helpers.
+   - `device.ts` 2 s poll interval now skips while the page is hidden and is
+     cleared on `pagehide` (keeps background tabs idle on iPad).
+
+9. **Follow-up ideas (not started)**
+   - Selector-style `useProjectSelector(fn)` to keep shell components
+     (AppHeader, SaveIndicator…) from re-rendering on every dispatch — the
+     remaining ~20 ms per commit is mostly the provider -> App -> shell chain.
+   - Row-level virtualization for single-day projects with 200+ rows (the
+     render window currently virtualizes days, not rows).
 
 ## How to re-run
 
 ```bash
-npx playwright test --config=playwright.perf.config.ts   # needs ~/Downloads/Town - Jason.lemon
+npx playwright test --config=playwright.perf.config.ts      # dev server :3001
+npx playwright test --config=playwright.perf-prod.config.ts # prod preview :4173
 ```
-
-The harness prints per-round heap/live-DOM and per-workload CPU deltas, plus a
-final verdict. To test a different seed: `LEMON_SEED_PATH=/path/to/project.lemon`.
