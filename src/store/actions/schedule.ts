@@ -159,6 +159,22 @@ export function caseUpdateVersion(state: State, action: Action, applyChange: App
   });
 }
 
+export function caseUpdateRow(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'UPDATE_ROW') return state;
+  const { versionId, rowId, updates } = action.payload;
+  return applyChange({
+    ...state.present,
+    versions: state.present.versions.map(v => {
+      if (v.id !== versionId) return v;
+      const idx = v.rows.findIndex(r => r.id === rowId);
+      if (idx === -1) return v;
+      const rows = [...v.rows];
+      rows[idx] = { ...rows[idx], ...updates };
+      return { ...v, rows, updatedAt: Date.now() };
+    }),
+  });
+}
+
 export function caseNewVersion(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'NEW_VERSION') return state;
   let newVersion: ScheduleVersion;

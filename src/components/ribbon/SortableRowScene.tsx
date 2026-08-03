@@ -1,18 +1,16 @@
 import React from 'react';
 import { ComputedRow } from '../../lib/daybreakUtils';
 import { sceneStyle, getFallbackStripColors, computeMergeGroups } from '../../lib/ribbonUtils';
-import { SCENE_RIBBON_DEFAULTS, RibbonCell } from '../../types';
+import { RibbonCell } from '../../types';
 import { Scene } from '../../types';
-import { useProject } from '../../store';
 import { CellInput } from '../CellInput';
 import { EntityDropdown } from '../EntityDropdown';
 import { RowRenderCtx } from './rowRenderTypes';
 
 export default function SortableRowScene({ row, scene, ctx }: { row: ComputedRow; scene: Scene | null; ctx: RowRenderCtx }) {
-  const { state } = useProject();
   const {
     isSelected, isFaded, isCompact, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding,
-    palette, violationBadge, renderCellFlex, updateScene, inputClass, sel,
+    palette, violationBadge, renderCellFlex, updateScene, inputClass, sel, castItems,
   } = ctx;
 
   if (!scene) return null;
@@ -92,35 +90,9 @@ export default function SortableRowScene({ row, scene, ctx }: { row: ComputedRow
                     {scene.description && <span className="opacity-60 truncate block">{scene.description}</span>}
                   </td>
                   <td className="col-cast">
-                    <EntityDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly displayMode="id" />
+                    <EntityDropdown value={scene.cast} onChange={val => updateScene({cast: val})} className="text-right w-full" readOnly displayMode="id" items={castItems} />
                 </td>
               </tr>
-              {!isCompact && (() => {
-                const ribbon = state.present.sceneRibbon || SCENE_RIBBON_DEFAULTS;
-                const breakdownKeys = ['props', 'wardrobe', 'makeup', 'backgroundActors', 'stunts', 'vehicles', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept', 'notes'];
-                const ribbonBreakdown = ribbon.filter(c => breakdownKeys.includes(c.key));
-                if (ribbonBreakdown.length === 0) return null;
-                return (
-                  <tr style={rowStyle}>
-                    <td className="col-sc" />
-                    {!isCompact && <td className="col-call" />}
-                    {!isCompact && <td className="col-dur" />}
-                    <td colSpan={3} style={{ padding: '2px 4px', opacity: 0.7 }}>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {ribbonBreakdown.map(c => {
-                          const val = (scene as any)[c.key] as string;
-                          if (!val) return null;
-                          return (
-                            <span key={c.key} style={{ fontSize: '7pt', whiteSpace: 'nowrap' }}>
-                              <strong>{c.key}:</strong> {val}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })()}
               </tbody>
             </table>
           </div>

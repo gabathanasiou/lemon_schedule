@@ -1434,6 +1434,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         bufferMs={BUFFER_MS}
         selectionSummary={selectionSummary}
         bufferSummary={bufferSummary}
+        dispatch={dispatch}
+        activeVersionId={project.activeVersionId}
+        palette={project.colorPalette}
+        castMembers={project.castMembers || []}
+        breakdownElements={project.breakdownElements}
+        customCategories={project.customCategories}
+        hiddenCategories={project.hiddenCategories}
       />
 
       {/* Context Menu */}

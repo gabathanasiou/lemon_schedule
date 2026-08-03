@@ -1,14 +1,13 @@
 import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation } from '../types';
+import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement } from '../types';
 import { ComputedRow, formatElapsedCaption } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { CellBorders } from '../lib/persist';
 import { getFieldItems, isMultiValue } from '../lib/categories';
-import { useProject } from '../store';
 import { usePortalTarget } from '../lib/popoutTarget';
 import { CellInput } from './CellInput';
 import { Flag } from 'lucide-react';
@@ -16,7 +15,6 @@ import { useAddMode, useTouchMode } from '../lib/useMarquee';
 import { EntityDropdown } from './EntityDropdown';
 import DurationKeypad from './DurationKeypad';
 import { SelectDropdown } from './SelectDropdown';
-import { SCENE_RIBBON_DEFAULTS } from '../types';
 import { createPortal } from 'react-dom';
 import { ViolationContent } from './ViolationTooltip';
 import { ViolationModal } from './ViolationModal';
@@ -32,28 +30,29 @@ const ENTITY_KEYS = new Set([
 ]);
 
 const sortableRowPropsEqual = (a: any, b: any) => {
-  if (a.row.id !== b.row.id || a.row.type !== b.row.type || a.row.containerId !== b.row.containerId || a.row.order !== b.row.order) return false;
-  if (a.row.estimatedDuration !== b.row.estimatedDuration) return false;
-  if (a.row.noteText !== b.row.noteText || a.row.noteColor !== b.row.noteColor || a.row.noteTextColor !== b.row.noteTextColor) return false;
-  if (a.row.breakLabel !== b.row.breakLabel || a.row.breakDuration !== b.row.breakDuration) return false;
-  if (a.row.daybreakLabel !== b.row.daybreakLabel || a.row.daybreakCallTime !== b.row.daybreakCallTime) return false;
-  if (a.row.computedCallTime !== b.row.computedCallTime || a.row.computedElapsed !== b.row.computedElapsed || a.row.computedDayElapsed !== b.row.computedDayElapsed || a.row.previousBreakEndElapsed !== b.row.previousBreakEndElapsed) return false;
-  if (a.scenes !== b.scenes) return false;
+  if (a.row !== b.row) return false;
+  if (a.scene !== b.scene) return false;
   if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
   if (a.isCompact !== b.isCompact || a.textEditingEnabled !== b.textEditingEnabled) return false;
   if (a.focusedRowId !== b.focusedRowId) return false;
-  if (a.sceneViolations !== b.sceneViolations) return false;
+  if (a.sceneViolations !== b.sceneViolations || a.sectionViolations !== b.sectionViolations || a.nextSectionViolations !== b.nextSectionViolations) return false;
   if (a.ribbon !== b.ribbon || a.colWidths !== b.colWidths) return false;
   if (a.cellPaddingV !== b.cellPaddingV || a.cellPaddingH !== b.cellPaddingH) return false;
   if (a.edgePadding !== b.edgePadding || a.cellBorders !== b.cellBorders) return false;
   if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
   if (a.nextDateStr !== b.nextDateStr) return false;
+  if (a.dispatch !== b.dispatch) return false;
+  if (a.activeVersionId !== b.activeVersionId) return false;
+  if (a.palette !== b.palette || a.castMembers !== b.castMembers) return false;
+  if (a.breakdownElements !== b.breakdownElements || a.customCategories !== b.customCategories) return false;
+  if (a.hiddenCategories !== b.hiddenCategories) return false;
   return true;
 };
 
 const SortableRowContent: React.FC<{ 
   row: ComputedRow,
-  scenes: Scene[], 
+  scenes: Scene[],
+  scene?: Scene | null,
   isSelected?: boolean,
   isFaded?: boolean,
   isCompact?: boolean,
@@ -72,14 +71,19 @@ const SortableRowContent: React.FC<{
   nextDaybreakCallTime?: string,
   onUpdateNextDaybreak?: (val: string) => void,
   nextDateStr?: string,
-}> = React.memo(({ row, scenes, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr }) => {
-  const { state, dispatch } = useProject();
+  dispatch: (a: any) => void,
+  activeVersionId?: string,
+  palette?: SceneColorPalette,
+  castMembers?: ProjectElement[],
+  breakdownElements?: Record<string, ProjectElement[]>,
+  customCategories?: CustomCategoryDef[],
+  hiddenCategories?: string[],
+}> = React.memo(({ row, scenes, scene: sceneProp, isSelected, isFaded, isCompact, textEditingEnabled, sceneViolations, nextSectionViolations, focusedRowId, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories }) => {
   const portalTarget = usePortalTarget();
-  const activeVersionId = state.present.activeVersionId;
 
   const isTouchMode = useTouchMode();
 
-  const scene = row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) : null;
+  const scene = sceneProp !== undefined ? sceneProp : (row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) ?? null : null);
 
   const sceneData = useMemo(() => {
     if (!scene) return null;
@@ -93,10 +97,7 @@ const SortableRowContent: React.FC<{
 
   const updateRow = (updates: Partial<ScheduleRow>) => {
     if (!activeVersionId) return;
-    const version = state.present.versions.find(v => v.id === activeVersionId);
-    if (!version) return;
-    const newRows = version.rows.map(r => r.id === row.id ? { ...r, ...updates } : r);
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersionId, rows: newRows } });
+    dispatch({ type: 'UPDATE_ROW', payload: { versionId: activeVersionId, rowId: row.id, updates } });
   };
 
   const updateScene = (updates: Partial<Scene>) => {
@@ -112,7 +113,7 @@ const SortableRowContent: React.FC<{
     for (const [key, val] of Object.entries(processed)) {
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
-        const existing = state.present.breakdownElements?.[key] || [];
+        const existing = breakdownElements?.[key] || [];
         const existingNames = new Set(existing.map(e => (key === 'cast' ? e.id : (e.name || e.id)).toUpperCase()));
         const items = getFieldItems(key, val);
         for (const item of items) {
@@ -198,7 +199,7 @@ const SortableRowContent: React.FC<{
       </span>
       {showViolationTip && createPortal(
         <div ref={sceneTipRef} className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: violationTipPos.current.x, top: violationTipPos.current.y - 20, transform: `translate(calc(-50% + ${sceneTipOffset}px), -100%)`, zIndex: 99999 }}>
-          <ViolationContent compact violations={sceneViolations} castMembers={state.present.castMembers || []} />
+          <ViolationContent compact violations={sceneViolations} castMembers={castMembers ?? []} />
           <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${sceneTipOffset}px)` }} />
         </div>,
         portalTarget ?? document.body
@@ -209,7 +210,7 @@ const SortableRowContent: React.FC<{
         title={scene ? `Scene ${scene.sceneNumber} Violations` : 'Strip Violations'}
         subtitle={scene?.set || ''}
         violations={sceneViolations}
-        castMembers={state.present.castMembers || []}
+        castMembers={castMembers ?? []}
       />
     </>
   ) : null;
@@ -234,7 +235,7 @@ const SortableRowContent: React.FC<{
       </span>
       {showNextViolationTip && createPortal(
         <div ref={nextTipRef} className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20" style={{ left: nextViolationTipPos.current.x, top: nextViolationTipPos.current.y - 20, transform: `translate(calc(-50% + ${nextTipOffset}px), -100%)`, zIndex: 99999 }}>
-          <ViolationContent compact violations={nextSectionViolations!} castMembers={state.present.castMembers || []} />
+          <ViolationContent compact violations={nextSectionViolations!} castMembers={castMembers ?? []} />
           <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${nextTipOffset}px)` }} />
         </div>,
         portalTarget ?? document.body
@@ -244,7 +245,7 @@ const SortableRowContent: React.FC<{
         onClose={() => setShowNextViolationModal(false)}
         title="Section Violations"
         violations={nextSectionViolations!}
-        castMembers={state.present.castMembers || []}
+        castMembers={castMembers ?? []}
       />
     </>
   ) : null;
@@ -256,8 +257,8 @@ const SortableRowContent: React.FC<{
 
   const alignTextClass = (cell: RibbonCell) => cell.align === 'right' ? 'text-right' : cell.align === 'left' ? 'text-left' : 'text-center';
 
-  const nb = getNoteBannerColors(state.present.colorPalette);
-  const sel = getSelectedStripColors(state.present.colorPalette);
+  const nb = getNoteBannerColors(palette);
+  const sel = getSelectedStripColors(palette);
 
   const renderCellContent = (cell: RibbonCell, ci?: number) => {
     const { field, align, prefix, suffix, wrap, overflowVisible, id: cellId } = cell;
@@ -274,7 +275,7 @@ const SortableRowContent: React.FC<{
           <SelectDropdown
             value={scene!.intExt}
             onChange={val => updateScene({intExt: val as any})}
-            options={getIntExtOptions(state.present.colorPalette)}
+            options={getIntExtOptions(palette)}
             className="text-left w-full"
             readOnly={!textEditingEnabled}
             style={{ fontSize: '8pt', lineHeight: 1.1 }}
@@ -288,7 +289,7 @@ const SortableRowContent: React.FC<{
           <SelectDropdown
             value={scene!.dayNight}
             onChange={val => updateScene({dayNight: val as any})}
-            options={getDayNightOptions(state.present.colorPalette)}
+            options={getDayNightOptions(palette)}
             className="text-left w-full"
             readOnly={!textEditingEnabled}
             style={{ fontSize: '8pt', lineHeight: 1.1 }}
@@ -308,6 +309,7 @@ const SortableRowContent: React.FC<{
             positioning="fixed"
             placeholder="Cast"
             displayMode="id"
+            items={castItems}
             renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
           />
         </td>
@@ -389,7 +391,7 @@ const SortableRowContent: React.FC<{
       const entityItems = entityItemsMap[field] || [];
       return (
         <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
+          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full text-xs" readOnly={!textEditingEnabled} placeholder={fieldLabels[field] || field} />
         </td>
       );
     }
@@ -410,27 +412,27 @@ const SortableRowContent: React.FC<{
   const cellFlexBase = (cell: RibbonCell, span = 1) => getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, span);
 
   const ENTITY_FIELDS = useMemo(() => {
-    const hiddenSet = new Set(state.present.hiddenCategories || []);
+    const hiddenSet = new Set(hiddenCategories || []);
     const fields = new Set([
       'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
-      ...(state.present.customCategories || []).map(c => c.key),
+      ...(customCategories || []).map(c => c.key),
     ]);
     for (const h of hiddenSet) fields.delete(h);
     return fields;
-  }, [state.present.customCategories, state.present.hiddenCategories]);
+  }, [customCategories, hiddenCategories]);
 
   const fieldLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     for (const [key, def] of Object.entries(FIELD_MAP)) labels[key] = def.label;
-    for (const c of state.present.customCategories || []) labels[c.key] = c.label;
+    for (const c of customCategories || []) labels[c.key] = c.label;
     return labels;
-  }, [state.present.customCategories]);
+  }, [customCategories]);
 
   const entityItemsMap = useMemo(() => {
     const map: Record<string, { id: string; name: string }[]> = {};
     for (const field of ENTITY_FIELDS) {
       const sceneValues = [...new Set(scenes.map(s => ((s as any)[field] as string) || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))] as string[];
-      const stored = state.present.breakdownElements?.[field] || [];
+      const stored = breakdownElements?.[field] || [];
       const seen = new Set<string>();
       const items: { id: string; name: string }[] = [];
       for (const e of stored) {
@@ -444,11 +446,11 @@ const SortableRowContent: React.FC<{
       map[field] = items;
     }
     return map;
-  }, [scenes, state.present.breakdownElements]);
+  }, [scenes, breakdownElements]);
 
   const castItems = useMemo(() => {
     const sceneValues = [...new Set(scenes.map(s => s.cast || '').filter(Boolean).flatMap(v => v.split(',').map(x => x.trim())))] as string[];
-    const stored = state.present.castMembers ?? [];
+    const stored = castMembers ?? [];
     const seen = new Set<string>();
     const items: { id: string; name: string }[] = [];
     for (const e of stored) {
@@ -458,7 +460,7 @@ const SortableRowContent: React.FC<{
       if (!seen.has(v)) { items.push({ id: v, name: '' }); seen.add(v); }
     }
     return items;
-  }, [scenes, state.present.castMembers]);
+  }, [scenes, castMembers]);
 
   const renderCellFlex = (cell: RibbonCell, isLast: boolean, isLastRow: boolean, textColor: string, col?: number, gRow?: number, vSpan?: number, hSpan?: number) => {
     const { field, align, prefix, suffix, wrap, overflowVisible, id: cellId } = cell;
@@ -484,7 +486,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(state.present.colorPalette)} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
+            <SelectDropdown value={v} onChange={val => updateScene({intExt: val as any})} options={getIntExtOptions(palette)} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -496,7 +498,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(state.present.colorPalette)} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
+            <SelectDropdown value={v} onChange={val => updateScene({dayNight: val as any})} options={getDayNightOptions(palette)} className="text-left w-full" readOnly={!textEditingEnabled} positioning="fixed" placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -589,7 +591,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} style={style}>
           {textEditingEnabled ? (
-            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, state.present.customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
+            <EntityDropdown value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full" readOnly={!textEditingEnabled} placeholder={fieldLabel} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -612,7 +614,7 @@ const SortableRowContent: React.FC<{
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
     cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime,
     onUpdateNextDaybreak, nextDateStr, textEditingEnabled,
-    palette: state.present.colorPalette,
+    palette: palette,
     nb, sel,
     sceneData, updateRow, updateScene, updateEntityField,
     inputClass, noteBreakPadPx, fmt, elapsedCaption, alignTextClass, isTouchMode,
@@ -630,7 +632,7 @@ const SortableRowContent: React.FC<{
 
 const sortableRibbonPropsEqual = (a: any, b: any) => {
   if (a.row !== b.row) return false;
-  if (a.scenes !== b.scenes) return false;
+  if (a.scene !== b.scene) return false;
   if (a.isOverlay !== b.isOverlay || a.isSelected !== b.isSelected || a.isFaded !== b.isFaded) return false;
   if (a.isCompact !== b.isCompact || a.textEditingEnabled !== b.textEditingEnabled) return false;
   if (a.sceneViolations !== b.sceneViolations) return false;
@@ -642,14 +644,20 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
   if (a.nextDaybreakCallTime !== b.nextDaybreakCallTime) return false;
   if (a.nextDateStr !== b.nextDateStr) return false;
   if (a.readOnly !== b.readOnly) return false;
+  if (a.dispatch !== b.dispatch) return false;
+  if (a.activeVersionId !== b.activeVersionId) return false;
+  if (a.palette !== b.palette || a.castMembers !== b.castMembers) return false;
+  if (a.breakdownElements !== b.breakdownElements || a.customCategories !== b.customCategories) return false;
+  if (a.hiddenCategories !== b.hiddenCategories) return false;
   return true;
 };
 
 export const SortableRibbon = React.memo(({
-  row, scenes, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly,
+  row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, textEditingEnabled, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories,
 }: {
   row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number, computedDayElapsed?: number, previousBreakEndElapsed?: number },
   scenes: Scene[],
+  scene?: Scene | null,
   isOverlay?: boolean,
   isSelected?: boolean,
   isFaded?: boolean,
@@ -672,12 +680,20 @@ export const SortableRibbon = React.memo(({
   onUpdateNextDaybreak?: (val: string) => void,
   nextDateStr?: string,
   readOnly?: boolean,
+  dispatch: (a: any) => void,
+  activeVersionId?: string,
+  palette?: SceneColorPalette,
+  castMembers?: ProjectElement[],
+  breakdownElements?: Record<string, ProjectElement[]>,
+  customCategories?: CustomCategoryDef[],
+  hiddenCategories?: string[],
 }) => {
   if (readOnly) {
     return (
       <SortableRowContent
         row={row}
         scenes={scenes}
+        scene={scene}
         isSelected={false}
         isFaded={false}
         isCompact={false}
@@ -696,6 +712,13 @@ export const SortableRibbon = React.memo(({
         nextDaybreakCallTime={nextDaybreakCallTime}
         onUpdateNextDaybreak={onUpdateNextDaybreak}
         nextDateStr={nextDateStr}
+        dispatch={dispatch}
+        activeVersionId={activeVersionId}
+        palette={palette}
+        castMembers={castMembers}
+        breakdownElements={breakdownElements}
+        customCategories={customCategories}
+        hiddenCategories={hiddenCategories}
       />
     );
   }
@@ -737,6 +760,7 @@ export const SortableRibbon = React.memo(({
       <SortableRowContent
         row={row}
         scenes={scenes}
+        scene={scene}
         isSelected={isSelected}
         isFaded={isFaded}
         isCompact={isCompact}
@@ -755,6 +779,13 @@ export const SortableRibbon = React.memo(({
         nextDaybreakCallTime={nextDaybreakCallTime}
         onUpdateNextDaybreak={onUpdateNextDaybreak}
         nextDateStr={nextDateStr}
+        dispatch={dispatch}
+        activeVersionId={activeVersionId}
+        palette={palette}
+        castMembers={castMembers}
+        breakdownElements={breakdownElements}
+        customCategories={customCategories}
+        hiddenCategories={hiddenCategories}
       />
     </div>
   );

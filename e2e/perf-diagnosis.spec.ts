@@ -1,5 +1,14 @@
 import { test, Page, CDPSession } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { loadSeedProject, seedProjectScript } from './helpers';
+
+async function openSeeded(page: Page) {
+  const seed = loadSeedProject();
+  await page.addInitScript(seedProjectScript(seed));
+  await page.goto('/lemon_schedule/');
+  const title = JSON.parse(seed.raw).title;
+  await page.getByText(title, { exact: true }).first().click({ timeout: 8000 });
+  await page.waitForTimeout(1000);
+}
 
 /**
  * Memory-leak / perf diagnosis harness (branch diagnosis/perf-memory-leaks).
@@ -63,7 +72,7 @@ function fmtDelta(a: CpuCounters, b: CpuCounters, label: string): void {
 
 test('diagnosis: memory + cpu over repeated workflows (Town project)', async ({ page }) => {
   test.setTimeout(600000);
-  await openSeededProject(page);
+  await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule' }).click();
   await page.waitForSelector('[data-row-id]', { timeout: 15000 });
   await page.waitForTimeout(1000);

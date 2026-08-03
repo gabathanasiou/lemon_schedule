@@ -25,7 +25,6 @@
 
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Scene } from '../types';
-import { useProject } from '../store';
 import { useDropdown, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB } from '../lib/dropdown';
 import { buildDropdownItems } from '../lib/dropdownItems';
 import DropdownPanel from './DropdownPanel';
@@ -218,9 +217,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   portalTarget,
   skipComma = false,
 }) => {
-  const { state } = useProject();
-  const storeItems = state.present.castMembers ?? [];
-  const items = externalItems ?? storeItems;
+  const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number });

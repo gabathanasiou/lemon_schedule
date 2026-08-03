@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef, useMemo } from 'react';
 import { Project } from '../types';
 import { generateUUID } from '../lib/utils';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
@@ -742,29 +742,31 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return consumePendingLegacyMigrationNotice();
   }, []);
 
+  const contextValue = useMemo(() => ({
+    state,
+    dispatch: guardedDispatch,
+    projectList,
+    currentProjectId,
+    initialized,
+    readOnly: !realOnline,
+    createProject,
+    openProject,
+    deleteProject,
+    renameProject,
+    duplicateProject,
+    importProjectFromData,
+    updateProjectMeta,
+    registerPostSaveHandler,
+    driveSaveError,
+    storageQuotaError,
+    retryDriveSync,
+    retryConnectivity,
+    closeProject,
+    consumeLegacyMigrationNotice,
+  }), [state, guardedDispatch, projectList, currentProjectId, initialized, realOnline, createProject, openProject, deleteProject, renameProject, duplicateProject, importProjectFromData, updateProjectMeta, registerPostSaveHandler, driveSaveError, storageQuotaError, retryDriveSync, retryConnectivity, closeProject, consumeLegacyMigrationNotice]);
+
   return (
-    <ProjectContext.Provider value={{
-      state,
-      dispatch: guardedDispatch,
-      projectList,
-      currentProjectId,
-      initialized,
-      readOnly: !realOnline,
-      createProject,
-      openProject,
-      deleteProject,
-      renameProject,
-      duplicateProject,
-      importProjectFromData,
-      updateProjectMeta,
-      registerPostSaveHandler,
-      driveSaveError,
-      storageQuotaError,
-      retryDriveSync,
-      retryConnectivity,
-      closeProject,
-      consumeLegacyMigrationNotice,
-    }}>
+    <ProjectContext.Provider value={contextValue}>
       {children}
     </ProjectContext.Provider>
   );

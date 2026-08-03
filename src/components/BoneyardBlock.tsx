@@ -94,7 +94,8 @@ export const BoneyardBlock: React.FC<{
 
   const boneyardMarqueeRef = useRef<HTMLDivElement>(null);
   const showGhosts = activeRowId && activeDragRows.length > 0;
-  const sortableItems = useMemo(() => rows.map(r => r.id), [rows]);
+  const sortableRowsKey = useMemo(() => rows.map(r => r.id).join('|'), [rows]);
+  const sortableItems = useMemo(() => rows.map(r => r.id), [sortableRowsKey]);
 
   const { marqueeBox } = useMarquee(
     boneyardMarqueeRef,
@@ -194,6 +195,7 @@ export const BoneyardBlock: React.FC<{
                 <SortableRibbon
                   row={r}
                   scenes={projectScenes}
+                  scene={r.type === 'SCENE' ? (projectScenes.find(s => s.id === r.sceneId) ?? null) : null}
                   isCompact
                   isSelected={selectedIds?.has(r.id) ?? false}
                   isFaded={activeDragIds?.has(r.id) ?? false}
@@ -206,6 +208,13 @@ export const BoneyardBlock: React.FC<{
                   cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
                   edgePadding={edgePadding}
                   cellBorders={cellBorders}
+                  dispatch={dispatch}
+                  activeVersionId={state.present.activeVersionId}
+                  palette={state.present.colorPalette}
+                  castMembers={state.present.castMembers || []}
+                  breakdownElements={state.present.breakdownElements}
+                  customCategories={state.present.customCategories}
+                  hiddenCategories={state.present.hiddenCategories}
                 />
               </React.Fragment>
             ))}

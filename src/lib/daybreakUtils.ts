@@ -57,6 +57,42 @@ export function formatElapsedCaption(row: { computedDayElapsed?: number; previou
   return `${formatDuration(row.computedDayElapsed)} after start`;
 }
 
+/**
+ * Identity cache for computed rows. `computeRowData` runs on every dispatch
+ * (rows/sections change), which would otherwise mint a fresh object for every
+ * row every time - defeating React.memo on the stripboard row components.
+ * Rows are immutable (a changed row = a new object), so a WeakMap keyed by the
+ * raw row preserves identity across dispatches as long as the position-derived
+ * computed fields still match (reorders/duration edits invalidate downstream
+ * rows via the fingerprint compare below).
+ */
+const computedRowCache = new WeakMap<ScheduleRow, ComputedRow>();
+
+function sameComputedFields(a: ComputedRow, b: ComputedRow): boolean {
+  return a.computedCallTime === b.computedCallTime &&
+    a.computedElapsed === b.computedElapsed &&
+    a.computedDayElapsed === b.computedDayElapsed &&
+    a.previousBreakEndElapsed === b.previousBreakEndElapsed &&
+    a.daybreakLabel === b.daybreakLabel &&
+    a.daybreakDate === b.daybreakDate &&
+    a.hasNextDaybreak === b.hasNextDaybreak &&
+    a.sectionTotal === b.sectionTotal &&
+    a.sectionPages === b.sectionPages &&
+    a.sectionShoot === b.sectionShoot &&
+    a.sectionBreak === b.sectionBreak &&
+    a.sectionEndTime === b.sectionEndTime;
+}
+
+function pushComputed(computedRows: ComputedRow[], row: ScheduleRow, computed: ComputedRow): void {
+  const cached = computedRowCache.get(row);
+  if (cached && sameComputedFields(cached, computed)) {
+    computedRows.push(cached);
+    return;
+  }
+  computedRowCache.set(row, computed);
+  computedRows.push(computed);
+}
+
 export function splitSections(rows: ScheduleRow[]): ProductionDay[] {
   const sections: ProductionDay[] = [];
   let currentRows: ScheduleRow[] = [];
@@ -157,7 +193,7 @@ export function computeRowData(
         sectionEndTime,
       };
 
-      computedRows.push(computedDaybreak);
+      pushComputed(computedRows, r, computedDaybreak);
 
       sections.push({
         index: sectionIndex,
@@ -202,13 +238,14 @@ export function computeRowData(
       runningElapsed += dur;
       sectionElapsed += dur;
 
-      computedRows.push({
+      const computedRow = {
         ...r,
         computedCallTime: callTime,
         computedElapsed: runningElapsed,
         ...(inSection ? { computedDayElapsed: dayElapsed } : {}),
         ...(r.type === 'BREAK' && inSection ? { previousBreakEndElapsed: lastBreakEndElapsed } : {}),
-      } as ComputedRow);
+      } as ComputedRow;
+      pushComputed(computedRows, r, computedRow);
 
       if (r.type === 'BREAK' && inSection) {
         lastBreakEndElapsed = dayElapsed + dur;

@@ -1,10 +1,10 @@
-import { Project, Scene, ScheduleVersion, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule } from '../types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule } from '../types';
 import { generateUUID, normalizePunctuation } from '../lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
 import {
   caseUpdateProject, caseAddScene, caseUpdateScene, caseDeleteScene, caseRestoreScene,
-  caseEmptyTrash, caseSortScenes, caseSortScenesBy, caseInsertSceneAt, caseUpdateVersion,
+  caseEmptyTrash, caseSortScenes, caseSortScenesBy, caseInsertSceneAt, caseUpdateVersion, caseUpdateRow,
   caseNewVersion, caseDeleteVersion, caseRestoreVersionFromTrash, caseRenameVersion,
   caseSetActiveVersion, caseImportScenes,
 } from './actions/schedule';
@@ -131,6 +131,7 @@ export type Action =
   | { type: 'SORT_SCENES_BY', payload: { key: string, direction: 'asc' | 'desc' } }
   | { type: 'INSERT_SCENE_AT', payload: { index: number; scene: Scene } }
   | { type: 'UPDATE_VERSION', payload: Partial<ScheduleVersion> & { id: string } }
+  | { type: 'UPDATE_ROW', payload: { versionId: string; rowId: string; updates: Partial<ScheduleRow> } }
   | { type: 'NEW_VERSION', payload: { name: string, cloneFromId?: string | null, id?: string } }
   | { type: 'DELETE_VERSION', payload: string }
   | { type: 'RENAME_VERSION', payload: { id: string, name: string } }
@@ -295,6 +296,7 @@ export function reducer(state: State, action: Action): State {
     case 'SORT_SCENES_BY': return caseSortScenesBy(state, action, applyChange);
     case 'INSERT_SCENE_AT': return caseInsertSceneAt(state, action, applyChange);
     case 'UPDATE_VERSION': return caseUpdateVersion(state, action, applyChange);
+    case 'UPDATE_ROW': return caseUpdateRow(state, action, applyChange);
     case 'NEW_VERSION': return caseNewVersion(state, action, applyChange);
     case 'DELETE_VERSION': return caseDeleteVersion(state, action, applyChange);
     case 'RESTORE_VERSION_FROM_TRASH': return caseRestoreVersionFromTrash(state, action, applyChange);

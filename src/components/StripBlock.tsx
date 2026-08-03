@@ -258,6 +258,13 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
     return computedRows.filter(r => !r.pinned);
   }, [computedRows, activeVersion]);
 
+  // SortableContext `items` must be identity-stable across dispatches:
+  // dnd-kit re-renders every useSortable consumer when `items` changes, so a
+  // fresh array per render defeats the row memoization (269 rows re-render
+  // per keystroke). Key the memo by the id sequence instead.
+  const sortableRowsKey = useMemo(() => sortableRows.map(r => r.id).join('|'), [sortableRows]);
+  const sortableItems = useMemo(() => sortableRows.map(r => r.id), [sortableRowsKey]);
+
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',
     fontSize: '8pt',
@@ -273,7 +280,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
         {showGhosts && insertBeforeId === `day-${dayInt}` && (
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
-        <SortableContext items={React.useMemo(() => sortableRows.map(r => r.id), [sortableRows])} strategy={verticalListSortingStrategy}>
+        <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
           {sortableRows.map((r) => {
             const nextDb = r.type === 'DAYBREAK' ? nextDaybreakMap.get(r.id) : undefined;
             return (
@@ -284,6 +291,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
                   <SortableRibbon 
                     row={r} 
                     scenes={project.scenes} 
+                    scene={r.type === 'SCENE' ? (project.scenes.find(s => s.id === r.sceneId) ?? null) : null}
                     isSelected={selectedIds.has(r.id)}
                     isFaded={activeDragIds.has(r.id)}
                     onSelectToggle={(e) => onRowClick?.(r.id, e)}
@@ -302,6 +310,13 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
                     nextDaybreakCallTime={nextDb?.callTime}
                     onUpdateNextDaybreak={nextDb ? (val: string) => updateDaybreakRow(nextDb.rowId, { daybreakCallTime: val }) : undefined}
                     nextDateStr={r.type === 'DAYBREAK' ? nextDateStrByRow.get(r.id) : undefined}
+                    dispatch={dispatch}
+                    activeVersionId={activeVersion?.id}
+                    palette={project.colorPalette}
+                    castMembers={project.castMembers || []}
+                    breakdownElements={project.breakdownElements}
+                    customCategories={project.customCategories}
+                    hiddenCategories={project.hiddenCategories}
                   />
               </React.Fragment>
             );
