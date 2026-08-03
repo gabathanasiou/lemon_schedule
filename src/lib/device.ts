@@ -65,7 +65,13 @@ if (IS_BROWSER) {
   // Safari doesn't reliably fire matchMedia change events for pointer/hover
   // features, and a session can go stale until reload — poll the queries so
   // attach/detach of a Magic Keyboard/mouse reflects live (matchMedia is cheap).
-  window.setInterval(resync, 2000);
+  // Only poll while the page is visible: the interval otherwise keeps the
+  // tab alive in background and costs idle CPU on iPad. The existing
+  // visibilitychange listener above already resyncs on return.
+  const interval = window.setInterval(() => {
+    if (document.visibilityState === 'visible') resync();
+  }, 2000);
+  window.addEventListener('pagehide', () => window.clearInterval(interval));
   // Keydown heuristic: soft keyboards fire keyCode 229 (Android) or nothing for
   // text keys (iOS), and both platforms fire Enter/Backspace from the accessory
   // bar. Any other real keydown implies a physical keyboard.

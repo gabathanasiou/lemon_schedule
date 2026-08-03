@@ -5,7 +5,6 @@ import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex } from '../lib/googleDriveStorage';
 import { migrateLegacyProject, LegacyMigrationResult } from '../lib/legacyMigration';
-import { computeRowData, buildNonShootSet } from '../lib/daybreakUtils';
 import {
   LEGACY_KEY,
   INDEX_KEY,
@@ -201,103 +200,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveProjectRef = useRef(state.present);
   saveProjectRef.current = state.present;
-
-  useEffect(() => {
-    (window as any).__dumpSchedule = () => {
-      const project = saveProjectRef.current;
-      const version = project.versions.find(v => v.id === project.activeVersionId);
-      if (!version) return console.log('No active version');
-      const rows = version.rows.filter(r => r.containerId != null).sort((a, b) => {
-        if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-        return a.order - b.order;
-      });
-      const firstDb = rows.find(r => r.type === 'DAYBREAK');
-      let sectionBase = firstDb?.daybreakCallTime || '08:00';
-      let elapsed = 0;
-      const addMins = (t: string, m: number) => {
-        const [h, min] = t.split(':').map(Number);
-        const d = new Date(0, 0, 0, h, min + m);
-        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      };
-      const table: any[] = [];
-      let sectionNum = 0;
-      for (const r of rows) {
-        if (r.type === 'DAYBREAK') {
-          const call = addMins(sectionBase, elapsed);
-          const section = sectionNum++;
-          table.push({
-            section,
-            type: r.pinned ? 'DAYBREAK(pinned)' : 'DAYBREAK',
-            id: r.id.slice(0, 6),
-            callTime: call,
-            dbCallTime: r.daybreakCallTime,
-            duration: '',
-            sceneNum: '',
-            desc: r.daybreakLabel || (r.pinned ? 'section 0' : `End of Day`),
-          });
-          sectionBase = r.daybreakCallTime || sectionBase;
-          elapsed = 0;
-        } else {
-          const call = addMins(sectionBase, elapsed);
-          const scene = r.sceneId ? project.scenes.find(s => s.id === r.sceneId) : null;
-          const dur = r.type === 'SCENE' ? (r.estimatedDuration || 0) : r.type === 'BREAK' ? (r.breakDuration || 0) : 0;
-          elapsed += dur;
-          table.push({
-            section: sectionNum,
-            type: r.type,
-            id: r.id.slice(0, 6),
-            callTime: call,
-            dbCallTime: '',
-            duration: dur > 0 ? `${dur}m` : '',
-            sceneNum: scene?.sceneNumber || '',
-            desc: r.type === 'NOTE' ? (r.noteText || '').slice(0, 30) : r.type === 'BREAK' ? r.breakLabel : scene?.set || '',
-          });
-        }
-      }
-      console.table(table);
-    };
-    (window as any).__dumpSectionTotals = () => {
-      const project = saveProjectRef.current;
-      const version = project.versions.find(v => v.id === project.activeVersionId);
-      if (!version) return console.log('No active version');
-      const containerRows = version.rows.filter(r => r.containerId != null && r.containerId !== -1).sort((a, b) => {
-        if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
-        return a.order - b.order;
-      });
-      const nonShootSet = buildNonShootSet(version.nonShootDates);
-      const startDate = version.productionStart || new Date().toISOString().slice(0, 10);
-      const firstDaybreak = containerRows.find(r => r.type === 'DAYBREAK');
-      const callTimeBase = firstDaybreak?.daybreakCallTime || '08:00';
-      const { sections } = computeRowData(containerRows, project.scenes, startDate, nonShootSet, callTimeBase);
-      if (sections.length === 0) return console.log('No sections (no daybreaks found)');
-      const table: any[] = [];
-      let totalEst = 0;
-      let totalPages = 0;
-      let totalBreak = 0;
-      for (const s of sections) {
-        table.push({
-          section: s.index,
-          label: s.label || '(pinned)',
-          date: s.date,
-          chronoDay: s.chronoDay,
-          rows: s.rows.length,
-          EST: s.sums.shoot > 0 ? `${s.sums.shoot}m` : '0',
-          pages: s.sums.pages > 0 ? s.sums.pages.toFixed(3) : '0',
-          break: s.sums.break > 0 ? `${s.sums.break}m` : '0',
-          total: s.sums.total > 0 ? `${s.sums.total}m` : '0',
-          endTime: s.sums.endTime,
-        });
-        totalEst += s.sums.shoot;
-        totalPages += s.sums.pages;
-        totalBreak += s.sums.break;
-      }
-      console.group(`Section Totals - ${sections.length} sections`);
-      console.table(table);
-      console.log('Totals:', `EST: ${totalEst}m`, `Pages: ${totalPages.toFixed(3)}`, `Break: ${totalBreak}m`, `Total: ${totalEst + totalBreak}m`);
-      console.log('SectionSums map:', Object.fromEntries(sections.map(s => [s.index, s.sums])));
-      console.groupEnd();
-    };
-  }, []);
 
   useEffect(() => {
     if (!currentProjectId) return;
