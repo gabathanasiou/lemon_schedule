@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useProject, useIsCloudProject } from '../store';
 import { useCurrentWindow, useCurrentDocument } from '../lib/popoutTarget';
-import { DndContext, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
+import { useAppDragSensors } from '../lib/dndSensors';
+import { DndContext, closestCorners, DragEndEvent, DragOverlay, DragStartEvent, DragOverEvent, CollisionDetection } from '@dnd-kit/core';
 import { StripBlock } from './StripBlock';
 import ColorField from './ColorField';
 import { FieldBox, SuffixField } from './FieldBox';
@@ -445,17 +446,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const isMarqueeActive = useMarqueeActive();
 
   const dragDisabled = ctrlOrCmdHeld || textEditingEnabled || marqueeMode !== 'off' || isMarqueeActive || readOnly;
-  const sensors = useSensors(
-    IS_COARSE
-      ? useSensor(TouchSensor, {
-          activationConstraint: dragDisabled
-            ? { delay: 999999, tolerance: 0 }
-            : { delay: 200, tolerance: 5 }
-        })
-      : useSensor(PointerSensor, {
-          activationConstraint: { distance: dragDisabled ? 999999 : 5 }
-        })
-  );
+  const sensors = useAppDragSensors(dragDisabled, 5);
 
   if (!activeVersion) return <div>No active version</div>;
 

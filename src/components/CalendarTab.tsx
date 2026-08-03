@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { DndContext, useDraggable, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors, closestCorners, CollisionDetection } from '@dnd-kit/core';
+import { DndContext, useDraggable, DragOverlay, closestCorners, CollisionDetection } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../store';
+import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
 import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee } from 'lucide-react';
@@ -193,17 +194,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     true,
   );
 
-  const sensors = useSensors(
-    IS_COARSE
-      ? useSensor(TouchSensor, {
-          activationConstraint: activeTool || ctrlOrCmdHeld || marqueeMode !== 'off'
-            ? { delay: 999999, tolerance: 0 }
-            : { delay: 200, tolerance: 5 }
-        })
-      : useSensor(PointerSensor, {
-          activationConstraint: { distance: activeTool ? 999999 : (ctrlOrCmdHeld || marqueeMode !== 'off' ? 999999 : 3) }
-        })
-  );
+  const sensors = useAppDragSensors(!!(activeTool || ctrlOrCmdHeld || marqueeMode !== 'off'), 3);
 
   const lastProductionDate = useMemo(() => {
     let lastDate: string | null = null;
