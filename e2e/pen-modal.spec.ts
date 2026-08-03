@@ -1,14 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
 import { openSeededProject } from './helpers';
 
-async function penTapAt(page: Page, x: number, y: number) {
-  await page.evaluate(({ x, y }) => {
+async function penTapAt(page: Page, x: number, y: number, pointerDownOnly = false) {
+  await page.evaluate(({ x, y, pointerDownOnly }) => {
     const el = document.elementFromPoint(x, y) as HTMLElement;
     if (!el) return;
     const opts = { pointerType: 'pen', button: 0, clientX: x, clientY: y, bubbles: true, cancelable: true };
     el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, buttons: 1 }));
-    el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0 }));
-  }, { x, y });
+    if (!pointerDownOnly) {
+      el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0 }));
+    }
+  }, { x, y, pointerDownOnly });
 }
 
 async function penTap(page: Page, locator: import('@playwright/test').Locator) {
@@ -107,6 +109,45 @@ test.describe('Apple Pencil in modals', () => {
     await penTap(page, closeBtn);
     await page.waitForTimeout(400);
     expect(await saveBtn.isVisible().catch(() => false)).toBe(false);
+  });
+
+  test('tap flash: pen tap shows the hover background briefly', async ({ page }) => {
+    await openApp(page);
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(500);
+
+    const noteId = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
+      if (!key) return null;
+      const p = JSON.parse(localStorage.getItem(key)!);
+      const v = p.versions?.[p.activeVersionId] || p.versions?.[0];
+      return v?.rows?.find((r: any) => r.type === 'NOTE')?.id ?? null;
+    });
+    const noteRow = page.locator(`[data-row-id="${noteId}"]`).first();
+    await expect(noteRow).toBeAttached({ timeout: 5000 });
+    await noteRow.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+    });
+    await page.waitForTimeout(600);
+    await expect(page.getByText('Edit Banner')).toBeVisible({ timeout: 5000 });
+
+    const cancelBtn = page.getByRole('button', { name: 'Cancel' });
+    await expect(cancelBtn).toBeVisible();
+
+    // pen pointerdown only — the tap-flash highlight should be applied
+    const cb = await cancelBtn.boundingBox();
+    await penTapAt(page, cb!.x + cb!.width / 2, cb!.y + cb!.height / 2, true);
+    const hasFlash = await cancelBtn.evaluate(el =>
+      el.classList.contains('tap-flash') || el.classList.contains('tap-flash-dark'));
+    console.log('FLASH applied: ' + hasFlash);
+    expect(hasFlash).toBe(true);
+
+    // after the flash window, removed
+    await page.waitForTimeout(900);
+    const after = await cancelBtn.evaluate(el =>
+      el.classList.contains('tap-flash') || el.classList.contains('tap-flash-dark'));
+    expect(after).toBe(false);
   });
 
   test('color picker (ColorField): pen tap opens via showPicker', async ({ page }) => {
