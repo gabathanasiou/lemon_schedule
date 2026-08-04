@@ -33,7 +33,7 @@ import { createGlideTheme } from '../lib/glideTheme';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { EntityDropdown } from './EntityDropdown';
 import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
-import { useMarqueeMode } from '../lib/useLongPressMenu';
+import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { planPaste } from '../lib/glidePaste';
 import { createGlideCellEditor } from '../lib/glideEditor';
@@ -202,10 +202,69 @@ export function GlideBreakdownTab({
    *  (pointerType 'pen') arrives as a "mouse" click. Track the real pointer so
    *  pencil taps behave like finger taps. */
   const lastPointerRef = useRef<string>('touch');
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const touchDownPosRef = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
-    const onDown = (e: PointerEvent) => { lastPointerRef.current = e.pointerType; };
+    // Touch/pen selection parity with mouse:
+    // - Mouse drags anchor on the PRESSED cell (Glide calls handleSelect at
+    //   pointerdown). Touch defers selection to release, so without help a
+    //   finger drag would grow from the previous selection's anchor and a
+    //   "tap" with slight movement would spawn a phantom range. Anchor
+    //   current at the pressed cell ourselves — mouse parity, and it keeps
+    //   double-tap edit working (Glide's activation check needs current).
+    // - When Select mode is OFF, drop the anchor once the finger really
+    //   moves (>5px = a drag, not a tap) so no range can be grown. Select
+    //   mode's whole purpose is finger drag-selection, so the anchor stays.
+    const isOnGrid = (t: EventTarget | null) => !!gridContainerRef.current?.contains(t as Node);
+    const onDown = (e: PointerEvent) => {
+      lastPointerRef.current = e.pointerType;
+      if (!isTouchLike(e.pointerType) || !isOnGrid(e.target)) return;
+      touchDownPosRef.current = { x: e.clientX, y: e.clientY };
+      const loc = gridRef.current?.getMouseArgsForPosition(e.clientX, e.clientY, e)?.location;
+      const col = loc?.[0] ?? -2;
+      const row = loc?.[1] ?? -2;
+      if (col >= 1 && row >= 0 && row < scenesRef.current.length) {
+        setGridSelection(prev => {
+          const c = prev.current;
+          if (c && c.cell[0] === col && c.cell[1] === row && c.range.width === 1 && c.range.height === 1) return prev;
+          return { ...prev, current: { cell: [col, row], range: { x: col, y: row, width: 1, height: 1 }, rangeStack: [] } };
+        });
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!isTouchLike(e.pointerType) || getMarqueeMode() === 'tool' || !isOnGrid(e.target)) return;
+      const down = touchDownPosRef.current;
+      if (!down) return;
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) < 5) return;
+      touchDownPosRef.current = null;
+      setGridSelection(prev => (prev.current !== undefined ? { ...prev, current: undefined } : prev));
+    };
+    const onUp = () => { touchDownPosRef.current = null; };
     window.addEventListener('pointerdown', onDown, true);
-    return () => window.removeEventListener('pointerdown', onDown, true);
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onUp, true);
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true);
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onUp, true);
+    };
+  }, []);
+
+  // Select mode = frozen canvas: block wheel/trackpad scrolling over the grid
+  // so the only thing a drag can do is select. (Touch pans are already
+  // disabled by the wrapper's touchAction: none.)
+  useEffect(() => {
+    const el = gridContainerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (getMarqueeMode() !== 'tool') return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    el.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    return () => el.removeEventListener('wheel', onWheel, { capture: true } as EventListenerOptions);
   }, []);
 
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -302,6 +361,8 @@ export function GlideBreakdownTab({
   scenesRef.current = scenes;
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
+  const selectModeRef = useRef(false);
+  selectModeRef.current = marqueeMode === 'tool';
   const projectRef = useRef(project);
   projectRef.current = project;
   const allBreakdownLabelsRef = useRef(allBreakdownLabels);
@@ -345,12 +406,15 @@ export function GlideBreakdownTab({
 
   const getCellContent = useCallback(([col, row]: Item): GridCell => {
     const scene = scenesRef.current[row];
+    // Select mode = selection only: lock every cell so no overlay editor can
+    // open (double-tap, Enter, editOnType) and paste has no writable target.
+    const selectLock = marqueeMode === 'tool';
     if (!scene) {
       if (row === scenesRef.current.length) {
         const colDef = COLUMNS[col];
         if (!colDef) return textCell('', { readonly: true });
         if (colDef.key === 'actions') return textCell('', { readonly: true, allowOverlay: false, cursor: 'pointer', themeOverride: { bgCell: '#f3f4f6' } });
-        return textCell('', kbLocked && !isEntityCol(colDef.key) ? { readonly: true, allowOverlay: false } : undefined);
+        return textCell('', (selectLock || kbLocked) && !isEntityCol(colDef.key) ? { readonly: true, allowOverlay: false } : undefined);
       }
       return {
         kind: GridCellKind.Text,
@@ -376,10 +440,10 @@ export function GlideBreakdownTab({
             return member ? `${member.id}. ${member.name || trimmed}` : trimmed;
           }).filter(Boolean).join(', ')
         : '';
-      return textCell(val, { displayData: displayValue });
+      return textCell(val, selectLock ? { displayData: displayValue, readonly: true, allowOverlay: false } : { displayData: displayValue });
     }
-    return textCell(val, kbLocked && !isEntityCol(colKey) ? { readonly: true, allowOverlay: false } : undefined);
-  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked]);
+    return textCell(val, selectLock || (kbLocked && !isEntityCol(colKey)) ? { readonly: true, allowOverlay: false } : undefined);
+  }, [COLUMNS, getSceneValue, isEntityCol, kbLocked, marqueeMode]);
 
   const getNextSceneNumber = useCallback((prevSceneNumber?: string): string => {
     if (!prevSceneNumber) return '';
@@ -438,6 +502,7 @@ export function GlideBreakdownTab({
   }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, castItems, breakdownEditorItems]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
+    if (selectModeRef.current) return false;
     if (!sel.current) return false;
     dispatch({ type: 'BATCH_START' });
     const { range } = sel.current;
@@ -458,6 +523,8 @@ export function GlideBreakdownTab({
   }, [COLUMNS, commitEdit, dispatch]);
 
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]): boolean => {
+    // Select mode claims the paste but does nothing — selection only.
+    if (selectModeRef.current) return true;
     const currentScenes = scenesRef.current;
     const sel = gridSelectionRef.current?.current?.range;
     const { editRows, newScenes } = planPaste(target, values, currentScenes, COLUMNS, sel);
@@ -537,6 +604,7 @@ export function GlideBreakdownTab({
   }, [scenes, COLUMNS, getEffectiveRange]);
 
   const handleCut = useCallback(async () => {
+    if (selectModeRef.current) { setContextMenu(null); return; }
     const range = getEffectiveRange();
     if (!range) return;
     const { x, y, width, height } = range;
@@ -566,7 +634,7 @@ export function GlideBreakdownTab({
   }, []);
 
   const pasteTextAtSelection = useCallback((text: string) => {
-    if (readOnlyRef.current) return;
+    if (readOnlyRef.current || selectModeRef.current) return;
     const cell = getPasteTarget();
     if (!cell) return;
     const pastedRows = text.split(/\r\n|\n|\r/);
@@ -597,6 +665,7 @@ export function GlideBreakdownTab({
   }, [handlePaste]);
 
   const handleClear = useCallback(() => {
+    if (selectModeRef.current) { setContextMenu(null); return; }
     const range = getEffectiveRange();
     if (!range) return;
     dispatch({ type: 'BATCH_START' });
@@ -617,7 +686,7 @@ export function GlideBreakdownTab({
   }, [scenes, COLUMNS, commitEdit, dispatch, getEffectiveRange]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !selectModeRef.current) {
       e.preventDefault();
       addScene();
     }
@@ -628,6 +697,8 @@ export function GlideBreakdownTab({
   // Glide's window copy/paste handlers — which check document.activeElement
   // inside the grid — never run and the shortcuts do nothing. Drive the same
   // handlers the context menu uses from document-level listeners instead.
+  // (Arrow-key navigation / shift+arrow selection is handled in onCellClicked:
+  // the grid is focused explicitly on clicks/taps.)
   const clipboardShortcutsRef = useRef<{
     copy: () => void;
     cut: () => void;
@@ -697,19 +768,26 @@ export function GlideBreakdownTab({
     const [col, row] = cell;
     const penTouch = isTouchLike(lastPointerRef.current);
     if (row < 0 || row > scenes.length) return;
+    if (IS_COARSE || penTouch) {
+      // iPadOS doesn't focus the grid canvas from a click/tap (activeElement
+      // stays on a button), so Glide's canvas keydown handler — arrows,
+      // shift+arrow multi-select, Home/End, Delete — never runs. Focus the
+      // grid explicitly so hardware-keyboard selection matches desktop.
+      gridRef.current?.focus();
+    }
     if (row === scenes.length) {
       if (col < 0 && (penTouch || e.button === 2)) {
         const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
         const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
         setContextMenu({ x, y, row, col });
       }
-      if (col === 0 && !readOnlyRef.current) {
+      if (col === 0 && !readOnlyRef.current && getMarqueeMode() !== 'tool') {
         addScene();
       }
       return;
     }
     if (col === 0) {
-      if (readOnlyRef.current) return;
+      if (readOnlyRef.current || getMarqueeMode() === 'tool') return;
       const scene = scenesRef.current[row];
       if (!scene) return;
       const suppressedUntil = localStorage.getItem('lemon_schedule_suppress_delete_warning');
@@ -888,7 +966,7 @@ export function GlideBreakdownTab({
       )}
 
       {/* Grid */}
-      <div style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
+      <div ref={gridContainerRef} style={{ flex: 1, minHeight: 0, touchAction: 'none' }}>
         <DataEditor
           key={fontVersion}
           ref={gridRef}
@@ -914,7 +992,7 @@ export function GlideBreakdownTab({
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
           freezeColumns={1}
           editOnType
-          rangeSelect={IS_COARSE ? "cell" : "rect"}
+          rangeSelect={IS_COARSE && !(hwKeyboard || marqueeMode === 'tool') ? "cell" : "rect"}
           cellActivationBehavior="double-click"
           rowSelectionMode={marqueeMode === 'tool' ? 'multi' : 'single'}
           smoothScrollX={smoothScroll}
@@ -932,19 +1010,19 @@ export function GlideBreakdownTab({
             {contextMenu.col !== undefined && (
               <>
                 <ContextMenuItem onClick={handleCopy} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection}>Copy</ContextMenuItem>
-                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly}>Cut</ContextMenuItem>
+                <ContextMenuItem onClick={handleCut} icon={<Scissors className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly || marqueeMode === 'tool'}>Cut</ContextMenuItem>
                 {contextMenu.col >= 0 ? (
-                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell || readOnly}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={handlePasteFromMenu} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={!hasActiveCell || readOnly || marqueeMode === 'tool'}>Paste</ContextMenuItem>
                 ) : (
-                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Paste</ContextMenuItem>
+                  <ContextMenuItem onClick={() => handlePasteAtRow(contextMenu.row)} icon={<ClipboardPaste className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Paste</ContextMenuItem>
                 )}
-                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly}>Clear</ContextMenuItem>
+                <ContextMenuItem onClick={handleClear} icon={<Trash2 className="w-3 h-3 text-zinc-400" />} disabled={!hasSelection || readOnly || marqueeMode === 'tool'}>Clear</ContextMenuItem>
                 <ContextMenuDivider />
               </>
             )}
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Insert Above</ContextMenuItem>
-            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Insert Below</ContextMenuItem>
-            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={readOnly}>Duplicate</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Plus className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Insert Above</ContextMenuItem>
+            <ContextMenuItem onClick={() => { insertSceneAt(contextMenu.row + 1); setContextMenu(null); }} icon={<ArrowDown className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Insert Below</ContextMenuItem>
+            <ContextMenuItem onClick={() => { duplicateSceneAt(contextMenu.row); setContextMenu(null); }} icon={<Copy className="w-3 h-3 text-zinc-400" />} disabled={readOnly || marqueeMode === 'tool'}>Duplicate</ContextMenuItem>
             <ContextMenuDivider />
             {!IS_COARSE && shiftHeld && onOpenSheetInPopout ? (
               <ContextMenuItem onClick={() => { if (onOpenSheetInPopout) onOpenSheetInPopout(contextMenu.row); setContextMenu(null); }} icon={<ExternalLink className="w-3 h-3 text-zinc-400" />}>Open in New Window</ContextMenuItem>
@@ -970,7 +1048,7 @@ export function GlideBreakdownTab({
               }}
               variant="danger"
               icon={<Trash2 className="w-3 h-3" />}
-              disabled={readOnly}
+              disabled={readOnly || marqueeMode === 'tool'}
             >
               {(() => {
                 const range = getEffectiveRange();
