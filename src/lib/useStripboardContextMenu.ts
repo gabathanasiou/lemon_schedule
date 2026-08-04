@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { ScheduleRow, ScheduleVersion, Project, Scene } from '../types';
 import { generateUUID } from './utils';
+import { renumberRows, insertionOrder } from './daybreakUtils';
 import { getMarqueeMode } from './useLongPressMenu';
 import { getNoteBannerColors } from './ribbonUtils';
 
@@ -173,9 +174,14 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
 
     let newRows = activeVersion.rows.filter(r => r.containerId !== -1);
     const dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-    dayRows.splice(insertIdx, 0, ...clipboardItems);
-    dayRows.forEach((r, i) => r.order = i);
-    newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
+    const baseOrder = insertionOrder(dayRows, insertIdx);
+    clipboardItems.forEach((item, j) => { item.containerId = overDay; item.order = baseOrder + j * 0.01; });
+    newRows = [
+      ...newRows.filter(r => r.containerId !== overDay),
+      ...dayRows.slice(0, insertIdx),
+      ...clipboardItems,
+      ...dayRows.slice(insertIdx),
+    ];
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     setSelectedRowIds(new Set(clipboardItems.map(r => r.id)));
@@ -202,8 +208,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       const lastDayRow = dayRows[dayRows.length - 1];
       const insertAt = lastDayRow ? activeVersion.rows.indexOf(lastDayRow) + 1 : activeVersion.rows.length;
       const newRows = [...activeVersion.rows.slice(0, insertAt), newRow, ...activeVersion.rows.slice(insertAt)];
-      newRows.forEach((r, i) => r.order = i);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: renumberRows(newRows) } });
       setSelectedRowIds(new Set([newId]));
       setFocusedRowId(newId);
       scrollToRow(newId);
@@ -214,7 +219,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
     if (rowIndex === -1) return;
     const row = rows[rowIndex];
 
-    let newRows = rows.map(r => ({ ...r }));
+    let newRows: ScheduleRow[] = rows;
     let newRowIds: string[] = [];
     if (action === 'add_note') {
       const newId = generateUUID();
@@ -275,7 +280,7 @@ export function useStripboardContextMenu(config: StripboardContextMenuConfig) {
       if (a.containerId !== b.containerId) return (a.containerId || 0) - (b.containerId || 0);
       return a.order - b.order;
     });
-    newRows.forEach((r, i) => r.order = i);
+    newRows = renumberRows(newRows);
 
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     if (newRowIds.length > 0) {

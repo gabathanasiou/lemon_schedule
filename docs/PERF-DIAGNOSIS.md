@@ -132,8 +132,59 @@ debounce.
    - Selector-style `useProjectSelector(fn)` to keep shell components
      (AppHeader, SaveIndicator…) from re-rendering on every dispatch — the
      remaining ~20 ms per commit is mostly the provider -> App -> shell chain.
-   - Row-level virtualization for single-day projects with 200+ rows (the
-     render window currently virtualizes days, not rows).
+
+## Follow-up: stripboard drop storm + row virtualization (2026-08-04, `fix/stripboard-perf-regression`)
+
+### Bug 1 — every drag drop re-rendered the whole stripboard (270 rows)
+
+`handleDragEnd` rebuilt the rows array with `activeVersion.rows.map(r => ({ ...r }))`,
+spreading **every** row into a new object. The `computeRowData` WeakMap is keyed by
+the raw row object, so a full copy = a full cache miss = fresh `ComputedRow` for every
+row = `React.memo` fails on `row` identity for all 269 rows → ~270 row renders,
+~480 ms script per drop (measured with the `top-bottom-drag` harness: `renders=270,
+compute.misses=269, dispatch=[UPDATE_VERSION]`).
+
+Fix (`useScheduleDrag` + `useStripboardContextMenu`):
+- Day swap: conditional `map` — only rows whose `containerId` changes get new objects.
+- Row drops: **fractional midpoint orders** (`insertionOrder` in `daybreakUtils.ts`) —
+  the moved row gets `(prevOrder + nextOrder) / 2`, **no renumbering**, so every
+  untouched row keeps its object identity. Only rows whose computed call times
+  actually shifted re-render (the WeakMap fingerprint decides).
+- Paste: same midpoint orders, no renumber.
+- `renumberRows` (identity-preserving densify) for the rare bulk paths
+  (context-menu add/delete, digit-buffer day move, delete-all-daybreaks).
+- Legacy data with non-dense orders (Town: `0, 3, 4, 5…`) is why order==index
+  renumbering could never preserve identity — midpoint orders sidestep it entirely.
+
+Result: top drop 269 renders → 37 (only rows with genuinely changed call times);
+in-section drops ~9 ms.
+
+### Bug 2 — every project is one container, so the day-level render window never virtualized
+
+All rows live in `containerId: 1` (sections = daybreak groups), so ScheduleTab's
+day-windowing mounts **all 269 rows always** — the whole ribbon stayed laid out and
+painted, which is what made typing/dragging laggy on iPad Safari.
+
+Fix (`StripBlock` + `src/lib/virtualChunk.ts` + `index.css`):
+- Rows are wrapped in `.cv-chunk` groups (12 rows) with
+  `content-visibility: auto; contain-intrinsic-size: auto 516px` — offscreen chunks
+  skip layout/paint; the remembered intrinsic size keeps scroll metrics right.
+- `applyChunkVisibility` runs from the scroller's `onScroll` (inside
+  `updateRenderWindow`) and force-renders chunks within a 1.5×-viewport buffer
+  (`cv-visible`) so fast scrolling never flashes white. `useChunkResize` re-applies
+  on window resize (iPad keyboard).
+- **IntersectionObserver + rootMargin does NOT work here**: a skipped
+  `content-visibility: auto` element reports `isIntersecting: false` even inside
+  the rootMargin (verified in Chrome), so the buffer must be scroll-driven.
+- Focus/selection render their chunk by definition (they're inside the buffer).
+
+### Bug 3 — pre-existing, unchanged by Aug 3 (verified by A/B against f0b1179)
+
+Per-keystroke typing costs ~2.3 ms/char of main-thread task regardless of position
+(identical top vs bottom when the bottom row is visible); the Aug 3 refactor made
+toggle/blur faster, not slower. The keyboard-detection heuristic does not fire while
+typing in stripboard cells (CellInput's `stopPropagation` blocks the window
+keydown listener) — 0 state flips measured.
 
 ## How to re-run
 

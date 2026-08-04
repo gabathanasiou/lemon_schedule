@@ -269,6 +269,46 @@ export function computeRowData(
   return { computedRows, sections, sectionDateMap, sectionLabelMap, sectionSums };
 }
 
+/**
+ * Rebuilds a row array renumbering `order` to array index while preserving
+ * object identity for rows whose order didn't change. Identity preservation is
+ * the stripboard memo contract (computeRowData WeakMap keyed by raw row +
+ * React.memo on the row components), so hot paths (drag drop, context-menu
+ * insert/delete, cut/paste) MUST NOT spread-copy every row. Never mutates.
+ * NOTE: only preserves identity when orders are already dense (order === index);
+ * legacy data with gaps densifies everything on the first call.
+ */
+export function renumberRows(rows: ScheduleRow[]): ScheduleRow[] {
+  let changed = 0;
+  const out = new Array<ScheduleRow>(rows.length);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.order === i) {
+      out[i] = r;
+    } else {
+      out[i] = { ...r, order: i };
+      changed++;
+    }
+  }
+  return changed > 0 ? out : rows;
+}
+
+/**
+ * Computes a fractional order for a row inserted at `insertIndex` into
+ * `dayRows` (the day's rows sorted by order, WITHOUT the inserted row), so no
+ * other row needs renumbering — keeping every other row's object identity
+ * intact (the stripboard memo contract). Mirrors the existing fractional-order
+ * pattern (context-menu adds, digit-buffer day moves).
+ */
+export function insertionOrder(dayRows: ScheduleRow[], insertIndex: number): number {
+  const prev = dayRows[insertIndex - 1]?.order;
+  const next = dayRows[insertIndex]?.order;
+  if (prev !== undefined && next !== undefined) return (prev + next) / 2;
+  if (next !== undefined) return next - 0.5;
+  if (prev !== undefined) return prev + 0.5;
+  return 0.5;
+}
+
 export function computeMiddleInsertIndex(
   stripRows: ScheduleRow[],
   content: ScheduleRow[],
