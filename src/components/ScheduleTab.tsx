@@ -1543,6 +1543,13 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         dayCount={productionSections.length}
         onAdd={handleAddBanners}
       />
+      <CustomOrderSortModal
+        open={customOrderModal?.open ?? false}
+        onClose={closeCustomOrderModal}
+        title={customOrderModal?.title ?? ''}
+        options={customOrderModal?.options ?? []}
+        onSort={(order) => { if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order); }}
+      />
       <ShootViolationsModal
         open={showShootViolations}
         onClose={() => setShowShootViolations(false)}
