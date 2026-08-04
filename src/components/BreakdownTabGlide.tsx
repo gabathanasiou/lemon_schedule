@@ -204,6 +204,8 @@ export function GlideBreakdownTab({
   const lastPointerRef = useRef<string>('touch');
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const touchDownPosRef = useRef<{ x: number; y: number } | null>(null);
+  const touchDownCellRef = useRef<{ col: number; row: number } | null>(null);
+  const lastTouchTapRef = useRef<{ time: number; col: number; row: number } | null>(null);
   useEffect(() => {
     // Touch/pen selection parity with mouse:
     // - Mouse drags anchor on the PRESSED cell (Glide calls handleSelect at
@@ -215,15 +217,23 @@ export function GlideBreakdownTab({
     // - When Select mode is OFF, drop the anchor once the finger really
     //   moves (>5px = a drag, not a tap) so no range can be grown. Select
     //   mode's whole purpose is finger drag-selection, so the anchor stays.
+    // - A second tap on the same cell within Glide's touch double-click
+    //   window is an edit attempt: leave the anchor alone even if the press
+    //   jiggles, or the activation check finds no current and double-tap
+    //   never opens the editor.
     const isOnGrid = (t: EventTarget | null) => !!gridContainerRef.current?.contains(t as Node);
     const onDown = (e: PointerEvent) => {
       lastPointerRef.current = e.pointerType;
       if (!isTouchLike(e.pointerType) || !isOnGrid(e.target)) return;
-      touchDownPosRef.current = { x: e.clientX, y: e.clientY };
       const loc = gridRef.current?.getMouseArgsForPosition(e.clientX, e.clientY, e)?.location;
       const col = loc?.[0] ?? -2;
       const row = loc?.[1] ?? -2;
-      if (col >= 1 && row >= 0 && row < scenesRef.current.length) {
+      const isDataCell = col >= 1 && row >= 0 && row < scenesRef.current.length;
+      touchDownCellRef.current = isDataCell ? { col, row } : null;
+      const prevTap = lastTouchTapRef.current;
+      const doubleTapAttempt = prevTap !== null && Date.now() - prevTap.time < 1000 && prevTap.col === col && prevTap.row === row;
+      touchDownPosRef.current = doubleTapAttempt ? null : { x: e.clientX, y: e.clientY };
+      if (isDataCell) {
         setGridSelection(prev => {
           const c = prev.current;
           if (c && c.cell[0] === col && c.cell[1] === row && c.range.width === 1 && c.range.height === 1) return prev;
@@ -239,16 +249,25 @@ export function GlideBreakdownTab({
       touchDownPosRef.current = null;
       setGridSelection(prev => (prev.current !== undefined ? { ...prev, current: undefined } : prev));
     };
-    const onUp = () => { touchDownPosRef.current = null; };
+    const onUp = () => {
+      touchDownPosRef.current = null;
+      const cell = touchDownCellRef.current;
+      touchDownCellRef.current = null;
+      if (cell) lastTouchTapRef.current = { time: Date.now(), col: cell.col, row: cell.row };
+    };
+    const onCancel = () => {
+      touchDownPosRef.current = null;
+      touchDownCellRef.current = null;
+    };
     window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('pointermove', onMove, true);
     window.addEventListener('pointerup', onUp, true);
-    window.addEventListener('pointercancel', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
     return () => {
       window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('pointermove', onMove, true);
       window.removeEventListener('pointerup', onUp, true);
-      window.removeEventListener('pointercancel', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
     };
   }, []);
 

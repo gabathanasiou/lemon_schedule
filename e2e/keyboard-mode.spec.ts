@@ -94,6 +94,42 @@ test.describe('Keyboard Mode (coarse pointer)', () => {
     expect(state.readOnly).toBe(false);
   });
 
+  test('tap selects a cell; double-tap with a jiggly second press starts editing', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('lemon_schedule_keyboard_mode', 'on');
+    });
+    await openGlideWithScene(page);
+
+    const descPos = await cellCenter(page, 'description');
+
+    // Tap 1: selects the cell
+    await page.touchscreen.tap(descPos.x, descPos.y);
+    await page.waitForTimeout(120);
+
+    // Tap 2 within the double-click window, but with a >5px jiggle on the
+    // press — this used to drop the selection anchor and kill the editor.
+    await page.evaluate(({ x, y }) => {
+      const canvas = document.querySelector('.dvn-underlay canvas') as HTMLElement;
+      const fire = (type: string, cx: number, cy: number) => canvas.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 2,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: cx,
+        clientY: cy,
+      }));
+      fire('pointerdown', x, y);
+      fire('pointermove', x + 10, y);
+      fire('pointerup', x, y);
+    }, { x: descPos.x, y: descPos.y });
+    await page.waitForTimeout(600);
+
+    const state = await editorState(page);
+    expect(state.hasEditor).toBe(true);
+    expect(state.readOnly).toBe(false);
+  });
+
   test('hardware keyboard detected: toggle shows the amber state but stays tappable', async ({ page }) => {
     await openGlideWithScene(page);
 
