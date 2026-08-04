@@ -43,7 +43,8 @@ import ScheduleToolbar from './schedule/ScheduleToolbar';
 import ScheduleContextMenu from './schedule/ScheduleContextMenu';
 import ScheduleModals from './schedule/ScheduleModals';
 import ScheduleOverlays from './schedule/ScheduleOverlays';
-import { computeMiddleInsertIndex } from '../lib/daybreakUtils';
+import { computeMiddleInsertIndex, renumberRows } from '../lib/daybreakUtils';
+import { applyChunkVisibility, useChunkResize } from '../lib/virtualChunk';
 import { useStripboardContextMenu } from '../lib/useStripboardContextMenu';
 import { useScheduleKeyboard } from './schedule/useScheduleKeyboard';
 import { useScheduleDrag } from './schedule/useScheduleDrag';
@@ -546,6 +547,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   const updateRenderWindow = useCallback(() => {
     const el = scheduleScrollRef.current;
     if (!el) return;
+    applyChunkVisibility(el);
     const dayEls = el.querySelectorAll('[data-cal-day]');
     if (dayEls.length === 0) return;
     const viewTop = el.scrollTop - el.clientHeight;
@@ -592,6 +594,10 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
   useEffect(() => {
     updateRenderWindow();
   }, [updateRenderWindow, existingDays, scheduledRows]);
+
+  // Keep the chunk render buffer in sync with the scroller size (keyboard
+  // opening on iPad resizes the viewport).
+  useChunkResize(scheduleScrollRef);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -692,8 +698,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
     });
     if (!ok) return;
     dispatch({ type: 'BATCH_START' });
-    const newRows = activeVersion.rows.filter(r => r.type !== 'DAYBREAK' || r.pinned);
-    newRows.forEach((r, i) => r.order = i);
+    const newRows = renumberRows(activeVersion.rows.filter(r => r.type !== 'DAYBREAK' || r.pinned));
     dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     dispatch({ type: 'BATCH_COMMIT' });
   };
@@ -1177,8 +1182,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         if ((a.containerId || 0) !== (b.containerId || 0)) return (a.containerId || 0) - (b.containerId || 0);
         return a.order - b.order;
       });
-      newRows.forEach((r, i) => r.order = i);
-      dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: newRows } });
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: data.versionId, rows: renumberRows(newRows) } });
     } else {
       const maxOrder = daybreaks.length > 0 ? Math.max(...daybreaks.map(d => d.order)) : -1;
       newRows = data.rows.map(r => {

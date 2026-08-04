@@ -89,3 +89,14 @@ input, textarea, [contenteditable] {
     cursor: pointer;
   }
 }
+
+/* Stripboard row virtualization: chunks of rows skip layout/paint when far
+   from the viewport; the IntersectionObserver (virtualChunk.ts) force-renders
+   chunks inside a viewport buffer so fast scrolling never flashes white. */
+.cv-chunk {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 516px;
+}
+.cv-chunk.cv-visible {
+  content-visibility: visible;
+}

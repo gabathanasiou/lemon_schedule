@@ -9,6 +9,13 @@ import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDa
 import { checkSection } from '../lib/rulesEngine';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 
+/** Rows per virtualized chunk (≈ 12 × 43px, matched by the CSS intrinsic size). */
+const CHUNK_SIZE = 12;
+
+const CvChunk: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="cv-chunk">{children}</div>
+);
+
 const nextDateCache = new Map<string, string>();
 
 function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): React.CSSProperties {
@@ -265,6 +272,17 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
   const sortableRowsKey = useMemo(() => sortableRows.map(r => r.id).join('|'), [sortableRows]);
   const sortableItems = useMemo(() => sortableRows.map(r => r.id), [sortableRowsKey]);
 
+  // Row-level virtualization: chunk the rows so content-visibility can skip
+  // layout/paint far from the viewport (projects keep everything in one
+  // container, so the day-level window is a no-op).
+  const rowChunks = useMemo(() => {
+    const chunks: ScheduleRow[][] = [];
+    for (let i = 0; i < sortableRows.length; i += CHUNK_SIZE) {
+      chunks.push(sortableRows.slice(i, i + CHUNK_SIZE));
+    }
+    return chunks;
+  }, [sortableRows]);
+
   const baseStyle = {
     fontFamily: 'Helvetica, sans-serif',
     fontSize: '8pt',
@@ -281,47 +299,51 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
           <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
         )}
         <SortableContext items={sortableItems} strategy={verticalListSortingStrategy}>
-          {sortableRows.map((r) => {
-            const nextDb = r.type === 'DAYBREAK' ? nextDaybreakMap.get(r.id) : undefined;
-            return (
-              <React.Fragment key={r.id}>
-                {showGhosts && insertBeforeId === r.id && (
-                  <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
-                )}
-                  <SortableRibbon 
-                    row={r} 
-                    scenes={project.scenes} 
-                    scene={r.type === 'SCENE' ? (project.scenes.find(s => s.id === r.sceneId) ?? null) : null}
-                    isSelected={selectedIds.has(r.id)}
-                    isFaded={activeDragIds.has(r.id)}
-                    onSelectToggle={(e) => onRowClick?.(r.id, e)}
-                    isEditable={r.id === editingTarget?.rowId}
-                    focusField={r.id === editingTarget?.rowId ? editingTarget.fieldKey : null}
-                    sceneViolations={mergedSceneViolationMap.get(r.sceneId || '')}
-                    sectionViolations={sectionViolationMap.get(r.id)}
-                    nextSectionViolations={nextSectionViolationMap.get(r.id)}
-                    focusedRowId={focusedRowId}
-                    onDoubleClick={onRowDoubleClick}
-                    onRowNavigate={onRowNavigate}
-                    ribbon={ribbon}
-                    colWidths={colWidths}
-                    cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
-                    edgePadding={edgePadding}
-                    cellBorders={cellBorders}
-                    nextDaybreakCallTime={nextDb?.callTime}
-                    onUpdateNextDaybreak={nextDb ? (val: string) => updateDaybreakRow(nextDb.rowId, { daybreakCallTime: val }) : undefined}
-                    nextDateStr={r.type === 'DAYBREAK' ? nextDateStrByRow.get(r.id) : undefined}
-                    dispatch={dispatch}
-                    activeVersionId={activeVersion?.id}
-                    palette={project.colorPalette}
-                    castMembers={project.castMembers || []}
-                    breakdownElements={project.breakdownElements}
-                    customCategories={project.customCategories}
-                    hiddenCategories={project.hiddenCategories}
-                  />
-              </React.Fragment>
-            );
-          })}
+          {rowChunks.map((chunk, ci) => (
+            <CvChunk key={ci}>
+              {chunk.map((r) => {
+                const nextDb = r.type === 'DAYBREAK' ? nextDaybreakMap.get(r.id) : undefined;
+                return (
+                  <React.Fragment key={r.id}>
+                    {showGhosts && insertBeforeId === r.id && (
+                      <StackedGhosts rows={activeDragRows} scenes={project.scenes} ribbon={ribbon} colWidths={colWidths} palette={project.colorPalette} />
+                    )}
+                      <SortableRibbon 
+                        row={r} 
+                        scenes={project.scenes} 
+                        scene={r.type === 'SCENE' ? (project.scenes.find(s => s.id === r.sceneId) ?? null) : null}
+                        isSelected={selectedIds.has(r.id)}
+                        isFaded={activeDragIds.has(r.id)}
+                        onSelectToggle={(e) => onRowClick?.(r.id, e)}
+                        isEditable={r.id === editingTarget?.rowId}
+                        focusField={r.id === editingTarget?.rowId ? editingTarget.fieldKey : null}
+                        sceneViolations={mergedSceneViolationMap.get(r.sceneId || '')}
+                        sectionViolations={sectionViolationMap.get(r.id)}
+                        nextSectionViolations={nextSectionViolationMap.get(r.id)}
+                        focusedRowId={focusedRowId}
+                        onDoubleClick={onRowDoubleClick}
+                        onRowNavigate={onRowNavigate}
+                        ribbon={ribbon}
+                        colWidths={colWidths}
+                        cellPaddingV={cellPaddingV} cellPaddingH={cellPaddingH}
+                        edgePadding={edgePadding}
+                        cellBorders={cellBorders}
+                        nextDaybreakCallTime={nextDb?.callTime}
+                        onUpdateNextDaybreak={nextDb ? (val: string) => updateDaybreakRow(nextDb.rowId, { daybreakCallTime: val }) : undefined}
+                        nextDateStr={r.type === 'DAYBREAK' ? nextDateStrByRow.get(r.id) : undefined}
+                        dispatch={dispatch}
+                        activeVersionId={activeVersion?.id}
+                        palette={project.colorPalette}
+                        castMembers={project.castMembers || []}
+                        breakdownElements={project.breakdownElements}
+                        customCategories={project.customCategories}
+                        hiddenCategories={project.hiddenCategories}
+                      />
+                  </React.Fragment>
+                );
+              })}
+            </CvChunk>
+          ))}
         </SortableContext>
         {sortableRows.length === 0 && (
           <div className="flex items-center px-4 py-3 text-[9pt] border-b-[2px] border-black italic select-none text-zinc-300"

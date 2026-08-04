@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
 import { ScheduleRow, ScheduleVersion } from '../../types';
+import { insertionOrder } from '../../lib/daybreakUtils';
 import { isAddModeActive } from '../../lib/useMarquee';
 
 export interface UseScheduleDragConfig {
@@ -101,14 +102,14 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
       const overDay = getDayFromId(overId, activeVersion.rows);
       
       if (overDay !== null && activeDay !== overDay) {
-         let newRows = activeVersion.rows.map(r => ({ ...r }));
-         newRows = newRows.map(r => {
-           if (r.containerId === activeDay) return { ...r, containerId: -1 }; 
-           if (r.containerId === overDay) return { ...r, containerId: activeDay };
-           return r;
-         }).map(r => r.containerId === -1 ? { ...r, containerId: overDay } : r);
-         
-          dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
+        // Swap containerIds between the two days; rows in other days keep identity
+        // (the row identity is the stripboard memo contract — never copy all rows).
+        const newRows = activeVersion.rows.map(r => {
+          if (r.containerId === activeDay) return { ...r, containerId: overDay };
+          if (r.containerId === overDay) return { ...r, containerId: activeDay };
+          return r;
+        });
+        dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
       }
       return;
     }
@@ -137,12 +138,11 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
           return 0;
        });
     }
-
-    let newRows = activeVersion.rows.map(r => ({ ...r }));
     
     if (draggingIds.length === 1) {
-      newRows = newRows.filter(r => r.id !== activeId);
-      let dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
+      const dayRows = activeVersion.rows
+        .filter(r => r.id !== activeId && r.containerId === overDay)
+        .sort((a, b) => a.order - b.order);
       let insertIndex: number;
       if (lastInsertBeforeId?.startsWith('day-')) {
         insertIndex = 0;
@@ -157,14 +157,21 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
       if (insertIndex === 0 && dayRows.length > 0 && dayRows[0]?.pinned) {
         insertIndex = 1;
       }
-      const movedRow = { ...activeRow, containerId: overDay };
-      dayRows.splice(insertIndex, 0, movedRow);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
+      // Fractional midpoint order: no renumbering, so every untouched row keeps
+      // its object identity (the stripboard memo contract) — only rows whose
+      // computed values actually shifted re-render after the drop.
+      const movedRow = { ...activeRow, containerId: overDay, order: insertionOrder(dayRows, insertIndex) };
+      const newRows = [
+        ...activeVersion.rows.filter(r => r.id !== activeId && r.containerId !== overDay),
+        ...dayRows.slice(0, insertIndex),
+        movedRow,
+        ...dayRows.slice(insertIndex),
+      ];
       setSelectedRowIds(new Set([activeId]));
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     } else {
-      const draggingItems = draggingIds.map(id => newRows.find(r => r.id === id)!).filter(Boolean);
-      const dayRowsBefore = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
+      const draggingItems = draggingIds.map(id => activeVersion.rows.find(r => r.id === id)!).filter(Boolean);
+      const dayRowsBefore = activeVersion.rows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
       let rawIndex: number;
       if (lastInsertBeforeId?.startsWith('day-')) {
         rawIndex = 0;
@@ -184,16 +191,20 @@ export function useScheduleDrag(config: UseScheduleDragConfig) {
         return idx >= 0 && idx < rawIndex;
       }).length;
 
-      newRows = newRows.filter(r => !draggingIds.includes(r.id));
-      const dayRows = newRows.filter(r => r.containerId === overDay).sort((a, b) => a.order - b.order);
-      const newItems = draggingItems.map(item => ({ ...item, containerId: overDay }));
-      dayRows.splice(insertIndex, 0, ...newItems);
-      dayRows.forEach((r, i) => r.order = i);
-      newRows = [...newRows.filter(r => r.containerId !== overDay), ...dayRows];
+      const dayRows = activeVersion.rows
+        .filter(r => r.containerId === overDay && !draggingIds.includes(r.id))
+        .sort((a, b) => a.order - b.order);
+      const baseOrder = insertionOrder(dayRows, insertIndex);
+      const newItems = draggingItems.map((item, j) => ({ ...item, containerId: overDay, order: baseOrder + j * 0.01 }));
+      const newRows = [
+        ...activeVersion.rows.filter(r => r.containerId !== overDay && !draggingIds.includes(r.id)),
+        ...dayRows.slice(0, insertIndex),
+        ...newItems,
+        ...dayRows.slice(insertIndex),
+      ];
       setSelectedRowIds(new Set(draggingIds));
+      dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
     }
-
-    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, rows: newRows } });
   };
 
   return { handleDragStart, handleDragOver, handleDragEnd };
