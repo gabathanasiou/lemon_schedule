@@ -1,4 +1,4 @@
-import { Project } from '../../types';
+import { Project, ProjectElement } from '../../types';
 import { getSceneFieldValue } from '../reducer';
 import type { Action, State } from '../reducer';
 import { generateUUID } from '../../lib/utils';
@@ -95,7 +95,7 @@ export function caseAddElement(state: State, action: Action, applyChange: ApplyC
   const existingIdx = existing.findIndex(e => (e.id || e.name.toLowerCase()) === dedupKey);
   if (existingIdx >= 0 || (category === 'cast' && element.id && (state.present.castMembers || []).some(c => c.id === element.id))) {
     let updated = existingIdx >= 0
-      ? existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element } : e))
+      ? existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element, id: element.id || e.id } : e))
       : [...existing, element];
     return applyChange({
       ...state.present,
@@ -143,7 +143,7 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
         : state.present.castMembers || [],
     });
   }
-  const newElement = { ...old, ...updates };
+  const newElement = { ...old, ...updates, id: updates.id || old.id };
   const newList = list.map(e => (isCast ? e.id === id : e.id.toLowerCase() === id.toLowerCase()) ? newElement : e);
 
   let newScenes = state.present.scenes;
@@ -172,10 +172,25 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
         const val = getSceneFieldValue(scene, category);
         if (!val) return scene;
         const items = val.split(',').map(x => x.trim());
-        const idx = items.findIndex(x => x.toLowerCase() === oldLower);
-        if (idx < 0) return scene;
-        items[idx] = updates.name!;
-        return { ...scene, [category]: items.join(', ') };
+        let changed = false;
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const item of items) {
+          if (item.toLowerCase() === oldLower) {
+            changed = true;
+            const key = updates.name!.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(updates.name!);
+          } else {
+            const key = item.toLowerCase();
+            if (seen.has(key)) { changed = true; continue; }
+            seen.add(key);
+            out.push(item);
+          }
+        }
+        if (!changed) return scene;
+        return { ...scene, [category]: out.join(', ') };
       });
     }
   }
@@ -221,23 +236,59 @@ export function caseDeleteElement(state: State, action: Action, applyChange: App
   });
 }
 
+/**
+ * Applies a full per-category edit set atomically (one undo entry per category):
+ * - `renames`: {oldName -> newName} mappings. Each scene value matching an
+ *   oldName (case-insensitive) becomes newName; values are deduped per field.
+ *   Old and new names are matched against the ORIGINAL field contents, so
+ *   name swaps (boat -> rowboat + rowboat -> boat) stay correct.
+ * - `removes`: elements to drop from the list. Their names are stripped from
+ *   scene fields (unless already remapped). `toTrash` entries are recoverable.
+ * - `adds`: new elements, inserted only when the name is not already present.
+ *
+ * Cast is handled separately (ID-keyed) and never reaches this action.
+ */
 export function caseMergeElements(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'MERGE_ELEMENTS') return state;
-  const { category, sourceIds, targetId, targetName } = action.payload;
+  const { category, renames, removes, adds } = action.payload;
   const isCast = category === 'cast';
+  if (isCast) return state;
   const list = state.present.breakdownElements[category] || [];
-  const sourceSet = new Set(sourceIds.map(id => id.toLowerCase()));
-  const sourceNames = isCast ? sourceSet : new Set(
-    sourceIds.map(sid => {
-      const elem = list.find(e => e.id.toLowerCase() === sid.toLowerCase());
-      return (elem?.name || elem?.id || '').toLowerCase();
-    }).filter(Boolean)
-  );
-  const matchSet = isCast ? sourceSet : sourceNames;
 
-  const filtered = list.filter(e => !sourceSet.has(e.id.toLowerCase()));
-  if (!filtered.some(e => e.id.toLowerCase() === targetId.toLowerCase())) {
-    filtered.push({ id: targetId, name: targetName });
+  const renameMap = new Map<string, string>();
+  for (const rn of renames) {
+    if (!rn.newName) continue;
+    renameMap.set(rn.oldName.trim().toLowerCase(), rn.newName);
+  }
+  // Element ids are exact names — removal must be case-sensitive, otherwise
+  // absorbing "FISHING BOAT" would also delete the distinct "fishing boat".
+  const removeIdSet = new Set<string>();
+  const removeNameSet = new Set<string>();
+  const trashItems: ElementTrashItem[] = [];
+  for (const rm of removes) {
+    removeIdSet.add(rm.id);
+    removeNameSet.add(rm.name.toLowerCase());
+    if (rm.toTrash) {
+      trashItems.push({ category, element: { id: rm.id, name: rm.name }, deletedAt: Date.now() });
+    }
+  }
+
+  const next: ProjectElement[] = [];
+  const finalNames = new Set<string>();
+  for (const e of list) {
+    if (removeIdSet.has(e.id)) continue;
+    const mapped = renameMap.get((e.name || '').trim().toLowerCase());
+    const final = mapped !== undefined ? { ...e, name: mapped } : e;
+    const key = (final.name || '').toLowerCase();
+    if (finalNames.has(key)) continue;
+    finalNames.add(key);
+    next.push(final);
+  }
+  for (const a of adds) {
+    const key = (a.name || '').toLowerCase();
+    if (finalNames.has(key)) continue;
+    finalNames.add(key);
+    next.push({ id: a.id || a.name, name: a.name });
   }
 
   const scenes = state.present.scenes.map(scene => {
@@ -245,30 +296,43 @@ export function caseMergeElements(state: State, action: Action, applyChange: App
     if (!val) return scene;
     const items = getFieldItems(category, val);
     let changed = false;
-    const newItems = items.map(item => {
-      if (matchSet.has(item.toLowerCase())) {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of items) {
+      const lower = item.toLowerCase();
+      const mapped = renameMap.get(lower);
+      if (mapped !== undefined) {
+        if (seen.has(mapped.toLowerCase())) { changed = true; continue; }
+        seen.add(mapped.toLowerCase());
+        if (mapped !== item) changed = true;
+        out.push(mapped);
+      } else if (removeNameSet.has(lower) && !finalNames.has(lower)) {
+        // Only strip a value when no surviving element still carries its name
+        // (case-variant absorptions keep the surviving value in scenes).
         changed = true;
-        return targetName;
+      } else {
+        if (seen.has(lower)) { changed = true; continue; }
+        seen.add(lower);
+        out.push(item);
       }
-      return item;
-    });
+    }
     if (!changed) return scene;
-    return { ...scene, [category]: newItems.join(', ') };
+    return { ...scene, [category]: out.join(', ') };
   });
 
-  let castMembers = state.present.castMembers;
-  if (isCast) {
-    castMembers = castMembers.filter(c => !sourceSet.has(c.id.toLowerCase()));
-    if (!castMembers.some(c => c.id.toLowerCase() === targetId.toLowerCase())) {
-      castMembers = [...castMembers, { id: targetId, name: targetName }];
-    }
-  }
+  const hasChanges = scenes !== state.present.scenes
+    || trashItems.length > 0
+    || next.length !== list.length
+    || next.some((e, i) => e.id !== list[i]?.id || e.name !== list[i]?.name);
+  if (!hasChanges) return state;
 
   return applyChange({
     ...state.present,
     scenes,
-    breakdownElements: { ...state.present.breakdownElements, [category]: filtered },
-    castMembers,
+    breakdownElements: { ...state.present.breakdownElements, [category]: next },
+    elementsTrash: trashItems.length > 0
+      ? [...state.present.elementsTrash, ...trashItems]
+      : state.present.elementsTrash,
   });
 }
 

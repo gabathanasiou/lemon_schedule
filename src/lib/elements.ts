@@ -16,7 +16,7 @@ export function loadCategoryElements(project: any, category: string): ProjectEle
   const seen = new Set<string>();
   const items: ProjectElement[] = [];
   for (const e of stored) {
-    const key = (e.id || e.name).toLowerCase();
+    const key = (e.id || e.name);
     if (!seen.has(key)) { items.push(e); seen.add(key); }
   }
   const sceneElems = getElementsFromScenes(project.scenes, category);
