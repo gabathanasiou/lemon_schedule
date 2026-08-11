@@ -2,6 +2,31 @@ import { ProjectElement } from '../types';
 import { getElementsFromScenes } from '../store';
 import { getFieldItems } from './categories';
 
+/**
+ * Single source of truth for breakdown elements:
+ * - `cast` is IDENTITY-keyed: members live in `project.castMembers` (numeric
+ *   IDs referenced by `scene.cast`), never in `breakdownElements.cast`.
+ * - every other category is NAME-keyed: elements live in
+ *   `project.breakdownElements[category]` and scenes reference them by name.
+ *
+ * Consumers MUST go through `getCategoryElements()` / `elementMatchId()` —
+ * never read `breakdownElements['cast']` and never hand-roll an
+ * `isCast ? id : name` branch.
+ */
+export function isIdKeyed(category: string): boolean {
+  return category === 'cast';
+}
+
+export function getCategoryElements(project: any, category: string): ProjectElement[] {
+  if (isIdKeyed(category)) return project.castMembers || [];
+  return (project.breakdownElements || {})[category] || [];
+}
+
+/** The key scenes use to reference an element: id for cast, name otherwise. */
+export function elementMatchId(e: { id: string; name: string }, category: string): string {
+  return isIdKeyed(category) ? e.id : (e.name || e.id);
+}
+
 /** Merges stored elements with scene-derived values for a category (cast special-cases by id). */
 export function loadCategoryElements(project: any, category: string): ProjectElement[] {
   if (category === 'cast') {

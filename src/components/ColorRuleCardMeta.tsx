@@ -1,9 +1,10 @@
 import React from 'react';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon } from '../lib/categories';
+import { getCategoryElements } from '../lib/elements';
 import { Project } from '../types';
 
 export function getElementName(project: Project, cat: string, elementId: string): string {
-  const elements = project.breakdownElements[cat] || [];
+  const elements = getCategoryElements(project, cat);
   const el = elements.find(e => (e.id || e.name) === elementId);
   return el?.name || elementId;
 }

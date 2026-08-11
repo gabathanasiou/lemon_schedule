@@ -103,6 +103,8 @@ export function loadProjectFromStorage(id: string): Project | null {
             parsed.breakdownElements.animalsAndWranglers = parsed.breakdownElements.animals;
             delete parsed.breakdownElements.animals;
           }
+          // castMembers is the single source of truth for cast — drop the legacy mirror
+          delete parsed.breakdownElements.cast;
         }
         for (const d of parsed.ribbonDesigns || []) {
           // Migrate: extract colWidths from cells, strips width from cells

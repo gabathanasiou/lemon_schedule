@@ -75,10 +75,8 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const commitField = useCallback((sceneId: string, field: string, value: string) => {
     if (field === 'cast' || allBreakdownCats.includes(field)) {
       const isCast = field === 'cast';
-      const existing = breakdownElements[field] || [];
-      const existingSet = new Set(isCast
-        ? existing.map((e: any) => e.id)
-        : existing.map((e: any) => e.name.toLowerCase()));
+      const existing = isCast ? castMembers : (breakdownElements[field] || []);
+      const existingSet = new Set(existing.map((e: any) => (isCast ? e.id : e.name.toLowerCase())));
       const newItems = getFieldItems(field, value).filter(
         v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase()),
       );
@@ -207,13 +205,14 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
     const result: Record<string, { id: string; name: string }[]> = {};
     for (const cat of allBreakdownCats) {
       if (cat === 'notes') continue;
-      const stored: { id: string; name: string }[] = (breakdownElements[cat] || []);
-      const nameMap = new Map(stored.map(e => [e.name.toLowerCase(), e]));
+      const isCast = cat === 'cast';
+      const stored: { id: string; name: string }[] = isCast ? castMembers : (breakdownElements[cat] || []);
+      const nameMap = new Map(stored.map(e => [isCast ? (e.id || e.name).toLowerCase() : e.name.toLowerCase(), e]));
       const items: { id: string; name: string }[] = [];
       const addItem = (iid: string, iname: string) => {
         const k = (iid || iname).toLowerCase();
         if (items.some(i => (i.id || i.name).toLowerCase() === k)) return;
-        if (cat === 'cast') {
+        if (isCast) {
           const nameIdx = items.findIndex(i => i.name.toLowerCase() === iname.toLowerCase());
           if (nameIdx >= 0) {
             if (!items[nameIdx].id && iid) items[nameIdx] = { id: iid, name: iname };
@@ -223,11 +222,8 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
         items.push({ id: iid, name: iname });
       };
       for (const e of stored) addItem(e.id || e.name, e.name);
-      if (cat === 'cast') {
-        for (const m of castMembers) { addItem(m.id, m.name); nameMap.set(m.id.toLowerCase(), m); nameMap.set(m.name.toLowerCase(), m); }
-      }
       for (const s of scenes) {
-        const raw = cat === 'cast' ? s.cast : (s as any)[cat] || '';
+        const raw = isCast ? s.cast : (s as any)[cat] || '';
         for (const v of getFieldItems(cat, raw)) {
           const matched = nameMap.get(v.toLowerCase()); addItem(matched?.id || v, matched?.name || v);
         }

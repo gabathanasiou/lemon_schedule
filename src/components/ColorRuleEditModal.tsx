@@ -4,6 +4,7 @@ import { useProject } from '../store';
 import { ColorRule, ColorRuleCondition, ColorOverride, SceneColorEntry, ProjectElement } from '../types';
 import { generateUUID } from '../lib/utils';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
+import { getCategoryElements } from '../lib/elements';
 import { getIntExtOptions, getDayNightOptions, DEFAULT_COLOR_PALETTE, getNoteBannerColors } from '../lib/ribbonUtils';
 import { IS_COARSE } from '../lib/device';
 import Modal, { ModalFooter } from './Modal';
@@ -90,8 +91,8 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
   }, [state.present.customCategories]);
 
   const getElementsForCategory = useCallback((cat: string): ProjectElement[] => {
-    return state.present.breakdownElements[cat] || [];
-  }, [state.present.breakdownElements]);
+    return getCategoryElements(state.present, cat);
+  }, [state.present]);
 
   const getElementName = useCallback((cat: string, elementId: string): string => {
     const el = getElementsForCategory(cat).find(e => (e.id || e.name) === elementId);

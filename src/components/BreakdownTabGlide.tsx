@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import { getFieldItems, isMultiValue } from '../lib/categories';
+import { getCategoryElements } from '../lib/elements';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -362,11 +363,10 @@ export function GlideBreakdownTab({
   const breakdownEditorItems = useMemo(() => {
     const map = new Map<string, { id: string; name: string }[]>();
     for (const key of allBreakdownCategories) {
-      const stored = project.breakdownElements?.[key] || [];
-      map.set(key, stored.map(e => ({ id: e.id, name: e.name })));
+      map.set(key, getCategoryElements(project, key).map(e => ({ id: e.id, name: e.name })));
     }
     return map;
-  }, [project.breakdownElements, allBreakdownCategories]);
+  }, [project, allBreakdownCategories]);
 
   const intExtOptions = useMemo(() =>
     project.colorPalette?.intExtOptions || ['INT', 'EXT', 'D/E', 'EXT/INT'],
@@ -402,8 +402,8 @@ export function GlideBreakdownTab({
     }
     if (colKey === 'cast' || allBreakdownCategories.includes(colKey)) {
       const isCast = colKey === 'cast';
-      const existing = (currentProject.breakdownElements || {})[colKey] || [];
-      const existingSet = new Set(isCast ? existing.map((e: any) => e.id) : existing.map((e: any) => e.name.toLowerCase()));
+      const existing = isCast ? (currentProject.castMembers || []) : (currentProject.breakdownElements || {})[colKey] || [];
+      const existingSet = new Set(existing.map((e: any) => (isCast ? e.id : e.name.toLowerCase())));
       const newItems = getFieldItems(colKey, newVal).filter(
         v => isCast ? !existingSet.has(v) : !existingSet.has(v.toLowerCase())
       );

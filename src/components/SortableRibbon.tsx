@@ -116,7 +116,7 @@ const SortableRowContent: React.FC<{
     for (const [key, val] of Object.entries(processed)) {
       if (key === 'id') continue;
       if (typeof val === 'string' && val.trim() && (ENTITY_KEYS.has(key) || key.startsWith('_cat_'))) {
-        const existing = breakdownElements?.[key] || [];
+        const existing = key === 'cast' ? (castMembers ?? []) : (breakdownElements?.[key] || []);
         const existingNames = new Set(existing.map(e => (key === 'cast' ? e.id : (e.name || e.id)).toUpperCase()));
         const items = getFieldItems(key, val);
         for (const item of items) {

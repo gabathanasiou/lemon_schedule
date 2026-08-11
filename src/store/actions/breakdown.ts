@@ -52,10 +52,8 @@ export function caseRestoreRuleFromTrash(state: State, action: Action, applyChan
 export function caseAddCastMember(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'ADD_CAST_MEMBER') return state;
   const cms = [...(state.present.castMembers || []), action.payload];
-  const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
   return applyChange({
     ...state.present,
-    breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
     castMembers: cms,
   });
 }
@@ -63,10 +61,8 @@ export function caseAddCastMember(state: State, action: Action, applyChange: App
 export function caseUpdateCastMember(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'UPDATE_CAST_MEMBER') return state;
   const cms = (state.present.castMembers || []).map(c => c.id === action.payload.id ? action.payload : c);
-  const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
   return applyChange({
     ...state.present,
-    breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
     castMembers: cms,
   });
 }
@@ -75,14 +71,12 @@ export function caseDeleteCastMember(state: State, action: Action, applyChange: 
   if (action.type !== 'DELETE_CAST_MEMBER') return state;
   const id = action.payload;
   const cms = (state.present.castMembers || []).filter(c => c.id !== id);
-  const mirrored = cms.map(m => ({ id: m.id, name: m.name }));
   return applyChange({
     ...state.present,
     scenes: state.present.scenes.map(scene => {
       const items = scene.cast.split(',').map(x => x.trim()).filter(x => x !== id);
       return { ...scene, cast: items.join(', ') };
     }),
-    breakdownElements: { ...state.present.breakdownElements, cast: mirrored },
     castMembers: cms,
   });
 }
@@ -90,25 +84,26 @@ export function caseDeleteCastMember(state: State, action: Action, applyChange: 
 export function caseAddElement(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'ADD_ELEMENT') return state;
   const { category, element } = action.payload;
+  if (category === 'cast') {
+    const existing = state.present.castMembers || [];
+    const dup = existing.find(c => c.id === element.id);
+    const updated = dup
+      ? existing.map(c => c.id === element.id ? { ...c, ...element } : c)
+      : [...existing, element];
+    return applyChange({ ...state.present, castMembers: updated });
+  }
   const existing = state.present.breakdownElements[category] || [];
   const dedupKey = element.id || element.name.toLowerCase();
   const existingIdx = existing.findIndex(e => (e.id || e.name.toLowerCase()) === dedupKey);
-  if (existingIdx >= 0 || (category === 'cast' && element.id && (state.present.castMembers || []).some(c => c.id === element.id))) {
-    let updated = existingIdx >= 0
-      ? existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element, id: element.id || e.id } : e))
-      : [...existing, element];
+  if (existingIdx >= 0) {
     return applyChange({
       ...state.present,
-      breakdownElements: { ...state.present.breakdownElements, [category]: updated },
-      castMembers: category === 'cast'
-        ? (state.present.castMembers || []).map(c => c.id === element.id ? { ...c, ...element } : c)
-        : state.present.castMembers,
+      breakdownElements: { ...state.present.breakdownElements, [category]: existing.map(e => ((e.id || e.name.toLowerCase()) === dedupKey ? { ...e, ...element, id: element.id || e.id } : e)) },
     });
   }
   return applyChange({
     ...state.present,
     breakdownElements: { ...state.present.breakdownElements, [category]: [...existing, element] },
-    castMembers: category === 'cast' ? [...(state.present.castMembers || []), element] : state.present.castMembers,
   });
 }
 
@@ -198,7 +193,9 @@ export function caseUpdateElement(state: State, action: Action, applyChange: App
   return applyChange({
     ...state.present,
     scenes: newScenes,
-    breakdownElements: { ...state.present.breakdownElements, [category]: newList },
+    breakdownElements: isCast
+      ? state.present.breakdownElements
+      : { ...state.present.breakdownElements, [category]: newList },
     castMembers: isCast
       ? (state.present.castMembers || []).map(c => c.id === id ? newElement : c)
       : state.present.castMembers,
@@ -209,7 +206,9 @@ export function caseDeleteElement(state: State, action: Action, applyChange: App
   if (action.type !== 'DELETE_ELEMENT') return state;
   const { category, id } = action.payload;
   const isCast = category === 'cast';
-  const list = state.present.breakdownElements[category] || [];
+  const list = isCast
+    ? (state.present.castMembers || []).map(m => ({ id: m.id, name: m.name }))
+    : state.present.breakdownElements[category] || [];
   const el = list.find(e => e.id === id);
   const matchLower = isCast ? id.toLowerCase() : (el?.name ?? id).toLowerCase();
   const trashItem: ElementTrashItem = {
@@ -225,10 +224,12 @@ export function caseDeleteElement(state: State, action: Action, applyChange: App
       const items = getFieldItems(category, val).filter(x => x.toLowerCase() !== matchLower);
       return { ...scene, [category]: items.join(', ') };
     }),
-    breakdownElements: {
-      ...state.present.breakdownElements,
-      [category]: list.filter(e => e.id !== id),
-    },
+    breakdownElements: isCast
+      ? state.present.breakdownElements
+      : {
+          ...state.present.breakdownElements,
+          [category]: list.filter(e => e.id !== id),
+        },
     castMembers: isCast
       ? (state.present.castMembers || []).filter(c => c.id !== id)
       : state.present.castMembers,
@@ -341,6 +342,14 @@ export function caseRestoreElementFromTrash(state: State, action: Action, applyC
   const item = state.present.elementsTrash.find(t => t.element.id === action.payload);
   if (!item) return state;
   const { category, element } = item;
+  if (category === 'cast') {
+    const existing = state.present.castMembers || [];
+    return applyChange({
+      ...state.present,
+      castMembers: [...existing, element],
+      elementsTrash: state.present.elementsTrash.filter(t => t.element.id !== action.payload),
+    });
+  }
   const existing = state.present.breakdownElements[category] || [];
   return applyChange({
     ...state.present,
@@ -348,9 +357,6 @@ export function caseRestoreElementFromTrash(state: State, action: Action, applyC
       ...state.present.breakdownElements,
       [category]: [...existing, element],
     },
-    castMembers: category === 'cast'
-      ? [...(state.present.castMembers || []), element]
-      : state.present.castMembers,
     elementsTrash: state.present.elementsTrash.filter(t => t.element.id !== action.payload),
   });
 }
