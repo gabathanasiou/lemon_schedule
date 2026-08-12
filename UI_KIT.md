@@ -1,0 +1,41 @@
+# UI Kit Note (read before building UI)
+
+**New shared package: `@gabriel/ui-kit`** — the interaction primitives (dropdowns,
+menus, dialogs, touch/device handling) extracted from THIS app.
+
+## Rule of thumb
+
+Before building any of these by hand again, check the kit first:
+
+- Dropdown menus, submenus, item lists → `DropdownMenu / DropdownItem / DropdownSubmenu`
+- Right-click / long-press menus → `ContextMenu` + `LongPressMenuProvider` (add `data-context-menu` to a target)
+- confirm/prompt/alert dialogs → `DialogProvider` + `useDialog()`
+- Touch/pointer detection, touch-first variants → `device.ts` + `useTouchMode()`
+- Popups above the keyboard → `useSmartPosition / useFixedPosition`
+
+## Location & install
+
+- Repo: `github.com/gabathanasiou/ui-kit` (private, git dependency)
+- Install: `npm install github:gabathanasiou/ui-kit#v0.1.0` (bump the `#v0.x.y` ref when you update it)
+- Setup: import `@gabriel/ui-kit/ui-kit.css` + `@source` the package in Tailwind + the `@custom-variant hover` gate — full steps in the kit's README.
+
+## Making changes / improvements
+
+The kit is the single source of truth. If you improve a component there:
+
+1. Edit in `~/Documents/Software Apps/ui-kit`
+2. `npm run build` (runs vite + strict `tsc` typecheck — catches what this repo's vite-only build misses)
+3. Bump `version` in package.json → commit → `git tag v0.1.1 && git push --tags`
+4. Update the pinned ref in whichever app needs it, then `npm install`
+
+**About this app:** lemon_schedule still runs its own in-app copies of these
+components — it has NOT been migrated yet (deliberate: no risk to a working app).
+Migration is optional and must pass the Playwright suite first. Until then, if
+you fix a bug in the in-app copy, consider porting the fix to the kit so it
+doesn't resurface.
+
+## Theming
+
+Kit components are 100% themeable via `--ui-*` CSS variables
+(`[data-theme]` = dark/light/blue; defaults match lemon's zinc look exactly).
+Override the vars to re-skin without touching component code.
