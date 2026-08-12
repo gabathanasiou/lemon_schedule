@@ -1,6 +1,6 @@
 import { Project, ScheduleVersion, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem } from '../types';
 import { cid } from '../lib/ribbonUtils';
-import { migrateLegacyProject, LegacyMigrationResult } from '../lib/legacyMigration';
+import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
 
 export const LEGACY_KEY = 'a-little-bit-of-hope-project';
 export const INDEX_KEY = 'lemon_schedule_project_index';
@@ -103,8 +103,9 @@ export function loadProjectFromStorage(id: string): Project | null {
             parsed.breakdownElements.animalsAndWranglers = parsed.breakdownElements.animals;
             delete parsed.breakdownElements.animals;
           }
-          // castMembers is the single source of truth for cast — drop the legacy mirror
-          delete parsed.breakdownElements.cast;
+          // castMembers is the single source of truth for cast — recover any
+          // members only present in the legacy mirror, then drop the mirror
+          migrateLegacyCastMirror(parsed);
         }
         for (const d of parsed.ribbonDesigns || []) {
           // Migrate: extract colWidths from cells, strips width from cells

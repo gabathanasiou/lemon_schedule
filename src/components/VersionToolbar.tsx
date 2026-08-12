@@ -5,6 +5,7 @@ import { SaveIndicator } from './SaveIndicator';
 import { Undo2, Redo2, ChevronDown } from 'lucide-react';
 import { ItemManagerDropdown } from './DropdownMenu';
 import { generateUUID } from '../lib/utils';
+import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 
 interface VersionToolbarProps {
   projectTitle: string;
@@ -16,6 +17,7 @@ interface VersionToolbarProps {
 export default function VersionToolbar({ projectTitle, onProjectTitleChange, tabName, onClose }: VersionToolbarProps) {
   const { state, dispatch, readOnly } = useProject();
   const dialog = useDialog();
+  const guardState = useUnsavedGuardState();
   const isCloudProject = useIsCloudProject();
   const project = state.present;
   const version = project.versions.find(v => v.id === project.activeVersionId);
@@ -52,16 +54,16 @@ export default function VersionToolbar({ projectTitle, onProjectTitleChange, tab
         <div className="flex items-center space-x-3 font-mono text-xs">
           <div className="flex items-center gap-1 border border-white/10 rounded bg-white/5">
             <button
-              onClick={() => dispatch({ type: 'UNDO' })}
-              disabled={state.past.length === 0}
+              onClick={() => { if (!performLocalUndo()) dispatch({ type: 'UNDO' }); }}
+              disabled={state.past.length === 0 && !guardState.hasLocalUndo}
               className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               title="Undo (Cmd+Z)"
             >
               <Undo2 className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => dispatch({ type: 'REDO' })}
-              disabled={state.future.length === 0}
+              onClick={() => { if (!performLocalRedo()) dispatch({ type: 'REDO' }); }}
+              disabled={state.future.length === 0 && !guardState.hasLocalRedo}
               className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isCloudProject ? 'text-white/70 hover:text-white hover:bg-blue-900/60' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
               title="Redo (Cmd+Shift+Z)"
             >

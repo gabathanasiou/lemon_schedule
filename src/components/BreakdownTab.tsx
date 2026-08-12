@@ -1,9 +1,11 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { ElementManager } from './ElementManager';
 import { SceneSheet } from './SceneSheet';
 import PageToolbar from './PageToolbar';
 import { GlideBreakdownTab } from './BreakdownTabGlide';
 import { PopoutPlaceholder } from './PopoutWindow';
+import { useDialog } from './Dialog';
+import { requestUnsavedSave } from '../lib/unsavedGuard';
 
 export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat, onCategoryChange, savedSheetIdx, onSheetIdxChange, onOpenSheet, onOpenSchedule, onOpenSheetInPopout, onOpenScheduleInPopout, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: {
   subTab: 'elements' | 'sheet' | 'glide';
@@ -22,6 +24,7 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
   shiftHeld?: boolean;
 }) {
   const subTab = externalSubTab;
+  const dialog = useDialog();
   const scrollTops = useRef<Record<string, number>>({});
   useEffect(() => {
     const el = document.querySelector('.tab-scroll');
@@ -34,6 +37,19 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
     sheet: 'Sheet', elements: 'Element Manager', glide: 'Glide Breakdown',
   };
 
+  // Sub-tab switches/popouts that would unmount the element manager go
+  // through the unsaved-changes guard so the prompt fires before leaving.
+  const requestSubTabChange = useCallback((id: string) => {
+    void requestUnsavedSave(dialog, () => {
+      scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0;
+      onSubTabChange(id as 'elements' | 'sheet' | 'glide');
+    });
+  }, [dialog, subTab, onSubTabChange]);
+
+  const requestSubTabPopout = useCallback((id: string) => {
+    void requestUnsavedSave(dialog, () => onToggleSubPopout(id));
+  }, [dialog, onToggleSubPopout]);
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white text-zinc-900 border-x border-zinc-200 overflow-hidden relative select-none">
       <PageToolbar
@@ -43,11 +59,8 @@ export function BreakdownTab({ subTab: externalSubTab, onSubTabChange, savedCat,
           { id: 'glide', label: 'Glide Breakdown' },
         ]}
         activeTab={subTab}
-        onChange={(id) => {
-          scrollTops.current[subTab] = document.querySelector('.tab-scroll')?.scrollTop || 0;
-          onSubTabChange(id as 'elements' | 'sheet' | 'glide');
-        }}
-        onPopout={onToggleSubPopout}
+        onChange={requestSubTabChange}
+        onPopout={requestSubTabPopout}
         shiftHeld={shiftHeld}
         rightContent={
           <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className="flex items-center gap-2" />

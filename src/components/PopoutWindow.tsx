@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { PopoutWindowContext } from '../lib/popoutTarget';
 import { useProject } from '../store';
+import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 
 interface PopoutWindowProps {
   title: string;
@@ -35,11 +36,11 @@ export default function PopoutWindow({ title, win, onClose, children }: PopoutWi
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        dispatch({ type: 'UNDO' });
+        if (!performLocalUndo()) dispatch({ type: 'UNDO' });
       }
       if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        dispatch({ type: 'REDO' });
+        if (!performLocalRedo()) dispatch({ type: 'REDO' });
       }
       if (cmdOrCtrl && e.key === 's') {
         e.preventDefault();

@@ -14,6 +14,7 @@ import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import { useCurrentDocument } from '../lib/popoutTarget';
 import { loadCategoryElements, elementKey, countOccurrences } from '../lib/elements';
+import { registerUnsavedGuard, wasUnsavedPromptHandled, consumePendingTab, setPendingTab, notifyGuardChanged } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
 
 interface LocalRow {
@@ -52,6 +53,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   useEffect(() => {
     rowsByCat.current = {};
     snapByCat.current = {};
+    undoByCat.current = {};
+    redoByCat.current = {};
+    notifyGuardChanged();
     const cat = initialCategory || 'cast';
     const r = loadRows(cat);
     snapByCat.current[cat] = [...r];
@@ -66,6 +70,9 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     if (project.breakdownElements !== prevElementsRef.current || project.scenes !== prevScenesRef.current) {
       rowsByCat.current = {};
       snapByCat.current = {};
+      undoByCat.current = {};
+      redoByCat.current = {};
+      notifyGuardChanged();
       const r = loadRows(category);
       snapByCat.current[category] = [...r];
       rowsByCat.current[category] = r;
@@ -81,6 +88,21 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const rowsByCat = useRef<Record<string, LocalRow[]>>({});
   const snapByCat = useRef<Record<string, LocalRow[]>>({});
   const inputsRef = useRef<Map<string, HTMLInputElement>>(new Map());
+  const undoByCat = useRef<Record<string, LocalRow[][]>>({});
+  const redoByCat = useRef<Record<string, LocalRow[][]>>({});
+  // Rows captured when an input gains focus — pushed as ONE undo entry on the
+  // first keystroke, discarded on blur without changes (per-operation undo).
+  const pendingSnapshotRef = useRef<LocalRow[] | null>(null);
+
+  /** Pushes a pre-operation snapshot for `cat` and clears that category's redo. */
+  function pushUndo(cat: string, snapshot: LocalRow[]) {
+    const stack = undoByCat.current[cat] || [];
+    stack.push(snapshot);
+    if (stack.length > 50) stack.shift();
+    undoByCat.current[cat] = stack;
+    redoByCat.current[cat] = [];
+    notifyGuardChanged();
+  }
 
   function loadRows(cat: string): LocalRow[] {
     const elems = loadCategoryElements(project, cat);
@@ -109,6 +131,11 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     return r;
   });
   const [saveVersion, setSaveVersion] = useState(0);
+
+  const categoryRef = useRef(category);
+  categoryRef.current = category;
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
   const switchCategory = useCallback((newCat: string) => {
     if (newCat === category) return;
@@ -157,12 +184,15 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortByIdFn = useCallback(() => {
+    pushUndo(categoryRef.current, rowsRef.current);
     setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
   }, []);
   const sortByNameFn = useCallback(() => {
+    pushUndo(categoryRef.current, rowsRef.current);
     setRows(prev => [...prev].sort((a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase())));
   }, []);
   const sortByOccurrencesFn = useCallback(() => {
+    pushUndo(categoryRef.current, rowsRef.current);
     setRows(prev => [...prev].sort((a, b) => b.occ - a.occ || (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase())));
   }, []);
 
@@ -175,15 +205,57 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }, [sortByIdFn, sortByNameFn, sortByOccurrencesFn]);
 
   const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
+    // First mutation after an input gained focus: commit the pre-edit snapshot
+    // as one undo entry (further keystrokes of the same edit do not push).
+    if (pendingSnapshotRef.current) {
+      pushUndo(categoryRef.current, pendingSnapshotRef.current);
+      pendingSnapshotRef.current = null;
+    }
     setRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
   }, []);
 
   const deleteRow = useCallback((key: string) => {
+    pushUndo(categoryRef.current, rowsRef.current);
     setRows(prev => prev.filter(r => r.key !== key));
   }, []);
 
   const addNew = useCallback(() => {
+    pushUndo(categoryRef.current, rowsRef.current);
     setRows(prev => [...prev, { key: String(Date.now()), id: '', name: '', occ: 0 }]);
+  }, []);
+
+  const undoLocal = useCallback((): boolean => {
+    const cat = categoryRef.current;
+    const stack = undoByCat.current[cat] || [];
+    if (stack.length === 0) return false;
+    const snapshot = stack.pop()!;
+    undoByCat.current[cat] = stack;
+    const redoStack = redoByCat.current[cat] || [];
+    redoStack.push(rowsRef.current);
+    redoByCat.current[cat] = redoStack;
+    rowsByCat.current[cat] = snapshot;
+    setRows(snapshot);
+    // If an input is still focused, the next keystroke starts a fresh edit
+    // whose undo entry is the restored state.
+    pendingSnapshotRef.current = snapshot;
+    notifyGuardChanged();
+    return true;
+  }, []);
+
+  const redoLocal = useCallback((): boolean => {
+    const cat = categoryRef.current;
+    const stack = redoByCat.current[cat] || [];
+    if (stack.length === 0) return false;
+    const snapshot = stack.pop()!;
+    redoByCat.current[cat] = stack;
+    const undoStack = undoByCat.current[cat] || [];
+    undoStack.push(rowsRef.current);
+    undoByCat.current[cat] = undoStack;
+    rowsByCat.current[cat] = snapshot;
+    setRows(snapshot);
+    pendingSnapshotRef.current = snapshot;
+    notifyGuardChanged();
+    return true;
   }, []);
 
   const focusNext = useCallback((key: string, field: 'id' | 'name') => {
@@ -365,6 +437,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     pendingDiffsRef.current = null;
     setMergeDialog(null);
     setSaveVersion(v => v + 1);
+    // The save is committed — local history becomes one store undo entry.
+    undoByCat.current = {};
+    redoByCat.current = {};
+    notifyGuardChanged();
+    // Resume a tab switch that was waiting on this merge confirmation.
+    consumePendingTab()?.();
   }
 
   const doSave = useCallback(() => {
@@ -439,16 +517,36 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   const doSaveRef = useRef(doSave);
   doSaveRef.current = doSave;
 
+  const undoLocalRef = useRef(undoLocal);
+  undoLocalRef.current = undoLocal;
+  const redoLocalRef = useRef(redoLocal);
+  redoLocalRef.current = redoLocal;
+
   useEffect(() => {
+    // Tab switches (top tabs, sub-tabs, popouts) consult this guard BEFORE
+    // unmounting, so save + merge confirmation run while still mounted.
+    // Undo/redo affordances (header buttons, Cmd+Z) route through it to the
+    // local edit history first, falling back to the store undo when empty.
+    registerUnsavedGuard({
+      hasUnsavedChanges: () => hasChangesRef.current,
+      save: () => { doSaveRef.current(); },
+      hasPendingConfirmation: () => pendingDiffsRef.current !== null,
+      hasLocalUndo: () => (undoByCat.current[categoryRef.current] || []).length > 0,
+      hasLocalRedo: () => (redoByCat.current[categoryRef.current] || []).length > 0,
+      undoLocal: () => undoLocalRef.current(),
+      redoLocal: () => redoLocalRef.current(),
+    });
     return () => {
-      if (hasChangesRef.current) {
+      registerUnsavedGuard(null);
+      // Fallback for unmount paths that bypass the guard (window close).
+      if (!wasUnsavedPromptHandled() && hasChangesRef.current) {
         const doSave = doSaveRef.current;
         dialog.confirm({ title: 'Unsaved Changes', message: 'You have unsaved changes. Save before leaving?' }).then(ok => {
           if (ok) doSave();
         });
       }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean) => {
     const inputId = `${key}-${field}`;
@@ -468,6 +566,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         readOnly={readOnly}
         onChange={e => onChange(transform(e.target.value))}
         onKeyDown={handleKey}
+        onFocus={() => { pendingSnapshotRef.current = rowsRef.current; }}
+        onBlur={() => { pendingSnapshotRef.current = null; }}
         className="w-full border border-zinc-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
       />
     );
@@ -552,7 +652,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         </DropdownItem>
       </DropdownMenu>
       {isCast && (
-        <button onClick={() => setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        <button onClick={() => { pushUndo(categoryRef.current, rowsRef.current); setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); }); }} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           Auto-ID
         </button>
       )}
@@ -719,10 +819,10 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
         {/* Merge confirmation dialog */}
         {mergeDialog && (
-          <Modal open onClose={() => setMergeDialog(null)} title="Merge Elements" width="max-w-lg"
+          <Modal open onClose={() => { setMergeDialog(null); pendingDiffsRef.current = null; setPendingTab(null); }} title="Merge Elements" width="max-w-lg"
             footer={
               <ModalFooter>
-                <button onClick={() => setMergeDialog(null)} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button onClick={() => { setMergeDialog(null); pendingDiffsRef.current = null; setPendingTab(null); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
                 <button onClick={() => commitSaves(pendingDiffsRef.current || {})} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Merge & Save</button>
               </ModalFooter>
             }

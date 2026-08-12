@@ -56,9 +56,10 @@ import { LongPressMenuProvider } from './lib/useLongPressMenu';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
-import AppHeader from './components/AppHeader';
+import AppHeader, { AppTabId } from './components/AppHeader';
 import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
+import { requestUnsavedSave } from './lib/unsavedGuard';
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -108,6 +109,17 @@ function AppContent() {
     });
     popoutWindowsRef.current.delete(tabId);
   };
+
+  // Tab actions consult the element manager's unsaved-changes guard first:
+  // the prompt (and any merge confirmation from the save) happens while the
+  // element manager is still mounted, before the switch/popout.
+  const requestTabSwitch = useCallback((tab: AppTabId) => {
+    void requestUnsavedSave(dialog, () => setActiveTab(tab));
+  }, [dialog, setActiveTab]);
+
+  const requestTabPopout = useCallback((tab: AppTabId) => {
+    void requestUnsavedSave(dialog, () => togglePopout(tab));
+  }, [dialog, togglePopout]);
 
   const tabLabels: Record<string, string> = {
     breakdown: 'Breakdown', schedule: 'Schedule', calendar: 'Calendar',
@@ -566,10 +578,10 @@ function AppContent() {
       {/* HEADER */}
       <AppHeader
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={requestTabSwitch}
         isCloudProject={isCloudProject}
         shiftHeld={shiftHeld}
-        togglePopout={togglePopout}
+        togglePopout={requestTabPopout}
         onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}
         onOpenProjectManager={() => setShowProjectManager(true)}
         onImportClick={() => importFileRef.current?.click()}
@@ -845,7 +857,7 @@ function AppContent() {
     </div>
     {tabContextMenu && (
       <ContextMenu open={true} x={tabContextMenu.x} y={tabContextMenu.y} onClose={() => setTabContextMenu(null)}>
-        <ContextMenuItem onClick={() => { togglePopout(tabContextMenu.tabId); setTabContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>
+        <ContextMenuItem onClick={() => { requestTabPopout(tabContextMenu.tabId); setTabContextMenu(null); }} icon={<ExternalLink className="w-3.5 h-3.5" />}>
           Open in New Window
         </ContextMenuItem>
       </ContextMenu>

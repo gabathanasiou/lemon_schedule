@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, loadSeedProject } from './helpers';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +11,34 @@ async function getProject(page: import('@playwright/test').Page): Promise<Projec
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
     return key ? JSON.parse(localStorage.getItem(key)!) : null;
   });
+}
+
+/** Builds a legacy-shaped project from the seed: cast names only live in the breakdownElements.cast mirror. */
+function makeLegacyCastProject(opts: { dropCastMembers?: boolean; conflictName?: string; extraMirrorMembers?: { id: string; name: string }[] } = {}): Project {
+  const seed = loadSeedProject().data;
+  const legacy = JSON.parse(JSON.stringify(seed));
+  if (opts.dropCastMembers) {
+    delete legacy.castMembers;
+  } else if (opts.conflictName) {
+    legacy.castMembers = legacy.castMembers.map((m: any) => m.id === '1' ? { ...m, name: opts.conflictName } : m);
+  }
+  if (opts.extraMirrorMembers) {
+    legacy.breakdownElements.cast = [...legacy.breakdownElements.cast, ...opts.extraMirrorMembers];
+  }
+  return legacy;
+}
+
+async function seedLegacyProject(page: import('@playwright/test').Page, legacy: Project) {
+  const meta = JSON.stringify({ id: legacy.id, title: legacy.title, lastModified: Date.now(), createdAt: Date.now() });
+  const projectJson = JSON.stringify(legacy);
+  await page.addInitScript(({ projectJson, meta }) => {
+    const project = JSON.parse(projectJson);
+    localStorage.setItem('lemon_schedule_project_v1_' + project.id, JSON.stringify(project));
+    localStorage.setItem('lemon_schedule_project_index', JSON.stringify([JSON.parse(meta)]));
+  }, { projectJson, meta });
+  await page.goto('http://localhost:3001/lemon_schedule/');
+  await page.getByText(legacy.title, { exact: true }).first().click({ timeout: 8000 });
+  await page.waitForTimeout(1000);
 }
 
 async function openElementManagerCast(page: import('@playwright/test').Page) {
@@ -48,6 +76,61 @@ test.describe('cast single source of truth (castMembers)', () => {
     }, { timeout: 8000 }).toBe(23);
 
     const project = await getProject(page);
+    expect(project.breakdownElements.cast).toBeUndefined();
+  });
+
+  test('legacy cast conversion: names are recovered from the mirror when castMembers is missing', async ({ page }) => {
+    // Worst case: the project only carries cast in the legacy mirror
+    const legacy = makeLegacyCastProject({ dropCastMembers: true, extraMirrorMembers: [{ id: '99', name: 'EXTRA MAN' }] });
+    await seedLegacyProject(page, legacy);
+
+    await expect.poll(async () => {
+      const p = await getProject(page);
+      return p ? (p.castMembers || []).length : 0;
+    }, { timeout: 8000 }).toBe(24);
+
+    const project = await getProject(page);
+    expect(project.breakdownElements.cast).toBeUndefined();
+    const names = (project.castMembers || []).map((m: any) => m.name);
+    expect(names).toContain('FISHERMAN');
+    expect(names).toContain('SENKAR');
+    expect(names).toContain('EXTRA MAN');
+    // scene references by id still resolve (id 4 = JO in the mirror)
+    expect(project.scenes.some((s: any) => (s.cast || '').includes('4'))).toBe(true);
+  });
+
+  test('legacy cast conversion: castMembers wins on name conflicts, mirror fills gaps', async ({ page }) => {
+    // castMembers exists but diverged from the mirror: id 1 renamed, id 99 only in the mirror
+    const legacy = makeLegacyCastProject({ conflictName: 'FISHERMAN II', extraMirrorMembers: [{ id: '99', name: 'EXTRA MAN' }] });
+    await seedLegacyProject(page, legacy);
+
+    await expect.poll(async () => {
+      const p = await getProject(page);
+      return p ? (p.castMembers || []).length : 0;
+    }, { timeout: 8000 }).toBe(24);
+
+    const project = await getProject(page);
+    const byId = new Map((project.castMembers || []).map((m: any) => [m.id, m.name]));
+    expect(byId.get('1')).toBe('FISHERMAN II');
+    expect(byId.get('99')).toBe('EXTRA MAN');
+    expect(project.breakdownElements.cast).toBeUndefined();
+  });
+
+  test('legacy cast conversion: .lemon import via Project Manager recovers cast names', async ({ page }) => {
+    const legacy = makeLegacyCastProject({ dropCastMembers: true });
+    const lemonPath = path.join(os.tmpdir(), 'lemon-legacy-cast.lemon');
+    fs.writeFileSync(lemonPath, JSON.stringify(legacy));
+
+    await page.goto('http://localhost:3001/lemon_schedule/');
+    await page.getByRole('button', { name: /Import/i }).click({ timeout: 8000 });
+    await page.locator('input[type="file"][accept=".lemon,.json"]').setInputFiles(lemonPath);
+    await page.waitForTimeout(1500);
+
+    const project = await getProject(page);
+    expect(project).toBeTruthy();
+    const names = (project.castMembers || []).map((m: any) => m.name);
+    expect(names).toContain('FISHERMAN');
+    expect(names).toContain('SENKAR');
     expect(project.breakdownElements.cast).toBeUndefined();
   });
 

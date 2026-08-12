@@ -4,7 +4,8 @@ import { generateUUID } from '../lib/utils';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { pushProjectAndUpdateIndex, removeFromDrive } from '../lib/syncManager';
 import { readDriveProject, removeFromDriveIndex } from '../lib/googleDriveStorage';
-import { migrateLegacyProject, LegacyMigrationResult } from '../lib/legacyMigration';
+import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
+import { performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 import {
   LEGACY_KEY,
   INDEX_KEY,
@@ -156,6 +157,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             }
           }
           const migrationResult = migrateLegacyProject(parsed);
+          migrateLegacyCastMirror(migrationResult.project);
           if (migrationResult.migrated) {
             setPendingLegacyMigrationNotice(migrationResult);
           }
@@ -351,11 +353,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        dispatch({ type: 'UNDO' });
+        // The element manager's unsaved edits undo locally first.
+        if (!performLocalUndo()) dispatch({ type: 'UNDO' });
       }
       if (cmdOrCtrl && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        dispatch({ type: 'REDO' });
+        if (!performLocalRedo()) dispatch({ type: 'REDO' });
       }
       if (cmdOrCtrl && e.key === 's') {
         e.preventDefault();
@@ -575,6 +578,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     flushCurrentProject();
     const id = generateUUID();
     const migrationResult = migrateLegacyProject(data);
+    migrateLegacyCastMirror(migrationResult.project);
     if (migrationResult.migrated) {
       setPendingLegacyMigrationNotice(migrationResult);
     }

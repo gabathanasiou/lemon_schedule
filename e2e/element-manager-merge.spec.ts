@@ -252,4 +252,157 @@ test.describe('Element Manager merge/save', () => {
     const counts = sceneCounts(afterUndo);
     expect(counts['fishing boat']).toBe(3);
   });
+
+  test('switching tabs with unsaved changes prompts BEFORE leaving; merge modal completes and switches', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+
+    await renameRow(page, 'FISHING BOAT', 'fishing boat');
+
+    // click a top tab -> the prompt fires while the element manager is still mounted
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes', { timeout: 5000 });
+    await expect(page.locator('main')).toContainText('Element Manager');
+
+    // confirm -> the save runs in place, so the merge modal can appear
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForTimeout(600);
+    await expect(page.getByRole('dialog')).toContainText('Merge Elements', { timeout: 5000 });
+
+    // merge & save -> merge applies AND the pending tab switch completes
+    await page.getByRole('button', { name: 'Merge & Save' }).click();
+    await page.waitForTimeout(1500);
+    await expect(page.locator('main')).toContainText('Day Breaks');
+
+    const project = await getProject(page);
+    const vehicles = (project.breakdownElements.vehicles || []).filter((e: any) => /fishing boat/i.test(e.name));
+    expect(vehicles.length).toBe(1);
+    expect(vehicles[0].name).toBe('fishing boat');
+  });
+
+  test('cancelling the unsaved-changes prompt discards and switches without a second prompt', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+
+    await renameRow(page, 'FISHING BOAT', 'fishing boat');
+
+    await page.getByRole('button', { name: 'Calendar' }).click();
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.waitForTimeout(800);
+
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.locator('main')).toContainText('Boneyard');
+    const project = await getProject(page);
+    expect(project.breakdownElements.vehicles.some((e: any) => e.name === 'FISHING BOAT')).toBe(true);
+  });
+
+  test('a clean save confirmed from the prompt switches to the tab immediately', async ({ page }) => {
+    await openElementManagerCategory(page, 'Props');
+
+    await renameRow(page, 'gun', 'cannon');
+
+    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.waitForTimeout(1500);
+
+    await expect(page.locator('main')).toContainText('Day Breaks');
+    const project = await getProject(page);
+    const names = (project.breakdownElements?.props || []).map((e: any) => e.name);
+    expect(names).toContain('cannon');
+    expect(names).not.toContain('gun');
+  });
+
+  test('switching sub-tabs prompts before leaving the element manager', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+
+    await renameRow(page, 'FISHING BOAT', 'fishing boat');
+
+    await page.getByRole('button', { name: 'Sheet', exact: true }).click();
+    await page.waitForTimeout(500);
+    await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
+    await expect(page.locator('main')).toContainText('Element Manager');
+  });
+
+  test('top Undo button undoes unsaved edits as one step per operation, Redo re-applies', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+
+    // a multi-character rename is ONE undoable operation
+    await renameRow(page, 'FISHING BOAT', 'ski boat');
+
+    const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
+    const redoBtn = page.getByRole('button', { name: 'Redo (Cmd+Shift+Z)' });
+    // enabled even though the store history is empty (local history exists)
+    await expect(undoBtn).toBeEnabled();
+    await expect(redoBtn).toBeDisabled();
+
+    await undoBtn.click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('input[value="FISHING BOAT"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('input[value="ski boat"]')).toHaveCount(0);
+    await expect(undoBtn).toBeDisabled();
+    await expect(redoBtn).toBeEnabled();
+
+    await redoBtn.click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('input[value="ski boat"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('input[value="FISHING BOAT"]')).toHaveCount(0);
+    await expect(undoBtn).toBeEnabled();
+  });
+
+  test('Cmd+Z / Cmd+Shift+Z undo and redo unsaved element manager edits', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+
+    await renameRow(page, 'FISHING BOAT', 'ski boat');
+
+    await page.keyboard.press('Meta+z');
+    await page.waitForTimeout(300);
+    await expect(page.locator('input[value="FISHING BOAT"]')).toBeVisible({ timeout: 5000 });
+
+    await page.keyboard.press('Meta+Shift+z');
+    await page.waitForTimeout(300);
+    await expect(page.locator('input[value="ski boat"]')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('adding and deleting rows each undo as one step', async ({ page }) => {
+    await openElementManagerCategory(page, 'Props');
+
+    const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
+
+    await page.getByRole('button', { name: 'Add Props' }).click();
+    await page.waitForTimeout(300);
+    const rowCount = await page.locator('tbody tr').count();
+    await undoBtn.click();
+    await page.waitForTimeout(300);
+    expect(await page.locator('tbody tr').count()).toBe(rowCount - 1);
+
+    // delete the 'gun' row, then undo brings it back
+    const gunRow = page.locator('tr', { has: page.locator('input[value="gun"]') });
+    await gunRow.locator('button').last().click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('input[value="gun"]')).toHaveCount(0);
+    await undoBtn.click();
+    await page.waitForTimeout(300);
+    await expect(page.locator('input[value="gun"]')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('sorting undoes as one step', async ({ page }) => {
+    await openElementManagerCategory(page, 'Vehicles');
+
+    const namesBefore = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
+    const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
+
+    await page.getByRole('button', { name: 'Sort ▾' }).click();
+    await page.getByRole('menuitem', { name: 'By Name' }).click();
+    await page.waitForTimeout(300);
+    const namesSorted = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
+    expect(namesSorted).not.toEqual(namesBefore);
+
+    await undoBtn.click();
+    await page.waitForTimeout(300);
+    const namesAfter = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
+    expect(namesAfter).toEqual(namesBefore);
+  });
 });

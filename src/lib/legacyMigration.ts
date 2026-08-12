@@ -16,6 +16,32 @@ export function isLegacyVersion(v: ScheduleVersion): boolean {
   return false;
 }
 
+/**
+ * Legacy-project conversion for cast: pre-refactor saves kept a mirror of the
+ * cast roster in `breakdownElements.cast` alongside `castMembers`. If the
+ * mirror holds members that `castMembers` lacks (or castMembers is missing
+ * entirely), those names would be lost when the mirror is stripped. Merge the
+ * mirror into castMembers by id (castMembers wins on conflict), then drop the
+ * mirror so the file is normalized to the single-source shape.
+ */
+export function migrateLegacyCastMirror(project: Project): void {
+  const breakdown = (project as any).breakdownElements as Record<string, unknown> | undefined;
+  const mirror = breakdown?.cast;
+  if (!Array.isArray(mirror) || mirror.length === 0) return;
+  const members = project.castMembers || [];
+  const byId = new Map(members.map(m => [m.id, m]));
+  for (const e of mirror) {
+    const el = e as { id?: unknown; name?: unknown } | null;
+    if (!el || el.id == null) continue;
+    const id = String(el.id);
+    if (!byId.has(id)) {
+      byId.set(id, { id, name: typeof el.name === 'string' ? el.name : '' });
+    }
+  }
+  project.castMembers = [...byId.values()];
+  if (breakdown) delete breakdown.cast;
+}
+
 function migrateLegacyVersion(v: ScheduleVersion): ScheduleVersion {
   if (!isLegacyVersion(v)) return v;
 
