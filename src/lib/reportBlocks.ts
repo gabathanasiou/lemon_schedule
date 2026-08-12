@@ -322,22 +322,27 @@ export function contextualCollectionsFor(parentCollection?: ReportCollection): R
 }
 
 /**
- * The collection a table iterates. Standalone tables use their own `collection`;
- * tables nested in a repeat resolve the contextual sub-collection of the parent
- * (scenes of this day/element/cast member, or days of the cast member) — falling
- * back to the parent collection itself for per-item spec mode (scenes/crew).
+ * The collection a table iterates. Standalone tables use their own `collection`.
+ * Tables nested in a repeat auto-resolve the contextual sub-collection of the
+ * parent (scenes of this day/element/cast member, or days of the cast member)
+ * when the table still has the default `scenes` collection — an explicitly set
+ * collection (e.g. a crew table inside a days repeat) is always respected.
+ * Falls back to the parent collection itself for per-item spec mode (scenes/crew).
  */
 export function tableItemCollection(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection {
   if (!parentCollection) return block.collection || 'scenes';
   const contextual = contextualCollectionsFor(parentCollection);
   if (block.collection && contextual.includes(block.collection)) return block.collection;
+  if (block.collection && block.collection !== 'scenes') return block.collection;
   return contextual[0] || parentCollection;
 }
 
 /** The field scope for a table's attribute list (column/row field options). */
 export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection | undefined {
   if (!parentCollection) return block.collection;
-  return contextualCollectionsFor(parentCollection).length > 0 ? 'scenes' : parentCollection;
+  const contextual = contextualCollectionsFor(parentCollection);
+  if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;
+  return contextual.length > 0 ? 'scenes' : parentCollection;
 }
 
 /** Human label for where a nested table gets its rows. */

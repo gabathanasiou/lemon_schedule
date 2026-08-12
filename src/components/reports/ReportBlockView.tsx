@@ -34,6 +34,13 @@ function emptyHint(text: string, style: React.CSSProperties): React.ReactNode {
   return <div style={{ ...style, color: '#8f8f8f', fontStyle: 'italic' }}>{text}</div>;
 }
 
+/** Drops trailing pageBreak children (a trailing break would print a blank page). */
+function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
+  let end = list.length;
+  while (end > 0 && list[end - 1].type === 'pageBreak') end--;
+  return end === list.length ? list : list.slice(0, end);
+}
+
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
   ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys }) => {
     const baseStyle = getReportBlockBaseStyle(block);
@@ -135,13 +142,16 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
   const children = block.children || [];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap }}>
-      {filtered.map((it, i) => (
-        <div key={i} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {children.map(cb => (
-            <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} />
-          ))}
-        </div>
-      ))}
+      {filtered.map((it, i) => {
+        const itemChildren = i === filtered.length - 1 ? dropTrailingBreaks(children) : children;
+        return (
+          <div key={i} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            {itemChildren.map(cb => (
+              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 };

@@ -198,6 +198,9 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
                 value={tableItemCollection(block, parentCollection)}
                 onChange={e => onPatch({ collection: e.target.value as ReportCollection })}
               >
+                {block.collection && block.collection !== 'scenes' && !contextualCollectionsFor(parentCollection).includes(block.collection) && (
+                  <option value={block.collection}>{COLLECTION_LABELS[block.collection] || block.collection}</option>
+                )}
                 {contextualCollectionsFor(parentCollection).map(c => (
                   <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
                 ))}
@@ -212,7 +215,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               </select>
             </Row>
           )}
-          {block.collection === 'elements' && (block.type === 'repeat' || (block.type === 'table' && !parentCollection)) && (
+          {block.collection === 'elements' && (block.type === 'repeat' || block.type === 'table') && (
             <Row label="Category">
               <CategoryDropdown
                 value={block.category || 'props'}
