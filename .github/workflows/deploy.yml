@@ -26,13 +26,8 @@ jobs:
           node-version: 20
       - name: Authenticate git for private deps (@gabriel/ui-kit)
         run: |
-          git config --global url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
-          git config --global url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-      - name: DEBUG git url rewrite
-        run: |
-          git --version
-          git config --global --list | grep -i "url\." || true
-          GIT_TRACE=1 git --no-replace-objects ls-remote ssh://git@github.com/gabathanasiou/ui-kit.git 2>&1 | tail -8
+          git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: npm ci
       - run: npm run build
         env:
