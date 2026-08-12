@@ -29,7 +29,7 @@ import {
   caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
   caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
 } from './actions/reports';
-import { DEFAULT_CREW_ROLES, getDefaultReportDesign } from '../lib/reportTemplates';
+import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
 import { isMultiValue, getFieldItems } from '../lib/categories';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -79,7 +79,8 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     cellPaddingH: 3,
     edgePadding: 3,
   };
-  const defaultReport = getDefaultReportDesign();
+  const defaultReports = getDefaultReportDesigns();
+  const defaultReport = defaultReports[0];
   return {
     id,
     title,
@@ -122,7 +123,7 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     productionInfo: {},
     crewRoles: DEFAULT_CREW_ROLES,
     crew: {},
-    reportDesigns: [defaultReport],
+    reportDesigns: defaultReports,
     activeReportId: defaultReport.id,
     reportTrash: [],
   };
@@ -257,9 +258,9 @@ export function reducer(state: State, action: Action): State {
     p.crew = p.crew || {};
     p.reportTrash = p.reportTrash || [];
     if (!p.reportDesigns || p.reportDesigns.length === 0) {
-      const defaultReport = getDefaultReportDesign();
-      p.reportDesigns = [defaultReport];
-      p.activeReportId = p.activeReportId || defaultReport.id;
+      const defaultReports = getDefaultReportDesigns();
+      p.reportDesigns = defaultReports;
+      p.activeReportId = p.activeReportId || defaultReports[0].id;
     }
     // Stale activeReportId (points to a missing/deleted design) — fall back to
     // the first design so the reports designer edits reach a saved design.
