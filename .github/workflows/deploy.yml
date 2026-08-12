@@ -30,6 +30,7 @@ jobs:
           git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
           git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: npm ci
+      - run: npm run build
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
       - uses: actions/configure-pages@v4
