@@ -57,13 +57,34 @@ test('calendar travel/hold: modal, header icons, tooltip, body chips, DOODS cell
   const bothTip = page.locator('.fixed.px-2\\.5').filter({ hasText: 'Traveling' }).first();
   await expect(bothTip).toContainText('SENKAR');
 
+  // Fresh hold day → empty-state hint, then "All Cast" when the All checkbox is used
+  const day2 = page.locator('[data-date-key="2026-08-11"]');
+  const header2 = day2.locator('[class*="flex items-center justify-between"]').first();
+  await header2.click({ button: 'right' });
+  await page.getByText('Hold', { exact: true }).click();
+  await page.waitForTimeout(400);
+  await expect(day2.getByText('Double click to set up')).toBeVisible();
+
+  await header2.dblclick({ force: true });
+  await page.waitForTimeout(400);
+  const holdInputs = page.locator('input.text-inherit');
+  await page.getByText('On Hold', { exact: true }).click();
+  await page.getByText('All', { exact: true }).last().click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.waitForTimeout(400);
+  await expect(day2.getByText('All Cast', { exact: true })).toBeVisible();
+
+  await day2.locator('button', { has: page.locator('svg.fill-red-400') }).hover();
+  const allTip = page.locator('.fixed.px-2\\.5').filter({ hasText: 'On Hold' }).first();
+  await expect(allTip).toContainText('All Cast');
+
   // Star (travel+hold) on the left; conflict flag on the right of the header
   const headerBox = await header.boundingBox();
   const starBox = await dayCell.locator('svg.fill-amber-400').boundingBox();
   expect(starBox!.x + starBox!.width / 2).toBeLessThan(headerBox!.x + headerBox!.width / 2);
-  const flagDay = page.locator('[data-date-key]').filter({ has: page.locator('svg.fill-red-400') }).first();
+  const flagDay = page.locator('[data-date-key]').filter({ has: page.locator('svg.lucide-flag.fill-red-400') }).first();
   if (await flagDay.count() > 0) {
-    const flagBox = await flagDay.locator('svg.fill-red-400').first().boundingBox();
+    const flagBox = await flagDay.locator('svg.lucide-flag.fill-red-400').first().boundingBox();
     const fHeaderBox = await flagDay.locator('[class*="flex items-center justify-between"]').first().boundingBox();
     expect(flagBox!.x + flagBox!.width / 2).toBeGreaterThan(fHeaderBox!.x + fHeaderBox!.width / 2);
   }

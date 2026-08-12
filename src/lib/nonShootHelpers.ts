@@ -59,21 +59,18 @@ export interface TravelHoldGroup {
   keys: string[];
 }
 
-/** Resolves a category's raw list against the project — `'*'` expands to every element of that category. */
-export function getResolvedCategoryKeys(raw: string[], category: string, project: any): string[] {
-  if (raw.includes(NON_SHOOT_ALL)) {
-    return getCategoryElements(project, category).map(e => elementMatchId(e, category));
-  }
-  return [...raw];
-}
-
-/** Display groups (travel first, then hold) with `'*'` expanded against the project. */
-export function getTravelHoldGroups(entry: NonShootDate | undefined | null, project: any): TravelHoldGroup[] {
+/** Display groups (travel first, then hold). `'*'` stays as the single key — renders as "All {Category}". */
+export function getTravelHoldGroups(entry: NonShootDate | undefined | null): TravelHoldGroup[] {
   const { travel, hold } = getTravelHoldLists(entry);
   const groups: TravelHoldGroup[] = [];
-  for (const [cat, keys] of Object.entries(travel)) groups.push({ kind: 'travel', category: cat, keys: getResolvedCategoryKeys(keys, cat, project) });
-  for (const [cat, keys] of Object.entries(hold)) groups.push({ kind: 'hold', category: cat, keys: getResolvedCategoryKeys(keys, cat, project) });
+  for (const [cat, keys] of Object.entries(travel)) groups.push({ kind: 'travel', category: cat, keys });
+  for (const [cat, keys] of Object.entries(hold)) groups.push({ kind: 'hold', category: cat, keys });
   return groups;
+}
+
+/** True when a group marks the entire category. */
+export function isAllKeys(keys: string[]): boolean {
+  return keys.length === 1 && keys[0] === NON_SHOOT_ALL;
 }
 
 /** Resolves an element key to a display name (cast → "ID. NAME", others → name). */

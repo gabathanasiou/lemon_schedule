@@ -5,7 +5,7 @@ import { useProject } from '../../store';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../../types';
 import { getDayHeaderColors } from '../../lib/ribbonUtils';
 import { ViolationTooltip } from '../ViolationTooltip';
-import { getTravelHoldGroups, hasTravel, hasHold, resolveElementName } from '../../lib/nonShootHelpers';
+import { getTravelHoldGroups, isAllKeys, hasTravel, hasHold, resolveElementName } from '../../lib/nonShootHelpers';
 import { getLabel, DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
 import { Flag, Plane, Pause, Star } from 'lucide-react';
 import { SceneCard, SceneCardContent } from './SceneCard';
@@ -190,19 +190,42 @@ export const DayCell: React.FC<{
       >
         {(nonShootStatus === 'hold' || nonShootStatus === 'travel') && (
           (() => {
-            const groups = getTravelHoldGroups(travelHoldEntry, project).filter(g => g.kind === (nonShootStatus === 'travel' ? 'travel' : 'hold'));
-            if (groups.length === 0) return null;
+            const kind = nonShootStatus === 'travel' ? 'travel' : 'hold';
+            const groups = getTravelHoldGroups(travelHoldEntry).filter(g => g.kind === kind);
+            if (groups.length === 0) {
+              return (
+                <div
+                  className="px-0.5 pb-1 text-[8px] text-zinc-500 italic cursor-pointer select-none"
+                  onDoubleClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
+                  title="Double click to set up travel/hold"
+                >
+                  Double click to set up
+                </div>
+              );
+            }
+            const kindColor = kind === 'travel' ? 'text-purple-700' : 'text-red-700';
+            const KindIcon = kind === 'travel' ? Plane : Pause;
             return (
-              <div className="flex flex-col gap-0.5 px-0.5 pb-1">
-                {groups.map(g => (
-                  <div key={`${g.kind}-${g.category}`} className={`text-[8px] leading-tight truncate ${g.kind === 'travel' ? 'text-purple-700' : 'text-red-700'}`}>
-                    {g.kind === 'travel'
-                      ? <Plane className="inline w-2 h-2 mr-0.5 text-purple-600" />
-                      : <Pause className="inline w-2 h-2 mr-0.5 text-red-600" />}
-                    <span className="font-semibold">{getLabel(g.category, DEFAULT_CATEGORY_LABELS[g.category] || g.category, project.categoryLabels)}: </span>
-                    {g.keys.map(k => resolveElementName(k, g.category, project)).join(', ')}
-                  </div>
-                ))}
+              <div className="flex flex-col gap-1 px-0.5 pb-1">
+                {groups.map(g => {
+                  const isAll = isAllKeys(g.keys);
+                  const label = getLabel(g.category, DEFAULT_CATEGORY_LABELS[g.category] || g.category, project.categoryLabels);
+                  return (
+                    <div key={`${g.kind}-${g.category}`} className={`${kindColor} text-[8px] leading-snug`}>
+                      <div className="font-semibold uppercase tracking-wide text-[7px] opacity-80 flex items-center gap-0.5">
+                        <KindIcon className="w-2 h-2" />
+                        {label}
+                      </div>
+                      {isAll ? (
+                        <div className="ml-2.5">All {label}</div>
+                      ) : (
+                        g.keys.map(k => (
+                          <div key={k} className="ml-2.5 truncate">{resolveElementName(k, g.category, project)}</div>
+                        ))
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })()
