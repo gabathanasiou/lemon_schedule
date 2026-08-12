@@ -20,6 +20,7 @@
  */
 
 import { CastMember } from '../types';
+import { formatDuration } from './utils';
 
 /** Resolves a raw cast ID to "ID. Name" format (e.g. `"1. John Smith"`). Falls back to raw ID if cast member not found. */
 export function formatCastId(id: string, castMembers: CastMember[]): string {
@@ -34,8 +35,8 @@ export function formatCastIds(ids: string[], castMembers: CastMember[]): string 
 
 /** Detail for MAX_HOURS violation - shown under cast member header. */
 export function maxHoursDetail(maxHours: number, over: number): string {
-  const worked = maxHours + over;
-  return `Can only work ${maxHours}h (scheduled ${worked.toFixed(1)}h)`;
+  const worked = Math.round((maxHours + over) * 60);
+  return `Can only work ${maxHours}h (scheduled ${formatDuration(worked)})`;
 }
 
 /** Detail for DATE_RESTRICTION violation - shown under cast member header. */
