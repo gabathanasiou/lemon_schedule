@@ -12,6 +12,7 @@ import {
   insertColumnAt, removeColumnAt, moveIntoNewColumn, duplicateIntoNewColumn,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
+import { useViewMode } from '../../lib/persist';
 import { ItemManagerDropdown } from '../DropdownMenu';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
@@ -20,7 +21,7 @@ import ReportToolbar from './ReportToolbar';
 import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
-import { Printer, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { Printer, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
   if (p.kind === 'field') return makeReportBlock('field', { field: p.field });
@@ -39,6 +40,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const ctx = useReportCtx();
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const currentWin = useCurrentWindow();
+  const [viewMode, setViewMode, viewWidth] = useViewMode();
 
   const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === project.activeReportId) || project.reportDesigns?.[0];
 
@@ -46,8 +48,9 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
-  const [viewKeys, setViewKeys] = useState(true);
+  const [viewKeys, setViewKeys] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
   useEffect(() => {
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);
@@ -184,21 +187,48 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         }}
       />
       <div className="flex-1" />
-      <div className="flex border border-zinc-700 rounded p-0.5">
-        <button
-          onClick={() => setViewKeys(true)}
-          className={`px-2 py-0.5 rounded text-xs transition-colors ${viewKeys ? 'bg-zinc-100 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-200'}`}
+      <div className="flex-1" />
+      <DropdownMenu
+        open={viewMenuOpen}
+        onOpenChange={setViewMenuOpen}
+        width="w-36"
+        trigger={
+          <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
+            <span className="font-semibold text-zinc-500">View:</span>
+            <span className="text-zinc-200">{viewMode === 'portrait' ? 'A4 Portrait' : viewMode === 'landscape' ? 'A4 Landscape' : 'Full Width'}</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          </button>
+        }
+      >
+        {(['portrait', 'landscape', 'full'] as const).map(m => (
+          <DropdownItem
+            key={m}
+            onClick={() => {
+              setViewMode(m);
+              setViewMenuOpen(false);
+              if (m !== 'full' && activeDesign && activeDesign.page !== m && !readOnly) {
+                dispatch({ type: 'UPDATE_REPORT_PAGE', payload: { id: activeDesign.id, page: m } });
+              }
+            }}
+            icon={viewMode === m ? <Check className="w-3.5 h-3.5" /> : undefined}
+          >
+            {m === 'portrait' ? 'A4 Portrait' : m === 'landscape' ? 'A4 Landscape' : 'Full Width'}
+          </DropdownItem>
+        ))}
+        <div className="border-t border-zinc-800 my-1" />
+        <DropdownItem
+          onClick={() => { setViewKeys(true); setViewMenuOpen(false); }}
+          icon={viewKeys ? <Check className="w-3.5 h-3.5" /> : undefined}
         >
-          Keys
-        </button>
-        <button
-          onClick={() => setViewKeys(false)}
-          className={`px-2 py-0.5 rounded text-xs transition-colors ${!viewKeys ? 'bg-zinc-100 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-200'}`}
+          Show field keys
+        </DropdownItem>
+        <DropdownItem
+          onClick={() => { setViewKeys(false); setViewMenuOpen(false); }}
+          icon={!viewKeys ? <Check className="w-3.5 h-3.5" /> : undefined}
         >
-          Values
-        </button>
-      </div>
-      <PageSizeMenu page={activeDesign?.page || 'portrait'} readOnly={readOnly} onPage={p => activeDesign && dispatch({ type: 'UPDATE_REPORT_PAGE', payload: { id: activeDesign.id, page: p } })} />
+          Show field values
+        </DropdownItem>
+      </DropdownMenu>
       <button
         onClick={() => setPreview(v => !v)}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
@@ -232,13 +262,13 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0">
+    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0 min-w-0">
       {headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>}
 
       {preview ? (
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
       ) : (
-        <div className="flex-1 flex overflow-hidden min-h-0">
+        <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
           <ReportPalette project={project} insertScope={insertScope} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             <ReportToolbar
@@ -282,6 +312,8 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               fieldMap={fieldMap}
               readOnly={readOnly}
               showKeys={viewKeys}
+              viewWidth={viewWidth}
+              pageSize={activeDesign?.page}
               onSelect={selectBlock}
               onSelectCol={selectCol}
               onPatch={patch}
@@ -389,27 +421,6 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
     </div>
   );
 }
-
-const PageSizeMenu: React.FC<{ page: 'portrait' | 'landscape'; readOnly: boolean; onPage: (p: 'portrait' | 'landscape') => void }> = ({ page, readOnly, onPage }) => {
-  const [open, setOpen] = React.useState(false);
-  return (
-    <DropdownMenu
-      open={open}
-      onClose={() => setOpen(false)}
-      onOpenChange={setOpen}
-      theme="dark"
-      trigger={
-        <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 disabled:opacity-30" disabled={readOnly}>
-          {page === 'portrait' ? 'Portrait' : 'Landscape'}
-          <ChevronDown className="w-3 h-3" />
-        </button>
-      }
-    >
-      <DropdownItem onClick={() => { onPage('portrait'); setOpen(false); }}>Portrait</DropdownItem>
-      <DropdownItem onClick={() => { onPage('landscape'); setOpen(false); }}>Landscape</DropdownItem>
-    </DropdownMenu>
-  );
-};
 
 const DesignsMenu: React.FC<{
   designs: ReportDesign[];

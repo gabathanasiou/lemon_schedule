@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
-import { ReportCtx, ReportCollectionItem, resolveCollection } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, ReportFieldDef } from '../../lib/reportFields';
+import { ReportCtx, ReportCollectionItem, resolveCollectionItems } from '../../lib/reportData';
+import { reportFieldValueByKey, resolveReportTokens, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
@@ -20,6 +20,8 @@ export interface ReportRenderProps {
   scopeFilter?: { days?: number[] };
   hint?: boolean;
   showKeys?: boolean;
+  aux?: FieldAux;
+  onceTable?: boolean;  // summary table inside a same-collection repeat: list all items
 }
 
 function isEmptyValue(v: string): boolean {
@@ -43,12 +45,16 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable }) => {
     const baseStyle = getReportBlockBaseStyle(block);
+    const blockAux: FieldAux = { ...aux, counterStart: block.counterStart ?? aux?.counterStart };
 
     switch (block.type) {
       case 'text': {
-        const text = resolveReportTokens(ctx, fieldMap, block.text || '', item);
+        if (showKeys) {
+          return <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>{block.text || '\u00A0'}</div>;
+        }
+        const text = resolveReportTokens(ctx, fieldMap, block.text || '', item, blockAux);
         if (!visibleFor(block, text)) return null;
         const st: React.CSSProperties = { ...baseStyle };
         if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
@@ -61,18 +67,22 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if (showKeys) {
           return <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>{fieldMap[block.field]?.label || block.field}</div>;
         }
-        const value = reportFieldValueByKey(ctx, fieldMap, block.field, item);
-        const text = `${block.prefix ?? ''}${value}${block.suffix ?? ''}`;
+        const value = reportFieldValueByKey(ctx, fieldMap, block.field, item, blockAux);
+        const def = fieldMap[block.field];
+        const shown = def?.multiValue && (block.itemPrefix != null || block.itemSuffix != null || block.itemSeparator != null)
+          ? applyItemAffixes(value, { itemPrefix: block.itemPrefix, itemSuffix: block.itemSuffix, itemSeparator: block.itemSeparator })
+          : value;
+        const text = `${block.prefix ?? ''}${shown}${block.suffix ?? ''}`;
         if (!visibleFor(block, text)) return null;
         const st: React.CSSProperties = { ...baseStyle };
         if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
         return <div style={st}>{text || '\u00A0'}</div>;
       }
       case 'repeat': {
-        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} />;
+        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -82,7 +92,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             {cols.map(col => (
               <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 { (col.blocks || []).map(cb => (
-                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} />
+                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} aux={blockAux} />
                 ))}
               </div>
             ))}
@@ -137,11 +147,14 @@ export const ReportPageItems: React.FC<{
   scopeFilter?: { days?: number[] };
   hint?: boolean;
   showKeys?: boolean;
-}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys }) => (
+  pageIndex?: number;
+  pageCount?: number;
+}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1 }) => (
   <>
     {items.map((pi, i) => {
+      const pageAux: FieldAux = { pageIndex, pageCount };
       if ('repeatItem' in pi) {
-        const { repeatItem, item } = pi;
+        const { repeatItem, item, itemIndex } = pi;
         return (
           <div key={`ri-${repeatItem.id}-${i}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             {stripEdgeBreaks(repeatItem.children || []).map(cb => (
@@ -156,20 +169,21 @@ export const ReportPageItems: React.FC<{
                 scopeFilter={scopeFilter}
                 hint={hint}
                 showKeys={showKeys}
+                aux={{ ...pageAux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
               />
             ))}
           </div>
         );
       }
-      return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} />;
+      return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />;
     })}
   </>
 );
 
 // ---- repeat (vertical stack of children) ------------------------------------
 
-const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint }) => {
-  const items = resolveCollection(ctx, block.collection, block.category, item, parentCategory) as ReportCollectionItem[];
+const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, aux }) => {
+  const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block) as ReportCollectionItem[];
   const filtered = block.collection === 'days' && scopeFilter?.days?.length
     ? items.filter((it: any) => scopeFilter.days!.includes(it.section.index))
     : items;
@@ -179,18 +193,55 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
   }
   const gap = block.gap ?? 8;
   const children = block.children || [];
+  const collection = block.collection as ReportCollection | undefined;
+  // A table nested in a repeat that iterates the SAME collection (e.g. a table
+  // of the category's elements inside an elements repeat) is a summary table:
+  // it renders ONCE per parent item, listing all items — not once per item.
+  const onceTables = children.filter(cb => cb.type === 'table' && tableItemCollection(cb, collection) === collection);
+  const onceIds = new Set(onceTables.map(t => t.id));
+  const perItemChildren = children.filter(cb => !onceIds.has(cb.id));
+  const hasContent = perItemChildren.some(cb => cb.type !== 'pageBreak');
+
+  const renderOnceTables = () => onceTables.map(cb => (
+    <ReportBlockView
+      key={cb.id}
+      block={cb}
+      ctx={ctx}
+      fieldMap={fieldMap}
+      item={item}
+      parentCategory={collection === 'elements' || collection === 'elementsOfCategory' ? block.category || (item as any)?.key : parentCategory}
+      parentCollection={collection}
+      scopeFilter={scopeFilter}
+      hint={hint}
+      showKeys={showKeys}
+      aux={aux}
+      onceTable
+    />
+  ));
+
+  if (!hasContent) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap }}>
+        {renderOnceTables()}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap }}>
       {filtered.map((it, i) => {
-        const itemChildren = i === filtered.length - 1 ? dropTrailingBreaks(children) : children;
+        const itemChildren = i === filtered.length - 1 ? dropTrailingBreaks(perItemChildren) : perItemChildren;
         return (
           <div key={i} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             {itemChildren.map(cb => (
-              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} />
+              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} />
             ))}
           </div>
         );
       })}
+      {onceTables.length > 0 && (
+        <div>{renderOnceTables()}</div>
+      )}
     </div>
   );
 };
@@ -200,13 +251,13 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
 const TABLE_LABEL_W = 120;
 const TABLE_ITEM_W = 72;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
-  const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0;
+  const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
   const items = isPerItem
     ? (item ? [item] : [])
-    : (resolveCollection(ctx, itemCollection, itemCollection === 'elements' ? block.category : undefined, item, parentCategory) as ReportCollectionItem[]);
+    : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' ? block.category : undefined, item, parentCategory, block) as ReportCollectionItem[]);
   const isDays = itemCollection === 'days' || itemCollection === 'daysOfCast';
   const filtered = isDays && scopeFilter?.days?.length
     ? items.filter((it: any) => scopeFilter.days!.includes(it.section.index))
@@ -221,10 +272,14 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const border = '1px solid #d4d4d8';
   const attributes = block.columns || [];
   if (attributes.length === 0) return null;
+  // Per-item tables (one row per parent item, e.g. a table inside an element
+  // repeater) keep the parent repeat's index so the Counter numbers the
+  // repetitions — not the single row.
+  const perItemIndex = isPerItem ? (aux?.index ?? 0) : undefined;
 
   return (block.axis ?? 'columns') === 'rows'
-    ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={filtered} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} />
-    : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={filtered} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} />;
+    ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={filtered} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={perItemIndex} />
+    : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={filtered} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={perItemIndex} />;
 };
 
 const TableColumnsGrid: React.FC<{
@@ -236,7 +291,10 @@ const TableColumnsGrid: React.FC<{
   baseStyle: React.CSSProperties;
   cellPad: React.CSSProperties;
   border: string;
-}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border }) => {
+  showKeys?: boolean;
+  aux?: FieldAux;
+  perItemIndex?: number;
+}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex }) => {
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
   return (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
@@ -253,7 +311,7 @@ const TableColumnsGrid: React.FC<{
         <div key={i} style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map(c => (
             <div key={c.id} data-col-ci={c.id} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
-              {reportFieldValueByKey(ctx, fieldMap, c.field, it) || '\u00A0'}
+              {reportFieldValueByKey(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0'}
             </div>
           ))}
         </div>
@@ -271,7 +329,10 @@ const TableRowsMatrix: React.FC<{
   baseStyle: React.CSSProperties;
   cellPad: React.CSSProperties;
   border: string;
-}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border }) => {
+  showKeys?: boolean;
+  aux?: FieldAux;
+  perItemIndex?: number;
+}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [chunk, setChunk] = useState(() => Math.max(1, Math.floor((800 - TABLE_LABEL_W) / TABLE_ITEM_W)));
   useEffect(() => {
@@ -297,11 +358,14 @@ const TableRowsMatrix: React.FC<{
           {g.length > 1 && (
             <div style={{ display: 'flex' }}>
               <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>&nbsp;</div>
-              {g.map((it, ii) => (
-                <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
-                  {reportFieldValueByKey(ctx, fieldMap, identityField, it) || '\u00A0'}
-                </div>
-              ))}
+              {g.map((it, ii) => {
+                const gIndex = perItemIndex ?? gi * chunk + ii;
+                return (
+                  <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
+                    {reportFieldValueByKey(ctx, fieldMap, identityField, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0'}
+                  </div>
+                );
+              })}
             </div>
           )}
           {attributes.map(a => (
@@ -309,11 +373,14 @@ const TableRowsMatrix: React.FC<{
               <div style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border }}>
                 {fieldMap[a.field]?.label || a.field || ''}
               </div>
-              {g.map((it, ii) => (
-                <div key={ii} style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
-                  {reportFieldValueByKey(ctx, fieldMap, a.field, it) || '\u00A0'}
-                </div>
-              ))}
+              {g.map((it, ii) => {
+                const gIndex = perItemIndex ?? gi * chunk + ii;
+                return (
+                  <div key={ii} style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
+                    {reportFieldValueByKey(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0'}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>

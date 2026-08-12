@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
-import { ReportCtx, resolveCollection, ReportCollectionItem } from '../../lib/reportData';
+import { ReportCtx, resolveCollectionItems, ReportCollectionItem } from '../../lib/reportData';
 import { ReportCollection } from '../../types';
+import { FieldAux } from '../../lib/reportFields';
 import { ReportFieldDef } from '../../lib/reportFields';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, tableItemCollection } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
@@ -21,7 +22,7 @@ const TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
 };
 
 function firstItemOf(ctx: ReportCtx, b: ReportBlock, parentItem: any, parentCategory?: string): any {
-  const items = resolveCollection(ctx, b.collection, b.category, parentItem, parentCategory);
+  const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b);
   return items[0];
 }
 
@@ -57,9 +58,11 @@ interface ReportDesignerCanvasProps {
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onMenu: (e: React.MouseEvent, id: string, colIndex?: number) => void;
+  viewWidth?: number | null;
+  pageSize?: 'portrait' | 'landscape';
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, selCol, ctx, fieldMap, readOnly, showKeys, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, selCol, ctx, fieldMap, readOnly, showKeys, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu }) => {
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
@@ -153,7 +156,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     </div>
   );
 
-  const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: string, parentItem?: any, parentCategory?: string): React.ReactNode[] => {
+  const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: string, parentItem?: any, parentCategory?: string, onceIds?: Set<string>): React.ReactNode[] => {
     const out: React.ReactNode[] = [];
     list.forEach((b, i) => {
       const selected = selId === b.id;
@@ -219,7 +222,18 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
                   <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
-                    {renderBlocks(b.children, depth + 1, b.collection, firstItemOf(ctx, b, parentItem, parentCategory), b.category)}
+                    {(() => {
+                      const coll = b.collection as ReportCollection | undefined;
+                      const onceTables = (b.children || []).filter(cb => cb.type === 'table' && tableItemCollection(cb, coll) === coll);
+                      const onceIds = new Set(onceTables.map(cb => cb.id));
+                      const regular = (b.children || []).filter(cb => !onceIds.has(cb.id));
+                      return (
+                        <>
+                          {renderBlocks(regular, depth + 1, b.collection, firstItemOf(ctx, b, parentItem, parentCategory), b.category)}
+                          {onceTables.length > 0 && renderBlocks(onceTables, depth + 1, b.collection, parentItem, parentCategory, onceIds)}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : b.type === 'repeat' ? (
                   <div
@@ -260,7 +274,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                     <span className="text-[10px] text-zinc-400 italic">Drop inside repeat (or click to add text)</span>
                   </div>
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -397,7 +411,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 );
               })()
             ) : (
-              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} />
+              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} aux={{ index: 0, pageSize }} />
             )}
           </div>
         </div>,
@@ -413,7 +427,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
 
   return (
     <div
-      className="flex-1 overflow-y-auto p-8"
+      className="flex-1 overflow-auto p-8"
       onClick={() => { onSelect(null); onSelectCol(null); }}
       onDragEnter={e => { if (isDrag(e)) setDragging(true); }}
       onDragLeave={e => {
@@ -422,7 +436,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
         pendingRef.current = null;
       }}
     >
-      <div className="mx-auto" style={{ maxWidth: 800, minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
+      <div className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
         {blocks.length === 0 && (
           <div className="text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg">
             No blocks yet — click or drag from the palette to build the report.

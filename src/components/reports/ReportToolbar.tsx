@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { Project } from '../../types';
 import { validCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
@@ -7,8 +7,10 @@ import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
 import { Tooltip } from '../Tooltip';
-import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus } from 'lucide-react';
+import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus, Check, ChevronDown } from 'lucide-react';
 
 const FONTS = ['Helvetica', 'Arial', 'Times New Roman', 'Georgia', 'Courier New'];
 
@@ -65,7 +67,9 @@ const NestedTableMenu: React.FC<{
     ? block.collection
     : null;
   if (preserved) collections.push(preserved);
-  if (!collections.includes('elements')) collections.push('elements');
+  for (const c of validCollections(parentCollection)) {
+    if (c !== 'cast' && !collections.includes(c)) collections.push(c);
+  }
 
   return (
     <CollectionMenu
@@ -78,6 +82,52 @@ const NestedTableMenu: React.FC<{
       disabled={disabled}
       onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
     />
+  );
+};
+
+const ExcludeCategoriesMenu: React.FC<{
+  excluded: string[];
+  categoryKeys: { key: string; isCustom: boolean }[];
+  categoryLabels: Record<string, string>;
+  disabled: boolean;
+  onChange: (excluded: string[]) => void;
+}> = ({ excluded, categoryKeys, categoryLabels, disabled, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const excludedSet = new Set(excluded);
+  const toggle = (key: string) => {
+    const next = new Set(excludedSet);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    onChange([...next]);
+  };
+  const label = excluded.length > 0 ? `${excluded.length} excluded` : 'None';
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-44"
+      trigger={
+        <button
+          type="button"
+          disabled={disabled}
+          className={`flex items-center justify-between gap-1 w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30 disabled:pointer-events-none`}
+        >
+          <span className="truncate">{label}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </button>
+      }
+    >
+      {categoryKeys.map(({ key }) => (
+        <DropdownItem
+          key={key}
+          keepOpen
+          onClick={() => toggle(key)}
+          icon={excludedSet.has(key) ? <Check className="w-3.5 h-3.5" /> : undefined}
+        >
+          {categoryLabels[key] || key}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
   );
 };
 
@@ -206,6 +256,19 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           <Row label="Suffix">
             <input className={inputCls} disabled={disabled} value={block.suffix || ''} onChange={e => onPatch({ suffix: e.target.value })} />
           </Row>
+          {block.field && allFields.find(f => f.key === block.field)?.multiValue && (
+            <>
+              <Row label="Item prefix">
+                <input className={inputCls} disabled={disabled} value={block.itemPrefix || ''} onChange={e => onPatch({ itemPrefix: e.target.value })} placeholder="e.g. —" />
+              </Row>
+              <Row label="Item suffix">
+                <input className={inputCls} disabled={disabled} value={block.itemSuffix || ''} onChange={e => onPatch({ itemSuffix: e.target.value })} placeholder="e.g. —" />
+              </Row>
+              <Row label="Separator">
+                <input className={inputCls} disabled={disabled} value={block.itemSeparator ?? ', '} onChange={e => onPatch({ itemSeparator: e.target.value })} />
+              </Row>
+            </>
+          )}
         </>
       )}
 
@@ -246,6 +309,33 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             <Row label="Item gap (px)">
               <input type="number" min={0} max={60} disabled={disabled} className={inputCls} value={block.gap ?? 8} onChange={e => onPatch({ gap: Number(e.target.value) || 0 })} />
             </Row>
+          )}
+          <Row label="Counter starts at">
+            <Seg
+              value={String(block.counterStart ?? 1)}
+              options={[{ v: '1', l: '1' }, { v: '0', l: '0' }]}
+              onChange={v => onPatch({ counterStart: v === '0' ? 0 : 1 })}
+              disabled={disabled}
+            />
+          </Row>
+          {block.collection === 'categories' && (
+            <>
+              <Row label="Skip empty">
+                <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+                  <input type="checkbox" checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={e => onPatch({ skipEmptyCategories: e.target.checked })} />
+                  Skip categories with no elements
+                </label>
+              </Row>
+              <Row label="Exclude categories">
+                <ExcludeCategoriesMenu
+                  excluded={block.excludedCategories || []}
+                  categoryKeys={allCategoryKeys}
+                  categoryLabels={categoryLabelLookup}
+                  disabled={disabled}
+                  onChange={list => onPatch({ excludedCategories: list })}
+                />
+              </Row>
+            </>
           )}
         </>
       )}

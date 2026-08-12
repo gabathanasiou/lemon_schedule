@@ -23,7 +23,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
   const pageW = REPORT_PAGE_WIDTHS[design.page];
 
   return (
-    <div className="flex-1 overflow-y-auto bg-zinc-800 p-8">
+    <div className="flex-1 overflow-auto bg-zinc-800 p-8">
       <div className="sticky top-0 z-20 flex justify-between mb-4 print:hidden">
         <button
           onClick={onExit}
@@ -43,7 +43,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
             {pi > 0 && (
               <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-zinc-400">Page {pi + 1}</span>
             )}
-            <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} />
+            <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} pageIndex={pi} pageCount={pages.length} />
           </div>
         ))}
       </div>

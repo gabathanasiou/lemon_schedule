@@ -48,7 +48,7 @@ ${BASE_PRINT_RESET}
             >
               {blocks.length === 0
                 ? <div style={{ height: 1 }} aria-hidden />
-                : <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} />}
+                : <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} pageIndex={pi} pageCount={pages.length} />}
             </div>
           ))}
         </div>
