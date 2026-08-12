@@ -64,7 +64,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -157,7 +157,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0;
   const items = isPerItem
     ? (item ? [item] : [])
-    : (resolveCollection(ctx, itemCollection, undefined, item, parentCategory) as ReportCollectionItem[]);
+    : (resolveCollection(ctx, itemCollection, itemCollection === 'elements' ? block.category : undefined, item, parentCategory) as ReportCollectionItem[]);
   const isDays = itemCollection === 'days' || itemCollection === 'daysOfCast';
   const filtered = isDays && scopeFilter?.days?.length
     ? items.filter((it: any) => scopeFilter.days!.includes(it.section.index))

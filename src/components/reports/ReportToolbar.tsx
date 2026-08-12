@@ -212,7 +212,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               </select>
             </Row>
           )}
-          {block.type === 'repeat' && block.collection === 'elements' && (
+          {block.collection === 'elements' && (block.type === 'repeat' || (block.type === 'table' && !parentCollection)) && (
             <Row label="Category">
               <CategoryDropdown
                 value={block.category || 'props'}
