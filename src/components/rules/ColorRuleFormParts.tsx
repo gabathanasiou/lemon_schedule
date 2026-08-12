@@ -2,12 +2,12 @@ import React from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
 import { ColorRuleCondition, SceneColorEntry, SceneColorPalette, ProjectElement } from '../../types';
-import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import { getNoteBannerColors } from '../../lib/ribbonUtils';
 import { IS_COARSE } from '../../lib/device';
 import ColorField from '../ColorField';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import { CategoryDropdown } from './CategoryDropdown';
 
 export interface ColorRuleSizes {
   XSZ: string;
@@ -53,56 +53,21 @@ export function RuleConditionRow({
   getElementName, sizes,
 }: RuleConditionRowProps) {
   const { XSZ, CREM_BTN_COND, CREM_DD_ITEM } = sizes;
-  const catLabel = categoryLabelLookup[cond.category] || cond.category;
   const isCast = cond.category === 'cast';
 
   return (
     <div className="flex items-center gap-2">
-      <RadixDropdownMenu.Root modal={true} open={openDropdown === `cat-${idx}`} onOpenChange={(o) => setOpenDropdown(o ? `cat-${idx}` : null)}>
-        <RadixDropdownMenu.Trigger asChild>
-          <button className={`flex items-center gap-1.5 ${CREM_BTN_COND} bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 shrink-0 min-w-[120px] justify-between`}>
-            <span className="truncate">{catLabel}</span>
-            <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-          </button>
-        </RadixDropdownMenu.Trigger>
-        <RadixDropdownMenu.Portal>
-          <RadixDropdownMenu.Content
-            className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[160px]"
-            align="start"
-            sideOffset={4}
-            collisionPadding={8}
-            onOpenAutoFocus={(e) => {
-              e.preventDefault();
-              const content = e.currentTarget as HTMLElement;
-              requestAnimationFrame(() => {
-                const active = content.querySelector(`[data-cat="${cond.category}"]`) as HTMLElement | null;
-                if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
-              });
-            }}
-          >
-            {allCategoryKeys.map(({ key, isCustom }) => {
-              const Icon = isCustom
-                ? getCustomIcon(customCategories?.find(c => c.key === key)?.icon || 'Tag')
-                : CAT_ICONS[key] || null;
-              const active = key === cond.category;
-              return (
-                <RadixDropdownMenu.Item
-                  key={key}
-                  data-cat={key}
-                  onSelect={() => setConditionCategory(idx, key)}
-                  className={`flex items-center gap-2 ${CREM_DD_ITEM} rounded transition-colors outline-none cursor-pointer select-none ${
-                    active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                  }`}
-                >
-                  {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}
-                  <span className="flex-1">{categoryLabelLookup[key] || key}</span>
-                  {active && <Check className="w-3 h-3 shrink-0" />}
-                </RadixDropdownMenu.Item>
-              );
-            })}
-          </RadixDropdownMenu.Content>
-        </RadixDropdownMenu.Portal>
-      </RadixDropdownMenu.Root>
+      <CategoryDropdown
+        value={cond.category}
+        onChange={(cat) => setConditionCategory(idx, cat)}
+        allCategoryKeys={allCategoryKeys}
+        categoryLabelLookup={categoryLabelLookup}
+        customCategories={customCategories}
+        open={openDropdown === `cat-${idx}`}
+        onOpenChange={(o) => setOpenDropdown(o ? `cat-${idx}` : null)}
+        btnClass={CREM_BTN_COND}
+        itemClass={CREM_DD_ITEM}
+      />
 
       <span className="text-xs text-zinc-500 font-medium shrink-0">=</span>
 
