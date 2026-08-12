@@ -228,6 +228,17 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 <span className="text-[10px] font-semibold text-zinc-500 tracking-wider">PAGE BREAK</span>
                 <div style={{ flex: 1, borderTop: '2px dashed #a1a1aa' }} />
               </div>
+            ) : b.type === 'columns' ? (
+              <ColumnsView
+                b={b}
+                ctx={ctx}
+                fieldMap={fieldMap}
+                parentItem={parentItem}
+                parentCategory={parentCategory}
+                parentCollection={parentCollection}
+                selected={selected}
+                onPatch={onPatch}
+              />
             ) : (
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
             )}
@@ -310,6 +321,105 @@ const EdgeZone: React.FC<{
         pendingRef.current = null;
       }}
     />
+  );
+};
+
+// ---- columns block: per-column border boxes + middle resize handles -----------
+
+const ColumnsView: React.FC<{
+  b: ReportBlock;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  parentItem?: any;
+  parentCategory?: string;
+  parentCollection?: string;
+  selected: boolean;
+  onPatch: (id: string, patch: Partial<ReportBlock>) => void;
+}> = ({ b, ctx, fieldMap, parentItem, parentCategory, parentCollection, selected, onPatch }) => {
+  const cols = b.cols || [];
+  const total = cols.reduce((a, c) => a + c.width, 0);
+  const border = '1px solid #3f3f46';
+  return (
+    <div className="relative" style={{ display: 'flex' }}>
+      {cols.map(col => (
+        <div
+          key={col.id}
+          className="columns-col"
+          data-col-width={col.width}
+          style={{
+            flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
+            minWidth: 0,
+            border,
+            borderRadius: 4,
+            padding: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            marginLeft: -1,
+            background: '#fafafa',
+          }}
+        >
+          {col.blocks.map(cb => (
+            <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
+          ))}
+          {col.blocks.length === 0 && <span className="text-[10px] text-zinc-400 italic">Empty column</span>}
+        </div>
+      ))}
+      {selected && <ColumnsResizeBar cols={cols} onResize={widths => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: widths[i] })) })} />}
+    </div>
+  );
+};
+
+const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths: number[]) => void }> = ({ cols, onResize }) => {
+  const colsList = cols || [];
+  const widths = colsList.map(c => c.width);
+  const total = widths.reduce((a, b) => a + b, 0) || 1;
+  let acc = 0;
+  const boundaries = widths.slice(0, -1).map(w => { acc += (w / total) * 100; return acc; });
+  if (boundaries.length === 0) return null;
+
+  const startResize = (e: React.PointerEvent, ci: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const row = (e.currentTarget.closest('[data-block-id]') as HTMLElement)?.querySelector('.columns-col')?.parentElement as HTMLElement | null;
+    const startX = e.clientX;
+    const startWidths = [...widths];
+    let lastNorm: number[] = startWidths;
+    const onMove = (ev: PointerEvent) => {
+      const deltaPct = ((ev.clientX - startX) / (row?.clientWidth || 1)) * 100;
+      const next = [...startWidths];
+      next[ci] = Math.max(5, startWidths[ci] + deltaPct);
+      next[ci + 1] = Math.max(5, startWidths[ci + 1] - deltaPct);
+      const t = next.reduce((a, b) => a + b, 0);
+      lastNorm = next.map(w => (w / t) * 100);
+      if (row) {
+        row.querySelectorAll('.columns-col').forEach((el, i) => {
+          (el as HTMLElement).style.flex = `${lastNorm[i]} 1 0%`;
+        });
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (row) row.querySelectorAll('.columns-col').forEach(el => { (el as HTMLElement).style.flex = ''; });
+      onResize(lastNorm);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  return (
+    <div className="absolute inset-y-0 pointer-events-none" style={{ left: 0, right: 0, zIndex: 40 }}>
+      {boundaries.map((pct, ci) => (
+        <div
+          key={ci}
+          className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize touch-none"
+          style={{ left: `calc(${pct}% - 3px)`, width: 6, background: 'rgba(59,130,246,0.6)', borderRadius: 3 }}
+          onPointerDown={e => startResize(e, ci)}
+          title={`Resize columns ${ci + 1}/${ci + 2}`}
+        />
+      ))}
+    </div>
   );
 };
 
