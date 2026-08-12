@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule } from '../types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo } from '../types';
 import { generateUUID, normalizePunctuation } from '../lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
@@ -23,6 +23,13 @@ import {
   caseSetColorPalette, caseAddColorRule, caseUpdateColorRule, caseDeleteColorRule,
   caseRestoreColorRuleFromTrash, caseReorderColorRules,
 } from './actions/design';
+import {
+  caseAddReportDesign, caseUpdateReportDesign, caseUpdateReportPage, caseRenameReportDesign,
+  caseSetActiveReport, caseDeleteReportDesign, caseRestoreReportFromTrash,
+  caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
+  caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
+} from './actions/reports';
+import { DEFAULT_CREW_ROLES, getDefaultReportDesign } from '../lib/reportTemplates';
 import { isMultiValue, getFieldItems } from '../lib/categories';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -72,6 +79,7 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     cellPaddingH: 3,
     edgePadding: 3,
   };
+  const defaultReport = getDefaultReportDesign();
   return {
     id,
     title,
@@ -111,6 +119,12 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     ribbonDesigns: [defaultDesign],
     activeRibbonId: defaultDesign.id,
     colorPalette: DEFAULT_COLOR_PALETTE,
+    productionInfo: {},
+    crewRoles: DEFAULT_CREW_ROLES,
+    crew: {},
+    reportDesigns: [defaultReport],
+    activeReportId: defaultReport.id,
+    reportTrash: [],
   };
 }
 
@@ -174,6 +188,22 @@ export type Action =
   | { type: 'DELETE_COLOR_RULE'; payload: string }
   | { type: 'RESTORE_COLOR_RULE_FROM_TRASH'; payload: string }
   | { type: 'REORDER_COLOR_RULES'; payload: ColorRule[] }
+  // Reports Designer + Production Info
+  | { type: 'ADD_REPORT_DESIGN'; payload: { name: string; cloneFromId?: string; blocks?: ReportBlock[]; page?: 'portrait' | 'landscape'; id?: string } }
+  | { type: 'UPDATE_REPORT_DESIGN'; payload: { id: string; blocks: ReportBlock[] } }
+  | { type: 'UPDATE_REPORT_PAGE'; payload: { id: string; page: 'portrait' | 'landscape' } }
+  | { type: 'RENAME_REPORT_DESIGN'; payload: { id: string; name: string } }
+  | { type: 'SET_ACTIVE_REPORT'; payload: string }
+  | { type: 'DELETE_REPORT_DESIGN'; payload: string }
+  | { type: 'RESTORE_REPORT_FROM_TRASH'; payload: string }
+  | { type: 'SET_PRODUCTION_INFO'; payload: Partial<ProductionInfo> }
+  | { type: 'ADD_CREW_ROLE'; payload: { role: CrewRole } }
+  | { type: 'RENAME_CREW_ROLE'; payload: { key: string; label: string } }
+  | { type: 'DELETE_CREW_ROLE'; payload: string }
+  | { type: 'ADD_CREW_PERSON'; payload: { role: string; person: CrewPerson } }
+  | { type: 'UPDATE_CREW_PERSON'; payload: { role: string; id: string; updates: Partial<CrewPerson>; toRole?: string } }
+  | { type: 'DELETE_CREW_PERSON'; payload: { role: string; id: string } }
+  | { type: 'REORDER_CREW_PERSON'; payload: { role: string; id: string; dir: -1 | 1 } }
 
 export interface State {
   past: Project[];
@@ -220,6 +250,23 @@ export function reducer(state: State, action: Action): State {
       if (!p.colorPalette.dayFooterText) p.colorPalette.dayFooterText = '#000000';
     }
     p = ensureAllScenesHaveRows(p);
+
+    // Reports Designer + Production Info defaults
+    p.productionInfo = p.productionInfo || {};
+    p.crewRoles = p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES;
+    p.crew = p.crew || {};
+    p.reportTrash = p.reportTrash || [];
+    if (!p.reportDesigns || p.reportDesigns.length === 0) {
+      const defaultReport = getDefaultReportDesign();
+      p.reportDesigns = [defaultReport];
+      p.activeReportId = p.activeReportId || defaultReport.id;
+    }
+    // Stale activeReportId (points to a missing/deleted design) — fall back to
+    // the first design so the reports designer edits reach a saved design.
+    if (!p.activeReportId || !p.reportDesigns.some(d => d.id === p.activeReportId)) {
+      p.activeReportId = p.reportDesigns[0]?.id || '';
+    }
+
     return {
       past: [],
       present: {
@@ -345,6 +392,21 @@ export function reducer(state: State, action: Action): State {
     case 'DELETE_COLOR_RULE': return caseDeleteColorRule(state, action, applyChange);
     case 'RESTORE_COLOR_RULE_FROM_TRASH': return caseRestoreColorRuleFromTrash(state, action, applyChange);
     case 'REORDER_COLOR_RULES': return caseReorderColorRules(state, action, applyChange);
+    case 'ADD_REPORT_DESIGN': return caseAddReportDesign(state, action, applyChange);
+    case 'UPDATE_REPORT_DESIGN': return caseUpdateReportDesign(state, action, applyChange);
+    case 'UPDATE_REPORT_PAGE': return caseUpdateReportPage(state, action, applyChange);
+    case 'RENAME_REPORT_DESIGN': return caseRenameReportDesign(state, action, applyChange);
+    case 'SET_ACTIVE_REPORT': return caseSetActiveReport(state, action, applyChange);
+    case 'DELETE_REPORT_DESIGN': return caseDeleteReportDesign(state, action, applyChange);
+    case 'RESTORE_REPORT_FROM_TRASH': return caseRestoreReportFromTrash(state, action, applyChange);
+    case 'SET_PRODUCTION_INFO': return caseSetProductionInfo(state, action, applyChange);
+    case 'ADD_CREW_ROLE': return caseAddCrewRole(state, action, applyChange);
+    case 'RENAME_CREW_ROLE': return caseRenameCrewRole(state, action, applyChange);
+    case 'DELETE_CREW_ROLE': return caseDeleteCrewRole(state, action, applyChange);
+    case 'ADD_CREW_PERSON': return caseAddCrewPerson(state, action, applyChange);
+    case 'UPDATE_CREW_PERSON': return caseUpdateCrewPerson(state, action, applyChange);
+    case 'DELETE_CREW_PERSON': return caseDeleteCrewPerson(state, action, applyChange);
+    case 'REORDER_CREW_PERSON': return caseReorderCrewPerson(state, action, applyChange);
     default:
       return state;
   }

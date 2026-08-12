@@ -1,0 +1,186 @@
+import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, ProductionInfo } from '../../types';
+import { generateUUID } from '../../lib/utils';
+import { getDefaultReportDesign } from '../../lib/reportTemplates';
+import type { Action, State } from '../reducer';
+
+export type ApplyChange = (p: Project) => State;
+
+// ---- report designs ----------------------------------------------------------
+
+export function caseAddReportDesign(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'ADD_REPORT_DESIGN') return state;
+  const source = action.payload.cloneFromId
+    ? state.present.reportDesigns?.find(d => d.id === action.payload.cloneFromId)
+    : null;
+  const blocks = action.payload.blocks
+    ? JSON.parse(JSON.stringify(action.payload.blocks))
+    : source
+      ? JSON.parse(JSON.stringify(source.blocks))
+      : getDefaultReportDesign().blocks;
+  const newDesign: ReportDesign = {
+    id: action.payload.id || generateUUID(),
+    name: action.payload.name,
+    createdAt: Date.now(),
+    page: action.payload.page ?? source?.page ?? 'portrait',
+    blocks,
+  };
+  return applyChange({
+    ...state.present,
+    reportDesigns: [...(state.present.reportDesigns || []), newDesign],
+    activeReportId: newDesign.id,
+  });
+}
+
+export function caseUpdateReportDesign(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'UPDATE_REPORT_DESIGN') return state;
+  return applyChange({
+    ...state.present,
+    reportDesigns: (state.present.reportDesigns || []).map(d =>
+      d.id === action.payload.id
+        ? { ...d, blocks: JSON.parse(JSON.stringify(action.payload.blocks)) }
+        : d
+    ),
+  });
+}
+
+export function caseUpdateReportPage(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'UPDATE_REPORT_PAGE') return state;
+  return applyChange({
+    ...state.present,
+    reportDesigns: (state.present.reportDesigns || []).map(d =>
+      d.id === action.payload.id ? { ...d, page: action.payload.page } : d
+    ),
+  });
+}
+
+export function caseRenameReportDesign(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RENAME_REPORT_DESIGN') return state;
+  return applyChange({
+    ...state.present,
+    reportDesigns: (state.present.reportDesigns || []).map(d =>
+      d.id === action.payload.id ? { ...d, name: action.payload.name } : d
+    ),
+  });
+}
+
+export function caseSetActiveReport(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_ACTIVE_REPORT') return state;
+  return applyChange({
+    ...state.present,
+    activeReportId: action.payload,
+  });
+}
+
+export function caseDeleteReportDesign(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'DELETE_REPORT_DESIGN') return state;
+  const target = (state.present.reportDesigns || []).find(d => d.id === action.payload);
+  if (!target) return state;
+  const remaining = (state.present.reportDesigns || []).filter(d => d.id !== action.payload);
+  if (remaining.length === 0) return state;
+  const newActiveId = state.present.activeReportId === action.payload
+    ? remaining[0].id
+    : state.present.activeReportId;
+  const trashItem: ReportTrashItem = { design: target, deletedAt: Date.now() };
+  return applyChange({
+    ...state.present,
+    reportDesigns: remaining,
+    activeReportId: newActiveId,
+    reportTrash: [...(state.present.reportTrash || []), trashItem],
+  });
+}
+
+export function caseRestoreReportFromTrash(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RESTORE_REPORT_FROM_TRASH') return state;
+  const item = (state.present.reportTrash || []).find(t => t.design.id === action.payload);
+  if (!item) return state;
+  return applyChange({
+    ...state.present,
+    reportDesigns: [...(state.present.reportDesigns || []), item.design],
+    reportTrash: (state.present.reportTrash || []).filter(t => t.design.id !== action.payload),
+  });
+}
+
+// ---- production info ---------------------------------------------------------
+
+export function caseSetProductionInfo(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_PRODUCTION_INFO') return state;
+  return applyChange({
+    ...state.present,
+    productionInfo: { ...(state.present.productionInfo || {}), ...action.payload },
+  });
+}
+
+// ---- crew roles --------------------------------------------------------------
+
+export function caseAddCrewRole(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'ADD_CREW_ROLE') return state;
+  const existing = state.present.crewRoles || [];
+  if (existing.some(r => r.key === action.payload.role.key)) return state;
+  return applyChange({
+    ...state.present,
+    crewRoles: [...existing, action.payload.role],
+  });
+}
+
+export function caseRenameCrewRole(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RENAME_CREW_ROLE') return state;
+  return applyChange({
+    ...state.present,
+    crewRoles: (state.present.crewRoles || []).map(r =>
+      r.key === action.payload.key ? { ...r, label: action.payload.label } : r
+    ),
+  });
+}
+
+export function caseDeleteCrewRole(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'DELETE_CREW_ROLE') return state;
+  const crew = { ...(state.present.crew || {}) };
+  delete crew[action.payload];
+  return applyChange({
+    ...state.present,
+    crewRoles: (state.present.crewRoles || []).filter(r => r.key !== action.payload),
+    crew,
+  });
+}
+
+// ---- crew people -------------------------------------------------------------
+
+export function caseAddCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'ADD_CREW_PERSON') return state;
+  const crew = { ...(state.present.crew || {}) };
+  crew[action.payload.role] = [...(crew[action.payload.role] || []), action.payload.person];
+  return applyChange({ ...state.present, crew });
+}
+
+export function caseUpdateCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'UPDATE_CREW_PERSON') return state;
+  const crew = { ...(state.present.crew || {}) };
+  const list = crew[action.payload.role] || [];
+  crew[action.payload.role] = list.map(p => (p.id === action.payload.id ? { ...p, ...action.payload.updates } : p));
+  if (action.payload.toRole && action.payload.toRole !== action.payload.role) {
+    const person = (crew[action.payload.role] || []).find(p => p.id === action.payload.id);
+    crew[action.payload.role] = (crew[action.payload.role] || []).filter(p => p.id !== action.payload.id);
+    if (person) crew[action.payload.toRole] = [...(crew[action.payload.toRole] || []), person];
+  }
+  return applyChange({ ...state.present, crew });
+}
+
+export function caseDeleteCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'DELETE_CREW_PERSON') return state;
+  const crew = { ...(state.present.crew || {}) };
+  crew[action.payload.role] = (crew[action.payload.role] || []).filter(p => p.id !== action.payload.id);
+  return applyChange({ ...state.present, crew });
+}
+
+export function caseReorderCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'REORDER_CREW_PERSON') return state;
+  const crew = { ...(state.present.crew || {}) };
+  const list = [...(crew[action.payload.role] || [])];
+  const idx = list.findIndex(p => p.id === action.payload.id);
+  const target = idx + action.payload.dir;
+  if (idx < 0 || target < 0 || target >= list.length) return state;
+  const [p] = list.splice(idx, 1);
+  list.splice(target, 0, p);
+  crew[action.payload.role] = list;
+  return applyChange({ ...state.present, crew });
+}

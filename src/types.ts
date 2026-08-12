@@ -243,6 +243,108 @@ export interface RibbonDesign {
   edgePadding?: number;
 }
 
+// ---- Reports Designer -------------------------------------------------------
+
+export interface CrewPerson {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface CrewRole {
+  key: string;
+  label: string;
+  builtin?: boolean;
+}
+
+export interface ProductionInfo {
+  company?: string;
+  studio?: string;
+  productionOffice?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  startDate?: string;
+  wrapDate?: string;   // auto-computed from last section date (read-only display)
+}
+
+export type ReportCollection =
+  | 'scenes' | 'days' | 'cast' | 'elements' | 'crew'
+  | 'scenesOfDay' | 'scenesOfElement';
+
+export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
+export type RibbonMode = 'single' | 'day' | 'all';
+export type RepeatAxis = 'rows' | 'columns';
+
+export interface ReportTableColumn {
+  id: string;
+  field: string;
+  width: number;        // %, sums to 100
+  align?: 'left' | 'center' | 'right';
+}
+
+export interface ReportTableRow {
+  id: string;
+  cells: { id: string; field: string; align?: 'left' | 'center' | 'right' }[];
+}
+
+export interface ReportColumn {
+  id: string;
+  width: number;        // %, sums to 100
+  blocks: ReportBlock[];
+}
+
+export interface ReportBlock {
+  id: string;
+  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer';
+  // text / field
+  text?: string;                 // static text; may contain {{key}} tokens
+  field?: string;                // empty = "Select field…" state
+  prefix?: string;
+  suffix?: string;
+  emptyBehavior?: EmptyBehavior;
+  // repeat
+  collection?: ReportCollection;
+  category?: string;             // for 'elements'
+  children?: ReportBlock[];
+  gap?: number;                  // pt between repeated items
+  // table (repeat + table shape)
+  repeatAxis?: RepeatAxis;
+  colWidths?: number[];          // rows-mode, % summing to 100
+  tableRows?: ReportTableRow[];  // rows-mode: multiple design rows per item
+  showHeader?: boolean;
+  headerField?: string;          // columns-mode: item identity row
+  // columns (Notion-style)
+  cols?: ReportColumn[];
+  // ribbon
+  ribbonId?: string;
+  ribbonMode?: RibbonMode;
+  // style
+  fontFamily?: string;
+  fontSize?: number;
+  bold?: boolean;
+  italic?: boolean;
+  align?: 'left' | 'center' | 'right';
+  paddingV?: number;
+  paddingH?: number;
+  // spacer
+  height?: number;
+}
+
+export interface ReportDesign {
+  id: string;
+  name: string;
+  createdAt: number;
+  page: 'portrait' | 'landscape';
+  blocks: ReportBlock[];
+}
+
+export interface ReportTrashItem {
+  design: ReportDesign;
+  deletedAt: number;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -267,4 +369,11 @@ export interface Project {
   ribbonDesigns: RibbonDesign[];
   activeRibbonId: string;
   colorPalette?: SceneColorPalette;
+  // Reports Designer + Production Info
+  productionInfo?: ProductionInfo;
+  crewRoles?: CrewRole[];
+  crew?: Record<string, CrewPerson[]>;
+  reportDesigns?: ReportDesign[];
+  activeReportId?: string;
+  reportTrash?: ReportTrashItem[];
 }

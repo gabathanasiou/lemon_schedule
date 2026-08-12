@@ -1,4 +1,4 @@
-import { Project, ScheduleVersion, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem } from '../types';
+import { Project, ScheduleVersion, TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, ReportTrashItem } from '../types';
 import { cid } from '../lib/ribbonUtils';
 import { migrateLegacyProject, migrateLegacyCastMirror, LegacyMigrationResult } from '../lib/legacyMigration';
 
@@ -86,6 +86,9 @@ export function loadProjectFromStorage(id: string): Project | null {
           return Date.now() - t.deletedAt < thirtyDays;
         });
         parsed.colorRulesTrash = (parsed.colorRulesTrash || []).filter((t: ColorRuleTrashItem) => {
+          return Date.now() - t.deletedAt < thirtyDays;
+        });
+        parsed.reportTrash = (parsed.reportTrash || []).filter((t: ReportTrashItem) => {
           return Date.now() - t.deletedAt < thirtyDays;
         });
 
