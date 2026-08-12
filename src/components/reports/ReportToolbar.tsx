@@ -10,7 +10,7 @@ import CollectionMenu from './CollectionMenu';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import { Tooltip } from '../Tooltip';
-import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus, Check, ChevronDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus, Check, ChevronDown, EyeOff } from 'lucide-react';
 
 const FONTS = ['Helvetica', 'Arial', 'Times New Roman', 'Georgia', 'Courier New'];
 
@@ -378,6 +378,14 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
                     >
                       I
                     </button>
+                    <button
+                      disabled={disabled}
+                      title="Hide rows where this column is empty"
+                      onClick={() => tableOps.patchColumn(ci, { skipEmpty: !col.skipEmpty })}
+                      className={`w-6 h-5 rounded flex items-center justify-center transition-colors disabled:opacity-30 ${col.skipEmpty ? 'bg-amber-100 text-amber-700' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                    >
+                      <EyeOff className="w-3 h-3" />
+                    </button>
                     <div className="flex border border-zinc-700 rounded p-px">
                       {(['left', 'center', 'right'] as const).map(a => (
                         <button
@@ -418,10 +426,6 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
             <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
             Cell borders
-          </label>
-          <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
-            <input type="checkbox" checked={!!block.skipEmptyRows} disabled={disabled} onChange={e => onPatch({ skipEmptyRows: e.target.checked })} />
-            Skip rows with empty cells
           </label>
         </>
       )}

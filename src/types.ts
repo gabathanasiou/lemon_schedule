@@ -284,6 +284,7 @@ export interface ReportTableColumn {
   align?: 'left' | 'center' | 'right';
   bold?: boolean;       // per-column cell style
   italic?: boolean;
+  skipEmpty?: boolean;  // hide rows where this column's cell is empty
 }
 
 export interface ReportTableRow {

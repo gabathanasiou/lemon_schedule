@@ -277,12 +277,15 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   // repetitions — not the single row.
   const perItemIndex = isPerItem ? (aux?.index ?? 0) : undefined;
 
-  // skipEmptyRows: hide items that have any empty cell (document fields like
-  // the counter always count as filled — they're generated, not content).
-  const shown = block.skipEmptyRows
+  // Per-column skip: hide items whose cell is empty in a column marked
+  // skipEmpty (document fields like the counter always count as filled).
+  // The legacy global skipEmptyRows flag still applies when set.
+  const skipCols = attributes.some(c => c.skipEmpty);
+  const shown = (block.skipEmptyRows || skipCols)
     ? filtered.filter((it: any) => attributes.every(c => {
         const def = fieldMap[c.field];
         if (def?.scope === 'document') return true;
+        if (!c.skipEmpty && !block.skipEmptyRows) return true;
         return reportFieldValueByKey(ctx, fieldMap, c.field, it).trim() !== '';
       }))
     : filtered;
