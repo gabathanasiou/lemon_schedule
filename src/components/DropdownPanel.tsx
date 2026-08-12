@@ -42,9 +42,8 @@ export default function DropdownPanel({
         const highlighted = highlightedIndex === idx;
         const isSynthetic = searchQuery && !hasExactMatch && idx === 0;
         return (
-          <>
+          <React.Fragment key={isSynthetic ? '__new__' : m.id}>
           <button
-            key={isSynthetic ? '__new__' : m.id}
             data-ei={idx}
             data-checked={checked ? 'true' : undefined}
             type="button"
@@ -66,7 +65,7 @@ className={isSynthetic
           {isSynthetic && (
             <hr className="border-t border-zinc-200 my-1 mx-1" />
           )}
-          </>
+          </React.Fragment>
           );
       }) : (
         <div className="px-2 py-1 text-xs text-zinc-400 text-center">No matches</div>
