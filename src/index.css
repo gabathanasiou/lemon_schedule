@@ -178,6 +178,8 @@ input, textarea, [contenteditable] {
   padding: 6px;
   transition: background 120ms ease, box-shadow 120ms ease;
 }
+.columns-col.col-has-prev { padding-left: 3px; }
+.columns-col.col-has-next { padding-right: 3px; }
 .columns-col:hover { background: rgba(0, 0, 0, 0.035); }
 .columns-col.selected {
   background: rgba(59, 130, 246, 0.06);

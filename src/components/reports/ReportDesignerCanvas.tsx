@@ -324,7 +324,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                               onResize={resizable ? e => startResize(e, ci - 1) : undefined}
                             />
                             <div
-                              className={`columns-col${colSelected ? ' selected' : ''}`}
+                              className={`columns-col${colSelected ? ' selected' : ''}${ci > 0 ? ' col-has-prev' : ''}${ci < cols.length - 1 ? ' col-has-next' : ''}`}
                               data-col-width={col.width}
                               style={{
                                 flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
