@@ -52,15 +52,18 @@ interface ReportToolbarProps {
   parentCollection?: ReportCollection;
   project: Project;
   readOnly: boolean;
+  selCol?: { colIndex: number; colsCount: number } | null;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onInsertAbove: () => void;
   onInsertBelow: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
+  onInsertColumnAt: (colIndex: number) => void;
+  onAddTextToColumn: () => void;
 }
 
-const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, project, readOnly, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove }) => {
+const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn }) => {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection), [allFields, parentCollection]);
 
@@ -119,14 +122,23 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
   return (
     <div className="flex flex-wrap items-start gap-x-6 gap-y-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/60 shrink-0">
-      <div className="flex items-center gap-1 pt-0.5">
-        <ToolButton onClick={onInsertAbove} disabled={disabled} title="Insert above"><Plus className="w-3.5 h-3.5" /> Above</ToolButton>
-        <ToolButton onClick={onInsertBelow} disabled={disabled} title="Insert below"><Plus className="w-3.5 h-3.5" /> Below</ToolButton>
-        <ToolButton onClick={() => onMove(-1)} disabled={disabled} title="Move up"><ArrowUp className="w-3.5 h-3.5" /></ToolButton>
-        <ToolButton onClick={() => onMove(1)} disabled={disabled} title="Move down"><ArrowDown className="w-3.5 h-3.5" /></ToolButton>
-        <ToolButton onClick={onDuplicate} disabled={disabled} title="Duplicate"><Copy className="w-3.5 h-3.5" /></ToolButton>
-        <ToolButton onClick={onRemove} disabled={disabled} title="Delete"><Trash2 className="w-3.5 h-3.5" /></ToolButton>
-      </div>
+      {selCol ? (
+        <div className="flex items-center gap-1 pt-0.5">
+          <ToolButton onClick={() => onInsertColumnAt(selCol.colIndex)} disabled={disabled} title="Insert column before"><Plus className="w-3.5 h-3.5" /> Before</ToolButton>
+          <ToolButton onClick={() => onInsertColumnAt(selCol.colIndex + 1)} disabled={disabled} title="Insert column after"><Plus className="w-3.5 h-3.5" /> After</ToolButton>
+          <ToolButton onClick={onAddTextToColumn} disabled={disabled} title="Add text block to column"><Plus className="w-3.5 h-3.5" /> Text</ToolButton>
+          <ToolButton onClick={onRemove} disabled={disabled || selCol.colsCount <= 1} title="Delete column"><Trash2 className="w-3.5 h-3.5" /></ToolButton>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 pt-0.5">
+          <ToolButton onClick={onInsertAbove} disabled={disabled} title="Insert above"><Plus className="w-3.5 h-3.5" /> Above</ToolButton>
+          <ToolButton onClick={onInsertBelow} disabled={disabled} title="Insert below"><Plus className="w-3.5 h-3.5" /> Below</ToolButton>
+          <ToolButton onClick={() => onMove(-1)} disabled={disabled} title="Move up"><ArrowUp className="w-3.5 h-3.5" /></ToolButton>
+          <ToolButton onClick={() => onMove(1)} disabled={disabled} title="Move down"><ArrowDown className="w-3.5 h-3.5" /></ToolButton>
+          <ToolButton onClick={onDuplicate} disabled={disabled} title="Duplicate"><Copy className="w-3.5 h-3.5" /></ToolButton>
+          <ToolButton onClick={onRemove} disabled={disabled} title="Delete"><Trash2 className="w-3.5 h-3.5" /></ToolButton>
+        </div>
+      )}
 
       {block.type === 'text' && (
         <Row label="Text content ({{field}} tokens)">
@@ -277,7 +289,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
         </>
       )}
 
-      {block.type === 'columns' && (
+      {block.type === 'columns' && !selCol && (
         <Row label={`Columns (${(block.cols || []).length})`}>
           <div className="flex items-center gap-1">
             <ToolButton
@@ -316,6 +328,11 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           </div>
         </Row>
       )}
+      {block.type === 'columns' && selCol && (
+        <Row label={`Column ${selCol.colIndex + 1} of ${selCol.colsCount}`}>
+          <span className="text-[10px] text-zinc-500">Select a column on the canvas, or hover a divider to resize. Click the column's empty area to select it.</span>
+        </Row>
+      )}
 
       {block.type === 'ribbon' && (
         <>
@@ -347,7 +364,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
         </Row>
       )}
 
-      {block.type !== 'pageBreak' && (
+      {!selCol && block.type !== 'pageBreak' && (
         <>
           <Row label="Font">
             <select className={selCls} disabled={disabled} value={block.fontFamily || 'Helvetica'} onChange={e => onPatch({ fontFamily: e.target.value })}>

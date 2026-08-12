@@ -107,13 +107,13 @@ input, textarea, [contenteditable] {
 
 .block-card {
   position: relative;
-  outline: 1px solid #3f3f46;
+  outline: 1px solid rgba(0, 0, 0, 0.12);
   outline-offset: 0;
   border-radius: 4px;
   padding: 6px 8px;
   transition: outline-color 120ms;
 }
-.block-card:hover { outline-color: #71717a; }
+.block-card:hover { outline-color: rgba(0, 0, 0, 0.3); }
 .block-card.selected { outline-color: #3b82f6; background: rgba(59, 130, 246, 0.06); }
 .block-card.selected > .block-chrome { display: flex !important; }
 
@@ -143,6 +143,11 @@ input, textarea, [contenteditable] {
 .block-edge-zone[data-active="1"] {
   background: rgba(59, 130, 246, 0.35);
 }
+.column-drop-empty {
+  border: 1px dashed transparent;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.column-drop-empty:hover { border-color: rgba(0, 0, 0, 0.18); }
 .column-drop-empty[data-active="1"] {
   background: rgba(59, 130, 246, 0.25);
   border-color: #3b82f6 !important;
@@ -150,4 +155,47 @@ input, textarea, [contenteditable] {
 .repeat-drop-empty[data-active="1"] {
   background: rgba(59, 130, 246, 0.25);
   border-color: #3b82f6 !important;
+}
+
+/* columns block: flat Notion-style columns with selectable gutters */
+
+.columns-col {
+  position: relative;
+  border-radius: 6px;
+  padding: 4px 6px;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.columns-col:hover { background: rgba(0, 0, 0, 0.035); }
+.columns-col.selected {
+  background: rgba(59, 130, 246, 0.06);
+  box-shadow: 0 0 0 1px #3b82f6 inset;
+}
+.columns-col.selected > .column-chrome { display: flex !important; }
+
+.column-chrome {
+  position: absolute;
+  top: -26px;
+  left: 4px;
+  display: none;
+  align-items: center;
+  gap: 2px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  padding: 2px 4px;
+  z-index: 30;
+  white-space: nowrap;
+}
+
+.column-gutter {
+  border-radius: 3px;
+  transition: background 120ms ease;
+}
+.column-gutter[data-active="1"] {
+  background: rgba(59, 130, 246, 0.25);
+}
+.column-gutter[data-active="1"] .gutter-line {
+  display: block;
+  background: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.9);
 }

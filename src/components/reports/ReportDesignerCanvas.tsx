@@ -24,13 +24,17 @@ function firstItemOf(ctx: ReportCtx, b: ReportBlock, parentItem: any, parentCate
   return items[0];
 }
 
+export interface ColSel { colsId: string; colIndex: number; }
+
 interface ReportDesignerCanvasProps {
   blocks: ReportBlock[];
   selId: string | null;
+  selCol: ColSel | null;
   ctx: ReportCtx;
   fieldMap: Record<string, ReportFieldDef>;
   readOnly: boolean;
   onSelect: (id: string | null) => void;
+  onSelectCol: (sel: ColSel | null) => void;
   onPatch: (id: string, patch: Partial<ReportBlock>) => void;
   onInsertAfter: (id: string | null, payload: PaletteDropPayload) => void;
   onInsertBefore: (id: string | null, payload: PaletteDropPayload) => void;
@@ -43,13 +47,17 @@ interface ReportDesignerCanvasProps {
   onInsertIntoColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) => void;
   onMoveIntoColumn: (moveId: string, columnsId: string, colIndex: number) => void;
   onDuplicateIntoColumn: (moveId: string, columnsId: string, colIndex: number) => void;
+  onInsertNewColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) => void;
+  onMoveToNewColumn: (moveId: string, columnsId: string, colIndex: number) => void;
+  onDuplicateToNewColumn: (moveId: string, columnsId: string, colIndex: number) => void;
+  onRemoveColumn: (columnsId: string, colIndex: number) => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
-  onMenu: (e: React.MouseEvent, id: string) => void;
+  onMenu: (e: React.MouseEvent, id: string, colIndex?: number) => void;
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, ctx, fieldMap, readOnly, onSelect, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onDuplicate, onRemove, onMove, onMenu }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, selCol, ctx, fieldMap, readOnly, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu }) => {
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
@@ -256,69 +264,91 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
               (() => {
                 const cols = b.cols || [];
                 const total = cols.reduce((a, c) => a + c.width, 0);
+                const dropNewColumn = (colIndex: number, payload: PaletteDropPayload) => {
+                  if (payload.moveId) {
+                    if (payload.duplicate) onDuplicateToNewColumn(payload.moveId, b.id, colIndex);
+                    else onMoveToNewColumn(payload.moveId, b.id, colIndex);
+                  } else {
+                    onInsertNewColumn(b.id, colIndex, payload);
+                  }
+                };
                 return (
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
                       <Columns3 className="w-3 h-3" />
                       Columns · {cols.length}
                     </div>
-                    <div className="relative" style={{ display: 'flex', gap: 8 }}>
-                    {cols.map((col, ci) => (
-                      <div
-                        key={col.id}
-                        className="columns-col"
-                        data-col-width={col.width}
-                        style={{
-                          position: 'relative',
-                          flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
-                          minWidth: 0,
-                          border: '1px solid #3f3f46',
-                          borderRadius: 4,
-                          padding: '6px 8px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          {renderBlocks(col.blocks || [], depth, parentCollection, parentItem, parentCategory)}
-                        </div>
-                        { (col.blocks || []).length === 0 && (
-                          <div
-                            className="column-drop-empty"
-                            style={{ minHeight: 48, border: '2px dashed #c4c4cc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onDragOver={e => {
-                              if (!isDrag(e)) return;
-                              e.preventDefault();
-                              e.stopPropagation();
-                              e.currentTarget.setAttribute('data-active', '1');
-                            }}
-                            onDragLeave={e => {
-                              const cur = e.currentTarget;
-                              if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
-                              cur.removeAttribute('data-active');
-                            }}
-                            onDrop={e => {
-                              if (!isDrag(e)) return;
-                              e.preventDefault();
-                              e.stopPropagation();
-                              let payload: PaletteDropPayload | null = null;
-                              try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
-                              if (payload) {
-                                if (payload.moveId) {
-                                  if (payload.duplicate) onDuplicateIntoColumn(payload.moveId, b.id, ci);
-                                  else onMoveIntoColumn(payload.moveId, b.id, ci);
-                                } else {
-                                  onInsertIntoColumn(b.id, ci, payload);
-                                }
-                              }
-                              pendingRef.current = null;
-                            }}
-                          >
-                            <span className="text-[10px] text-zinc-400 italic">Drop into column</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {selected && <ColumnsResizeBar cols={cols} onResize={widths => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: widths[i] })) })} />}
+                    <div className="columns-row relative" style={{ display: 'flex', gap: dragging ? 0 : 12 }}>
+                      {cols.map((col, ci) => {
+                        const colSelected = !!selCol && selCol.colsId === b.id && selCol.colIndex === ci;
+                        return (
+                          <React.Fragment key={col.id}>
+                            {dragging && <GutterZone colIndex={ci} onDrop={dropNewColumn} />}
+                            <div
+                              className={`columns-col${colSelected ? ' selected' : ''}`}
+                              data-col-width={col.width}
+                              style={{
+                                flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
+                                minWidth: 0,
+                              }}
+                              onClick={e => { e.stopPropagation(); onSelectCol({ colsId: b.id, colIndex: ci }); }}
+                              onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id, ci); }}
+                            >
+                              {colSelected && (
+                                <div className="column-chrome">
+                                  <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 pr-1">
+                                    <GripVertical className="w-3 h-3" />
+                                    Column {ci + 1}
+                                  </span>
+                                  <button title="Add text block" className="chrome-btn" onClick={e => { e.stopPropagation(); onInsertIntoColumn(b.id, ci, { kind: 'block', type: 'text' }); }}><Plus className="w-3 h-3" /></button>
+                                  <button title="Delete column" className="chrome-btn text-red-400 hover:text-red-300" onClick={e => { e.stopPropagation(); onRemoveColumn(b.id, ci); }}><Trash2 className="w-3 h-3" /></button>
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                {renderBlocks(col.blocks || [], depth, parentCollection, parentItem, parentCategory)}
+                              </div>
+                              {(col.blocks || []).length === 0 && (
+                                <div
+                                  className="column-drop-empty"
+                                  style={{ minHeight: 48, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                  onDragOver={e => {
+                                    if (!isDrag(e)) return;
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.currentTarget.setAttribute('data-active', '1');
+                                  }}
+                                  onDragLeave={e => {
+                                    const cur = e.currentTarget;
+                                    if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+                                    cur.removeAttribute('data-active');
+                                  }}
+                                  onDrop={e => {
+                                    if (!isDrag(e)) return;
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    let payload: PaletteDropPayload | null = null;
+                                    try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+                                    if (payload) {
+                                      if (payload.moveId) {
+                                        if (payload.duplicate) onDuplicateIntoColumn(payload.moveId, b.id, ci);
+                                        else onMoveIntoColumn(payload.moveId, b.id, ci);
+                                      } else {
+                                        onInsertIntoColumn(b.id, ci, payload);
+                                      }
+                                    }
+                                    pendingRef.current = null;
+                                  }}
+                                >
+                                  <span className="text-[10px] text-zinc-400 italic">Drag blocks here</span>
+                                </div>
+                              )}
+                            </div>
+                          </React.Fragment>
+                        );
+                      })}
+                      {dragging && <GutterZone colIndex={cols.length} onDrop={dropNewColumn} />}
                     </div>
+                    {selected || (selCol && selCol.colsId === b.id) ? <ColumnsResizeBar cols={cols} onResize={widths => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: widths[i] })) })} /> : null}
                   </div>
                 );
               })()
@@ -340,7 +370,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
   return (
     <div
       className="flex-1 overflow-y-auto p-8"
-      onClick={() => onSelect(null)}
+      onClick={() => { onSelect(null); onSelectCol(null); }}
       onDragEnter={e => { if (isDrag(e)) setDragging(true); }}
       onDragLeave={e => {
         const cur = e.currentTarget;
@@ -407,6 +437,43 @@ const EdgeZone: React.FC<{
   );
 };
 
+// ---- columns block: Notion-style gutter zones (drop → new column) ------------
+
+const GutterZone: React.FC<{
+  colIndex: number;
+  onDrop: (colIndex: number, payload: PaletteDropPayload) => void;
+}> = ({ colIndex, onDrop }) => {
+  const isDrag = (e: React.DragEvent) => e.dataTransfer.types.includes(DROP_MIME);
+  return (
+    <div
+      className="column-gutter"
+      data-zone={`gutter:${colIndex}`}
+      style={{ flex: '0 0 12px', alignSelf: 'stretch', position: 'relative', zIndex: 50 }}
+      onDragOver={e => {
+        if (!isDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.setAttribute('data-active', '1');
+      }}
+      onDragLeave={e => {
+        const cur = e.currentTarget;
+        if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+        cur.removeAttribute('data-active');
+      }}
+      onDrop={e => {
+        if (!isDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        let payload: PaletteDropPayload | null = null;
+        try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+        if (payload) onDrop(colIndex, payload);
+      }}
+    >
+      <div className="gutter-line" style={{ display: 'none', position: 'absolute', top: 0, bottom: 0, left: 5, width: 2, borderRadius: 1 }} />
+    </div>
+  );
+};
+
 // ---- columns block: per-column border boxes + middle resize handles -----------
 
 const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths: number[]) => void }> = ({ cols, onResize }) => {
@@ -469,11 +536,13 @@ const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths:
       {boundaries.map((x, ci) => (
         <div
           key={ci}
-          className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize touch-none"
-          style={{ left: x - 3, width: 6, background: 'rgba(59,130,246,0.6)', borderRadius: 3 }}
+          className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize touch-none group"
+          style={{ left: x - 6, width: 12 }}
           onPointerDown={e => startResize(e, ci)}
           title={`Resize columns ${ci + 1}/${ci + 2}`}
-        />
+        >
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] rounded bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
       ))}
     </div>
   );

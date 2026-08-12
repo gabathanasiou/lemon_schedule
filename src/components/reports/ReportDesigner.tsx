@@ -9,6 +9,7 @@ import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock,
+  insertColumnAt, removeColumnAt, moveIntoNewColumn, duplicateIntoNewColumn,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { ItemManagerDropdown } from '../DropdownMenu';
@@ -16,7 +17,7 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import ReportPalette, { PaletteDropPayload } from './ReportPalette';
 import ReportToolbar from './ReportToolbar';
-import ReportDesignerCanvas from './ReportDesignerCanvas';
+import ReportDesignerCanvas, { ColSel } from './ReportDesignerCanvas';
 import ReportContextMenu, { MenuState } from './ReportContextMenu';
 import ReportPreview from './ReportPreview';
 import { Printer, Eye, EyeOff, ChevronDown } from 'lucide-react';
@@ -43,12 +44,14 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   const [blocks, setBlocks] = useState<ReportBlock[]>(() => activeDesign?.blocks || []);
   const [selId, setSelId] = useState<string | null>(null);
+  const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   useEffect(() => {
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);
     setSelId(null);
+    setSelCol(null);
     setMenu(null);
   }, [activeDesign?.id, project.reportDesigns]);
 
@@ -56,6 +59,11 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   blocksRef.current = blocks;
   const selIdRef = useRef(selId);
   selIdRef.current = selId;
+  const selColRef = useRef(selCol);
+  selColRef.current = selCol;
+
+  const selectBlock = (id: string | null) => { setSelId(id); if (id) setSelCol(null); };
+  const selectCol = (sel: ColSel | null) => { setSelCol(sel); if (sel) setSelId(null); };
 
   const commit = (next: ReportBlock[]) => {
     setBlocks(next);
@@ -86,9 +94,18 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setMenu(null); setPreview(false); return; }
+      if (e.key === 'Escape') { setMenu(null); setPreview(false); setSelCol(null); return; }
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      const col = selColRef.current;
+      if (col) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          commit(removeColumnAt(blocksRef.current, col.colsId, col.colIndex));
+          setSelCol(null);
+        }
+        return;
+      }
       const id = selIdRef.current;
       if (!id) return;
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); commit(removeBlock(blocksRef.current, id)); setSelId(null); }
@@ -212,20 +229,43 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               parentCollection={selParentCollection}
               project={project}
               readOnly={readOnly}
+              selCol={selCol && selBlock && selBlock.id === selCol.colsId && selBlock.type === 'columns'
+                ? { colIndex: selCol.colIndex, colsCount: (selBlock.cols || []).length }
+                : null}
               onPatch={p => selId && patch(selId, p)}
               onInsertAbove={() => selId && commit(insertBefore(blocksRef.current, selId, makeReportBlock('text')))}
               onInsertBelow={() => selId && commit(insertAfter(blocksRef.current, selId, makeReportBlock('text')))}
               onDuplicate={() => selId && commit(duplicateBlock(blocksRef.current, selId))}
-              onRemove={() => { if (selId) { commit(removeBlock(blocksRef.current, selId)); setSelId(null); } }}
+              onRemove={() => {
+                const col = selColRef.current;
+                if (col) { commit(removeColumnAt(blocksRef.current, col.colsId, col.colIndex)); setSelCol(null); return; }
+                if (selId) { commit(removeBlock(blocksRef.current, selId)); setSelId(null); }
+              }}
               onMove={d => selId && commit(moveBlock(blocksRef.current, selId, d))}
+              onInsertColumnAt={i => {
+                const col = selColRef.current;
+                if (!col) return;
+                const b = makeReportBlock('text');
+                commit(insertColumnAt(blocksRef.current, col.colsId, i, b));
+                setSelId(b.id);
+              }}
+              onAddTextToColumn={() => {
+                const col = selColRef.current;
+                if (!col) return;
+                const b = makeReportBlock('text');
+                commit(appendToColumn(blocksRef.current, col.colsId, col.colIndex, b));
+                setSelId(b.id);
+              }}
             />
             <ReportDesignerCanvas
               blocks={blocks}
               selId={selId}
+              selCol={selCol}
               ctx={ctx}
               fieldMap={fieldMap}
               readOnly={readOnly}
-              onSelect={setSelId}
+              onSelect={selectBlock}
+              onSelectCol={selectCol}
               onPatch={patch}
               onInsertAfter={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertAfter(blocksRef.current, id, b) : [...blocksRef.current, b]); setSelId(b.id); }}
               onInsertBefore={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertBefore(blocksRef.current, id, b) : [b, ...blocksRef.current]); setSelId(b.id); }}
@@ -263,10 +303,31 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 if (!fm) return;
                 commit(appendToColumn(blocksRef.current, columnsId, colIndex, cloneBlock(fm.block)));
               }}
+              onInsertNewColumn={(columnsId, colIndex, payload) => {
+                const b = payloadToBlock(payload, insertScopeFor(blocksRef.current, columnsId));
+                commit(insertColumnAt(blocksRef.current, columnsId, colIndex, b));
+                setSelId(b.id);
+              }}
+              onMoveToNewColumn={(moveId, columnsId, colIndex) => {
+                commit(moveIntoNewColumn(blocksRef.current, moveId, columnsId, colIndex));
+                setSelId(moveId);
+              }}
+              onDuplicateToNewColumn={(moveId, columnsId, colIndex) => {
+                commit(duplicateIntoNewColumn(blocksRef.current, moveId, columnsId, colIndex));
+                setSelId(moveId);
+              }}
+              onRemoveColumn={(columnsId, colIndex) => {
+                commit(removeColumnAt(blocksRef.current, columnsId, colIndex));
+                setSelCol(null);
+              }}
               onDuplicate={id => commit(duplicateBlock(blocksRef.current, id))}
-              onRemove={id => { commit(removeBlock(blocksRef.current, id)); if (selId === id) setSelId(null); }}
+              onRemove={id => { commit(removeBlock(blocksRef.current, id)); if (selId === id) setSelId(null); if (selCol?.colsId === id) setSelCol(null); }}
               onMove={(id, d) => commit(moveBlock(blocksRef.current, id, d))}
-              onMenu={(e, id) => { setSelId(id); setMenu({ x: e.clientX, y: e.clientY, id }); }}
+              onMenu={(e, id, colIndex) => {
+                setSelId(id);
+                setSelCol(colIndex !== undefined ? { colsId: id, colIndex } : null);
+                setMenu({ x: e.clientX, y: e.clientY, id, colIndex });
+              }}
             />
           </div>
         </div>
@@ -285,6 +346,26 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
           onAddChild={insertIntoSelected}
           onDuplicate={() => commit(duplicateBlock(blocksRef.current, menu.id))}
           onRemove={() => { commit(removeBlock(blocksRef.current, menu.id)); setSelId(null); setMenu(null); }}
+          onColumnAddText={() => {
+            if (menu.colIndex === undefined) return;
+            const b = makeReportBlock('text');
+            commit(appendToColumn(blocksRef.current, menu.id, menu.colIndex, b));
+            setSelId(b.id);
+            setMenu(null);
+          }}
+          onColumnInsertAt={i => {
+            if (menu.colIndex === undefined) return;
+            const b = makeReportBlock('text');
+            commit(insertColumnAt(blocksRef.current, menu.id, i, b));
+            setSelId(b.id);
+            setMenu(null);
+          }}
+          onColumnRemove={() => {
+            if (menu.colIndex === undefined) return;
+            commit(removeColumnAt(blocksRef.current, menu.id, menu.colIndex));
+            setSelCol(null);
+            setMenu(null);
+          }}
         />
       )}
     </div>

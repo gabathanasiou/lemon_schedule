@@ -1,4 +1,4 @@
-import { ReportBlock, ReportCollection } from '../types';
+import { ReportBlock, ReportCollection, ReportColumn } from '../types';
 import { generateUUID } from './utils';
 
 // Immutable tree helpers for report design block lists. Contract: findBlock
@@ -209,6 +209,58 @@ export function moveIntoChildren(blocks: ReportBlock[], moveId: string, containe
   if (!fm) return blocks;
   const next = removeBlock(blocks, moveId);
   return insertInto(next, containerId, fm.block);
+}
+
+// ---- column ops (columns block) ----------------------------------------------
+
+/** Normalizes the given width weights to percentages summing to 100. */
+function rescaleWidths(cols: ReportColumn[], weights: number[]): ReportColumn[] {
+  const total = weights.reduce((a, b) => a + b, 0) || 1;
+  return cols.map((c, i) => ({ ...c, width: Math.round(((weights[i] ?? 0) / total) * 10000) / 100 }));
+}
+
+function mapColumns(blocks: ReportBlock[], colsId: string, fn: (cols: ReportColumn[]) => ReportColumn[]): ReportBlock[] {
+  return mapTree(blocks, colsId, b => {
+    if (b.type !== 'columns' || !b.cols) return b;
+    return { ...b, cols: fn(b.cols) };
+  });
+}
+
+/** Inserts a new column at `colIndex` containing `b`; existing widths shrink proportionally. */
+export function insertColumnAt(blocks: ReportBlock[], colsId: string, colIndex: number, b: ReportBlock): ReportBlock[] {
+  return mapColumns(blocks, colsId, cols => {
+    const n = cols.length;
+    const index = Math.max(0, Math.min(colIndex, n));
+    const avg = n > 0 ? cols.reduce((a, c) => a + c.width, 0) / n : 50;
+    const next = [...cols];
+    next.splice(index, 0, { id: blockId(), width: avg, blocks: [b] });
+    return rescaleWidths(next, next.map(c => c.width));
+  });
+}
+
+/** Removes the column at `colIndex` (and its contents — Notion behavior). No-op when 1 column remains. */
+export function removeColumnAt(blocks: ReportBlock[], colsId: string, colIndex: number): ReportBlock[] {
+  return mapColumns(blocks, colsId, cols => {
+    if (cols.length <= 1) return cols;
+    const next = cols.filter((_, i) => i !== colIndex);
+    return rescaleWidths(next, next.map(c => c.width));
+  });
+}
+
+/** Moves a block from anywhere into a brand-new column at `colIndex`. */
+export function moveIntoNewColumn(blocks: ReportBlock[], moveId: string, colsId: string, colIndex: number): ReportBlock[] {
+  const fm = findBlock(blocks, moveId);
+  if (!fm) return blocks;
+  const next = removeBlock(blocks, moveId);
+  if (!findBlock(next, colsId)) return blocks;
+  return insertColumnAt(next, colsId, colIndex, fm.block);
+}
+
+/** Alt+drag: clones a block into a brand-new column at `colIndex`, keeping the original. */
+export function duplicateIntoNewColumn(blocks: ReportBlock[], moveId: string, colsId: string, colIndex: number): ReportBlock[] {
+  const fm = findBlock(blocks, moveId);
+  if (!fm) return blocks;
+  return insertColumnAt(blocks, colsId, colIndex, cloneBlock(fm.block));
 }
 
 // ---- collection context ------------------------------------------------------
