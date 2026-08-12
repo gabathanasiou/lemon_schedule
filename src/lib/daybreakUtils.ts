@@ -46,7 +46,7 @@ export function addDays(date: string, n: number): string {
 }
 
 export function buildNonShootSet(nonShootDates?: NonShootDate[] | null): Set<string> {
-  return new Set((nonShootDates || []).map(n => n.date));
+  return new Set((nonShootDates || []).filter(n => n.status).map(n => n.date));
 }
 
 export function formatElapsedCaption(row: { computedDayElapsed?: number; previousBreakEndElapsed?: number }): string | null {
