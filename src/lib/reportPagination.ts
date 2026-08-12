@@ -27,30 +27,30 @@ export function hasTrailingBreak(b: ReportBlock): boolean {
 
 export function buildReportPages(blocks: ReportBlock[], ctx: ReportCtx): PageItem[][] {
   const pages: PageItem[][] = [];
-  let current: PageItem[] = [];
-
-  const flush = () => { if (current.length > 0) pages.push(current); current = []; };
-
-  for (const b of blocks) {
-    if (b.type === 'pageBreak') {
-      if (current.length > 0 || pages.length > 0) flush();
+  for (const pageBlocks of paginateBlocks(blocks)) {
+    if (pageBlocks.length === 0) {
+      pages.push([]); // blank page from consecutive top-level breaks
       continue;
     }
-    if (b.type === 'repeat' && hasTrailingBreak(b)) {
-      const items = resolveCollection(ctx, b.collection, b.category, undefined, undefined) as ReportCollectionItem[];
-      if (items.length > 0) {
-        current.push({ repeatItem: b, item: items[0] });
-        flush();
-        for (let i = 1; i < items.length; i++) {
-          pages.push([{ repeatItem: b, item: items[i] }]);
+    let current: PageItem[] = [];
+    for (const b of pageBlocks) {
+      if (b.type === 'repeat' && hasTrailingBreak(b)) {
+        const items = resolveCollection(ctx, b.collection, b.category, undefined, undefined) as ReportCollectionItem[];
+        if (items.length > 0) {
+          current.push({ repeatItem: b, item: items[0] });
+          pages.push(current);
+          current = [];
+          for (let i = 1; i < items.length; i++) {
+            pages.push([{ repeatItem: b, item: items[i] }]);
+          }
+          continue;
         }
-        continue;
       }
+      current.push(b);
     }
-    current.push(b);
+    if (current.length > 0) pages.push(current);
   }
-  if (current.length > 0) flush();
-  return pages.length > 0 ? pages : [current];
+  return pages;
 }
 
 export { paginateBlocks };
