@@ -1,12 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { Project } from '../../types';
-import { COLLECTION_LABELS, validCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
+import { validCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
-import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { FieldPicker } from './FieldPicker';
+import CollectionMenu from './CollectionMenu';
 import { Tooltip } from '../Tooltip';
 import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus } from 'lucide-react';
 
@@ -50,6 +50,37 @@ const ToolButton: React.FC<{ onClick: () => void; disabled?: boolean; title: str
   </Tooltip>
 );
 
+const NestedTableMenu: React.FC<{
+  block: ReportBlock;
+  parentCollection: ReportCollection;
+  allCategoryKeys: { key: string; isCustom: boolean }[];
+  categoryLabelLookup: Record<string, string>;
+  customCategories?: { key: string; icon?: string }[];
+  disabled: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+}> = ({ block, parentCollection, allCategoryKeys, categoryLabelLookup, customCategories, disabled, onPatch }) => {
+  const contextual = contextualCollectionsFor(parentCollection);
+  const collections = [...contextual];
+  const preserved = block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection) && block.collection !== 'cast'
+    ? block.collection
+    : null;
+  if (preserved) collections.push(preserved);
+  if (!collections.includes('elements')) collections.push('elements');
+
+  return (
+    <CollectionMenu
+      value={tableItemCollection(block, parentCollection)}
+      category={block.category || 'props'}
+      collections={collections}
+      categoryKeys={allCategoryKeys}
+      categoryLabels={categoryLabelLookup}
+      customCategories={customCategories}
+      disabled={disabled}
+      onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+    />
+  );
+};
+
 interface ReportToolbarProps {
   block: ReportBlock | null;
   parentCollection?: ReportCollection;
@@ -69,7 +100,6 @@ interface ReportToolbarProps {
 const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn }) => {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection), [allFields, parentCollection]);
-  const [catOpen, setCatOpen] = useState(false);
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -95,7 +125,6 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
   }
 
   const disabled = readOnly;
-  const collections = validCollections(parentCollection);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope);
 
@@ -184,50 +213,33 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
         <>
           {block.type === 'repeat' ? (
             <Row label="Repeat over">
-              <select className={selCls} disabled={disabled} value={block.collection || 'scenes'} onChange={e => onPatch({ collection: e.target.value as ReportCollection })}>
-                {collections.map(c => (
-                  <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
-                ))}
-              </select>
-            </Row>
-          ) : parentCollection ? (
-            <Row label="Table over">
-              <select
-                className={selCls}
+              <CollectionMenu
+                value={block.collection || 'scenes'}
+                category={block.category || 'props'}
+                collections={validCollections(parentCollection).filter(c => c !== 'cast')}
+                categoryKeys={allCategoryKeys}
+                categoryLabels={categoryLabelLookup}
+                customCategories={project.customCategories}
                 disabled={disabled}
-                value={tableItemCollection(block, parentCollection)}
-                onChange={e => onPatch({ collection: e.target.value as ReportCollection })}
-              >
-                {block.collection && block.collection !== 'scenes' && !contextualCollectionsFor(parentCollection).includes(block.collection) && (
-                  <option value={block.collection}>{COLLECTION_LABELS[block.collection] || block.collection}</option>
-                )}
-                {contextualCollectionsFor(parentCollection).map(c => (
-                  <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
-                ))}
-              </select>
+                onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+              />
             </Row>
           ) : (
             <Row label="Table over">
-              <select className={selCls} disabled={disabled} value={block.collection || 'scenes'} onChange={e => onPatch({ collection: e.target.value as ReportCollection })}>
-                {collections.map(c => (
-                  <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
-                ))}
-              </select>
-            </Row>
-          )}
-          {block.collection === 'elements' && (block.type === 'repeat' || block.type === 'table') && (
-            <Row label="Category">
-              <CategoryDropdown
-                value={block.category || 'props'}
-                onChange={v => onPatch({ category: v })}
-                allCategoryKeys={allCategoryKeys}
-                categoryLabelLookup={categoryLabelLookup}
-                customCategories={project.customCategories}
-                open={catOpen}
-                onOpenChange={setCatOpen}
-                btnClass="w-36"
-                itemClass="px-2 py-1.5 text-xs"
-              />
+              {parentCollection ? (
+                <NestedTableMenu block={block} parentCollection={parentCollection} allCategoryKeys={allCategoryKeys} categoryLabelLookup={categoryLabelLookup} customCategories={project.customCategories} disabled={disabled} onPatch={onPatch} />
+              ) : (
+                <CollectionMenu
+                  value={block.collection || 'scenes'}
+                  category={block.category || 'props'}
+                  collections={validCollections().filter(c => c !== 'cast')}
+                  categoryKeys={allCategoryKeys}
+                  categoryLabels={categoryLabelLookup}
+                  customCategories={project.customCategories}
+                  disabled={disabled}
+                  onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+                />
+              )}
             </Row>
           )}
           {block.type === 'repeat' && (

@@ -302,7 +302,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   daysOfCast: 'Days (of this cast member)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'crew', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
