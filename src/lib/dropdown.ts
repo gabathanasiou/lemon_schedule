@@ -20,7 +20,7 @@ const DD_INPUT_TOUCH_LIB = IS_COARSE ? 'px-4 py-3 text-base' : 'px-3 py-2 text-s
 
 export const DD_PANEL_CLASS_LIB = (positioning: string) =>
   positioning === 'fixed'
-    ? 'z-[9999] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col'
+    ? 'z-[10010] bg-white border border-zinc-200 rounded-md shadow-lg p-1 min-w-[200px] flex flex-col pointer-events-auto'
     : 'absolute top-full left-0 z-[100] bg-white border border-zinc-200 rounded-lg shadow-lg p-1 mt-1 min-w-[180px] flex flex-col';
 
 export const DD_INPUT_CLASS_LIB = (standalone: boolean) =>
