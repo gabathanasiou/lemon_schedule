@@ -1,4 +1,4 @@
-import { CrewRole, ReportDesign, ReportTableColumn, ReportTableRow } from '../types';
+import { CrewRole, ReportDesign, ReportTableColumn } from '../types';
 import { cid } from './ribbonUtils';
 
 // ---- built-in crew roles catalog (roles-first: role → one or more people) ----
@@ -43,13 +43,11 @@ export const DEFAULT_CREW_ROLES: CrewRole[] = [
 
 function tableBlock(collection: string, fields: { field: string; width: number; align?: 'left' | 'center' | 'right' }[], extra: Partial<ReportDesign['blocks'][number]> = {}): ReportDesign['blocks'][number] {
   const columns: ReportTableColumn[] = fields.map(f => ({ id: cid(), field: f.field, width: f.width, align: f.align }));
-  const rows: ReportTableRow[] = [{ id: cid(), cells: columns.map(c => ({ id: cid(), field: c.field, align: c.align })) }];
   return {
     id: cid(),
     type: 'table',
     collection: collection as any,
-    colWidths: columns.map(c => c.width),
-    tableRows: rows,
+    columns,
     showHeader: true,
     ...extra,
   };

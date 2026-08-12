@@ -33,6 +33,7 @@ interface ReportDesignerCanvasProps {
   ctx: ReportCtx;
   fieldMap: Record<string, ReportFieldDef>;
   readOnly: boolean;
+  showKeys: boolean;
   onSelect: (id: string | null) => void;
   onSelectCol: (sel: ColSel | null) => void;
   onPatch: (id: string, patch: Partial<ReportBlock>) => void;
@@ -57,7 +58,7 @@ interface ReportDesignerCanvasProps {
   onMenu: (e: React.MouseEvent, id: string, colIndex?: number) => void;
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, selCol, ctx, fieldMap, readOnly, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, selCol, ctx, fieldMap, readOnly, showKeys, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu }) => {
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
@@ -176,7 +177,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
             }}
           >
             {resizeTarget && resizeTarget.id === b.id && (
-              <TableResizeBar block={resizeTarget} onResize={widths => onPatch(resizeTarget.id, { colWidths: widths })} />
+              <TableResizeBar
+                block={resizeTarget}
+                onResize={widths => onPatch(resizeTarget.id, { columns: (resizeTarget.columns || []).map((c, i) => ({ ...c, width: widths[i] ?? c.width })) })}
+              />
             )}
             {dragging && !insideColumnsBlock(blocks, b.id) && (
               <>
@@ -208,8 +212,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                   {meta.icon}
                   {b.type === 'table' ? 'Table' : 'Repeat'}: {COLLECTION_LABELS[b.collection || 'scenes']}
                   {b.collection === 'elements' ? ` (${b.category || 'props'})` : ''}
-                  {b.type === 'table' && b.repeatAxis === 'columns' ? ` · transposed${b.headerField ? ` · header ${b.headerField}` : ''}` : ''}
-                  {b.type === 'table' && (b.repeatAxis ?? 'rows') === 'rows' && b.tableRows?.length ? ` · ${b.tableRows.length} row${b.tableRows.length > 1 ? 's' : ''}` : ''}
+                  {b.type === 'table' && (b.columns || []).length ? ` · ${b.columns!.length} column${(b.columns || []).length > 1 ? 's' : ''}` : ''}
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
                   <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -254,7 +257,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                     <span className="text-[10px] text-zinc-400 italic">Drop inside repeat (or click to add text)</span>
                   </div>
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -391,7 +394,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 );
               })()
             ) : (
-              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
+              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} />
             )}
           </div>
         </div>,
@@ -401,9 +404,9 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     return out;
   };
 
-  // selected table (rows-mode) → resize bar overlay inside its card
+  // selected table → resize bar overlay inside its card
   const selBlock = selId ? findBlock(blocks, selId)?.block : null;
-  const resizeTarget = selBlock && selBlock.type === 'table' && (selBlock.repeatAxis ?? 'rows') === 'rows' ? selBlock : null;
+  const resizeTarget = selBlock && selBlock.type === 'table' && (selBlock.columns || []).length > 0 ? selBlock : null;
 
   return (
     <div
@@ -521,28 +524,40 @@ const GutterZone: React.FC<{
 // ---- table column resize bar (pointer drag, ribbon-style) ---------------------
 
 const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]) => void }> = ({ block, onResize }) => {
-  const widths = block.colWidths && block.colWidths.length > 0 ? block.colWidths : [100];
+  const columns = block.columns || [];
+  const widths = columns.map(c => c.width);
+  if (widths.length < 2) return null;
 
   const startResize = (e: React.PointerEvent, ci: number) => {
     e.preventDefault();
     e.stopPropagation();
-    const container = (e.currentTarget.closest('[data-block-id]') as HTMLElement)?.querySelector('.report-table-grid') as HTMLElement | null;
+    const card = (e.currentTarget.closest('[data-block-id]') as HTMLElement | null)?.querySelector('.report-table-cols') as HTMLElement | null;
     const startX = e.clientX;
     const startWidths = [...widths];
     let lastNorm: number[] = startWidths;
+    const applyWidths = () => {
+      if (!card) return;
+      const cols = lastNorm;
+      card.querySelectorAll('[data-col-ci]').forEach(el => {
+        const elm = el as HTMLElement;
+        const w = cols[columns.findIndex(c => c.id === elm.getAttribute('data-col-ci'))];
+        if (w) elm.style.width = `${w}%`;
+      });
+    };
     const onMove = (ev: PointerEvent) => {
-      const deltaPct = ((ev.clientX - startX) / (container?.clientWidth || 1)) * 100;
+      ev.preventDefault();
+      const deltaPct = ((ev.clientX - startX) / (card?.clientWidth || 1)) * 100;
       const next = [...startWidths];
       next[ci] = Math.max(5, startWidths[ci] + deltaPct);
       next[ci + 1] = Math.max(5, startWidths[ci + 1] - deltaPct);
       const total = next.reduce((a, b) => a + b, 0);
       lastNorm = next.map(w => (w / total) * 100);
-      if (container) container.style.gridTemplateColumns = lastNorm.map(w => `${w}%`).join(' ');
+      applyWidths();
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      if (container) container.style.gridTemplateColumns = '';
+      if (card) card.querySelectorAll('[data-col-ci]').forEach(el => { (el as HTMLElement).style.width = ''; });
       onResize(normalizeColWidths(lastNorm));
     };
     window.addEventListener('pointermove', onMove);
@@ -551,7 +566,6 @@ const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]
 
   let acc = 0;
   const boundaries = widths.slice(0, -1).map(w => { acc += w; return acc; });
-  if (boundaries.length === 0) return null;
 
   return (
     <div className="absolute -top-2.5 left-0 right-0 h-5 pointer-events-none" style={{ zIndex: 40 }}>

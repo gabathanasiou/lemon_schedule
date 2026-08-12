@@ -17,7 +17,7 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'text': base.text = partial.text ?? 'Text — {{title}}'; break;
     case 'field': base.field = partial.field ?? undefined; break;
     case 'repeat': base.collection = partial.collection ?? 'scenes'; base.children = []; base.gap = partial.gap ?? 8; break;
-    case 'table': base.collection = partial.collection ?? 'scenes'; base.repeatAxis = 'rows'; base.colWidths = []; base.tableRows = []; base.showHeader = true; break;
+    case 'table': base.collection = partial.collection ?? 'scenes'; base.columns = partial.columns ?? []; base.showHeader = true; break;
     case 'columns': base.cols = []; break;
     case 'ribbon': base.ribbonMode = partial.ribbonMode ?? 'all'; break;
     case 'spacer': base.height = partial.height ?? 16; break;
@@ -275,7 +275,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   scenesOfElement: 'Scenes (of this element)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'crew', 'scenesOfDay', 'scenesOfElement'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'scenesOfDay', 'scenesOfElement'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {

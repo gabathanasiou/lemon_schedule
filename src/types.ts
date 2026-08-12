@@ -315,6 +315,7 @@ export interface ReportBlock {
   tableRows?: ReportTableRow[];  // rows-mode: multiple design rows per item
   showHeader?: boolean;
   headerField?: string;          // columns-mode: item identity row
+  columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
   // columns (Notion-style)
   cols?: ReportColumn[];
   // ribbon
@@ -330,6 +331,7 @@ export interface ReportBlock {
   paddingH?: number;
   // spacer
   height?: number;
+  spacerStyle?: 'none' | 'black' | 'line' | 'dotted';
 }
 
 export interface ReportDesign {

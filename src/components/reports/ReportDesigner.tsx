@@ -46,6 +46,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
+  const [viewKeys, setViewKeys] = useState(true);
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   useEffect(() => {
@@ -53,7 +54,15 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
     setSelId(null);
     setSelCol(null);
     setMenu(null);
-  }, [activeDesign?.id, project.reportDesigns]);
+  }, [activeDesign?.id]);
+
+  useEffect(() => {
+    if (!activeDesign) return;
+    const fresh = activeDesign.blocks || [];
+    setBlocks(JSON.parse(JSON.stringify(fresh)));
+    setSelId(prev => (prev && findBlock(fresh, prev) ? prev : null));
+    setSelCol(prev => (prev && prev.colsId && findBlock(fresh, prev.colsId) ? prev : null));
+  }, [project.reportDesigns]);
 
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
@@ -174,13 +183,21 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
           if (activeDesign) commit(JSON.parse(JSON.stringify(fresh.blocks)));
         }}
       />
-      <span className="flex items-center gap-1 text-[10px] text-zinc-600 shrink-0">Editing:</span>
-      <input
-        value={activeDesign?.name || ''}
-        onChange={e => activeDesign && dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id: activeDesign.id, name: e.target.value } })}
-        className="bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-xs text-white outline-none focus:border-zinc-500 w-36"
-      />
       <div className="flex-1" />
+      <div className="flex border border-zinc-700 rounded p-0.5">
+        <button
+          onClick={() => setViewKeys(true)}
+          className={`px-2 py-0.5 rounded text-xs transition-colors ${viewKeys ? 'bg-zinc-100 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          Keys
+        </button>
+        <button
+          onClick={() => setViewKeys(false)}
+          className={`px-2 py-0.5 rounded text-xs transition-colors ${!viewKeys ? 'bg-zinc-100 text-zinc-900 font-medium' : 'text-zinc-400 hover:text-zinc-200'}`}
+        >
+          Values
+        </button>
+      </div>
       <PageSizeMenu page={activeDesign?.page || 'portrait'} readOnly={readOnly} onPage={p => activeDesign && dispatch({ type: 'UPDATE_REPORT_PAGE', payload: { id: activeDesign.id, page: p } })} />
       <button
         onClick={() => setPreview(v => !v)}
@@ -264,6 +281,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               ctx={ctx}
               fieldMap={fieldMap}
               readOnly={readOnly}
+              showKeys={viewKeys}
               onSelect={selectBlock}
               onSelectCol={selectCol}
               onPatch={patch}

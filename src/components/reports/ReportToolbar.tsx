@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
-import { ReportBlock, ReportCollection, ReportTableRow } from '../../types';
+import React, { useMemo, useState } from 'react';
+import { ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { Project } from '../../types';
 import { COLLECTION_LABELS, validCollections } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
+import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
+import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { Tooltip } from '../Tooltip';
 import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus } from 'lucide-react';
 
@@ -66,6 +68,22 @@ interface ReportToolbarProps {
 const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn }) => {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
   const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection), [allFields, parentCollection]);
+  const [catOpen, setCatOpen] = useState(false);
+
+  const categoryLabelLookup = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
+    for (const c of project.customCategories || []) map[c.key] = c.label;
+    return map;
+  }, [project.categoryLabels, project.customCategories]);
+
+  const allCategoryKeys = useMemo(() => {
+    const keys: { key: string; isCustom: boolean }[] = [];
+    const seen = new Set<string>();
+    for (const c of ELEMENT_CATEGORIES) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: false }); } }
+    for (const c of project.customCategories || []) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: true }); } }
+    return keys;
+  }, [project.customCategories]);
 
   if (!block) {
     return (
@@ -82,41 +100,21 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
   const tableOps = {
     addColumn: () => {
-      const n = block.tableRows?.[0]?.cells.length ?? 0;
-      const width = n === 0 ? 100 : undefined;
+      const cols = block.columns || [];
+      const n = cols.length;
       onPatch({
-        colWidths: width ? [100] : normalizeColWidths([...(block.colWidths || []), 10]),
-        tableRows: (block.tableRows || [{ id: `r${Date.now().toString(36)}`, cells: [] }]).map(r => ({
-          ...r,
-          cells: [...r.cells, { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, field: '' }],
-        })),
+        columns: normalizeColWidths([...(cols.map(c => c.width)), n === 0 ? 100 : 10]).map((w, i) => i < n ? { ...cols[i], width: w } : { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, field: '', width: w }),
       });
     },
     removeColumn: () => {
-      const cols = (block.tableRows || []);
-      if (cols.length === 0 || cols[0].cells.length <= 1) return;
-      const widths = (block.colWidths || []).slice(0, -1);
-      onPatch({
-        colWidths: normalizeColWidths(widths.length ? widths : [100]),
-        tableRows: cols.map(r => ({ ...r, cells: r.cells.slice(0, -1) })),
-      });
+      const cols = block.columns || [];
+      if (cols.length <= 1) return;
+      const next = cols.slice(0, -1);
+      onPatch({ columns: normalizeColWidths(next.map(c => c.width)).map((w, i) => ({ ...next[i], width: w })) });
     },
-    addRow: () => {
-      const numCols = block.tableRows?.[0]?.cells.length ?? 0;
-      const row: ReportTableRow = {
-        id: `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
-        cells: Array.from({ length: numCols }, () => ({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, field: '' })),
-      };
-      onPatch({ tableRows: [...(block.tableRows || []), row] });
-    },
-    removeRow: () => {
-      const rows = block.tableRows || [];
-      if (rows.length <= 1) return;
-      onPatch({ tableRows: rows.slice(0, -1) });
-    },
-    patchCell: (ri: number, ci: number, field: string) => {
-      const rows = (block.tableRows || []).map((r, i) => i === ri ? { ...r, cells: r.cells.map((c, j) => j === ci ? { ...c, field } : c) } : r);
-      onPatch({ tableRows: rows });
+    patchColumn: (ci: number, patch: Partial<ReportTableColumn>) => {
+      const cols = block.columns || [];
+      onPatch({ columns: cols.map((c, i) => i === ci ? { ...c, ...patch } : c) });
     },
   };
 
@@ -196,11 +194,17 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           </Row>
           {block.collection === 'elements' && (
             <Row label="Category">
-              <select className={selCls} disabled={disabled} value={block.category || 'props'} onChange={e => onPatch({ category: e.target.value })}>
-                {['props', 'wardrobe', 'makeup', 'sfx', 'vfx', 'sound', 'music', 'vehicles', 'weapons', 'animalsAndWranglers', 'greenery', 'artDept', 'stunts', 'backgroundActors'].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <CategoryDropdown
+                value={block.category || 'props'}
+                onChange={v => onPatch({ category: v })}
+                allCategoryKeys={allCategoryKeys}
+                categoryLabelLookup={categoryLabelLookup}
+                customCategories={project.customCategories}
+                open={catOpen}
+                onOpenChange={setCatOpen}
+                btnClass="w-36"
+                itemClass="px-2 py-1.5 text-xs"
+              />
             </Row>
           )}
           {block.type === 'repeat' && (
@@ -213,79 +217,30 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
       {block.type === 'table' && (
         <>
-          <Row label="Orientation">
-            <Seg
-              value={block.repeatAxis ?? 'rows'}
-              options={[{ v: 'rows', l: 'Rows' }, { v: 'columns', l: 'Columns' }]}
-              onChange={v => onPatch({ repeatAxis: v as 'rows' | 'columns' })}
-              disabled={disabled}
-            />
+          <Row label={`Columns (${(block.columns || []).length} · drag handles on the grid)`}>
+            <div className="flex items-center gap-1 flex-wrap">
+              {(block.columns || []).map((col, ci) => (
+                <select
+                  key={col.id}
+                  className={selCls}
+                  disabled={disabled}
+                  value={col.field}
+                  onChange={e => tableOps.patchColumn(ci, { field: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {fieldOptions(parentCollection).map(f => (
+                    <option key={f.key} value={f.key}>{f.label}</option>
+                  ))}
+                </select>
+              ))}
+              <ToolButton onClick={tableOps.addColumn} disabled={disabled} title="Add column"><Plus className="w-3.5 h-3.5" /></ToolButton>
+              <ToolButton onClick={tableOps.removeColumn} disabled={disabled} title="Remove last column"><Minus className="w-3.5 h-3.5" /></ToolButton>
+            </div>
           </Row>
-          {(block.repeatAxis ?? 'rows') === 'rows' && (
-            <>
-              <Row label={`Columns (${(block.colWidths || []).length || 0} · drag handles on the grid)`}>
-                <div className="flex items-center gap-1">
-                  {((block.tableRows || [])[0]?.cells || []).map((cell, ci) => (
-                    <select
-                      key={cell.id}
-                      className={selCls}
-                      disabled={disabled}
-                      value={cell.field}
-                      onChange={e => tableOps.patchCell(0, ci, e.target.value)}
-                    >
-                      <option value="">—</option>
-                      {fieldOptions(parentCollection).map(f => (
-                        <option key={f.key} value={f.key}>{f.label}</option>
-                      ))}
-                    </select>
-                  ))}
-                  <ToolButton onClick={tableOps.addColumn} disabled={disabled} title="Add column"><Plus className="w-3.5 h-3.5" /></ToolButton>
-                  <ToolButton onClick={tableOps.removeColumn} disabled={disabled} title="Remove last column"><Minus className="w-3.5 h-3.5" /></ToolButton>
-                </div>
-              </Row>
-              <Row label={`Design rows (${(block.tableRows || []).length} — same-field cells merge)`}>
-                <div className="flex flex-col gap-1">
-                  {(block.tableRows || []).map((r, ri) => (
-                    <div key={r.id} className="flex items-center gap-1">
-                      {r.cells.map((cell, ci) => (
-                        <select
-                          key={cell.id}
-                          className={selCls}
-                          disabled={disabled}
-                          value={cell.field}
-                          onChange={e => tableOps.patchCell(ri, ci, e.target.value)}
-                        >
-                          <option value="">—</option>
-                          {fieldOptions(parentCollection).map(f => (
-                            <option key={f.key} value={f.key}>{f.label}</option>
-                          ))}
-                        </select>
-                      ))}
-                      <span className="text-[10px] text-zinc-600 w-5 text-center">{ri + 1}</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-1">
-                    <button disabled={disabled} onClick={tableOps.addRow} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 disabled:opacity-30"><Plus className="w-3 h-3" /> Row</button>
-                    <button disabled={disabled} onClick={tableOps.removeRow} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 disabled:opacity-30"><Minus className="w-3 h-3" /> Row</button>
-                  </div>
-                </div>
-              </Row>
-              <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
-                <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
-                Header row
-              </label>
-            </>
-          )}
-          {(block.repeatAxis ?? 'rows') === 'columns' && (
-            <Row label="Identity header field">
-              <select className={selCls} disabled={disabled} value={block.headerField || ''} onChange={e => onPatch({ headerField: e.target.value })}>
-                <option value="">— none —</option>
-                {fieldOptions(parentCollection).map(f => (
-                  <option key={f.key} value={f.key}>{f.label}</option>
-                ))}
-              </select>
-            </Row>
-          )}
+          <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+            <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
+            Header row
+          </label>
         </>
       )}
 
@@ -359,9 +314,24 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
       )}
 
       {block.type === 'spacer' && (
-        <Row label="Height (px)">
-          <input type="number" min={4} max={200} disabled={disabled} className={inputCls} value={block.height ?? 16} onChange={e => onPatch({ height: Number(e.target.value) || 16 })} />
-        </Row>
+        <>
+          <Row label="Height (px)">
+            <input type="number" min={4} max={200} disabled={disabled} className={inputCls} value={block.height ?? 16} onChange={e => onPatch({ height: Number(e.target.value) || 16 })} />
+          </Row>
+          <Row label="Style">
+            <Seg
+              value={block.spacerStyle || 'none'}
+              options={[
+                { v: 'none', l: 'None' },
+                { v: 'black', l: 'Solid' },
+                { v: 'line', l: 'Line' },
+                { v: 'dotted', l: 'Dotted' },
+              ]}
+              onChange={v => onPatch({ spacerStyle: v as 'none' | 'black' | 'line' | 'dotted' })}
+              disabled={disabled}
+            />
+          </Row>
+        </>
       )}
 
       {!selCol && block.type !== 'pageBreak' && (

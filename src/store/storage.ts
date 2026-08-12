@@ -131,6 +131,32 @@ export function loadProjectFromStorage(id: string): Project | null {
           }
         }
 
+        // Migrate report tables: colWidths + tableRows → simple columns model
+        const walkReportBlocks = (blocks: any[]) => {
+          for (const b of blocks || []) {
+            if (b.type === 'table' && !b.columns) {
+              const rows = b.tableRows || [];
+              const widths = b.colWidths || [];
+              b.columns = (rows[0]?.cells || []).map((c: any, ci: number) => ({
+                id: c.id,
+                field: c.field ?? '',
+                align: c.align,
+                width: widths[ci] ?? 100 / Math.max(1, rows[0]?.cells?.length || 1),
+              }));
+              if (b.columns.length === 0 && widths.length > 0) {
+                b.columns = widths.map((w: number) => ({ id: cid(), field: '', width: w }));
+              }
+              delete b.colWidths;
+              delete b.tableRows;
+              delete b.repeatAxis;
+              delete b.headerField;
+            }
+            walkReportBlocks(b.children);
+            for (const col of b.cols || []) walkReportBlocks(col.blocks);
+          }
+        };
+        for (const d of parsed.reportDesigns || []) walkReportBlocks(d.blocks);
+
         parsed.hiddenCategories = parsed.hiddenCategories || [];
         parsed.categoryLabels = parsed.categoryLabels || {};
 
