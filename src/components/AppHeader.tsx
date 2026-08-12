@@ -12,7 +12,7 @@ import { SaveIndicator } from './SaveIndicator';
 import { ItemManagerDropdown } from './DropdownMenu';
 import { useUnsavedGuardState, performLocalUndo, performLocalRedo } from '../lib/unsavedGuard';
 
-export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports';
+export type AppTabId = 'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'production' | 'reports';
 
 interface GoogleAuthContextValue {
   isSignedIn: boolean;
@@ -81,7 +81,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const activeTabClass = isCloudProject ? 'bg-white text-blue-950' : 'bg-white text-zinc-900';
   const currentDriveFileId = projectList.find(p => p.id === currentProjectId)?.driveFileId;
 
-  const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'reports'];
+  const tabButtons: AppTabId[] = ['breakdown', 'schedule', 'calendar', 'design', 'rules', 'production', 'reports'];
 
   return (
     <header className={`flex items-center ${isCloudProject ? 'bg-blue-950' : 'bg-zinc-950'} text-zinc-300 px-4 py-2 select-none print:hidden`}>
@@ -183,7 +183,7 @@ export default function AppHeader(props: AppHeaderProps) {
                 onContextMenu={(e) => { if (IS_COARSE) return; e.preventDefault(); onTabContextMenu(e, tabId); }}
                 className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors shrink-0 ${activeTab === tabId ? activeTabClass : inactiveTabText}`}
               >
-                {tabId === 'breakdown' ? 'Breakdown' : tabId === 'schedule' ? 'Schedule' : tabId === 'calendar' ? 'Calendar' : tabId === 'design' ? 'Design' : tabId === 'rules' ? 'Rules' : 'Reports'}
+                {tabId === 'breakdown' ? 'Breakdown' : tabId === 'schedule' ? 'Schedule' : tabId === 'calendar' ? 'Calendar' : tabId === 'design' ? 'Design' : tabId === 'rules' ? 'Rules' : tabId === 'production' ? 'Production' : 'Reports'}
               </button>
             ))}
           </div>
