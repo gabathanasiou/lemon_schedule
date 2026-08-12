@@ -284,7 +284,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               onClick={() => {
                 const cols = block.cols || [];
                 const n = cols.length || 1;
-                onPatch({ cols: [...cols, { id: `col${Date.now().toString(36)}`, width: 100 / (n + 1) }].map(c => ({ ...c, width: 100 / (n + 1) })) });
+                onPatch({ cols: [...cols, { id: `col${Date.now().toString(36)}`, width: 100 / (n + 1), blocks: [] }].map(c => ({ ...c, width: 100 / (n + 1) })) });
               }}
               disabled={disabled}
               title="Add column"

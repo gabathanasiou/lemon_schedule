@@ -35,23 +35,31 @@ interface ReportDesignerCanvasProps {
   onInsertAfter: (id: string | null, payload: PaletteDropPayload) => void;
   onInsertBefore: (id: string | null, payload: PaletteDropPayload) => void;
   onInsertInto: (id: string | null, payload: PaletteDropPayload) => void;
+  onMoveInto: (containerId: string, moveId: string) => void;
+  onDuplicateInto: (containerId: string, moveId: string) => void;
   onMoveTo: (moveId: string, targetId: string, pos: 'before' | 'after') => void;
+  onDuplicateTo: (moveId: string, targetId: string, pos: 'before' | 'after') => void;
   onWrap: (targetId: string, payload: PaletteDropPayload, side: 'left' | 'right') => void;
+  onInsertIntoColumn: (columnsId: string, colIndex: number, payload: PaletteDropPayload) => void;
+  onMoveIntoColumn: (moveId: string, columnsId: string, colIndex: number) => void;
+  onDuplicateIntoColumn: (moveId: string, columnsId: string, colIndex: number) => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onMenu: (e: React.MouseEvent, id: string) => void;
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, ctx, fieldMap, readOnly, onSelect, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveTo, onWrap, onDuplicate, onRemove, onMove, onMenu }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, ctx, fieldMap, readOnly, onSelect, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onDuplicate, onRemove, onMove, onMenu }) => {
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
   const performRef = useRef<(id: string, pos: 'before' | 'after', payload: PaletteDropPayload) => void>(() => {});
 
   performRef.current = (id, pos, payload) => {
-    if (payload.moveId) onMoveTo(payload.moveId, id, pos);
-    else if (pos === 'before') onInsertBefore(id, payload);
+    if (payload.moveId) {
+      if (payload.duplicate) onDuplicateTo(payload.moveId, id, pos);
+      else onMoveTo(payload.moveId, id, pos);
+    } else if (pos === 'before') onInsertBefore(id, payload);
     else onInsertAfter(id, payload);
   };
 
@@ -77,8 +85,8 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
 
   const startBlockDrag = (e: React.DragEvent, b: ReportBlock) => {
     e.stopPropagation();
-    e.dataTransfer.setData(DROP_MIME, JSON.stringify({ kind: 'block', type: 'text', moveId: b.id }));
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(DROP_MIME, JSON.stringify({ kind: 'block', type: 'text', moveId: b.id, duplicate: e.altKey }));
+    e.dataTransfer.effectAllowed = e.altKey ? 'copy' : 'move';
     setDragging(true);
     setDragSourceId(b.id);
     const card = e.currentTarget as HTMLElement;
@@ -198,13 +206,21 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                   </div>
                 ) : b.type === 'repeat' ? (
                   <div
-                    className="flex items-center gap-1 text-[10px] text-zinc-600 border border-dashed border-zinc-400 rounded px-2 py-1 cursor-pointer hover:border-zinc-500"
+                    className="repeat-drop-empty"
+                    style={{ minHeight: 56, border: '2px dashed #c4c4cc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     onClick={e => { e.stopPropagation(); onInsertInto(b.id, { kind: 'block', type: 'text' }); }}
                     onDragOver={e => {
                       if (!isDrag(e)) return;
                       e.preventDefault();
                       e.stopPropagation();
+                      e.currentTarget.setAttribute('data-active', '1');
                       pendingRef.current = { id: b.id, pos: 'after' };
+                    }}
+                    onDragLeave={e => {
+                      const cur = e.currentTarget;
+                      if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+                      cur.removeAttribute('data-active');
+                      pendingRef.current = null;
                     }}
                     onDrop={e => {
                       if (!isDrag(e)) return;
@@ -212,11 +228,19 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                       e.stopPropagation();
                       let payload: PaletteDropPayload | null = null;
                       try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
-                      if (payload && !payload.moveId) onInsertInto(b.id, payload);
+                      if (payload) {
+                        if (payload.moveId) {
+                          if (payload.duplicate) onDuplicateInto(b.id, payload.moveId);
+                          else onMoveInto(b.id, payload.moveId);
+                        } else {
+                          onInsertInto(b.id, payload);
+                        }
+                      }
                       pendingRef.current = null;
                     }}
                   >
-                    <Plus className="w-3 h-3" /> Add first block inside repeat
+                    <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                    <span className="text-[10px] text-zinc-400 italic">Drop inside repeat (or click to add text)</span>
                   </div>
                 ) : (
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
@@ -229,16 +253,91 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 <div style={{ flex: 1, borderTop: '2px dashed #a1a1aa' }} />
               </div>
             ) : b.type === 'columns' ? (
-              <ColumnsView
-                b={b}
-                ctx={ctx}
-                fieldMap={fieldMap}
-                parentItem={parentItem}
-                parentCategory={parentCategory}
-                parentCollection={parentCollection}
-                selected={selected}
-                onPatch={onPatch}
-              />
+              (() => {
+                const cols = b.cols || [];
+                const total = cols.reduce((a, c) => a + c.width, 0);
+                return (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
+                      <Columns3 className="w-3 h-3" />
+                      Columns · {cols.length}
+                    </div>
+                    <div className="relative" style={{ display: 'flex' }}>
+                    {cols.map((col, ci) => (
+                      <div
+                        key={col.id}
+                        className="columns-col"
+                        data-col-width={col.width}
+                        style={{
+                          position: 'relative',
+                          flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
+                          minWidth: 0,
+                          border: '1px solid #3f3f46',
+                          borderRadius: 4,
+                          padding: 6,
+                          marginLeft: -1,
+                          background: '#fafafa',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {renderBlocks(col.blocks || [], depth, parentCollection, parentItem, parentCategory)}
+                        </div>
+                        { (col.blocks || []).length === 0 && (
+                          <div
+                            className="column-drop-empty"
+                            style={{ minHeight: 48, border: '2px dashed #c4c4cc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onDragOver={e => {
+                              if (!isDrag(e)) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.currentTarget.setAttribute('data-active', '1');
+                            }}
+                            onDragLeave={e => {
+                              const cur = e.currentTarget;
+                              if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+                              cur.removeAttribute('data-active');
+                            }}
+                            onDrop={e => {
+                              if (!isDrag(e)) return;
+                              e.preventDefault();
+                              e.stopPropagation();
+                              let payload: PaletteDropPayload | null = null;
+                              try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+                              if (payload) {
+                                if (payload.moveId) {
+                                  if (payload.duplicate) onDuplicateIntoColumn(payload.moveId, b.id, ci);
+                                  else onMoveIntoColumn(payload.moveId, b.id, ci);
+                                } else {
+                                  onInsertIntoColumn(b.id, ci, payload);
+                                }
+                              }
+                              pendingRef.current = null;
+                            }}
+                          >
+                            <span className="text-[10px] text-zinc-400 italic">Drop into column</span>
+                          </div>
+                        )}
+                        {selected && cols.length > 1 && (
+                          <button
+                            className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-600 text-zinc-300 hover:text-white hover:bg-red-700"
+                            style={{ zIndex: 30 }}
+                            title="Delete column"
+                            onClick={e => {
+                              e.stopPropagation();
+                              const remaining = cols.filter((_, i) => i !== ci).map(c => c.width);
+                              onPatch(b.id, { cols: cols.filter((_, i) => i !== ci).map((c, i) => ({ ...c, width: normalizeColWidths(remaining)[i] })) });
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {selected && <ColumnsResizeBar cols={cols} onResize={widths => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: widths[i] })) })} />}
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
             )}
@@ -325,50 +424,6 @@ const EdgeZone: React.FC<{
 };
 
 // ---- columns block: per-column border boxes + middle resize handles -----------
-
-const ColumnsView: React.FC<{
-  b: ReportBlock;
-  ctx: ReportCtx;
-  fieldMap: Record<string, ReportFieldDef>;
-  parentItem?: any;
-  parentCategory?: string;
-  parentCollection?: string;
-  selected: boolean;
-  onPatch: (id: string, patch: Partial<ReportBlock>) => void;
-}> = ({ b, ctx, fieldMap, parentItem, parentCategory, parentCollection, selected, onPatch }) => {
-  const cols = b.cols || [];
-  const total = cols.reduce((a, c) => a + c.width, 0);
-  const border = '1px solid #3f3f46';
-  return (
-    <div className="relative" style={{ display: 'flex' }}>
-      {cols.map(col => (
-        <div
-          key={col.id}
-          className="columns-col"
-          data-col-width={col.width}
-          style={{
-            flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`,
-            minWidth: 0,
-            border,
-            borderRadius: 4,
-            padding: 6,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            marginLeft: -1,
-            background: '#fafafa',
-          }}
-        >
-          {col.blocks.map(cb => (
-            <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
-          ))}
-          {col.blocks.length === 0 && <span className="text-[10px] text-zinc-400 italic">Empty column</span>}
-        </div>
-      ))}
-      {selected && <ColumnsResizeBar cols={cols} onResize={widths => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: widths[i] })) })} />}
-    </div>
-  );
-};
 
 const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths: number[]) => void }> = ({ cols, onResize }) => {
   const colsList = cols || [];

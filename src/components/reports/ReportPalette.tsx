@@ -12,6 +12,7 @@ export interface PaletteDropPayload {
   collection?: ReportCollection;
   category?: string;
   moveId?: string;
+  duplicate?: boolean;
 }
 
 export const DROP_MIME = 'application/x-report-block';

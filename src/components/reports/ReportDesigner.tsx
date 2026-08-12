@@ -7,8 +7,8 @@ import { getReportFieldMap } from '../../lib/reportFields';
 import { ReportDesign, ReportBlock } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
-  moveBlock, moveBlockTo, updateBlock, parentCollectionOf, insertScopeFor,
-  makeReportBlock, wrapWithColumns,
+  moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, insertScopeFor,
+  makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { ItemManagerDropdown } from '../DropdownMenu';
@@ -230,13 +230,38 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onInsertAfter={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertAfter(blocksRef.current, id, b) : [...blocksRef.current, b]); setSelId(b.id); }}
               onInsertBefore={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertBefore(blocksRef.current, id, b) : [b, ...blocksRef.current]); setSelId(b.id); }}
               onInsertInto={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(insertInto(blocksRef.current, id, b)); setSelId(b.id); }}
+              onMoveInto={(containerId, moveId) => { commit(moveIntoChildren(blocksRef.current, moveId, containerId)); setSelId(moveId); }}
+              onDuplicateInto={(containerId, moveId) => {
+                const src = findBlock(blocksRef.current, moveId);
+                if (!src) return;
+                commit(insertInto(blocksRef.current, containerId, cloneBlock(src.block)));
+              }}
               onMoveTo={(moveId, targetId, pos) => { commit(moveBlockTo(blocksRef.current, moveId, targetId, pos)); setSelId(moveId); }}
+              onDuplicateTo={(moveId, targetId, pos) => { const copy = duplicateBlockTo(blocksRef.current, moveId, targetId, pos); commit(copy); setSelId(moveId); }}
               onWrap={(targetId, payload, side) => {
                 const dropped = payload.moveId
                   ? findBlock(blocksRef.current, payload.moveId)?.block ?? null
                   : payloadToBlock(payload, insertScopeFor(blocksRef.current, targetId));
                 if (!dropped) return;
-                commit(wrapWithColumns(blocksRef.current, targetId, dropped, side, payload.moveId));
+                if (payload.moveId && payload.duplicate) {
+                  commit(wrapWithColumns(blocksRef.current, targetId, cloneBlock(dropped), side));
+                } else {
+                  commit(wrapWithColumns(blocksRef.current, targetId, dropped, side, payload.moveId));
+                }
+              }}
+              onInsertIntoColumn={(columnsId, colIndex, payload) => {
+                const b = payloadToBlock(payload, insertScopeFor(blocksRef.current, columnsId));
+                commit(appendToColumn(blocksRef.current, columnsId, colIndex, b));
+                setSelId(b.id);
+              }}
+              onMoveIntoColumn={(moveId, columnsId, colIndex) => {
+                commit(moveIntoColumn(blocksRef.current, moveId, columnsId, colIndex));
+                setSelId(moveId);
+              }}
+              onDuplicateIntoColumn={(moveId, columnsId, colIndex) => {
+                const fm = findBlock(blocksRef.current, moveId);
+                if (!fm) return;
+                commit(appendToColumn(blocksRef.current, columnsId, colIndex, cloneBlock(fm.block)));
               }}
               onDuplicate={id => commit(duplicateBlock(blocksRef.current, id))}
               onRemove={id => { commit(removeBlock(blocksRef.current, id)); if (selId === id) setSelId(null); }}

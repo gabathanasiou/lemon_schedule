@@ -143,3 +143,11 @@ input, textarea, [contenteditable] {
 .block-edge-zone[data-active="1"] {
   background: rgba(59, 130, 246, 0.35);
 }
+.column-drop-empty[data-active="1"] {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #3b82f6 !important;
+}
+.repeat-drop-empty[data-active="1"] {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: #3b82f6 !important;
+}

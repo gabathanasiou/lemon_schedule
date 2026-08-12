@@ -132,8 +132,9 @@ const PROJECT_FIELDS: ReportFieldDef[] = [
 function buildCategorySceneFields(project: Project): ReportFieldDef[] {
   const out: ReportFieldDef[] = [];
   const hidden = new Set(project.hiddenCategories || []);
+  const baseKeys = new Set(SCENE_FIELDS.map(f => f.key));
   for (const cat of ELEMENT_CATEGORIES) {
-    if (cat.key === 'cast' || cat.key === 'set' || hidden.has(cat.key)) continue;
+    if (cat.key === 'cast' || cat.key === 'set' || baseKeys.has(cat.key) || hidden.has(cat.key)) continue;
     out.push({
       key: cat.key,
       label: getLabel(cat.key, cat.label, project.categoryLabels),

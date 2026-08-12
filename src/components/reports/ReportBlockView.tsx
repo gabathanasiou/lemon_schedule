@@ -65,7 +65,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             {cols.map(col => (
               <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {col.blocks.map(cb => (
+                { (col.blocks || []).map(cb => (
                   <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} />
                 ))}
               </div>

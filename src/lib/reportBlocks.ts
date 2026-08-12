@@ -39,6 +39,12 @@ export function findBlock(blocks: ReportBlock[], id: string, depth = 0, isRoot =
       const f = findBlock(blocks[i].children!, id, depth + 1, false);
       if (f) return f;
     }
+    if (blocks[i].type === 'columns' && blocks[i].cols) {
+      for (const col of blocks[i].cols) {
+        const f = findBlock(col.blocks || [], id, depth + 1, false);
+        if (f) return f;
+      }
+    }
   }
   return null;
 }
@@ -46,17 +52,31 @@ export function findBlock(blocks: ReportBlock[], id: string, depth = 0, isRoot =
 function mapTree(blocks: ReportBlock[], id: string, fn: (b: ReportBlock) => ReportBlock): ReportBlock[] {
   return blocks.map(b => {
     if (b.id === id) return fn(b);
-    if (b.children?.length) return { ...b, children: mapTree(b.children, id, fn) };
-    return b;
+    let next = b;
+    if (b.children?.length) next = { ...next, children: mapTree(b.children, id, fn) };
+    if (b.type === 'columns' && b.cols) {
+      next = { ...next, cols: b.cols.map(c => ({ ...c, blocks: mapTree(c.blocks || [], id, fn) })) };
+    }
+    return next;
   });
 }
 
-function parentIdOf(blocks: ReportBlock[], id: string): string | null {
+/** The block owning the list that contains `id` (repeat/table → children; columns → cols[i].blocks). */
+export interface ListOwner { blockId: string; colIndex?: number; }
+
+export function listOwnerOf(blocks: ReportBlock[], id: string): ListOwner | null {
   for (const b of blocks) {
-    if (b.children?.some(c => c.id === id)) return b.id;
+    if (b.children?.some(c => c.id === id)) return { blockId: b.id };
     if (b.children?.length) {
-      const pid = parentIdOf(b.children, id);
-      if (pid) return pid;
+      const o = listOwnerOf(b.children, id);
+      if (o) return o;
+    }
+    if (b.type === 'columns' && b.cols) {
+      for (let i = 0; i < b.cols.length; i++) {
+        if ((b.cols[i].blocks || []).some(x => x.id === id)) return { blockId: b.id, colIndex: i };
+        const o = listOwnerOf(b.cols[i].blocks || [], id);
+        if (o) return o;
+      }
     }
   }
   return null;
@@ -66,16 +86,25 @@ export function updateBlock(blocks: ReportBlock[], id: string, patch: Partial<Re
   return mapTree(blocks, id, b => ({ ...b, ...patch }));
 }
 
+function updateList(blocks: ReportBlock[], owner: ListOwner, list: ReportBlock[]): ReportBlock[] {
+  return mapTree(blocks, owner.blockId, b => {
+    if (owner.colIndex !== undefined && b.type === 'columns' && b.cols) {
+      return { ...b, cols: b.cols.map((c, i) => (i === owner.colIndex ? { ...c, blocks: list } : c)) };
+    }
+    return { ...b, children: list };
+  });
+}
+
 function insertInArray(arr: ReportBlock[], index: number, b: ReportBlock): ReportBlock[] {
   return [...arr.slice(0, index), b, ...arr.slice(index)];
 }
 
 function insertSibling(blocks: ReportBlock[], f: Found, b: ReportBlock, index: number): ReportBlock[] {
   if (f.parent === null) return insertInArray(blocks, Math.min(index, blocks.length), b);
-  const newChildren = insertInArray(f.parent, Math.min(index, f.parent.length), b);
-  const pid = parentIdOf(blocks, f.block.id);
-  if (!pid) return blocks;
-  return updateBlock(blocks, pid, { children: newChildren });
+  const newList = insertInArray(f.parent, Math.min(index, f.parent.length), b);
+  const owner = listOwnerOf(blocks, f.block.id);
+  if (!owner) return blocks;
+  return updateList(blocks, owner, newList);
 }
 
 export function insertAfter(blocks: ReportBlock[], id: string | null, b: ReportBlock): ReportBlock[] {
@@ -106,10 +135,10 @@ export function removeBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
   const f = findBlock(blocks, id);
   if (!f) return blocks;
   if (f.parent === null) return blocks.filter(b => b.id !== id);
-  const children = f.parent.filter(b => b.id !== id);
-  const pid = parentIdOf(blocks, id);
-  if (!pid) return blocks;
-  return updateBlock(blocks, pid, { children });
+  const list = f.parent.filter(b => b.id !== id);
+  const owner = listOwnerOf(blocks, id);
+  if (!owner) return blocks;
+  return updateList(blocks, owner, list);
 }
 
 export function duplicateBlock(blocks: ReportBlock[], id: string): ReportBlock[] {
@@ -134,9 +163,9 @@ export function moveBlock(blocks: ReportBlock[], id: string, dir: -1 | 1): Repor
   const arr = [...f.parent];
   const [b] = arr.splice(f.index, 1);
   arr.splice(target, 0, b);
-  const pid = parentIdOf(blocks, id);
-  if (!pid) return blocks;
-  return updateBlock(blocks, pid, { children: arr });
+  const owner = listOwnerOf(blocks, id);
+  if (!owner) return blocks;
+  return updateList(blocks, owner, arr);
 }
 
 export function moveBlockTo(blocks: ReportBlock[], moveId: string, targetId: string, pos: 'before' | 'after'): ReportBlock[] {
@@ -148,6 +177,38 @@ export function moveBlockTo(blocks: ReportBlock[], moveId: string, targetId: str
     return pos === 'before' ? insertBefore(next, targetId, fm.block) : insertAfter(next, targetId, fm.block);
   }
   return blocks;
+}
+
+/** Notion Alt+drag: inserts a clone of `moveId` at the target, keeping the original. */
+export function duplicateBlockTo(blocks: ReportBlock[], moveId: string, targetId: string, pos: 'before' | 'after'): ReportBlock[] {
+  const fm = findBlock(blocks, moveId);
+  if (!fm) return blocks;
+  const copy = { ...cloneBlock(fm.block), id: blockId() };
+  return pos === 'before' ? insertBefore(blocks, targetId, copy) : insertAfter(blocks, targetId, copy);
+}
+
+/** Appends a block into a specific column of a columns block. */
+export function appendToColumn(blocks: ReportBlock[], columnsId: string, colIndex: number, b: ReportBlock): ReportBlock[] {
+  return mapTree(blocks, columnsId, blk => {
+    if (blk.type !== 'columns' || !blk.cols) return blk;
+    return { ...blk, cols: blk.cols.map((c, i) => (i === colIndex ? { ...c, blocks: [...(c.blocks || []), b] } : c)) };
+  });
+}
+
+/** Moves a block from anywhere into a specific column (removes it from its old list). */
+export function moveIntoColumn(blocks: ReportBlock[], moveId: string, columnsId: string, colIndex: number): ReportBlock[] {
+  const fm = findBlock(blocks, moveId);
+  if (!fm) return blocks;
+  const next = removeBlock(blocks, moveId);
+  return appendToColumn(next, columnsId, colIndex, fm.block);
+}
+
+/** Moves a block from anywhere into a container's children (repeat/table). */
+export function moveIntoChildren(blocks: ReportBlock[], moveId: string, containerId: string): ReportBlock[] {
+  const fm = findBlock(blocks, moveId);
+  if (!fm) return blocks;
+  const next = removeBlock(blocks, moveId);
+  return insertInto(next, containerId, fm.block);
 }
 
 // ---- collection context ------------------------------------------------------
@@ -172,12 +233,19 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
   });
 }
 
-export function parentCollectionOf(blocks: ReportBlock[], id: string): ReportCollection | undefined {
+export function parentCollectionOf(blocks: ReportBlock[], id: string, ctx?: ReportCollection): ReportCollection | undefined {
   for (const b of blocks) {
-    if (b.children?.some(c => c.id === id)) return b.collection;
+    if (b.children?.some(c => c.id === id)) return b.collection || ctx;
     if (b.children?.length) {
-      const pc = parentCollectionOf(b.children, id);
+      const pc = parentCollectionOf(b.children, id, b.collection || ctx);
       if (pc) return pc;
+    }
+    if (b.type === 'columns' && b.cols) {
+      for (const col of b.cols) {
+        if ((col.blocks || []).some(x => x.id === id)) return ctx;
+        const pc = parentCollectionOf(col.blocks || [], id, ctx);
+        if (pc) return pc;
+      }
     }
   }
   return undefined;
@@ -196,9 +264,9 @@ export function insertScopeFor(blocks: ReportBlock[], id: string | null): Report
 export function insideColumnsBlock(blocks: ReportBlock[], id: string): boolean {
   for (const b of blocks) {
     if (b.type === 'columns' && b.cols) {
-      if (b.cols.some(c => c.blocks.some(x => x.id === id))) return true;
+      if (b.cols.some(c => (c.blocks || []).some(x => x.id === id))) return true;
       for (const c of b.cols) {
-        if (insideColumnsBlock(c.blocks, id)) return true;
+        if (insideColumnsBlock(c.blocks || [], id)) return true;
       }
     }
     if (b.children?.some(c => c.id === id)) return insideColumnsBlock(b.children, id);
@@ -243,9 +311,9 @@ export function wrapWithColumns(
         ],
   };
   if (f.parent === null) return next.map(b => (b.id === targetId ? colsBlock : b));
-  const pid = parentIdOf(next, targetId);
-  if (!pid) return next;
-  return updateBlock(next, pid, { children: f.parent.map(b => (b.id === targetId ? colsBlock : b)) });
+  const owner = listOwnerOf(next, targetId);
+  if (!owner) return next;
+  return updateList(next, owner, f.parent.map(b => (b.id === targetId ? colsBlock : b)));
 }
 
 export { generateUUID };
