@@ -76,11 +76,11 @@ function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity } = useProject();
   const dialog = useDialog();
   const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
-  const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons'>('ribbons');
+  const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide'>('glide');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
-  const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown' | 'designer'>('doods');
+  const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
   const [reportsCategory, setReportsCategory] = useState('cast');
   const [prodSubTab, setProdSubTab] = useState<'details' | 'crew'>('details');
   const [scheduleTargetScene, setScheduleTargetScene] = useState<string | null>(null);
@@ -244,10 +244,10 @@ function AppContent() {
         const nextTab = ['sheet', 'elements', 'glide'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setBrSubTab(nextTab as any);
       } else if (parentId === 'design' && designSubTab === subTabId) {
-        const nextTab = ['ribbons', 'colors'].find(t => t !== subTabId && !newSet.has(t));
+        const nextTab = ['ribbons', 'colors', 'designer'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setDesignSubTab(nextTab as any);
       } else if (parentId === 'reports' && reportsSubTab === subTabId) {
-        const nextTab = ['doods', 'elementBreakdown', 'designer'].find(t => t !== subTabId && !newSet.has(t));
+        const nextTab = ['doods', 'elementBreakdown'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setReportsSubTab(nextTab as any);
       } else if (parentId === 'production' && prodSubTab === subTabId) {
         const nextTab = ['details', 'crew'].find(t => t !== subTabId && !newSet.has(t));
@@ -684,7 +684,7 @@ function AppContent() {
       )}
       {poppedOutTabs.has('design') && popoutWindowsRef.current.get('design') && (
         <PopoutFrame title={`${project.title || 'Untitled'} - Design`} win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')} tabName="Design" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} bg="bg-zinc-950">
-          <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} />
+          <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} onReportPrint={(design) => setReportPrint({ design, daybreak: { sections, computedRows } })} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} />
         </PopoutFrame>
       )}
       {poppedOutTabs.has('rules') && popoutWindowsRef.current.get('rules') && (
@@ -694,7 +694,7 @@ function AppContent() {
       )}
       {poppedOutTabs.has('reports') && popoutWindowsRef.current.get('reports') && (
         <PopoutFrame title={`${project.title || 'Untitled'} - Reports`} win={popoutWindowsRef.current.get('reports')!} onClose={() => closePopout('reports')} tabName="Reports" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} bg="bg-zinc-900">
-          <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} onReportPrint={(design) => setReportPrint({ design, daybreak: { sections, computedRows } })} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} />
+          <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} />
         </PopoutFrame>
       )}
 
@@ -722,6 +722,11 @@ function AppContent() {
       {poppedOutSubTabs.design?.has('colors') && popoutSubWindowsRef.current.get('sub_design_colors') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Colors`} win={popoutSubWindowsRef.current.get('sub_design_colors')!} onClose={() => closeSubPopout('design', 'colors')} tabName="Design" subTabId="colors" tabLabel="Colors" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_design_colors']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_design_colors: el }))} theme="dark" bg="bg-zinc-950">
           <ColorsTab headerTarget={subHeaderTargets['sub_design_colors']} />
+        </SubTabPopoutFrame>
+      )}
+      {poppedOutSubTabs.design?.has('designer') && popoutSubWindowsRef.current.get('sub_design_designer') && (
+        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Reports Designer`} win={popoutSubWindowsRef.current.get('sub_design_designer')!} onClose={() => closeSubPopout('design', 'designer')} tabName="Design" subTabId="designer" tabLabel="Reports Designer" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_design_designer']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_design_designer: el }))} theme="dark" bg="bg-zinc-950">
+          <ReportDesigner headerTarget={subHeaderTargets['sub_design_designer']} onPrint={(design) => setReportPrint({ design, daybreak: { sections, computedRows } })} />
         </SubTabPopoutFrame>
       )}
       {poppedOutSubTabs.reports?.has('doods') && popoutSubWindowsRef.current.get('sub_reports_doods') && (
@@ -756,12 +761,6 @@ function AppContent() {
         </SubTabPopoutFrame>
       )}
 
-      {poppedOutSubTabs.reports?.has('designer') && popoutSubWindowsRef.current.get('sub_reports_designer') && (
-        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Reports Designer`} win={popoutSubWindowsRef.current.get('sub_reports_designer')!} onClose={() => closeSubPopout('reports', 'designer')} tabName="Reports" subTabId="designer" tabLabel="Reports Designer" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_reports_designer']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_reports_designer: el }))} theme="dark" bg="bg-zinc-950">
-          <ReportDesigner headerTarget={subHeaderTargets['sub_reports_designer']} onPrint={(design) => setReportPrint({ design, daybreak: { sections, computedRows } })} />
-        </SubTabPopoutFrame>
-      )}
-
       {/* CONTENT */}
       <main key={currentProjectId} className="flex-1 flex flex-col relative bg-white min-h-0 -mt-px" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         onClick={(e) => {
@@ -774,7 +773,7 @@ function AppContent() {
         {poppedOutTabs.has(activeTab) ? (
           <PopoutPlaceholder title={tabLabels[activeTab]} onBringBack={() => closePopout(activeTab)} />
         ) : (
-          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} onReportPrint={(design) => setReportPrint({ design, daybreak: { sections, computedRows } })} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> : activeTab === 'production' ? <ProductionTab subTab={prodSubTab} onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} /> : <RulesTab />
+          activeTab === 'breakdown' ? <BreakdownTab subTab={brSubTab} onSubTabChange={setBrSubTab} savedCat={brCategory} onCategoryChange={setBrCategory} savedSheetIdx={brSheetIdx} onSheetIdxChange={setBrSheetIdx} onOpenSheet={handleOpenSheet} onOpenSchedule={handleOpenScheduleAtScene} onOpenSheetInPopout={handleOpenSheetInPopout} onOpenScheduleInPopout={handleOpenScheduleInPopout} poppedOutSubTabs={poppedOutSubTabs.breakdown || new Set()} onToggleSubPopout={(id) => toggleSubPopout('breakdown', id)} onCloseSubPopout={(id) => closeSubPopout('breakdown', id)} shiftHeld={shiftHeld} /> : activeTab === 'schedule' ? <ScheduleTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} onPrint={() => setShowPrintDialog(true)} targetSceneId={scheduleTargetScene} onSceneTargetSeen={handleClearScheduleTarget} savedScrollTop={scheduleScrollTop} onScrollChange={setScheduleScrollTop} /> :           activeTab === 'calendar' ? <CalendarTab onOpenScene={handleOpenScene} onOpenSceneInPopout={handleOpenSceneInPopout} /> : activeTab === 'design' ? <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} onReportPrint={(design) => setReportPrint({ design, daybreak: { sections, computedRows } })} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} /> : activeTab === 'reports' ? <ReportsTab subTab={reportsSubTab} onSubTabChange={setReportsSubTab} selectedCategory={reportsCategory} onCategoryChange={setReportsCategory} onPrint={() => { setPrintDialogCategory(reportsCategory); if (reportsSubTab === 'doods') setShowDoodDialog(true); else setShowElementBreakdownDialog(true); }} poppedOutSubTabs={poppedOutSubTabs.reports || new Set()} onToggleSubPopout={(id) => toggleSubPopout('reports', id)} onCloseSubPopout={(id) => closeSubPopout('reports', id)} shiftHeld={shiftHeld} /> : activeTab === 'production' ? <ProductionTab subTab={prodSubTab} onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} shiftHeld={shiftHeld} /> : <RulesTab />
         )}
       </main>
 
