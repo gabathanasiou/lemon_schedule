@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCtx, resolveCollection, ReportCollectionItem } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
@@ -201,7 +201,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                   {b.type === 'table' && (b.repeatAxis ?? 'rows') === 'rows' && b.tableRows?.length ? ` · ${b.tableRows.length} row${b.tableRows.length > 1 ? 's' : ''}` : ''}
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
-                  <div style={{ borderLeft: '1px solid #a1a1aa', marginLeft: 8, paddingLeft: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ border: '1px solid #3f3f46', borderRadius: 4, padding: '6px 8px', display: 'flex', flexDirection: 'column' }}>
                     {renderBlocks(b.children, depth + 1, b.collection, firstItemOf(ctx, b, parentItem, parentCategory), b.category)}
                   </div>
                 ) : b.type === 'repeat' ? (
@@ -262,7 +262,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                       <Columns3 className="w-3 h-3" />
                       Columns · {cols.length}
                     </div>
-                    <div className="relative" style={{ display: 'flex' }}>
+                    <div className="relative" style={{ display: 'flex', gap: 8 }}>
                     {cols.map((col, ci) => (
                       <div
                         key={col.id}
@@ -274,12 +274,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                           minWidth: 0,
                           border: '1px solid #3f3f46',
                           borderRadius: 4,
-                          padding: 6,
-                          marginLeft: -1,
-                          background: '#fafafa',
+                          padding: '6px 8px',
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
                           {renderBlocks(col.blocks || [], depth, parentCollection, parentItem, parentCategory)}
                         </div>
                         { (col.blocks || []).length === 0 && (
@@ -316,20 +314,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                           >
                             <span className="text-[10px] text-zinc-400 italic">Drop into column</span>
                           </div>
-                        )}
-                        {selected && cols.length > 1 && (
-                          <button
-                            className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-600 text-zinc-300 hover:text-white hover:bg-red-700"
-                            style={{ zIndex: 30 }}
-                            title="Delete column"
-                            onClick={e => {
-                              e.stopPropagation();
-                              const remaining = cols.filter((_, i) => i !== ci).map(c => c.width);
-                              onPatch(b.id, { cols: cols.filter((_, i) => i !== ci).map((c, i) => ({ ...c, width: normalizeColWidths(remaining)[i] })) });
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
                         )}
                       </div>
                     ))}
@@ -428,15 +412,32 @@ const EdgeZone: React.FC<{
 const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths: number[]) => void }> = ({ cols, onResize }) => {
   const colsList = cols || [];
   const widths = colsList.map(c => c.width);
-  const total = widths.reduce((a, b) => a + b, 0) || 1;
-  let acc = 0;
-  const boundaries = widths.slice(0, -1).map(w => { acc += (w / total) * 100; return acc; });
-  if (boundaries.length === 0) return null;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [boundaries, setBoundaries] = useState<number[]>([]);
+
+  useLayoutEffect(() => {
+    const bar = rowRef.current;
+    const row = bar?.parentElement;
+    if (!row) return;
+    const measure = () => {
+      const els = row.querySelectorAll('.columns-col');
+      const rowLeft = row.getBoundingClientRect().left;
+      const out: number[] = [];
+      for (let i = 0; i < els.length - 1; i++) {
+        out.push(els[i].getBoundingClientRect().right - rowLeft);
+      }
+      setBoundaries(out);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, [colsList.length]);
 
   const startResize = (e: React.PointerEvent, ci: number) => {
     e.preventDefault();
     e.stopPropagation();
-    const row = (e.currentTarget.closest('[data-block-id]') as HTMLElement)?.querySelector('.columns-col')?.parentElement as HTMLElement | null;
+    const row = rowRef.current;
     const startX = e.clientX;
     const startWidths = [...widths];
     let lastNorm: number[] = startWidths;
@@ -464,12 +465,12 @@ const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths:
   };
 
   return (
-    <div className="absolute inset-y-0 pointer-events-none" style={{ left: 0, right: 0, zIndex: 40 }}>
-      {boundaries.map((pct, ci) => (
+    <div ref={rowRef} className="absolute inset-y-0 pointer-events-none" style={{ left: 0, right: 0, zIndex: 40 }}>
+      {boundaries.map((x, ci) => (
         <div
           key={ci}
           className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize touch-none"
-          style={{ left: `calc(${pct}% - 3px)`, width: 6, background: 'rgba(59,130,246,0.6)', borderRadius: 3 }}
+          style={{ left: x - 3, width: 6, background: 'rgba(59,130,246,0.6)', borderRadius: 3 }}
           onPointerDown={e => startResize(e, ci)}
           title={`Resize columns ${ci + 1}/${ci + 2}`}
         />
@@ -477,7 +478,6 @@ const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths:
     </div>
   );
 };
-
 // ---- table column resize bar (pointer drag, ribbon-style) ---------------------
 
 const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]) => void }> = ({ block, onResize }) => {
