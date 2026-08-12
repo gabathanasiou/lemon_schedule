@@ -271,7 +271,7 @@ export interface ProductionInfo {
 
 export type ReportCollection =
   | 'scenes' | 'days' | 'cast' | 'elements' | 'crew'
-  | 'scenesOfDay' | 'scenesOfElement';
+  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RibbonMode = 'single' | 'day' | 'all';
@@ -315,6 +315,7 @@ export interface ReportBlock {
   tableRows?: ReportTableRow[];  // rows-mode: multiple design rows per item
   showHeader?: boolean;
   headerField?: string;          // columns-mode: item identity row
+  axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
   // columns (Notion-style)
   cols?: ReportColumn[];

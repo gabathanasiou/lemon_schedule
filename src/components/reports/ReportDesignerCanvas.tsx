@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCtx, resolveCollection, ReportCollectionItem } from '../../lib/reportData';
+import { ReportCollection } from '../../types';
 import { ReportFieldDef } from '../../lib/reportFields';
-import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, tableItemCollection } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
@@ -210,9 +211,11 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
                   {meta.icon}
-                  {b.type === 'table' ? 'Table' : 'Repeat'}: {COLLECTION_LABELS[b.collection || 'scenes']}
+                  {b.type === 'table'
+                    ? `Table: ${COLLECTION_LABELS[tableItemCollection(b, parentCollection as ReportCollection | undefined)] || 'Scenes'}`
+                    : `Repeat: ${COLLECTION_LABELS[b.collection || 'scenes']}`}
                   {b.collection === 'elements' ? ` (${b.category || 'props'})` : ''}
-                  {b.type === 'table' && (b.columns || []).length ? ` · ${b.columns!.length} column${(b.columns || []).length > 1 ? 's' : ''}` : ''}
+                  {b.type === 'table' && (b.columns || []).length ? ` · ${b.columns!.length} attribute${(b.columns || []).length > 1 ? 's' : ''}${(b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}` : ''}
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
                   <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -404,9 +407,9 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     return out;
   };
 
-  // selected table → resize bar overlay inside its card
+  // selected table (columns mode) → resize bar overlay inside its card
   const selBlock = selId ? findBlock(blocks, selId)?.block : null;
-  const resizeTarget = selBlock && selBlock.type === 'table' && (selBlock.columns || []).length > 0 ? selBlock : null;
+  const resizeTarget = selBlock && selBlock.type === 'table' && (selBlock.axis ?? 'columns') === 'columns' && (selBlock.columns || []).length > 0 ? selBlock : null;
 
   return (
     <div

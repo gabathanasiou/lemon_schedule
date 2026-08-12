@@ -1,9 +1,10 @@
-import React from 'react';
-import { ReportBlock } from '../../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { ReportBlock, ReportCollection } from '../../types';
 import { ReportCtx, ReportCollectionItem, resolveCollection } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, ReportFieldDef } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
+import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
 // from the canonical ReportCtx; items are resolved by the parent repeat.
@@ -145,11 +146,20 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
   );
 };
 
-// ---- table (prototype model: flat column defs, one row per item) -------------
+// ---- table (contextual repeat: attributes as columns or rows) ----------------
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint }) => {
-  const items = resolveCollection(ctx, block.collection, block.category, item, parentCategory) as ReportCollectionItem[];
-  const filtered = block.collection === 'days' && scopeFilter?.days?.length
+const TABLE_LABEL_W = 120;
+const TABLE_ITEM_W = 72;
+
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint }) => {
+  const nested = !!parentCollection;
+  const itemCollection = tableItemCollection(block, parentCollection);
+  const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0;
+  const items = isPerItem
+    ? (item ? [item] : [])
+    : (resolveCollection(ctx, itemCollection, undefined, item, parentCategory) as ReportCollectionItem[]);
+  const isDays = itemCollection === 'days' || itemCollection === 'daysOfCast';
+  const filtered = isDays && scopeFilter?.days?.length
     ? items.filter((it: any) => scopeFilter.days!.includes(it.section.index))
     : items;
   if (filtered.length === 0) {
@@ -160,27 +170,101 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const baseStyle = getReportBlockBaseStyle(block);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
   const border = '1px solid #d4d4d8';
-  const columns = block.columns || [];
-  if (columns.length === 0) return null;
+  const attributes = block.columns || [];
+  if (attributes.length === 0) return null;
 
+  return (block.axis ?? 'columns') === 'rows'
+    ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={filtered} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} />
+    : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={filtered} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} />;
+};
+
+const TableColumnsGrid: React.FC<{
+  block: ReportBlock;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  items: ReportCollectionItem[];
+  attributes: ReportBlock['columns'];
+  baseStyle: React.CSSProperties;
+  cellPad: React.CSSProperties;
+  border: string;
+}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border }) => {
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
-
   return (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
       {block.showHeader && (
         <div style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {columns.map(c => (
+          {attributes.map(c => (
             <div key={c.id} data-col-ci={c.id} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
               {fieldMap[c.field]?.label || c.field || ''}
             </div>
           ))}
         </div>
       )}
-      {filtered.map((it, i) => (
+      {items.map((it, i) => (
         <div key={i} style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {columns.map(c => (
+          {attributes.map(c => (
             <div key={c.id} data-col-ci={c.id} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
               {reportFieldValueByKey(ctx, fieldMap, c.field, it) || '\u00A0'}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const TableRowsMatrix: React.FC<{
+  block: ReportBlock;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  items: ReportCollectionItem[];
+  itemCollection: ReportCollection;
+  baseStyle: React.CSSProperties;
+  cellPad: React.CSSProperties;
+  border: string;
+}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [chunk, setChunk] = useState(() => Math.max(1, Math.floor((800 - TABLE_LABEL_W) / TABLE_ITEM_W)));
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setChunk(Math.max(1, Math.floor((el.clientWidth - TABLE_LABEL_W) / TABLE_ITEM_W)));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const attributes = block.columns || [];
+  const identityField = block.headerField || defaultIdentityField(itemCollection);
+  const groups: ReportCollectionItem[][] = [];
+  for (let i = 0; i < items.length; i += chunk) groups.push(items.slice(i, i + chunk));
+
+  const labelStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
+  return (
+    <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {groups.map((g, gi) => (
+        <div key={gi} className="report-table-cols" style={{ borderTop: border, borderLeft: border, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          {g.length > 1 && (
+            <div style={{ display: 'flex' }}>
+              <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>&nbsp;</div>
+              {g.map((it, ii) => (
+                <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
+                  {reportFieldValueByKey(ctx, fieldMap, identityField, it) || '\u00A0'}
+                </div>
+              ))}
+            </div>
+          )}
+          {attributes.map(a => (
+            <div key={a.id} style={{ display: 'flex' }}>
+              <div style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border }}>
+                {fieldMap[a.field]?.label || a.field || ''}
+              </div>
+              {g.map((it, ii) => (
+                <div key={ii} style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
+                  {reportFieldValueByKey(ctx, fieldMap, a.field, it) || '\u00A0'}
+                </div>
+              ))}
             </div>
           ))}
         </div>

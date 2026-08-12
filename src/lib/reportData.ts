@@ -261,6 +261,25 @@ export function resolveCollection(
         ctx.sceneFieldItems(si.scene, cat).some(v => v.toLowerCase() === match)
       );
     }
+    case 'scenesOfCast': {
+      const member = parentItem as ReportElementInfo | undefined;
+      if (!member) return [];
+      const match = member.id.toLowerCase();
+      return ctx.sceneInfos.filter(si =>
+        ctx.sceneFieldItems(si.scene, 'cast').some(v => v.toLowerCase() === match)
+      );
+    }
+    case 'daysOfCast': {
+      const member = parentItem as ReportElementInfo | undefined;
+      if (!member) return [];
+      const match = member.id.toLowerCase();
+      const dayIdx = new Set(
+        ctx.sceneInfos
+          .filter(si => ctx.sceneFieldItems(si.scene, 'cast').some(v => v.toLowerCase() === match))
+          .map(si => si.sectionIndex),
+      );
+      return ctx.dayInfos.filter(d => dayIdx.has(d.section.index));
+    }
     default: return [];
   }
 }

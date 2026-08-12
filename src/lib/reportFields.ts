@@ -223,7 +223,7 @@ export function fieldsForScope(
 ): ReportFieldDef[] {
   const scopeSet = new Set(['production', 'project']);
   if (scope) {
-    if (['scenes', 'scenesOfDay', 'scenesOfElement'].includes(scope)) scopeSet.add('scenes');
+    if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
     else scopeSet.add(scope);
   }
   return fields.filter(f => scopeSet.has(f.scope));

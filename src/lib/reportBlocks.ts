@@ -17,7 +17,10 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'text': base.text = partial.text ?? 'Text — {{title}}'; break;
     case 'field': base.field = partial.field ?? undefined; break;
     case 'repeat': base.collection = partial.collection ?? 'scenes'; base.children = []; base.gap = partial.gap ?? 8; break;
-    case 'table': base.collection = partial.collection ?? 'scenes'; base.columns = partial.columns ?? []; base.showHeader = true; break;
+    case 'table': base.collection = partial.collection ?? 'scenes'; base.columns = partial.columns ?? [
+      { id: blockId(), field: '', width: 50 },
+      { id: blockId(), field: '', width: 50 },
+    ]; base.showHeader = true; break;
     case 'columns': base.cols = []; break;
     case 'ribbon': base.ribbonMode = partial.ribbonMode ?? 'all'; break;
     case 'spacer': base.height = partial.height ?? 16; break;
@@ -273,16 +276,65 @@ export const COLLECTION_LABELS: Record<string, string> = {
   crew: 'Crew',
   scenesOfDay: 'Scenes (of this day)',
   scenesOfElement: 'Scenes (of this element)',
+  scenesOfCast: 'Scenes (of this cast member)',
+  daysOfCast: 'Days (of this cast member)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'scenesOfDay', 'scenesOfElement'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
     if (c === 'scenesOfDay') return parentCollection === 'days';
     if (c === 'scenesOfElement') return parentCollection === 'elements';
+    if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
     return true;
   });
+}
+
+/** Contextual sub-collections available for a table nested in a parent repeat. */
+export function contextualCollectionsFor(parentCollection?: ReportCollection): ReportCollection[] {
+  if (parentCollection === 'days') return ['scenesOfDay'];
+  if (parentCollection === 'elements') return ['scenesOfElement'];
+  if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast'];
+  return [];
+}
+
+/**
+ * The collection a table iterates. Standalone tables use their own `collection`;
+ * tables nested in a repeat resolve the contextual sub-collection of the parent
+ * (scenes of this day/element/cast member, or days of the cast member) — falling
+ * back to the parent collection itself for per-item spec mode (scenes/crew).
+ */
+export function tableItemCollection(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection {
+  if (!parentCollection) return block.collection || 'scenes';
+  const contextual = contextualCollectionsFor(parentCollection);
+  if (block.collection && contextual.includes(block.collection)) return block.collection;
+  return contextual[0] || parentCollection;
+}
+
+/** The field scope for a table's attribute list (column/row field options). */
+export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection | undefined {
+  if (!parentCollection) return block.collection;
+  return contextualCollectionsFor(parentCollection).length > 0 ? 'scenes' : parentCollection;
+}
+
+/** Human label for where a nested table gets its rows. */
+export function tableOverLabel(parentCollection?: ReportCollection): string {
+  if (!parentCollection) return '';
+  const contextual = contextualCollectionsFor(parentCollection);
+  if (contextual.length > 0) return COLLECTION_LABELS[contextual[0]] || '';
+  return `Per-item — ${COLLECTION_LABELS[parentCollection] || parentCollection} fields`;
+}
+
+/** Default identity header field per collection (rows-mode matrix headers). */
+export function defaultIdentityField(collection?: ReportCollection): string {
+  switch (collection) {
+    case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': return 'sceneNumber';
+    case 'days': case 'daysOfCast': return 'dayNumber';
+    case 'cast': case 'elements': return 'name';
+    case 'crew': return 'crewName';
+    default: return 'title';
+  }
 }
 
 export function parentCollectionOf(blocks: ReportBlock[], id: string, ctx?: ReportCollection): ReportCollection | undefined {

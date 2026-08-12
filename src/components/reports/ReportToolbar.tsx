@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { Project } from '../../types';
-import { COLLECTION_LABELS, validCollections } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, validCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
@@ -185,14 +185,37 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
       {(block.type === 'repeat' || block.type === 'table') && (
         <>
-          <Row label={block.type === 'table' ? 'Table over' : 'Repeat over'}>
-            <select className={selCls} disabled={disabled} value={block.collection || 'scenes'} onChange={e => onPatch({ collection: e.target.value as ReportCollection })}>
-              {collections.map(c => (
-                <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
-              ))}
-            </select>
-          </Row>
-          {block.collection === 'elements' && (
+          {block.type === 'repeat' ? (
+            <Row label="Repeat over">
+              <select className={selCls} disabled={disabled} value={block.collection || 'scenes'} onChange={e => onPatch({ collection: e.target.value as ReportCollection })}>
+                {collections.map(c => (
+                  <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
+                ))}
+              </select>
+            </Row>
+          ) : parentCollection ? (
+            <Row label="Table over">
+              <select
+                className={selCls}
+                disabled={disabled}
+                value={tableItemCollection(block, parentCollection)}
+                onChange={e => onPatch({ collection: e.target.value as ReportCollection })}
+              >
+                {contextualCollectionsFor(parentCollection).map(c => (
+                  <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
+                ))}
+              </select>
+            </Row>
+          ) : (
+            <Row label="Table over">
+              <select className={selCls} disabled={disabled} value={block.collection || 'scenes'} onChange={e => onPatch({ collection: e.target.value as ReportCollection })}>
+                {collections.map(c => (
+                  <option key={c} value={c}>{COLLECTION_LABELS[c]}</option>
+                ))}
+              </select>
+            </Row>
+          )}
+          {block.type === 'repeat' && block.collection === 'elements' && (
             <Row label="Category">
               <CategoryDropdown
                 value={block.category || 'props'}
@@ -217,7 +240,15 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
       {block.type === 'table' && (
         <>
-          <Row label={`Columns (${(block.columns || []).length} · drag handles on the grid)`}>
+          <Row label="Layout">
+            <Seg
+              value={block.axis ?? 'columns'}
+              options={[{ v: 'columns', l: 'Columns' }, { v: 'rows', l: 'Rows' }]}
+              onChange={v => onPatch({ axis: v as 'columns' | 'rows' })}
+              disabled={disabled}
+            />
+          </Row>
+          <Row label={`${(block.axis ?? 'columns') === 'rows' ? 'Rows' : 'Columns'} (${(block.columns || []).length}${(block.axis ?? 'columns') === 'columns' ? ' · drag handles on the grid' : ''})`}>
             <div className="flex items-center gap-1 flex-wrap">
               {(block.columns || []).map((col, ci) => (
                 <select
@@ -228,7 +259,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
                   onChange={e => tableOps.patchColumn(ci, { field: e.target.value })}
                 >
                   <option value="">—</option>
-                  {fieldOptions(parentCollection).map(f => (
+                  {fieldOptions(tableFieldScope(block, parentCollection)).map(f => (
                     <option key={f.key} value={f.key}>{f.label}</option>
                   ))}
                 </select>
@@ -237,10 +268,26 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               <ToolButton onClick={tableOps.removeColumn} disabled={disabled} title="Remove last column"><Minus className="w-3.5 h-3.5" /></ToolButton>
             </div>
           </Row>
-          <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
-            <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
-            Header row
-          </label>
+          {(block.axis ?? 'columns') === 'columns' ? (
+            <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+              <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
+              Header row
+            </label>
+          ) : (
+            <Row label="Item header (rows mode)">
+              <select
+                className={selCls}
+                disabled={disabled}
+                value={block.headerField || ''}
+                onChange={e => onPatch({ headerField: e.target.value })}
+              >
+                <option value="">— auto —</option>
+                {fieldOptions(tableFieldScope(block, parentCollection)).map(f => (
+                  <option key={f.key} value={f.key}>{f.label}</option>
+                ))}
+              </select>
+            </Row>
+          )}
         </>
       )}
 
