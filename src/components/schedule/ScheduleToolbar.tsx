@@ -10,7 +10,7 @@ import DropdownDivider from '../DropdownDivider';
 import DropdownSubmenu from '../DropdownSubmenu';
 import SortDropdown, { SortCriterion } from '../SortDropdown';
 import { formatDuration } from '../../lib/utils';
-import { BoneyardExpandButton } from '../BoneyardExpandButton';
+import { BoneyardExpandButton, BoneyardCollapseButton } from '../BoneyardExpandButton';
 
 interface SelectionSummary {
   count: number;
@@ -38,6 +38,7 @@ interface ScheduleToolbarProps {
   isCloud: boolean;
   boneyardCollapsed: boolean;
   onExpandBoneyard: () => void;
+  onCollapseBoneyard: () => void;
   // Auto day breaks
   autoDaybreakOpen: boolean;
   setAutoDaybreakOpen: (v: boolean) => void;
@@ -79,7 +80,7 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
   const { dispatch } = useProject();
   const {
     shootViolations, onShowViolations, selectionSummary, bufferSummary, isCloud,
-    boneyardCollapsed, onExpandBoneyard,
+    boneyardCollapsed, onExpandBoneyard, onCollapseBoneyard,
     autoDaybreakOpen, setAutoDaybreakOpen, handleAutoDaybreak, handleDeleteAllDaybreaks, hasDaybreakDays,
     bannerMenuOpen, setBannerMenuOpen, setBannerModalOpen, openBannerDeleteModal,
     sortMenuOpen, setSortMenuOpen, sortState, handleToggleLock, handleSort, handleCustomSort,
@@ -250,9 +251,11 @@ export default function ScheduleToolbar(props: ScheduleToolbarProps) {
   return (
     <PageToolbar
       theme="light"
-      justify={boneyardCollapsed ? 'between' : 'end'}
-      children={boneyardCollapsed ? <BoneyardExpandButton onClick={onExpandBoneyard} /> : controls}
-      rightContent={boneyardCollapsed ? controls : undefined}
+      justify="between"
+      children={boneyardCollapsed
+        ? <BoneyardExpandButton onClick={onExpandBoneyard} />
+        : <BoneyardCollapseButton onClick={onCollapseBoneyard} />}
+      rightContent={controls}
     />
   );
 }

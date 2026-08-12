@@ -11,6 +11,7 @@ interface BoneyardPanelProps {
   maxWidth: number;
   tone?: 'zinc' | 'white';
   className?: string;
+  hideCollapseButton?: boolean;
   titleSlot?: React.ReactNode;
   headerSlot?: React.ReactNode;
   children?: React.ReactNode;
@@ -21,7 +22,7 @@ const TONE_CLASSES = {
   white: 'bg-white border-zinc-300',
 } as const;
 
-export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggleCollapsed, widthKey, defaultWidth, minWidth, maxWidth, tone = 'zinc', className, titleSlot, headerSlot, children }) => {
+export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggleCollapsed, widthKey, defaultWidth, minWidth, maxWidth, tone = 'zinc', className, hideCollapseButton, titleSlot, headerSlot, children }) => {
   const [width, setWidth] = useState<number>(() => {
     try { const v = localStorage.getItem(widthKey); return v ? parseInt(v, 10) : defaultWidth; } catch { return defaultWidth; }
   });
@@ -72,13 +73,15 @@ export const BoneyardPanel: React.FC<BoneyardPanelProps> = ({ collapsed, onToggl
             <span className="text-sm font-semibold text-zinc-700 shrink-0 select-none">Boneyard</span>
             {titleSlot}
           </div>
-          <button
-            onClick={onToggleCollapsed}
-            className="p-1 -mr-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0"
-            title="Collapse Sidebar"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+          {!hideCollapseButton && (
+            <button
+              onClick={onToggleCollapsed}
+              className="p-1 -mr-1 hover:bg-zinc-100 rounded text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer shrink-0"
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
       {headerSlot && (

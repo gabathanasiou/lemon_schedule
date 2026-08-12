@@ -155,6 +155,7 @@ export const BoneyardBlock: React.FC<{
       maxWidth={600}
       tone="white"
       className="z-20 print:hidden"
+      hideCollapseButton
       titleSlot={
         <SortDropdown
           open={showSortMenu}

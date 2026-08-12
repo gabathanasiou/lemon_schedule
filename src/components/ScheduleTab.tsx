@@ -1308,6 +1308,7 @@ export function ScheduleTab({ onOpenScene, onOpenSceneInPopout, onPrint, targetS
         isCloud={isCloud}
         boneyardCollapsed={boneyardCollapsed}
         onExpandBoneyard={() => setBoneyardCollapsed(false)}
+        onCollapseBoneyard={() => handleCollapseChange(true)}
         autoDaybreakOpen={autoDaybreakOpen}
         setAutoDaybreakOpen={setAutoDaybreakOpen}
         handleAutoDaybreak={handleAutoDaybreak}
