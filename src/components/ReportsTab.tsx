@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useProject, getElementsFromScenes } from '../store';
-import { CustomCategoryDef } from '../types';
+import { CustomCategoryDef, ReportDesign } from '../types';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
@@ -23,13 +23,14 @@ interface ReportsTabProps {
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
   onPrint?: () => void;
+  onReportPrint?: (design: ReportDesign) => void;
   poppedOutSubTabs: Set<string>;
   onToggleSubPopout: (id: string) => void;
   onCloseSubPopout: (id: string) => void;
   shiftHeld?: boolean;
 }
 
-export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: ReportsTabProps) {
+export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, onCategoryChange, onPrint, onReportPrint, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld }: ReportsTabProps) {
   const { state } = useProject();
   const project = state.present;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -84,7 +85,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
         <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
       ) : subTab === 'designer' ? (
         <div className="flex-1 flex overflow-hidden bg-zinc-950 min-h-0">
-          <ReportDesigner headerTarget={portalTarget} />
+          <ReportDesigner headerTarget={portalTarget} onPrint={onReportPrint} />
         </div>
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0">

@@ -4,9 +4,10 @@ import { ReportCtx } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
 import { ReportBlockView } from './ReportBlockView';
 import { REPORT_PAGE_WIDTHS } from './reportStyle';
+import { paginateBlocks } from '../../lib/reportBlocks';
 import { X } from 'lucide-react';
 
-// Clean print view (Preview toggle) — same renderer, no structure chrome.
+// Paginated preview — each top-level page break starts a new sheet.
 
 interface ReportPreviewProps {
   design: ReportDesign;
@@ -17,6 +18,9 @@ interface ReportPreviewProps {
 }
 
 const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit }) => {
+  const pages = React.useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);
+  const pageW = REPORT_PAGE_WIDTHS[design.page];
+
   return (
     <div className="flex-1 overflow-y-auto bg-zinc-800 p-8">
       <div className="sticky top-0 z-20 flex justify-between mb-4 print:hidden">
@@ -26,14 +30,22 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
         >
           <X className="w-3.5 h-3.5" /> Exit Preview
         </button>
-        <span className="text-xs text-zinc-500">Esc also exits · Print prints this view</span>
+        <span className="text-xs text-zinc-500">Esc also exits · {pages.length} page{pages.length !== 1 ? 's' : ''} · Print prints this view</span>
       </div>
-      <div
-        className="mx-auto bg-white shadow-2xl"
-        style={{ width: REPORT_PAGE_WIDTHS[design.page], minHeight: REPORT_PAGE_WIDTHS[design.page] * 1.414, padding: '14mm 12mm' }}
-      >
-        {design.blocks.map(b => (
-          <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} />
+      <div className="flex flex-col items-center gap-6">
+        {pages.map((blocks, pi) => (
+          <div
+            key={pi}
+            className="mx-auto bg-white shadow-2xl relative"
+            style={{ width: pageW, minHeight: pageW * 1.414, padding: '14mm 12mm' }}
+          >
+            {pi > 0 && (
+              <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-zinc-400">Page {pi + 1}</span>
+            )}
+            {blocks.map(b => (
+              <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} />
+            ))}
+          </div>
         ))}
       </div>
     </div>

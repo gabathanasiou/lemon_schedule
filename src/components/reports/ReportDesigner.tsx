@@ -30,7 +30,7 @@ function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBloc
 
 interface ReportDesignerProps {
   headerTarget?: HTMLElement | null;
-  onPrint?: () => void;
+  onPrint?: (design: ReportDesign) => void;
 }
 
 export default function ReportDesigner({ headerTarget, onPrint }: ReportDesignerProps) {
@@ -207,7 +207,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         {preview ? 'Edit' : 'Preview'}
       </button>
       <button
-        onClick={onPrint}
+        onClick={() => activeDesign && onPrint?.(activeDesign)}
         disabled={!onPrint}
         className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-30"
       >

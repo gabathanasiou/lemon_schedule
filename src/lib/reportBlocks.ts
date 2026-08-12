@@ -11,6 +11,28 @@ export function blockId(): string {
   return `b${Date.now().toString(36)}${_n}`;
 }
 
+/**
+ * Splits a design's top-level blocks into pages at each `pageBreak` block.
+ * Leading breaks are no-ops; consecutive breaks produce blank pages; a
+ * trailing break is dropped. Nested pageBreak blocks are left in place.
+ */
+export function paginateBlocks(blocks: ReportBlock[]): ReportBlock[][] {
+  const pages: ReportBlock[][] = [];
+  let current: ReportBlock[] = [];
+  for (const b of blocks) {
+    if (b.type === 'pageBreak') {
+      if (current.length > 0 || pages.length > 0) {
+        pages.push(current);
+        current = [];
+      }
+      continue;
+    }
+    current.push(b);
+  }
+  if (current.length > 0) pages.push(current);
+  return pages.length > 0 ? pages : [current];
+}
+
 export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {
   const base: ReportBlock = { id: blockId(), type };
   switch (type) {
