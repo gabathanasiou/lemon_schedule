@@ -320,6 +320,7 @@ export interface ReportBlock {
   colWidths?: number[];          // rows-mode, % summing to 100
   tableRows?: ReportTableRow[];  // rows-mode: multiple design rows per item
   showHeader?: boolean;
+  showBorders?: boolean;          // table cell borders — on unless explicitly off
   headerField?: string;          // columns-mode: item identity row
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model

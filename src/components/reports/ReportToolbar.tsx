@@ -383,6 +383,10 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               />
             </Row>
           )}
+          <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+            <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
+            Cell borders
+          </label>
         </>
       )}
 

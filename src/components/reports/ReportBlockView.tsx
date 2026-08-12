@@ -269,7 +269,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
 
   const baseStyle = getReportBlockBaseStyle(block);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
-  const border = '1px solid #d4d4d8';
+  const border = block.showBorders === false ? 'none' : '1px solid #d4d4d8';
   const attributes = block.columns || [];
   if (attributes.length === 0) return null;
   // Per-item tables (one row per parent item, e.g. a table inside an element
