@@ -137,3 +137,9 @@ input, textarea, [contenteditable] {
   background: rgba(59, 130, 246, 0.22);
 }
 .block-dropzone[data-active="1"] .zone-line { display: block !important; }
+.block-edge-zone {
+  transition: background 120ms ease;
+}
+.block-edge-zone[data-active="1"] {
+  background: rgba(59, 130, 246, 0.35);
+}

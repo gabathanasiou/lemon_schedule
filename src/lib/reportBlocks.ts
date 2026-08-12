@@ -192,4 +192,60 @@ export function insertScopeFor(blocks: ReportBlock[], id: string | null): Report
   return parentCollectionOf(blocks, id) || null;
 }
 
+/** True when the block lives inside a columns block's column (columns can't nest). */
+export function insideColumnsBlock(blocks: ReportBlock[], id: string): boolean {
+  for (const b of blocks) {
+    if (b.type === 'columns' && b.cols) {
+      if (b.cols.some(c => c.blocks.some(x => x.id === id))) return true;
+      for (const c of b.cols) {
+        if (insideColumnsBlock(c.blocks, id)) return true;
+      }
+    }
+    if (b.children?.some(c => c.id === id)) return insideColumnsBlock(b.children, id);
+    if (b.children?.length && insideColumnsBlock(b.children, id)) return true;
+  }
+  return false;
+}
+
+/**
+ * Notion-style wrap: replaces `targetId` with a 2-column columns block
+ * containing `[dropped, target]` (side 'left') or `[target, dropped]`
+ * (side 'right'). If `moveId` is given, that block is removed from its
+ * original location first (drag of an existing block).
+ */
+export function wrapWithColumns(
+  blocks: ReportBlock[],
+  targetId: string,
+  dropped: ReportBlock,
+  side: 'left' | 'right',
+  moveId?: string,
+): ReportBlock[] {
+  if (moveId === targetId) return blocks;
+  let next = blocks;
+  if (moveId) {
+    next = removeBlock(blocks, moveId);
+    if (findBlock(next, targetId) === null) return blocks;
+  }
+  const f = findBlock(next, targetId);
+  if (!f) return blocks;
+  const target = f.block;
+  const colsBlock: ReportBlock = {
+    id: blockId(),
+    type: 'columns',
+    cols: side === 'left'
+      ? [
+          { id: blockId(), width: 50, blocks: [cloneBlock(dropped)] },
+          { id: blockId(), width: 50, blocks: [cloneBlock(target)] },
+        ]
+      : [
+          { id: blockId(), width: 50, blocks: [cloneBlock(target)] },
+          { id: blockId(), width: 50, blocks: [cloneBlock(dropped)] },
+        ],
+  };
+  if (f.parent === null) return next.map(b => (b.id === targetId ? colsBlock : b));
+  const pid = parentIdOf(next, targetId);
+  if (!pid) return next;
+  return updateBlock(next, pid, { children: f.parent.map(b => (b.id === targetId ? colsBlock : b)) });
+}
+
 export { generateUUID };

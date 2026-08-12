@@ -8,7 +8,7 @@ import { ReportDesign, ReportBlock } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, updateBlock, parentCollectionOf, insertScopeFor,
-  makeReportBlock,
+  makeReportBlock, wrapWithColumns,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { ItemManagerDropdown } from '../DropdownMenu';
@@ -231,6 +231,13 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onInsertBefore={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertBefore(blocksRef.current, id, b) : [b, ...blocksRef.current]); setSelId(b.id); }}
               onInsertInto={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(insertInto(blocksRef.current, id, b)); setSelId(b.id); }}
               onMoveTo={(moveId, targetId, pos) => { commit(moveBlockTo(blocksRef.current, moveId, targetId, pos)); setSelId(moveId); }}
+              onWrap={(targetId, payload, side) => {
+                const dropped = payload.moveId
+                  ? findBlock(blocksRef.current, payload.moveId)?.block ?? null
+                  : payloadToBlock(payload, insertScopeFor(blocksRef.current, targetId));
+                if (!dropped) return;
+                commit(wrapWithColumns(blocksRef.current, targetId, dropped, side, payload.moveId));
+              }}
               onDuplicate={id => commit(duplicateBlock(blocksRef.current, id))}
               onRemove={id => { commit(removeBlock(blocksRef.current, id)); if (selId === id) setSelId(null); }}
               onMove={(id, d) => commit(moveBlock(blocksRef.current, id, d))}

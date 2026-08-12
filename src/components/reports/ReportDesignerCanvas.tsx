@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCtx, resolveCollection, ReportCollectionItem } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
-import { COLLECTION_LABELS, findBlock, parentCollectionOf } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
@@ -36,13 +36,14 @@ interface ReportDesignerCanvasProps {
   onInsertBefore: (id: string | null, payload: PaletteDropPayload) => void;
   onInsertInto: (id: string | null, payload: PaletteDropPayload) => void;
   onMoveTo: (moveId: string, targetId: string, pos: 'before' | 'after') => void;
+  onWrap: (targetId: string, payload: PaletteDropPayload, side: 'left' | 'right') => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onMenu: (e: React.MouseEvent, id: string) => void;
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, ctx, fieldMap, readOnly, onSelect, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveTo, onDuplicate, onRemove, onMove, onMenu }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, ctx, fieldMap, readOnly, onSelect, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveTo, onWrap, onDuplicate, onRemove, onMove, onMenu }) => {
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
@@ -158,6 +159,12 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
             {resizeTarget && resizeTarget.id === b.id && (
               <TableResizeBar block={resizeTarget} onResize={widths => onPatch(resizeTarget.id, { colWidths: widths })} />
             )}
+            {dragging && !insideColumnsBlock(blocks, b.id) && (
+              <>
+                <EdgeZone side="left" b={b} depth={depth} onWrap={onWrap} pendingRef={pendingRef} />
+                <EdgeZone side="right" b={b} depth={depth} onWrap={onWrap} pendingRef={pendingRef} />
+              </>
+            )}
             <div
               className="block-chrome"
               style={{ display: 'none', position: 'absolute', top: -24, left: depth * 20 + 8, alignItems: 'center', gap: 2, background: '#27272a', border: '1px solid #3f3f46', borderRadius: 6, padding: '2px 4px', zIndex: 30 }}
@@ -256,6 +263,53 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
         <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>
       </div>
     </div>
+  );
+};
+
+// ---- edge dropzones (Notion-style wrap into columns) --------------------------
+
+const EdgeZone: React.FC<{
+  side: 'left' | 'right';
+  b: ReportBlock;
+  depth: number;
+  onWrap: (targetId: string, payload: PaletteDropPayload, side: 'left' | 'right') => void;
+  pendingRef: React.MutableRefObject<{ id: string; pos: 'before' | 'after' } | null>;
+}> = ({ side, b, onWrap, pendingRef }) => {
+  const isDrag = (e: React.DragEvent) => e.dataTransfer.types.includes(DROP_MIME);
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 10,
+    zIndex: 25,
+    ...(side === 'left' ? { left: -1 } : { right: -1 }),
+  };
+  return (
+    <div
+      className="block-edge-zone"
+      data-zone={`${b.id}:${side}`}
+      style={style}
+      onDragOver={e => {
+        if (!isDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.currentTarget.setAttribute('data-active', '1');
+      }}
+      onDragLeave={e => {
+        const cur = e.currentTarget;
+        if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+        cur.removeAttribute('data-active');
+      }}
+      onDrop={e => {
+        if (!isDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        let payload: PaletteDropPayload | null = null;
+        try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+        if (payload) onWrap(b.id, payload, side);
+        pendingRef.current = null;
+      }}
+    />
   );
 };
 
