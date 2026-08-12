@@ -28,6 +28,8 @@ import { useDaybreakSections } from '../lib/useDaybreakSections';
 import PageToolbar from './PageToolbar';
 import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
+import { TravelHoldModal } from './calendar/TravelHoldModal';
+import { getNonShootEntryMap, hasTravel, hasHold } from '../lib/nonShootHelpers';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
 import { SceneCardContent } from './calendar/SceneCard';
@@ -92,9 +94,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(boneyardCollapsed));
   }, [boneyardCollapsed]);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
-  const [statusModal, setStatusModal] = useState<{ containerId: number; dateKey: string } | null>(null);
-  const [modalStatus, setModalStatus] = useState('work');
-  const [modalCastIds, setModalCastIds] = useState('');
+  const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string } | null>(null);
   const [autoDayOffOpen, setAutoDayOffOpen] = useState(false);
   const [autoDayOffDays, setAutoDayOffDays] = useState<Set<number>>(new Set([5, 6]));
 
@@ -267,9 +267,27 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
   const nonShootDateMap = useMemo(() => {
     const m = new Map<string, string>();
-    for (const ns of nonShootDates) m.set(ns.date, ns.status);
+    for (const ns of nonShootDates) if (ns.status) m.set(ns.date, ns.status);
     return m;
   }, [nonShootDates]);
+
+  const nonShootEntryByDate = useMemo(() => getNonShootEntryMap(nonShootDates), [nonShootDates]);
+
+  const handleTravelHoldSave = useCallback((dateKey: string, entry: NonShootDate) => {
+    if (!activeVersion) return;
+    const current = activeVersion.nonShootDates || [];
+    const idx = current.findIndex(ns => ns.date === dateKey);
+    const hasLists = hasTravel(entry) || hasHold(entry);
+    let next: NonShootDate[];
+    if (!entry.status && !hasLists) {
+      next = idx >= 0 ? current.filter(ns => ns.date !== dateKey) : current;
+    } else if (idx >= 0) {
+      next = current.map(ns => ns.date === dateKey ? entry : ns);
+    } else {
+      next = [...current, entry];
+    }
+    dispatch({ type: 'UPDATE_VERSION', payload: { id: activeVersion.id, nonShootDates: next } });
+  }, [activeVersion, dispatch]);
 
   const sectionDateMap = hookSectionDateMap;
   const chronoDayMap = productionChronoDayMap;
@@ -959,6 +977,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                         <DayCell key={day.dateKey}
                           dateKey={day.dateKey} date={day.date} isToday={day.isToday}
                           nonShootStatus={nonShootDateMap.get(day.dateKey)}
+                          travelHoldEntry={nonShootEntryByDate.get(day.dateKey)}
+                          onEditTravelHold={(dk) => setTravelHoldModal({ dateKey: dk })}
                           sectionIndex={dateSectionIdx ?? undefined}
                           sectionLabel={sectionLabel}
                           activeTool={activeTool}
@@ -1022,6 +1042,8 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'hold'); setContextMenu(null); setContextMenuDate(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'travel'); setContextMenu(null); setContextMenuDate(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
           <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'holiday'); setContextMenu(null); setContextMenuDate(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Day Off</ContextMenuItem>
+          <ContextMenuDivider />
+          <ContextMenuItem onClick={() => { setTravelHoldModal({ dateKey: contextMenuDate }); setContextMenu(null); setContextMenuDate(null); }} icon={<><Plane className="w-3 h-3" /><Pause className="w-3 h-3" /></>}>Manage Travel/Hold…</ContextMenuItem>
           {nonShootDateMap.has(contextMenuDate) && (
             <>
               <ContextMenuDivider />
@@ -1136,6 +1158,14 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           if (customOrderModal?.criterion) handleCustomOrderSort(customOrderModal.criterion, order);
         }}
       />
+      {travelHoldModal && (
+        <TravelHoldModal
+          dateKey={travelHoldModal.dateKey}
+          entry={nonShootEntryByDate.get(travelHoldModal.dateKey)}
+          onSave={(entry) => handleTravelHoldSave(travelHoldModal.dateKey, entry)}
+          onClose={() => setTravelHoldModal(null)}
+        />
+      )}
     </DndContext>
     </>
   );
