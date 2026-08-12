@@ -4,6 +4,7 @@ import { Scene, ScheduleRow, CustomCategoryDef } from '../types';
 import { getLabel, DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categories';
 import { useColumnResize } from '../lib/useColumnResize';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import { addDays } from '../lib/daybreakUtils';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -73,7 +74,7 @@ interface DoodsTabProps {
 export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   const { state } = useProject();
   const project = state.present;
-  const { sections, productionSections, sectionDateMap, sectionLabelMap, sceneToSection } = useDaybreakSections();
+  const { sections, productionSections, sectionDateMap, sectionLabelMap, sceneToSection, startDate, activeVersion } = useDaybreakSections();
   const castMembers = project.castMembers || [];
   const isCast = selectedCategory === 'cast';
 
@@ -99,25 +100,40 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   }, [project.scenes, selectedCategory, isCast]);
 
   const sectionDayEntries = useMemo(() => {
-    const entries: { sectionIndex: number; isoDate: string; label: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = productionSections.map((s, i) => {
-      const date = sectionDateMap.get(s.index) || '';
-      return {
+    const sectionByDate = new Map<string, { sectionIndex: number; label: string; isShooting: boolean }>();
+    for (const s of productionSections) {
+      const date = sectionDateMap.get(s.index);
+      if (!date) continue;
+      sectionByDate.set(date, {
         sectionIndex: s.index,
-        isoDate: date,
-        label: sectionLabelMap.get(s.index) || `Day ${i + 1}`,
+        label: sectionLabelMap.get(s.index) || '',
         isShooting: s.rows.some(r => r.type === 'SCENE'),
-        status: undefined,
-      };
-    }).sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+      });
+    }
+    if (sectionByDate.size === 0) return [];
 
-    for (let i = 1; i < entries.length; i++) {
-      const prev = new Date(entries[i - 1].isoDate + 'T00:00:00');
-      const cur = new Date(entries[i].isoDate + 'T00:00:00');
-      entries[i].hasGap = cur.getTime() - prev.getTime() > 86400000;
+    const nonShootMap = new Map<string, string>();
+    for (const n of activeVersion?.nonShootDates || []) nonShootMap.set(n.date, n.status);
+
+    const dateKeys = Array.from(sectionByDate.keys()).sort();
+    const entries: { sectionIndex: number; isoDate: string; label: string; isShooting: boolean; status?: string; hasGap?: boolean }[] = [];
+    let previousWasSection = true;
+    for (let iso = startDate; iso <= dateKeys[dateKeys.length - 1]; iso = addDays(iso, 1)) {
+      const sec = sectionByDate.get(iso);
+      const isSection = !!sec;
+      entries.push({
+        sectionIndex: sec ? sec.sectionIndex : -1,
+        isoDate: iso,
+        label: sec ? sec.label : '',
+        isShooting: sec ? sec.isShooting : false,
+        status: isSection ? undefined : nonShootMap.get(iso),
+        hasGap: isSection && !previousWasSection,
+      });
+      previousWasSection = isSection;
     }
 
     return entries;
-  }, [productionSections, sectionDateMap, sectionLabelMap]);
+  }, [productionSections, sectionDateMap, sectionLabelMap, startDate, activeVersion?.nonShootDates]);
 
   const data = useMemo(() => {
     const scenes = project.scenes;
@@ -160,6 +176,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
           }
         }
         if (!appearSet.has(d.sectionIndex)) {
+          if (d.sectionIndex === -1) return '';
           return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
         }
         if (d.isoDate === firstDate && d.isoDate === lastDate) return 'SWF';
@@ -236,7 +253,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         <table className="border-separate border-spacing-0 text-[11px] table-fixed">
           <colgroup>
             <col style={{ width: widths.name }} />
-            {data.days.map(d => <col key={d.sectionIndex} style={{ width: widths.day }} />)}
+            {data.days.map(d => <col key={d.isoDate} style={{ width: widths.day }} />)}
             <col style={{ width: widths.work }} />
             <col style={{ width: widths.hold }} />
             {isCast && <col style={{ width: widths.trav }} />}
@@ -250,7 +267,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.sectionIndex} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                <th key={d.isoDate} className={`relative px-2 py-1.5 text-center font-medium whitespace-nowrap bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-300' : 'text-zinc-600'}`}>
                   <div title={formatDateLong(d.isoDate)}>{formatDateShort(d.isoDate)}</div>
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
@@ -282,7 +299,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.sectionIndex} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                <th key={d.isoDate} className={`relative px-2 py-1 text-center font-normal whitespace-nowrap text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {formatDow(d.isoDate)}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
@@ -309,7 +326,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
               {data.days.map((d, ci) => (
-                <th key={d.sectionIndex} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                <th key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   {d.isShooting ? chronoDayMap.get(d.sectionIndex) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'DO' : ''}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                 </th>
