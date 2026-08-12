@@ -6,6 +6,7 @@ import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/re
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
+import { FieldPicker } from './FieldPicker';
 import { Tooltip } from '../Tooltip';
 import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus } from 'lucide-react';
 
@@ -147,32 +148,28 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             value={block.text || ''}
             onChange={e => onPatch({ text: e.target.value })}
           />
-          <select
-            className={selCls}
-            disabled={disabled}
+          <FieldPicker
             value=""
-            onChange={e => {
-              if (e.target.value) onPatch({ text: `${block.text || ''}{{${e.target.value}}}` });
-              e.target.value = '';
-            }}
-          >
-            <option value="">Insert attribute…</option>
-            {contextFields.map(f => (
-              <option key={f.key} value={f.key}>{f.label}</option>
-            ))}
-          </select>
+            fields={contextFields}
+            onChange={f => onPatch({ text: `${block.text || ''}{{${f}}}` })}
+            disabled={disabled}
+            placeholder="Insert attribute…"
+            className="w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+          />
         </Row>
       )}
 
       {block.type === 'field' && (
         <>
           <Row label="Field">
-            <select className={selCls} disabled={disabled} value={block.field || ''} onChange={e => onPatch({ field: e.target.value })}>
-              {!block.field && <option value="" disabled>Select field…</option>}
-              {contextFields.map(f => (
-                <option key={f.key} value={f.key}>{f.label}</option>
-              ))}
-            </select>
+            <FieldPicker
+              value={block.field || ''}
+              fields={contextFields}
+              onChange={f => onPatch({ field: f })}
+              disabled={disabled}
+              placeholder="Select field…"
+              className="w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+            />
           </Row>
           <Row label="Prefix">
             <input className={inputCls} disabled={disabled} value={block.prefix || ''} onChange={e => onPatch({ prefix: e.target.value })} />
@@ -251,18 +248,14 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           <Row label={`${(block.axis ?? 'columns') === 'rows' ? 'Rows' : 'Columns'} (${(block.columns || []).length}${(block.axis ?? 'columns') === 'columns' ? ' · drag handles on the grid' : ''})`}>
             <div className="flex items-center gap-1 flex-wrap">
               {(block.columns || []).map((col, ci) => (
-                <select
+                <FieldPicker
                   key={col.id}
-                  className={selCls}
-                  disabled={disabled}
                   value={col.field}
-                  onChange={e => tableOps.patchColumn(ci, { field: e.target.value })}
-                >
-                  <option value="">—</option>
-                  {fieldOptions(tableFieldScope(block, parentCollection)).map(f => (
-                    <option key={f.key} value={f.key}>{f.label}</option>
-                  ))}
-                </select>
+                  fields={fieldOptions(tableFieldScope(block, parentCollection))}
+                  onChange={f => tableOps.patchColumn(ci, { field: f })}
+                  disabled={disabled}
+                  className="w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+                />
               ))}
               <ToolButton onClick={tableOps.addColumn} disabled={disabled} title="Add column"><Plus className="w-3.5 h-3.5" /></ToolButton>
               <ToolButton onClick={tableOps.removeColumn} disabled={disabled} title="Remove last column"><Minus className="w-3.5 h-3.5" /></ToolButton>
@@ -275,17 +268,14 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             </label>
           ) : (
             <Row label="Item header (rows mode)">
-              <select
-                className={selCls}
-                disabled={disabled}
+              <FieldPicker
                 value={block.headerField || ''}
-                onChange={e => onPatch({ headerField: e.target.value })}
-              >
-                <option value="">— auto —</option>
-                {fieldOptions(tableFieldScope(block, parentCollection)).map(f => (
-                  <option key={f.key} value={f.key}>{f.label}</option>
-                ))}
-              </select>
+                fields={fieldOptions(tableFieldScope(block, parentCollection))}
+                onChange={f => onPatch({ headerField: f })}
+                disabled={disabled}
+                placeholder="— auto —"
+                className="w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+              />
             </Row>
           )}
         </>
