@@ -160,6 +160,35 @@ function sceneBreakdown(): ReportDesign {
   };
 }
 
+function categoryBreakdown(): ReportDesign {
+  return {
+    id: cid(),
+    name: 'Category Breakdown',
+    createdAt: Date.now(),
+    page: 'portrait',
+    blocks: [
+      textBlock('{{title}} — Category Breakdown', { fontSize: 16, bold: true, align: 'center' }),
+      {
+        id: cid(),
+        type: 'repeat',
+        collection: 'categories',
+        skipEmptyCategories: true,
+        gap: 10,
+        children: [
+          { id: cid(), type: 'field', field: 'categoryLabel', fontSize: 13, bold: true },
+          tableBlock('elementsOfCategory', [
+            { field: 'elementName', width: 40 },
+            { field: 'sceneCount', width: 15, align: 'center' },
+            { field: 'totalPages', width: 15, align: 'center' },
+            { field: 'workDays', width: 15, align: 'center' },
+            { field: 'shootDays', width: 15, align: 'center' },
+          ]),
+        ],
+      },
+    ],
+  };
+}
+
 function crewContactSheet(): ReportDesign {
   return {
     id: cid(),
@@ -208,7 +237,7 @@ function callSheet(): ReportDesign {
 }
 
 export function getDefaultReportDesigns(): ReportDesign[] {
-  return [oneLiner(), castList(), elementBreakdown(), sceneBreakdown(), crewContactSheet(), callSheet()];
+  return [oneLiner(), castList(), elementBreakdown(), categoryBreakdown(), sceneBreakdown(), crewContactSheet(), callSheet()];
 }
 
 export function getDefaultReportDesign(): ReportDesign {

@@ -1,7 +1,7 @@
-import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, CrewPerson } from '../types';
+import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, CrewPerson } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { loadCategoryElements, elementMatchId } from './elements';
-import { getFieldItems } from './categories';
+import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort } from './utils';
 
@@ -61,6 +61,16 @@ export interface ReportCrewItem {
   email?: string;
 }
 
+/** One element category, as a repeat/table item of the 'categories' collection. */
+export interface ReportCategoryInfo {
+  key: string;
+  label: string;
+  elementCount: number;
+  sceneCount: number;
+  occurrences: number;
+  items: string[]; // display names of every element, for the Items attribute
+}
+
 /** Canonical daybreak output consumed by the reports (from useDaybreakSections). */
 export interface ReportDaybreakData {
   sections: SectionInfo[];
@@ -72,6 +82,7 @@ export interface ReportCtx {
   version: ScheduleVersion;
   sceneInfos: ReportSceneInfo[];
   dayInfos: ReportDayInfo[];
+  categoryInfos: ReportCategoryInfo[];
   castNames: Map<string, string>;
   elementsCache: Map<string, ReportElementInfo[]>;
   crewItems: ReportCrewItem[];
@@ -147,6 +158,37 @@ export function buildReportCtx(
   const castNames = new Map<string, string>();
   for (const m of project.castMembers || []) castNames.set(m.id, m.name);
 
+  // element categories — built-in + custom, minus app-hidden. Counts are
+  // scene-based (same fields the stripboard/DOOD read), elements via the
+  // canonical stored∪scene-derived merge. Empty categories are NOT dropped
+  // here — per-block skipEmptyCategories decides that at resolve time.
+  const hidden = new Set(project.hiddenCategories || []);
+  const categoryInfos: ReportCategoryInfo[] = [];
+  for (const c of ELEMENT_CATEGORIES) {
+    if (!hidden.has(c.key)) {
+      categoryInfos.push({
+        key: c.key,
+        label: getLabel(c.key, c.label, project.categoryLabels),
+        elementCount: 0, sceneCount: 0, occurrences: 0, items: [],
+      });
+    }
+  }
+  for (const c of project.customCategories || []) {
+    if (!hidden.has(c.key)) {
+      categoryInfos.push({ key: c.key, label: c.label, elementCount: 0, sceneCount: 0, occurrences: 0, items: [] });
+    }
+  }
+  for (const info of categoryInfos) {
+    const elements = loadCategoryElements(project, info.key);
+    info.elementCount = elements.length;
+    info.items = elements.map(e => info.key === 'cast' ? (castNames.get(e.id) || e.name || e.id) : (e.name || e.id));
+    for (const si of sceneInfos) {
+      const items = getFieldItems(info.key, String((si.scene as any)[info.key] ?? ''));
+      if (items.length > 0) info.sceneCount++;
+      info.occurrences += items.length;
+    }
+  }
+
   const crewItems: ReportCrewItem[] = [];
   for (const role of project.crewRoles || []) {
     const people: CrewPerson[] = project.crew?.[role.key] || [];
@@ -160,6 +202,7 @@ export function buildReportCtx(
     version,
     sceneInfos,
     dayInfos,
+    categoryInfos,
     castNames,
     elementsCache: new Map(),
     crewItems,
@@ -232,6 +275,7 @@ export type ReportCollectionItem =
   | ReportSceneInfo
   | ReportDayInfo
   | ReportElementInfo
+  | ReportCategoryInfo
   | ReportCrewItem;
 
 export function resolveCollection(
@@ -246,6 +290,7 @@ export function resolveCollection(
     case 'days': return ctx.dayInfos;
     case 'cast': return getElementsFor(ctx, 'cast');
     case 'elements': return getElementsFor(ctx, category || 'props');
+    case 'categories': return ctx.categoryInfos;
     case 'crew': return ctx.crewItems;
     case 'scenesOfDay': {
       const day = parentItem as ReportDayInfo | undefined;
@@ -280,6 +325,38 @@ export function resolveCollection(
       );
       return ctx.dayInfos.filter(d => dayIdx.has(d.section.index));
     }
+    case 'elementsOfCategory': {
+      const cat = parentItem as ReportCategoryInfo | undefined;
+      if (!cat) return [];
+      return getElementsFor(ctx, cat.key);
+    }
     default: return [];
   }
+}
+
+/**
+ * Block-aware collection resolution: applies the block's own filters for the
+ * 'categories' collection (skip-empty — on unless explicitly off — and the
+ * excluded list). Every renderer resolves through here so the designer,
+ * preview and page expansion all agree.
+ */
+export function resolveCollectionItems(
+  ctx: ReportCtx,
+  collection: ReportCollection | undefined,
+  category: string | undefined,
+  parentItem: any,
+  parentCategory: string | undefined,
+  block?: ReportBlock,
+): ReportCollectionItem[] {
+  let items = resolveCollection(ctx, collection, category, parentItem, parentCategory);
+  if (collection === 'categories' && block) {
+    if (block.skipEmptyCategories !== false) {
+      items = items.filter((c: any) => c.elementCount > 0);
+    }
+    const excluded = new Set(block.excludedCategories || []);
+    if (excluded.size > 0) {
+      items = items.filter((c: any) => !excluded.has(c.key));
+    }
+  }
+  return items;
 }

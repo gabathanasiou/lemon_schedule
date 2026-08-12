@@ -295,20 +295,23 @@ export const COLLECTION_LABELS: Record<string, string> = {
   days: 'Days',
   cast: 'Cast',
   elements: 'Elements',
+  categories: 'Categories',
   crew: 'Crew',
   scenesOfDay: 'Scenes (of this day)',
   scenesOfElement: 'Scenes (of this element)',
   scenesOfCast: 'Scenes (of this cast member)',
   daysOfCast: 'Days (of this cast member)',
+  elementsOfCategory: 'Elements (of this category)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'crew', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
     if (c === 'scenesOfDay') return parentCollection === 'days';
-    if (c === 'scenesOfElement') return parentCollection === 'elements';
+    if (c === 'scenesOfElement') return parentCollection === 'elements' || parentCollection === 'elementsOfCategory';
     if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
+    if (c === 'elementsOfCategory') return parentCollection === 'categories';
     return true;
   });
 }
@@ -318,6 +321,7 @@ export function contextualCollectionsFor(parentCollection?: ReportCollection): R
   if (parentCollection === 'days') return ['scenesOfDay'];
   if (parentCollection === 'elements') return ['scenesOfElement'];
   if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast'];
+  if (parentCollection === 'categories') return ['elementsOfCategory'];
   return [];
 }
 
@@ -340,6 +344,7 @@ export function tableItemCollection(block: ReportBlock, parentCollection?: Repor
 /** The field scope for a table's attribute list (column/row field options). */
 export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection | undefined {
   if (!parentCollection) return block.collection;
+  if (parentCollection === 'categories') return 'elements';
   const contextual = contextualCollectionsFor(parentCollection);
   if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;
   return contextual.length > 0 ? 'scenes' : parentCollection;
@@ -359,6 +364,8 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': return 'sceneNumber';
     case 'days': case 'daysOfCast': return 'dayNumber';
     case 'cast': case 'elements': return 'name';
+    case 'elementsOfCategory': return 'elementName';
+    case 'categories': return 'categoryLabel';
     case 'crew': return 'crewName';
     default: return 'title';
   }

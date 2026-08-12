@@ -270,8 +270,8 @@ export interface ProductionInfo {
 }
 
 export type ReportCollection =
-  | 'scenes' | 'days' | 'cast' | 'elements' | 'crew'
-  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast';
+  | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew'
+  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RibbonMode = 'single' | 'day' | 'all';
@@ -303,10 +303,16 @@ export interface ReportBlock {
   field?: string;                // empty = "Select field…" state
   prefix?: string;
   suffix?: string;
+  itemPrefix?: string;           // per-item affixes for multi-value attributes
+  itemSuffix?: string;
+  itemSeparator?: string;
   emptyBehavior?: EmptyBehavior;
   // repeat
   collection?: ReportCollection;
   category?: string;             // for 'elements'
+  skipEmptyCategories?: boolean; // for 'categories' — on unless explicitly off
+  excludedCategories?: string[]; // for 'categories' — categories to omit
+  counterStart?: number;         // 0 or 1 — where the Document Counter starts
   children?: ReportBlock[];
   gap?: number;                  // pt between repeated items
   // table (repeat + table shape)
