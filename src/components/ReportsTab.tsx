@@ -4,6 +4,7 @@ import { CustomCategoryDef } from '../types';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../lib/categories';
 import DoodsTab from './DoodsTab';
 import ElementBreakdownView from './ElementBreakdownView';
+import ReportDesigner from './reports/ReportDesigner';
 import { PanelLeftOpen, PanelLeftClose, Printer } from 'lucide-react';
 import PageToolbar from './PageToolbar';
 import { PopoutPlaceholder } from './PopoutWindow';
@@ -17,8 +18,8 @@ function getCategoryLabel(key: string, customCategories: CustomCategoryDef[]): s
 }
 
 interface ReportsTabProps {
-  subTab: 'doods' | 'elementBreakdown';
-  onSubTabChange: (t: 'doods' | 'elementBreakdown') => void;
+  subTab: 'doods' | 'elementBreakdown' | 'designer';
+  onSubTabChange: (t: 'doods' | 'elementBreakdown' | 'designer') => void;
   selectedCategory: string;
   onCategoryChange: (cat: string) => void;
   onPrint?: () => void;
@@ -32,6 +33,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
   const { state } = useProject();
   const project = state.present;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
 
   const hiddenSet = useMemo(() => new Set(project.hiddenCategories || []), [project.hiddenCategories]);
 
@@ -47,7 +49,7 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
   }, [project.customCategories, hiddenSet]);
 
   const subTabLabels: Record<string, string> = {
-    doods: 'Day Out of Days', elementBreakdown: 'Element Breakdown',
+    doods: 'Day Out of Days', elementBreakdown: 'Element Breakdown', designer: 'Reports Designer',
   };
 
   return (
@@ -57,25 +59,33 @@ export default function ReportsTab({ subTab, onSubTabChange, selectedCategory, o
         tabs={[
           { id: 'doods', label: 'Day Out of Days' },
           { id: 'elementBreakdown', label: 'Element Breakdown' },
+          { id: 'designer', label: 'Reports Designer' },
         ]}
         activeTab={subTab}
         onChange={onSubTabChange}
         onPopout={onToggleSubPopout}
         shiftHeld={shiftHeld}
         rightContent={
-          onPrint ? (
-            <button
-              onClick={onPrint}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print
-            </button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <div ref={setPortalTarget} className="flex items-center gap-2" />
+            {onPrint && subTab !== 'designer' ? (
+              <button
+                onClick={onPrint}
+                className="flex items-center gap-1.5 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print
+              </button>
+            ) : undefined}
+          </div>
         }
       />
       {poppedOutSubTabs.has(subTab) ? (
         <PopoutPlaceholder title={subTabLabels[subTab]} onBringBack={() => onCloseSubPopout(subTab)} />
+      ) : subTab === 'designer' ? (
+        <div className="flex-1 flex overflow-hidden bg-zinc-950 min-h-0">
+          <ReportDesigner headerTarget={portalTarget} />
+        </div>
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0">
         {sidebarCollapsed ? (

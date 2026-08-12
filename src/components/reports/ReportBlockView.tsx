@@ -157,6 +157,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
       {filtered.map((it, i) => (
         <div
           key={i}
+          className="report-table-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: widths.map(w => `${w}%`).join(' '),

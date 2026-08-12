@@ -102,3 +102,38 @@ input, textarea, [contenteditable] {
 .cv-chunk.cv-visible {
   content-visibility: visible;
 }
+
+/* ---- Reports Designer canvas ---- */
+
+.block-card {
+  position: relative;
+  outline: 1px solid #3f3f46;
+  outline-offset: 0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  transition: outline-color 120ms;
+}
+.block-card:hover { outline-color: #71717a; }
+.block-card.selected { outline-color: #3b82f6; background: rgba(59, 130, 246, 0.06); }
+.block-card.selected > .block-chrome { display: flex !important; }
+
+.chrome-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: #a1a1aa;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.chrome-btn:hover { background: #3f3f46; color: #e4e4e7; }
+
+.block-dropzone { transition: height 120ms ease, background 120ms ease; }
+.block-dropzone[data-active="1"] {
+  height: 24px !important;
+  background: rgba(59, 130, 246, 0.22);
+}
+.block-dropzone[data-active="1"] .zone-line { display: block !important; }

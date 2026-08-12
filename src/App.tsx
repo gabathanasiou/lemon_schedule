@@ -59,6 +59,7 @@ import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
 import AppHeader, { AppTabId } from './components/AppHeader';
 import ProductionTab from './components/ProductionTab';
+import ReportDesigner from './components/reports/ReportDesigner';
 import OfflineStatus from './components/OfflineStatus';
 import { PopoutFrame, SubTabPopoutFrame, ReportCategorySidebar } from './components/popout/PopoutFrames';
 import { requestUnsavedSave } from './lib/unsavedGuard';
@@ -75,7 +76,7 @@ function AppContent() {
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide'>('glide');
   const [brCategory, setBrCategory] = useState('cast');
   const [brSheetIdx, setBrSheetIdx] = useState(0);
-  const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown'>('doods');
+  const [reportsSubTab, setReportsSubTab] = useState<'doods' | 'elementBreakdown' | 'designer'>('doods');
   const [reportsCategory, setReportsCategory] = useState('cast');
   const [prodSubTab, setProdSubTab] = useState<'details' | 'crew'>('details');
   const [scheduleTargetScene, setScheduleTargetScene] = useState<string | null>(null);
@@ -242,7 +243,7 @@ function AppContent() {
         const nextTab = ['ribbons', 'colors'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setDesignSubTab(nextTab as any);
       } else if (parentId === 'reports' && reportsSubTab === subTabId) {
-        const nextTab = ['doods', 'elementBreakdown'].find(t => t !== subTabId && !newSet.has(t));
+        const nextTab = ['doods', 'elementBreakdown', 'designer'].find(t => t !== subTabId && !newSet.has(t));
         if (nextTab) setReportsSubTab(nextTab as any);
       } else if (parentId === 'production' && prodSubTab === subTabId) {
         const nextTab = ['details', 'crew'].find(t => t !== subTabId && !newSet.has(t));
@@ -723,6 +724,12 @@ function AppContent() {
       {poppedOutSubTabs.production?.has('crew') && popoutSubWindowsRef.current.get('sub_production_crew') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Crew`} win={popoutSubWindowsRef.current.get('sub_production_crew')!} onClose={() => closeSubPopout('production', 'crew')} tabName="Production" subTabId="crew" tabLabel="Crew" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_production_crew']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_production_crew: el }))}>
           <ProductionTab subTab="crew" onSubTabChange={setProdSubTab} poppedOutSubTabs={poppedOutSubTabs.production || new Set()} onToggleSubPopout={(id) => toggleSubPopout('production', id)} onCloseSubPopout={(id) => closeSubPopout('production', id)} />
+        </SubTabPopoutFrame>
+      )}
+
+      {poppedOutSubTabs.reports?.has('designer') && popoutSubWindowsRef.current.get('sub_reports_designer') && (
+        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Reports Designer`} win={popoutSubWindowsRef.current.get('sub_reports_designer')!} onClose={() => closeSubPopout('reports', 'designer')} tabName="Reports" subTabId="designer" tabLabel="Reports Designer" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_reports_designer']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_reports_designer: el }))} theme="dark" bg="bg-zinc-950">
+          <ReportDesigner headerTarget={subHeaderTargets['sub_reports_designer']} />
         </SubTabPopoutFrame>
       )}
 

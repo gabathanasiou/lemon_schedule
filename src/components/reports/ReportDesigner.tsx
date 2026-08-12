@@ -1,0 +1,322 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useProject } from '../../store';
+import { useCurrentWindow } from '../../lib/popoutTarget';
+import { useReportCtx } from '../../lib/useReportCtx';
+import { getReportFieldMap } from '../../lib/reportFields';
+import { ReportDesign, ReportBlock } from '../../types';
+import {
+  findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
+  moveBlock, moveBlockTo, updateBlock, parentCollectionOf, insertScopeFor,
+  makeReportBlock,
+} from '../../lib/reportBlocks';
+import { getDefaultReportDesigns } from '../../lib/reportTemplates';
+import { ItemManagerDropdown } from '../DropdownMenu';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
+import ReportPalette, { PaletteDropPayload } from './ReportPalette';
+import ReportToolbar from './ReportToolbar';
+import ReportDesignerCanvas from './ReportDesignerCanvas';
+import ReportContextMenu, { MenuState } from './ReportContextMenu';
+import ReportPreview from './ReportPreview';
+import { Printer, Eye, EyeOff, ChevronDown } from 'lucide-react';
+
+function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
+  if (p.kind === 'field') return makeReportBlock('field', { field: p.field });
+  if (p.type === 'field') return makeReportBlock('field', { field: undefined });
+  return makeReportBlock((p.type || 'text') as ReportBlock['type']);
+}
+
+interface ReportDesignerProps {
+  headerTarget?: HTMLElement | null;
+  onPrint?: () => void;
+}
+
+export default function ReportDesigner({ headerTarget, onPrint }: ReportDesignerProps) {
+  const { state, dispatch, readOnly } = useProject();
+  const project = state.present;
+  const ctx = useReportCtx();
+  const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
+  const currentWin = useCurrentWindow();
+
+  const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === project.activeReportId) || project.reportDesigns?.[0];
+
+  const [blocks, setBlocks] = useState<ReportBlock[]>(() => activeDesign?.blocks || []);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+
+  useEffect(() => {
+    setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);
+    setSelId(null);
+    setMenu(null);
+  }, [activeDesign?.id, project.reportDesigns]);
+
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
+  const selIdRef = useRef(selId);
+  selIdRef.current = selId;
+
+  const commit = (next: ReportBlock[]) => {
+    setBlocks(next);
+    if (activeDesign) dispatch({ type: 'UPDATE_REPORT_DESIGN', payload: { id: activeDesign.id, blocks: next } });
+  };
+
+  const patch = (id: string, p: Partial<ReportBlock>) => commit(updateBlock(blocksRef.current, id, p));
+
+  const selBlock = selId ? findBlock(blocks, selId)?.block ?? null : null;
+  const selParentCollection = selId ? parentCollectionOf(blocks, selId) : undefined;
+  const insertScope = useMemo(
+    () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table') ? selBlock.collection || null : selParentCollection || null),
+    [selBlock, selParentCollection],
+  );
+
+  const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
+    const b = payloadToBlock(payload, insertScopeFor(blocks, id));
+    const next = id ? insertAfter(blocksRef.current, id, b) : [...blocksRef.current, b];
+    commit(next);
+    setSelId(b.id);
+  };
+
+  const insertIntoSelected = () => {
+    if (!selId) return;
+    const b = makeReportBlock('text', { text: 'Line {{title}}' });
+    commit(insertInto(blocksRef.current, selId, b));
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setMenu(null); setPreview(false); return; }
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      const id = selIdRef.current;
+      if (!id) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); commit(removeBlock(blocksRef.current, id)); setSelId(null); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); commit(moveBlock(blocksRef.current, id, -1)); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); commit(moveBlock(blocksRef.current, id, 1)); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); commit(duplicateBlock(blocksRef.current, id)); }
+    };
+    currentWin.addEventListener('keydown', onKey);
+    return () => currentWin.removeEventListener('keydown', onKey);
+  }, [currentWin, activeDesign?.id]);
+
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const exportDesign = () => {
+    if (!activeDesign) return;
+    const blob = new Blob([JSON.stringify({
+      name: activeDesign.name,
+      page: activeDesign.page,
+      blocks: activeDesign.blocks,
+    }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(activeDesign.name || 'report').replace(/[^a-z0-9-_ ]/gi, '')}.report`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importDesign = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        if (!Array.isArray(parsed.blocks)) throw new Error('bad format');
+        dispatch({
+          type: 'ADD_REPORT_DESIGN',
+          payload: {
+            name: parsed.name || 'Imported Report',
+            blocks: parsed.blocks,
+            page: parsed.page === 'landscape' ? 'landscape' : 'portrait',
+          },
+        });
+      } catch {
+        // ignore invalid files
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const headerContent = (
+    <>
+      <DesignsMenu
+        designs={project.reportDesigns || []}
+        activeId={activeDesign?.id || ''}
+        readOnly={readOnly}
+        onSelect={id => dispatch({ type: 'SET_ACTIVE_REPORT', payload: id })}
+        onRename={(id, name) => dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id, name } })}
+        onDuplicate={id => {
+          const d = project.reportDesigns?.find(x => x.id === id);
+          dispatch({ type: 'ADD_REPORT_DESIGN', payload: { name: `${d?.name || 'Report'} Copy`, cloneFromId: id } });
+        }}
+        onDelete={id => dispatch({ type: 'DELETE_REPORT_DESIGN', payload: id })}
+        onCreate={() => dispatch({ type: 'ADD_REPORT_DESIGN', payload: { name: `Report ${(project.reportDesigns?.length || 0) + 1}` } })}
+        onImport={() => importFileRef.current?.click()}
+        onExport={exportDesign}
+        onReset={() => {
+          const fresh = getDefaultReportDesigns()[0];
+          if (activeDesign) commit(JSON.parse(JSON.stringify(fresh.blocks)));
+        }}
+      />
+      <span className="flex items-center gap-1 text-[10px] text-zinc-600 shrink-0">Editing:</span>
+      <input
+        value={activeDesign?.name || ''}
+        onChange={e => activeDesign && dispatch({ type: 'RENAME_REPORT_DESIGN', payload: { id: activeDesign.id, name: e.target.value } })}
+        className="bg-zinc-800 border border-zinc-700 rounded px-2 py-0.5 text-xs text-white outline-none focus:border-zinc-500 w-36"
+      />
+      <div className="flex-1" />
+      <PageSizeMenu page={activeDesign?.page || 'portrait'} readOnly={readOnly} onPage={p => activeDesign && dispatch({ type: 'UPDATE_REPORT_PAGE', payload: { id: activeDesign.id, page: p } })} />
+      <button
+        onClick={() => setPreview(v => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+      >
+        {preview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        {preview ? 'Edit' : 'Preview'}
+      </button>
+      <button
+        onClick={onPrint}
+        disabled={!onPrint}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs bg-zinc-100 text-zinc-900 font-medium hover:bg-white disabled:opacity-30"
+      >
+        <Printer className="w-3.5 h-3.5" /> Print
+      </button>
+      <input
+        ref={importFileRef}
+        type="file"
+        accept=".report,.json"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) importDesign(f); e.target.value = ''; }}
+      />
+    </>
+  );
+
+  if (!activeDesign || !ctx) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-zinc-950 text-zinc-500 text-sm">
+        No report designs yet — create one from the header menu.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-300 select-none min-h-0">
+      {headerTarget ? createPortal(headerContent, headerTarget) : <header className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900">{headerContent}</header>}
+
+      {preview ? (
+        <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
+      ) : (
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          <ReportPalette project={project} insertScope={insertScope} onInsert={insertPayload} readOnly={readOnly} />
+          <div className="flex-1 flex flex-col min-w-0 min-h-0">
+            <ReportToolbar
+              block={selBlock}
+              parentCollection={selParentCollection}
+              project={project}
+              readOnly={readOnly}
+              onPatch={p => selId && patch(selId, p)}
+              onInsertAbove={() => selId && commit(insertBefore(blocksRef.current, selId, makeReportBlock('text')))}
+              onInsertBelow={() => selId && commit(insertAfter(blocksRef.current, selId, makeReportBlock('text')))}
+              onDuplicate={() => selId && commit(duplicateBlock(blocksRef.current, selId))}
+              onRemove={() => { if (selId) { commit(removeBlock(blocksRef.current, selId)); setSelId(null); } }}
+              onMove={d => selId && commit(moveBlock(blocksRef.current, selId, d))}
+            />
+            <ReportDesignerCanvas
+              blocks={blocks}
+              selId={selId}
+              ctx={ctx}
+              fieldMap={fieldMap}
+              readOnly={readOnly}
+              onSelect={setSelId}
+              onPatch={patch}
+              onInsertAfter={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertAfter(blocksRef.current, id, b) : [...blocksRef.current, b]); setSelId(b.id); }}
+              onInsertBefore={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertBefore(blocksRef.current, id, b) : [b, ...blocksRef.current]); setSelId(b.id); }}
+              onInsertInto={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(insertInto(blocksRef.current, id, b)); setSelId(b.id); }}
+              onMoveTo={(moveId, targetId, pos) => { commit(moveBlockTo(blocksRef.current, moveId, targetId, pos)); setSelId(moveId); }}
+              onDuplicate={id => commit(duplicateBlock(blocksRef.current, id))}
+              onRemove={id => { commit(removeBlock(blocksRef.current, id)); if (selId === id) setSelId(null); }}
+              onMove={(id, d) => commit(moveBlock(blocksRef.current, id, d))}
+              onMenu={(e, id) => { setSelId(id); setMenu({ x: e.clientX, y: e.clientY, id }); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {menu && selBlock && (
+        <ReportContextMenu
+          menu={menu}
+          block={selBlock}
+          project={project}
+          insertScope={insertScope}
+          onClose={() => setMenu(null)}
+          onChangeField={f => patch(menu.id, { field: f })}
+          onInsertAbove={() => commit(insertBefore(blocksRef.current, menu.id, makeReportBlock('text')))}
+          onInsertBelow={() => commit(insertAfter(blocksRef.current, menu.id, makeReportBlock('text')))}
+          onAddChild={insertIntoSelected}
+          onDuplicate={() => commit(duplicateBlock(blocksRef.current, menu.id))}
+          onRemove={() => { commit(removeBlock(blocksRef.current, menu.id)); setSelId(null); setMenu(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+const PageSizeMenu: React.FC<{ page: 'portrait' | 'landscape'; readOnly: boolean; onPage: (p: 'portrait' | 'landscape') => void }> = ({ page, readOnly, onPage }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <DropdownMenu
+      open={open}
+      onClose={() => setOpen(false)}
+      onOpenChange={setOpen}
+      theme="dark"
+      trigger={
+        <button className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 disabled:opacity-30" disabled={readOnly}>
+          {page === 'portrait' ? 'Portrait' : 'Landscape'}
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      }
+    >
+      <DropdownItem onClick={() => { onPage('portrait'); setOpen(false); }}>Portrait</DropdownItem>
+      <DropdownItem onClick={() => { onPage('landscape'); setOpen(false); }}>Landscape</DropdownItem>
+    </DropdownMenu>
+  );
+};
+
+const DesignsMenu: React.FC<{
+  designs: ReportDesign[];
+  activeId: string;
+  readOnly: boolean;
+  onSelect: (id: string) => void;
+  onRename: (id: string, name: string) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+  onCreate: () => void;
+  onImport: () => void;
+  onExport: () => void;
+  onReset: () => void;
+}> = ({ designs, activeId, readOnly, onSelect, onRename, onDuplicate, onDelete, onCreate, onImport, onExport, onReset }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <ItemManagerDropdown
+      open={open}
+      onClose={setOpen}
+      items={designs.map(d => ({ id: d.id, name: d.name }))}
+      activeId={activeId}
+      label="Editing"
+      header="REPORT DESIGNS"
+      readOnly={readOnly}
+      trigger={
+        <span className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 px-1 py-0.5 rounded hover:bg-zinc-800">
+          Editing: {designs.find(d => d.id === activeId)?.name || '—'}
+          <ChevronDown className="w-3 h-3" />
+        </span>
+      }
+      onSelect={id => { onSelect(id); setOpen(false); }}
+      onRename={(id, name) => { onRename(id, name); }}
+      onDuplicate={id => { onDuplicate(id); setOpen(false); }}
+      onDelete={id => { onDelete(id); setOpen(false); }}
+      onCreate={() => { onCreate(); setOpen(false); }}
+      onImport={() => { onImport(); setOpen(false); }}
+      onExport={() => { onExport(); setOpen(false); }}
+      onReset={() => { onReset(); setOpen(false); }}
+    />
+  );
+};
