@@ -98,7 +98,66 @@ no trailing blank page.
    (also under `page.emulateMedia({ media: 'print' })`).
 3. Screenshot each `.report-page` div to eyeball the output.
 
-## 6. Future-work checklist
+## 6. Custom reports from the app header Print menu (plan)
+
+Today a custom report can only be printed from inside the Reports Designer
+(Designer Print button → `setReportPrint`). The header's `File → Print` only
+offers the built-in prints. Plan to make any report design printable directly
+from the header, with scope options like the Schedule print dialog.
+
+### Menu restructure — `AppHeader.tsx` + `App.tsx`
+
+```
+File → Print
+  ├─ Schedule…
+  ├─ Day Out of Days…
+  ├─ Breakdown Sheet…
+  └─ Custom Reports          ← new submenu (DropdownSubmenu, like the rest)
+       ├─ <report design name>…
+       ├─ <report design name>…
+       └─ …                  ← one entry per project.reportDesigns (activeReportId
+                                first or checked), divider, "Manage…" → opens Design tab
+```
+
+- **Remove** `Element Breakdown…` from the header menu — it's redundant now that
+  a custom report can produce the same output (the Reports tab still has it).
+- **`AppHeader.tsx`**: drop `onPrintElementBreakdown`; add
+  `onPrintReport(design)` (or a single `onPrintCustomReport` that opens a picker).
+- **`App.tsx`**: new state `customReportPrint: { design, scopeFilter? } | null`
+  (or reuse `reportPrint` with an added `scopeFilter`). Reuse the existing
+  `ReportPrint` early-return + `window.print()`/`afterprint` effect.
+
+### Scope options dialog
+
+When a report is picked from the header menu, show a small print-options modal
+(modeled on `PrintDialog`/`DoodDialog`) BEFORE `window.print()`:
+
+- **"Include" selector** for reports that contain a **top-level repeat**:
+  - `All items` (default)
+  - `Selected days…` → day checklist (reuse the day-picker pattern from
+    `PrintDialog.selectedDays`; defaults to all production days)
+- Hidden/no-op for designs without a scoped repeat — or still shown with just
+  the report name + filename, like the other dialogs.
+- Optional: export date checkbox / filename line, matching the Schedule dialog
+  conventions.
+
+### Plumbing (mostly exists already)
+
+- `ReportPrint` / `ReportPreview` / `buildReportPages` / `ReportRepeatView` /
+  `ReportTableView` already honor `scopeFilter: { days?: number[] }`:
+  - `days` and `daysOfCast` repeats + `days` tables filter items by `section.index`.
+- So the only new work is: build the menu, wire `scopeFilter` through
+  `setReportPrint`/`reportPrint` state, and render the options dialog.
+
+### Decision points (open)
+
+- Does "Selected days" apply to *all* top-level repeats or only `days`-collection
+  ones? (Proposal: only day-scoped collections; scenes/elements/categories
+  repeats print fully for now.)
+- Keep the designer's Print button as-is (prints with no options) or route it
+  through the same dialog?
+
+## 7. Future-work checklist
 
 - [ ] Page breaks split only top-level blocks; per-item pagination goes through `buildReportPages`.
 - [ ] Any new container block type that can hold `pageBreak` children: decide its
