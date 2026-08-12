@@ -4,6 +4,7 @@ import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS, getFieldItems } from '../../lib/categories';
 import { addDays, buildNonShootSet, splitSections } from '../../lib/daybreakUtils';
+import { isElementMarked } from '../../lib/nonShootHelpers';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -197,10 +198,8 @@ function deriveDood(
 
     const cells: string[] = days.map(d => {
       const ns = nonShootByDate.get(d.isoDate);
-      if (isCast && ns?.status === 'travel' && ns?.castIds) {
-        const tIds = ns.castIds.split(',').map(x => x.trim());
-        if (tIds.includes(elementId)) return 'T';
-      }
+      if (isElementMarked(ns, 'travel', category, elementId)) return 'T';
+      if (isElementMarked(ns, 'hold', category, elementId)) return 'H';
       if (!appearSet.has(d.dayInt)) {
         return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
       }
