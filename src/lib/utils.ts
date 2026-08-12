@@ -215,6 +215,13 @@ export function formatDateLong(dateStr: string): string {
   return `${weekday} ${day}${suffix} ${month} ${year}`;
 }
 
+export function formatDateShort(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 /**
  * In-app clipboard mirror. The Async Clipboard API can fail on iPad (no user
  * activation for synthetic pen clicks, missing read permission, older iPadOS),
