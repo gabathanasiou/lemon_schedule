@@ -5,6 +5,7 @@ import { reportFieldValueByKey, resolveReportTokens, ReportFieldDef } from '../.
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
+import { PageItem, stripEdgeBreaks } from '../../lib/reportPagination';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
 // from the canonical ReportCtx; items are resolved by the parent repeat.
@@ -125,6 +126,44 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.scopeFilter === b.scopeFilter &&
     a.hint === b.hint &&
     a.showKeys === b.showKeys,
+);
+
+// ---- page-level rendering (print + preview): one PageItem per page -----------
+
+export const ReportPageItems: React.FC<{
+  items: PageItem[];
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  scopeFilter?: { days?: number[] };
+  hint?: boolean;
+  showKeys?: boolean;
+}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys }) => (
+  <>
+    {items.map((pi, i) => {
+      if ('repeatItem' in pi) {
+        const { repeatItem, item } = pi;
+        return (
+          <div key={`ri-${repeatItem.id}-${i}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            {stripEdgeBreaks(repeatItem.children || []).map(cb => (
+              <ReportBlockView
+                key={cb.id}
+                block={cb}
+                ctx={ctx}
+                fieldMap={fieldMap}
+                item={item}
+                parentCategory={repeatItem.collection === 'elements' ? repeatItem.category : undefined}
+                parentCollection={repeatItem.collection}
+                scopeFilter={scopeFilter}
+                hint={hint}
+                showKeys={showKeys}
+              />
+            ))}
+          </div>
+        );
+      }
+      return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} />;
+    })}
+  </>
 );
 
 // ---- repeat (vertical stack of children) ------------------------------------

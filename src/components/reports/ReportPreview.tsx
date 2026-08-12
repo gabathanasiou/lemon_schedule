@@ -2,12 +2,13 @@ import React from 'react';
 import { ReportDesign } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
-import { ReportBlockView } from './ReportBlockView';
+import { ReportPageItems } from './ReportBlockView';
 import { REPORT_PAGE_WIDTHS } from './reportStyle';
-import { paginateBlocks } from '../../lib/reportBlocks';
+import { buildReportPages } from '../../lib/reportPagination';
 import { X } from 'lucide-react';
 
-// Paginated preview — each top-level page break starts a new sheet.
+// Paginated preview — pages mirror print pagination exactly (top-level page
+// breaks AND per-item repeat breaks each start a new sheet).
 
 interface ReportPreviewProps {
   design: ReportDesign;
@@ -18,7 +19,7 @@ interface ReportPreviewProps {
 }
 
 const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit }) => {
-  const pages = React.useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);
+  const pages = React.useMemo(() => buildReportPages(design.blocks || [], ctx), [design.blocks, ctx]);
   const pageW = REPORT_PAGE_WIDTHS[design.page];
 
   return (
@@ -42,9 +43,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
             {pi > 0 && (
               <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-zinc-400">Page {pi + 1}</span>
             )}
-            {blocks.map(b => (
-              <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} />
-            ))}
+            <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} />
           </div>
         ))}
       </div>
