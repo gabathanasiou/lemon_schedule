@@ -211,15 +211,15 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                   >
                     <Plus className="w-3 h-3" /> Add first block inside repeat
                   </div>
-                ) : b.type === 'pageBreak' ? (
-                  <div className="flex items-center gap-2 py-1 select-none">
-                    <div style={{ flex: 1, borderTop: '2px dashed #a1a1aa' }} />
-                    <span className="text-[10px] font-semibold text-zinc-500 tracking-wider">PAGE BREAK</span>
-                    <div style={{ flex: 1, borderTop: '2px dashed #a1a1aa' }} />
-                  </div>
                 ) : (
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
                 )}
+              </div>
+            ) : b.type === 'pageBreak' ? (
+              <div className="flex items-center gap-2 py-1 select-none">
+                <div style={{ flex: 1, borderTop: '2px dashed #a1a1aa' }} />
+                <span className="text-[10px] font-semibold text-zinc-500 tracking-wider">PAGE BREAK</span>
+                <div style={{ flex: 1, borderTop: '2px dashed #a1a1aa' }} />
               </div>
             ) : (
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} />
