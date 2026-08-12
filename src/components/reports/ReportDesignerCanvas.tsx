@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCtx, resolveCollection, ReportCollectionItem } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
@@ -71,6 +71,12 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     else onInsertAfter(id, payload);
   };
 
+  const endDrag = () => {
+    pendingRef.current = null;
+    setDragging(false);
+    setDragSourceId(null);
+  };
+
   useEffect(() => {
     const end = (e: Event) => {
       const p = pendingRef.current;
@@ -81,9 +87,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
         } catch { /* ignore */ }
         if (payload) performRef.current(p.id, p.pos, payload);
       }
-      pendingRef.current = null;
-      setDragging(false);
-      setDragSourceId(null);
+      endDrag();
     };
     window.addEventListener('dragend', end);
     return () => window.removeEventListener('dragend', end);
@@ -118,7 +122,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     <div
       className="block-dropzone"
       data-zone={`${b.id}:${pos}`}
-      style={{ marginLeft: depth * 20, width: `calc(100% - ${depth * 20}px)`, height: 10, borderRadius: 4, display: 'flex', alignItems: 'center' }}
+      style={{ height: 10, borderRadius: 4, display: 'flex', alignItems: 'center' }}
       onDragOver={e => {
         if (!isDrag(e)) return;
         e.preventDefault();
@@ -140,7 +144,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
         let payload: PaletteDropPayload | null = null;
         try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
         if (p && payload) performRef.current(p.id, p.pos, payload);
-        pendingRef.current = null;
+        endDrag();
       }}
     >
       <div className="zone-line" style={{ display: 'none', height: 2, background: '#3b82f6', width: '100%', borderRadius: 2 }} />
@@ -159,13 +163,12 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
         <div key={b.id}>
           <div
             data-block-id={b.id}
-            className={`block-card${selected ? ' selected' : ''}`}
+            className={`block-card block-type-${b.type}${selected ? ' selected' : ''}`}
             onClick={e => { e.stopPropagation(); onSelect(b.id); }}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
             draggable={!readOnly}
             onDragStart={e => startBlockDrag(e, b)}
             style={{
-              marginLeft: depth * 20,
               cursor: 'pointer',
               position: 'relative',
               opacity: dragging && dragSourceId === b.id ? 0.35 : 1,
@@ -177,13 +180,13 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
             )}
             {dragging && !insideColumnsBlock(blocks, b.id) && (
               <>
-                <EdgeZone side="left" b={b} depth={depth} onWrap={onWrap} pendingRef={pendingRef} />
-                <EdgeZone side="right" b={b} depth={depth} onWrap={onWrap} pendingRef={pendingRef} />
+                <EdgeZone side="left" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
+                <EdgeZone side="right" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
               </>
             )}
             <div
               className="block-chrome"
-              style={{ display: 'none', position: 'absolute', top: -24, left: depth * 20 + 8, alignItems: 'center', gap: 2, background: '#27272a', border: '1px solid #3f3f46', borderRadius: 6, padding: '2px 4px', zIndex: 30 }}
+              style={{ display: 'none', position: 'absolute', top: -24, left: 8, alignItems: 'center', gap: 2, background: '#27272a', border: '1px solid #3f3f46', borderRadius: 6, padding: '2px 4px', zIndex: 30 }}
             >
               <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 pr-1">
                 <GripVertical className="w-3 h-3" />
@@ -209,7 +212,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                   {b.type === 'table' && (b.repeatAxis ?? 'rows') === 'rows' && b.tableRows?.length ? ` · ${b.tableRows.length} row${b.tableRows.length > 1 ? 's' : ''}` : ''}
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
-                  <div style={{ border: '1px solid #3f3f46', borderRadius: 4, padding: '6px 8px', display: 'flex', flexDirection: 'column' }}>
+                  <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
                     {renderBlocks(b.children, depth + 1, b.collection, firstItemOf(ctx, b, parentItem, parentCategory), b.category)}
                   </div>
                 ) : b.type === 'repeat' ? (
@@ -244,7 +247,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                           onInsertInto(b.id, payload);
                         }
                       }
-                      pendingRef.current = null;
+                      endDrag();
                     }}
                   >
                     <Plus className="w-3.5 h-3.5 text-zinc-400" />
@@ -271,6 +274,35 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                   } else {
                     onInsertNewColumn(b.id, colIndex, payload);
                   }
+                  endDrag();
+                };
+                const startResize = (e: React.PointerEvent, ci: number) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const row = (e.currentTarget as HTMLElement).parentElement;
+                  const startX = e.clientX;
+                  const startWidths = cols.map(c => c.width);
+                  let lastNorm = startWidths;
+                  const onMove = (ev: PointerEvent) => {
+                    ev.preventDefault();
+                    const deltaPct = ((ev.clientX - startX) / (row?.clientWidth || 1)) * 100;
+                    const next = [...startWidths];
+                    next[ci] = Math.max(5, startWidths[ci] + deltaPct);
+                    next[ci + 1] = Math.max(5, startWidths[ci + 1] - deltaPct);
+                    const t = next.reduce((a, b) => a + b, 0);
+                    lastNorm = next.map(w => (w / t) * 100);
+                    if (row) row.querySelectorAll('.columns-col').forEach((el, i) => {
+                      (el as HTMLElement).style.flex = `${lastNorm[i]} 1 0%`;
+                    });
+                  };
+                  const onUp = () => {
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    if (row) row.querySelectorAll('.columns-col').forEach(el => { (el as HTMLElement).style.flex = ''; });
+                    onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: lastNorm[i] })) });
+                  };
+                  window.addEventListener('pointermove', onMove);
+                  window.addEventListener('pointerup', onUp);
                 };
                 return (
                   <div className="flex flex-col gap-2">
@@ -278,12 +310,19 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                       <Columns3 className="w-3 h-3" />
                       Columns · {cols.length}
                     </div>
-                    <div className="columns-row relative" style={{ display: 'flex', gap: dragging ? 0 : 12 }}>
+                    <div className="columns-row relative" style={{ display: 'flex' }} data-dragging={dragging ? '1' : '0'}>
                       {cols.map((col, ci) => {
                         const colSelected = !!selCol && selCol.colsId === b.id && selCol.colIndex === ci;
+                        const resizable = ci >= 1 && ci < cols.length;
                         return (
                           <React.Fragment key={col.id}>
-                            {dragging && <GutterZone colIndex={ci} onDrop={dropNewColumn} />}
+                            <GutterZone
+                              colIndex={ci}
+                              edge={ci === 0 ? 'left' : undefined}
+                              resizable={resizable}
+                              onDrop={dropNewColumn}
+                              onResize={resizable ? e => startResize(e, ci - 1) : undefined}
+                            />
                             <div
                               className={`columns-col${colSelected ? ' selected' : ''}`}
                               data-col-width={col.width}
@@ -336,7 +375,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                                         onInsertIntoColumn(b.id, ci, payload);
                                       }
                                     }
-                                    pendingRef.current = null;
+                                    endDrag();
                                   }}
                                 >
                                   <span className="text-[10px] text-zinc-400 italic">Drag blocks here</span>
@@ -346,9 +385,8 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                           </React.Fragment>
                         );
                       })}
-                      {dragging && <GutterZone colIndex={cols.length} onDrop={dropNewColumn} />}
+                      <GutterZone colIndex={cols.length} edge="right" onDrop={dropNewColumn} />
                     </div>
-                    {selected || (selCol && selCol.colsId === b.id) ? <ColumnsResizeBar cols={cols} onResize={widths => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: widths[i] })) })} /> : null}
                   </div>
                 );
               })()
@@ -441,14 +479,20 @@ const EdgeZone: React.FC<{
 
 const GutterZone: React.FC<{
   colIndex: number;
+  edge?: 'left' | 'right';
+  resizable?: boolean;
   onDrop: (colIndex: number, payload: PaletteDropPayload) => void;
-}> = ({ colIndex, onDrop }) => {
+  onResize?: (e: React.PointerEvent) => void;
+}> = ({ colIndex, edge, resizable, onDrop, onResize }) => {
   const isDrag = (e: React.DragEvent) => e.dataTransfer.types.includes(DROP_MIME);
   return (
     <div
-      className="column-gutter"
+      className={`column-gutter${resizable ? ' resizable' : ''}`}
       data-zone={`gutter:${colIndex}`}
-      style={{ flex: '0 0 12px', alignSelf: 'stretch', position: 'relative', zIndex: 50 }}
+      style={edge
+        ? { position: 'absolute', top: 0, bottom: 0, width: 8, zIndex: 50, ...(edge === 'left' ? { left: -8 } : { right: -8 }) }
+        : { flex: '0 0 8px', alignSelf: 'stretch', position: 'relative', zIndex: 50 }}
+      onPointerDown={resizable && onResize ? onResize : undefined}
       onDragOver={e => {
         if (!isDrag(e)) return;
         e.preventDefault();
@@ -469,84 +513,11 @@ const GutterZone: React.FC<{
         if (payload) onDrop(colIndex, payload);
       }}
     >
-      <div className="gutter-line" style={{ display: 'none', position: 'absolute', top: 0, bottom: 0, left: 5, width: 2, borderRadius: 1 }} />
+      <div className="gutter-line" style={{ display: 'none', position: 'absolute', top: 0, bottom: 0, left: 3, width: 2, borderRadius: 1 }} />
     </div>
   );
 };
 
-// ---- columns block: per-column border boxes + middle resize handles -----------
-
-const ColumnsResizeBar: React.FC<{ cols: ReportBlock['cols']; onResize: (widths: number[]) => void }> = ({ cols, onResize }) => {
-  const colsList = cols || [];
-  const widths = colsList.map(c => c.width);
-  const rowRef = useRef<HTMLDivElement>(null);
-  const [boundaries, setBoundaries] = useState<number[]>([]);
-
-  useLayoutEffect(() => {
-    const bar = rowRef.current;
-    const row = bar?.parentElement;
-    if (!row) return;
-    const measure = () => {
-      const els = row.querySelectorAll('.columns-col');
-      const rowLeft = row.getBoundingClientRect().left;
-      const out: number[] = [];
-      for (let i = 0; i < els.length - 1; i++) {
-        out.push(els[i].getBoundingClientRect().right - rowLeft);
-      }
-      setBoundaries(out);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(row);
-    return () => ro.disconnect();
-  }, [colsList.length]);
-
-  const startResize = (e: React.PointerEvent, ci: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const row = rowRef.current;
-    const startX = e.clientX;
-    const startWidths = [...widths];
-    let lastNorm: number[] = startWidths;
-    const onMove = (ev: PointerEvent) => {
-      const deltaPct = ((ev.clientX - startX) / (row?.clientWidth || 1)) * 100;
-      const next = [...startWidths];
-      next[ci] = Math.max(5, startWidths[ci] + deltaPct);
-      next[ci + 1] = Math.max(5, startWidths[ci + 1] - deltaPct);
-      const t = next.reduce((a, b) => a + b, 0);
-      lastNorm = next.map(w => (w / t) * 100);
-      if (row) {
-        row.querySelectorAll('.columns-col').forEach((el, i) => {
-          (el as HTMLElement).style.flex = `${lastNorm[i]} 1 0%`;
-        });
-      }
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      if (row) row.querySelectorAll('.columns-col').forEach(el => { (el as HTMLElement).style.flex = ''; });
-      onResize(lastNorm);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
-  return (
-    <div ref={rowRef} className="absolute inset-y-0 pointer-events-none" style={{ left: 0, right: 0, zIndex: 40 }}>
-      {boundaries.map((x, ci) => (
-        <div
-          key={ci}
-          className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize touch-none group"
-          style={{ left: x - 6, width: 12 }}
-          onPointerDown={e => startResize(e, ci)}
-          title={`Resize columns ${ci + 1}/${ci + 2}`}
-        >
-          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[2px] rounded bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      ))}
-    </div>
-  );
-};
 // ---- table column resize bar (pointer drag, ribbon-style) ---------------------
 
 const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]) => void }> = ({ block, onResize }) => {
