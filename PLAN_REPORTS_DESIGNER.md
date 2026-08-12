@@ -4,6 +4,22 @@
 
 ---
 
+## UX-First Rules (integration)
+
+- **Complicated configuration surfaces use the app's `Modal`** (resizable/draggable, `ModalFooter`, the modal body rules in AGENTS.md) — e.g., report design settings, column/table editors beyond the toolbar, import/export confirmations.
+- **All menus are click-to-toggle `DropdownMenu`/`DropdownItem`** (never hover menus) — exactly like the Ribbon designer: `ItemManagerDropdown` for design management, `DropdownSubmenu` for nested choices, Lucide icons `w-3.5 h-3.5`.
+- Toolbar controls wrapped in `Tooltip`; segmented toggles `bg-white text-zinc-900` selected state; inputs `bg-zinc-800 border-zinc-700`; disabled at 30% opacity.
+- Per AGENTS.md: reuse `CellInput` (commit on blur, never per-keystroke), `EntityDropdown` only for entity lists, `PageToolbar` for sub-tabs.
+
+## Contextual Attributes (the rule — applies to EVERY attribute surface)
+
+An attribute only exists in the context where it makes sense. **Every surface that offers attributes filters by the current context and nothing else:**
+
+- **Context = the enclosing repeat's collection** (Scenes/Scenes-of-day/Scenes-of-element all share the scenes field set; statics always available). Top level = Production/Project statics only.
+- **Surfaces covered:** palette Attributes list (with context chip "Inside: Repeat over Days"), the generic Attribute block's "Select field…" picker, text-block token picker ("Insert attribute…"), table cell/column pickers, columns-mode header-field picker.
+- **Generic Attribute block** inserts empty with a "Select field…" placeholder and the picker only offers the current context's fields — pre-bound insertion happens only when clicking a specific palette attribute.
+- Attributes are **never offered outside their valid context** (no greyed-out scopes, no cross-collection defaults like `sceneNumber` at top level).
+
 ## Locked Scope
 
 1. **Canvas IS the document** — blocks render with real project data (Webflow-style). No separate live preview. A **Preview** button (header) shows the clean print view; Exit Preview / Esc returns. Print works from both modes.
@@ -139,7 +155,7 @@ Register in `Action` union + switch; seed in `makeBlankProject` + `LOAD` default
 - **Header portal**: `ItemManagerDropdown` (create/rename/duplicate/delete/import/export `.report`/reset) + Page Size + Preview toggle + Print.
 - **`ReportPalette.tsx`** — Blocks (Text, Attribute, Repeat, Table, Columns, Ribbon, Page Break, Spacer) + Attributes gated by context chip; click + drag.
 - **`ReportDesignerCanvas.tsx`** — light-gray page column; thin 1px outlines on every card; chrome bar on selection only; repeat children preview first item; dropzones (above/below + left/right edges for columns gesture); card drag with ghost; direct-DOM active-zone highlight; table shows resize-tab bar + column chips; columns show per-column block lists + resize handles.
-- **`ReportToolbar.tsx`** — Structure / Block / Style labeled rows (ribbon-toolbar pattern): text content + Insert attribute, field picker, repeat collection/category/gap, table orientation + columns/rows editor, columns add/split, ribbon mode + design, font/size/bold/italic/align, emptyBehavior, spacer height. Column width = drag only.
+- **`ReportToolbar.tsx`** — Structure / Block / Style labeled rows (ribbon-toolbar pattern): text content + Insert attribute, field picker (**context-valid — see Contextual Attributes**), repeat collection/category/gap, table orientation + columns/rows editor, columns add/split, ribbon mode + design, font/size/bold/italic/align, emptyBehavior, spacer height. Column width = drag only.
 - **`ReportContextMenu.tsx`** — `elementFromPoint` re-target trick.
 - **`ReportBlockView.tsx` + `ReportPrint.tsx`** — tree-walk renderer; merges via shared `computeMergeGroups`; ribbon block delegates to the print ribbon pipeline (`PrintRowParts`); `@page` per design; pageBreak = `page-break-before: always`; `page-break-inside: avoid` per repeat item/table row/column.
 - **Placement**: ReportsTab 3rd sub-tab `designer`; App `reportsSubTab` union + `toggleSubPopout` fallback + `SubTabPopoutFrame` (`sub_reports_designer`).
@@ -202,5 +218,6 @@ One-Liner (Repeat Scenes → table) · Cast List · Element Breakdown (Repeat El
 
 - DOODs/stripboard/breakdown-sheet rebuilt as blocks (built-ins stay); matrix/pivot tables and dayMatrix block (parked — required only if DOODs-from-blocks becomes a goal)
 - Table cell label override, prefix/suffix, cell padding, header styling (deferred)
+- Attributes offered outside their valid context (see Contextual Attributes — never)
 - Crew-by-role collection; print-time filters on nested repeats; arbitrary query/filter on repeats
 - Columns inside columns; column-count cap (deliberately unlimited)
