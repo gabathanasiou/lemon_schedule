@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "@gabriel/ui-kit/ui-kit.css";
+@source "../node_modules/@gabriel/ui-kit/dist";
 
 @theme {
   --font-sans: "Helvetica Neue", Helvetica, sans-serif;

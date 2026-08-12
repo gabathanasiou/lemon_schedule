@@ -52,7 +52,8 @@ import { useGoogleAuth } from './lib/googleDriveAuth';
 import { Download, Printer, Trash2, Plus, X, ChevronDown, Undo2, Redo2, FolderOpen, RotateCcw, HardDrive, FileUp, WifiOff, Cloud, CloudOff, LogOut, ExternalLink, PanelLeftOpen, PanelLeftClose, Loader2 } from 'lucide-react';
 import PopoutWindow, { PopoutPlaceholder, cascadePosition } from './components/PopoutWindow';
 import VersionToolbar from './components/VersionToolbar';
-import { LongPressMenuProvider } from './lib/useLongPressMenu';
+import { LongPressMenuProvider, getMarqueeMode, setTransientMarquee } from './lib/useLongPressMenu';
+import { isInteractiveElement } from '@gabriel/ui-kit';
 import { IS_COARSE } from './lib/device';
 import SelectionModeButton from './components/SelectionModeButton';
 import KeyboardToggleButton from './components/KeyboardToggleButton';
@@ -397,6 +398,34 @@ function AppContent() {
   const ctx = useProject();
   const importProjectFromData = ctx.importProjectFromData;
 
+  // Long-press on rows opens the context menu; on marquee containers it
+  // starts a transient marquee selection (gated by the marquee tool mode).
+  const longPressGate = useCallback((target: HTMLElement) => {
+    const inMarqueeToolZone = !!target.closest('[data-marquee-tool-only]');
+    if (inMarqueeToolZone && getMarqueeMode() !== 'tool') return false;
+    const inRow = !!target.closest('[data-row-id]');
+    if (inMarqueeToolZone) {
+      return !target.closest('button, input, select, textarea');
+    }
+    if (isInteractiveElement(target)) return false;
+    return !(inRow && getMarqueeMode() !== 'tool');
+  }, []);
+
+  const handleLongPress = useCallback((target: HTMLElement, x: number, y: number) => {
+    if (target.closest('[data-row-id]')) {
+      target.dispatchEvent(new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 2,
+        view: window,
+      }));
+    } else {
+      setTransientMarquee(true);
+    }
+  }, []);
+
   useEffect(() => {
   if (printOptions) {
       const vNum = (version?.name?.match(/\d+/) || ['1'])[0].padStart(2, '0');
@@ -548,7 +577,12 @@ function AppContent() {
   };
 
   return (
-    <LongPressMenuProvider>
+    <LongPressMenuProvider
+      targetSelector="[data-row-id], [data-marquee-container]"
+      longPressMs={750}
+      shouldStartLongPress={longPressGate}
+      onLongPress={handleLongPress}
+    >
     <>
     <div className="h-screen bg-white flex flex-col text-[13px] print:bg-white print:text-black overflow-hidden">
       {showProjectManager && (
