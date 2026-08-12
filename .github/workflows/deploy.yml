@@ -26,13 +26,9 @@ jobs:
           node-version: 20
       - name: Authenticate git for private deps (@gabriel/ui-kit)
         run: |
+          git config --local --unset-all http.https://github.com/.extraheader || true
           git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
           git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-      - name: DEBUG auth
-        run: |
-          echo CONFIG_B64=$(git config --global --get-regexp url | base64 -w0)
-          echo CURL=$(curl -s -o /dev/null -w "%{http_code}" -u "x-access-token:${{ secrets.UI_KIT_TOKEN }}" "https://github.com/gabathanasiou/ui-kit.git/info/refs?service=git-upload-pack")
-          echo SSHKEY=$(ls -la ~/.ssh/ 2>/dev/null | wc -l)
       - run: npm ci
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
