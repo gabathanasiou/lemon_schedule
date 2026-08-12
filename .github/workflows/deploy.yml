@@ -26,11 +26,14 @@ jobs:
           node-version: 20
       - name: Authenticate git for private deps (@gabriel/ui-kit)
         run: |
-          printf '%s' "${{ secrets.UI_KIT_TOKEN }}" | shasum
           git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "ssh://git@github.com/"
           git config --global --add url."https://x-access-token:${{ secrets.UI_KIT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          GIT_TRACE=1 GIT_TERMINAL_PROMPT=0 git ls-remote ssh://git@github.com/gabathanasiou/ui-kit.git 2>&1 | grep -E "run_command: git-remote|fatal|Authentication|not found" | head -5
-      - run: npm run build
+      - name: DEBUG auth
+        run: |
+          echo CONFIG_B64=$(git config --global --get-regexp url | base64 -w0)
+          echo CURL=$(curl -s -o /dev/null -w "%{http_code}" -u "x-access-token:${{ secrets.UI_KIT_TOKEN }}" "https://github.com/gabathanasiou/ui-kit.git/info/refs?service=git-upload-pack")
+          echo SSHKEY=$(ls -la ~/.ssh/ 2>/dev/null | wc -l)
+      - run: npm ci
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
       - uses: actions/configure-pages@v4
