@@ -351,16 +351,48 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             />
           </Row>
           <Row label={`${(block.axis ?? 'columns') === 'rows' ? 'Rows' : 'Columns'} (${(block.columns || []).length}${(block.axis ?? 'columns') === 'columns' ? ' · drag handles on the grid' : ''})`}>
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-start gap-1 flex-wrap">
               {(block.columns || []).map((col, ci) => (
-                <FieldPicker
-                  key={col.id}
-                  value={col.field}
-                  fields={fieldOptions(tableFieldScope(block, parentCollection))}
-                  onChange={f => tableOps.patchColumn(ci, { field: f })}
-                  disabled={disabled}
-                  className="w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
-                />
+                <div key={col.id} className="flex flex-col gap-0.5">
+                  <FieldPicker
+                    value={col.field}
+                    fields={fieldOptions(tableFieldScope(block, parentCollection))}
+                    onChange={f => tableOps.patchColumn(ci, { field: f })}
+                    disabled={disabled}
+                    className="w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+                  />
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      disabled={disabled}
+                      title="Bold"
+                      onClick={() => tableOps.patchColumn(ci, { bold: !col.bold })}
+                      className={`w-6 h-5 rounded text-[11px] font-bold transition-colors disabled:opacity-30 ${col.bold ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                    >
+                      B
+                    </button>
+                    <button
+                      disabled={disabled}
+                      title="Italic"
+                      onClick={() => tableOps.patchColumn(ci, { italic: !col.italic })}
+                      className={`w-6 h-5 rounded text-[11px] italic transition-colors disabled:opacity-30 ${col.italic ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                    >
+                      I
+                    </button>
+                    <div className="flex border border-zinc-700 rounded p-px">
+                      {(['left', 'center', 'right'] as const).map(a => (
+                        <button
+                          key={a}
+                          disabled={disabled}
+                          title={`Align ${a}`}
+                          onClick={() => tableOps.patchColumn(ci, { align: a })}
+                          className={`px-1 rounded text-[10px] transition-colors disabled:opacity-30 ${(col.align ?? 'left') === a ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          {a === 'left' ? '←' : a === 'center' ? '≡' : '→'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               ))}
               <ToolButton onClick={tableOps.addColumn} disabled={disabled} title="Add column"><Plus className="w-3.5 h-3.5" /></ToolButton>
               <ToolButton onClick={tableOps.removeColumn} disabled={disabled} title="Remove last column"><Minus className="w-3.5 h-3.5" /></ToolButton>
@@ -386,6 +418,10 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
             <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
             Cell borders
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+            <input type="checkbox" checked={!!block.skipEmptyRows} disabled={disabled} onChange={e => onPatch({ skipEmptyRows: e.target.checked })} />
+            Skip rows with empty cells
           </label>
         </>
       )}

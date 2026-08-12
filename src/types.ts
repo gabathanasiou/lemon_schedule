@@ -282,6 +282,8 @@ export interface ReportTableColumn {
   field: string;
   width: number;        // %, sums to 100
   align?: 'left' | 'center' | 'right';
+  bold?: boolean;       // per-column cell style
+  italic?: boolean;
 }
 
 export interface ReportTableRow {
@@ -321,6 +323,7 @@ export interface ReportBlock {
   tableRows?: ReportTableRow[];  // rows-mode: multiple design rows per item
   showHeader?: boolean;
   showBorders?: boolean;          // table cell borders — on unless explicitly off
+  skipEmptyRows?: boolean;        // hide items whose cells are all/partly empty
   headerField?: string;          // columns-mode: item identity row
   axis?: 'columns' | 'rows';     // attributes as columns (default) or rows (matrix)
   columns?: ReportTableColumn[]; // simple column defs (field/align/width) — canonical table model
