@@ -62,8 +62,12 @@ export interface ScheduleRow {
 
 export interface NonShootDate {
   date: string; // YYYY-MM-DD
-  status: 'hold' | 'travel' | 'holiday';
+  status?: 'hold' | 'travel' | 'holiday';
   castIds?: string;
+  /** Category → element keys traveling that day (cast = IDs, other categories = names; `'*'` = whole category). */
+  travel?: Record<string, string[]>;
+  /** Category → element keys on hold that day (cast = IDs, other categories = names; `'*'` = whole category). */
+  hold?: Record<string, string[]>;
 }
 
 export interface ScheduleVersion {

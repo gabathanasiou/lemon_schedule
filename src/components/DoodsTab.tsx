@@ -5,6 +5,7 @@ import { getLabel, DEFAULT_CATEGORY_LABELS, getFieldItems } from '../lib/categor
 import { useColumnResize } from '../lib/useColumnResize';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { addDays } from '../lib/daybreakUtils';
+import { isElementMarked } from '../lib/nonShootHelpers';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -168,13 +169,9 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
       const nonShootDates = (state.present.versions.find(v => v.id === state.present.activeVersionId)?.nonShootDates || []);
 
       const cells: string[] = sectionDayEntries.map(d => {
-        if (isCast) {
-          const nd = nonShootDates.find(n => n.date === d.isoDate);
-          if (nd?.status === 'travel') {
-            const tIds = (nd.castIds || '').split(',').map(x => x.trim());
-            if (tIds.includes(elementId)) return 'T';
-          }
-        }
+        const nd = nonShootDates.find(n => n.date === d.isoDate);
+        if (isElementMarked(nd, 'travel', selectedCategory, elementId)) return 'T';
+        if (isElementMarked(nd, 'hold', selectedCategory, elementId)) return 'H';
         if (!appearSet.has(d.sectionIndex)) {
           if (d.sectionIndex === -1) return '';
           return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';

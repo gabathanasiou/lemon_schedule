@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
 import { RuleViolation, CastMember } from '../types';
 import { useProject } from '../store';
-import { usePortalTarget, useCurrentWindow } from '../lib/popoutTarget';
+import { HoverTooltip } from './HoverTooltip';
 
 function resolveCastName(castId: string, castMembers: CastMember[]): string {
   const cm = castMembers.find(c => c.id === castId);
@@ -99,59 +98,11 @@ export const ViolationTooltip: React.FC<{
   violations: RuleViolation[];
   children: React.ReactNode;
 }> = ({ violations, children }) => {
-  const portalTarget = usePortalTarget();
-  const currentWindow = useCurrentWindow();
-  const [show, setShow] = useState(false);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const ref = useRef<HTMLDivElement>(null);
-  const tipRef = useRef<HTMLDivElement>(null);
-  const [tipOffset, setTipOffset] = useState(0);
   const { state } = useProject();
   const castMembers = state.present.castMembers || [];
-
-  const updatePos = () => {
-    if (!ref.current) return;
-    const r = ref.current.getBoundingClientRect();
-    setPos({ x: r.left + r.width / 2, y: r.top });
-  };
-
-  useLayoutEffect(() => {
-    if (show && tipRef.current) {
-      const r = tipRef.current.getBoundingClientRect();
-      const vw = currentWindow.innerWidth;
-      let offset = 0;
-      if (r.left < 8) offset = 8 - r.left;
-      else if (r.right > vw - 8) offset = (vw - 8) - r.right;
-      setTipOffset(offset);
-    } else {
-      setTipOffset(0);
-    }
-  }, [show]);
-
-  useEffect(() => {
-    if (show) { updatePos(); currentWindow.addEventListener('scroll', updatePos, true); }
-    return () => currentWindow.removeEventListener('scroll', updatePos, true);
-  }, [show]);
-
   return (
-    <div
-      ref={ref}
-      className="inline-flex"
-      onMouseEnter={() => { updatePos(); setShow(true); }}
-      onMouseLeave={() => setShow(false)}
-    >
+    <HoverTooltip content={<ViolationContent violations={violations} castMembers={castMembers} compact />}>
       {children}
-      {show && createPortal(
-        <div
-          ref={tipRef}
-          className="fixed px-2.5 py-1.5 bg-zinc-900 text-white text-[10px] rounded shadow-xl leading-relaxed max-w-lg border border-white/20"
-          style={{ left: pos.x, top: pos.y - 20, transform: `translate(calc(-50% + ${tipOffset}px), -100%)`, zIndex: 99999 }}
-        >
-          <ViolationContent violations={violations} castMembers={castMembers} compact />
-          <div className="absolute top-full -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" style={{ left: `calc(50% - ${tipOffset}px)` }} />
-        </div>,
-        portalTarget ?? document.body
-      )}
-    </div>
+    </HoverTooltip>
   );
 };

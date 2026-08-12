@@ -2,12 +2,15 @@ import React from 'react';
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useProject } from '../../store';
-import { ScheduleRow, Scene, RuleViolation, SceneColorPalette } from '../../types';
+import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate } from '../../types';
 import { getDayHeaderColors } from '../../lib/ribbonUtils';
 import { ViolationTooltip } from '../ViolationTooltip';
-import { Flag } from 'lucide-react';
+import { getTravelHoldGroups, hasTravel, hasHold, resolveElementName } from '../../lib/nonShootHelpers';
+import { getLabel, DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
+import { Flag, Plane, Pause, Star } from 'lucide-react';
 import { SceneCard, SceneCardContent } from './SceneCard';
 import { DayDropState, formatFullDate } from './calendarUtils';
+import { TravelHoldTooltip } from './TravelHoldTooltip';
 
 export const DayCell: React.FC<{
   dateKey: string; date: Date; isToday: boolean;
@@ -17,6 +20,8 @@ export const DayCell: React.FC<{
   onToggle: (dateKey: string) => void;
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   nonShootStatus?: string;
+  travelHoldEntry?: NonShootDate;
+  onEditTravelHold?: (dateKey: string) => void;
   sectionIndex?: number;
   sectionLabel?: string;
   activeTool?: string | null;
@@ -35,8 +40,9 @@ export const DayCell: React.FC<{
   activeDragDay?: number | null;
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
-  const { readOnly } = useProject();
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
+  const { readOnly, state } = useProject();
+  const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateKey}`,
     data: { type: 'DAY_CELL', date: dateKey, sectionIndex },
@@ -117,17 +123,56 @@ export const DayCell: React.FC<{
           {...dragAttributes}
           data-no-longpress
           onClick={() => activeTool && onToggle(dateKey)}
+          onDoubleClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
           onContextMenu={(e) => { e.preventDefault(); onContextMenu?.(e, dateKey); }}
           style={{ cursor: sectionLabel && !activeTool ? 'grab' : (activeTool ? 'pointer' : 'default'), opacity: isDragging ? 0.4 : 1, ...headerStyle }}
           className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
+          <span className="w-5 shrink-0 flex justify-start items-center gap-0.5">
+            {hasTravel(travelHoldEntry) && hasHold(travelHoldEntry) ? (
+              <TravelHoldTooltip entry={travelHoldEntry} project={project}>
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
+                  className="pointer-events-auto"
+                >
+                  <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                </button>
+              </TravelHoldTooltip>
+            ) : (
+              <>
+                {hasTravel(travelHoldEntry) && (
+                  <TravelHoldTooltip entry={travelHoldEntry} project={project}>
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
+                      className="pointer-events-auto"
+                    >
+                      <Plane className="w-2.5 h-2.5 fill-purple-400 text-purple-400" />
+                    </button>
+                  </TravelHoldTooltip>
+                )}
+                {hasHold(travelHoldEntry) && (
+                  <TravelHoldTooltip entry={travelHoldEntry} project={project}>
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
+                      className="pointer-events-auto"
+                    >
+                      <Pause className="w-2.5 h-2.5 fill-red-400 text-red-400" />
+                    </button>
+                  </TravelHoldTooltip>
+                )}
+              </>
+            )}
+          </span>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none leading-none gap-[3px]">
             <span className="text-[8px] font-semibold uppercase tracking-wider whitespace-nowrap opacity-60">{formatFullDate(date)}</span>
             {headerLabel && (
               <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{headerLabel}</span>
             )}
           </div>
-        <span className="w-5 shrink-0 flex justify-center">
+        <span className="w-5 shrink-0 flex justify-end items-center">
           {violations.length > 0 && (
             <ViolationTooltip violations={violations}>
               <Flag className="w-2.5 h-2.5 fill-red-400 shrink-0 text-red-400" />
@@ -143,6 +188,25 @@ export const DayCell: React.FC<{
           onBodyContextMenu?.(e, bodyTargetRowId);
         }}
       >
+        {(nonShootStatus === 'hold' || nonShootStatus === 'travel') && (
+          (() => {
+            const groups = getTravelHoldGroups(travelHoldEntry, project).filter(g => g.kind === (nonShootStatus === 'travel' ? 'travel' : 'hold'));
+            if (groups.length === 0) return null;
+            return (
+              <div className="flex flex-col gap-0.5 px-0.5 pb-1">
+                {groups.map(g => (
+                  <div key={`${g.kind}-${g.category}`} className={`text-[8px] leading-tight truncate ${g.kind === 'travel' ? 'text-purple-700' : 'text-red-700'}`}>
+                    {g.kind === 'travel'
+                      ? <Plane className="inline w-2 h-2 mr-0.5 text-purple-600" />
+                      : <Pause className="inline w-2 h-2 mr-0.5 text-red-600" />}
+                    <span className="font-semibold">{getLabel(g.category, DEFAULT_CATEGORY_LABELS[g.category] || g.category, project.categoryLabels)}: </span>
+                    {g.keys.map(k => resolveElementName(k, g.category, project)).join(', ')}
+                  </div>
+                ))}
+              </div>
+            );
+          })()
+        )}
         <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
           {rows.map((r, i, arr) => (
             <React.Fragment key={r.id}>
