@@ -46,12 +46,35 @@ function getLabel(field: string) {
   return f ? f.label : field;
 }
 
+/**
+ * Compares two ribbon layouts ignoring cell/row ids (which are random) —
+ * JSON.stringify comparison always differs because getDefaultRibbonRows()
+ * generates fresh ids per call.
+ */
+function rowsEqualContent(a: RibbonRow[], b: RibbonRow[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].name !== b[i].name) return false;
+    const ca = a[i].cells, cb = b[i].cells;
+    if (ca.length !== cb.length) return false;
+    for (let j = 0; j < ca.length; j++) {
+      const x = ca[j], y = cb[j];
+      if (x.field !== y.field || x.align !== y.align || x.verticalAlign !== y.verticalAlign
+        || x.wrap !== y.wrap || x.truncation !== y.truncation || x.overflowVisible !== y.overflowVisible
+        || x.prefix !== y.prefix || x.suffix !== y.suffix || x.textContent !== y.textContent) return false;
+    }
+  }
+  return true;
+}
+
 export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement | null }) {
   const { state, dispatch, readOnly } = useProject();
   const dialog = useDialog();
   const project = state.present;
   const activeDesign = project.ribbonDesigns.find(d => d.id === project.activeRibbonId)
     || { id: '', name: 'Default', colWidths: getDefaultColWidths(), rows: getDefaultRibbonRows(), createdAt: 0 };
+  const activeDesignRef = useRef(activeDesign);
+  activeDesignRef.current = activeDesign;
   const [viewMode, setViewMode, viewWidth] = useViewMode();
   const [cellBorders] = useCellBorders();
   const currentWindow = useCurrentWindow();
@@ -100,24 +123,23 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     dispatch({ type: 'UPDATE_RIBBON_DESIGN', payload: { id: activeDesign.id, rows: cloneRows(rws), colWidths: [...cws] } });
   }, [activeDesign, dispatch]);
 
-  const promptSaveDefault = useCallback(async () => {
-    if (activeDesign.id) return;
-    const defaults = getDefaultRibbonRows();
-    if (JSON.stringify(rowsRef.current) === JSON.stringify(defaults)) return;
-    const name = await dialog.prompt({ title: 'Save Default Design?', defaultValue: 'My Design', placeholder: 'Enter a name for your design' });
-    if (name) {
-      const newId = generateUUID();
-      dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: name.trim(), rows: cloneRows(rowsRef.current), colWidths: [...colWidthsRef.current] } });
-      dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
-    }
-  }, [activeDesign, dispatch, dialog]);
+  const saveDefaultAsDesign = useCallback(() => {
+    // No active design (project without designs or stale active id): if the
+    // default layout was actually modified, save it automatically as a design
+    // named "Default" — no dialog, the user sees it appear in the design menu.
+    if (activeDesignRef.current.id) return;
+    if (rowsEqualContent(rowsRef.current, getDefaultRibbonRows())) return;
+    const newId = generateUUID();
+    dispatch({ type: 'ADD_RIBBON_DESIGN', payload: { name: 'Default', rows: cloneRows(rowsRef.current), colWidths: [...colWidthsRef.current] } });
+    dispatch({ type: 'SET_ACTIVE_RIBBON', payload: newId });
+  }, [dispatch]);
 
-  const promptSaveDefaultRef = useRef(promptSaveDefault);
-  promptSaveDefaultRef.current = promptSaveDefault;
+  const saveDefaultAsDesignRef = useRef(saveDefaultAsDesign);
+  saveDefaultAsDesignRef.current = saveDefaultAsDesign;
 
   useEffect(() => {
     return () => {
-      promptSaveDefaultRef.current();
+      saveDefaultAsDesignRef.current();
     };
   }, []);
 
@@ -574,7 +596,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
         onClose={(open) => setDesignMenuOpen(open)}
         items={project.ribbonDesigns.map(d => ({ id: d.id, name: d.name }))}
         activeId={project.activeRibbonId}
-        onSelect={async (id) => { await promptSaveDefault(); dispatch({ type: 'SET_ACTIVE_RIBBON', payload: id }); }}
+        onSelect={async (id) => { saveDefaultAsDesign(); dispatch({ type: 'SET_ACTIVE_RIBBON', payload: id }); }}
         onRename={(id, name) => dispatch({ type: 'RENAME_RIBBON_DESIGN', payload: { id, name } })}
         onDuplicate={(id) => {
           const d = project.ribbonDesigns.find(x => x.id === id);

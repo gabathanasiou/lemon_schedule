@@ -208,6 +208,11 @@ export function reducer(state: State, action: Action): State {
       p.ribbonDesigns = [defaultDesign];
       p.activeRibbonId = p.activeRibbonId || defaultDesign.id;
     }
+    // Stale activeRibbonId (points to a missing/deleted design) — fall back to
+    // the first design so the ribbon designer edits reach a saved design.
+    if (!p.activeRibbonId || !p.ribbonDesigns.some((d: any) => d.id === p.activeRibbonId)) {
+      p.activeRibbonId = p.ribbonDesigns[0]?.id || '';
+    }
     if (p.colorPalette) {
       if (!p.colorPalette.intExtOptions) p.colorPalette.intExtOptions = ['INT', 'EXT', 'INT/EXT'];
       if (!p.colorPalette.dayNightOptions) p.colorPalette.dayNightOptions = ['DAY', 'NIGHT', 'MORNING', 'EVENING'];
