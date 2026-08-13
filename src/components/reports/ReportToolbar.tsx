@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { Project } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
+import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import DropdownMenu from '../DropdownMenu';
@@ -204,6 +205,14 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
+  // Day-list fields (Work/Hold/Travel Days) get the day-format dropdown — it
+  // applies to every day-list field/column/token in this block.
+  const hasDayList = block.type === 'text'
+    ? [...DAY_LIST_FIELD_KEYS].some(k => (block.text || '').includes(k))
+    : block.type === 'field' ? DAY_LIST_FIELD_KEYS.has(block.field || '')
+    : block.type === 'table' ? (block.columns || []).some(c => DAY_LIST_FIELD_KEYS.has(c.field))
+    : false;
+
   const tableOps = {
     addColumn: () => {
       const cols = block.columns || [];
@@ -259,6 +268,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             onChange={f => onPatch({ text: `${block.text || ''}{{${f}}}` })}
             disabled={disabled}
             placeholder="Insert attribute…"
+            scope={parentCollection}
             className="w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
           />
         </Row>
@@ -273,6 +283,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               onChange={f => onPatch({ field: f })}
               disabled={disabled}
               placeholder="Select field…"
+              scope={parentCollection}
               className="w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
             />
           </Row>
@@ -393,6 +404,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
                     fields={fieldOptions(tableFieldScope(block, parentCollection))}
                     onChange={f => tableOps.patchColumn(ci, { field: f })}
                     disabled={disabled}
+                    scope={tableFieldScope(block, parentCollection)}
                     className="w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
                   />
                   <div className="flex items-center gap-0.5">
@@ -453,6 +465,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
                 onChange={f => onPatch({ headerField: f })}
                 disabled={disabled}
                 placeholder="— auto —"
+                scope={tableFieldScope(block, parentCollection)}
                 className="w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
               />
             </Row>
@@ -461,6 +474,18 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
             Cell borders
           </label>
+          {hasDayList && (
+            <Row label="Day format">
+              <select
+                className={selCls}
+                disabled={disabled}
+                value={block.dayFormat || 'dayNumDate'}
+                onChange={e => onPatch({ dayFormat: e.target.value as DayFormatMode })}
+              >
+                {DAY_FORMAT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+              </select>
+            </Row>
+          )}
         </>
       )}
 
