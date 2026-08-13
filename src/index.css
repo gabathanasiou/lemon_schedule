@@ -215,3 +215,23 @@ input, textarea, [contenteditable] {
   background: #3b82f6;
 }
 .columns-row[data-dragging="1"] .columns-col:hover { background: transparent; }
+
+/* ---- Reports Designer rich-text editor ---- */
+
+.richtext-editor {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  color: #e4e4e7;
+  line-height: 1.5;
+  outline: none;
+  overflow-y: auto;
+  cursor: text;
+  padding: 6px 8px;
+}
+.richtext-editor:focus { border-color: #52525b; }
+.richtext-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #71717a;
+  pointer-events: none;
+}

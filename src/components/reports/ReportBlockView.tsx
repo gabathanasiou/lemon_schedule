@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, ancestorSceneScope } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
+import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
+import { stripRichText } from '../../lib/richText';
 import { PageItem, stripEdgeBreaks } from '../../lib/reportPagination';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
@@ -58,13 +59,18 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     switch (block.type) {
       case 'text': {
         if (showKeys) {
-          return <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>{block.text || '\u00A0'}</div>;
+          return <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>{stripRichText(block.text || '') || '\u00A0'}</div>;
         }
-        const text = resolveReportTokens(ctx, fieldMap, block.text || '', item, blockAux);
+        const html = resolveReportTokensHtml(ctx, fieldMap, block.text || '', item, blockAux);
+        const text = stripRichText(html);
         if (!visibleFor(block, text)) return null;
         const st: React.CSSProperties = { ...baseStyle };
         if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
-        return <div style={st}>{text || '\u00A0'}</div>;
+        const isHtml = html.includes('<');
+        if (isHtml) {
+          return <div style={st} dangerouslySetInnerHTML={{ __html: html || '\u00A0' }} />;
+        }
+        return <div style={{ ...st, whiteSpace: 'pre-wrap' }}>{text || '\u00A0'}</div>;
       }
       case 'field': {
         if (!block.field) {

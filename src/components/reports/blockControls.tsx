@@ -8,12 +8,13 @@ import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, newTextStyle } from '../../lib/reportTextStyles';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
+import RichTextEditor, { RichTextEditorHandle } from './RichTextEditor';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, EyeOff, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2 } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, EyeOff, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough } from 'lucide-react';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -130,6 +131,59 @@ export const StructureControls: React.FC<StructureControlsProps> = ({ label, rea
     <ToolButton onClick={onRemove} disabled={readOnly} title="Delete" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>
   </>
 );
+
+// ---- rich-text formatting toolbar (selection-aware, via the editor ref) --------
+
+const RT_COLORS = ['#000000', '#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed', '#6b7280'];
+
+export const RichTextToolbar: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | null>; disabled: boolean }> = ({ editorRef, disabled }) => {
+  const [font, setFont] = useState('Helvetica');
+  const [colorOpen, setColorOpen] = useState(false);
+  const run = (cmd: string, value?: string) => editorRef.current?.exec(cmd, value);
+  const btn = `${TB_TOGGLE} ${TB_TOGGLE_OFF}`;
+  return (
+    <div className="flex items-center gap-0.5">
+      <Tooltip content="Bold">
+        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('bold')} className={`${btn} font-bold`}>B</button>
+      </Tooltip>
+      <Tooltip content="Italic">
+        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('italic')} className={`${btn} italic`}>I</button>
+      </Tooltip>
+      <Tooltip content="Underline">
+        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('underline')} className={btn}><Underline className="w-3 h-3" /></button>
+      </Tooltip>
+      <Tooltip content="Strikethrough">
+        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('strikeThrough')} className={btn}><Strikethrough className="w-3 h-3" /></button>
+      </Tooltip>
+      <div className={TB_DIVIDER} />
+      <FontMenu value={font} disabled={disabled} onChange={f => { setFont(f); run('fontName', f); }} />
+      <DropdownMenu
+        open={colorOpen}
+        onOpenChange={setColorOpen}
+        theme="dark"
+        width="w-36"
+        trigger={
+          <button type="button" disabled={disabled} className={`${TB_SELECT} disabled:pointer-events-none`} title="Text color">
+            <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: RT_COLORS[0] }} />
+            <ChevronDown className="w-3 h-3 text-zinc-500" />
+          </button>
+        }
+      >
+        <div className="grid grid-cols-4 gap-1 p-2">
+          {RT_COLORS.map(c => (
+            <button
+              key={c}
+              onClick={() => { run('foreColor', c); setColorOpen(false); }}
+              className="w-7 h-7 rounded border border-zinc-700 hover:border-zinc-500 transition-colors"
+              style={{ background: c }}
+              title={c}
+            />
+          ))}
+        </div>
+      </DropdownMenu>
+    </div>
+  );
+};
 
 // ---- shared context -----------------------------------------------------------
 
@@ -396,16 +450,21 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   const FieldClusters: React.ReactNode[] = [];
 
   if (block.type === 'text') {
+    const editorRef = React.useRef<RichTextEditorHandle>(null);
     FieldClusters.push(
       <div key="content" className={itemCls}>
         <span className={labelCls}>{'Text content ({{field}} tokens)'}</span>
-        <textarea
-          className="h-16 w-64 p-2 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30 resize-y"
-          rows={2}
-          disabled={disabled}
-          value={block.text || ''}
-          onChange={e => onPatch({ text: e.target.value })}
-        />
+        <RichTextToolbar editorRef={editorRef} disabled={disabled} />
+        <div style={{ fontFamily: block.fontFamily || 'Helvetica', fontSize: block.fontSize ?? 10 }}>
+          <RichTextEditor
+            ref={editorRef}
+            value={block.text || ''}
+            onChange={text => onPatch({ text })}
+            placeholder="Type text… or insert an attribute below"
+            disabled={disabled}
+            className="w-72 h-24"
+          />
+        </div>
         <FieldPicker
           value=""
           fields={contextFields}

@@ -1,6 +1,7 @@
 import { Project } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
+import { escapeHtml } from './richText';
 import { parentNoun } from './reportBlocks';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem,
@@ -373,6 +374,19 @@ export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, R
 const TOKEN_RE = /\{\{([^}]+)\}\}/g;
 const KEY_POSITION_KEYS = new Set(['director', 'producer', 'lineProducer', 'firstAD', 'upm']);
 
+function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
+  const [base, sub] = raw.trim().split('.');
+  const def = fieldMap[base];
+  if (!def) return '';
+  if (def.scope === 'production' && KEY_POSITION_KEYS.has(base)) {
+    const people = ctx.project.crew?.[base] || [];
+    if (sub === 'phone') return people[0]?.phone || '';
+    if (sub === 'email') return people[0]?.email || '';
+    return people.map(p => p.name).join(', ');
+  }
+  return fieldValueSafe(def, ctx, item, aux);
+}
+
 export function resolveReportTokens(
   ctx: ReportCtx,
   fieldMap: Record<string, ReportFieldDef>,
@@ -380,18 +394,18 @@ export function resolveReportTokens(
   item: any,
   aux?: FieldAux,
 ): string {
-  return text.replace(TOKEN_RE, (_m, raw: string) => {
-    const [base, sub] = raw.trim().split('.');
-    const def = fieldMap[base];
-    if (!def) return '';
-    if (def.scope === 'production' && KEY_POSITION_KEYS.has(base)) {
-      const people = ctx.project.crew?.[base] || [];
-      if (sub === 'phone') return people[0]?.phone || '';
-      if (sub === 'email') return people[0]?.email || '';
-      return people.map(p => p.name).join(', ');
-    }
-    return fieldValueSafe(def, ctx, item, aux);
-  });
+  return text.replace(TOKEN_RE, (_m, raw: string) => resolveToken(ctx, fieldMap, raw, item, aux));
+}
+
+/** Rich-text variant: token values are HTML-escaped so formatting can't be injected. */
+export function resolveReportTokensHtml(
+  ctx: ReportCtx,
+  fieldMap: Record<string, ReportFieldDef>,
+  html: string,
+  item: any,
+  aux?: FieldAux,
+): string {
+  return html.replace(TOKEN_RE, (_m, raw: string) => escapeHtml(resolveToken(ctx, fieldMap, raw, item, aux)));
 }
 
 export function fieldsForScope(
