@@ -7,7 +7,7 @@ import { getReportFieldMap } from '../../lib/reportFields';
 import { ReportDesign, ReportBlock } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
-  moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, insertScopeFor,
+  moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock,
   insertColumnAt, removeColumnAt, moveIntoNewColumn, duplicateIntoNewColumn,
 } from '../../lib/reportBlocks';
@@ -86,9 +86,16 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   const selBlock = selId ? findBlock(blocks, selId)?.block ?? null : null;
   const selParentCollection = selId ? parentCollectionOf(blocks, selId) : undefined;
+  const selParentCategory = selId ? parentCategoryOf(blocks, selId) : undefined;
   const insertScope = useMemo(
     () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table') ? selBlock.collection || null : selParentCollection || null),
     [selBlock, selParentCollection],
+  );
+  const insertCategory = useMemo(
+    () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table')
+      ? ((selBlock.collection === 'elements' || selBlock.collection === 'cast') ? selBlock.category : undefined)
+      : selParentCategory),
+    [selBlock, selParentCategory],
   );
 
   const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
@@ -269,11 +276,12 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
-          <ReportPalette project={project} insertScope={insertScope} onInsert={insertPayload} readOnly={readOnly} />
+          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             <ReportToolbar
               block={selBlock}
               parentCollection={selParentCollection}
+              parentCategory={selParentCategory}
               project={project}
               readOnly={readOnly}
               selCol={selCol && selBlock && selBlock.id === selCol.colsId && selBlock.type === 'columns'
@@ -389,6 +397,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
           block={selBlock}
           project={project}
           insertScope={insertScope}
+          insertCategory={insertCategory}
           onClose={() => setMenu(null)}
           onChangeField={f => patch(menu.id, { field: f })}
           onInsertAbove={() => commit(insertBefore(blocksRef.current, menu.id, makeReportBlock('text')))}

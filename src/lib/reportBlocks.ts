@@ -428,6 +428,26 @@ export function parentCollectionOf(blocks: ReportBlock[], id: string, ctx?: Repo
   return undefined;
 }
 
+/** The element category of the repeat/table owning `id` ('elements'/'cast' collections only). */
+export function parentCategoryOf(blocks: ReportBlock[], id: string, ctx?: string): string | undefined {
+  for (const b of blocks) {
+    const cat = (b.collection === 'elements' || b.collection === 'cast') ? b.category : ctx;
+    if (b.children?.some(c => c.id === id)) return cat;
+    if (b.children?.length) {
+      const pc = parentCategoryOf(b.children, id, cat);
+      if (pc !== undefined) return pc;
+    }
+    if (b.type === 'columns' && b.cols) {
+      for (const col of b.cols) {
+        if ((col.blocks || []).some(x => x.id === id)) return cat;
+        const pc = parentCategoryOf(col.blocks || [], id, cat);
+        if (pc !== undefined) return pc;
+      }
+    }
+  }
+  return undefined;
+}
+
 /** The collection an insertion at `id` (or root) would live in. */
 export function insertScopeFor(blocks: ReportBlock[], id: string | null): ReportCollection | null {
   if (!id) return null;

@@ -268,6 +268,7 @@ export function resolveReportTokens(
 export function fieldsForScope(
   fields: ReportFieldDef[],
   scope: string | null | undefined,
+  category?: string,
 ): ReportFieldDef[] {
   const scopeSet = new Set(['production', 'project', 'document']);
   if (scope) {
@@ -275,5 +276,9 @@ export function fieldsForScope(
     else if (scope === 'elementsOfCategory') scopeSet.add('elements');
     else scopeSet.add(scope);
   }
+  // Cast members are reached via Elements → Cast (collection 'elements' with
+  // category 'cast') or a categories repeat's Cast item ('elementsOfCategory')
+  // — their identity fields (Cast ID, Cast ID & Name) belong there too.
+  if (scope === 'cast' || category === 'cast' || scope === 'elementsOfCategory') scopeSet.add('cast');
   return fields.filter(f => scopeSet.has(f.scope));
 }

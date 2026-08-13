@@ -159,6 +159,7 @@ const ExcludeCategoriesMenu: React.FC<{
 interface ReportToolbarProps {
   block: ReportBlock | null;
   parentCollection?: ReportCollection;
+  parentCategory?: string;
   project: Project;
   readOnly: boolean;
   selCol?: { colIndex: number; colsCount: number } | null;
@@ -172,9 +173,9 @@ interface ReportToolbarProps {
   onAddTextToColumn: () => void;
 }
 
-const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn }) => {
+const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, parentCategory, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn }) => {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
-  const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection), [allFields, parentCollection]);
+  const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection, parentCategory), [allFields, parentCollection, parentCategory]);
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -201,7 +202,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
   const disabled = readOnly;
 
-  const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope);
+  const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
   const tableOps = {
     addColumn: () => {

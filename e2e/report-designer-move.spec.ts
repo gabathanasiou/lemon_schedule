@@ -110,28 +110,6 @@ test('keys/values toggle inside view menu switches text blocks; tables always sh
   await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 3000 });
 });
 
-test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {
-  await openSeededProject(page);
-
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
-  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
-  await page.getByText('Editing:', { exact: false }).click();
-  await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
-  await page.waitForTimeout(500);
-
-  await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(800);
-
-  // "Sunny's gun" is a capitalized props element — its Shoot Days cell was
-  // empty before the case-insensitive element match; it now lists real days.
-  const row = page.locator('.report-table-cols > div').filter({ hasText: "Sunny's gun" }).first();
-  await expect(row).toBeVisible({ timeout: 3000 });
-  await expect(row).toContainText('Day 7 (Tue, Aug 18)', { timeout: 3000 });
-  await expect(row).toContainText('Day 12 (Tue, Aug 25)');
-});
-
 
 test('repeat nested in a categories repeat offers Elements (of this category)', async ({ page }) => {
   await openSeededProject(page);
@@ -160,6 +138,33 @@ test('repeat nested in a categories repeat offers Elements (of this category)', 
   await menu.getByText('Elements (of this category)', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Elements (of this category)', exact: true })).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('Repeat: Elements (of this category)', { exact: true })).toBeVisible({ timeout: 3000 });
+});
+
+test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them', async ({ page }) => {
+  await openSeededProject(page);
+
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByRole('button', { name: 'Repeat', exact: true }).click();
+  await page.waitForTimeout(300);
+
+  const paletteCast = page.getByRole('button', { name: 'Cast ID', exact: true });
+  await expect(paletteCast).toHaveCount(0);
+
+  const repeatOver = page.getByRole('button', { name: 'Scenes', exact: true });
+  await repeatOver.click();
+  await page.locator('.ui-menu').getByText('Elements', { exact: true }).click();
+  await page.locator('.ui-menu').getByText('Cast', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Elements · Cast', exact: true })).toBeVisible({ timeout: 3000 });
+
+  await expect(page.getByRole('button', { name: 'Cast ID', exact: true })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByRole('button', { name: 'Cast ID & Name', exact: true })).toBeVisible({ timeout: 3000 });
+
+  await page.getByRole('button', { name: 'Cast ID & Name', exact: true }).dragTo(page.getByText('Drop inside repeat (or click to add text)'));
+  await page.waitForTimeout(500);
+  await expect(page.getByText('1. FISHERMAN', { exact: true })).toBeVisible({ timeout: 3000 });
 });
 
 test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {

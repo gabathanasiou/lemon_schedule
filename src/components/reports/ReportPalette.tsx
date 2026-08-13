@@ -31,12 +31,13 @@ const BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactN
 interface ReportPaletteProps {
   project: Project;
   insertScope: ReportCollection | null;
+  insertCategory?: string;
   onInsert: (payload: PaletteDropPayload) => void;
   readOnly: boolean;
 }
 
-const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, onInsert, readOnly }) => {
-  const fields = useMemo(() => fieldsForScope(getReportFieldDefs(project), insertScope), [project, insertScope]);
+const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, insertCategory, onInsert, readOnly }) => {
+  const fields = useMemo(() => fieldsForScope(getReportFieldDefs(project), insertScope, insertCategory), [project, insertScope, insertCategory]);
 
   const groups = useMemo(() => {
     const out: { group: string; fields: ReportFieldDef[] }[] = [];

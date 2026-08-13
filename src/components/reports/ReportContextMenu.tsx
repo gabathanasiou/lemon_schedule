@@ -11,6 +11,7 @@ interface ReportContextMenuProps {
   block: ReportBlock;
   project: Project;
   insertScope: string | null;
+  insertCategory?: string;
   onClose: () => void;
   onChangeField: (field: string) => void;
   onInsertAbove: () => void;
@@ -23,10 +24,10 @@ interface ReportContextMenuProps {
   onColumnRemove: () => void;
 }
 
-const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, project, insertScope, onClose, onChangeField, onInsertAbove, onInsertBelow, onAddChild, onDuplicate, onRemove, onColumnAddText, onColumnInsertAt, onColumnRemove }) => {
+const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, project, insertScope, insertCategory, onClose, onChangeField, onInsertAbove, onInsertBelow, onAddChild, onDuplicate, onRemove, onColumnAddText, onColumnInsertAt, onColumnRemove }) => {
   const fields: ReportFieldDef[] = useMemo(
-    () => block.type === 'field' ? fieldsForScope(getReportFieldDefs(project), insertScope) : [],
-    [block.type, project, insertScope],
+    () => block.type === 'field' ? fieldsForScope(getReportFieldDefs(project), insertScope, insertCategory) : [],
+    [block.type, project, insertScope, insertCategory],
   );
   const itemCls = 'w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-800 rounded transition-colors';
   const isColumnMenu = menu.colIndex !== undefined;
