@@ -9,7 +9,7 @@ import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock,
-  insertColumnAt, removeColumnAt, moveIntoNewColumn, duplicateIntoNewColumn,
+  insertColumnAt, removeColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
 import { useViewMode } from '../../lib/persist';
@@ -276,7 +276,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
-          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} onInsert={insertPayload} readOnly={readOnly} />
+          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} insideColumns={!!selId && insideColumnsBlock(blocks, selId)} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             <ReportToolbar
               block={selBlock}
