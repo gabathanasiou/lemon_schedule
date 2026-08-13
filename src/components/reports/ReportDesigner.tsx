@@ -367,8 +367,6 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onDeselect={() => { setSelId(null); setSelCol(null); }}
               onPatch={p => selId && patch(selId, p)}
               onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
-              onInsertAbove={() => selId && commitZone(selId, list => insertBefore(list, selId, makeReportBlock('text')))}
-              onInsertBelow={() => selId && commitZone(selId, list => insertAfter(list, selId, makeReportBlock('text')))}
               onDuplicate={() => selId && commitZone(selId, list => duplicateBlock(list, selId))}
               onRemove={() => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } }}
               onMove={d => selId && commitZone(selId, list => moveBlock(list, selId, d))}

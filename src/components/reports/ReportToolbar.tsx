@@ -23,8 +23,6 @@ interface ReportToolbarProps {
   onDeselect: () => void;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
-  onInsertAbove: () => void;
-  onInsertBelow: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
@@ -33,7 +31,7 @@ interface ReportToolbarProps {
 const ReportToolbar: React.FC<ReportToolbarProps> = ({
   block, parentCollection, parentCategory, project, readOnly, editorMode,
   onToggleEditorMode, onDeselect, onPatch, onSaveTextStyles,
-  onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove,
+  onDuplicate, onRemove, onMove,
 }) => {
   if (!block) {
     return (
@@ -54,8 +52,6 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg select-none min-w-max">
           <BlockEditorContent
             {...ctx}
-            onInsertAbove={onInsertAbove}
-            onInsertBelow={onInsertBelow}
             onDuplicate={onDuplicate}
             onRemove={onRemove}
             onMove={onMove}

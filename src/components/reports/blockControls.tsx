@@ -100,27 +100,14 @@ export const FontMenu: React.FC<{ value: string; disabled: boolean; onChange: (f
 
 export interface StructureControlsProps {
   readOnly: boolean;
-  onInsertAbove?: () => void;
-  onInsertBelow?: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
   compact?: boolean;
 }
 
-export const StructureControls: React.FC<StructureControlsProps> = ({ readOnly, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, compact }) => (
+export const StructureControls: React.FC<StructureControlsProps> = ({ readOnly, onDuplicate, onRemove, onMove, compact }) => (
   <>
-    {onInsertAbove && (
-      <ToolButton onClick={onInsertAbove} disabled={readOnly} title="Insert above" className={compact ? TB_BTN_ICON : TB_BTN}>
-        <Plus className="w-3 h-3" /> {compact ? '' : 'Above'}
-      </ToolButton>
-    )}
-    {onInsertBelow && (
-      <ToolButton onClick={onInsertBelow} disabled={readOnly} title="Insert below" className={compact ? TB_BTN_ICON : TB_BTN}>
-        <Plus className="w-3 h-3" /> {compact ? '' : 'Below'}
-      </ToolButton>
-    )}
-    <div className={TB_DIVIDER} />
     <ToolButton onClick={() => onMove(-1)} disabled={readOnly} title="Move up" className={TB_BTN_ICON}><ArrowUp className="w-2.5 h-2.5" /></ToolButton>
     <ToolButton onClick={() => onMove(1)} disabled={readOnly} title="Move down" className={TB_BTN_ICON}><ArrowDown className="w-2.5 h-2.5" /></ToolButton>
     <ToolButton onClick={onDuplicate} disabled={readOnly} title="Duplicate" className={TB_BTN_ICON}><Copy className="w-2.5 h-2.5" /></ToolButton>
@@ -220,8 +207,6 @@ export interface BlockEditorProps {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
-  onInsertAbove?: () => void;
-  onInsertBelow?: () => void;
   onDuplicate?: () => void;
   onRemove?: () => void;
   onMove?: (dir: -1 | 1) => void;
@@ -231,7 +216,7 @@ export interface BlockEditorProps {
 
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
-  onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, compact, trailing,
+  onDuplicate, onRemove, onMove, compact, trailing,
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
@@ -289,8 +274,6 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           )}
           <StructureControls
             readOnly={readOnly}
-            onInsertAbove={onInsertAbove}
-            onInsertBelow={onInsertBelow}
             onDuplicate={onDuplicate}
             onRemove={onRemove}
             onMove={onMove}

@@ -305,8 +305,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 readOnly={readOnly}
                 onSaveTextStyles={onSaveTextStyles}
                 onPatch={p => onPatch(b.id, p)}
-                onInsertAbove={() => onInsertBefore(b.id, { kind: 'block', type: 'text' })}
-                onInsertBelow={() => onInsertAfter(b.id, { kind: 'block', type: 'text' })}
                 onDuplicate={() => onDuplicate(b.id)}
                 onRemove={() => onRemove(b.id)}
                 onMove={d => onMove(b.id, d)}
@@ -671,12 +669,10 @@ const BlockChrome: React.FC<{
   readOnly: boolean;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
   onPatch: (patch: Partial<ReportBlock>) => void;
-  onInsertAbove: () => void;
-  onInsertBelow: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove }) => (
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove }) => (
   <div className="block-chrome" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}>
     <BlockEditorContent
       block={block}
@@ -686,8 +682,6 @@ const BlockChrome: React.FC<{
       readOnly={readOnly}
       onSaveTextStyles={onSaveTextStyles}
       onPatch={onPatch}
-      onInsertAbove={onInsertAbove}
-      onInsertBelow={onInsertBelow}
       onDuplicate={onDuplicate}
       onRemove={onRemove}
       onMove={onMove}
