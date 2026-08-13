@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCollection } from '../../types';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, searchReportFields, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
 import { Type, AlignLeft, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X } from 'lucide-react';
@@ -49,9 +49,7 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
 
   const groups = useMemo(() => {
     const source = searching ? allFields : fields;
-    const list = searching
-      ? source.filter(f => f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q))
-      : source;
+    const list = searching ? searchReportFields(source, q) : source;
     const out: { group: string; fields: ReportFieldDef[] }[] = [];
     for (const f of list) {
       let g = out.find(x => x.group === f.group);

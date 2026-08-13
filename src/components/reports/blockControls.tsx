@@ -616,15 +616,16 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
           fields={contextFields}
           scope={parentCollection}
-          onInsertAttribute={f => onPatch({ text: `${block.text || ''}{{${f}}}` })}
+          onInsertAttribute={f => editorRef.current?.insertToken(f)}
         />
         <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
           <RichTextEditor
             ref={editorRef}
             value={block.text || ''}
             onChange={text => onPatch({ text })}
-            placeholder="Type text… wrap attribute names like {{sceneNumber}} or insert one from the toolbar"
+            placeholder="Type text… type {{ to insert an attribute, or use the toolbar"
             disabled={disabled}
+            fields={contextFields}
             className="w-96 h-28"
           />
         </div>

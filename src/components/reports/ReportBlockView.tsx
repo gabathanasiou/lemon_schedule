@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, ancestorSceneScope } from '../../lib/reportData';
-import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
+import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
@@ -47,19 +47,24 @@ function emptyHint(text: string, style: React.CSSProperties): React.ReactNode {
 
 const TOKEN_CHIP_RE = /(\{\{[^}]+\}\})/g;
 
-/** Template preview: `{{field}}` tokens render as subtle chips so the
- *  "this is a template" nature of a text block is obvious in key mode. */
-export const TokenPreview: React.FC<{ text: string }> = ({ text }) => {
+/** Template preview: `{{field}}` tokens render as color-coded chips (one color
+ *  per attribute group) so the "this is a template" nature of a text block is
+ *  obvious in key mode. */
+export const TokenPreview: React.FC<{ text: string; fieldMap?: Record<string, ReportFieldDef> }> = ({ text, fieldMap }) => {
   const parts = normalizeSpaces(text).split(TOKEN_CHIP_RE);
   return (
     <>
-      {parts.map((part, i) =>
-        part.startsWith('{{') && part.endsWith('}}') && part.length > 4 ? (
-          <span key={i} style={{ background: 'rgba(59,130,246,0.12)', color: '#1d4ed8', borderRadius: 3, padding: '0 3px', margin: '0 1px', fontWeight: 600, fontStyle: 'normal' }}>{part}</span>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
+      {parts.map((part, i) => {
+        const key = part.startsWith('{{') && part.endsWith('}}') && part.length > 4 ? part.slice(2, -2).trim() : null;
+        if (key !== null) {
+          const def = fieldMap?.[key];
+          const color = def ? fieldChipColor(def.group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
+          return (
+            <span key={i} style={{ background: color.bg, color: color.text, borderRadius: 3, padding: '0 3px', margin: '0 1px', fontWeight: 600, fontStyle: 'normal' }}>{part}</span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
     </>
   );
 };
@@ -86,7 +91,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if (showKeys) {
           return (
             <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>
-              {block.text ? <TokenPreview text={block.text} /> : '\u00A0'}
+              {block.text ? <TokenPreview text={block.text} fieldMap={fieldMap} /> : '\u00A0'}
             </div>
           );
         }

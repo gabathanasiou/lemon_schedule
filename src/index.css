@@ -290,3 +290,6 @@ input, textarea, [contenteditable] {
   color: #71717a;
   pointer-events: none;
 }
+.richtext-editor span[data-rt-token].rt-token-selected {
+  filter: brightness(0.72);
+}

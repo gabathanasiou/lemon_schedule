@@ -441,6 +441,58 @@ export function fieldsForScope(
   return fields.filter(f => scopeSet.has(f.scope));
 }
 
+/** Search-by-label-or-key shared by the palette search box and the text
+ *  editor's token autocomplete — one source of truth for field filtering. */
+export function searchReportFields(fields: ReportFieldDef[], query: string): ReportFieldDef[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return fields;
+  return fields.filter(f => f.label.toLowerCase().includes(q) || f.key.toLowerCase().includes(q));
+}
+
+// ---- token chip colors -------------------------------------------------------
+// One source of truth for attribute color coding (editor chips, autocomplete
+// rows, designer key view). Stored as {text, bg} pairs — chips render with a
+// tinted background + colored text.
+
+export interface ChipColor { text: string; bg: string }
+
+const FIELD_GROUP_COLORS: Record<string, ChipColor> = {
+  'Scene Info': { text: '#1d4ed8', bg: 'rgba(37, 99, 235, 0.12)' },
+  'Shooting': { text: '#6d28d9', bg: 'rgba(109, 40, 217, 0.12)' },
+  'Breakdown': { text: '#047857', bg: 'rgba(5, 150, 105, 0.12)' },
+  'Elements': { text: '#0e7490', bg: 'rgba(8, 145, 178, 0.12)' },
+  'Cast & Talent': { text: '#be185d', bg: 'rgba(219, 39, 119, 0.12)' },
+  'Categories': { text: '#b45309', bg: 'rgba(217, 119, 6, 0.12)' },
+  'Document': { text: '#475569', bg: 'rgba(100, 116, 139, 0.12)' },
+  'Days': { text: '#c2410c', bg: 'rgba(234, 88, 12, 0.12)' },
+  'Crew': { text: '#4338ca', bg: 'rgba(79, 70, 229, 0.12)' },
+  'Production': { text: '#0f766e', bg: 'rgba(13, 148, 136, 0.12)' },
+  'Key Positions': { text: '#334155', bg: 'rgba(71, 85, 105, 0.12)' },
+  'Project': { text: '#57534e', bg: 'rgba(87, 83, 78, 0.12)' },
+  'Smart': { text: '#a21caf', bg: 'rgba(168, 85, 247, 0.12)' },
+  'Violations': { text: '#b91c1c', bg: 'rgba(220, 38, 38, 0.12)' },
+};
+
+const FALLBACK_CHIP_COLORS: ChipColor[] = [
+  { text: '#1d4ed8', bg: 'rgba(37, 99, 235, 0.12)' },
+  { text: '#047857', bg: 'rgba(5, 150, 105, 0.12)' },
+  { text: '#be185d', bg: 'rgba(219, 39, 119, 0.12)' },
+  { text: '#c2410c', bg: 'rgba(234, 88, 12, 0.12)' },
+  { text: '#4338ca', bg: 'rgba(79, 70, 229, 0.12)' },
+  { text: '#0e7490', bg: 'rgba(8, 145, 178, 0.12)' },
+];
+
+/** Deterministic chip color for an attribute group (custom groups hash onto
+ *  the fallback palette). */
+export function fieldChipColor(group: string | undefined): ChipColor {
+  if (!group) return { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
+  const known = FIELD_GROUP_COLORS[group];
+  if (known) return known;
+  let h = 0;
+  for (const ch of group) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return FALLBACK_CHIP_COLORS[h % FALLBACK_CHIP_COLORS.length];
+}
+
 /** Report-wide constant fields — grouped under the GLOBAL divider in pickers. */
 export const GLOBAL_FIELD_SCOPES = new Set(['production', 'project', 'document']);
 export function isGlobalField(f: ReportFieldDef): boolean {
