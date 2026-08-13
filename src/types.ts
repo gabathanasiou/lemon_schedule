@@ -274,7 +274,6 @@ export type ReportCollection =
   | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
-export type RibbonMode = 'single' | 'day' | 'all';
 export type RepeatAxis = 'rows' | 'columns';
 
 export interface ReportTableColumn {
@@ -333,7 +332,7 @@ export interface ReportBlock {
   cols?: ReportColumn[];
   // ribbon
   ribbonId?: string;
-  ribbonMode?: RibbonMode;
+  ribbonDaySection?: boolean; // day context: full section (headers/totals) — on unless explicitly off
   // style
   fontFamily?: string;
   fontSize?: number;

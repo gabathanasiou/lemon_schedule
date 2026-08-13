@@ -150,23 +150,6 @@ export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem 
   return [];
 }
 
-/** Categories that appear in the given scenes (non-empty breakdown field). */
-function categoriesPresentIn(ctx: ReportCtx, scenes: ReportSceneInfo[]): ReportCategoryInfo[] {
-  if (scenes.length === 0) return [];
-  return ctx.categoryInfos.filter(cat => scenes.some(si => ctx.sceneFieldItems(si.scene, cat.key).length > 0));
-}
-
-/** Elements of `category` attached to the given scenes. */
-function elementsAttachedTo(ctx: ReportCtx, scenes: ReportSceneInfo[], category: string): ReportElementInfo[] {
-  if (scenes.length === 0) return [];
-  const out: ReportElementInfo[] = [];
-  for (const e of getElementsFor(ctx, category)) {
-    const match = elementMatchId(e, category).toLowerCase();
-    if (scenes.some(si => ctx.sceneFieldItems(si.scene, category).some(v => v.toLowerCase() === match))) out.push(e);
-  }
-  return out;
-}
-
 /** All element category keys (built-in + custom, minus hidden). */
 function allCategoryKeysOf(project: Project): string[] {
   const hidden = new Set(project.hiddenCategories || []);
@@ -456,9 +439,11 @@ export function resolveCollection(
  * Block-aware collection resolution: applies the block's own filters for the
  * 'categories' collection (skip-empty — on unless explicitly off — and the
  * excluded list), plus the Lego scoping rule (scopedToParent — on unless
- * explicitly off): when an outer item is present, the collection is reduced to
- * the items that live in the outer item's scenes. Every renderer resolves
- * through here so the designer, preview and page expansion all agree.
+ * explicitly off): the collection is reduced to items that live in EVERY
+ * rule-bearing ancestor's scenes (intersection — "this person's scenes on
+ * this day"). Crew ancestors have no scene rule and are skipped. Every
+ * renderer resolves through here so the designer, preview and page expansion
+ * all agree.
  */
 export function resolveCollectionItems(
   ctx: ReportCtx,
@@ -467,45 +452,38 @@ export function resolveCollectionItems(
   parentItem: any,
   parentCategory: string | undefined,
   block?: ReportBlock,
-  outerItem?: ReportCollectionItem,
+  ancestors?: ReportCollectionItem[],
 ): ReportCollectionItem[] {
   let items = resolveCollection(ctx, collection, category, parentItem, parentCategory);
-  if (outerItem && block && block.scopedToParent !== false && collection) {
-    const scenes = parentScenesOf(ctx, outerItem);
-    const set = new Set(scenes.map(s => s.sectionIndex));
-    switch (collection) {
-      case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': {
-        items = scenes;
-        break;
-      }
-      case 'days': case 'daysOfCast': {
-        items = ctx.dayInfos.filter(d => set.has(d.section.index));
-        break;
-      }
-      case 'categories': {
-        items = categoriesPresentIn(ctx, scenes);
-        break;
-      }
-      case 'cast': case 'elements': case 'elementsOfCategory': {
-        const cat = collection === 'cast' ? 'cast' : (category || (parentItem as any)?.key || (parentItem as any)?.category || 'props');
-        items = elementsAttachedTo(ctx, scenes, cat);
-        break;
-      }
-      case 'elementsOfScene': {
-        if (category) {
-          items = elementsAttachedTo(ctx, scenes, category);
-        } else {
-          const out: ReportElementInfo[] = [];
-          for (const key of allCategoryKeysOf(ctx.project)) {
-            for (const e of elementsAttachedTo(ctx, scenes, key)) {
-              if (!out.some(x => x.id === e.id && x.category === key)) out.push(e);
-            }
-          }
-          items = out;
+  if (block && block.scopedToParent !== false && collection && ancestors && ancestors.length > 0) {
+    const sceneSets = ancestors
+      .filter(a => ruleBearingAncestor(a))
+      .map(a => parentScenesOf(ctx, a));
+    if (sceneSets.length > 0) {
+      const inAllSets = (si: ReportSceneInfo) => sceneSets.every(set => set.some(s => s.scene.id === si.scene.id));
+      switch (collection) {
+        case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': {
+          items = items.filter((it: any) => inAllSets(it));
+          break;
         }
-        break;
+        case 'days': case 'daysOfCast': {
+          items = items.filter((it: any) => sceneSets.every(set => set.some(s => s.sectionIndex === it.section.index)));
+          break;
+        }
+        case 'categories': {
+          items = items.filter((c: any) => sceneSets.every(set => set.some(si => ctx.sceneFieldItems(si.scene, c.key).length > 0)));
+          break;
+        }
+        case 'cast': case 'elements': case 'elementsOfCategory': case 'elementsOfScene': {
+          items = items.filter((e: any) => {
+            const cat = collection === 'cast' ? 'cast' : (e.category || category || 'props');
+            const match = elementMatchId(e, cat).toLowerCase();
+            return sceneSets.every(set => set.some(si => ctx.sceneFieldItems(si.scene, cat).some(v => v.toLowerCase() === match)));
+          });
+          break;
+        }
+        default: break; // crew etc. — no scoping rule
       }
-      default: break; // crew etc. — no scoping rule
     }
   }
   // categories block filters apply LAST — to the global OR the scoped list.
@@ -519,4 +497,13 @@ export function resolveCollectionItems(
     }
   }
   return items;
+}
+
+/** Ancestors with a scoping rule (anything except crew — no scene data). */
+export function ruleBearingAncestor(a: ReportCollectionItem): boolean {
+  const any = a as any;
+  return !!any.scene
+    || typeof any.section?.index === 'number'
+    || (typeof any.key === 'string' && any.label !== undefined)
+    || typeof any.id !== 'undefined';
 }

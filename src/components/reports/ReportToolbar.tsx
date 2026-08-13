@@ -510,18 +510,6 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
       {block.type === 'ribbon' && (
         <>
-          <Row label="Ribbon mode">
-            <Seg
-              value={block.ribbonMode || 'all'}
-              options={[
-                { v: 'single', l: 'Single strip' },
-                { v: 'day', l: 'Day strips' },
-                { v: 'all', l: 'Whole schedule' },
-              ]}
-              onChange={v => onPatch({ ribbonMode: v as 'single' | 'day' | 'all' })}
-              disabled={disabled}
-            />
-          </Row>
           <Row label="Ribbon design">
             <select className={selCls} disabled={disabled} value={block.ribbonId || project.activeRibbonId || ''} onChange={e => onPatch({ ribbonId: e.target.value })}>
               {(project.ribbonDesigns || []).map(d => (
@@ -529,6 +517,10 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               ))}
             </select>
           </Row>
+          <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+            <input type="checkbox" checked={block.ribbonDaySection !== false} disabled={disabled} onChange={e => onPatch({ ribbonDaySection: e.target.checked })} />
+            Day section (header & totals)
+          </label>
         </>
       )}
 

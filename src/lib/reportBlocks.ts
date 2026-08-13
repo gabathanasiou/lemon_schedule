@@ -44,7 +44,7 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
       { id: blockId(), field: '', width: 50 },
     ]; base.showHeader = true; break;
     case 'columns': base.cols = []; break;
-    case 'ribbon': base.ribbonMode = partial.ribbonMode ?? 'all'; break;
+    case 'ribbon': break;
     case 'spacer': base.height = partial.height ?? 16; break;
     default: break;
   }

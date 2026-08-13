@@ -39,19 +39,23 @@ parentScenesOf(parentItem)  →  the SCENES the parent item stands for
   crew       → none (no scene data — scoping is a no-op)
 ```
 
-Then the nested collection filters against those scenes:
+### Intersection (ancestor chain)
 
-| Nested collection | Scoped to parent = |
+Every block receives the FULL ancestor chain (`ancestors`, nearest first;
+`columns` passes it through untouched). Scoping **intersects** — a nested
+collection keeps only items that live in EVERY rule-bearing ancestor's scenes:
+
+| Nested collection | Scoped to ancestors = |
 |---|---|
-| scenes (+ scenesOf*) | the parent's scenes |
-| days (+ daysOfCast) | days of the parent's scenes |
-| categories | categories present in the parent's scenes |
-| elements / cast (+ elementsOf*) | elements of that category attached to the parent's scenes |
+| scenes (+ scenesOf*) | in all ancestors' scenes |
+| days (+ daysOfCast) | days of all ancestors' scenes |
+| categories | present in all ancestors' scenes |
+| elements / cast (+ elementsOf*) | attached to all ancestors' scenes |
 | crew | no rule (global) |
 
-Resolution lives in ONE place: `resolveCollectionItems(ctx, collection, category,
-parentItem, parentCategory, block, outerItem)` — every renderer (designer canvas,
-preview, print, pagination) goes through it.
+So `Cast → Days → Scenes` gives "this person's scenes on this day". Shallow
+chains (one ancestor) behave exactly as before. Unchecking "Only … in this …"
+disables ALL ancestor scoping for that block (opt-out).
 
 ## 3. Contextual collections (defaults)
 
@@ -78,15 +82,33 @@ matches the parent is a SUMMARY: it renders ONCE per category, listing all of
 the category's elements. This is the only `onceTable` case — do not broaden it
 (a same-collection table in a scenes/crew repeat is per-item).
 
-## 5. Full chain example (what the user can build)
+## 5. Ribbon block (context-driven, no modes)
+
+The ribbon has NO mode dropdown — it renders from the Lego context:
+
+| Context | Renders |
+|---|---|
+| inside a Scenes repeat (item = scene) | that scene's strip |
+| inside a Days repeat (item = day) | the day section — or just its strips when `ribbonDaySection` is off |
+| day section with an element/cast ancestor | the day's strips FILTERED to that person's scenes ("personal scenes within this day") |
+| anywhere else (top level, elements/categories/cast/crew item) | nothing; canvas shows a "place inside a Scenes or Days repeat" hint |
+
+Person-filtered chains: `Cast → Days → Ribbon` = each cast member's workdays,
+each showing the full day section with only their strips.
+
+## 6. Full chain example (what the user can build)
 
 ```
 Repeat over Days                          item = day D
- └─ Repeat over Cast  ☑ Only cast in this day     (scoped: cast working D)
-     └─ Table over: Scenes (of this cast member)  (all scenes of that cast member)
+  └─ Repeat over Cast  ☑ Only cast in this day     (scoped: cast working D)
+      └─ Table over: Scenes (of this cast member)  (this person's scenes ON that day — intersection)
 
 Repeat over Scenes
  └─ Table over: Elements (of this scene)  ☑ Category: Props → just this scene's props
+
+Repeat over Cast (person P)
+ └─ Repeat over Days  ☑ Only days in this element  (P's workdays)
+     └─ Ribbon                                   (full day section, only P's strips)
 
 Repeat over Days
  └─ Repeat over Categories ☑ Only categories in this day

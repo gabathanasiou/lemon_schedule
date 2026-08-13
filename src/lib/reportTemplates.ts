@@ -223,7 +223,7 @@ function callSheet(): ReportDesign {
         gap: 10,
         children: [
           textBlock('CALL SHEET — Day {{dayNumber}} · {{dayDate}} · Call {{dayCallTime}}', { fontSize: 15, bold: true, align: 'center' }),
-          { id: cid(), type: 'ribbon', ribbonMode: 'day' },
+          { id: cid(), type: 'ribbon' },
           tableBlock('crew', [
             { field: 'role', width: 34 },
             { field: 'crewName', width: 34 },

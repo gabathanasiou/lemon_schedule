@@ -1,6 +1,6 @@
 import React from 'react';
 import { ReportBlock, RibbonRow } from '../../types';
-import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCollectionItem } from '../../lib/reportData';
+import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportCollectionItem, ruleBearingAncestor, parentScenesOf } from '../../lib/reportData';
 import { getFieldValue } from '../../lib/ribbonDefaults';
 import { getRibbonCellBaseStyle } from '../../lib/ribbonUtils';
 import { getMergeLookup } from '../../lib/mergeGroups';
@@ -14,8 +14,12 @@ import { formatDuration } from '../../lib/utils';
 // merge groups, sceneStyle, day header/footer colors) — the same pipeline the
 // stripboard and schedule print use.
 //
-// Modes: single (inside a scene-scoped repeat) · day (inside a Days repeat,
-// the day's full section) · all (whole schedule, respects print day filter).
+// Context-driven, no modes:
+//  - inside a Scenes repeat  → that scene's strip
+//  - inside a Days repeat    → the day's section (or just its strips when
+//    ribbonDaySection is off), with strips filtered to the nearest
+//    person/element ancestor when one exists ("this person's scenes on this day")
+//  - anywhere else (top level, elements/categories/cast/crew context) → nothing
 
 function designFor(ctx: ReportCtx, block: ReportBlock) {
   const id = block.ribbonId || ctx.project.activeRibbonId || ctx.project.ribbonDesigns?.[0]?.id;
@@ -99,13 +103,24 @@ const NoteBreakRow: React.FC<{ label: string; ctx: ReportCtx }> = ({ label, ctx 
   );
 };
 
-const DaySectionView: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>> }> = ({ day, ctx, design }) => {
+const DaySectionView: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; sceneFilter?: Set<string> }> = ({ day, ctx, design, sceneFilter }) => {
   const header = getDayHeaderColors(ctx.project.colorPalette);
   const footer = getDayFooterColors(ctx.project.colorPalette);
   const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
   const palette = ctx.project.colorPalette;
   const noteBg = palette?.noteBg || '#3f0000';
   const noteColor = palette?.noteText || '#ffffff';
+  const stripFor = (r: any) => {
+    if (r.type !== 'SCENE' || !r.sceneId) return null;
+    const it = scenes.find(s => s.scene.id === r.sceneId);
+    if (!it) return null;
+    if (sceneFilter && !sceneFilter.has(it.scene.id)) return null;
+    return <Strip key={r.id} it={it} ctx={ctx} design={design} />;
+  };
+  const noteRow = (r: any) => (
+    <div key={r.id} style={{ background: noteBg, color: noteColor, fontSize: 8, padding: '4px 6px', borderTop: '1px solid #000' }}>NOTE — {r.noteText}</div>
+  );
+  const breakRow = (r: any) => <NoteBreakRow key={r.id} label={r.breakLabel || 'BREAK'} ctx={ctx} />;
   return (
     <div style={{ border: '1px solid #000', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
       <div style={{ background: header.background, color: header.color, fontSize: 8, padding: '3px 6px', display: 'flex', justifyContent: 'space-between' }}>
@@ -113,16 +128,9 @@ const DaySectionView: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: Non
         <span>CALL {day.callTime}</span>
       </div>
       {day.section.rows.map((r, i) => {
-        if (r.type === 'SCENE' && r.sceneId) {
-          const it = scenes.find(s => s.scene.id === r.sceneId);
-          return it ? <Strip key={i} it={it} ctx={ctx} design={design} /> : null;
-        }
-        if (r.type === 'NOTE') {
-          return <div key={i} style={{ background: noteBg, color: noteColor, fontSize: 8, padding: '4px 6px', borderTop: '1px solid #000' }}>NOTE — {r.noteText}</div>;
-        }
-        if (r.type === 'BREAK') {
-          return <NoteBreakRow key={i} label={r.breakLabel || 'BREAK'} ctx={ctx} />;
-        }
+        if (r.type === 'SCENE' && r.sceneId) return stripFor(r);
+        if (r.type === 'NOTE') return noteRow(r);
+        if (r.type === 'BREAK') return breakRow(r);
         return null;
       })}
       <div style={{ background: footer.background, color: footer.color, fontSize: 8, padding: '3px 6px', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #000' }}>
@@ -133,34 +141,58 @@ const DaySectionView: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: Non
   );
 };
 
-export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; item?: ReportCollectionItem }> = ({ block, ctx, item }) => {
+const DayStripsOnly: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; sceneFilter?: Set<string> }> = ({ day, ctx, design, sceneFilter }) => {
+  const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+      {day.section.rows.map((r, i) => {
+        if (r.type !== 'SCENE' || !r.sceneId) return null;
+        const it = scenes.find(s => s.scene.id === r.sceneId);
+        if (!it) return null;
+        if (sceneFilter && !sceneFilter.has(it.scene.id)) return null;
+        return <Strip key={i} it={it} ctx={ctx} design={design} />;
+      })}
+    </div>
+  );
+};
+
+/** Scene ids for the nearest element/cast ancestor (person-filtered day strips). */
+function personSceneFilter(ctx: ReportCtx, ancestors: ReportCollectionItem[] | undefined): Set<string> | undefined {
+  if (!ancestors) return undefined;
+  const person = ancestors.find(a => {
+    const any = a as any;
+    return typeof any.id !== 'undefined' && typeof any.name !== 'undefined' && !any.scene;
+  });
+  if (!person || !ruleBearingAncestor(person)) return undefined;
+  return new Set(parentScenesOf(ctx, person).map(s => s.scene.id));
+}
+
+export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; item?: ReportCollectionItem; hint?: boolean; ancestors?: ReportCollectionItem[] }> = ({ block, ctx, item, hint, ancestors }) => {
   const design = designFor(ctx, block);
   if (!design) return null;
-  const mode = block.ribbonMode || 'all';
+  const any = item as any;
 
-  if (mode === 'single') {
-    const it = item as ReportSceneInfo | ReportElementInfo | undefined;
-    if (it && (it as ReportSceneInfo).scene) {
-      return (
-        <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          <Strip it={it as ReportSceneInfo} ctx={ctx} design={design} />
-        </div>
-      );
-    }
-    return null;
+  if (any?.scene) {
+    return (
+      <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} />
+      </div>
+    );
   }
 
-  if (mode === 'day') {
-    const day = item as ReportDayInfo | undefined;
-    if (day) return <DaySectionView day={day} ctx={ctx} design={design} />;
-    return null;
+  if (typeof any?.section?.index === 'number') {
+    const sceneFilter = personSceneFilter(ctx, ancestors);
+    return block.ribbonDaySection === false
+      ? <DayStripsOnly day={item as ReportDayInfo} ctx={ctx} design={design} sceneFilter={sceneFilter} />
+      : <DaySectionView day={item as ReportDayInfo} ctx={ctx} design={design} sceneFilter={sceneFilter} />;
   }
 
-  return (
-    <>
-      {ctx.dayInfos.map(d => (
-        <DaySectionView key={d.section.index} day={d} ctx={ctx} design={design} />
-      ))}
-    </>
-  );
+  if (hint) {
+    return (
+      <div style={{ fontSize: 10, color: '#8f8f8f', fontStyle: 'italic', border: '1px dashed #a1a1aa', borderRadius: 6, padding: 8, textAlign: 'center' }}>
+        Ribbon — place inside a Scenes or Days repeat
+      </div>
+    );
+  }
+  return null;
 };
