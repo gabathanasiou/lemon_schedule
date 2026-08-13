@@ -4,6 +4,7 @@ import { useProject } from '../store';
 import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { IS_COARSE } from '../lib/device';
+import { ReportDesign } from '../types';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -36,7 +37,7 @@ interface AppHeaderProps {
   onPrintSchedule: () => void;
   onPrintDood: () => void;
   onPrintBreakdownSheet: () => void;
-  onPrintElementBreakdown: () => void;
+  onPrintReport: (design: ReportDesign) => void;
   onShowTrash: () => void;
   driveCtx: GoogleAuthContextValue;
   closeProject: () => void;
@@ -52,7 +53,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
     onOpenProjectManager, onImportClick, onExportCSV, onExportJSON,
-    onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintElementBreakdown,
+    onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, driveCtx, closeProject, createProject,
   } = props;
 
@@ -130,9 +131,17 @@ export default function AppHeader(props: AppHeaderProps) {
               <DropdownItem onClick={() => { setShowFileMenu(false); onPrintBreakdownSheet(); }}>
                 Scene Breakdown...
               </DropdownItem>
-              <DropdownItem onClick={() => { setShowFileMenu(false); onPrintElementBreakdown(); }}>
-                Element Breakdown...
-              </DropdownItem>
+            </DropdownSubmenu>
+            <DropdownSubmenu id="print-reports" label="Custom Reports" icon={<Printer className="w-3.5 h-3.5" />} width="w-52">
+              {(project.reportDesigns || []).length === 0 ? (
+                <DropdownItem onClick={() => setShowFileMenu(false)}>No reports yet — create one in Design</DropdownItem>
+              ) : (
+                (project.reportDesigns || []).map(d => (
+                  <DropdownItem key={d.id} onClick={() => { setShowFileMenu(false); onPrintReport(d); }}>
+                    {d.name}
+                  </DropdownItem>
+                ))
+              )}
             </DropdownSubmenu>
             <DropdownDivider />
             {driveCtx.isSignedIn ? (

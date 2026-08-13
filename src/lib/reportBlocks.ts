@@ -302,9 +302,10 @@ export const COLLECTION_LABELS: Record<string, string> = {
   scenesOfCast: 'Scenes (of this cast member)',
   daysOfCast: 'Days (of this cast member)',
   elementsOfCategory: 'Elements (of this category)',
+  elementsOfScene: 'Elements (of this scene)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
@@ -312,6 +313,7 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
     if (c === 'scenesOfElement') return parentCollection === 'elements' || parentCollection === 'elementsOfCategory';
     if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
     if (c === 'elementsOfCategory') return parentCollection === 'categories';
+    if (c === 'elementsOfScene') return parentCollection === 'scenes';
     return true;
   });
 }
@@ -322,7 +324,42 @@ export function contextualCollectionsFor(parentCollection?: ReportCollection): R
   if (parentCollection === 'elements') return ['scenesOfElement'];
   if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast'];
   if (parentCollection === 'categories') return ['elementsOfCategory'];
+  if (parentCollection === 'scenes') return ['elementsOfScene'];
   return [];
+}
+
+const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
+
+/**
+ * Menu options: BASE collections only — the contextual variants ("Scenes (of
+ * this day)", …) are implied by the Lego scope checkbox, not listed.
+ */
+export function baseValidCollections(parentCollection?: ReportCollection): ReportCollection[] {
+  return validCollections(parentCollection).filter(c => !CONTEXTUAL_COLLECTIONS.has(c));
+}
+
+/** Singular noun for a parent collection — used in "of this {noun}" labels. */
+export function parentNoun(parentCollection?: ReportCollection): string {
+  switch (parentCollection) {
+    case 'days': case 'daysOfCast': return 'day';
+    case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': case 'elementsOfScene': return 'scene';
+    case 'elements': case 'elementsOfCategory': return 'element';
+    case 'categories': return 'category';
+    case 'cast': return 'cast member';
+    case 'crew': return 'crew member';
+    default: return 'item';
+  }
+}
+
+/**
+ * Display label for a nested block: surfaces Lego scoping so it's obvious the
+ * repeater is scoped to its parent ("Scenes (of this day)", "Categories (of
+ * this scene)", …). Already-contextual labels pass through unchanged.
+ */
+export function scopedCollectionLabel(effective: string, parentCollection?: ReportCollection, scoped = true): string {
+  const base = COLLECTION_LABELS[effective] || effective;
+  if (!parentCollection || !scoped || base.includes('(of this')) return base;
+  return `${base} (of this ${parentNoun(parentCollection)})`;
 }
 
 /**
@@ -345,6 +382,7 @@ export function tableItemCollection(block: ReportBlock, parentCollection?: Repor
 export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection | undefined {
   if (!parentCollection) return block.collection;
   if (parentCollection === 'categories') return 'elements';
+  if (parentCollection === 'scenes') return 'elements';
   const contextual = contextualCollectionsFor(parentCollection);
   if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;
   return contextual.length > 0 ? 'scenes' : parentCollection;
@@ -365,6 +403,7 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'days': case 'daysOfCast': return 'dayNumber';
     case 'cast': case 'elements': return 'name';
     case 'elementsOfCategory': return 'elementName';
+    case 'elementsOfScene': return 'elementName';
     case 'categories': return 'categoryLabel';
     case 'crew': return 'crewName';
     default: return 'title';

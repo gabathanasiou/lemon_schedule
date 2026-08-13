@@ -1,5 +1,5 @@
 import { ReportBlock } from '../types';
-import { ReportCtx, ReportCollectionItem, resolveCollectionItems } from './reportData';
+import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems } from './reportData';
 import { paginateBlocks } from './reportBlocks';
 
 // Page-level layout for reports: top-level page breaks split pages, and a
@@ -25,7 +25,7 @@ export function hasTrailingBreak(b: ReportBlock): boolean {
   return children.length > 0 && children[children.length - 1].type === 'pageBreak';
 }
 
-export function buildReportPages(blocks: ReportBlock[], ctx: ReportCtx): PageItem[][] {
+export function buildReportPages(blocks: ReportBlock[], ctx: ReportCtx, scopeFilter?: ReportScopeFilter): PageItem[][] {
   const pages: PageItem[][] = [];
   for (const pageBlocks of paginateBlocks(blocks)) {
     if (pageBlocks.length === 0) {
@@ -35,7 +35,12 @@ export function buildReportPages(blocks: ReportBlock[], ctx: ReportCtx): PageIte
     let current: PageItem[] = [];
     for (const b of pageBlocks) {
       if (b.type === 'repeat' && hasTrailingBreak(b)) {
-        const items = resolveCollectionItems(ctx, b.collection, b.category, undefined, undefined, b) as ReportCollectionItem[];
+        const items = filterItemsByScope(
+          resolveCollectionItems(ctx, b.collection, b.category, undefined, undefined, b) as ReportCollectionItem[],
+          b.collection,
+          b.collection === 'elements' ? b.category : undefined,
+          scopeFilter,
+        );
         if (items.length > 0) {
           current.push({ repeatItem: b, item: items[0], itemIndex: 0 });
           pages.push(current);

@@ -4,7 +4,7 @@ import { ReportCtx, resolveCollectionItems, ReportCollectionItem } from '../../l
 import { ReportCollection } from '../../types';
 import { FieldAux } from '../../lib/reportFields';
 import { ReportFieldDef } from '../../lib/reportFields';
-import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, tableItemCollection } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, tableItemCollection, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
@@ -21,8 +21,8 @@ const TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
   spacer: { label: 'Spacer', icon: <Ruler className="w-3 h-3" /> },
 };
 
-function firstItemOf(ctx: ReportCtx, b: ReportBlock, parentItem: any, parentCategory?: string): any {
-  const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b);
+function firstItemOf(ctx: ReportCtx, b: ReportBlock, parentItem: any, parentCategory?: string, outerItem?: any): any {
+  const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b, outerItem);
   return items[0];
 }
 
@@ -156,7 +156,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     </div>
   );
 
-  const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: string, parentItem?: any, parentCategory?: string, onceIds?: Set<string>): React.ReactNode[] => {
+  const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: string, parentItem?: any, parentCategory?: string, onceIds?: Set<string>, outerItem?: any): React.ReactNode[] => {
     const out: React.ReactNode[] = [];
     list.forEach((b, i) => {
       const selected = selId === b.id;
@@ -215,22 +215,23 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
                   {meta.icon}
                   {b.type === 'table'
-                    ? `Table: ${COLLECTION_LABELS[tableItemCollection(b, parentCollection as ReportCollection | undefined)] || 'Scenes'}`
-                    : `Repeat: ${COLLECTION_LABELS[b.collection || 'scenes']}`}
+                    ? `Table: ${scopedCollectionLabel(tableItemCollection(b, parentCollection as ReportCollection | undefined), parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`
+                    : `Repeat: ${scopedCollectionLabel(b.collection || 'scenes', parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`}
                   {b.collection === 'elements' ? ` (${b.category || 'props'})` : ''}
-                  {b.type === 'table' && (b.columns || []).length ? ` · ${b.columns!.length} attribute${(b.columns || []).length > 1 ? 's' : ''}${(b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}` : ''}
+                  {b.type === 'table' && (b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
                   <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
                     {(() => {
                       const coll = b.collection as ReportCollection | undefined;
-                      const onceTables = (b.children || []).filter(cb => cb.type === 'table' && tableItemCollection(cb, coll) === coll);
+                      const onceTables = (b.children || []).filter(cb => cb.type === 'table' && coll === 'elementsOfCategory' && tableItemCollection(cb, coll) === coll);
                       const onceIds = new Set(onceTables.map(cb => cb.id));
                       const regular = (b.children || []).filter(cb => !onceIds.has(cb.id));
+                      const childItem = firstItemOf(ctx, b, parentItem, parentCategory, outerItem);
                       return (
                         <>
-                          {renderBlocks(regular, depth + 1, b.collection, firstItemOf(ctx, b, parentItem, parentCategory), b.category)}
-                          {onceTables.length > 0 && renderBlocks(onceTables, depth + 1, b.collection, parentItem, parentCategory, onceIds)}
+                          {renderBlocks(regular, depth + 1, b.collection, childItem, b.category, undefined, childItem)}
+                          {onceTables.length > 0 && renderBlocks(onceTables, depth + 1, b.collection, parentItem, parentCategory, onceIds, parentItem)}
                         </>
                       );
                     })()}
@@ -274,7 +275,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                     <span className="text-[10px] text-zinc-400 italic">Drop inside repeat (or click to add text)</span>
                   </div>
                 ) : (
-                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} />
+                  <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} outerItem={outerItem} />
                 )}
               </div>
             ) : b.type === 'pageBreak' ? (
@@ -364,7 +365,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                                 </div>
                               )}
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                {renderBlocks(col.blocks || [], depth, parentCollection, parentItem, parentCategory)}
+                                {renderBlocks(col.blocks || [], depth, parentCollection, parentItem, parentCategory, undefined, outerItem)}
                               </div>
                               {(col.blocks || []).length === 0 && (
                                 <div
@@ -411,7 +412,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 );
               })()
             ) : (
-              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} aux={{ index: 0, pageSize }} />
+              <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} aux={{ index: 0, pageSize }} outerItem={outerItem} />
             )}
           </div>
         </div>,

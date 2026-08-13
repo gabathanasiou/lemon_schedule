@@ -271,7 +271,7 @@ export interface ProductionInfo {
 
 export type ReportCollection =
   | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew'
-  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory';
+  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RibbonMode = 'single' | 'day' | 'all';
@@ -312,10 +312,11 @@ export interface ReportBlock {
   emptyBehavior?: EmptyBehavior;
   // repeat
   collection?: ReportCollection;
-  category?: string;             // for 'elements'
+  category?: string;             // for 'elements' / 'elementsOfScene'
   skipEmptyCategories?: boolean; // for 'categories' — on unless explicitly off
   excludedCategories?: string[]; // for 'categories' — categories to omit
   counterStart?: number;         // 0 or 1 — where the Document Counter starts
+  scopedToParent?: boolean;      // nested repeats/tables: only items in the parent's context — on unless explicitly off
   children?: ReportBlock[];
   gap?: number;                  // pt between repeated items
   // table (repeat + table shape)

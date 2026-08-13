@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
-import { ReportCtx, ReportCollectionItem, resolveCollectionItems } from '../../lib/reportData';
+import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
@@ -17,11 +17,12 @@ export interface ReportRenderProps {
   item?: ReportCollectionItem;
   parentCategory?: string;
   parentCollection?: string;
-  scopeFilter?: { days?: number[] };
+  scopeFilter?: ReportScopeFilter;
   hint?: boolean;
   showKeys?: boolean;
   aux?: FieldAux;
   onceTable?: boolean;  // summary table inside a same-collection repeat: list all items
+  outerItem?: ReportCollectionItem; // grandparent context for scopedToParent
 }
 
 function isEmptyValue(v: string): boolean {
@@ -45,7 +46,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, outerItem }) => {
     const baseStyle = getReportBlockBaseStyle(block);
     const blockAux: FieldAux = { ...aux, counterStart: block.counterStart ?? aux?.counterStart };
 
@@ -79,10 +80,10 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <div style={st}>{text || '\u00A0'}</div>;
       }
       case 'repeat': {
-        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} />;
+        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} outerItem={outerItem} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} outerItem={outerItem} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -92,7 +93,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             {cols.map(col => (
               <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 { (col.blocks || []).map(cb => (
-                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} aux={blockAux} />
+                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} outerItem={outerItem} />
                 ))}
               </div>
             ))}
@@ -135,7 +136,10 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.parentCollection === b.parentCollection &&
     a.scopeFilter === b.scopeFilter &&
     a.hint === b.hint &&
-    a.showKeys === b.showKeys,
+    a.showKeys === b.showKeys &&
+    a.outerItem === b.outerItem &&
+    a.aux === b.aux &&
+    a.onceTable === b.onceTable,
 );
 
 // ---- page-level rendering (print + preview): one PageItem per page -----------
@@ -144,13 +148,12 @@ export const ReportPageItems: React.FC<{
   items: PageItem[];
   ctx: ReportCtx;
   fieldMap: Record<string, ReportFieldDef>;
-  scopeFilter?: { days?: number[] };
+  scopeFilter?: ReportScopeFilter;
   hint?: boolean;
   showKeys?: boolean;
   pageIndex?: number;
   pageCount?: number;
-}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1 }) => (
-  <>
+}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1 }) => (  <>
     {items.map((pi, i) => {
       const pageAux: FieldAux = { pageIndex, pageCount };
       if ('repeatItem' in pi) {
@@ -170,6 +173,7 @@ export const ReportPageItems: React.FC<{
                 hint={hint}
                 showKeys={showKeys}
                 aux={{ ...pageAux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
+                outerItem={item}
               />
             ))}
           </div>
@@ -182,11 +186,9 @@ export const ReportPageItems: React.FC<{
 
 // ---- repeat (vertical stack of children) ------------------------------------
 
-const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, aux }) => {
-  const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block) as ReportCollectionItem[];
-  const filtered = block.collection === 'days' && scopeFilter?.days?.length
-    ? items.filter((it: any) => scopeFilter.days!.includes(it.section.index))
-    : items;
+const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, aux, outerItem }) => {
+  const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, outerItem) as ReportCollectionItem[];
+  const filtered = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
   if (filtered.length === 0) {
     if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block));
     return null;
@@ -194,10 +196,10 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
   const gap = block.gap ?? 8;
   const children = block.children || [];
   const collection = block.collection as ReportCollection | undefined;
-  // A table nested in a repeat that iterates the SAME collection (e.g. a table
-  // of the category's elements inside an elements repeat) is a summary table:
-  // it renders ONCE per parent item, listing all items — not once per item.
-  const onceTables = children.filter(cb => cb.type === 'table' && tableItemCollection(cb, collection) === collection);
+  // A table nested in an elementsOfCategory repeat is a SUMMARY table: it
+  // renders ONCE per category, listing all of the category's elements — not
+  // once per element. Any other same-collection nesting stays per-item.
+  const onceTables = children.filter(cb => cb.type === 'table' && collection === 'elementsOfCategory' && tableItemCollection(cb, collection) === collection);
   const onceIds = new Set(onceTables.map(t => t.id));
   const perItemChildren = children.filter(cb => !onceIds.has(cb.id));
   const hasContent = perItemChildren.some(cb => cb.type !== 'pageBreak');
@@ -215,6 +217,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
       hint={hint}
       showKeys={showKeys}
       aux={aux}
+      outerItem={item}
       onceTable
     />
   ));
@@ -234,7 +237,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
         return (
           <div key={i} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             {itemChildren.map(cb => (
-              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} />
+              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} outerItem={it} />
             ))}
           </div>
         );
@@ -251,17 +254,14 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
 const TABLE_LABEL_W = 120;
 const TABLE_ITEM_W = 72;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, outerItem }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
   const items = isPerItem
     ? (item ? [item] : [])
-    : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' ? block.category : undefined, item, parentCategory, block) as ReportCollectionItem[]);
-  const isDays = itemCollection === 'days' || itemCollection === 'daysOfCast';
-  const filtered = isDays && scopeFilter?.days?.length
-    ? items.filter((it: any) => scopeFilter.days!.includes(it.section.index))
-    : items;
+    : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' || itemCollection === 'elementsOfScene' ? block.category : undefined, item, parentCategory, block, outerItem) as ReportCollectionItem[]);
+  const filtered = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
   if (filtered.length === 0) {
     if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block));
     return null;

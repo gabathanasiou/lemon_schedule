@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ReportCollection } from '../../types';
-import { COLLECTION_LABELS } from '../../lib/reportBlocks';
+import { COLLECTION_LABELS, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
 import DropdownMenu from '../DropdownMenu';
 import DropdownSubmenu from '../DropdownSubmenu';
@@ -10,7 +10,9 @@ import { ChevronDown, Check } from 'lucide-react';
 // Collection picker for report blocks (Repeat over / Table over). Replaces the
 // native selects with the shared Radix menu: top-level collections plus an
 // Elements submenu for the category (no separate category row). Cast is not a
-// top-level collection — it's reached via Elements → Cast.
+// top-level collection — it's reached via Elements → Cast. Contextual variants
+// are NOT listed — the Lego scope checkbox implies them; the trigger label
+// surfaces the scoped state ("Scenes (of this day)").
 
 interface CollectionMenuProps {
   value: ReportCollection;
@@ -21,17 +23,20 @@ interface CollectionMenuProps {
   customCategories?: { key: string; icon?: string }[];
   disabled?: boolean;
   width?: string;
+  parentCollection?: ReportCollection;
+  scopedToParent?: boolean;
   onChange: (collection: ReportCollection, category?: string) => void;
 }
 
 const CollectionMenu: React.FC<CollectionMenuProps> = ({
   value, category, collections, categoryKeys, categoryLabels, customCategories,
-  disabled, width = 'w-40', onChange,
+  disabled, width = 'w-40', parentCollection, scopedToParent = true, onChange,
 }) => {
   const [open, setOpen] = useState(false);
+  const scoped = scopedToParent !== false;
   const label = value === 'elements'
-    ? `Elements · ${categoryLabels[category] || category}`
-    : (COLLECTION_LABELS[value] || value);
+    ? `${scopedCollectionLabel('elements', parentCollection, scoped)} · ${categoryLabels[category] || category}`
+    : scopedCollectionLabel(value, parentCollection, scoped);
 
   const pick = (collection: ReportCollection, cat?: string) => {
     onChange(collection, cat);

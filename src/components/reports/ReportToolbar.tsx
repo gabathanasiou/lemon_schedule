@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, ReportTableColumn } from '../../types';
 import { Project } from '../../types';
-import { validCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
@@ -13,6 +13,27 @@ import { Tooltip } from '../Tooltip';
 import { ArrowUp, ArrowDown, Copy, Trash2, Plus, Minus, Check, ChevronDown, EyeOff } from 'lucide-react';
 
 const FONTS = ['Helvetica', 'Arial', 'Times New Roman', 'Georgia', 'Courier New'];
+
+// Lego scope checkbox: "Only {collection} in this {parent}". Works for every
+// parent/collection pair; unsupported pairs (crew — no scene data) simply
+// don't filter. Parent labels map the parent collection to its singular item.
+const BASE_COLLECTION_LABELS: Record<string, string> = {
+  scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
+  days: 'days', daysOfCast: 'days',
+  elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
+  categories: 'categories', cast: 'cast', crew: 'crew',
+};
+
+const PARENT_LABELS: Record<string, string> = {
+  days: 'day', daysOfCast: 'day',
+  scenes: 'scene', scenesOfDay: 'scene', scenesOfElement: 'scene', scenesOfCast: 'scene', elementsOfScene: 'scene',
+  elements: 'element', elementsOfCategory: 'element',
+  categories: 'category', cast: 'cast member', crew: 'crew member',
+};
+
+// Contextual collections are already scoped by their parent item — the Lego
+// checkbox only appears for explicit base-collection selections.
+const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
 
 const selCls = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500';
 const inputCls = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500 w-full';
@@ -61,13 +82,15 @@ const NestedTableMenu: React.FC<{
   disabled: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
 }> = ({ block, parentCollection, allCategoryKeys, categoryLabelLookup, customCategories, disabled, onPatch }) => {
+  // Menu lists BASE collections only (contextual variants are implied by the
+  // Lego scope checkbox); a legacy explicit contextual value stays preserved.
   const contextual = contextualCollectionsFor(parentCollection);
-  const collections = [...contextual];
-  const preserved = block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection) && block.collection !== 'cast'
+  const collections: ReportCollection[] = [];
+  const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
     ? block.collection
     : null;
-  if (preserved) collections.push(preserved);
-  for (const c of validCollections(parentCollection)) {
+  if (preserved) collections.push(preserved as ReportCollection);
+  for (const c of baseValidCollections(parentCollection)) {
     if (c !== 'cast' && !collections.includes(c)) collections.push(c);
   }
 
@@ -80,6 +103,8 @@ const NestedTableMenu: React.FC<{
       categoryLabels={categoryLabelLookup}
       customCategories={customCategories}
       disabled={disabled}
+      parentCollection={parentCollection}
+      scopedToParent={block.scopedToParent !== false}
       onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
     />
   );
@@ -279,11 +304,13 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               <CollectionMenu
                 value={block.collection || 'scenes'}
                 category={block.category || 'props'}
-                collections={validCollections(parentCollection).filter(c => c !== 'cast')}
+                collections={baseValidCollections(parentCollection).filter(c => c !== 'cast')}
                 categoryKeys={allCategoryKeys}
                 categoryLabels={categoryLabelLookup}
                 customCategories={project.customCategories}
                 disabled={disabled}
+                parentCollection={parentCollection}
+                scopedToParent={block.scopedToParent !== false}
                 onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
               />
             </Row>
@@ -295,7 +322,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
                 <CollectionMenu
                   value={block.collection || 'scenes'}
                   category={block.category || 'props'}
-                  collections={validCollections().filter(c => c !== 'cast')}
+                  collections={baseValidCollections().filter(c => c !== 'cast')}
                   categoryKeys={allCategoryKeys}
                   categoryLabels={categoryLabelLookup}
                   customCategories={project.customCategories}
@@ -318,6 +345,12 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               disabled={disabled}
             />
           </Row>
+          {parentCollection && !CONTEXTUAL_COLLECTIONS.has(block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes')) && (
+            <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+              <input type="checkbox" checked={block.scopedToParent !== false} disabled={disabled} onChange={e => onPatch({ scopedToParent: e.target.checked })} />
+              Only {BASE_COLLECTION_LABELS[block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes')] || 'items'} in this {PARENT_LABELS[parentCollection] || 'item'}
+            </label>
+          )}
           {block.collection === 'categories' && (
             <>
               <Row label="Skip empty">

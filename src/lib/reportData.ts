@@ -77,6 +77,119 @@ export interface ReportDaybreakData {
   computedRows: ComputedRow[];
 }
 
+/** One collection's print scope: which items to include. [] = include NOTHING. */
+export interface ReportScope {
+  collection: ReportCollection;
+  category?: string;                // for elements
+  include: (string | number)[];     // reportItemKey values
+}
+
+/**
+ * Print scope selection for custom reports (header Print → Custom Reports).
+ * Only scopes the user explicitly limited appear here — a missing scope for a
+ * collection means "include everything".
+ */
+export interface ReportScopeFilter {
+  scopes: ReportScope[];
+}
+
+/** Stable identity key of a report item within its collection. */
+export function reportItemKey(collection: ReportCollection, item: ReportCollectionItem): string | number {
+  switch (collection) {
+    case 'scenes': return (item as ReportSceneInfo).scene.id;
+    case 'days': case 'daysOfCast': return (item as ReportDayInfo).section.index;
+    case 'cast': case 'elements': case 'elementsOfCategory': return (item as ReportElementInfo).id;
+    case 'categories': return (item as ReportCategoryInfo).key;
+    default: return 0;
+  }
+}
+
+/**
+ * Applies the print scope for `collection`/`category` — only when that scope
+ * is explicitly present in the filter (missing scope = include everything).
+ * Crew has no stable key — filtered by position in the resolved list.
+ */
+export function filterItemsByScope(
+  items: ReportCollectionItem[],
+  collection: ReportCollection | undefined,
+  category: string | undefined,
+  scopeFilter: ReportScopeFilter | undefined,
+): ReportCollectionItem[] {
+  if (!scopeFilter || !collection) return items;
+  const scope = scopeFilter.scopes.find(s => s.collection === collection && (s.category ?? undefined) === (category ?? undefined));
+  if (!scope) return items;
+  const set = new Set(scope.include.map(String));
+  return items.filter((it, i) => {
+    if (collection === 'crew') return set.has(String(i));
+    return set.has(String(reportItemKey(collection, it)));
+  });
+}
+
+// ---- Lego context: scopedToParent --------------------------------------------
+//
+// A nested repeat/table can scope its collection to the parent's context
+// ("only categories of this day", "only elements of this scene", ...). Every
+// rule reduces to the same primitive: which SCENES does the parent item stand
+// for. crew has no scene association — it stays global.
+
+export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem | undefined): ReportSceneInfo[] {
+  if (!parentItem) return [];
+  const any = parentItem as any;
+  if (any.scene) return [parentItem as ReportSceneInfo];                       // scene (or a scenes-of-* item)
+  if (typeof any.section?.index === 'number') {                                 // day
+    return ctx.sceneInfos.filter(si => si.sectionIndex === any.section.index);
+  }
+  if (typeof any.key === 'string' && any.label !== undefined) {                 // category
+    return ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, any.key).length > 0);
+  }
+  if (typeof any.id !== 'undefined' && typeof any.name !== 'undefined') {       // element / cast member
+    const cat = any.category || 'props';
+    const match = elementMatchId(any, cat).toLowerCase();
+    return ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, cat).some(v => v.toLowerCase() === match));
+  }
+  return [];
+}
+
+/** Categories that appear in the given scenes (non-empty breakdown field). */
+function categoriesPresentIn(ctx: ReportCtx, scenes: ReportSceneInfo[]): ReportCategoryInfo[] {
+  if (scenes.length === 0) return [];
+  return ctx.categoryInfos.filter(cat => scenes.some(si => ctx.sceneFieldItems(si.scene, cat.key).length > 0));
+}
+
+/** Elements of `category` attached to the given scenes. */
+function elementsAttachedTo(ctx: ReportCtx, scenes: ReportSceneInfo[], category: string): ReportElementInfo[] {
+  if (scenes.length === 0) return [];
+  const out: ReportElementInfo[] = [];
+  for (const e of getElementsFor(ctx, category)) {
+    const match = elementMatchId(e, category).toLowerCase();
+    if (scenes.some(si => ctx.sceneFieldItems(si.scene, category).some(v => v.toLowerCase() === match))) out.push(e);
+  }
+  return out;
+}
+
+/** All element category keys (built-in + custom, minus hidden). */
+function allCategoryKeysOf(project: Project): string[] {
+  const hidden = new Set(project.hiddenCategories || []);
+  const keys = ELEMENT_CATEGORIES.map(c => c.key);
+  for (const c of project.customCategories || []) if (!keys.includes(c.key)) keys.push(c.key);
+  return keys.filter(k => !hidden.has(k));
+}
+
+/** Elements attached to a single scene — optionally limited to one category. */
+function elementsOfSceneFor(ctx: ReportCtx, scene: Scene, category?: string): ReportElementInfo[] {
+  const keys = category ? [category] : allCategoryKeysOf(ctx.project);
+  const out: ReportElementInfo[] = [];
+  for (const key of keys) {
+    const items = ctx.sceneFieldItems(scene, key);
+    if (items.length === 0) continue;
+    for (const e of getElementsFor(ctx, key)) {
+      const match = elementMatchId(e, key).toLowerCase();
+      if (items.some(v => v.toLowerCase() === match) && !out.some(x => x.id === e.id && x.category === key)) out.push(e);
+    }
+  }
+  return out;
+}
+
 export interface ReportCtx {
   project: Project;
   version: ScheduleVersion;
@@ -330,6 +443,11 @@ export function resolveCollection(
       if (!cat) return [];
       return getElementsFor(ctx, cat.key);
     }
+    case 'elementsOfScene': {
+      const scene = (parentItem as ReportSceneInfo | undefined)?.scene;
+      if (!scene) return [];
+      return elementsOfSceneFor(ctx, scene, category);
+    }
     default: return [];
   }
 }
@@ -337,8 +455,10 @@ export function resolveCollection(
 /**
  * Block-aware collection resolution: applies the block's own filters for the
  * 'categories' collection (skip-empty — on unless explicitly off — and the
- * excluded list). Every renderer resolves through here so the designer,
- * preview and page expansion all agree.
+ * excluded list), plus the Lego scoping rule (scopedToParent — on unless
+ * explicitly off): when an outer item is present, the collection is reduced to
+ * the items that live in the outer item's scenes. Every renderer resolves
+ * through here so the designer, preview and page expansion all agree.
  */
 export function resolveCollectionItems(
   ctx: ReportCtx,
@@ -347,6 +467,7 @@ export function resolveCollectionItems(
   parentItem: any,
   parentCategory: string | undefined,
   block?: ReportBlock,
+  outerItem?: ReportCollectionItem,
 ): ReportCollectionItem[] {
   let items = resolveCollection(ctx, collection, category, parentItem, parentCategory);
   if (collection === 'categories' && block) {
@@ -356,6 +477,44 @@ export function resolveCollectionItems(
     const excluded = new Set(block.excludedCategories || []);
     if (excluded.size > 0) {
       items = items.filter((c: any) => !excluded.has(c.key));
+    }
+  }
+  if (outerItem && block && block.scopedToParent !== false && collection) {
+    const scenes = parentScenesOf(ctx, outerItem);
+    const set = new Set(scenes.map(s => s.sectionIndex));
+    switch (collection) {
+      case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast': {
+        items = scenes;
+        break;
+      }
+      case 'days': case 'daysOfCast': {
+        items = ctx.dayInfos.filter(d => set.has(d.section.index));
+        break;
+      }
+      case 'categories': {
+        items = categoriesPresentIn(ctx, scenes);
+        break;
+      }
+      case 'cast': case 'elements': case 'elementsOfCategory': {
+        const cat = collection === 'cast' ? 'cast' : (category || (parentItem as any)?.key || (parentItem as any)?.category || 'props');
+        items = elementsAttachedTo(ctx, scenes, cat);
+        break;
+      }
+      case 'elementsOfScene': {
+        if (category) {
+          items = elementsAttachedTo(ctx, scenes, category);
+        } else {
+          const out: ReportElementInfo[] = [];
+          for (const key of allCategoryKeysOf(ctx.project)) {
+            for (const e of elementsAttachedTo(ctx, scenes, key)) {
+              if (!out.some(x => x.id === e.id && x.category === key)) out.push(e);
+            }
+          }
+          items = out;
+        }
+        break;
+      }
+      default: break; // crew etc. — no scoping rule
     }
   }
   return items;

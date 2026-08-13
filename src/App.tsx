@@ -33,6 +33,8 @@ import ElementBreakdownDialog, { ElementBreakdownOptions } from './components/pr
 import ElementBreakdown from './components/print/ElementBreakdown';
 import ReportsTab from './components/ReportsTab';
 import ReportPrint from './components/reports/ReportPrint';
+import ReportPrintDialog from './components/reports/ReportPrintDialog';
+import { ReportScopeFilter } from './lib/reportData';
 import DropdownMenu from './components/DropdownMenu';
 import { ItemManagerDropdown } from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
@@ -363,7 +365,8 @@ function AppContent() {
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
   const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
   const [elementBreakdownOptions, setElementBreakdownOptions] = useState<ElementBreakdownOptions | null>(null);
-  const [reportPrint, setReportPrint] = useState<{ design: ReportDesign; daybreak: ReportDaybreakData } | null>(null);
+  const [reportPrint, setReportPrint] = useState<{ design: ReportDesign; daybreak: ReportDaybreakData; scopeFilter?: ReportScopeFilter } | null>(null);
+  const [customReportPrint, setCustomReportPrint] = useState<ReportDesign | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
   const driveCtx = useGoogleAuth();
@@ -579,7 +582,7 @@ function AppContent() {
   if (reportPrint && version) {
     return (
       <div>
-        <ReportPrint project={project} version={version} design={reportPrint.design} daybreak={reportPrint.daybreak} />
+        <ReportPrint project={project} version={version} design={reportPrint.design} daybreak={reportPrint.daybreak} scopeFilter={reportPrint.scopeFilter} />
       </div>
     );
   }
@@ -628,6 +631,16 @@ function AppContent() {
       {showDoodDialog && <DoodDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowDoodDialog(false); setPrintDialogCategory(undefined); setDoodOptions(opts); }} onClose={() => { setShowDoodDialog(false); setPrintDialogCategory(undefined); }} />}
       {showBreakdownSheetDialog && <BreakdownSheetDialog onPrint={(opts) => { setShowBreakdownSheetDialog(false); setBreakdownSheetOptions(opts); }} onClose={() => setShowBreakdownSheetDialog(false)} />}
       {showElementBreakdownDialog && <ElementBreakdownDialog selectedCategory={printDialogCategory} onPrint={(opts) => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); setElementBreakdownOptions(opts); }} onClose={() => { setShowElementBreakdownDialog(false); setPrintDialogCategory(undefined); }} />}
+      {customReportPrint && (
+        <ReportPrintDialog
+          design={customReportPrint}
+          onPrint={(scopes) => {
+            setCustomReportPrint(null);
+            setReportPrint({ design: customReportPrint, daybreak: { sections, computedRows }, scopeFilter: { scopes } });
+          }}
+          onClose={() => setCustomReportPrint(null)}
+        />
+      )}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
       <input ref={importFileRef} type="file" accept=".csv,.fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
 
@@ -659,7 +672,7 @@ function AppContent() {
         onPrintSchedule={() => setShowPrintDialog(true)}
         onPrintDood={() => setShowDoodDialog(true)}
         onPrintBreakdownSheet={() => setShowBreakdownSheetDialog(true)}
-        onPrintElementBreakdown={() => setShowElementBreakdownDialog(true)}
+        onPrintReport={(design) => setCustomReportPrint(design)}
         onShowTrash={() => setShowTrash(true)}
         driveCtx={driveCtx}
         closeProject={closeProject}

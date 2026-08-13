@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Project, ScheduleVersion, ReportDesign } from '../../types';
-import { buildReportCtx, ReportDaybreakData } from '../../lib/reportData';
+import { buildReportCtx, ReportDaybreakData, ReportScopeFilter } from '../../lib/reportData';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { ReportBlockView, ReportPageItems } from './ReportBlockView';
 import { buildReportPages } from '../../lib/reportPagination';
@@ -12,13 +12,13 @@ interface ReportPrintProps {
   version: ScheduleVersion;
   design: ReportDesign;
   daybreak: ReportDaybreakData;
-  scopeFilter?: { days?: number[] };
+  scopeFilter?: ReportScopeFilter;
 }
 
 const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, design, daybreak, scopeFilter }) => {
   const ctx = useMemo(() => buildReportCtx(project, version, daybreak), [project, version, daybreak]);
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
-  const pages = useMemo(() => buildReportPages(design.blocks || [], ctx), [design.blocks, ctx]);
+  const pages = useMemo(() => buildReportPages(design.blocks || [], ctx, scopeFilter), [design.blocks, ctx, scopeFilter]);
 
   const css = `
 ${BASE_PRINT_RESET}
