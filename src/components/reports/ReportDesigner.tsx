@@ -397,6 +397,21 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onInsertTableColumnAt={(tableId, colIndex) => { const zone = zoneOf(tableId); commit(insertTableColumnAt(listOfZone(zone), tableId, colIndex), zone); }}
               onRemoveTableColumn={(tableId, colIndex) => { const zone = zoneOf(tableId); commit(removeTableColumnAt(listOfZone(zone), tableId, colIndex), zone); setSelCol(null); }}
               onInsertIntoZone={(zone, payload) => {
+                // dragging an existing block moves it (Alt = duplicate)
+                if (payload.moveId) {
+                  const srcZone = zoneOf(payload.moveId);
+                  const srcList = listOfZone(srcZone);
+                  const fm = findBlock(srcList, payload.moveId);
+                  if (!fm) return;
+                  const tgtList = listOfZone(zone);
+                  if (srcZone !== zone) commit(removeBlock(srcList, payload.moveId), srcZone);
+                  const next = payload.duplicate
+                    ? [...tgtList, cloneBlock(fm.block)]
+                    : (srcZone !== zone ? [...tgtList, fm.block] : tgtList);
+                  commit(next, zone);
+                  setSelId(payload.moveId);
+                  return;
+                }
                 const b = payloadToBlock(payload, null);
                 commit([...listOfZone(zone), b], zone);
                 setSelId(b.id);

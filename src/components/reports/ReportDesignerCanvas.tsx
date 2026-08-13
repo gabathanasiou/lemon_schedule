@@ -186,8 +186,15 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     else onInsertAfter(id, payload);
   };
 
+  /** Removes every lingering drop indicator inside the canvas (dragleave often
+   *  doesn't fire before a drop, leaving data-active highlights stuck). */
+  const clearActiveZones = () => {
+    containerRef.current?.querySelectorAll('[data-active="1"]').forEach(el => el.removeAttribute('data-active'));
+  };
+
   const endDrag = () => {
     pendingRef.current = null;
+    clearActiveZones();
     setDragging(false);
     setDragSourceId(null);
   };
@@ -214,7 +221,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     const onStart = (e: DragEvent) => {
       if (e.dataTransfer?.types.includes(DROP_MIME)) setExternalDrag(true);
     };
-    const onEnd = () => setExternalDrag(false);
+    const onEnd = () => {
+      setExternalDrag(false);
+      clearActiveZones();
+    };
     document.addEventListener('dragstart', onStart, true);
     document.addEventListener('dragend', onEnd);
     document.addEventListener('drop', onEnd);
@@ -588,6 +598,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
         const cur = e.currentTarget;
         if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
         pendingRef.current = null;
+        clearActiveZones();
       }}
     >
       <div className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
