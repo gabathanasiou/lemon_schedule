@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useProject } from '../store';
 import { useDialog } from './Dialog';
-import { generateUUID, formatDateShort } from '../lib/utils';
+import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../lib/utils';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { CrewPerson } from '../types';
 import PageToolbar from './PageToolbar';
@@ -193,6 +193,19 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
                     <label className="flex items-center gap-3 text-xs text-zinc-500">
                       <span className="w-40 shrink-0 text-right">Wrap Date</span>
                       <span className="flex-1 px-2 py-1 text-xs text-zinc-400">{wrapDate || '—'}</span>
+                    </label>
+                    <label className="flex items-center gap-3 text-xs text-zinc-500">
+                      <span className="w-40 shrink-0 text-right">Report Date Format</span>
+                      <select
+                        className="flex-1 min-w-0 bg-white border border-zinc-300 rounded px-2 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-500 disabled:opacity-50"
+                        disabled={readOnly}
+                        value={productionInfo.dateFormat || 'short'}
+                        onChange={e => commitInfo({ dateFormat: e.target.value })}
+                      >
+                        {DATE_FORMAT_OPTIONS.map(o => (
+                          <option key={o.key} value={o.key}>{o.label}</option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                 </section>

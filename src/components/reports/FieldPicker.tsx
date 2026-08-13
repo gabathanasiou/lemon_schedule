@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { ReportFieldDef } from '../../lib/reportFields';
+import { ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import DropdownMenu from '../DropdownMenu';
 import DropdownSubmenu from '../DropdownSubmenu';
 import DropdownItem from '../DropdownItem';
+import DropdownDivider from '../DropdownDivider';
 import { ChevronDown, Check } from 'lucide-react';
 
-// Attribute picker for the reports toolbar: replaces flat native selects with
-// the shared Radix menu, grouped into submenus by field group (Scene Info,
-// Shooting, Production, ...). Uses the app's DropdownMenu primitives.
+// Attribute picker for the reports toolbar: groups become submenus (Scene Info,
+// Shooting, Cast & Talent, ...). Display vocabulary:
+//  - `separator` fields render a divider before them inside their submenu
+//  - cast identity fields merge into the Elements submenu (unique values on top)
+//  - smart fields resolve by context — their labels carry a clue ("of this scene")
+//  - report-wide groups (Production / Project / Document) sit under a GLOBAL
+//    divider, separated from the item attributes.
 
 interface FieldPickerProps {
   value: string;
@@ -17,26 +22,77 @@ interface FieldPickerProps {
   placeholder?: string;
   className?: string;
   width?: string;
+  scope?: string | null; // effective parent collection — smart-field context clues
 }
 
-export const FieldPicker: React.FC<FieldPickerProps> = ({ value, fields, onChange, disabled, placeholder = '—', className, width = 'w-56' }) => {
+type FieldRow = ReportFieldDef | { sep: true };
+
+export const FieldPicker: React.FC<FieldPickerProps> = ({ value, fields, onChange, disabled, placeholder = '—', className, width = 'w-56', scope }) => {
   const [open, setOpen] = useState(false);
   const current = fields.find(f => f.key === value);
+  const labelOf = (f: ReportFieldDef) => f.scope === 'smart' ? smartFieldLabel(f.label, scope) : f.label;
 
-  const groups: { label: string; fields: ReportFieldDef[] }[] = [];
-  for (const f of fields) {
-    let g = groups.find(x => x.label === f.group);
-    if (!g) { g = { label: f.group, fields: [] }; groups.push(g); }
+  // Counter is the most-used document field — rendered flat at the top of the
+  // menu instead of buried inside the Document submenu.
+  const counterField = fields.find(f => f.key === 'counter');
+  const groupedFields = counterField ? fields.filter(f => f !== counterField) : fields;
+
+  const itemGroups: { label: string; fields: ReportFieldDef[] }[] = [];
+  const globalGroups: { label: string; fields: ReportFieldDef[] }[] = [];
+  for (const f of groupedFields) {
+    const bucket = isGlobalField(f) ? globalGroups : itemGroups;
+    let g = bucket.find(x => x.label === f.group);
+    if (!g) { g = { label: f.group, fields: [] }; bucket.push(g); }
     g.fields.push(f);
   }
 
+  // Cast identity merges into the Elements submenu, unique values on top.
+  const elementsGroup = itemGroups.find(g => g.label === 'Elements');
+  const castGroup = itemGroups.find(g => g.label === 'Cast & Talent' && g.fields.every(f => f.scope === 'cast'));
+
+  const rowsOf = (group: { label: string; fields: ReportFieldDef[] }): FieldRow[] => {
+    const rows: FieldRow[] = [];
+    for (const f of group.fields) {
+      if (f.separator) rows.push({ sep: true });
+      rows.push(f);
+    }
+    return rows;
+  };
+
+  const mergedElementsRows: FieldRow[] | null = (elementsGroup && castGroup)
+    ? [
+        ...castGroup.fields.map(f => f as FieldRow),
+        { sep: true },
+        // skip the elements group's own leading separator — our merge divider covers it
+        ...rowsOf(elementsGroup).filter((r, i) => !(i === 0 && 'sep' in r)),
+      ]
+    : null;
+
+  const itemRows: { label: string; rows: FieldRow[] }[] = itemGroups
+    .filter(g => !(mergedElementsRows && g === castGroup))
+    .map(g => g === elementsGroup && mergedElementsRows
+      ? { label: g.label, rows: mergedElementsRows }
+      : { label: g.label, rows: rowsOf(g) });
+
   const pick = (key: string) => { onChange(key); setOpen(false); };
   const triggerCls = className || 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30 disabled:pointer-events-none';
-  const items = (list: ReportFieldDef[]) => list.map(f => (
-    <DropdownItem key={f.key} onClick={() => pick(f.key)} icon={f.key === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
-      {f.label}
-    </DropdownItem>
+
+  const item = (f: ReportFieldDef) => {
+    return (
+      <DropdownItem key={f.key} onClick={() => pick(f.key)} icon={f.key === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
+        <span className="truncate">{labelOf(f)}</span>
+      </DropdownItem>
+    );
+  };
+
+  const renderRows = (rows: FieldRow[]) => rows.map((r, i) => (
+    <React.Fragment key={i}>
+      {'sep' in r ? <DropdownDivider /> : item(r as ReportFieldDef)}
+    </React.Fragment>
   ));
+
+  const flat = itemRows.length + globalGroups.length <= 1;
+  const hasBoth = itemRows.length > 0 && globalGroups.length > 0;
 
   return (
     <DropdownMenu
@@ -48,10 +104,10 @@ export const FieldPicker: React.FC<FieldPickerProps> = ({ value, fields, onChang
         <button
           type="button"
           disabled={disabled}
-          title={current?.label || placeholder}
+          title={current ? labelOf(current) : placeholder}
           className={`flex items-center justify-between gap-1 ${triggerCls}`}
         >
-          <span className="truncate">{current?.label || placeholder}</span>
+          <span className="truncate">{current ? labelOf(current) : placeholder}</span>
           <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
         </button>
       }
@@ -59,13 +115,38 @@ export const FieldPicker: React.FC<FieldPickerProps> = ({ value, fields, onChang
       {value !== '' && (
         <DropdownItem onClick={() => pick('')}>— none —</DropdownItem>
       )}
-      {groups.length <= 1 ? items(groups[0]?.fields || []) : groups.map(g => (
-        <React.Fragment key={g.label}>
-          <DropdownSubmenu id={g.label} label={g.label} width={width}>
-            {items(g.fields)}
-          </DropdownSubmenu>
-        </React.Fragment>
-      ))}
+      {counterField && (
+        <>
+          {item(counterField)}
+          <DropdownDivider />
+        </>
+      )}
+      {flat ? (
+        renderRows([...(itemRows[0]?.rows || []), ...(globalGroups[0] ? rowsOf(globalGroups[0]) : [])])
+      ) : (
+        <>
+          {itemRows.map(g => (
+            <React.Fragment key={g.label}>
+              <DropdownSubmenu id={g.label} label={g.label} width={width}>
+                {renderRows(g.rows)}
+              </DropdownSubmenu>
+            </React.Fragment>
+          ))}
+          {hasBoth && (
+            <>
+              <DropdownDivider />
+              <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Global</div>
+            </>
+          )}
+          {globalGroups.map(g => (
+            <React.Fragment key={g.label}>
+              <DropdownSubmenu id={g.label} label={g.label} width={width}>
+                {renderRows(rowsOf(g))}
+              </DropdownSubmenu>
+            </React.Fragment>
+          ))}
+        </>
+      )}
     </DropdownMenu>
   );
 };

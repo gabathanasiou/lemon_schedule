@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCollection } from '../../types';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
+import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
 import { Type, AlignLeft, Repeat, Table2, Columns3, Printer, FilePlus, Ruler } from 'lucide-react';
 
@@ -49,10 +50,36 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
     return out;
   }, [fields]);
 
+  const itemGroups = groups.filter(g => !g.fields.every(isGlobalField));
+  const globalGroups = groups.filter(g => g.fields.every(isGlobalField));
+
   const startDrag = (e: React.DragEvent, payload: PaletteDropPayload) => {
     e.dataTransfer.setData(DROP_MIME, JSON.stringify(payload));
     e.dataTransfer.effectAllowed = 'copy';
   };
+
+  const scopeLabel = (insertScope && COLLECTION_LABELS[insertScope as keyof typeof COLLECTION_LABELS]) || insertScope || 'top level';
+
+  const fieldButton = (f: ReportFieldDef) => (
+    <button
+      key={f.key}
+      draggable={!readOnly}
+      onDragStart={e => startDrag(e, { kind: 'field', field: f.key })}
+      onClick={() => !readOnly && onInsert({ kind: 'field', field: f.key })}
+      className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors active:bg-zinc-800 disabled:opacity-40"
+    >
+      <span className="truncate">{f.scope === 'smart' ? smartFieldLabel(f.label, insertScope) : f.label}</span>
+    </button>
+  );
+
+  const groupBlock = (g: { group: string; fields: ReportFieldDef[] }) => (
+    <div key={g.group} className="mb-2">
+      <div className="text-[10px] font-medium text-zinc-600 px-1 mb-0.5">{g.group}</div>
+      <div className="space-y-0.5">
+        {g.fields.map(fieldButton)}
+      </div>
+    </div>
+  );
 
   return (
     <aside className="w-[188px] shrink-0 bg-zinc-900 border-r border-zinc-800 overflow-y-auto select-none">
@@ -75,26 +102,16 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
 
         <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mt-4 mb-2 flex items-center justify-between">
           Attributes
-          <span className="normal-case text-[9px] text-sky-400/80">{insertScope || 'top level'}</span>
+          <span className="normal-case text-[9px] text-sky-400/80">{scopeLabel}</span>
         </div>
-        {groups.map(g => (
-          <div key={g.group} className="mb-2">
-            <div className="text-[10px] font-medium text-zinc-600 px-1 mb-0.5">{g.group}</div>
-            <div className="space-y-0.5">
-              {g.fields.map(f => (
-                <button
-                  key={f.key}
-                  draggable={!readOnly}
-                  onDragStart={e => startDrag(e, { kind: 'field', field: f.key })}
-                  onClick={() => !readOnly && onInsert({ kind: 'field', field: f.key })}
-                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors active:bg-zinc-800 disabled:opacity-40"
-                >
-                  <span className="truncate">{f.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+        {itemGroups.map(groupBlock)}
+        {globalGroups.length > 0 && (
+          <>
+            {itemGroups.length > 0 && <div className="border-t border-zinc-800 my-2" />}
+            <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider px-1 mb-1">Global</div>
+            {globalGroups.map(groupBlock)}
+          </>
+        )}
         {groups.length === 0 && (
           <div className="px-1 text-[10px] text-zinc-600 italic">No attributes here — production/project fields are available everywhere.</div>
         )}

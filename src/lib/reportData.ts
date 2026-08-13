@@ -45,13 +45,27 @@ export interface ReportElementInfo {
   category: string;
   sceneCount: number;
   attachedScenes: string;
+  sceneIds: string[];
   totalPages: number;
-  shootDays: string[];
+  workDayList: { day: number; iso: string }[];
+  holdDayList: { day: number; iso: string }[];
+  travelDayList: { day: number; iso: string }[];
   workDays: number;
   holdDays: number;
   travelDays: number;
   startDate: string | null;
   finishDate: string | null;
+}
+
+/** Production-wide aggregates (group 'Production' — the whole schedule). */
+export interface ReportProductionTotals {
+  shootDays: number;
+  shootMin: number;
+  breakMin: number;
+  pages: number;
+  scenes: number;
+  firstDay: string;
+  lastDay: string;
 }
 
 export interface ReportCrewItem {
@@ -185,6 +199,7 @@ export interface ReportCtx {
   castNames: Map<string, string>;
   elementsCache: Map<string, ReportElementInfo[]>;
   crewItems: ReportCrewItem[];
+  totals: ReportProductionTotals;
   sceneFieldItems: (scene: Scene, category: string) => string[];
 }
 
@@ -296,6 +311,16 @@ export function buildReportCtx(
     }
   }
 
+  const totals: ReportProductionTotals = {
+    shootDays: dayInfos.length,
+    shootMin: dayInfos.reduce((sum, d) => sum + d.shootMin, 0),
+    breakMin: dayInfos.reduce((sum, d) => sum + d.breakMin, 0),
+    pages: dayInfos.reduce((sum, d) => sum + d.totalPages, 0),
+    scenes: sceneInfos.length,
+    firstDay: dayInfos[0]?.date || version.productionStart || todayIso(),
+    lastDay: dayInfos[dayInfos.length - 1]?.date || version.productionStart || todayIso(),
+  };
+
   return {
     project,
     version,
@@ -305,6 +330,7 @@ export function buildReportCtx(
     castNames,
     elementsCache: new Map(),
     crewItems,
+    totals,
     sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
   };
 }
@@ -323,6 +349,10 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
   const elements = loadCategoryElements(project, category);
   const stats = computeElementStats(ctx, category, elements);
   const matchId = (e: { id: string; name: string }) => elementMatchId(e, category);
+  const chronoByDate = new Map(ctx.dayInfos.map(d => [d.date, d.chronoDay]));
+  const toDayEntries = (list: string[]) => list
+    .map(iso => ({ iso, day: chronoByDate.get(iso) ?? 0 }))
+    .filter(e => e.day > 0);
   const out: ReportElementInfo[] = [];
   for (const e of elements) {
     const scenesOf = ctx.sceneInfos.filter(si =>
@@ -335,8 +365,11 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
       category,
       sceneCount: scenesOf.length,
       attachedScenes: scenesOf.map(si => si.scene.sceneNumber).join(', '),
+      sceneIds: scenesOf.map(si => si.scene.id),
       totalPages: scenesOf.reduce((sum, si) => sum + (si.scene.pageCountDecimal || 0), 0),
-      shootDays: [...new Set(scenesOf.map(si => `Day ${si.chronoDay} (${formatDateShort(si.date)})`))],
+      workDayList: toDayEntries(t?.workDayList || []),
+      holdDayList: toDayEntries(t?.holdDayList || []),
+      travelDayList: toDayEntries(t?.travelDayList || []),
       workDays: t?.workDays ?? 0,
       holdDays: t?.holdDays ?? 0,
       travelDays: t?.travelDays ?? 0,
@@ -510,4 +543,25 @@ export function ruleBearingAncestor(a: ReportCollectionItem): boolean {
     || typeof any.section?.index === 'number'
     || (typeof any.key === 'string' && any.label !== undefined)
     || typeof any.id !== 'undefined';
+}
+
+/**
+ * The SCENES a block's ancestor chain stands for (Lego intersection of every
+ * rule-bearing ancestor's scenes — same primitive resolveCollectionItems uses
+ * for row scoping). Smart fields apply this to stay composable in nested
+ * repeats: an element's Shoot Time inside a day→category chain only sums its
+ * scenes within that day. null = no scoping (top level).
+ */
+export function ancestorSceneScope(ctx: ReportCtx, ancestors?: ReportCollectionItem[]): Set<string> | null {
+  if (!ancestors || ancestors.length === 0) return null;
+  const sceneSets = ancestors.filter(ruleBearingAncestor).map(a => parentScenesOf(ctx, a));
+  if (sceneSets.length === 0) return null;
+  const ids = new Set(sceneSets[0].map(s => s.scene.id));
+  for (const set of sceneSets.slice(1)) {
+    const keep = new Set(set.map(s => s.scene.id));
+    for (const id of [...ids]) {
+      if (!keep.has(id)) ids.delete(id);
+    }
+  }
+  return ids;
 }

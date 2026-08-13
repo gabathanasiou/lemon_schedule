@@ -27,6 +27,9 @@ export interface DoodTotals {
   travelDays: number;
   startDate: string | null;
   finishDate: string | null;
+  workDayList: string[];
+  holdDayList: string[];
+  travelDayList: string[];
 }
 
 export function getSceneElements(scene: Scene, category: string): string[] {
@@ -155,10 +158,23 @@ export function deriveDood(
     const workDays = appearSet.size;
     const holdCount = cells.filter(c => c === 'H').length;
     const travelCount = cells.filter(c => c === 'T').length;
+    const workDayList: string[] = [];
+    const holdDayList: string[] = [];
+    const travelDayList: string[] = [];
+    days.forEach((d, i) => {
+      const c = cells[i];
+      if (c === 'T') travelDayList.push(d.isoDate);
+      else if (c === 'H') holdDayList.push(d.isoDate);
+      else if (c) workDayList.push(d.isoDate);
+    });
     const elementName = getElementDisplayName(elementId, isCast, castMemberNames, elementNameMap);
 
     doodRows.push({ elementId, elementName, cells });
-    totals.set(elementId, { workDays, holdDays: holdCount, travelDays: travelCount, startDate: firstDate, finishDate: lastDate });
+    totals.set(elementId, {
+      workDays, holdDays: holdCount, travelDays: travelCount,
+      startDate: firstDate, finishDate: lastDate,
+      workDayList, holdDayList, travelDayList,
+    });
   }
 
   return { days, rows: doodRows, totals };

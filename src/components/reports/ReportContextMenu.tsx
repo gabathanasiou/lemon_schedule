@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ReportBlock } from '../../types';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { Project } from '../../types';
 
 export interface MenuState { x: number; y: number; id: string; colIndex?: number; }
@@ -31,6 +31,7 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
   );
   const itemCls = 'w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-800 rounded transition-colors';
   const isColumnMenu = menu.colIndex !== undefined;
+  const labelOf = (f: ReportFieldDef) => f.scope === 'smart' ? smartFieldLabel(f.label, insertScope) : f.label;
 
   return (
     <div
@@ -59,11 +60,21 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
           <>
             <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Change field</div>
             <div className="max-h-[220px] overflow-y-auto">
-              {fields.map(f => (
+              {fields.filter(f => !isGlobalField(f)).map(f => (
                 <button key={f.key} className={itemCls} onClick={() => { onChangeField(f.key); onClose(); }}>
-                  {f.label}
+                  <span className="truncate">{labelOf(f)}</span>
                 </button>
               ))}
+              {fields.some(f => isGlobalField(f)) && fields.some(f => !isGlobalField(f)) && (
+                <>
+                  <div className="px-2.5 pt-1.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-t border-zinc-800 mt-1">Global</div>
+                  {fields.filter(isGlobalField).map(f => (
+                    <button key={f.key} className={itemCls} onClick={() => { onChangeField(f.key); onClose(); }}>
+                      <span className="truncate">{labelOf(f)}</span>
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
             <div className="border-t border-zinc-800 my-1" />
           </>
