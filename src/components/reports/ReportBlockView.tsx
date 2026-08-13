@@ -24,6 +24,10 @@ export interface ReportRenderProps {
   aux?: FieldAux;
   onceTable?: boolean;  // summary table inside a same-collection repeat: list all items
   ancestors?: ReportCollectionItem[]; // full parent-item chain, nearest first — for scopedToParent
+  onColumnSelect?: (colIndex: number) => void;            // designer only (columns-mode tables)
+  onColumnContextMenu?: (e: React.MouseEvent, colIndex: number) => void;
+  onMoveColumn?: (from: number, to: number) => void;
+  selectedColumn?: number | null;
 }
 
 function isEmptyValue(v: string): boolean {
@@ -47,7 +51,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project.reportTextStyles);
     const blockAux: FieldAux = {
       ...aux,
@@ -94,7 +98,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} ancestors={ancestors} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -146,7 +150,11 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.showKeys === b.showKeys &&
     a.ancestors === b.ancestors &&
     a.aux === b.aux &&
-    a.onceTable === b.onceTable,
+    a.onceTable === b.onceTable &&
+    a.onColumnSelect === b.onColumnSelect &&
+    a.onColumnContextMenu === b.onColumnContextMenu &&
+    a.onMoveColumn === b.onMoveColumn &&
+    a.selectedColumn === b.selectedColumn,
 );
 
 // ---- page-level rendering (print + preview): one PageItem per page -----------
@@ -261,7 +269,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
 const TABLE_LABEL_W = 120;
 const TABLE_ITEM_W = 72;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -279,7 +287,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   const renderTable = (items: ReportCollectionItem[], skeleton = false) =>
     (block.axis ?? 'columns') === 'rows'
       ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} />
-      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} />;
+      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} />;
 
   // Designer canvas: an empty collection still shows the table skeleton
   // (header + field-key row) so the layout is visible without data.
@@ -326,34 +334,107 @@ const TableColumnsGrid: React.FC<{
   aux?: FieldAux;
   perItemIndex?: number;
   skeleton?: boolean;
-}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton }) => {
+  onColumnSelect?: (colIndex: number) => void;
+  onColumnContextMenu?: (e: React.MouseEvent, colIndex: number) => void;
+  onMoveColumn?: (from: number, to: number) => void;
+  selectedColumn?: number | null;
+}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
   const keyCell = (field: string) => (
     <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
   );
+  const editable = !!onColumnSelect;
+  const dragRef = React.useRef<{ from: number; startX: number; startY: number; dragging: boolean } | null>(null);
+  const [reorderFrom, setReorderFrom] = React.useState<number | null>(null);
+  const [reorderOver, setReorderOver] = React.useState<number | null>(null);
+  const reorderOverRef = React.useRef<number | null>(null);
+  reorderOverRef.current = reorderOver;
+
+  const startPointer = (e: React.PointerEvent, ci: number) => {
+    if (!editable) return;
+    // preventDefault stops the block card's native HTML5 drag from swallowing
+    // pointer events; selection happens on pointerup instead of click.
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { from: ci, startX: e.clientX, startY: e.clientY, dragging: false };
+    const rowEl = (e.currentTarget as HTMLElement).parentElement;
+    const onMove = (ev: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d || !rowEl) return;
+      if (!d.dragging && Math.abs(ev.clientX - d.startX) + Math.abs(ev.clientY - d.startY) < 6) return;
+      if (!d.dragging) {
+        d.dragging = true;
+        setReorderFrom(d.from);
+      }
+      ev.preventDefault();
+      const rect = rowEl.getBoundingClientRect();
+      const cells = Array.from(rowEl.children) as HTMLElement[];
+      const x = ev.clientX - rect.left;
+      let acc = 0;
+      const centers = cells.map(c => { const w = c.getBoundingClientRect().width; acc += w; return acc - w / 2; });
+      let over = cells.length - 1;
+      for (let i = 0; i < centers.length; i++) {
+        if (x <= centers[i] + 0.5) { over = i; break; }
+      }
+      reorderOverRef.current = over;
+      setReorderOver(over);
+    };
+    const onUp = () => {
+      const d = dragRef.current;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      if (!d) return;
+      if (d.dragging) {
+        if (reorderOverRef.current !== null && reorderOverRef.current !== d.from && onMoveColumn) {
+          onMoveColumn(d.from, reorderOverRef.current);
+        }
+      } else if (onColumnSelect) {
+        onColumnSelect(d.from);
+      }
+      dragRef.current = null;
+      setReorderFrom(null);
+      setReorderOver(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  const cellHandlers = (ci: number) => ({
+    onPointerDown: editable ? ((e: React.PointerEvent) => startPointer(e, ci)) : undefined,
+    onContextMenu: onColumnContextMenu ? ((e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onColumnContextMenu(e, ci); }) : undefined,
+  });
+
+  const colOutline = (ci: number): React.CSSProperties => {
+    if (selectedColumn === ci) return { outline: '2px solid #3b82f6', outlineOffset: -2 };
+    if (reorderFrom !== null && reorderOver !== null && reorderFrom !== reorderOver && reorderOver === ci) return { outline: '2px dashed #3b82f6', outlineOffset: -2 };
+    if (reorderFrom === ci) return { opacity: 0.45 };
+    return {};
+  };
+
   return (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
       {block.showHeader && (
         <div style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {attributes.map(c => (
-            <div key={c.id} data-col-ci={c.id} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
+          {attributes.map((c, ci) => (
+            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {fieldMap[c.field]?.label || c.field || ''}
+              {editable && <span style={{ float: 'right', opacity: 0.35, fontSize: 9, lineHeight: '14px' }}>⠿</span>}
             </div>
           ))}
         </div>
       )}
       {skeleton ? (
         <div style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {attributes.map(c => (
-            <div key={c.id} data-col-ci={c.id} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
+          {attributes.map((c, ci) => (
+            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {keyCell(c.field)}
             </div>
           ))}
         </div>
       ) : items.map((it, i) => (
         <div key={i} style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          {attributes.map(c => (
-            <div key={c.id} data-col-ci={c.id} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
+          {attributes.map((c, ci) => (
+            <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {showKeys
                 ? keyCell(c.field)
                 : (reportFieldValueByKey(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}

@@ -4,7 +4,7 @@ import { Project } from '../../types';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Plus, Trash2 } from 'lucide-react';
 import {
-  BlockCtx, BLOCK_TYPE_META, StructureControls, ContentControls, StyleControls, LayoutControls,
+  BlockCtx, BLOCK_TYPE_META, StructureControls, StyleControls, LayoutControls,
   TB_ROW_LABEL, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, ToolButton,
 } from './blockControls';
 
@@ -55,10 +55,14 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
             <span className={TB_ROW_LABEL}>Column {selCol.colIndex + 1} of {selCol.colsCount}</span>
             <ToolButton onClick={() => onInsertColumnAt(selCol.colIndex)} disabled={disabled} title="Insert column before"><Plus className="w-3 h-3" /> Before</ToolButton>
             <ToolButton onClick={() => onInsertColumnAt(selCol.colIndex + 1)} disabled={disabled} title="Insert column after"><Plus className="w-3 h-3" /> After</ToolButton>
-            <ToolButton onClick={onAddTextToColumn} disabled={disabled} title="Add text block to column"><Plus className="w-3 h-3" /> Text</ToolButton>
+            {block.type !== 'table' && (
+              <ToolButton onClick={onAddTextToColumn} disabled={disabled} title="Add text block to column"><Plus className="w-3 h-3" /> Text</ToolButton>
+            )}
             <div className={TB_DIVIDER} />
             <ToolButton onClick={onRemove} disabled={disabled || selCol.colsCount <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>
-            <span className="text-[10px] text-zinc-600 pl-2">Select a column on the canvas, or hover a divider to resize.</span>
+            <span className="text-[10px] text-zinc-600 pl-2">
+              {block.type === 'table' ? 'Select a column on the grid, or hover a divider to resize.' : 'Select a column on the canvas, or hover a divider to resize.'}
+            </span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
@@ -76,9 +80,9 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
         )}
 
         {!selCol && (
-          <div className="flex items-start gap-x-4 gap-y-2 px-3 py-1.5 flex-wrap min-w-max">
-            <span className={`${TB_ROW_LABEL} pt-0.5`}>Content</span>
-            <ContentControls {...ctx} />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
+            <span className={TB_ROW_LABEL}>Edit</span>
+            <span className="text-[10px] text-zinc-600">Open the floating editor above the block for content controls.</span>
           </div>
         )}
 

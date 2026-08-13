@@ -1,5 +1,6 @@
-import { ReportBlock, ReportCollection, ReportColumn } from '../types';
+import { ReportBlock, ReportCollection, ReportColumn, ReportTableColumn } from '../types';
 import { generateUUID } from './utils';
+import { normalizeColWidths } from './ribbonDefaults';
 
 // Immutable tree helpers for report design block lists. Contract: findBlock
 // returns `parent: null` for root-level blocks (never the root array) — root
@@ -237,7 +238,6 @@ export function moveIntoChildren(blocks: ReportBlock[], moveId: string, containe
 }
 
 // ---- column ops (columns block) ----------------------------------------------
-
 /** Normalizes the given width weights to percentages summing to 100. */
 function rescaleWidths(cols: ReportColumn[], weights: number[]): ReportColumn[] {
   const total = weights.reduce((a, b) => a + b, 0) || 1;
@@ -286,6 +286,49 @@ export function duplicateIntoNewColumn(blocks: ReportBlock[], moveId: string, co
   const fm = findBlock(blocks, moveId);
   if (!fm) return blocks;
   return insertColumnAt(blocks, colsId, colIndex, cloneBlock(fm.block));
+}
+
+// ---- table column ops (columns-mode tables) -----------------------------------
+// Canvas column editing mirrors the columns block: click a column to select it,
+// reorder by dragging the header, insert/delete at any index. Widths are
+// re-normalized to sum to 100 on every structural change.
+
+function mapTableColumns(blocks: ReportBlock[], tableId: string, fn: (cols: ReportTableColumn[]) => ReportTableColumn[]): ReportBlock[] {
+  return mapTree(blocks, tableId, b => {
+    if (b.type !== 'table') return b;
+    return { ...b, columns: fn(b.columns || []) };
+  });
+}
+
+/** Reorders a table column from `from` to `to`; widths stay normalized. */
+export function moveTableColumn(blocks: ReportBlock[], tableId: string, from: number, to: number): ReportBlock[] {
+  return mapTableColumns(blocks, tableId, cols => {
+    if (from === to || from < 0 || to < 0 || from >= cols.length || to >= cols.length) return cols;
+    const next = [...cols];
+    const [c] = next.splice(from, 1);
+    next.splice(to, 0, c);
+    return next;
+  });
+}
+
+/** Inserts an (empty-field) column at `index`; existing widths shrink proportionally. */
+export function insertTableColumnAt(blocks: ReportBlock[], tableId: string, index: number, column?: ReportTableColumn): ReportBlock[] {
+  return mapTableColumns(blocks, tableId, cols => {
+    const i = Math.max(0, Math.min(index, cols.length));
+    const avg = cols.length > 0 ? cols.reduce((a, c) => a + c.width, 0) / cols.length : 50;
+    const next = [...cols];
+    next.splice(i, 0, column || { id: blockId(), field: '', width: avg });
+    return normalizeColWidths(next.map(c => c.width)).map((w, j) => ({ ...next[j], width: w }));
+  });
+}
+
+/** Removes the column at `index`; no-op when only one column remains. */
+export function removeTableColumnAt(blocks: ReportBlock[], tableId: string, index: number): ReportBlock[] {
+  return mapTableColumns(blocks, tableId, cols => {
+    if (cols.length <= 1) return cols;
+    const next = cols.filter((_, i) => i !== index);
+    return normalizeColWidths(next.map(c => c.width)).map((w, j) => ({ ...next[j], width: w }));
+  });
 }
 
 // ---- collection context ------------------------------------------------------

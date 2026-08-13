@@ -121,6 +121,49 @@ input, textarea, [contenteditable] {
 .block-card.block-type-columns.selected { background: #e7edfa; }
 .block-card.selected > .block-chrome { display: flex !important; }
 
+/* floating block editor — full per-type controls above the selected block */
+.block-chrome {
+  display: none;
+  position: absolute;
+  top: -4px;
+  left: 8px;
+  transform: translateY(-100%);
+  flex-direction: column;
+  gap: 6px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  padding: 6px 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 40;
+  min-width: 300px;
+  max-width: 560px;
+}
+.block-chrome.below {
+  top: 100%;
+  transform: none;
+}
+@media (pointer: coarse) {
+  .block-chrome { left: 4px; right: 4px; max-width: none; min-width: 0; padding: 10px 8px; }
+}
+
+/* floating table-column editor (columns-mode tables) */
+.table-column-chrome {
+  position: absolute;
+  top: -4px;
+  left: 8px;
+  transform: translateY(-100%);
+  display: flex;
+  align-items: center;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  z-index: 41;
+}
+.block-card.selected .table-column-chrome { top: 42px; transform: none; }
+
 .chrome-btn {
   display: inline-flex;
   align-items: center;

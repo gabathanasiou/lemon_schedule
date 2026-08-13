@@ -6,6 +6,7 @@ import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, newTextStyle } from '../../lib/reportTextStyles';
+import { IS_COARSE } from '../../lib/device';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import RichTextEditor, { RichTextEditorHandle } from './RichTextEditor';
@@ -31,23 +32,23 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   spacer: { label: 'Spacer', icon: <Ruler className="w-3 h-3" /> },
 };
 
-// Ribbon-designer toolbar vocabulary
-export const TB_ROW_LABEL = 'text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16';
-export const TB_BTN = 'h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors';
-export const TB_BTN_ICON = 'h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors';
+// Ribbon-designer toolbar vocabulary (touch devices scale up — app pattern)
+export const TB_ROW_LABEL = IS_COARSE ? 'text-xs font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-24' : 'text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16';
+export const TB_BTN = IS_COARSE ? 'h-10 px-3.5 text-sm font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-2 transition-colors' : 'h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors';
+export const TB_BTN_ICON = IS_COARSE ? 'h-10 px-3 text-sm font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-1 transition-colors' : 'h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors';
 export const TB_DANGER = 'hover:bg-red-950/50';
-export const TB_TOGGLE = 'h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors';
+export const TB_TOGGLE = IS_COARSE ? 'h-10 w-10 rounded border flex items-center justify-center disabled:opacity-25 transition-colors' : 'h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors';
 export const TB_TOGGLE_ON = 'bg-blue-900/50 border-blue-700 text-blue-300';
 export const TB_TOGGLE_OFF = 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700';
-export const TB_INPUT = 'h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30';
-export const TB_NUM = 'w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50';
-export const TB_SELECT = 'h-7 px-2.5 text-[10px] rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center gap-1.5 transition-colors disabled:opacity-30';
-export const TB_DIVIDER = 'w-px h-5 bg-zinc-700 mx-0.5';
+export const TB_INPUT = IS_COARSE ? 'h-10 px-2.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30' : 'h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30';
+export const TB_NUM = IS_COARSE ? 'w-14 h-9 bg-zinc-800 border border-zinc-700 rounded text-sm text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50' : 'w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50';
+export const TB_SELECT = IS_COARSE ? 'h-10 px-3 text-sm rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center gap-2 transition-colors disabled:opacity-30' : 'h-7 px-2.5 text-[10px] rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center gap-1.5 transition-colors disabled:opacity-30';
+export const TB_DIVIDER = IS_COARSE ? 'w-px h-7 bg-zinc-700 mx-1' : 'w-px h-5 bg-zinc-700 mx-0.5';
 export const TB_SEG = 'inline-flex rounded overflow-hidden border border-zinc-700';
 
 export const ToolButton: React.FC<{ onClick: () => void; disabled?: boolean; title: string; className?: string; children: React.ReactNode }> = ({ onClick, disabled, title, className = TB_BTN, children }) => (
   <Tooltip content={title}>
-    <button onClick={onClick} disabled={disabled} className={`${className} ${disabled ? 'disabled:opacity-30 disabled:pointer-events-none' : ''}`}>
+    <button onClick={onClick} disabled={disabled} aria-label={title} className={`${className} ${disabled ? 'disabled:opacity-30 disabled:pointer-events-none' : ''}`}>
       {children}
     </button>
   </Tooltip>
@@ -62,7 +63,7 @@ export const Seg: React.FC<{ value: string; options: { v: string; l: string }[];
           key={o.v}
           disabled={disabled}
           onClick={() => onChange(o.v)}
-          className={`h-7 px-2 text-[10px] font-medium transition-colors disabled:opacity-30 ${on ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'} ${o.v !== options[options.length - 1].v ? 'border-r border-zinc-700' : ''}`}
+          className={`${IS_COARSE ? 'h-10 px-3.5 text-sm' : 'h-7 px-2 text-[10px]'} font-medium transition-colors disabled:opacity-30 ${on ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'} ${o.v !== options[options.length - 1].v ? 'border-r border-zinc-700' : ''}`}
         >
           {o.l}
         </button>
