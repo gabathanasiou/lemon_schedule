@@ -1,0 +1,795 @@
+import React, { useMemo, useState } from 'react';
+import { ReportBlock, ReportCollection, ReportTableColumn, Project } from '../../types';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS } from '../../lib/reportFields';
+import { normalizeColWidths } from '../../lib/ribbonDefaults';
+import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
+import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
+import { FieldPicker } from './FieldPicker';
+import CollectionMenu from './CollectionMenu';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
+import { Tooltip } from '../Tooltip';
+import { Plus, Minus, Check, ChevronDown, EyeOff, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler } from 'lucide-react';
+
+// ---- shared block-editor controls (toolbar + floating chrome) -----------------
+
+export const FONTS = ['Helvetica', 'Arial', 'Times New Roman', 'Georgia', 'Courier New'];
+
+export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
+  text: { label: 'Text', icon: <Type className="w-3 h-3" /> },
+  field: { label: 'Attribute', icon: <Type className="w-3 h-3" /> },
+  repeat: { label: 'Repeat', icon: <Repeat className="w-3 h-3" /> },
+  table: { label: 'Table', icon: <Table2 className="w-3 h-3" /> },
+  columns: { label: 'Columns', icon: <Columns3 className="w-3 h-3" /> },
+  ribbon: { label: 'Ribbon', icon: <Printer className="w-3 h-3" /> },
+  pageBreak: { label: 'Page Break', icon: <FilePlus className="w-3 h-3" /> },
+  spacer: { label: 'Spacer', icon: <Ruler className="w-3 h-3" /> },
+};
+
+// Ribbon-designer toolbar vocabulary
+export const TB_ROW_LABEL = 'text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16';
+export const TB_BTN = 'h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors';
+export const TB_BTN_ICON = 'h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors';
+export const TB_DANGER = 'hover:bg-red-950/50';
+export const TB_TOGGLE = 'h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors';
+export const TB_TOGGLE_ON = 'bg-blue-900/50 border-blue-700 text-blue-300';
+export const TB_TOGGLE_OFF = 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700';
+export const TB_INPUT = 'h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30';
+export const TB_NUM = 'w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50';
+export const TB_SELECT = 'h-7 px-2.5 text-[10px] rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center gap-1.5 transition-colors disabled:opacity-30';
+export const TB_DIVIDER = 'w-px h-5 bg-zinc-700 mx-0.5';
+export const TB_SEG = 'inline-flex rounded overflow-hidden border border-zinc-700';
+
+export const ToolButton: React.FC<{ onClick: () => void; disabled?: boolean; title: string; className?: string; children: React.ReactNode }> = ({ onClick, disabled, title, className = TB_BTN, children }) => (
+  <Tooltip content={title}>
+    <button onClick={onClick} disabled={disabled} className={`${className} ${disabled ? 'disabled:opacity-30 disabled:pointer-events-none' : ''}`}>
+      {children}
+    </button>
+  </Tooltip>
+);
+
+export const Seg: React.FC<{ value: string; options: { v: string; l: string }[]; onChange: (v: string) => void; disabled?: boolean; active?: (v: string) => boolean }> = ({ value, options, onChange, disabled, active }) => (
+  <div className={TB_SEG}>
+    {options.map(o => {
+      const on = active ? active(o.v) : value === o.v;
+      return (
+        <button
+          key={o.v}
+          disabled={disabled}
+          onClick={() => onChange(o.v)}
+          className={`h-7 px-2 text-[10px] font-medium transition-colors disabled:opacity-30 ${on ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'} ${o.v !== options[options.length - 1].v ? 'border-r border-zinc-700' : ''}`}
+        >
+          {o.l}
+        </button>
+      );
+    })}
+  </div>
+);
+
+// ---- font picker (custom dropdown, options styled in their own typeface) ------
+
+export const FontMenu: React.FC<{ value: string; disabled: boolean; onChange: (f: string) => void }> = ({ value, disabled, onChange }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-44"
+      trigger={
+        <button type="button" disabled={disabled} className={`${TB_SELECT} disabled:pointer-events-none`}>
+          <span className="truncate" style={{ fontFamily: value || 'Helvetica' }}>{value || 'Helvetica'}</span>
+          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+        </button>
+      }
+    >
+      {FONTS.map(f => (
+        <DropdownItem key={f} onClick={() => { onChange(f); setOpen(false); }} icon={f === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          <span style={{ fontFamily: f }}>{f}</span>
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+};
+
+// ---- structure (insert / move / duplicate / delete) ---------------------------
+
+export interface StructureControlsProps {
+  label: React.ReactNode;
+  readOnly: boolean;
+  onInsertAbove?: () => void;
+  onInsertBelow?: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  onMove: (dir: -1 | 1) => void;
+  compact?: boolean;
+}
+
+export const StructureControls: React.FC<StructureControlsProps> = ({ label, readOnly, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, compact }) => (
+  <>
+    <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 pr-2 shrink-0">{label}</span>
+    {onInsertAbove && (
+      <ToolButton onClick={onInsertAbove} disabled={readOnly} title="Insert above" className={compact ? TB_BTN_ICON : TB_BTN}>
+        <Plus className="w-3 h-3" /> {compact ? '' : 'Above'}
+      </ToolButton>
+    )}
+    {onInsertBelow && (
+      <ToolButton onClick={onInsertBelow} disabled={readOnly} title="Insert below" className={compact ? TB_BTN_ICON : TB_BTN}>
+        <Plus className="w-3 h-3" /> {compact ? '' : 'Below'}
+      </ToolButton>
+    )}
+    <div className={TB_DIVIDER} />
+    <ToolButton onClick={() => onMove(-1)} disabled={readOnly} title="Move up" className={TB_BTN_ICON}><ArrowUp className="w-2.5 h-2.5" /></ToolButton>
+    <ToolButton onClick={() => onMove(1)} disabled={readOnly} title="Move down" className={TB_BTN_ICON}><ArrowDown className="w-2.5 h-2.5" /></ToolButton>
+    <ToolButton onClick={onDuplicate} disabled={readOnly} title="Duplicate" className={TB_BTN_ICON}><Copy className="w-2.5 h-2.5" /></ToolButton>
+    <div className={TB_DIVIDER} />
+    <ToolButton onClick={onRemove} disabled={readOnly} title="Delete" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>
+  </>
+);
+
+// ---- shared context -----------------------------------------------------------
+
+export interface BlockCtx {
+  block: ReportBlock;
+  project: Project;
+  parentCollection?: ReportCollection;
+  parentCategory?: string;
+  readOnly: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+}
+
+const COLLECTION_LABELS_LOCAL: Record<string, string> = {
+  scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
+  days: 'days', daysOfCast: 'days',
+  elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
+  categories: 'categories', cast: 'cast', crew: 'crew',
+};
+
+const PARENT_LABELS: Record<string, string> = {
+  days: 'day', daysOfCast: 'day',
+  scenes: 'scene', scenesOfDay: 'scene', scenesOfElement: 'scene', scenesOfCast: 'scene', elementsOfScene: 'scene',
+  elements: 'element', elementsOfCategory: 'element',
+  categories: 'category', cast: 'cast member', crew: 'crew member',
+};
+
+const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
+
+export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
+  const allFields = useMemo(() => getReportFieldDefs(project), [project]);
+  const contextFields = useMemo(() => fieldsForScope(allFields, parentCollection, undefined), [allFields, parentCollection]);
+  const categoryLabels = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of ELEMENT_CATEGORIES) map[c.key] = getLabel(c.key, c.label, project.categoryLabels);
+    for (const c of project.customCategories || []) map[c.key] = c.label;
+    return map;
+  }, [project.categoryLabels, project.customCategories]);
+  const categoryKeys = useMemo(() => {
+    const keys: { key: string; isCustom: boolean }[] = [];
+    const seen = new Set<string>();
+    for (const c of ELEMENT_CATEGORIES) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: false }); } }
+    for (const c of project.customCategories || []) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: true }); } }
+    return keys;
+  }, [project.customCategories]);
+  return { allFields, contextFields, categoryKeys, categoryLabels };
+}
+
+// ---- content controls (per block type) ----------------------------------------
+
+const ExcludeCategoriesMenu: React.FC<{
+  excluded: string[];
+  categoryKeys: { key: string; isCustom: boolean }[];
+  categoryLabels: Record<string, string>;
+  disabled: boolean;
+  onChange: (excluded: string[]) => void;
+}> = ({ excluded, categoryKeys, categoryLabels, disabled, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const excludedSet = new Set(excluded);
+  const label = excluded.length > 0 ? `${excluded.length} excluded` : 'None';
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-44"
+      trigger={
+        <button type="button" disabled={disabled} className={`${TB_SELECT} w-32 disabled:pointer-events-none`}>
+          <span className="truncate">{label}</span>
+          <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+        </button>
+      }
+    >
+      {categoryKeys.map(({ key }) => (
+        <DropdownItem key={key} keepOpen onClick={() => {
+          const next = new Set(excludedSet);
+          if (next.has(key)) next.delete(key); else next.add(key);
+          onChange([...next]);
+        }} icon={excludedSet.has(key) ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          {categoryLabels[key] || key}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+};
+
+/** Table "Table over" menu — BASE collections only, legacy explicit contextual preserved. */
+const NestedTableMenu: React.FC<{
+  block: ReportBlock;
+  parentCollection: ReportCollection;
+  allCategoryKeys: { key: string; isCustom: boolean }[];
+  categoryLabelLookup: Record<string, string>;
+  customCategories?: { key: string; icon?: string }[];
+  disabled: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+}> = ({ block, parentCollection, allCategoryKeys, categoryLabelLookup, customCategories, disabled, onPatch }) => {
+  const contextual = contextualCollectionsFor(parentCollection);
+  const collections: ReportCollection[] = [];
+  const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
+    ? block.collection
+    : null;
+  if (preserved) collections.push(preserved as ReportCollection);
+  for (const c of baseValidCollections(parentCollection)) {
+    if (c !== 'cast' && !collections.includes(c)) collections.push(c);
+  }
+  return (
+    <CollectionMenu
+      value={tableItemCollection(block, parentCollection)}
+      category={block.category || 'props'}
+      collections={collections}
+      categoryKeys={allCategoryKeys}
+      categoryLabels={categoryLabelLookup}
+      customCategories={customCategories}
+      disabled={disabled}
+      parentCollection={parentCollection}
+      scopedToParent={block.scopedToParent !== false}
+      onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+    />
+  );
+};
+
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch }) => {
+  const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
+  const disabled = readOnly;
+  const labelCls = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1';
+  const itemCls = 'flex flex-col gap-1';
+  const checkboxCls = 'flex items-center gap-1.5 text-xs text-zinc-400 pt-1';
+  const fieldPickerCls = 'w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30';
+
+  const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
+
+  const hasDayList = block.type === 'text'
+    ? [...DAY_LIST_FIELD_KEYS].some(k => (block.text || '').includes(k))
+    : block.type === 'field' ? DAY_LIST_FIELD_KEYS.has(block.field || '')
+    : block.type === 'table' ? (block.columns || []).some(c => DAY_LIST_FIELD_KEYS.has(c.field))
+    : false;
+
+  const FieldClusters: React.ReactNode[] = [];
+
+  if (block.type === 'text') {
+    FieldClusters.push(
+      <div key="content" className={itemCls}>
+        <span className={labelCls}>{'Text content ({{field}} tokens)'}</span>
+        <textarea
+          className="h-16 w-64 p-2 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30 resize-y"
+          rows={2}
+          disabled={disabled}
+          value={block.text || ''}
+          onChange={e => onPatch({ text: e.target.value })}
+        />
+        <FieldPicker
+          value=""
+          fields={contextFields}
+          onChange={f => onPatch({ text: `${block.text || ''}{{${f}}}` })}
+          disabled={disabled}
+          placeholder="Insert attribute…"
+          scope={parentCollection}
+          className={fieldPickerCls}
+        />
+      </div>,
+      <div key="empty" className={itemCls}>
+        <span className={labelCls}>When empty</span>
+        <label className={checkboxCls}>
+          <input type="checkbox" checked={block.emptyBehavior !== 'hideBlock'} disabled={disabled} onChange={e => onPatch({ emptyBehavior: e.target.checked ? 'show' : 'hideBlock' })} />
+          Show when empty
+        </label>
+      </div>,
+    );
+  }
+
+  if (block.type === 'field') {
+    FieldClusters.push(
+      <div key="field" className={itemCls}>
+        <span className={labelCls}>Field</span>
+        <FieldPicker
+          value={block.field || ''}
+          fields={contextFields}
+          onChange={f => onPatch({ field: f })}
+          disabled={disabled}
+          placeholder="Select field…"
+          scope={parentCollection}
+          className={fieldPickerCls}
+        />
+      </div>,
+      <div key="prefix" className={itemCls}>
+        <span className={labelCls}>Prefix</span>
+        <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.prefix || ''} onChange={e => onPatch({ prefix: e.target.value })} />
+      </div>,
+      <div key="suffix" className={itemCls}>
+        <span className={labelCls}>Suffix</span>
+        <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.suffix || ''} onChange={e => onPatch({ suffix: e.target.value })} />
+      </div>,
+    );
+    if (block.field && allFields.find(f => f.key === block.field)?.multiValue) {
+      FieldClusters.push(
+        <div key="itemPrefix" className={itemCls}>
+          <span className={labelCls}>Item prefix</span>
+          <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemPrefix || ''} onChange={e => onPatch({ itemPrefix: e.target.value })} placeholder="e.g. —" />
+        </div>,
+        <div key="itemSuffix" className={itemCls}>
+          <span className={labelCls}>Item suffix</span>
+          <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemSuffix || ''} onChange={e => onPatch({ itemSuffix: e.target.value })} placeholder="e.g. —" />
+        </div>,
+        <div key="itemSep" className={itemCls}>
+          <span className={labelCls}>Separator</span>
+          <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemSeparator ?? ', '} onChange={e => onPatch({ itemSeparator: e.target.value })} />
+        </div>,
+      );
+    }
+  }
+
+  if (block.type === 'repeat' || block.type === 'table') {
+    FieldClusters.push(
+      <div key="over" className={itemCls}>
+        <span className={labelCls}>{block.type === 'repeat' ? 'Repeat over' : 'Table over'}</span>
+        {block.type === 'repeat' ? (
+          <CollectionMenu
+            value={block.collection || 'scenes'}
+            category={block.category || 'props'}
+            collections={[...contextualCollectionsFor(parentCollection), ...baseValidCollections(parentCollection).filter(c => c !== 'cast')]}
+            categoryKeys={categoryKeys}
+            categoryLabels={categoryLabels}
+            customCategories={project.customCategories}
+            disabled={disabled}
+            parentCollection={parentCollection}
+            scopedToParent={block.scopedToParent !== false}
+            onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+          />
+        ) : parentCollection ? (
+          <NestedTableMenu block={block} parentCollection={parentCollection} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} disabled={disabled} onPatch={onPatch} />
+        ) : (
+          <CollectionMenu
+            value={block.collection || 'scenes'}
+            category={block.category || 'props'}
+            collections={baseValidCollections().filter(c => c !== 'cast')}
+            categoryKeys={categoryKeys}
+            categoryLabels={categoryLabels}
+            customCategories={project.customCategories}
+            disabled={disabled}
+            onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+          />
+        )}
+      </div>,
+    );
+    if (block.type === 'repeat') {
+      FieldClusters.push(
+        <div key="gap" className={itemCls}>
+          <span className={labelCls}>Item gap (px)</span>
+          <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.gap ?? 8} onChange={e => onPatch({ gap: Number(e.target.value) || 0 })} />
+        </div>,
+      );
+    }
+    FieldClusters.push(
+      <div key="counter" className={itemCls}>
+        <span className={labelCls}>Counter starts at</span>
+        <Seg
+          value={String(block.counterStart ?? 1)}
+          options={[{ v: '1', l: '1' }, { v: '0', l: '0' }]}
+          onChange={v => onPatch({ counterStart: v === '0' ? 0 : 1 })}
+          disabled={disabled}
+        />
+      </div>,
+    );
+    const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
+    if (parentCollection && !CONTEXTUAL_COLLECTIONS.has(effective)) {
+      FieldClusters.push(
+        <div key="scope" className={itemCls}>
+          <span className={labelCls}>Scope</span>
+          <label className={checkboxCls}>
+            <input type="checkbox" checked={block.scopedToParent !== false} disabled={disabled} onChange={e => onPatch({ scopedToParent: e.target.checked })} />
+            Only {COLLECTION_LABELS_LOCAL[effective] || 'items'} in this {PARENT_LABELS[parentCollection] || 'item'}
+          </label>
+        </div>,
+      );
+    }
+    if (block.collection === 'categories') {
+      FieldClusters.push(
+        <div key="skipEmpty" className={itemCls}>
+          <span className={labelCls}>Skip empty</span>
+          <label className={checkboxCls}>
+            <input type="checkbox" checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={e => onPatch({ skipEmptyCategories: e.target.checked })} />
+            Skip categories with no elements
+          </label>
+        </div>,
+        <div key="exclude" className={itemCls}>
+          <span className={labelCls}>Exclude categories</span>
+          <ExcludeCategoriesMenu
+            excluded={block.excludedCategories || []}
+            categoryKeys={categoryKeys}
+            categoryLabels={categoryLabels}
+            disabled={disabled}
+            onChange={list => onPatch({ excludedCategories: list })}
+          />
+        </div>,
+      );
+    }
+  }
+
+  if (block.type === 'table') {
+    FieldClusters.push(
+      <div key="axis" className={itemCls}>
+        <span className={labelCls}>Layout</span>
+        <Seg
+          value={block.axis ?? 'columns'}
+          options={[{ v: 'columns', l: 'Columns' }, { v: 'rows', l: 'Rows' }]}
+          onChange={v => onPatch({ axis: v as 'columns' | 'rows' })}
+          disabled={disabled}
+        />
+      </div>,
+      <TableColumnControls key="cols" block={block} allFields={allFields} parentCollection={parentCollection} readOnly={disabled} onPatch={onPatch} />,
+    );
+    if ((block.axis ?? 'columns') === 'columns') {
+      FieldClusters.push(
+        <div key="header" className={itemCls}>
+          <span className={labelCls}>Header</span>
+          <label className={checkboxCls}>
+            <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
+            Header row
+          </label>
+        </div>,
+      );
+    } else {
+      FieldClusters.push(
+        <div key="headerField" className={itemCls}>
+          <span className={labelCls}>Item header (rows mode)</span>
+          <FieldPicker
+            value={block.headerField || ''}
+            fields={fieldOptions(tableFieldScope(block, parentCollection))}
+            onChange={f => onPatch({ headerField: f })}
+            disabled={disabled}
+            placeholder="— auto —"
+            scope={tableFieldScope(block, parentCollection)}
+            className={fieldPickerCls}
+          />
+        </div>,
+      );
+    }
+    FieldClusters.push(
+      <div key="borders" className={itemCls}>
+        <span className={labelCls}>Borders</span>
+        <label className={checkboxCls}>
+          <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
+          Cell borders
+        </label>
+      </div>,
+    );
+    if (hasDayList) {
+      FieldClusters.push(
+        <div key="dayFormat" className={itemCls}>
+          <span className={labelCls}>Day format</span>
+          <DayFormatMenu value={block.dayFormat || 'dayNumDate'} disabled={disabled} onChange={v => onPatch({ dayFormat: v as DayFormatMode })} />
+        </div>,
+      );
+    }
+  }
+
+  if (block.type === 'columns') {
+    const cols = block.cols || [];
+    FieldClusters.push(
+      <div key="cols" className={itemCls}>
+        <span className={labelCls}>Columns ({cols.length})</span>
+        <div className="flex items-center gap-1">
+          <ToolButton
+            onClick={() => {
+              const n = cols.length || 1;
+              onPatch({ cols: [...cols, { id: `col${Date.now().toString(36)}`, width: 100 / (n + 1), blocks: [] }].map(c => ({ ...c, width: 100 / (n + 1) })) });
+            }}
+            disabled={disabled}
+            title="Add column"
+          >
+            <Plus className="w-3 h-3" /> Column
+          </ToolButton>
+          <ToolButton
+            onClick={() => {
+              if (cols.length <= 1) return;
+              onPatch({ cols: cols.slice(0, -1).map(c => ({ ...c, width: 100 / (cols.length - 1) })) });
+            }}
+            disabled={disabled || cols.length <= 1}
+            title="Remove last column"
+          >
+            <Minus className="w-3 h-3" /> Column
+          </ToolButton>
+          {cols.map((col, i) => (
+            <ToolButton
+              key={col.id}
+              onClick={() => onPatch({ cols: cols.map((c, j) => j === i ? { ...c, blocks: [...c.blocks, { id: `b${Date.now().toString(36)}${i}`, type: 'text' }] } : c) })}
+              disabled={disabled}
+              title={`Add text block to column ${i + 1}`}
+            >
+              <Plus className="w-3 h-3" /> {i + 1}
+            </ToolButton>
+          ))}
+        </div>
+      </div>,
+    );
+  }
+
+  if (block.type === 'ribbon') {
+    const designs = project.ribbonDesigns || [];
+    const RibbonDesignMenu = () => {
+      const [open, setOpen] = useState(false);
+      return (
+        <DropdownMenu
+          open={open}
+          onOpenChange={setOpen}
+          theme="dark"
+          width="w-44"
+          trigger={
+            <button type="button" disabled={disabled} className={`${TB_SELECT} w-40 disabled:pointer-events-none`}>
+              <span className="truncate">{designs.find(d => d.id === (block.ribbonId || project.activeRibbonId || ''))?.name || '—'}</span>
+              <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+            </button>
+          }
+        >
+          {designs.map(d => (
+            <DropdownItem key={d.id} onClick={() => { onPatch({ ribbonId: d.id }); setOpen(false); }} icon={d.id === (block.ribbonId || project.activeRibbonId) ? <Check className="w-3.5 h-3.5" /> : undefined}>
+              <span className="truncate">{d.name}</span>
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
+      );
+    };
+    FieldClusters.push(
+      <div key="ribbon" className={itemCls}>
+        <span className={labelCls}>Ribbon design</span>
+        <RibbonDesignMenu />
+      </div>,
+      <div key="daySection" className={itemCls}>
+        <span className={labelCls}>Day section</span>
+        <label className={checkboxCls}>
+          <input type="checkbox" checked={block.ribbonDaySection !== false} disabled={disabled} onChange={e => onPatch({ ribbonDaySection: e.target.checked })} />
+          Day section (header & totals)
+        </label>
+      </div>,
+    );
+  }
+
+  if (block.type === 'spacer') {
+    FieldClusters.push(
+      <div key="height" className={itemCls}>
+        <span className={labelCls}>Height (px)</span>
+        <input type="number" min={4} max={200} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.height ?? 16} onChange={e => onPatch({ height: Number(e.target.value) || 16 })} />
+      </div>,
+      <div key="style" className={itemCls}>
+        <span className={labelCls}>Style</span>
+        <Seg
+          value={block.spacerStyle || 'none'}
+          options={[
+            { v: 'none', l: 'None' },
+            { v: 'line', l: 'Line' },
+            { v: 'dotted', l: 'Dotted' },
+          ]}
+          onChange={v => onPatch({ spacerStyle: v as 'none' | 'line' | 'dotted' })}
+          disabled={disabled}
+        />
+      </div>,
+    );
+  }
+
+  return <>{FieldClusters}</>;
+};
+
+export const TableColumnControls: React.FC<{
+  block: ReportBlock;
+  allFields: ReportFieldDef[];
+  parentCollection?: ReportCollection;
+  readOnly: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+}> = ({ block, allFields, parentCollection, readOnly, onPatch }) => {
+  const disabled = readOnly;
+  const columns = block.columns || [];
+  const labelCls = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1';
+  const fieldPickerCls = 'w-32 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30';
+  const scope = tableFieldScope(block, parentCollection);
+
+  const tableOps = {
+    addColumn: () => {
+      const n = columns.length;
+      onPatch({
+        columns: normalizeColWidths([...(columns.map(c => c.width)), n === 0 ? 100 : 10]).map((w, i) => i < n ? { ...columns[i], width: w } : { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, field: '', width: w }),
+      });
+    },
+    removeColumn: () => {
+      if (columns.length <= 1) return;
+      const next = columns.slice(0, -1);
+      onPatch({ columns: normalizeColWidths(next.map(c => c.width)).map((w, i) => ({ ...next[i], width: w })) });
+    },
+    patchColumn: (ci: number, patch: Partial<ReportTableColumn>) => {
+      onPatch({ columns: columns.map((c, i) => i === ci ? { ...c, ...patch } : c) });
+    },
+  };
+
+  return (
+    <div key="tablecols" className="flex flex-col gap-1">
+      <span className={labelCls}>Columns ({columns.length}{columns.length > 1 ? ' · drag on the grid to reorder' : ''})</span>
+      <div className="flex items-start gap-1 flex-wrap">
+        {columns.map((col, ci) => (
+          <div key={col.id} className="flex flex-col gap-0.5">
+            <FieldPicker
+              value={col.field}
+              fields={fieldsForScope(allFields, scope, block.category)}
+              onChange={f => tableOps.patchColumn(ci, { field: f })}
+              disabled={disabled}
+              scope={scope}
+              className={fieldPickerCls}
+            />
+            <div className="flex items-center gap-0.5">
+              <Tooltip content="Bold">
+                <button
+                  disabled={disabled}
+                  onClick={() => tableOps.patchColumn(ci, { bold: !col.bold })}
+                  className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+                >
+                  <span className="text-[10px] font-bold">B</span>
+                </button>
+              </Tooltip>
+              <Tooltip content="Italic">
+                <button
+                  disabled={disabled}
+                  onClick={() => tableOps.patchColumn(ci, { italic: !col.italic })}
+                  className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+                >
+                  <span className="text-[10px] italic">I</span>
+                </button>
+              </Tooltip>
+              <Tooltip content="Hide rows where this column is empty">
+                <button
+                  disabled={disabled}
+                  onClick={() => tableOps.patchColumn(ci, { skipEmpty: !col.skipEmpty })}
+                  className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}
+                >
+                  <EyeOff className="w-3 h-3" />
+                </button>
+              </Tooltip>
+              <div className={TB_SEG}>
+                {(['left', 'center', 'right'] as const).map(a => {
+                  const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+                  const on = (col.align ?? 'left') === a;
+                  return (
+                    <Tooltip key={a} content={`Align ${a}`}>
+                      <button
+                        disabled={disabled}
+                        onClick={() => tableOps.patchColumn(ci, { align: a })}
+                        className={`h-7 w-7 flex items-center justify-center transition-colors disabled:opacity-25 ${on ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'} ${a !== 'right' ? 'border-r border-zinc-700' : ''}`}
+                      >
+                        <Icon className="w-3 h-3" />
+                      </button>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ))}
+        <ToolButton onClick={tableOps.addColumn} disabled={disabled} title="Add column" className={TB_BTN_ICON}><Plus className="w-3 h-3" /></ToolButton>
+        <ToolButton onClick={tableOps.removeColumn} disabled={disabled || columns.length <= 1} title="Remove last column" className={TB_BTN_ICON}><Minus className="w-3 h-3" /></ToolButton>
+      </div>
+    </div>
+  );
+};
+
+// ---- style controls (typography — text/field only) -----------------------------
+
+export const StyleControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => {
+  const disabled = readOnly;
+  const font = block.fontFamily || 'Helvetica';
+  return (
+    <>
+      <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
+      <Tooltip content="Font size (pt)">
+        <input
+          type="number"
+          min={6}
+          max={48}
+          disabled={disabled}
+          className={TB_NUM}
+          value={block.fontSize ?? 10}
+          onChange={e => onPatch({ fontSize: Math.max(6, Math.min(48, Number(e.target.value) || 10)) })}
+        />
+      </Tooltip>
+      <div className={TB_DIVIDER} />
+      <Tooltip content="Bold">
+        <button disabled={disabled} onClick={() => onPatch({ bold: !block.bold })} className={`${TB_TOGGLE} ${block.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+          <span className="text-[11px] font-bold">B</span>
+        </button>
+      </Tooltip>
+      <Tooltip content="Italic">
+        <button disabled={disabled} onClick={() => onPatch({ italic: !block.italic })} className={`${TB_TOGGLE} ${block.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+          <span className="text-[11px] italic">I</span>
+        </button>
+      </Tooltip>
+      <div className={TB_DIVIDER} />
+      {(['left', 'center', 'right'] as const).map(a => {
+        const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+        const on = (block.align ?? 'left') === a;
+        return (
+          <Tooltip key={a} content={`Align ${a}`}>
+            <button
+              disabled={disabled}
+              onClick={() => onPatch({ align: a })}
+              className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+            >
+              <Icon className="w-3 h-3" />
+            </button>
+          </Tooltip>
+        );
+      })}
+    </>
+  );
+};
+
+// ---- layout controls (padding — text/field only) -------------------------------
+
+export const LayoutControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => (
+  <>
+    <span className="text-[10px] text-zinc-500 shrink-0">Pad V</span>
+    <Tooltip content="Vertical padding (px)">
+      <input
+        type="number"
+        min={0}
+        max={24}
+        readOnly={readOnly}
+        className={TB_NUM}
+        value={block.paddingV ?? 2}
+        onChange={e => onPatch({ paddingV: Math.max(0, Math.min(24, Number(e.target.value) || 0)) })}
+      />
+    </Tooltip>
+    <span className="text-[10px] text-zinc-500 shrink-0">Pad H</span>
+    <Tooltip content="Horizontal padding (px)">
+      <input
+        type="number"
+        min={0}
+        max={24}
+        readOnly={readOnly}
+        className={TB_NUM}
+        value={block.paddingH ?? 4}
+        onChange={e => onPatch({ paddingH: Math.max(0, Math.min(24, Number(e.target.value) || 0)) })}
+      />
+    </Tooltip>
+  </>
+);
+
+// ---- day format menu ------------------------------------------------------------
+
+export const DayFormatMenu: React.FC<{ value: string; disabled: boolean; onChange: (v: string) => void }> = ({ value, disabled, onChange }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-40"
+      trigger={
+        <button type="button" disabled={disabled} className={`${TB_SELECT} w-36 disabled:pointer-events-none`}>
+          <span className="truncate">{DAY_FORMAT_OPTIONS.find(o => o.key === value)?.label || value}</span>
+          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+        </button>
+      }
+    >
+      {DAY_FORMAT_OPTIONS.map(o => (
+        <DropdownItem key={o.key} onClick={() => { onChange(o.key); setOpen(false); }} icon={o.key === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          {o.label}
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+};
