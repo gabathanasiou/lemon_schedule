@@ -470,15 +470,6 @@ export function resolveCollectionItems(
   outerItem?: ReportCollectionItem,
 ): ReportCollectionItem[] {
   let items = resolveCollection(ctx, collection, category, parentItem, parentCategory);
-  if (collection === 'categories' && block) {
-    if (block.skipEmptyCategories !== false) {
-      items = items.filter((c: any) => c.elementCount > 0);
-    }
-    const excluded = new Set(block.excludedCategories || []);
-    if (excluded.size > 0) {
-      items = items.filter((c: any) => !excluded.has(c.key));
-    }
-  }
   if (outerItem && block && block.scopedToParent !== false && collection) {
     const scenes = parentScenesOf(ctx, outerItem);
     const set = new Set(scenes.map(s => s.sectionIndex));
@@ -515,6 +506,16 @@ export function resolveCollectionItems(
         break;
       }
       default: break; // crew etc. — no scoping rule
+    }
+  }
+  // categories block filters apply LAST — to the global OR the scoped list.
+  if (collection === 'categories' && block) {
+    if (block.skipEmptyCategories !== false) {
+      items = items.filter((c: any) => c.elementCount > 0);
+    }
+    const excluded = new Set(block.excludedCategories || []);
+    if (excluded.size > 0) {
+      items = items.filter((c: any) => !excluded.has(c.key));
     }
   }
   return items;
