@@ -133,6 +133,58 @@ test('element work/shoot day attributes fill for mixed-case elements', async ({ 
 });
 
 
+test('repeat nested in a categories repeat offers Elements (of this category)', async ({ page }) => {
+  await openSeededProject(page);
+
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByText('Editing:', { exact: false }).click();
+  await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByText('Repeat: Categories', { exact: true }).click();
+  await page.waitForTimeout(300);
+
+  await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-children .block-dropzone').last());
+  await page.waitForTimeout(500);
+
+  const repeatOver = page.getByRole('button', { name: 'Scenes (of this category)', exact: true });
+  await expect(repeatOver).toBeVisible({ timeout: 3000 });
+  await repeatOver.click();
+
+  const menu = page.locator('.ui-menu');
+  await expect(menu.getByText('Elements (of this category)', { exact: true })).toBeVisible({ timeout: 3000 });
+
+  await menu.getByText('Elements (of this category)', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Elements (of this category)', exact: true })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('Repeat: Elements (of this category)', { exact: true })).toBeVisible({ timeout: 3000 });
+});
+
+test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {
+  await openSeededProject(page);
+
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByText('Editing:', { exact: false }).click();
+  await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await page.waitForTimeout(800);
+
+  // "Sunny's gun" is a capitalized props element — its Shoot Days cell was
+  // empty before the case-insensitive element match; it now lists real days.
+  const row = page.locator('.report-table-cols > div').filter({ hasText: "Sunny's gun" }).first();
+  await expect(row).toBeVisible({ timeout: 3000 });
+  await expect(row).toContainText('Day 7 (Tue, Aug 18)', { timeout: 3000 });
+  await expect(row).toContainText('Day 12 (Tue, Aug 25)');
+});
+
+
 test('category breakdown template iterates categories; skip empty + exclude work', async ({ page }) => {
   await openSeededProject(page);
 

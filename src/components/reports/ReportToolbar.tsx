@@ -304,7 +304,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               <CollectionMenu
                 value={block.collection || 'scenes'}
                 category={block.category || 'props'}
-                collections={baseValidCollections(parentCollection).filter(c => c !== 'cast')}
+                collections={[...contextualCollectionsFor(parentCollection), ...baseValidCollections(parentCollection).filter(c => c !== 'cast')]}
                 categoryKeys={allCategoryKeys}
                 categoryLabels={categoryLabelLookup}
                 customCategories={project.customCategories}

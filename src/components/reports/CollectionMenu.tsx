@@ -11,8 +11,9 @@ import { ChevronDown, Check } from 'lucide-react';
 // native selects with the shared Radix menu: top-level collections plus an
 // Elements submenu for the category (no separate category row). Cast is not a
 // top-level collection — it's reached via Elements → Cast. Contextual variants
-// are NOT listed — the Lego scope checkbox implies them; the trigger label
-// surfaces the scoped state ("Scenes (of this day)").
+// (listed for repeats when the caller passes them) render from COLLECTION_LABELS
+// — e.g. "Elements (of this category)" inside a categories repeat; the trigger
+// label surfaces the scoped state ("Scenes (of this day)").
 
 interface CollectionMenuProps {
   value: ReportCollection;

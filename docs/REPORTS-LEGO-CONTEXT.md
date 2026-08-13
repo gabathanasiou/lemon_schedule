@@ -73,7 +73,10 @@ is dropped in a parent (via `tableItemCollection`):
 
 These are menu shortcuts AND defaults; the Lego checkbox is hidden for them
 (they're structurally scoped) and shown for explicit base-collection selections
-(scenes / days / elements / categories / cast / crew).
+(scenes / days / elements / categories / cast / crew). The Repeat over menu lists
+the parent's contextual collections ahead of the base ones — e.g. a repeat
+dropped inside a `categories` repeat can select "Elements (of this category)" to
+iterate every element of the parent's category (not one fixed category).
 
 ## 4. Summary tables (`onceTable`)
 
