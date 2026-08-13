@@ -43,6 +43,25 @@ function emptyHint(text: string, style: React.CSSProperties): React.ReactNode {
   return <div style={{ ...style, color: '#8f8f8f', fontStyle: 'italic' }}>{text}</div>;
 }
 
+const TOKEN_CHIP_RE = /(\{\{[^}]+\}\})/g;
+
+/** Template preview: `{{field}}` tokens render as subtle chips so the
+ *  "this is a template" nature of a text block is obvious in key mode. */
+export const TokenPreview: React.FC<{ text: string }> = ({ text }) => {
+  const parts = text.split(TOKEN_CHIP_RE);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('{{') && part.endsWith('}}') && part.length > 4 ? (
+          <span key={i} style={{ background: 'rgba(59,130,246,0.12)', color: '#1d4ed8', borderRadius: 3, padding: '0 3px', margin: '0 1px', fontWeight: 600, fontStyle: 'normal' }}>{part}</span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+};
+
 /** Drops trailing pageBreak children (a trailing break would print a blank page). */
 function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
   let end = list.length;
@@ -63,7 +82,11 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     switch (block.type) {
       case 'text': {
         if (showKeys) {
-          return <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>{stripRichText(block.text || '') || '\u00A0'}</div>;
+          return (
+            <div style={{ ...baseStyle, color: '#8f8f8f', fontStyle: 'italic' }}>
+              {block.text ? <TokenPreview text={block.text} /> : '\u00A0'}
+            </div>
+          );
         }
         const html = resolveReportTokensHtml(ctx, fieldMap, block.text || '', item, blockAux);
         const text = stripRichText(html);
