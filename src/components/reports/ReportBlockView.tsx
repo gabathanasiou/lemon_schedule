@@ -5,7 +5,7 @@ import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, ap
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
-import { stripRichText } from '../../lib/richText';
+import { stripRichText, normalizeSpaces } from '../../lib/richText';
 import { PageItem, stripEdgeBreaks } from '../../lib/reportPagination';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
@@ -21,6 +21,8 @@ export interface ReportRenderProps {
   scopeFilter?: ReportScopeFilter;
   hint?: boolean;
   showKeys?: boolean;
+  /** Designer canvas: empty token values render as their raw {{token}} text. */
+  showUnresolved?: boolean;
   aux?: FieldAux;
   onceTable?: boolean;  // summary table inside a same-collection repeat: list all items
   ancestors?: ReportCollectionItem[]; // full parent-item chain, nearest first — for scopedToParent
@@ -48,7 +50,7 @@ const TOKEN_CHIP_RE = /(\{\{[^}]+\}\})/g;
 /** Template preview: `{{field}}` tokens render as subtle chips so the
  *  "this is a template" nature of a text block is obvious in key mode. */
 export const TokenPreview: React.FC<{ text: string }> = ({ text }) => {
-  const parts = text.split(TOKEN_CHIP_RE);
+  const parts = normalizeSpaces(text).split(TOKEN_CHIP_RE);
   return (
     <>
       {parts.map((part, i) =>
@@ -70,7 +72,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -88,7 +90,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             </div>
           );
         }
-        const html = resolveReportTokensHtml(ctx, fieldMap, block.text || '', item, blockAux);
+        const html = resolveReportTokensHtml(ctx, fieldMap, block.text || '', item, blockAux, { showUnresolved });
         const text = stripRichText(html);
         if (!visibleFor(block, text)) return null;
         const st: React.CSSProperties = { ...baseStyle };
@@ -118,7 +120,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <div style={st}>{text || '\u00A0'}</div>;
       }
       case 'repeat': {
-        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} ancestors={ancestors} />;
+        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} />;
       }
       case 'table': {
         return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} />;
@@ -131,7 +133,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             {cols.map(col => (
               <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 { (col.blocks || []).map(cb => (
-                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} ancestors={ancestors} />
+                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} />
                 ))}
               </div>
             ))}
@@ -171,6 +173,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.scopeFilter === b.scopeFilter &&
     a.hint === b.hint &&
     a.showKeys === b.showKeys &&
+    a.showUnresolved === b.showUnresolved &&
     a.ancestors === b.ancestors &&
     a.aux === b.aux &&
     a.onceTable === b.onceTable &&
@@ -249,7 +252,7 @@ export const ReportPageItems: React.FC<{
 
 // ---- repeat (vertical stack of children) ------------------------------------
 
-const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, aux, ancestors }) => {
+const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, showUnresolved, aux, ancestors }) => {
   const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, ancestors) as ReportCollectionItem[];
   const filtered = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
   if (filtered.length === 0) {
@@ -279,6 +282,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
       scopeFilter={scopeFilter}
       hint={hint}
       showKeys={showKeys}
+      showUnresolved={showUnresolved}
       aux={aux}
       ancestors={[item, ...(ancestors || [])]}
       onceTable
@@ -300,7 +304,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
         return (
           <div key={i} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             {itemChildren.map(cb => (
-              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} ancestors={[it, ...(ancestors || [])]} />
+              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} ancestors={[it, ...(ancestors || [])]} />
             ))}
           </div>
         );

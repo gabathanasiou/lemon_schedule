@@ -1,7 +1,7 @@
 import { Project } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
-import { escapeHtml } from './richText';
+import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem,
@@ -374,6 +374,13 @@ export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, R
 const TOKEN_RE = /\{\{([^}]+)\}\}/g;
 const KEY_POSITION_KEYS = new Set(['director', 'producer', 'lineProducer', 'firstAD', 'upm']);
 
+export interface TokenResolveOptions {
+  /** Designer canvas: render the raw token ({{field}}) when its value is empty
+   *  so templates stay visible instead of showing a blank spot. Print/preview
+   *  keep true empty values. */
+  showUnresolved?: boolean;
+}
+
 function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
   const [base, sub] = raw.trim().split('.');
   const def = fieldMap[base];
@@ -393,8 +400,12 @@ export function resolveReportTokens(
   text: string,
   item: any,
   aux?: FieldAux,
+  opts?: TokenResolveOptions,
 ): string {
-  return text.replace(TOKEN_RE, (_m, raw: string) => resolveToken(ctx, fieldMap, raw, item, aux));
+  return text.replace(TOKEN_RE, (_m, raw: string) => {
+    const value = resolveToken(ctx, fieldMap, raw, item, aux);
+    return opts?.showUnresolved && !value ? `{{${raw}}}` : value;
+  });
 }
 
 /** Rich-text variant: token values are HTML-escaped so formatting can't be injected. */
@@ -404,8 +415,12 @@ export function resolveReportTokensHtml(
   html: string,
   item: any,
   aux?: FieldAux,
+  opts?: TokenResolveOptions,
 ): string {
-  return html.replace(TOKEN_RE, (_m, raw: string) => escapeHtml(resolveToken(ctx, fieldMap, raw, item, aux)));
+  return normalizeSpaces(html).replace(TOKEN_RE, (_m, raw: string) => {
+    const value = resolveToken(ctx, fieldMap, raw, item, aux);
+    return opts?.showUnresolved && !value ? `{{${escapeHtml(raw)}}}` : escapeHtml(value);
+  });
 }
 
 export function fieldsForScope(

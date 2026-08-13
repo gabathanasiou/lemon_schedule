@@ -585,6 +585,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   const disabled = readOnly;
   const checkboxCls = 'flex items-center gap-1.5 text-xs text-zinc-400';
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
+  // Hoisted hooks — must run unconditionally (a useRef inside `if (block.type
+  // === 'text')` changes the hook order when switching between block types,
+  // which crashes React with a "Rendered more hooks" error).
+  const editorRef = React.useRef<RichTextEditorHandle>(null);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -604,7 +608,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   };
 
   if (block.type === 'text') {
-    const editorRef = React.useRef<RichTextEditorHandle>(null);
     const linkedStyle = getTextStyleById(project, block.textStyle);
     push(null,
       <ContentRow key="content" tall>

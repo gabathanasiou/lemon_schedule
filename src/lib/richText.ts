@@ -3,6 +3,11 @@
 // set is unwrapped (text kept), style attributes are filtered to a small set
 // of CSS props. `{{field}}` tokens pass through untouched (they resolve at
 // render time in resolveReportTokensHtml).
+//
+// Non-breaking spaces are normalized to regular spaces: contentEditable
+// serializes leading/trailing spaces as `&nbsp;`, which would otherwise
+// accumulate in stored text (visible as literal "&nbsp;" in key views and
+// breaking word-wrap on print).
 
 const ALLOWED_TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'br', 'div', 'p', 'span']);
 
@@ -42,10 +47,16 @@ function sanitizeNode(node: Node): Node {
   return out;
 }
 
+/** Replaces non-breaking spaces (entity or raw) with regular spaces. */
+export function normalizeSpaces(text: string): string {
+  return text.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
+}
+
 export function sanitizeRichText(html: string): string {
-  if (!html || !html.includes('<')) return html;
+  const clean = normalizeSpaces(html);
+  if (!clean || !clean.includes('<')) return clean;
   const template = document.createElement('template');
-  template.innerHTML = html;
+  template.innerHTML = clean;
   const frag = document.createDocumentFragment();
   for (const child of Array.from(template.content.childNodes)) frag.appendChild(sanitizeNode(child));
   const serialized = new XMLSerializer().serializeToString(frag);
@@ -54,9 +65,10 @@ export function sanitizeRichText(html: string): string {
 
 /** Removes all markup — used for showKeys previews and empty-value checks. */
 export function stripRichText(html: string): string {
-  if (!html || !html.includes('<')) return html;
+  const clean = normalizeSpaces(html);
+  if (!clean || !clean.includes('<')) return clean;
   const template = document.createElement('template');
-  template.innerHTML = html;
+  template.innerHTML = clean;
   return (template.content.textContent || '')
     .replace(/\u00A0/g, ' ')
     .replace(/[ \t]+\n/g, '\n')
