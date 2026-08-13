@@ -25,6 +25,12 @@ export interface ColSel { colsId: string; colIndex: number; }
 
 interface ReportDesignerCanvasProps {
   blocks: ReportBlock[];
+  headerBlocks: ReportBlock[];
+  footerBlocks: ReportBlock[];
+  skipFirstHeader: boolean;
+  skipFirstFooter: boolean;
+  onToggleHeaderSkipFirst: () => void;
+  onToggleFooterSkipFirst: () => void;
   selId: string | null;
   selCol: ColSel | null;
   ctx: ReportCtx;
@@ -60,11 +66,13 @@ interface ReportDesignerCanvasProps {
   onInsertTableColumnAt: (tableId: string, colIndex: number) => void;
   onRemoveTableColumn: (tableId: string, colIndex: number) => void;
   onMoveTableColumn: (tableId: string, from: number, to: number) => void;
+  onInsertIntoZone: (zone: 'header' | 'body' | 'footer', payload: PaletteDropPayload) => void;
   viewWidth?: number | null;
   pageSize?: 'portrait' | 'landscape';
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone }) => {
+  const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
@@ -174,7 +182,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
     const out: React.ReactNode[] = [];
     list.forEach((b, i) => {
       const selected = selId === b.id;
-      const parentCollection = parentColl || parentCollectionOf(blocks, b.id);
+      const parentCollection = parentColl || parentCollectionOf(allBlocks, b.id);
       const meta = BLOCK_TYPE_META[b.type] || { label: b.type, icon: null };
       const isTable = b.type === 'table' && (b.axis ?? 'columns') === 'columns';
       const selectedTableCol = isTable && selCol && selCol.colsId === b.id ? selCol : null;
@@ -209,7 +217,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
                 onResize={widths => onPatch(resizeTarget.id, { columns: (resizeTarget.columns || []).map((c, i) => ({ ...c, width: widths[i] ?? c.width })) })}
               />
             )}
-            {dragging && !insideColumnsBlock(blocks, b.id) && (
+            {dragging && !insideColumnsBlock(allBlocks, b.id) && (
               <>
                 <EdgeZone side="left" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
                 <EdgeZone side="right" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
@@ -460,7 +468,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
   };
 
   // selected table (columns mode) → resize bar overlay inside its card
-  const selBlock = selId ? findBlock(blocks, selId)?.block : null;
+  const selBlock = selId ? findBlock(allBlocks, selId)?.block : null;
   const resizeTarget = selBlock && selBlock.type === 'table' && (selBlock.axis ?? 'columns') === 'columns' && (selBlock.columns || []).length > 0 ? selBlock : null;
 
   return (
@@ -476,16 +484,109 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, sel
       }}
     >
       <div className="mx-auto" style={{ width: viewWidth ? `${viewWidth}px` : '100%', minHeight: '80vh', background: '#e4e4e7', borderRadius: 10, padding: 28 }}>
+        <ReportZone
+          label="Header"
+          hint="Appears at the top of every page"
+          skipFirst={skipFirstHeader}
+          onToggleSkipFirst={onToggleHeaderSkipFirst}
+          readOnly={readOnly}
+          zone="header"
+          empty={headerBlocks.length === 0}
+          onInsert={onInsertIntoZone}
+          isDrag={isDrag}
+          pendingRef={pendingRef}
+          endDrag={endDrag}
+        >
+          {headerBlocks.length === 0 && <ZoneEmptyHint />}
+          {renderBlocks(headerBlocks, 0)}
+        </ReportZone>
         {blocks.length === 0 && (
           <div className="text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg">
             No blocks yet — click or drag from the palette to build the report.
           </div>
         )}
         <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>
+        <ReportZone
+          label="Footer"
+          hint="Appears at the bottom of every page"
+          skipFirst={skipFirstFooter}
+          onToggleSkipFirst={onToggleFooterSkipFirst}
+          readOnly={readOnly}
+          zone="footer"
+          empty={footerBlocks.length === 0}
+          onInsert={onInsertIntoZone}
+          isDrag={isDrag}
+          pendingRef={pendingRef}
+          endDrag={endDrag}
+        >
+          {footerBlocks.length === 0 && <ZoneEmptyHint />}
+          {renderBlocks(footerBlocks, 0)}
+        </ReportZone>
       </div>
     </div>
   );
 };
+
+// ---- header/footer zones --------------------------------------------------------
+
+const ZoneEmptyHint: React.FC = () => (
+  <div className="text-[10px] text-zinc-400 italic py-1.5 text-center border border-dashed border-zinc-300 rounded">
+    Empty — click or drag palette items here
+  </div>
+);
+
+const ReportZone: React.FC<{
+  label: string;
+  hint: string;
+  skipFirst: boolean;
+  onToggleSkipFirst: () => void;
+  readOnly: boolean;
+  zone: 'header' | 'footer';
+  empty: boolean;
+  onInsert: (zone: 'header' | 'footer', payload: PaletteDropPayload) => void;
+  isDrag: (e: React.DragEvent) => boolean;
+  pendingRef: React.MutableRefObject<{ id: string; pos: 'before' | 'after' } | null>;
+  endDrag: () => void;
+  children: React.ReactNode;
+}> = ({ label, hint, skipFirst, onToggleSkipFirst, readOnly, zone, empty, onInsert, isDrag, pendingRef, endDrag, children }) => (
+  <div
+    className="report-zone"
+    data-zone-list={zone}
+    style={{ border: '1.5px dashed #a1a1aa', borderRadius: 8, padding: '8px 10px', marginBottom: 16 }}
+    onDragOver={e => {
+      if (!isDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setAttribute('data-active', '1');
+      pendingRef.current = { id: '', pos: 'after' };
+    }}
+    onDragLeave={e => {
+      const cur = e.currentTarget;
+      if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+      cur.removeAttribute('data-active');
+      pendingRef.current = null;
+    }}
+    onDrop={e => {
+      if (!isDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      let payload: PaletteDropPayload | null = null;
+      try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+      if (payload) onInsert(zone, payload);
+      endDrag();
+    }}
+  >
+    <div className="flex items-center gap-2 mb-1.5" onClick={e => e.stopPropagation()}>
+      <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] text-zinc-400 italic">{hint}</span>
+      <label className="flex items-center gap-1 ml-auto text-[10px] text-zinc-500 select-none">
+        <input type="checkbox" checked={skipFirst} disabled={readOnly} onChange={onToggleSkipFirst} />
+        Skip first page
+      </label>
+    </div>
+    <div onClick={empty ? (e => { e.stopPropagation(); onInsert(zone, { kind: 'block', type: 'text' }); }) : undefined}>{children}</div>
+  </div>
+);
 
 // ---- floating block editor (full per-type controls above the selected block) --
 

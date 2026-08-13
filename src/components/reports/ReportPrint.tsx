@@ -31,6 +31,10 @@ ${BASE_PRINT_RESET}
 }
 /* nested page-break blocks (inside repeat children/columns) */
 .report-page-break { page-break-before: always; break-before: page; }
+/* header at the top / footer pinned to the bottom of every page */
+.report-page { display: flex; flex-direction: column; min-height: 100vh; }
+.report-page-footer { margin-top: auto; }
+.report-page-header { margin-bottom: 8pt; }
 `;
 
   return (
@@ -48,7 +52,18 @@ ${BASE_PRINT_RESET}
             >
               {blocks.length === 0
                 ? <div style={{ height: 1 }} aria-hidden />
-                : <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} pageIndex={pi} pageCount={pages.length} />}
+                : <ReportPageItems
+                    items={blocks}
+                    ctx={ctx}
+                    fieldMap={fieldMap}
+                    scopeFilter={scopeFilter}
+                    pageIndex={pi}
+                    pageCount={pages.length}
+                    header={design.header}
+                    footer={design.footer}
+                    headerSkipFirst={design.headerSkipFirst}
+                    footerSkipFirst={design.footerSkipFirst}
+                  />}
             </div>
           ))}
         </div>

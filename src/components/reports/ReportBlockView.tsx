@@ -191,36 +191,61 @@ export const ReportPageItems: React.FC<{
   showKeys?: boolean;
   pageIndex?: number;
   pageCount?: number;
-}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1 }) => (  <>
-    {items.map((pi, i) => {
-      const pageAux: FieldAux = { pageIndex, pageCount };
-      if ('repeatItem' in pi) {
-        const { repeatItem, item, itemIndex } = pi;
-        return (
-          <div key={`ri-${repeatItem.id}-${i}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            {stripEdgeBreaks(repeatItem.children || []).map(cb => (
-              <ReportBlockView
-                key={cb.id}
-                block={cb}
-                ctx={ctx}
-                fieldMap={fieldMap}
-                item={item}
-                parentCategory={repeatItem.collection === 'elements' ? repeatItem.category : undefined}
-                parentCollection={repeatItem.collection}
-                scopeFilter={scopeFilter}
-                hint={hint}
-                showKeys={showKeys}
-                aux={{ ...pageAux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
-                ancestors={[item]}
-              />
-            ))}
-          </div>
-        );
-      }
-      return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />;
-    })}
-  </>
-);
+  header?: ReportBlock[];
+  footer?: ReportBlock[];
+  headerSkipFirst?: boolean;
+  footerSkipFirst?: boolean;
+}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, header, footer, headerSkipFirst, footerSkipFirst }) => {
+  const pageAux: FieldAux = { pageIndex, pageCount };
+  const showHeader = !!(header && header.length > 0 && !(headerSkipFirst && pageIndex === 0));
+  const showFooter = !!(footer && footer.length > 0 && !(footerSkipFirst && pageIndex === 0));
+  return (
+    <div className="report-page-body" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {showHeader && (
+        <div className="report-page-header">
+          {header!.map(b => (
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />
+          ))}
+        </div>
+      )}
+      <div style={{ flex: 1 }}>
+        {items.map((pi, i) => {
+          if ('repeatItem' in pi) {
+            const { repeatItem, item, itemIndex } = pi;
+            return (
+              <div key={`ri-${repeatItem.id}-${i}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                {stripEdgeBreaks(repeatItem.children || []).map(cb => (
+                  <ReportBlockView
+                    key={cb.id}
+                    block={cb}
+                    ctx={ctx}
+                    fieldMap={fieldMap}
+                    item={item}
+                    parentCategory={repeatItem.collection === 'elements' ? repeatItem.category : undefined}
+                    parentCollection={repeatItem.collection}
+                    scopeFilter={scopeFilter}
+                    hint={hint}
+                    showKeys={showKeys}
+                    aux={{ ...pageAux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
+                    ancestors={[item]}
+                  />
+                ))}
+              </div>
+            );
+          }
+          return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />;
+        })}
+      </div>
+      {showFooter && (
+        <div className="report-page-footer">
+          {footer!.map(b => (
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ---- repeat (vertical stack of children) ------------------------------------
 

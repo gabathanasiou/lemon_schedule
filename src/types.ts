@@ -355,6 +355,10 @@ export interface ReportDesign {
   createdAt: number;
   page: 'portrait' | 'landscape';
   blocks: ReportBlock[];
+  header?: ReportBlock[];        // rendered at the top of every page
+  footer?: ReportBlock[];        // rendered at the bottom of every page
+  headerSkipFirst?: boolean;     // hide the header on page 1
+  footerSkipFirst?: boolean;     // hide the footer on page 1
 }
 
 /** Named text style (Word/Pages-like): blocks link to one via `textStyle`. */

@@ -46,6 +46,10 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const activeDesign: ReportDesign | undefined = project.reportDesigns?.find(d => d.id === project.activeReportId) || project.reportDesigns?.[0];
 
   const [blocks, setBlocks] = useState<ReportBlock[]>(() => activeDesign?.blocks || []);
+  const [headerBlocks, setHeaderBlocks] = useState<ReportBlock[]>(() => activeDesign?.header || []);
+  const [footerBlocks, setFooterBlocks] = useState<ReportBlock[]>(() => activeDesign?.footer || []);
+  const [skipFirstHeader, setSkipFirstHeader] = useState(() => !!activeDesign?.headerSkipFirst);
+  const [skipFirstFooter, setSkipFirstFooter] = useState(() => !!activeDesign?.footerSkipFirst);
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
@@ -55,6 +59,10 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   useEffect(() => {
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);
+    setHeaderBlocks(activeDesign?.header ? JSON.parse(JSON.stringify(activeDesign.header)) : []);
+    setFooterBlocks(activeDesign?.footer ? JSON.parse(JSON.stringify(activeDesign.footer)) : []);
+    setSkipFirstHeader(!!activeDesign?.headerSkipFirst);
+    setSkipFirstFooter(!!activeDesign?.footerSkipFirst);
     setSelId(null);
     setSelCol(null);
     setMenu(null);
@@ -63,13 +71,28 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   useEffect(() => {
     if (!activeDesign) return;
     const fresh = activeDesign.blocks || [];
+    const freshHeader = activeDesign.header || [];
+    const freshFooter = activeDesign.footer || [];
     setBlocks(JSON.parse(JSON.stringify(fresh)));
-    setSelId(prev => (prev && findBlock(fresh, prev) ? prev : null));
-    setSelCol(prev => (prev && prev.colsId && findBlock(fresh, prev.colsId) ? prev : null));
+    setHeaderBlocks(JSON.parse(JSON.stringify(freshHeader)));
+    setFooterBlocks(JSON.parse(JSON.stringify(freshFooter)));
+    setSkipFirstHeader(!!activeDesign.headerSkipFirst);
+    setSkipFirstFooter(!!activeDesign.footerSkipFirst);
+    const all = [...freshHeader, ...fresh, ...freshFooter];
+    setSelId(prev => (prev && findBlock(all, prev) ? prev : null));
+    setSelCol(prev => (prev && prev.colsId && findBlock(all, prev.colsId) ? prev : null));
   }, [project.reportDesigns]);
 
   const blocksRef = useRef(blocks);
   blocksRef.current = blocks;
+  const headerRef = useRef(headerBlocks);
+  headerRef.current = headerBlocks;
+  const footerRef = useRef(footerBlocks);
+  footerRef.current = footerBlocks;
+  const skipFirstHeaderRef = useRef(skipFirstHeader);
+  skipFirstHeaderRef.current = skipFirstHeader;
+  const skipFirstFooterRef = useRef(skipFirstFooter);
+  skipFirstFooterRef.current = skipFirstFooter;
   const selIdRef = useRef(selId);
   selIdRef.current = selId;
   const selColRef = useRef(selCol);
@@ -78,16 +101,50 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const selectBlock = (id: string | null) => { setSelId(id); if (id) setSelCol(null); };
   const selectCol = (sel: ColSel | null) => { setSelCol(sel); if (sel) setSelId(null); };
 
-  const commit = (next: ReportBlock[]) => {
-    setBlocks(next);
-    if (activeDesign) dispatch({ type: 'UPDATE_REPORT_DESIGN', payload: { id: activeDesign.id, blocks: next } });
+  /** The zone (list) containing `id`. */
+  const zoneOf = (id: string | null): 'header' | 'body' | 'footer' => {
+    if (!id) return 'body';
+    if (findBlock(headerRef.current, id)) return 'header';
+    if (findBlock(footerRef.current, id)) return 'footer';
+    return 'body';
+  };
+  const listOfZone = (zone: 'header' | 'body' | 'footer') =>
+    zone === 'header' ? headerRef.current : zone === 'footer' ? footerRef.current : blocksRef.current;
+
+  const commitAll = () => {
+    if (!activeDesign) return;
+    dispatch({
+      type: 'UPDATE_REPORT_DESIGN',
+      payload: {
+        id: activeDesign.id,
+        blocks: blocksRef.current,
+        header: headerRef.current,
+        footer: footerRef.current,
+        headerSkipFirst: skipFirstHeaderRef.current,
+        footerSkipFirst: skipFirstFooterRef.current,
+      },
+    });
   };
 
-  const patch = (id: string, p: Partial<ReportBlock>) => commit(updateBlock(blocksRef.current, id, p));
+  const commit = (next: ReportBlock[], zone: 'header' | 'body' | 'footer' = 'body') => {
+    if (zone === 'header') { setHeaderBlocks(next); headerRef.current = next; }
+    else if (zone === 'footer') { setFooterBlocks(next); footerRef.current = next; }
+    else { setBlocks(next); blocksRef.current = next; }
+    commitAll();
+  };
 
-  const selBlock = selId ? findBlock(blocks, selId)?.block ?? null : null;
-  const selParentCollection = selId ? parentCollectionOf(blocks, selId) : undefined;
-  const selParentCategory = selId ? parentCategoryOf(blocks, selId) : undefined;
+  const commitZone = (id: string | null, next: (list: ReportBlock[]) => ReportBlock[]) => {
+    const zone = zoneOf(id);
+    commit(next(listOfZone(zone)), zone);
+  };
+
+  const patch = (id: string, p: Partial<ReportBlock>) => commitZone(id, list => updateBlock(list, id, p));
+
+  const allBlocks = useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
+
+  const selBlock = selId ? findBlock(allBlocks, selId)?.block ?? null : null;
+  const selParentCollection = selId ? parentCollectionOf(allBlocks, selId) : undefined;
+  const selParentCategory = selId ? parentCategoryOf(allBlocks, selId) : undefined;
   const insertScope = useMemo(
     () => (selBlock && (selBlock.type === 'repeat' || selBlock.type === 'table') ? selBlock.collection || null : selParentCollection || null),
     [selBlock, selParentCollection],
@@ -100,16 +157,18 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   );
 
   const insertPayload = (payload: PaletteDropPayload, id: string | null = selId) => {
-    const b = payloadToBlock(payload, insertScopeFor(blocks, id));
-    const next = id ? insertAfter(blocksRef.current, id, b) : [...blocksRef.current, b];
-    commit(next);
+    const zone = zoneOf(id);
+    const list = listOfZone(zone);
+    const b = payloadToBlock(payload, insertScopeFor(list, id));
+    const next = id ? insertAfter(list, id, b) : [...list, b];
+    commit(next, zone);
     setSelId(b.id);
   };
 
   const insertIntoSelected = () => {
     if (!selId) return;
     const b = makeReportBlock('text', { text: 'Line {{title}}' });
-    commit(insertInto(blocksRef.current, selId, b));
+    commitZone(selId, list => insertInto(list, selId, b));
   };
 
   useEffect(() => {
@@ -121,19 +180,21 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
       if (col) {
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
-          const owner = findBlock(blocksRef.current, col.colsId)?.block;
-          if (owner?.type === 'table') commit(removeTableColumnAt(blocksRef.current, col.colsId, col.colIndex));
-          else commit(removeColumnAt(blocksRef.current, col.colsId, col.colIndex));
+          const zone = zoneOf(col.colsId);
+          const owner = findBlock(listOfZone(zone), col.colsId)?.block;
+          if (owner?.type === 'table') commit(removeTableColumnAt(listOfZone(zone), col.colsId, col.colIndex), zone);
+          else commit(removeColumnAt(listOfZone(zone), col.colsId, col.colIndex), zone);
           setSelCol(null);
         }
         return;
       }
       const id = selIdRef.current;
       if (!id) return;
-      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); commit(removeBlock(blocksRef.current, id)); setSelId(null); }
-      if (e.key === 'ArrowUp') { e.preventDefault(); commit(moveBlock(blocksRef.current, id, -1)); }
-      if (e.key === 'ArrowDown') { e.preventDefault(); commit(moveBlock(blocksRef.current, id, 1)); }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); commit(duplicateBlock(blocksRef.current, id)); }
+      const zone = zoneOf(id);
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); commit(removeBlock(listOfZone(zone), id), zone); setSelId(null); }
+      if (e.key === 'ArrowUp') { e.preventDefault(); commit(moveBlock(listOfZone(zone), id, -1), zone); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); commit(moveBlock(listOfZone(zone), id, 1), zone); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); commit(duplicateBlock(listOfZone(zone), id), zone); }
     };
     currentWin.addEventListener('keydown', onKey);
     return () => currentWin.removeEventListener('keydown', onKey);
@@ -146,6 +207,8 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
       name: activeDesign.name,
       page: activeDesign.page,
       blocks: activeDesign.blocks,
+      header: activeDesign.header || [],
+      footer: activeDesign.footer || [],
     }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -165,6 +228,8 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
           payload: {
             name: parsed.name || 'Imported Report',
             blocks: parsed.blocks,
+            header: parsed.header || [],
+            footer: parsed.footer || [],
             page: parsed.page === 'landscape' ? 'landscape' : 'portrait',
           },
         });
@@ -279,7 +344,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         <ReportPreview design={activeDesign} ctx={ctx} fieldMap={fieldMap} onExit={() => setPreview(false)} />
       ) : (
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
-          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} insideColumns={!!selId && insideColumnsBlock(blocks, selId)} onInsert={insertPayload} readOnly={readOnly} />
+          <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} insideColumns={!!selId && insideColumnsBlock(allBlocks, selId)} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
             <ReportToolbar
               block={selBlock}
@@ -291,44 +356,55 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 ? { colIndex: selCol.colIndex, colsCount: selBlock.type === 'columns' ? (selBlock.cols || []).length : (selBlock.columns || []).length }
                 : null}
               onPatch={p => selId && patch(selId, p)}
-              onInsertAbove={() => selId && commit(insertBefore(blocksRef.current, selId, makeReportBlock('text')))}
-              onInsertBelow={() => selId && commit(insertAfter(blocksRef.current, selId, makeReportBlock('text')))}
-              onDuplicate={() => selId && commit(duplicateBlock(blocksRef.current, selId))}
+              onInsertAbove={() => selId && commitZone(selId, list => insertBefore(list, selId, makeReportBlock('text')))}
+              onInsertBelow={() => selId && commitZone(selId, list => insertAfter(list, selId, makeReportBlock('text')))}
+              onDuplicate={() => selId && commitZone(selId, list => duplicateBlock(list, selId))}
               onRemove={() => {
                 const col = selColRef.current;
                 if (col) {
-                  const owner = findBlock(blocksRef.current, col.colsId)?.block;
-                  if (owner?.type === 'table') commit(removeTableColumnAt(blocksRef.current, col.colsId, col.colIndex));
-                  else commit(removeColumnAt(blocksRef.current, col.colsId, col.colIndex));
+                  const zone = zoneOf(col.colsId);
+                  const list = listOfZone(zone);
+                  const owner = findBlock(list, col.colsId)?.block;
+                  if (owner?.type === 'table') commit(removeTableColumnAt(list, col.colsId, col.colIndex), zone);
+                  else commit(removeColumnAt(list, col.colsId, col.colIndex), zone);
                   setSelCol(null);
                   return;
                 }
-                if (selId) { commit(removeBlock(blocksRef.current, selId)); setSelId(null); }
+                if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); }
               }}
-              onMove={d => selId && commit(moveBlock(blocksRef.current, selId, d))}
+              onMove={d => selId && commitZone(selId, list => moveBlock(list, selId, d))}
               onInsertColumnAt={i => {
                 const col = selColRef.current;
                 if (!col) return;
-                const owner = findBlock(blocksRef.current, col.colsId)?.block;
+                const zone = zoneOf(col.colsId);
+                const list = listOfZone(zone);
+                const owner = findBlock(list, col.colsId)?.block;
                 if (owner?.type === 'table') {
-                  commit(insertTableColumnAt(blocksRef.current, col.colsId, i));
+                  commit(insertTableColumnAt(list, col.colsId, i), zone);
                   return;
                 }
                 const b = makeReportBlock('text');
-                commit(insertColumnAt(blocksRef.current, col.colsId, i, b));
+                commit(insertColumnAt(list, col.colsId, i, b), zone);
                 setSelId(b.id);
               }}
               onAddTextToColumn={() => {
                 const col = selColRef.current;
                 if (!col) return;
+                const zone = zoneOf(col.colsId);
                 const b = makeReportBlock('text');
-                commit(appendToColumn(blocksRef.current, col.colsId, col.colIndex, b));
+                commit(appendToColumn(listOfZone(zone), col.colsId, col.colIndex, b), zone);
                 setSelId(b.id);
               }}
               onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
             />
             <ReportDesignerCanvas
               blocks={blocks}
+              headerBlocks={headerBlocks}
+              footerBlocks={footerBlocks}
+              skipFirstHeader={skipFirstHeader}
+              skipFirstFooter={skipFirstFooter}
+              onToggleHeaderSkipFirst={() => { const next = !skipFirstHeaderRef.current; skipFirstHeaderRef.current = next; setSkipFirstHeader(next); commitAll(); }}
+              onToggleFooterSkipFirst={() => { const next = !skipFirstFooterRef.current; skipFirstFooterRef.current = next; setSkipFirstFooter(next); commitAll(); }}
               selId={selId}
               selCol={selCol}
               ctx={ctx}
@@ -344,68 +420,103 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onSelect={selectBlock}
               onSelectCol={selectCol}
               onPatch={patch}
-              onInsertTableColumnAt={(tableId, colIndex) => commit(insertTableColumnAt(blocksRef.current, tableId, colIndex))}
-              onRemoveTableColumn={(tableId, colIndex) => { commit(removeTableColumnAt(blocksRef.current, tableId, colIndex)); setSelCol(null); }}
+              onInsertTableColumnAt={(tableId, colIndex) => { const zone = zoneOf(tableId); commit(insertTableColumnAt(listOfZone(zone), tableId, colIndex), zone); }}
+              onRemoveTableColumn={(tableId, colIndex) => { const zone = zoneOf(tableId); commit(removeTableColumnAt(listOfZone(zone), tableId, colIndex), zone); setSelCol(null); }}
+              onInsertIntoZone={(zone, payload) => {
+                const b = payloadToBlock(payload, null);
+                commit([...listOfZone(zone), b], zone);
+                setSelId(b.id);
+              }}
               onMoveTableColumn={(tableId, from, to) => {
-                commit(moveTableColumn(blocksRef.current, tableId, from, to));
+                const zone = zoneOf(tableId);
+                commit(moveTableColumn(listOfZone(zone), tableId, from, to), zone);
                 setSelCol(prev => (prev && prev.colsId === tableId ? { colsId: tableId, colIndex: to } : prev));
               }}
-              onInsertAfter={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertAfter(blocksRef.current, id, b) : [...blocksRef.current, b]); setSelId(b.id); }}
-              onInsertBefore={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(id ? insertBefore(blocksRef.current, id, b) : [b, ...blocksRef.current]); setSelId(b.id); }}
-              onInsertInto={(id, payload) => { const b = payloadToBlock(payload, insertScopeFor(blocks, id)); commit(insertInto(blocksRef.current, id, b)); setSelId(b.id); }}
-              onMoveInto={(containerId, moveId) => { commit(moveIntoChildren(blocksRef.current, moveId, containerId)); setSelId(moveId); }}
+              onInsertAfter={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(id ? insertAfter(listOfZone(zone), id, b) : [...listOfZone(zone), b], zone); setSelId(b.id); }}
+              onInsertBefore={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(id ? insertBefore(listOfZone(zone), id, b) : [b, ...listOfZone(zone)], zone); setSelId(b.id); }}
+              onInsertInto={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(insertInto(listOfZone(zone), id, b), zone); setSelId(b.id); }}
+              onMoveInto={(containerId, moveId) => { const zone = zoneOf(containerId); commit(moveIntoChildren(listOfZone(zone), moveId, containerId), zone); setSelId(moveId); }}
               onDuplicateInto={(containerId, moveId) => {
-                const src = findBlock(blocksRef.current, moveId);
+                const zone = zoneOf(containerId);
+                const src = findBlock(listOfZone(zoneOf(moveId)), moveId);
                 if (!src) return;
-                commit(insertInto(blocksRef.current, containerId, cloneBlock(src.block)));
+                commit(insertInto(listOfZone(zone), containerId, cloneBlock(src.block)), zone);
               }}
-              onMoveTo={(moveId, targetId, pos) => { commit(moveBlockTo(blocksRef.current, moveId, targetId, pos)); setSelId(moveId); }}
-              onDuplicateTo={(moveId, targetId, pos) => { const copy = duplicateBlockTo(blocksRef.current, moveId, targetId, pos); commit(copy); setSelId(moveId); }}
+              onMoveTo={(moveId, targetId, pos) => {
+                const srcZone = zoneOf(moveId);
+                const tgtZone = zoneOf(targetId);
+                if (srcZone === tgtZone) {
+                  commit(moveBlockTo(listOfZone(srcZone), moveId, targetId, pos), srcZone);
+                } else {
+                  const fm = findBlock(listOfZone(srcZone), moveId);
+                  if (!fm) return;
+                  commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
+                  commit(pos === 'before' ? insertBefore(listOfZone(tgtZone), targetId, fm.block) : insertAfter(listOfZone(tgtZone), targetId, fm.block), tgtZone);
+                }
+                setSelId(moveId);
+              }}
+              onDuplicateTo={(moveId, targetId, pos) => {
+                const zone = zoneOf(targetId);
+                const copy = duplicateBlockTo(listOfZone(zone), moveId, targetId, pos);
+                commit(copy, zone);
+                setSelId(moveId);
+              }}
               onWrap={(targetId, payload, side) => {
+                const zone = zoneOf(targetId);
+                const list = listOfZone(zone);
                 const dropped = payload.moveId
-                  ? findBlock(blocksRef.current, payload.moveId)?.block ?? null
-                  : payloadToBlock(payload, insertScopeFor(blocksRef.current, targetId));
+                  ? findBlock(listOfZone(zoneOf(payload.moveId)), payload.moveId)?.block ?? null
+                  : payloadToBlock(payload, insertScopeFor(list, targetId));
                 if (!dropped) return;
                 if (payload.moveId && payload.duplicate) {
-                  commit(wrapWithColumns(blocksRef.current, targetId, cloneBlock(dropped), side));
+                  commit(wrapWithColumns(list, targetId, cloneBlock(dropped), side), zone);
                 } else {
-                  commit(wrapWithColumns(blocksRef.current, targetId, dropped, side, payload.moveId));
+                  commit(wrapWithColumns(list, targetId, dropped, side, payload.moveId), zone);
                 }
               }}
               onInsertIntoColumn={(columnsId, colIndex, payload) => {
-                const b = payloadToBlock(payload, insertScopeFor(blocksRef.current, columnsId));
-                commit(appendToColumn(blocksRef.current, columnsId, colIndex, b));
+                const zone = zoneOf(columnsId);
+                const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), columnsId));
+                commit(appendToColumn(listOfZone(zone), columnsId, colIndex, b), zone);
                 setSelId(b.id);
               }}
               onMoveIntoColumn={(moveId, columnsId, colIndex) => {
-                commit(moveIntoColumn(blocksRef.current, moveId, columnsId, colIndex));
+                const zone = zoneOf(columnsId);
+                const next = moveIntoColumn(listOfZone(zone), moveId, columnsId, colIndex);
+                if (zoneOf(moveId) !== zone) commit(removeBlock(listOfZone(zoneOf(moveId)), moveId), zoneOf(moveId));
+                commit(next, zone);
                 setSelId(moveId);
               }}
               onDuplicateIntoColumn={(moveId, columnsId, colIndex) => {
-                const fm = findBlock(blocksRef.current, moveId);
+                const zone = zoneOf(columnsId);
+                const fm = findBlock(listOfZone(zoneOf(moveId)), moveId);
                 if (!fm) return;
-                commit(appendToColumn(blocksRef.current, columnsId, colIndex, cloneBlock(fm.block)));
+                commit(appendToColumn(listOfZone(zone), columnsId, colIndex, cloneBlock(fm.block)), zone);
               }}
               onInsertNewColumn={(columnsId, colIndex, payload) => {
-                const b = payloadToBlock(payload, insertScopeFor(blocksRef.current, columnsId));
-                commit(insertColumnAt(blocksRef.current, columnsId, colIndex, b));
+                const zone = zoneOf(columnsId);
+                const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), columnsId));
+                commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, b), zone);
                 setSelId(b.id);
               }}
               onMoveToNewColumn={(moveId, columnsId, colIndex) => {
-                commit(moveIntoNewColumn(blocksRef.current, moveId, columnsId, colIndex));
+                const zone = zoneOf(columnsId);
+                commit(moveIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
                 setSelId(moveId);
               }}
               onDuplicateToNewColumn={(moveId, columnsId, colIndex) => {
-                commit(duplicateIntoNewColumn(blocksRef.current, moveId, columnsId, colIndex));
+                const zone = zoneOf(columnsId);
+                commit(duplicateIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
                 setSelId(moveId);
               }}
               onRemoveColumn={(columnsId, colIndex) => {
-                commit(removeColumnAt(blocksRef.current, columnsId, colIndex));
+                const zone = zoneOf(columnsId);
+                commit(removeColumnAt(listOfZone(zone), columnsId, colIndex), zone);
                 setSelCol(null);
               }}
-              onDuplicate={id => commit(duplicateBlock(blocksRef.current, id))}
-              onRemove={id => { commit(removeBlock(blocksRef.current, id)); if (selId === id) setSelId(null); if (selCol?.colsId === id) setSelCol(null); }}
-              onMove={(id, d) => commit(moveBlock(blocksRef.current, id, d))}
+              onDuplicate={id => commitZone(id, list => duplicateBlock(list, id))}
+              onRemove={id => { commitZone(id, list => removeBlock(list, id)); if (selId === id) setSelId(null); if (selCol?.colsId === id) setSelCol(null); }}
+              onMove={(id, d) => commitZone(id, list => moveBlock(list, id, d))}
               onMenu={(e, id, colIndex) => {
                 setSelId(id);
                 setSelCol(colIndex !== undefined ? { colsId: id, colIndex } : null);
@@ -432,40 +543,44 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
             }
             patch(menu.id, { field: f });
           }}
-          onInsertAbove={() => commit(insertBefore(blocksRef.current, menu.id, makeReportBlock('text')))}
-          onInsertBelow={() => commit(insertAfter(blocksRef.current, menu.id, makeReportBlock('text')))}
+          onInsertAbove={() => commitZone(menu.id, list => insertBefore(list, menu.id, makeReportBlock('text')))}
+          onInsertBelow={() => commitZone(menu.id, list => insertAfter(list, menu.id, makeReportBlock('text')))}
           onAddChild={insertIntoSelected}
-          onDuplicate={() => commit(duplicateBlock(blocksRef.current, menu.id))}
-          onRemove={() => { commit(removeBlock(blocksRef.current, menu.id)); setSelId(null); setMenu(null); }}
+          onDuplicate={() => commitZone(menu.id, list => duplicateBlock(list, menu.id))}
+          onRemove={() => { commitZone(menu.id, list => removeBlock(list, menu.id)); setSelId(null); setMenu(null); }}
           onColumnAddText={() => {
             if (menu.colIndex === undefined) return;
+            const zone = zoneOf(menu.id);
             const b = makeReportBlock('text');
-            commit(appendToColumn(blocksRef.current, menu.id, menu.colIndex, b));
+            commit(appendToColumn(listOfZone(zone), menu.id, menu.colIndex, b), zone);
             setSelId(b.id);
             setMenu(null);
           }}
           onColumnInsertAt={i => {
             if (menu.colIndex === undefined) return;
+            const zone = zoneOf(menu.id);
             if (selBlock?.type === 'table') {
-              commit(insertTableColumnAt(blocksRef.current, menu.id, i));
+              commit(insertTableColumnAt(listOfZone(zone), menu.id, i), zone);
               setMenu(null);
               return;
             }
             const b = makeReportBlock('text');
-            commit(insertColumnAt(blocksRef.current, menu.id, i, b));
+            commit(insertColumnAt(listOfZone(zone), menu.id, i, b), zone);
             setSelId(b.id);
             setMenu(null);
           }}
           onColumnMove={dir => {
             if (menu.colIndex === undefined) return;
-            commit(moveTableColumn(blocksRef.current, menu.id, menu.colIndex, menu.colIndex + dir));
+            const zone = zoneOf(menu.id);
+            commit(moveTableColumn(listOfZone(zone), menu.id, menu.colIndex, menu.colIndex + dir), zone);
             setSelCol({ colsId: menu.id, colIndex: menu.colIndex + dir });
             setMenu(null);
           }}
           onColumnRemove={() => {
             if (menu.colIndex === undefined) return;
-            if (selBlock?.type === 'table') commit(removeTableColumnAt(blocksRef.current, menu.id, menu.colIndex));
-            else commit(removeColumnAt(blocksRef.current, menu.id, menu.colIndex));
+            const zone = zoneOf(menu.id);
+            if (selBlock?.type === 'table') commit(removeTableColumnAt(listOfZone(zone), menu.id, menu.colIndex), zone);
+            else commit(removeColumnAt(listOfZone(zone), menu.id, menu.colIndex), zone);
             setSelCol(null);
             setMenu(null);
           }}

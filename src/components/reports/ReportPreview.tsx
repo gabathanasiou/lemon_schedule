@@ -38,12 +38,23 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
           <div
             key={pi}
             className="mx-auto bg-white shadow-2xl relative"
-            style={{ width: pageW, minHeight: pageW * 1.414, padding: '14mm 12mm' }}
+            style={{ width: pageW, minHeight: pageW * 1.414, padding: '14mm 12mm', display: 'flex', flexDirection: 'column' }}
           >
             {pi > 0 && (
               <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-zinc-400">Page {pi + 1}</span>
             )}
-            <ReportPageItems items={blocks} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} pageIndex={pi} pageCount={pages.length} />
+            <ReportPageItems
+              items={blocks}
+              ctx={ctx}
+              fieldMap={fieldMap}
+              scopeFilter={scopeFilter}
+              pageIndex={pi}
+              pageCount={pages.length}
+              header={design.header}
+              footer={design.footer}
+              headerSkipFirst={design.headerSkipFirst}
+              footerSkipFirst={design.footerSkipFirst}
+            />
           </div>
         ))}
       </div>

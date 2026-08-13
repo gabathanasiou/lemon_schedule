@@ -80,6 +80,9 @@ function oneLiner(): ReportDesign {
         { field: 'description', width: 23 },
       ]),
     ],
+    footer: [
+      textBlock('Page {{pageNumber}} of {{pageCount}}', { fontSize: 8, align: 'right', paddingV: 0, paddingH: 4 }),
+    ],
   };
 }
 

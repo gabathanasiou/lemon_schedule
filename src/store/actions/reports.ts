@@ -17,12 +17,26 @@ export function caseAddReportDesign(state: State, action: Action, applyChange: A
     : source
       ? JSON.parse(JSON.stringify(source.blocks))
       : getDefaultReportDesign().blocks;
+  const header = action.payload.header
+    ? JSON.parse(JSON.stringify(action.payload.header))
+    : source?.header
+      ? JSON.parse(JSON.stringify(source.header))
+      : [];
+  const footer = action.payload.footer
+    ? JSON.parse(JSON.stringify(action.payload.footer))
+    : source?.footer
+      ? JSON.parse(JSON.stringify(source.footer))
+      : [];
   const newDesign: ReportDesign = {
     id: action.payload.id || generateUUID(),
     name: action.payload.name,
     createdAt: Date.now(),
     page: action.payload.page ?? source?.page ?? 'portrait',
     blocks,
+    header,
+    footer,
+    headerSkipFirst: action.payload.headerSkipFirst ?? source?.headerSkipFirst,
+    footerSkipFirst: action.payload.footerSkipFirst ?? source?.footerSkipFirst,
   };
   return applyChange({
     ...state.present,
@@ -33,13 +47,20 @@ export function caseAddReportDesign(state: State, action: Action, applyChange: A
 
 export function caseUpdateReportDesign(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'UPDATE_REPORT_DESIGN') return state;
+  const { id, blocks, header, footer, headerSkipFirst, footerSkipFirst } = action.payload;
   return applyChange({
     ...state.present,
-    reportDesigns: (state.present.reportDesigns || []).map(d =>
-      d.id === action.payload.id
-        ? { ...d, blocks: JSON.parse(JSON.stringify(action.payload.blocks)) }
-        : d
-    ),
+    reportDesigns: (state.present.reportDesigns || []).map(d => {
+      if (d.id !== id) return d;
+      return {
+        ...d,
+        ...(blocks !== undefined ? { blocks: JSON.parse(JSON.stringify(blocks)) } : {}),
+        ...(header !== undefined ? { header: JSON.parse(JSON.stringify(header)) } : {}),
+        ...(footer !== undefined ? { footer: JSON.parse(JSON.stringify(footer)) } : {}),
+        ...(headerSkipFirst !== undefined ? { headerSkipFirst } : {}),
+        ...(footerSkipFirst !== undefined ? { footerSkipFirst } : {}),
+      };
+    }),
   });
 }
 

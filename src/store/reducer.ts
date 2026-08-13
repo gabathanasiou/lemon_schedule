@@ -191,8 +191,8 @@ export type Action =
   | { type: 'RESTORE_COLOR_RULE_FROM_TRASH'; payload: string }
   | { type: 'REORDER_COLOR_RULES'; payload: ColorRule[] }
   // Reports Designer + Production Info
-  | { type: 'ADD_REPORT_DESIGN'; payload: { name: string; cloneFromId?: string; blocks?: ReportBlock[]; page?: 'portrait' | 'landscape'; id?: string } }
-  | { type: 'UPDATE_REPORT_DESIGN'; payload: { id: string; blocks: ReportBlock[] } }
+  | { type: 'ADD_REPORT_DESIGN'; payload: { name: string; cloneFromId?: string; blocks?: ReportBlock[]; page?: 'portrait' | 'landscape'; id?: string; header?: ReportBlock[]; footer?: ReportBlock[]; headerSkipFirst?: boolean; footerSkipFirst?: boolean } }
+  | { type: 'UPDATE_REPORT_DESIGN'; payload: { id: string; blocks?: ReportBlock[]; header?: ReportBlock[]; footer?: ReportBlock[]; headerSkipFirst?: boolean; footerSkipFirst?: boolean } }
   | { type: 'UPDATE_REPORT_PAGE'; payload: { id: string; page: 'portrait' | 'landscape' } }
   | { type: 'RENAME_REPORT_DESIGN'; payload: { id: string; name: string } }
   | { type: 'SET_ACTIVE_REPORT'; payload: string }
