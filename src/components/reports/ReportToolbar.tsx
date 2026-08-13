@@ -1,5 +1,5 @@
 import React from 'react';
-import { ReportBlock, ReportCollection } from '../../types';
+import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import { Project } from '../../types';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Plus, Trash2 } from 'lucide-react';
@@ -23,9 +23,10 @@ interface ReportToolbarProps {
   onMove: (dir: -1 | 1) => void;
   onInsertColumnAt: (colIndex: number) => void;
   onAddTextToColumn: () => void;
+  onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
 
-const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, parentCategory, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn }) => {
+const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, parentCategory, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn, onSaveTextStyles }) => {
   if (!block) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/60 shrink-0">
@@ -36,7 +37,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
 
   const disabled = readOnly;
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch };
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
 
   const structureLabel = (
     <span className="flex items-center gap-1">

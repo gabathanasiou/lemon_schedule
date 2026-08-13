@@ -343,6 +343,7 @@ export interface ReportBlock {
   align?: 'left' | 'center' | 'right';
   paddingV?: number;
   paddingH?: number;
+  textStyle?: string;              // id of a project.reportTextStyles entry (linked style)
   // spacer
   height?: number;
   spacerStyle?: 'none' | 'black' | 'line' | 'dotted';
@@ -354,6 +355,16 @@ export interface ReportDesign {
   createdAt: number;
   page: 'portrait' | 'landscape';
   blocks: ReportBlock[];
+}
+
+/** Named text style (Word/Pages-like): blocks link to one via `textStyle`. */
+export interface ReportTextStyle {
+  id: string;
+  name: string;
+  fontSize: number;
+  fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
 }
 
 export interface ReportTrashItem {
@@ -392,4 +403,5 @@ export interface Project {
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];
+  reportTextStyles?: ReportTextStyle[];
 }

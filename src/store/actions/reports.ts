@@ -100,6 +100,14 @@ export function caseRestoreReportFromTrash(state: State, action: Action, applyCh
   });
 }
 
+export function caseSetReportTextStyles(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_REPORT_TEXT_STYLES') return state;
+  return applyChange({
+    ...state.present,
+    reportTextStyles: JSON.parse(JSON.stringify(action.payload)),
+  });
+}
+
 // ---- production info ---------------------------------------------------------
 
 export function caseSetProductionInfo(state: State, action: Action, applyChange: ApplyChange): State {

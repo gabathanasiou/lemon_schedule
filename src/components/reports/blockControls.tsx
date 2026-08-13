@@ -1,16 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { ReportBlock, ReportCollection, ReportTableColumn, Project } from '../../types';
+import { ReportBlock, ReportCollection, ReportTableColumn, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS } from '../../lib/reportFields';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
+import { getTextStyles, newTextStyle } from '../../lib/reportTextStyles';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
+import DropdownDivider from '../DropdownDivider';
+import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, EyeOff, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, EyeOff, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2 } from 'lucide-react';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -137,7 +140,134 @@ export interface BlockCtx {
   parentCategory?: string;
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
+  onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
+
+// ---- named text styles (Word/Pages-like) ---------------------------------------
+
+/** True when the block carries direct typography overrides on top of its style. */
+export function blockHasDirectFormatting(block: ReportBlock): boolean {
+  return block.fontSize !== undefined || block.bold !== undefined || block.italic !== undefined || block.fontFamily !== undefined;
+}
+
+export const TextStyleMenu: React.FC<{
+  value: string;
+  project: Project;
+  disabled: boolean;
+  onChange: (id: string) => void;
+  onEdit: () => void;
+  onUpdateFromSelection?: () => void;
+}> = ({ value, project, disabled, onChange, onEdit, onUpdateFromSelection }) => {
+  const [open, setOpen] = useState(false);
+  const styles = getTextStyles(project);
+  const current = styles.find(s => s.id === value);
+  const pick = (id: string) => { onChange(id); setOpen(false); };
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-52"
+      trigger={
+        <button type="button" disabled={disabled} className={`${TB_SELECT} w-32 disabled:pointer-events-none`}>
+          <span className="truncate">{current ? current.name : 'Direct formatting'}</span>
+          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+        </button>
+      }
+    >
+      <DropdownItem onClick={() => pick('')} icon={!value ? <Check className="w-3.5 h-3.5" /> : undefined}>
+        Direct formatting
+      </DropdownItem>
+      <DropdownDivider />
+      {styles.map(s => (
+        <DropdownItem key={s.id} onClick={() => pick(s.id)} icon={s.id === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          <span style={{ fontSize: s.fontSize, fontWeight: s.bold ? 700 : 400, fontStyle: s.italic ? 'italic' : 'normal', fontFamily: s.fontFamily || 'Helvetica' }}>{s.name}</span>
+        </DropdownItem>
+      ))}
+      <DropdownDivider />
+      {onUpdateFromSelection && (
+        <DropdownItem onClick={() => { onUpdateFromSelection(); setOpen(false); }} icon={<Wand2 className="w-3.5 h-3.5" />}>
+          Update “{current?.name || 'style'}” from selection
+        </DropdownItem>
+      )}
+      <DropdownItem onClick={() => { onEdit(); setOpen(false); }} icon={<Pencil className="w-3.5 h-3.5" />}>
+        Edit styles…
+      </DropdownItem>
+    </DropdownMenu>
+  );
+};
+
+export const TextStylesModal: React.FC<{
+  open: boolean;
+  project: Project;
+  onClose: () => void;
+  onSave: (styles: ReportTextStyle[]) => void;
+}> = ({ open, project, onClose, onSave }) => {
+  const [draft, setDraft] = useState<ReportTextStyle[] | null>(null);
+  const styles = draft ?? getTextStyles(project);
+  const set = (next: ReportTextStyle[]) => setDraft(next);
+  const patch = (id: string, p: Partial<ReportTextStyle>) => set(styles.map(s => s.id === id ? { ...s, ...p } : s));
+  const dup = (id: string) => {
+    const s = styles.find(x => x.id === id);
+    if (!s) return;
+    set([...styles, { ...s, id: newTextStyle('', []).id, name: `${s.name} Copy` }]);
+  };
+  const del = (id: string) => set(styles.filter(s => s.id !== id));
+  const commit = () => { onSave(draft ?? styles); setDraft(null); onClose(); };
+
+  const rowInput = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500';
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => { setDraft(null); onClose(); }}
+      title="Text styles"
+      width="w-[480px]"
+      footer={
+        <ModalFooter>
+          <button onClick={() => { setDraft(null); onClose(); }} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
+          <button onClick={commit} className="px-3 py-1.5 rounded text-xs bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Done</button>
+        </ModalFooter>
+      }
+    >
+      <div className="p-6 space-y-4">
+        <p className="text-xs text-zinc-500">Named styles link to every block using them — edits update all linked blocks. Blocks with direct formatting keep those overrides on top.</p>
+        <div className="space-y-2">
+          {styles.map(s => (
+            <div key={s.id} className="flex items-center gap-2 py-1 border-b border-zinc-800 last:border-0">
+              <input className={`${rowInput} flex-1 min-w-0`} value={s.name} onChange={e => patch(s.id, { name: e.target.value })} />
+              <input
+                type="number" min={6} max={72}
+                className={`${rowInput} w-14 text-center`}
+                value={s.fontSize}
+                onChange={e => patch(s.id, { fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 10)) })}
+                title="Font size (pt)"
+              />
+              <button
+                title="Bold"
+                onClick={() => patch(s.id, { bold: !s.bold })}
+                className={`w-7 h-6 rounded text-[11px] font-bold transition-colors ${s.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+              >B</button>
+              <button
+                title="Italic"
+                onClick={() => patch(s.id, { italic: !s.italic })}
+                className={`w-7 h-6 rounded text-[11px] italic transition-colors ${s.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+              >I</button>
+              <button title="Duplicate style" onClick={() => dup(s.id)} className="w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"><Copy className="w-3 h-3" /></button>
+              <button title="Delete style" onClick={() => del(s.id)} className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-zinc-800"><Trash2 className="w-3 h-3" /></button>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => set([...styles, newTextStyle(`Style ${styles.length + 1}`, styles)])}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add style
+        </button>
+      </div>
+    </Modal>
+  );
+};
 
 const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
@@ -689,11 +819,41 @@ export const TableColumnControls: React.FC<{
 
 // ---- style controls (typography — text/field only) -----------------------------
 
-export const StyleControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => {
+export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, onPatch, onSaveTextStyles }) => {
   const disabled = readOnly;
   const font = block.fontFamily || 'Helvetica';
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const updateFromSelection = () => {
+    const style = getTextStyles(project).find(s => s.id === block.textStyle);
+    if (!style) return;
+    const b = block;
+    onSaveTextStyles?.(getTextStyles(project).map(s => s.id === style.id
+      ? {
+          ...s,
+          fontSize: b.fontSize ?? s.fontSize,
+          bold: b.bold ?? s.bold,
+          italic: b.italic ?? s.italic,
+          fontFamily: b.fontFamily ?? s.fontFamily,
+        }
+      : s));
+    onPatch({ textStyle: style.id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+  };
   return (
     <>
+      {onSaveTextStyles && (
+        <>
+          <TextStyleMenu
+            value={block.textStyle || ''}
+            project={project}
+            disabled={disabled}
+            onChange={id => onPatch({ textStyle: id || undefined })}
+            onEdit={() => setStylesOpen(true)}
+            onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
+          />
+          <div className={TB_DIVIDER} />
+          <TextStylesModal open={stylesOpen} project={project} onClose={() => setStylesOpen(false)} onSave={styles => onSaveTextStyles(styles)} />
+        </>
+      )}
       <FontMenu value={font} disabled={disabled} onChange={f => onPatch({ fontFamily: f })} />
       <Tooltip content="Font size (pt)">
         <input

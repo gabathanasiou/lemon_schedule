@@ -311,6 +311,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 commit(appendToColumn(blocksRef.current, col.colsId, col.colIndex, b));
                 setSelId(b.id);
               }}
+              onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
             />
             <ReportDesignerCanvas
               blocks={blocks}

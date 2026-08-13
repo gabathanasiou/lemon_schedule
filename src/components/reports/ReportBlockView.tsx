@@ -47,7 +47,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
   ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors }) => {
-    const baseStyle = getReportBlockBaseStyle(block);
+    const baseStyle = getReportBlockBaseStyle(block, ctx.project.reportTextStyles);
     const blockAux: FieldAux = {
       ...aux,
       counterStart: block.counterStart ?? aux?.counterStart,
@@ -191,7 +191,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
   const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, ancestors) as ReportCollectionItem[];
   const filtered = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
   if (filtered.length === 0) {
-    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block));
+    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project.reportTextStyles));
     return null;
   }
   const gap = block.gap ?? 8;
@@ -264,7 +264,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' || itemCollection === 'elementsOfScene' ? block.category : undefined, item, parentCategory, block, ancestors) as ReportCollectionItem[]);
   const filtered = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
 
-  const baseStyle = getReportBlockBaseStyle(block);
+  const baseStyle = getReportBlockBaseStyle(block, ctx.project.reportTextStyles);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
   const border = block.showBorders === false ? 'none' : '1px solid #d4d4d8';
   const attributes = block.columns || [];
@@ -279,7 +279,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   // (header + field-key row) so the layout is visible without data.
   if (filtered.length === 0) {
     if (hint && attributes.length > 0) return renderTable([], true);
-    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block));
+    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block, ctx.project.reportTextStyles));
     return null;
   }
   // Per-item tables (one row per parent item, e.g. a table inside an element

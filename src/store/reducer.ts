@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo } from '../types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle } from '../types';
 import { generateUUID, normalizePunctuation } from '../lib/utils';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
@@ -28,6 +28,7 @@ import {
   caseSetActiveReport, caseDeleteReportDesign, caseRestoreReportFromTrash,
   caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
   caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
+  caseSetReportTextStyles,
 } from './actions/reports';
 import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
 import { isMultiValue, getFieldItems } from '../lib/categories';
@@ -198,6 +199,7 @@ export type Action =
   | { type: 'DELETE_REPORT_DESIGN'; payload: string }
   | { type: 'RESTORE_REPORT_FROM_TRASH'; payload: string }
   | { type: 'SET_PRODUCTION_INFO'; payload: Partial<ProductionInfo> }
+  | { type: 'SET_REPORT_TEXT_STYLES'; payload: ReportTextStyle[] }
   | { type: 'ADD_CREW_ROLE'; payload: { role: CrewRole } }
   | { type: 'RENAME_CREW_ROLE'; payload: { key: string; label: string } }
   | { type: 'DELETE_CREW_ROLE'; payload: string }
@@ -401,6 +403,7 @@ export function reducer(state: State, action: Action): State {
     case 'DELETE_REPORT_DESIGN': return caseDeleteReportDesign(state, action, applyChange);
     case 'RESTORE_REPORT_FROM_TRASH': return caseRestoreReportFromTrash(state, action, applyChange);
     case 'SET_PRODUCTION_INFO': return caseSetProductionInfo(state, action, applyChange);
+    case 'SET_REPORT_TEXT_STYLES': return caseSetReportTextStyles(state, action, applyChange);
     case 'ADD_CREW_ROLE': return caseAddCrewRole(state, action, applyChange);
     case 'RENAME_CREW_ROLE': return caseRenameCrewRole(state, action, applyChange);
     case 'DELETE_CREW_ROLE': return caseDeleteCrewRole(state, action, applyChange);
