@@ -98,7 +98,10 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
   switch (collection) {
     case 'scenes': return (item as ReportSceneInfo).scene.id;
     case 'days': case 'daysOfCast': return (item as ReportDayInfo).section.index;
-    case 'cast': case 'elements': case 'elementsOfCategory': return (item as ReportElementInfo).id;
+    case 'cast': case 'elements': case 'elementsOfCategory': {
+      const el = item as ReportElementInfo;
+      return elementMatchId(el, el.category || 'props');
+    }
     case 'categories': return (item as ReportCategoryInfo).key;
     default: return 0;
   }
@@ -325,7 +328,7 @@ function buildElementsFor(ctx: ReportCtx, category: string): ReportElementInfo[]
     const scenesOf = ctx.sceneInfos.filter(si =>
       ctx.sceneFieldItems(si.scene, category).some(v => v.toLowerCase() === matchId(e).toLowerCase())
     );
-    const t = stats.get(e.id);
+    const t = stats.get(matchId(e));
     out.push({
       id: e.id,
       name: category === 'cast' ? ctx.castNames.get(e.id) || e.id : e.name,
@@ -350,14 +353,15 @@ function computeElementStats(
   elements: { id: string; name: string }[],
 ): Map<string, DoodTotals> {
   const isCast = category === 'cast';
+  const matchKey = (e: { id: string; name: string }) => elementMatchId(e, category);
   const idToName = new Map<string, string>();
-  for (const e of elements) idToName.set(e.id.toLowerCase(), e.name);
+  for (const e of elements) idToName.set(matchKey(e).toLowerCase(), e.name);
   const { totals } = deriveDood(
     ctx.project.scenes,
     ctx.version.rows,
     ctx.version.productionStart || todayIso(),
     ctx.version.nonShootDates || [],
-    elements.map(e => e.id),
+    elements.map(matchKey),
     ctx.dayInfos.map(d => d.section.index),
     true,
     category,

@@ -110,6 +110,29 @@ test('keys/values toggle inside view menu switches text blocks; tables always sh
   await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 3000 });
 });
 
+test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {
+  await openSeededProject(page);
+
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByText('Editing:', { exact: false }).click();
+  await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await page.waitForTimeout(800);
+
+  // "Sunny's gun" is a capitalized props element — its Shoot Days cell was
+  // empty before the case-insensitive element match; it now lists real days.
+  const row = page.locator('.report-table-cols > div').filter({ hasText: "Sunny's gun" }).first();
+  await expect(row).toBeVisible({ timeout: 3000 });
+  await expect(row).toContainText('Day 7 (Tue, Aug 18)', { timeout: 3000 });
+  await expect(row).toContainText('Day 12 (Tue, Aug 25)');
+});
+
+
 test('category breakdown template iterates categories; skip empty + exclude work', async ({ page }) => {
   await openSeededProject(page);
 

@@ -127,10 +127,11 @@ export function deriveDood(
     const appearSet = new Set<number>();
     let firstDate: string | null = null;
     let lastDate: string | null = null;
+    const matchId = elementId.toLowerCase();
     for (const d of sortedDayInts) {
       const secScenes = scenesBySection.get(d);
       if (!secScenes) continue;
-      if (secScenes.some(s => getSceneElements(s, category).some(e => e.toLowerCase() === elementId))) {
+      if (secScenes.some(s => getSceneElements(s, category).some(e => e.toLowerCase() === matchId))) {
         appearSet.add(d);
         const date = sectionDateMap.get(d) || '';
         if (!firstDate || date < firstDate) firstDate = date;
