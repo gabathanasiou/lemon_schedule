@@ -222,6 +222,64 @@ export function formatDateShort(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// ---- report date formats ------------------------------------------------------
+// The global date format lives on the project (Production tab → productionInfo.dateFormat)
+// and is the source of truth for every date rendered in reports; day lists combine
+// it with a per-block display mode (block.dayFormat).
+
+export const DATE_FORMAT_KEYS = ['short', 'monDayYear', 'ymd', 'dmy', 'mdy', 'iso'] as const;
+export type DateFormatKey = (typeof DATE_FORMAT_KEYS)[number];
+
+export const DATE_FORMAT_OPTIONS: { key: DateFormatKey; label: string }[] = [
+  { key: 'short', label: 'Tue, Aug 11' },
+  { key: 'monDayYear', label: 'Aug 11, 2026' },
+  { key: 'ymd', label: '2026/08/11' },
+  { key: 'dmy', label: '11/08/2026' },
+  { key: 'mdy', label: '08/11/2026' },
+  { key: 'iso', label: '2026-08-11' },
+];
+
+export function formatDateCustom(dateStr: string, key?: DateFormatKey | string): string {
+  if (!dateStr) return '';
+  if (!key || key === 'short') return formatDateShort(dateStr);
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  switch (key) {
+    case 'monDayYear': return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    case 'ymd': return `${y}/${m}/${day}`;
+    case 'dmy': return `${day}/${m}/${y}`;
+    case 'mdy': return `${m}/${day}/${y}`;
+    case 'iso': return `${y}-${m}-${day}`;
+    default: return formatDateShort(dateStr);
+  }
+}
+
+export const DAY_FORMAT_KEYS = ['dayNumDate', 'dayNum', 'date'] as const;
+export type DayFormatMode = (typeof DAY_FORMAT_KEYS)[number];
+
+export const DAY_FORMAT_OPTIONS: { key: DayFormatMode; label: string }[] = [
+  { key: 'dayNumDate', label: 'Day N (date)' },
+  { key: 'dayNum', label: 'Day N' },
+  { key: 'date', label: 'Date only' },
+];
+
+/** Renders a structured day list ({day, iso}) per the block's day format + global date format. */
+export function formatDayList(
+  entries: { day: number; iso: string }[],
+  mode?: DayFormatMode | null,
+  dateKey?: DateFormatKey | string,
+): string {
+  if (!entries.length) return '';
+  return entries.map(e => {
+    if (mode === 'dayNum') return `Day ${e.day}`;
+    if (mode === 'date') return formatDateCustom(e.iso, dateKey);
+    return `Day ${e.day} (${formatDateCustom(e.iso, dateKey)})`;
+  }).join(', ');
+}
+
 /**
  * In-app clipboard mirror. The Async Clipboard API can fail on iPad (no user
  * activation for synthetic pen clicks, missing read permission, older iPadOS),

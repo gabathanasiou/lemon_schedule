@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
-import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems } from '../../lib/reportData';
+import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, ancestorSceneScope } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, applyItemAffixes, ReportFieldDef, FieldAux } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
@@ -48,7 +48,12 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
   ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors }) => {
     const baseStyle = getReportBlockBaseStyle(block);
-    const blockAux: FieldAux = { ...aux, counterStart: block.counterStart ?? aux?.counterStart };
+    const blockAux: FieldAux = {
+      ...aux,
+      counterStart: block.counterStart ?? aux?.counterStart,
+      dayFormat: block.dayFormat ?? aux?.dayFormat,
+      sceneScope: ancestorSceneScope(ctx, ancestors),
+    };
 
     switch (block.type) {
       case 'text': {

@@ -267,6 +267,7 @@ export interface ProductionInfo {
   email?: string;
   startDate?: string;
   wrapDate?: string;   // auto-computed from last section date (read-only display)
+  dateFormat?: string; // global report date format (Production tab) — source of truth
 }
 
 export type ReportCollection =
@@ -308,6 +309,7 @@ export interface ReportBlock {
   itemPrefix?: string;           // per-item affixes for multi-value attributes
   itemSuffix?: string;
   itemSeparator?: string;
+  dayFormat?: 'dayNumDate' | 'dayNum' | 'date'; // day-list display mode (Work/Hold/Travel Days)
   emptyBehavior?: EmptyBehavior;
   // repeat
   collection?: ReportCollection;

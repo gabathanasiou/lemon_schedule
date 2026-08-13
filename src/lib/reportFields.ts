@@ -1,6 +1,7 @@
 import { Project } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
-import { formatDateShort, formatDuration, formatPageCount } from './utils';
+import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
+import { parentNoun } from './reportBlocks';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem,
 } from './reportData';
@@ -9,15 +10,20 @@ import {
 // context where they make sense — the palette, token picker and table pickers
 // all filter by scope (see getFieldsForScope). Every get() is guarded at the
 // value boundary (item type mismatch → ''), never crash.
+//
+// Display vocabulary:
+//  - `separator` → a divider rendered before the field inside its submenu
+//  - scope 'smart' → universal contextual fields (see SMART_FIELDS).
 
 export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
+  separator?: boolean;   // render a divider before this field inside its submenu
   get: (ctx: ReportCtx, item?: any, aux?: FieldAux) => string;
 }
 
@@ -28,9 +34,14 @@ export interface FieldAux {
   pageCount?: number;
   counterStart?: number;           // from the iterating block
   pageSize?: 'portrait' | 'landscape';
+  dayFormat?: DayFormatMode;       // from the block's day-list display mode
+  sceneScope?: Set<string> | null; // Lego ancestor intersection — smart fields resolve within it
 }
 
 const s = (v: unknown): string => (v == null ? '' : String(v));
+
+/** The project's global date format (Production tab) — source of truth for report dates. */
+const dateKey = (ctx: ReportCtx) => ctx.project.productionInfo?.dateFormat;
 
 /**
  * Re-joins a comma-separated attribute with per-item affixes. Only used when
@@ -67,46 +78,43 @@ const SCENE_FIELDS: ReportFieldDef[] = [
   { key: 'description', label: 'Description', group: 'Scene Info', scope: 'scenes', defaultWidth: 30, get: (_c, it: ReportSceneInfo) => s(it.scene.description) },
   { key: 'notes', label: 'Notes', group: 'Scene Info', scope: 'scenes', defaultWidth: 22, get: (_c, it: ReportSceneInfo) => s(it.scene.notes) },
   { key: 'callTime', label: 'Call Time', group: 'Shooting', scope: 'scenes', defaultWidth: 8, get: (_c, it: ReportSceneInfo) => s(it.callTime) },
-  { key: 'duration', label: 'Duration', group: 'Shooting', scope: 'scenes', defaultWidth: 8, get: (_c, it: ReportSceneInfo) => formatDuration(it.durationMin) },
   { key: 'day', label: 'Day', group: 'Shooting', scope: 'scenes', align: 'center', defaultWidth: 6, get: (_c, it: ReportSceneInfo) => s(it.chronoDay || '') },
-  { key: 'date', label: 'Date', group: 'Shooting', scope: 'scenes', defaultWidth: 12, get: (_c, it: ReportSceneInfo) => formatDateShort(it.date) },
-  { key: 'cast', label: 'Cast', group: 'Cast & Talent', scope: 'scenes', multiValue: true, defaultWidth: 18, get: (ctx, it: ReportSceneInfo) => sceneCast(ctx, it.scene.cast) },
-  { key: 'backgroundActors', label: 'Background Actors', group: 'Cast & Talent', scope: 'scenes', defaultWidth: 14, get: (_c, it: ReportSceneInfo) => s(it.scene.backgroundActors) },
+  { key: 'date', label: 'Date', group: 'Shooting', scope: 'scenes', defaultWidth: 12, get: (ctx, it: ReportSceneInfo) => formatDateCustom(it.date, dateKey(ctx)) },
+  { key: 'cast', label: 'Cast Members List', group: 'Breakdown', scope: 'scenes', multiValue: true, defaultWidth: 18, get: (ctx, it: ReportSceneInfo) => sceneCast(ctx, it.scene.cast) },
+  { key: 'backgroundActors', label: 'Background Actors List', group: 'Breakdown', scope: 'scenes', multiValue: true, defaultWidth: 14, get: (_c, it: ReportSceneInfo) => s(it.scene.backgroundActors) },
 ];
 
-// ---- elements & cast ---------------------------------------------------------
+// ---- elements & cast (cast identity fields merge into the Elements submenu;
+// the six cast duplicates of element fields were removed) -----------------------
 
 const ELEMENT_FIELDS: ReportFieldDef[] = [
   { key: 'elementName', label: 'Name', group: 'Elements', scope: 'elements', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.name) },
   { key: 'elementCategory', label: 'Category', group: 'Elements', scope: 'elements', defaultWidth: 14, get: (_c, it: ReportElementInfo) => s(it.category) },
-  { key: 'sceneCount', label: 'Scene Count', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 10, get: (_c, it: ReportElementInfo) => s(it.sceneCount) },
-  { key: 'attachedScenes', label: 'Attached Scenes', group: 'Elements', scope: 'elements', multiValue: true, defaultWidth: 16, get: (_c, it: ReportElementInfo) => s(it.attachedScenes) },
+  { key: 'sceneCount', label: 'Scene Count', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportElementInfo) => s(it.sceneCount) },
+  { key: 'attachedScenes', label: 'Attached Scenes List', group: 'Elements', scope: 'elements', multiValue: true, defaultWidth: 16, get: (_c, it: ReportElementInfo) => s(it.attachedScenes) },
   { key: 'totalPages', label: 'Total Pages', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 10, get: (_c, it: ReportElementInfo) => formatPageCount(it.totalPages) },
-  { key: 'shootDays', label: 'Shoot Days', group: 'Elements', scope: 'elements', multiValue: true, defaultWidth: 22, get: (_c, it: ReportElementInfo) => it.shootDays.join(', ') },
-  { key: 'workDays', label: 'Work Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.workDays) },
-  { key: 'holdDays', label: 'Hold Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.holdDays) },
-  { key: 'travelDays', label: 'Travel Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.travelDays) },
-  { key: 'startDate', label: 'Start Date', group: 'Elements', scope: 'elements', defaultWidth: 12, get: (_c, it: ReportElementInfo) => formatDateShort(it.startDate || '') },
-  { key: 'finishDate', label: 'Finish Date', group: 'Elements', scope: 'elements', defaultWidth: 12, get: (_c, it: ReportElementInfo) => formatDateShort(it.finishDate || '') },
+  { key: 'workDayList', label: 'Work Days List', group: 'Elements', scope: 'elements', multiValue: true, defaultWidth: 22, separator: true, get: (ctx, it: ReportElementInfo, aux) => formatDayList(it.workDayList, aux?.dayFormat, dateKey(ctx)) },
+  { key: 'totalWorkDays', label: 'Total Work Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.workDays) },
+  { key: 'holdDayList', label: 'Hold Days List', group: 'Elements', scope: 'elements', multiValue: true, defaultWidth: 22, get: (ctx, it: ReportElementInfo, aux) => formatDayList(it.holdDayList, aux?.dayFormat, dateKey(ctx)) },
+  { key: 'totalHoldDays', label: 'Total Hold Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.holdDays) },
+  { key: 'travelDayList', label: 'Travel Days List', group: 'Elements', scope: 'elements', multiValue: true, defaultWidth: 22, get: (ctx, it: ReportElementInfo, aux) => formatDayList(it.travelDayList, aux?.dayFormat, dateKey(ctx)) },
+  { key: 'totalTravelDays', label: 'Total Travel Days', group: 'Elements', scope: 'elements', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.travelDays) },
+  { key: 'workStart', label: 'Work Start', group: 'Elements', scope: 'elements', defaultWidth: 12, separator: true, get: (ctx, it: ReportElementInfo) => formatDateCustom(it.startDate || '', dateKey(ctx)) },
+  { key: 'workFinish', label: 'Work Finish', group: 'Elements', scope: 'elements', defaultWidth: 12, get: (ctx, it: ReportElementInfo) => formatDateCustom(it.finishDate || '', dateKey(ctx)) },
 ];
 
+// Cast identity only — everything else duplicated the element fields above.
 const CAST_FIELDS: ReportFieldDef[] = [
   { key: 'id', label: 'Cast ID', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementInfo) => s(it.id) },
-  { key: 'castName', label: 'Name', group: 'Cast & Talent', scope: 'cast', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.name) },
   { key: 'castIdName', label: 'Cast ID & Name', group: 'Cast & Talent', scope: 'cast', defaultWidth: 22, get: (_c, it: ReportElementInfo) => s(`${it.id}. ${it.name}`) },
-  { key: 'castWorkDays', label: 'Work Days', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.workDays) },
-  { key: 'castHoldDays', label: 'Hold Days', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.holdDays) },
-  { key: 'castTravelDays', label: 'Travel Days', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.travelDays) },
-  { key: 'castStartDate', label: 'Start Date', group: 'Cast & Talent', scope: 'cast', defaultWidth: 12, get: (_c, it: ReportElementInfo) => formatDateShort(it.startDate || '') },
-  { key: 'castFinishDate', label: 'Finish Date', group: 'Cast & Talent', scope: 'cast', defaultWidth: 12, get: (_c, it: ReportElementInfo) => formatDateShort(it.finishDate || '') },
 ];
 
 // ---- categories (one item per element category) ------------------------------
 
 const CATEGORY_FIELDS: ReportFieldDef[] = [
-  { key: 'categoryLabel', label: 'Category', group: 'Categories', scope: 'categories', defaultWidth: 20, get: (_c, it: ReportCategoryInfo) => s(it.label) },
-  { key: 'categoryItems', label: 'Items', group: 'Categories', scope: 'categories', multiValue: true, defaultWidth: 30, get: (_c, it: ReportCategoryInfo) => it.items.join(', ') },
-  { key: 'categoryElementCount', label: 'Element Count', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 10, get: (_c, it: ReportCategoryInfo) => s(it.elementCount) },
+  { key: 'categoryLabel', label: 'Category Name', group: 'Categories', scope: 'categories', defaultWidth: 20, get: (_c, it: ReportCategoryInfo) => s(it.label) },
+  { key: 'categoryItems', label: 'Element List', group: 'Categories', scope: 'categories', multiValue: true, defaultWidth: 30, separator: true, get: (_c, it: ReportCategoryInfo) => it.items.join(', ') },
+  { key: 'categoryElementCount', label: 'Element Count', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportCategoryInfo) => s(it.elementCount) },
   { key: 'categorySceneCount', label: 'Scene Count', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 10, get: (_c, it: ReportCategoryInfo) => s(it.sceneCount) },
   { key: 'categoryOccurrences', label: 'Total Occurrences', group: 'Categories', scope: 'categories', align: 'center', defaultWidth: 12, get: (_c, it: ReportCategoryInfo) => s(it.occurrences) },
 ];
@@ -116,8 +124,8 @@ const CATEGORY_FIELDS: ReportFieldDef[] = [
 const DOCUMENT_FIELDS: ReportFieldDef[] = [
   { key: 'counter', label: 'Counter', group: 'Document', scope: 'document', align: 'center', defaultWidth: 8, get: (_c, _it, aux) => s((aux?.index ?? 0) + (aux?.counterStart ?? 1)) },
   { key: 'pageNumber', label: 'Page Number', group: 'Document', scope: 'document', align: 'center', defaultWidth: 8, get: (_c, _it, aux) => s((aux?.pageIndex ?? 0) + 1) },
-  { key: 'pageCount', label: 'Total Pages', group: 'Document', scope: 'document', align: 'center', defaultWidth: 8, get: (_c, _it, aux) => s(aux?.pageCount ?? '') },
-  { key: 'printDate', label: 'Print Date', group: 'Document', scope: 'document', defaultWidth: 12, get: () => formatDateShort(new Date().toISOString().slice(0, 10)) },
+  { key: 'pageCount', label: 'Total Pages (report)', group: 'Document', scope: 'document', align: 'center', defaultWidth: 8, get: (_c, _it, aux) => s(aux?.pageCount ?? '') },
+  { key: 'printDate', label: 'Print Date', group: 'Document', scope: 'document', defaultWidth: 12, get: (ctx) => formatDateCustom(new Date().toISOString().slice(0, 10), dateKey(ctx)) },
   { key: 'pageSize', label: 'Page Size', group: 'Document', scope: 'document', defaultWidth: 12, get: (_c, _it, aux) => aux?.pageSize ? (aux.pageSize === 'portrait' ? 'A4 Portrait' : 'A4 Landscape') : '' },
 ];
 
@@ -125,15 +133,13 @@ const DOCUMENT_FIELDS: ReportFieldDef[] = [
 
 const DAY_FIELDS: ReportFieldDef[] = [
   { key: 'dayNumber', label: 'Day #', group: 'Days', scope: 'days', align: 'center', defaultWidth: 7, get: (_c, it: ReportDayInfo) => s(it.chronoDay) },
-  { key: 'dayDate', label: 'Date', group: 'Days', scope: 'days', defaultWidth: 16, get: (_c, it: ReportDayInfo) => formatDateShort(it.date) },
+  { key: 'dayLabel', label: 'Day Label', group: 'Days', scope: 'days', defaultWidth: 12, get: (_c, it: ReportDayInfo) => s(it.label) },
+  { key: 'dayDate', label: 'Date', group: 'Days', scope: 'days', defaultWidth: 16, separator: true, get: (ctx, it: ReportDayInfo) => formatDateCustom(it.date, dateKey(ctx)) },
   { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.callTime) },
   { key: 'dayEnd', label: 'End Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.endTime) },
-  { key: 'dayTotalPages', label: 'Total Pages', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, get: (_c, it: ReportDayInfo) => formatPageCount(it.totalPages) },
-  { key: 'dayShoot', label: 'Shoot Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => formatDuration(it.shootMin) },
-  { key: 'dayBreak', label: 'Break Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => formatDuration(it.breakMin) },
-  { key: 'dayLabel', label: 'Day Label', group: 'Days', scope: 'days', defaultWidth: 12, get: (_c, it: ReportDayInfo) => s(it.label) },
+  { key: 'dayTotalPages', label: 'Total Pages', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, separator: true, get: (_c, it: ReportDayInfo) => formatPageCount(it.totalPages) },
   { key: 'daySceneCount', label: 'Scene Count', group: 'Days', scope: 'days', align: 'center', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.sceneCount) },
-  { key: 'dayFirstScene', label: 'First Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, get: (_c, it: ReportDayInfo) => s(it.firstScene) },
+  { key: 'dayFirstScene', label: 'First Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, separator: true, get: (_c, it: ReportDayInfo) => s(it.firstScene) },
   { key: 'dayLastScene', label: 'Last Scene', group: 'Days', scope: 'days', align: 'center', defaultWidth: 8, get: (_c, it: ReportDayInfo) => s(it.lastScene) },
 ];
 
@@ -147,6 +153,8 @@ const CREW_FIELDS: ReportFieldDef[] = [
 ];
 
 // ---- production & project (static) ------------------------------------------
+// Production dates are DERIVED from the schedule (single source of truth) —
+// first/last production day + the aggregates below. No manual start/wrap fields.
 
 const PRODUCTION_FIELDS: ReportFieldDef[] = [
   { key: 'company', label: 'Company', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.company) },
@@ -155,8 +163,13 @@ const PRODUCTION_FIELDS: ReportFieldDef[] = [
   { key: 'address', label: 'Address', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.address) },
   { key: 'prodPhone', label: 'Phone', group: 'Production', scope: 'production', defaultWidth: 14, get: (ctx) => s(ctx.project.productionInfo?.phone) },
   { key: 'prodEmail', label: 'Email', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.email) },
-  { key: 'startDate', label: 'Start Date', group: 'Production', scope: 'production', defaultWidth: 12, get: (ctx) => formatDateShort(ctx.project.productionInfo?.startDate || '') },
-  { key: 'wrapDate', label: 'Wrap Date', group: 'Production', scope: 'production', defaultWidth: 12, get: (ctx) => formatDateShort(ctx.project.productionInfo?.wrapDate || '') },
+  { key: 'firstProductionDay', label: 'First Production Day', group: 'Production', scope: 'production', defaultWidth: 12, separator: true, get: (ctx) => formatDateCustom(ctx.totals.firstDay, dateKey(ctx)) },
+  { key: 'lastProductionDay', label: 'Last Production Day', group: 'Production', scope: 'production', defaultWidth: 12, get: (ctx) => formatDateCustom(ctx.totals.lastDay, dateKey(ctx)) },
+  { key: 'totalShootDays', label: 'Total Shoot Days', group: 'Production', scope: 'production', align: 'center', defaultWidth: 9, separator: true, get: (ctx) => s(ctx.totals.shootDays) },
+  { key: 'totalShootTime', label: 'Total Shoot Time', group: 'Production', scope: 'production', defaultWidth: 10, get: (ctx) => formatDuration(ctx.totals.shootMin) },
+  { key: 'totalBreakTime', label: 'Total Break Time', group: 'Production', scope: 'production', defaultWidth: 10, get: (ctx) => formatDuration(ctx.totals.breakMin) },
+  { key: 'schedulePages', label: 'Total Pages (schedule)', group: 'Production', scope: 'production', align: 'center', defaultWidth: 10, get: (ctx) => formatPageCount(ctx.totals.pages) },
+  { key: 'totalScenes', label: 'Total Scenes', group: 'Production', scope: 'production', align: 'center', defaultWidth: 9, get: (ctx) => s(ctx.totals.scenes) },
   { key: 'director', label: 'Director', group: 'Key Positions', scope: 'production', defaultWidth: 16, get: (ctx) => keyPerson(ctx, 'director') },
   { key: 'producer', label: 'Producer', group: 'Key Positions', scope: 'production', defaultWidth: 16, get: (ctx) => keyPerson(ctx, 'producer') },
   { key: 'lineProducer', label: 'Line Producer', group: 'Key Positions', scope: 'production', defaultWidth: 16, get: (ctx) => keyPerson(ctx, 'lineProducer') },
@@ -166,8 +179,96 @@ const PRODUCTION_FIELDS: ReportFieldDef[] = [
 
 const PROJECT_FIELDS: ReportFieldDef[] = [
   { key: 'title', label: 'Title', group: 'Project', scope: 'project', defaultWidth: 18, get: (ctx) => s(ctx.project.title) },
-  { key: 'version', label: 'Version', group: 'Project', scope: 'project', defaultWidth: 10, get: (ctx) => s(ctx.version.name) },
+  { key: 'version', label: 'Schedule Version', group: 'Project', scope: 'project', defaultWidth: 10, get: (ctx) => s(ctx.version.name) },
   { key: 'draftNumber', label: 'Draft #', group: 'Project', scope: 'project', defaultWidth: 8, get: (ctx) => s(ctx.project.draftNumber) },
+];
+
+// ---- smart (universal contextual attributes) ----------------------------------
+// One field that resolves by the item it sits in: top level → whole production,
+// day → that day, scene → its day, element/cast → its scenes, category → its
+// scenes. Picker labels carry a context clue ("Shoot Time (of this scene)").
+
+const SMART_PARENT_NOUNS: Record<string, string> = {
+  scenes: 'scene', scenesOfDay: 'scene', scenesOfElement: 'scene', scenesOfCast: 'scene', elementsOfScene: 'scene',
+  days: 'day', daysOfCast: 'day',
+  elements: 'element', elementsOfCategory: 'element',
+  categories: 'category',
+  cast: 'cast member',
+  crew: 'crew member',
+};
+
+/** Context clue for a smart field's label given the iterating collection. */
+export function smartFieldLabel(base: string, parentCollection?: string | null): string {
+  const noun = parentCollection ? SMART_PARENT_NOUNS[parentCollection] : undefined;
+  return noun ? `${base} (of this ${noun})` : `${base} (production)`;
+}
+
+function smartScenesOf(ctx: ReportCtx, it: any, scope?: Set<string> | null): ReportSceneInfo[] {
+  const within = (list: ReportSceneInfo[]) => (scope && scope.size > 0) ? list.filter(si => scope.has(si.scene.id)) : list;
+  if (it.scene) return within([it as ReportSceneInfo]);
+  if (typeof it.section?.index === 'number') return within(ctx.sceneInfos.filter(si => si.sectionIndex === it.section.index));
+  if (typeof it.key === 'string' && it.label !== undefined) {
+    return within(ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, it.key).length > 0));
+  }
+  if (typeof it.id !== 'undefined' && typeof it.name !== 'undefined') {
+    const ids = new Set(it.sceneIds || []);
+    const byId = ids.size > 0
+      ? ctx.sceneInfos.filter(si => ids.has(si.scene.id))
+      : ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, it.category || 'props').some(v => v.toLowerCase() === (it.name || '').toLowerCase()));
+    return within(byId);
+  }
+  return [];
+}
+
+/** The day a smart field stands for: day item → itself, scene item → its day. */
+function smartDayOf(ctx: ReportCtx, it: any): ReportDayInfo | undefined {
+  if (typeof it.section?.index === 'number') return ctx.dayInfos.find(d => d.section.index === it.section.index);
+  if (it.scene) return ctx.dayInfos.find(d => d.section.index === (it as ReportSceneInfo).sectionIndex);
+  return undefined;
+}
+
+// Smart semantics are "the current item's own value", Lego-composed:
+//   top level  → whole production
+//   day        → that day's total
+//   scene      → the scene's own duration/pages (break → its day's break)
+//   element/cast → its scenes (scoped to the ancestor chain)
+//   category   → its scenes (scoped to the ancestor chain)
+
+const SMART_FIELDS: ReportFieldDef[] = [
+  {
+    key: 'shootTime', label: 'Shoot Time', group: 'Smart', scope: 'smart', defaultWidth: 10,
+    get: (ctx, it, aux) => {
+      if (!it) return formatDuration(ctx.totals.shootMin);
+      if (it.scene) return formatDuration((it as ReportSceneInfo).durationMin);
+      const day = smartDayOf(ctx, it);
+      if (day) return formatDuration(day.shootMin);
+      const scenes = smartScenesOf(ctx, it, aux?.sceneScope);
+      return scenes.length ? formatDuration(scenes.reduce((sum, si) => sum + si.durationMin, 0)) : '';
+    },
+  },
+  {
+    key: 'breakTime', label: 'Break Time', group: 'Smart', scope: 'smart', defaultWidth: 10,
+    get: (ctx, it, aux) => {
+      if (!it) return formatDuration(ctx.totals.breakMin);
+      const day = smartDayOf(ctx, it);
+      if (day) return formatDuration(day.breakMin);
+      const sections = new Set(smartScenesOf(ctx, it, aux?.sceneScope).map(si => si.sectionIndex));
+      return sections.size
+        ? formatDuration(ctx.dayInfos.reduce((sum, d) => sections.has(d.section.index) ? sum + d.breakMin : sum, 0))
+        : '';
+    },
+  },
+  {
+    key: 'smartPages', label: 'Total Pages', group: 'Smart', scope: 'smart', align: 'center', defaultWidth: 10,
+    get: (ctx, it, aux) => {
+      if (!it) return formatPageCount(ctx.totals.pages);
+      if (it.scene) return formatPageCount((it as ReportSceneInfo).scene.pageCountDecimal || 0);
+      const day = smartDayOf(ctx, it);
+      if (day) return formatPageCount(day.totalPages);
+      const scenes = smartScenesOf(ctx, it, aux?.sceneScope);
+      return scenes.length ? formatPageCount(scenes.reduce((sum, si) => sum + (si.scene.pageCountDecimal || 0), 0)) : '';
+    },
+  },
 ];
 
 // ---- registry ----------------------------------------------------------------
@@ -176,11 +277,12 @@ function buildCategorySceneFields(project: Project): ReportFieldDef[] {
   const out: ReportFieldDef[] = [];
   const hidden = new Set(project.hiddenCategories || []);
   const baseKeys = new Set(SCENE_FIELDS.map(f => f.key));
+  const listLabel = (label: string, multi: boolean) => `${label}${multi ? ' List' : ''}`;
   for (const cat of ELEMENT_CATEGORIES) {
     if (cat.key === 'cast' || cat.key === 'set' || baseKeys.has(cat.key) || hidden.has(cat.key)) continue;
     out.push({
       key: cat.key,
-      label: getLabel(cat.key, cat.label, project.categoryLabels),
+      label: listLabel(getLabel(cat.key, cat.label, project.categoryLabels), isMultiValue(cat.key, project.customCategories)),
       group: 'Breakdown',
       scope: 'scenes',
       multiValue: isMultiValue(cat.key, project.customCategories),
@@ -192,7 +294,7 @@ function buildCategorySceneFields(project: Project): ReportFieldDef[] {
     if (hidden.has(c.key)) continue;
     out.push({
       key: c.key,
-      label: c.label,
+      label: listLabel(c.label, isMultiValue(c.key, project.customCategories)),
       group: 'Breakdown',
       scope: 'scenes',
       multiValue: isMultiValue(c.key, project.customCategories),
@@ -215,11 +317,38 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...CREW_FIELDS,
     ...PRODUCTION_FIELDS,
     ...PROJECT_FIELDS,
+    ...SMART_FIELDS,
   ];
 }
 
+/**
+ * Legacy keys from before the attribute overhaul — resolve to their renamed
+ * replacements so saved designs keep rendering. Aliases never shadow a real key.
+ */
+const LEGACY_FIELD_ALIASES: Record<string, string> = {
+  shootDays: 'workDayList',
+  workDays: 'totalWorkDays',
+  holdDays: 'totalHoldDays',
+  travelDays: 'totalTravelDays',
+  startDate: 'workStart',
+  finishDate: 'workFinish',
+  castName: 'elementName',
+  castWorkDays: 'totalWorkDays',
+  castHoldDays: 'totalHoldDays',
+  castTravelDays: 'totalTravelDays',
+  castStartDate: 'workStart',
+  castFinishDate: 'workFinish',
+  dayShoot: 'shootTime',
+  dayBreak: 'breakTime',
+  duration: 'shootTime', // scene duration == smart Shoot Time for a scene item
+};
+
 export function getReportFieldMap(project: Project): Record<string, ReportFieldDef> {
-  return Object.fromEntries(getReportFieldDefs(project).map(f => [f.key, f]));
+  const map = Object.fromEntries(getReportFieldDefs(project).map(f => [f.key, f]));
+  for (const [legacy, target] of Object.entries(LEGACY_FIELD_ALIASES)) {
+    if (!map[legacy] && map[target]) map[legacy] = map[target];
+  }
+  return map;
 }
 
 const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew']);
@@ -270,7 +399,7 @@ export function fieldsForScope(
   scope: string | null | undefined,
   category?: string,
 ): ReportFieldDef[] {
-  const scopeSet = new Set(['production', 'project', 'document']);
+  const scopeSet = new Set(['production', 'project', 'document', 'smart']);
   if (scope) {
     if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
     else if (scope === 'elementsOfCategory') scopeSet.add('elements');
@@ -282,3 +411,12 @@ export function fieldsForScope(
   if (scope === 'cast' || category === 'cast' || scope === 'elementsOfCategory') scopeSet.add('cast');
   return fields.filter(f => scopeSet.has(f.scope));
 }
+
+/** Report-wide constant fields — grouped under the GLOBAL divider in pickers. */
+export const GLOBAL_FIELD_SCOPES = new Set(['production', 'project', 'document']);
+export function isGlobalField(f: ReportFieldDef): boolean {
+  return GLOBAL_FIELD_SCOPES.has(f.scope);
+}
+
+/** Day-list field keys — the toolbar's day-format dropdown applies to these. */
+export const DAY_LIST_FIELD_KEYS = new Set(['workDayList', 'holdDayList', 'travelDayList']);
