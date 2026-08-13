@@ -3,20 +3,23 @@
 Status: **implemented** (editor-polish branch, Stage 6). The reports designer's
 table columns are now edited directly on the canvas:
 
-- Click a table header/cell → the column is selected (a floating chrome bar
-  appears with a compact field picker, B/I/align/skip-empty, insert before/
+- Click a table header/cell → the column is selected; a floating chrome bar
+  edits **that column** (field picker, B/I/align/skip-empty, insert before/
   after, move left/right, delete, deselect).
 - **Drag columns to reorder** by grabbing any cell (pointer-drag with a drop
   indicator; widths stay normalized).
-- Insert columns at any index; delete any specific column.
 - Right-click a table cell → column-mode context menu (change field, move,
   insert, delete).
 - Widths are still resized by dragging the resize tabs above the header
-  (`TableResizeBar`), and the toolbar shows column ops (Before/After/Delete +
-  hint) in column mode.
+  (`TableResizeBar`).
 - Keyboard Delete/Backspace on a selected column deletes it.
-- Rows-mode (matrix) tables keep toolbar-only editing — their chunked groups
-  don't map to clickable columns.
+- Rows-mode (matrix) tables keep chrome-only settings (their chunked groups
+  don't map to clickable columns).
+
+The table block's floating editor (chrome) holds **table settings only**
+(collection, layout axis, header row, borders, day format) — per-column
+editing lives in the column chrome. The top toolbar is a slim status bar: all
+block controls live in the floating editors above the canvas.
 
 ## Helpers (src/lib/reportBlocks.ts)
 
@@ -38,3 +41,6 @@ zone-of/id machinery as everything else in ReportDesigner.
   from clearing the column selection.
 - Reorder drop index is computed from cell center points (+0.5px epsilon for
   sub-pixel pointer rounding).
+- The floating editors are kept inside the visible canvas by JS repositioning
+  (`repositionChrome`): the block chrome flips below its card when there's no
+  room above, both chromes clamp their left edge, and they re-clamp on scroll.

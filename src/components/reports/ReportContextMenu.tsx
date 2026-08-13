@@ -19,13 +19,12 @@ interface ReportContextMenuProps {
   onAddChild: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
-  onColumnAddText: () => void;
   onColumnInsertAt: (colIndex: number) => void;
   onColumnMove: (dir: -1 | 1) => void;
   onColumnRemove: () => void;
 }
 
-const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, project, insertScope, insertCategory, onClose, onChangeField, onInsertAbove, onInsertBelow, onAddChild, onDuplicate, onRemove, onColumnAddText, onColumnInsertAt, onColumnMove, onColumnRemove }) => {
+const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, project, insertScope, insertCategory, onClose, onChangeField, onInsertAbove, onInsertBelow, onAddChild, onDuplicate, onRemove, onColumnInsertAt, onColumnMove, onColumnRemove }) => {
   const fields: ReportFieldDef[] = useMemo(
     () => block.type === 'field' || (block.type === 'table' && menu.colIndex !== undefined) ? fieldsForScope(getReportFieldDefs(project), insertScope, insertCategory) : [],
     [block.type, menu.colIndex, project, insertScope, insertCategory],
@@ -75,9 +74,6 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
                 <button className={itemCls} onClick={() => { onColumnMove(1); onClose(); }}>Move column right</button>
                 <div className="border-t border-zinc-800 my-1" />
               </>
-            )}
-            {!isTableColumn && (
-              <button className={itemCls} onClick={() => { onColumnAddText(); onClose(); }}>Add text block</button>
             )}
             <button className={itemCls} onClick={() => { onColumnInsertAt(menu.colIndex!); onClose(); }}>Insert column before</button>
             <button className={itemCls} onClick={() => { onColumnInsertAt(menu.colIndex! + 1); onClose(); }}>Insert column after</button>

@@ -60,6 +60,37 @@ async function countColumns(page: any, table: any): Promise<number> {
   );
 }
 
+test('text styles: applying a heading style overrides direct formatting', async ({ page }) => {
+  await openDesigner(page);
+
+  const title = page.getByText('Town - Jason — One-Liner').first();
+  await expect(title).toBeVisible({ timeout: 5000 });
+  const before = await title.evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
+  expect(before.size).toBe('16px');
+
+  await title.click();
+  await page.waitForTimeout(300);
+  const chrome = page.locator('.block-chrome');
+  await expect(chrome).toBeVisible({ timeout: 3000 });
+
+  // apply Heading 1 from the text-style menu
+  await chrome.getByRole('button', { name: /Direct formatting/ }).click();
+  await page.locator('.ui-menu').getByText('Heading 1', { exact: true }).click();
+  await page.waitForTimeout(400);
+
+  const after = await page.getByText('Town - Jason — One-Liner').first().evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
+  expect(after.size).toBe('20px');
+  expect(after.weight).toBe('700');
+
+  // switching to Body (10/400) also takes effect
+  await chrome.getByRole('button', { name: 'Heading 1' }).click();
+  await page.locator('.ui-menu').getByText('Body', { exact: true }).click();
+  await page.waitForTimeout(400);
+  const body = await page.getByText('Town - Jason — One-Liner').first().evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
+  expect(body.size).toBe('10px');
+  expect(body.weight).toBe('400');
+});
+
 test('table columns edit on the canvas: select, insert, reorder', async ({ page }) => {
   await openDesigner(page);
 

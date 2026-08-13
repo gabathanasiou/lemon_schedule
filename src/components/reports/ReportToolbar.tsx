@@ -1,32 +1,17 @@
 import React from 'react';
-import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
-import { Project } from '../../types';
+import { ReportBlock, ReportCollection } from '../../types';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
-import { Plus, Trash2 } from 'lucide-react';
-import {
-  BlockCtx, BLOCK_TYPE_META, StructureControls, StyleControls, LayoutControls,
-  TB_ROW_LABEL, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_DIVIDER, ToolButton,
-} from './blockControls';
+import { BLOCK_TYPE_META } from './blockControls';
+
+// All block controls live in the floating editor above the selected block —
+// this bar only shows context (what's selected, where to edit).
 
 interface ReportToolbarProps {
   block: ReportBlock | null;
   parentCollection?: ReportCollection;
-  parentCategory?: string;
-  project: Project;
-  readOnly: boolean;
-  selCol?: { colIndex: number; colsCount: number } | null;
-  onPatch: (patch: Partial<ReportBlock>) => void;
-  onInsertAbove: () => void;
-  onInsertBelow: () => void;
-  onDuplicate: () => void;
-  onRemove: () => void;
-  onMove: (dir: -1 | 1) => void;
-  onInsertColumnAt: (colIndex: number) => void;
-  onAddTextToColumn: () => void;
-  onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
 }
 
-const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, parentCategory, project, readOnly, selCol, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, onInsertColumnAt, onAddTextToColumn, onSaveTextStyles }) => {
+const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection }) => {
   if (!block) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/60 shrink-0">
@@ -35,70 +20,16 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
     );
   }
 
-  const disabled = readOnly;
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
-
-  const structureLabel = (
-    <span className="flex items-center gap-1">
-      {meta.icon}
-      {meta.label}
-      {block.collection ? ` · ${COLLECTION_LABELS[block.collection]}` : ''}
-    </span>
-  );
-
   return (
     <div className="px-3 pt-2 pb-2 shrink-0 overflow-x-auto" onClick={e => e.stopPropagation()}>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800 select-none min-w-max">
-        {selCol ? (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-            <span className={TB_ROW_LABEL}>Column {selCol.colIndex + 1} of {selCol.colsCount}</span>
-            <ToolButton onClick={() => onInsertColumnAt(selCol.colIndex)} disabled={disabled} title="Insert column before"><Plus className="w-3 h-3" /> Before</ToolButton>
-            <ToolButton onClick={() => onInsertColumnAt(selCol.colIndex + 1)} disabled={disabled} title="Insert column after"><Plus className="w-3 h-3" /> After</ToolButton>
-            {block.type !== 'table' && (
-              <ToolButton onClick={onAddTextToColumn} disabled={disabled} title="Add text block to column"><Plus className="w-3 h-3" /> Text</ToolButton>
-            )}
-            <div className={TB_DIVIDER} />
-            <ToolButton onClick={onRemove} disabled={disabled || selCol.colsCount <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>
-            <span className="text-[10px] text-zinc-600 pl-2">
-              {block.type === 'table' ? 'Select a column on the grid, or hover a divider to resize.' : 'Select a column on the canvas, or hover a divider to resize.'}
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-            <span className={TB_ROW_LABEL}>Structure</span>
-            <StructureControls
-              label={structureLabel}
-              readOnly={disabled}
-              onInsertAbove={onInsertAbove}
-              onInsertBelow={onInsertBelow}
-              onDuplicate={onDuplicate}
-              onRemove={onRemove}
-              onMove={onMove}
-            />
-          </div>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 flex items-center gap-2 select-none min-w-max">
+        {meta.icon}
+        <span className="text-[10px] font-semibold text-zinc-400">{meta.label}</span>
+        {block.collection && (
+          <span className="text-[10px] text-zinc-600">· {COLLECTION_LABELS[block.collection]}</span>
         )}
-
-        {!selCol && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-            <span className={TB_ROW_LABEL}>Edit</span>
-            <span className="text-[10px] text-zinc-600">Open the floating editor above the block for content controls.</span>
-          </div>
-        )}
-
-        {(block.type === 'text' || block.type === 'field') && !selCol && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-            <span className={TB_ROW_LABEL}>Style</span>
-            <StyleControls {...ctx} />
-          </div>
-        )}
-
-        {(block.type === 'text' || block.type === 'field') && !selCol && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-            <span className={TB_ROW_LABEL}>Layout</span>
-            <LayoutControls {...ctx} />
-          </div>
-        )}
+        <span className="text-[10px] text-zinc-600">— edit in the floating bar above the block</span>
       </div>
     </div>
   );

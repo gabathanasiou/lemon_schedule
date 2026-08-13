@@ -346,57 +346,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
           <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} insideColumns={!!selId && insideColumnsBlock(allBlocks, selId)} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
-            <ReportToolbar
-              block={selBlock}
-              parentCollection={selParentCollection}
-              parentCategory={selParentCategory}
-              project={project}
-              readOnly={readOnly}
-              selCol={selCol && selBlock && selBlock.id === selCol.colsId && (selBlock.type === 'columns' || (selBlock.type === 'table' && (selBlock.axis ?? 'columns') === 'columns'))
-                ? { colIndex: selCol.colIndex, colsCount: selBlock.type === 'columns' ? (selBlock.cols || []).length : (selBlock.columns || []).length }
-                : null}
-              onPatch={p => selId && patch(selId, p)}
-              onInsertAbove={() => selId && commitZone(selId, list => insertBefore(list, selId, makeReportBlock('text')))}
-              onInsertBelow={() => selId && commitZone(selId, list => insertAfter(list, selId, makeReportBlock('text')))}
-              onDuplicate={() => selId && commitZone(selId, list => duplicateBlock(list, selId))}
-              onRemove={() => {
-                const col = selColRef.current;
-                if (col) {
-                  const zone = zoneOf(col.colsId);
-                  const list = listOfZone(zone);
-                  const owner = findBlock(list, col.colsId)?.block;
-                  if (owner?.type === 'table') commit(removeTableColumnAt(list, col.colsId, col.colIndex), zone);
-                  else commit(removeColumnAt(list, col.colsId, col.colIndex), zone);
-                  setSelCol(null);
-                  return;
-                }
-                if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); }
-              }}
-              onMove={d => selId && commitZone(selId, list => moveBlock(list, selId, d))}
-              onInsertColumnAt={i => {
-                const col = selColRef.current;
-                if (!col) return;
-                const zone = zoneOf(col.colsId);
-                const list = listOfZone(zone);
-                const owner = findBlock(list, col.colsId)?.block;
-                if (owner?.type === 'table') {
-                  commit(insertTableColumnAt(list, col.colsId, i), zone);
-                  return;
-                }
-                const b = makeReportBlock('text');
-                commit(insertColumnAt(list, col.colsId, i, b), zone);
-                setSelId(b.id);
-              }}
-              onAddTextToColumn={() => {
-                const col = selColRef.current;
-                if (!col) return;
-                const zone = zoneOf(col.colsId);
-                const b = makeReportBlock('text');
-                commit(appendToColumn(listOfZone(zone), col.colsId, col.colIndex, b), zone);
-                setSelId(b.id);
-              }}
-              onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
-            />
+            <ReportToolbar block={selBlock} parentCollection={selParentCollection} />
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}
@@ -548,14 +498,6 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
           onAddChild={insertIntoSelected}
           onDuplicate={() => commitZone(menu.id, list => duplicateBlock(list, menu.id))}
           onRemove={() => { commitZone(menu.id, list => removeBlock(list, menu.id)); setSelId(null); setMenu(null); }}
-          onColumnAddText={() => {
-            if (menu.colIndex === undefined) return;
-            const zone = zoneOf(menu.id);
-            const b = makeReportBlock('text');
-            commit(appendToColumn(listOfZone(zone), menu.id, menu.colIndex, b), zone);
-            setSelId(b.id);
-            setMenu(null);
-          }}
           onColumnInsertAt={i => {
             if (menu.colIndex === undefined) return;
             const zone = zoneOf(menu.id);

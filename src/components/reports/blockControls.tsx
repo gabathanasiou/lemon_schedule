@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { ReportBlock, ReportCollection, ReportTableColumn, Project, ReportTextStyle } from '../../types';
+import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS } from '../../lib/reportFields';
-import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
-import { getTextStyles, newTextStyle } from '../../lib/reportTextStyles';
+import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
 import { IS_COARSE } from '../../lib/device';
 import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
@@ -15,7 +14,7 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, EyeOff, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough } from 'lucide-react';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -452,11 +451,12 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
 
   if (block.type === 'text') {
     const editorRef = React.useRef<RichTextEditorHandle>(null);
+    const linkedStyle = getTextStyleById(project, block.textStyle);
     FieldClusters.push(
       <div key="content" className={itemCls}>
         <span className={labelCls}>{'Text content ({{field}} tokens)'}</span>
         <RichTextToolbar editorRef={editorRef} disabled={disabled} />
-        <div style={{ fontFamily: block.fontFamily || 'Helvetica', fontSize: block.fontSize ?? 10 }}>
+        <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
           <RichTextEditor
             ref={editorRef}
             value={block.text || ''}
@@ -625,7 +625,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
         />
       </div>,
-      <TableColumnControls key="cols" block={block} allFields={allFields} parentCollection={parentCollection} readOnly={disabled} onPatch={onPatch} />,
+      <div key="colsHint" className={itemCls}>
+        <span className={labelCls}>Columns ({block.columns?.length || 0})</span>
+        <span className="text-[10px] text-zinc-500 italic">Click a column on the grid to edit its field and style.</span>
+      </div>,
     );
     if ((block.axis ?? 'columns') === 'columns') {
       FieldClusters.push(
@@ -698,16 +701,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           >
             <Minus className="w-3 h-3" /> Column
           </ToolButton>
-          {cols.map((col, i) => (
-            <ToolButton
-              key={col.id}
-              onClick={() => onPatch({ cols: cols.map((c, j) => j === i ? { ...c, blocks: [...c.blocks, { id: `b${Date.now().toString(36)}${i}`, type: 'text' }] } : c) })}
-              disabled={disabled}
-              title={`Add text block to column ${i + 1}`}
-            >
-              <Plus className="w-3 h-3" /> {i + 1}
-            </ToolButton>
-          ))}
+          <span className="text-[10px] text-zinc-500 italic">Drag blocks from the palette onto a column to add content.</span>
         </div>
       </div>,
     );
@@ -778,105 +772,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   return <>{FieldClusters}</>;
 };
 
-export const TableColumnControls: React.FC<{
-  block: ReportBlock;
-  allFields: ReportFieldDef[];
-  parentCollection?: ReportCollection;
-  readOnly: boolean;
-  onPatch: (patch: Partial<ReportBlock>) => void;
-}> = ({ block, allFields, parentCollection, readOnly, onPatch }) => {
-  const disabled = readOnly;
-  const columns = block.columns || [];
-  const labelCls = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1';
-  const fieldPickerCls = 'w-32 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30';
-  const scope = tableFieldScope(block, parentCollection);
-
-  const tableOps = {
-    addColumn: () => {
-      const n = columns.length;
-      onPatch({
-        columns: normalizeColWidths([...(columns.map(c => c.width)), n === 0 ? 100 : 10]).map((w, i) => i < n ? { ...columns[i], width: w } : { id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, field: '', width: w }),
-      });
-    },
-    removeColumn: () => {
-      if (columns.length <= 1) return;
-      const next = columns.slice(0, -1);
-      onPatch({ columns: normalizeColWidths(next.map(c => c.width)).map((w, i) => ({ ...next[i], width: w })) });
-    },
-    patchColumn: (ci: number, patch: Partial<ReportTableColumn>) => {
-      onPatch({ columns: columns.map((c, i) => i === ci ? { ...c, ...patch } : c) });
-    },
-  };
-
-  return (
-    <div key="tablecols" className="flex flex-col gap-1">
-      <span className={labelCls}>Columns ({columns.length}{columns.length > 1 ? ' · drag on the grid to reorder' : ''})</span>
-      <div className="flex items-start gap-1 flex-wrap">
-        {columns.map((col, ci) => (
-          <div key={col.id} className="flex flex-col gap-0.5">
-            <FieldPicker
-              value={col.field}
-              fields={fieldsForScope(allFields, scope, block.category)}
-              onChange={f => tableOps.patchColumn(ci, { field: f })}
-              disabled={disabled}
-              scope={scope}
-              className={fieldPickerCls}
-            />
-            <div className="flex items-center gap-0.5">
-              <Tooltip content="Bold">
-                <button
-                  disabled={disabled}
-                  onClick={() => tableOps.patchColumn(ci, { bold: !col.bold })}
-                  className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                >
-                  <span className="text-[10px] font-bold">B</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="Italic">
-                <button
-                  disabled={disabled}
-                  onClick={() => tableOps.patchColumn(ci, { italic: !col.italic })}
-                  className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-                >
-                  <span className="text-[10px] italic">I</span>
-                </button>
-              </Tooltip>
-              <Tooltip content="Hide rows where this column is empty">
-                <button
-                  disabled={disabled}
-                  onClick={() => tableOps.patchColumn(ci, { skipEmpty: !col.skipEmpty })}
-                  className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}
-                >
-                  <EyeOff className="w-3 h-3" />
-                </button>
-              </Tooltip>
-              <div className={TB_SEG}>
-                {(['left', 'center', 'right'] as const).map(a => {
-                  const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-                  const on = (col.align ?? 'left') === a;
-                  return (
-                    <Tooltip key={a} content={`Align ${a}`}>
-                      <button
-                        disabled={disabled}
-                        onClick={() => tableOps.patchColumn(ci, { align: a })}
-                        className={`h-7 w-7 flex items-center justify-center transition-colors disabled:opacity-25 ${on ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'} ${a !== 'right' ? 'border-r border-zinc-700' : ''}`}
-                      >
-                        <Icon className="w-3 h-3" />
-                      </button>
-                    </Tooltip>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        ))}
-        <ToolButton onClick={tableOps.addColumn} disabled={disabled} title="Add column" className={TB_BTN_ICON}><Plus className="w-3 h-3" /></ToolButton>
-        <ToolButton onClick={tableOps.removeColumn} disabled={disabled || columns.length <= 1} title="Remove last column" className={TB_BTN_ICON}><Minus className="w-3 h-3" /></ToolButton>
-      </div>
-    </div>
-  );
-};
-
 // ---- style controls (typography — text/field only) -----------------------------
 
 export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, onPatch, onSaveTextStyles }) => {
@@ -906,7 +801,13 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
             value={block.textStyle || ''}
             project={project}
             disabled={disabled}
-            onChange={id => onPatch({ textStyle: id || undefined })}
+            onChange={id => {
+              if (!id) { onPatch({ textStyle: undefined }); return; }
+              // Applying a style clears the block's direct typography so the
+              // style's values take effect (Word behavior). Bake tweaks into
+              // the style via "Update from selection" instead.
+              onPatch({ textStyle: id, fontSize: undefined, bold: undefined, italic: undefined, fontFamily: undefined });
+            }}
             onEdit={() => setStylesOpen(true)}
             onUpdateFromSelection={block.textStyle && blockHasDirectFormatting(block) ? updateFromSelection : undefined}
           />
