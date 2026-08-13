@@ -121,6 +121,17 @@ input, textarea, [contenteditable] {
 .block-card.block-type-columns.selected { background: #e7edfa; }
 .block-card.selected > .block-chrome { display: flex !important; }
 
+/* header/footer zones + empty body: drop-preview highlight */
+.report-zone,
+.report-zone-body-empty {
+  transition: border-color 80ms ease, background 80ms ease;
+}
+.report-zone[data-active="1"],
+.report-zone-body-empty[data-active="1"] {
+  border-color: #3b82f6 !important;
+  background: rgba(59, 130, 246, 0.08);
+}
+
 /* floating block editor — full per-type controls next to the selected block.
    position: fixed + JS-placed (top/left) so it is always fully in view; sized
    to its content (max-content), only clamped to the viewport. */

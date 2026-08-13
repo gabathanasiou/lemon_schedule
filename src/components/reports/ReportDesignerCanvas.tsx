@@ -71,6 +71,42 @@ interface ReportDesignerCanvasProps {
   pageSize?: 'portrait' | 'landscape';
 }
 
+type ZoneKind = 'header' | 'body' | 'footer';
+
+/** Shared drag-over/drop behavior for the header/footer zones and an empty body. */
+function zoneDropHandlers(
+  zone: ZoneKind,
+  onInsert: (zone: ZoneKind, payload: PaletteDropPayload) => void,
+  isDrag: (e: React.DragEvent) => boolean,
+  pendingRef: React.MutableRefObject<{ id: string; pos: 'before' | 'after' } | null>,
+  endDrag: () => void,
+) {
+  return {
+    onDragOver(e: React.DragEvent) {
+      if (!isDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.currentTarget.setAttribute('data-active', '1');
+      pendingRef.current = { id: '', pos: 'after' };
+    },
+    onDragLeave(e: React.DragEvent) {
+      const cur = e.currentTarget;
+      if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
+      cur.removeAttribute('data-active');
+      pendingRef.current = null;
+    },
+    onDrop(e: React.DragEvent) {
+      if (!isDrag(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      let payload: PaletteDropPayload | null = null;
+      try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
+      if (payload) onInsert(zone, payload);
+      endDrag();
+    },
+  };
+}
+
 const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
@@ -567,16 +603,23 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
           isDrag={isDrag}
           pendingRef={pendingRef}
           endDrag={endDrag}
+          gap="after"
         >
           {headerBlocks.length === 0 && <ZoneEmptyHint />}
           {renderBlocks(headerBlocks, 0)}
         </ReportZone>
-        {blocks.length === 0 && (
-          <div className="text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg">
+        {blocks.length === 0 ? (
+          <div
+            className="report-zone-body-empty text-center text-zinc-500 text-sm py-20 border border-dashed border-zinc-400 rounded-lg cursor-pointer"
+            data-zone-list="body"
+            onClick={() => onInsertIntoZone('body', { kind: 'block', type: 'text' })}
+            {...zoneDropHandlers('body', onInsertIntoZone, isDrag, pendingRef, endDrag)}
+          >
             No blocks yet — click or drag from the palette to build the report.
           </div>
+        ) : (
+          <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>
         )}
-        <div className="flex flex-col">{renderBlocks(blocks, 0)}</div>
         <ReportZone
           label="Footer"
           hint="Appears at the bottom of every page"
@@ -589,6 +632,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
           isDrag={isDrag}
           pendingRef={pendingRef}
           endDrag={endDrag}
+          gap="before"
         >
           {footerBlocks.length === 0 && <ZoneEmptyHint />}
           {renderBlocks(footerBlocks, 0)}
@@ -614,38 +658,18 @@ const ReportZone: React.FC<{
   readOnly: boolean;
   zone: 'header' | 'footer';
   empty: boolean;
-  onInsert: (zone: 'header' | 'footer', payload: PaletteDropPayload) => void;
+  gap?: 'after' | 'before';
+  onInsert: (zone: ZoneKind, payload: PaletteDropPayload) => void;
   isDrag: (e: React.DragEvent) => boolean;
   pendingRef: React.MutableRefObject<{ id: string; pos: 'before' | 'after' } | null>;
   endDrag: () => void;
   children: React.ReactNode;
-}> = ({ label, hint, skipFirst, onToggleSkipFirst, readOnly, zone, empty, onInsert, isDrag, pendingRef, endDrag, children }) => (
+}> = ({ label, hint, skipFirst, onToggleSkipFirst, readOnly, zone, empty, gap = 'after', onInsert, isDrag, pendingRef, endDrag, children }) => (
   <div
     className="report-zone"
     data-zone-list={zone}
-    style={{ border: '1.5px dashed #a1a1aa', borderRadius: 8, padding: '8px 10px', marginBottom: 16 }}
-    onDragOver={e => {
-      if (!isDrag(e)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      e.currentTarget.setAttribute('data-active', '1');
-      pendingRef.current = { id: '', pos: 'after' };
-    }}
-    onDragLeave={e => {
-      const cur = e.currentTarget;
-      if (e.relatedTarget && cur.contains(e.relatedTarget as Node)) return;
-      cur.removeAttribute('data-active');
-      pendingRef.current = null;
-    }}
-    onDrop={e => {
-      if (!isDrag(e)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      let payload: PaletteDropPayload | null = null;
-      try { payload = JSON.parse(e.dataTransfer.getData(DROP_MIME)); } catch { /* ignore */ }
-      if (payload) onInsert(zone, payload);
-      endDrag();
-    }}
+    style={{ border: '1.5px dashed #a1a1aa', borderRadius: 8, padding: '8px 10px', ...(gap === 'after' ? { marginBottom: 16 } : { marginTop: 16 }) }}
+    {...zoneDropHandlers(zone, onInsert, isDrag, pendingRef, endDrag)}
   >
     <div className="flex items-center gap-2 mb-1.5" onClick={e => e.stopPropagation()}>
       <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
