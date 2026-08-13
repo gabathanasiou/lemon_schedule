@@ -51,7 +51,7 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({
   return (
     <div className="px-3 pt-2 pb-2 shrink-0 overflow-x-auto" onClick={e => e.stopPropagation()}>
       {editorMode === 'toolbar' ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg divide-y divide-zinc-800 select-none min-w-max">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg select-none min-w-max">
           <BlockEditorContent
             {...ctx}
             onInsertAbove={onInsertAbove}

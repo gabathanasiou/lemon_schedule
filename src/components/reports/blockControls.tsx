@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
@@ -14,7 +14,7 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff } from 'lucide-react';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -22,7 +22,7 @@ export const FONTS = ['Helvetica', 'Arial', 'Times New Roman', 'Georgia', 'Couri
 
 export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
   text: { label: 'Text', icon: <Type className="w-3 h-3" /> },
-  field: { label: 'Attribute', icon: <Type className="w-3 h-3" /> },
+  field: { label: 'Attribute', icon: <AlignLeft className="w-3 h-3" /> },
   repeat: { label: 'Repeat', icon: <Repeat className="w-3 h-3" /> },
   table: { label: 'Table', icon: <Table2 className="w-3 h-3" /> },
   columns: { label: 'Columns', icon: <Columns3 className="w-3 h-3" /> },
@@ -100,7 +100,6 @@ export const FontMenu: React.FC<{ value: string; disabled: boolean; onChange: (f
 // ---- structure (insert / move / duplicate / delete) ---------------------------
 
 export interface StructureControlsProps {
-  label: React.ReactNode;
   readOnly: boolean;
   onInsertAbove?: () => void;
   onInsertBelow?: () => void;
@@ -110,9 +109,8 @@ export interface StructureControlsProps {
   compact?: boolean;
 }
 
-export const StructureControls: React.FC<StructureControlsProps> = ({ label, readOnly, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, compact }) => (
+export const StructureControls: React.FC<StructureControlsProps> = ({ readOnly, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, compact }) => (
   <>
-    <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 pr-2 shrink-0">{label}</span>
     {onInsertAbove && (
       <ToolButton onClick={onInsertAbove} disabled={readOnly} title="Insert above" className={compact ? TB_BTN_ICON : TB_BTN}>
         <Plus className="w-3 h-3" /> {compact ? '' : 'Above'}
@@ -136,8 +134,13 @@ export const StructureControls: React.FC<StructureControlsProps> = ({ label, rea
 
 const RT_COLORS = ['#000000', '#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed', '#6b7280'];
 
-export const RichTextToolbar: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | null>; disabled: boolean }> = ({ editorRef, disabled }) => {
-  const [font, setFont] = useState('Helvetica');
+export const RichTextToolbar: React.FC<{
+  editorRef: React.RefObject<RichTextEditorHandle | null>;
+  disabled: boolean;
+  fields?: ReportFieldDef[];
+  scope?: string | null;
+  onInsertAttribute?: (field: string) => void;
+}> = ({ editorRef, disabled, fields, scope, onInsertAttribute }) => {
   const [colorOpen, setColorOpen] = useState(false);
   const run = (cmd: string, value?: string) => editorRef.current?.exec(cmd, value);
   const btn = `${TB_TOGGLE} ${TB_TOGGLE_OFF}`;
@@ -156,7 +159,6 @@ export const RichTextToolbar: React.FC<{ editorRef: React.RefObject<RichTextEdit
         <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('strikeThrough')} className={btn}><Strikethrough className="w-3 h-3" /></button>
       </Tooltip>
       <div className={TB_DIVIDER} />
-      <FontMenu value={font} disabled={disabled} onChange={f => { setFont(f); run('fontName', f); }} />
       <DropdownMenu
         open={colorOpen}
         onOpenChange={setColorOpen}
@@ -181,6 +183,20 @@ export const RichTextToolbar: React.FC<{ editorRef: React.RefObject<RichTextEdit
           ))}
         </div>
       </DropdownMenu>
+      {onInsertAttribute && fields && (
+        <>
+          <div className={TB_DIVIDER} />
+          <FieldPicker
+            value=""
+            fields={fields}
+            onChange={f => onInsertAttribute(f)}
+            disabled={disabled}
+            placeholder="Insert attribute…"
+            scope={scope}
+            className="w-32 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+          />
+        </>
+      )}
     </div>
   );
 };
@@ -188,6 +204,14 @@ export const RichTextToolbar: React.FC<{ editorRef: React.RefObject<RichTextEdit
 // ---- shared block editor (floating chrome AND pinned toolbar) -----------------
 // One source of truth: the same controls render in the floating chrome above a
 // selected block or pinned into the top toolbar — the user can switch surfaces.
+
+/** Section eyebrow: uppercase label with a hairline rule. */
+export const SectionHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="flex items-center gap-2 min-w-max">
+    <span className={IS_COARSE ? 'text-xs font-semibold text-zinc-500 uppercase tracking-wider' : 'text-[9px] font-semibold text-zinc-500 uppercase tracking-wider'}>{children}</span>
+    <div className="h-px bg-zinc-700/50" style={{ minWidth: 24, flex: 1 }} />
+  </div>
+);
 
 export interface BlockEditorProps {
   block: ReportBlock;
@@ -213,46 +237,79 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
   const isTextLike = block.type === 'text' || block.type === 'field';
-  const label = (
-    <span className="flex items-center gap-1">
-      {meta.icon}
-      {meta.label}
-      {block.collection ? ` · ${COLLECTION_LABELS[block.collection]}` : ''}
-    </span>
-  );
-  return (
-    <>
-      <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-        <span className={TB_ROW_LABEL}>Structure</span>
-        <StructureControls
-          label={label}
-          readOnly={readOnly}
-          onInsertAbove={onInsertAbove}
-          onInsertBelow={onInsertBelow}
-          onDuplicate={onDuplicate}
-          onRemove={onRemove}
-          onMove={onMove}
-          compact={compact}
-        />
-        {trailing}
+  const { contextFields } = useReportControlContext(project, parentCollection);
+  const isField = block.type === 'field';
+  const emptyHidden = block.emptyBehavior === 'hideBlock';
+  const textFull = block.type === 'text';
+  const styleLayoutCell = isTextLike ? (
+    <div className="flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max">
+      <SectionHeader>Style</SectionHeader>
+      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+        <StyleControls {...ctx} />
       </div>
-      <div className="flex items-start gap-x-4 gap-y-2 px-3 py-1.5 flex-wrap min-w-max">
-        <span className={`${TB_ROW_LABEL} pt-0.5`}>Content</span>
+      <div className="h-px bg-zinc-800 my-1" />
+      <SectionHeader>Layout</SectionHeader>
+      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+        <LayoutControls {...ctx} />
+      </div>
+    </div>
+  ) : null;
+  return (
+    <div className="grid grid-cols-[max-content_max-content] gap-x-4 gap-y-1.5 min-w-max">
+      {/* Header bar: block type (or attribute name) + quick controls */}
+      <div className="col-span-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
+        {isField ? (
+          <>
+            <span className="flex items-center text-zinc-400 shrink-0">{meta.icon}</span>
+            <FieldPicker
+              value={block.field || ''}
+              fields={contextFields}
+              onChange={f => onPatch({ field: f })}
+              disabled={readOnly}
+              placeholder="Select attribute…"
+              scope={parentCollection}
+              className="w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200 hover:border-zinc-500"
+            />
+          </>
+        ) : (
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-zinc-300 pr-1">
+            {meta.icon}
+            {meta.label}
+            {block.collection && <span className="text-zinc-500 font-normal">· {COLLECTION_LABELS[block.collection]}</span>}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-1">
+          {isTextLike && (
+            <ToolButton
+              onClick={() => onPatch({ emptyBehavior: emptyHidden ? 'show' : 'hideBlock' })}
+              title={emptyHidden ? 'Hidden when empty — click to show' : 'Show when empty — click to hide'}
+              className={TB_BTN_ICON}
+            >
+              {emptyHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+            </ToolButton>
+          )}
+          <StructureControls
+            readOnly={readOnly}
+            onInsertAbove={onInsertAbove}
+            onInsertBelow={onInsertBelow}
+            onDuplicate={onDuplicate}
+            onRemove={onRemove}
+            onMove={onMove}
+            compact={compact}
+          />
+          {trailing}
+        </div>
+      </div>
+      {/* Style + Layout — above the editor for text blocks */}
+      {textFull && styleLayoutCell}
+      {/* Content — full width for text (editor), column 1 otherwise */}
+      <div className={`flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max ${textFull ? 'col-span-2' : ''}`}>
+        <SectionHeader>Content</SectionHeader>
         <ContentControls {...ctx} />
       </div>
-      {isTextLike && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-          <span className={TB_ROW_LABEL}>Style</span>
-          <StyleControls {...ctx} />
-        </div>
-      )}
-      {isTextLike && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
-          <span className={TB_ROW_LABEL}>Layout</span>
-          <LayoutControls {...ctx} />
-        </div>
-      )}
-    </>
+      {/* Style + Layout — beside content for field blocks */}
+      {!textFull && styleLayoutCell}
+    </div>
   );
 };
 
@@ -408,6 +465,19 @@ const PARENT_LABELS: Record<string, string> = {
   categories: 'category', cast: 'cast member', crew: 'crew member',
 };
 
+// Content-control rows (label-left, ribbon style) — module scope so React
+// keeps the subtree stable (a component defined inside another component is
+// remounted on every render, killing focus inside the rich-text editor).
+const CONTENT_LABEL_CLS = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1';
+const CONTENT_ROW_LABEL_CLS = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider w-28 shrink-0';
+
+const ContentRow: React.FC<{ label?: string; children: React.ReactNode; tall?: boolean }> = ({ label, children, tall }) => (
+  <div className={tall ? 'flex flex-col gap-1 py-0.5' : 'flex items-center gap-2 py-0.5'}>
+    {label && <span className={tall ? CONTENT_LABEL_CLS : CONTENT_ROW_LABEL_CLS}>{label}</span>}
+    {children}
+  </div>
+);
+
 const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
 
 export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
@@ -502,12 +572,36 @@ const NestedTableMenu: React.FC<{
   );
 };
 
+/** Ribbon design picker for ribbon blocks (module scope — stable identity). */
+const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, project, disabled, onPatch }) => {
+  const [open, setOpen] = useState(false);
+  const designs = project.ribbonDesigns || [];
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-44"
+      trigger={
+        <button type="button" disabled={disabled} className={`${TB_SELECT} w-40 disabled:pointer-events-none`}>
+          <span className="truncate">{designs.find(d => d.id === (block.ribbonId || project.activeRibbonId || ''))?.name || '—'}</span>
+          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+        </button>
+      }
+    >
+      {designs.map(d => (
+        <DropdownItem key={d.id} onClick={() => { onPatch({ ribbonId: d.id }); setOpen(false); }} icon={d.id === (block.ribbonId || project.activeRibbonId) ? <Check className="w-3.5 h-3.5" /> : undefined}>
+          <span className="truncate">{d.name}</span>
+        </DropdownItem>
+      ))}
+    </DropdownMenu>
+  );
+};
+
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
-  const labelCls = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1';
-  const itemCls = 'flex flex-col gap-1';
-  const checkboxCls = 'flex items-center gap-1.5 text-xs text-zinc-400 pt-1';
+  const checkboxCls = 'flex items-center gap-1.5 text-xs text-zinc-400';
   const fieldPickerCls = 'w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30';
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
@@ -518,90 +612,70 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     : block.type === 'table' ? (block.columns || []).some(c => DAY_LIST_FIELD_KEYS.has(c.field))
     : false;
 
-  const FieldClusters: React.ReactNode[] = [];
+  // Controls group into labelled subsections (eyebrow + rule); blocks with a
+  // single group get flat rows straight under the Content section instead.
+  const sections: { title: string | null; rows: React.ReactNode[] }[] = [];
+  const push = (title: string | null, ...rows: (React.ReactNode | null)[]) => {
+    let s = sections.find(x => x.title === title);
+    if (!s) { s = { title, rows: [] }; sections.push(s); }
+    for (const r of rows) if (r != null) s.rows.push(r);
+  };
 
   if (block.type === 'text') {
     const editorRef = React.useRef<RichTextEditorHandle>(null);
     const linkedStyle = getTextStyleById(project, block.textStyle);
-    FieldClusters.push(
-      <div key="content" className={itemCls}>
-        <span className={labelCls}>{'Text content ({{field}} tokens)'}</span>
-        <RichTextToolbar editorRef={editorRef} disabled={disabled} />
+    push(null,
+      <ContentRow key="content" tall>
+        <RichTextToolbar
+          editorRef={editorRef}
+          disabled={disabled}
+          fields={contextFields}
+          scope={parentCollection}
+          onInsertAttribute={f => onPatch({ text: `${block.text || ''}{{${f}}}` })}
+        />
         <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
           <RichTextEditor
             ref={editorRef}
             value={block.text || ''}
             onChange={text => onPatch({ text })}
-            placeholder="Type text… or insert an attribute below"
+            placeholder="Type text… wrap attribute names like {{sceneNumber}} or insert one from the toolbar"
             disabled={disabled}
-            className="w-72 h-24"
+            className="w-96 h-28"
           />
         </div>
-        <FieldPicker
-          value=""
-          fields={contextFields}
-          onChange={f => onPatch({ text: `${block.text || ''}{{${f}}}` })}
-          disabled={disabled}
-          placeholder="Insert attribute…"
-          scope={parentCollection}
-          className={fieldPickerCls}
-        />
-      </div>,
-      <div key="empty" className={itemCls}>
-        <span className={labelCls}>When empty</span>
-        <label className={checkboxCls}>
-          <input type="checkbox" checked={block.emptyBehavior !== 'hideBlock'} disabled={disabled} onChange={e => onPatch({ emptyBehavior: e.target.checked ? 'show' : 'hideBlock' })} />
-          Show when empty
-        </label>
-      </div>,
+      </ContentRow>,
     );
   }
 
   if (block.type === 'field') {
-    FieldClusters.push(
-      <div key="field" className={itemCls}>
-        <span className={labelCls}>Field</span>
-        <FieldPicker
-          value={block.field || ''}
-          fields={contextFields}
-          onChange={f => onPatch({ field: f })}
-          disabled={disabled}
-          placeholder="Select field…"
-          scope={parentCollection}
-          className={fieldPickerCls}
-        />
-      </div>,
-      <div key="prefix" className={itemCls}>
-        <span className={labelCls}>Prefix</span>
+    // the field picker itself lives in the chrome header; here only affixes
+    const multi = !!block.field && !!allFields.find(f => f.key === block.field)?.multiValue;
+    push(multi ? 'Value' : null,
+      <ContentRow key="prefix" label="Prefix">
         <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.prefix || ''} onChange={e => onPatch({ prefix: e.target.value })} />
-      </div>,
-      <div key="suffix" className={itemCls}>
-        <span className={labelCls}>Suffix</span>
+      </ContentRow>,
+      <ContentRow key="suffix" label="Suffix">
         <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.suffix || ''} onChange={e => onPatch({ suffix: e.target.value })} />
-      </div>,
+      </ContentRow>,
     );
-    if (block.field && allFields.find(f => f.key === block.field)?.multiValue) {
-      FieldClusters.push(
-        <div key="itemPrefix" className={itemCls}>
-          <span className={labelCls}>Item prefix</span>
+    if (multi) {
+      push('Items',
+        <ContentRow key="itemPrefix" label="Item prefix">
           <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemPrefix || ''} onChange={e => onPatch({ itemPrefix: e.target.value })} placeholder="e.g. —" />
-        </div>,
-        <div key="itemSuffix" className={itemCls}>
-          <span className={labelCls}>Item suffix</span>
+        </ContentRow>,
+        <ContentRow key="itemSuffix" label="Item suffix">
           <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemSuffix || ''} onChange={e => onPatch({ itemSuffix: e.target.value })} placeholder="e.g. —" />
-        </div>,
-        <div key="itemSep" className={itemCls}>
-          <span className={labelCls}>Separator</span>
+        </ContentRow>,
+        <ContentRow key="itemSep" label="Separator">
           <input className={TB_INPUT + ' w-20'} disabled={disabled} value={block.itemSeparator ?? ', '} onChange={e => onPatch({ itemSeparator: e.target.value })} />
-        </div>,
+        </ContentRow>,
       );
     }
   }
 
   if (block.type === 'repeat' || block.type === 'table') {
-    FieldClusters.push(
-      <div key="over" className={itemCls}>
-        <span className={labelCls}>{block.type === 'repeat' ? 'Repeat over' : 'Table over'}</span>
+    push('Data',
+      <ContentRow key="over" label={block.type === 'repeat' ? 'Repeat over' : 'Table over'}>
         {block.type === 'repeat' ? (
           <CollectionMenu
             value={block.collection || 'scenes'}
@@ -629,50 +703,86 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
           />
         )}
-      </div>,
-    );
-    if (block.type === 'repeat') {
-      FieldClusters.push(
-        <div key="gap" className={itemCls}>
-          <span className={labelCls}>Item gap (px)</span>
+      </ContentRow>,
+      block.type === 'repeat' ? (
+        <ContentRow key="gap" label="Item gap (px)">
           <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.gap ?? 8} onChange={e => onPatch({ gap: Number(e.target.value) || 0 })} />
-        </div>,
+        </ContentRow>
+      ) : null,
+    );
+    if (block.type === 'table') {
+      push('Display',
+        <ContentRow key="axis" label="Axis">
+          <Seg
+            value={block.axis ?? 'columns'}
+            options={[{ v: 'columns', l: 'Columns' }, { v: 'rows', l: 'Rows' }]}
+            onChange={v => onPatch({ axis: v as 'columns' | 'rows' })}
+            disabled={disabled}
+          />
+        </ContentRow>,
+        (block.axis ?? 'columns') === 'columns' ? (
+          <ContentRow key="headerBorders" label="Header & borders">
+            <label className={checkboxCls}>
+              <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
+              Header row
+            </label>
+            <label className={checkboxCls}>
+              <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
+              Cell borders
+            </label>
+          </ContentRow>
+        ) : (
+          <ContentRow key="headerBorders" label="Item header">
+            <FieldPicker
+              value={block.headerField || ''}
+              fields={fieldOptions(tableFieldScope(block, parentCollection))}
+              onChange={f => onPatch({ headerField: f })}
+              disabled={disabled}
+              placeholder="— auto —"
+              scope={tableFieldScope(block, parentCollection)}
+              className={fieldPickerCls}
+            />
+            <label className={checkboxCls}>
+              <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
+              Cell borders
+            </label>
+          </ContentRow>
+        ),
+        hasDayList ? (
+          <ContentRow key="dayFormat" label="Day format">
+            <DayFormatMenu value={block.dayFormat || 'dayNumDate'} disabled={disabled} onChange={v => onPatch({ dayFormat: v as DayFormatMode })} />
+          </ContentRow>
+        ) : null,
       );
     }
-    FieldClusters.push(
-      <div key="counter" className={itemCls}>
-        <span className={labelCls}>Counter starts at</span>
+    const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
+    push('Behavior',
+      <ContentRow key="counter" label="Counter starts at">
         <Seg
           value={String(block.counterStart ?? 1)}
           options={[{ v: '1', l: '1' }, { v: '0', l: '0' }]}
           onChange={v => onPatch({ counterStart: v === '0' ? 0 : 1 })}
           disabled={disabled}
         />
-      </div>,
-    );
-    const effective = block.type === 'table' ? tableItemCollection(block, parentCollection) : (block.collection || 'scenes');
-    if (parentCollection && !CONTEXTUAL_COLLECTIONS.has(effective)) {
-      FieldClusters.push(
-        <div key="scope" className={itemCls}>
-          <span className={labelCls}>Scope</span>
+      </ContentRow>,
+      parentCollection && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
+        <ContentRow key="scope" label="Scope">
           <label className={checkboxCls}>
             <input type="checkbox" checked={block.scopedToParent !== false} disabled={disabled} onChange={e => onPatch({ scopedToParent: e.target.checked })} />
             Only {COLLECTION_LABELS_LOCAL[effective] || 'items'} in this {PARENT_LABELS[parentCollection] || 'item'}
           </label>
-        </div>,
-      );
-    }
+        </ContentRow>
+      ) : null,
+    );
     if (block.collection === 'categories') {
-      FieldClusters.push(
-        <div key="skipEmpty" className={itemCls}>
-          <span className={labelCls}>Skip empty</span>
+      push('Filters',
+        <ContentRow key="skipEmpty" label="Skip empty">
           <label className={checkboxCls}>
             <input type="checkbox" checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={e => onPatch({ skipEmptyCategories: e.target.checked })} />
             Skip categories with no elements
           </label>
-        </div>,
-        <div key="exclude" className={itemCls}>
-          <span className={labelCls}>Exclude categories</span>
+        </ContentRow>,
+        <ContentRow key="exclude" label="Exclude categories">
           <ExcludeCategoriesMenu
             excluded={block.excludedCategories || []}
             categoryKeys={categoryKeys}
@@ -680,77 +790,15 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             disabled={disabled}
             onChange={list => onPatch({ excludedCategories: list })}
           />
-        </div>,
-      );
-    }
-  }
-
-  if (block.type === 'table') {
-    FieldClusters.push(
-      <div key="axis" className={itemCls}>
-        <span className={labelCls}>Layout</span>
-        <Seg
-          value={block.axis ?? 'columns'}
-          options={[{ v: 'columns', l: 'Columns' }, { v: 'rows', l: 'Rows' }]}
-          onChange={v => onPatch({ axis: v as 'columns' | 'rows' })}
-          disabled={disabled}
-        />
-      </div>,
-      <div key="colsHint" className={itemCls}>
-        <span className={labelCls}>Columns ({block.columns?.length || 0})</span>
-        <span className="text-[10px] text-zinc-500 italic">Click a column on the grid to edit its field and style.</span>
-      </div>,
-    );
-    if ((block.axis ?? 'columns') === 'columns') {
-      FieldClusters.push(
-        <div key="header" className={itemCls}>
-          <span className={labelCls}>Header</span>
-          <label className={checkboxCls}>
-            <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
-            Header row
-          </label>
-        </div>,
-      );
-    } else {
-      FieldClusters.push(
-        <div key="headerField" className={itemCls}>
-          <span className={labelCls}>Item header (rows mode)</span>
-          <FieldPicker
-            value={block.headerField || ''}
-            fields={fieldOptions(tableFieldScope(block, parentCollection))}
-            onChange={f => onPatch({ headerField: f })}
-            disabled={disabled}
-            placeholder="— auto —"
-            scope={tableFieldScope(block, parentCollection)}
-            className={fieldPickerCls}
-          />
-        </div>,
-      );
-    }
-    FieldClusters.push(
-      <div key="borders" className={itemCls}>
-        <span className={labelCls}>Borders</span>
-        <label className={checkboxCls}>
-          <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
-          Cell borders
-        </label>
-      </div>,
-    );
-    if (hasDayList) {
-      FieldClusters.push(
-        <div key="dayFormat" className={itemCls}>
-          <span className={labelCls}>Day format</span>
-          <DayFormatMenu value={block.dayFormat || 'dayNumDate'} disabled={disabled} onChange={v => onPatch({ dayFormat: v as DayFormatMode })} />
-        </div>,
+        </ContentRow>,
       );
     }
   }
 
   if (block.type === 'columns') {
     const cols = block.cols || [];
-    FieldClusters.push(
-      <div key="cols" className={itemCls}>
-        <span className={labelCls}>Columns ({cols.length})</span>
+    push(null,
+      <ContentRow key="cols" label="Columns">
         <div className="flex items-center gap-1">
           <ToolButton
             onClick={() => {
@@ -774,58 +822,30 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           </ToolButton>
           <span className="text-[10px] text-zinc-500 italic">Drag blocks from the palette onto a column to add content.</span>
         </div>
-      </div>,
+      </ContentRow>,
     );
   }
 
   if (block.type === 'ribbon') {
-    const designs = project.ribbonDesigns || [];
-    const RibbonDesignMenu = () => {
-      const [open, setOpen] = useState(false);
-      return (
-        <DropdownMenu
-          open={open}
-          onOpenChange={setOpen}
-          theme="dark"
-          width="w-44"
-          trigger={
-            <button type="button" disabled={disabled} className={`${TB_SELECT} w-40 disabled:pointer-events-none`}>
-              <span className="truncate">{designs.find(d => d.id === (block.ribbonId || project.activeRibbonId || ''))?.name || '—'}</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-            </button>
-          }
-        >
-          {designs.map(d => (
-            <DropdownItem key={d.id} onClick={() => { onPatch({ ribbonId: d.id }); setOpen(false); }} icon={d.id === (block.ribbonId || project.activeRibbonId) ? <Check className="w-3.5 h-3.5" /> : undefined}>
-              <span className="truncate">{d.name}</span>
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
-      );
-    };
-    FieldClusters.push(
-      <div key="ribbon" className={itemCls}>
-        <span className={labelCls}>Ribbon design</span>
-        <RibbonDesignMenu />
-      </div>,
-      <div key="daySection" className={itemCls}>
-        <span className={labelCls}>Day section</span>
+    push(null,
+      <ContentRow key="ribbon" label="Ribbon design">
+        <RibbonDesignMenu block={block} project={project} disabled={disabled} onPatch={onPatch} />
+      </ContentRow>,
+      <ContentRow key="daySection" label="Day section">
         <label className={checkboxCls}>
           <input type="checkbox" checked={block.ribbonDaySection !== false} disabled={disabled} onChange={e => onPatch({ ribbonDaySection: e.target.checked })} />
           Day section (header & totals)
         </label>
-      </div>,
+      </ContentRow>,
     );
   }
 
   if (block.type === 'spacer') {
-    FieldClusters.push(
-      <div key="height" className={itemCls}>
-        <span className={labelCls}>Height (px)</span>
+    push(null,
+      <ContentRow key="height" label="Height (px)">
         <input type="number" min={4} max={200} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.height ?? 16} onChange={e => onPatch({ height: Number(e.target.value) || 16 })} />
-      </div>,
-      <div key="style" className={itemCls}>
-        <span className={labelCls}>Style</span>
+      </ContentRow>,
+      <ContentRow key="style" label="Style">
         <Seg
           value={block.spacerStyle || 'none'}
           options={[
@@ -836,11 +856,20 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           onChange={v => onPatch({ spacerStyle: v as 'none' | 'line' | 'dotted' })}
           disabled={disabled}
         />
-      </div>,
+      </ContentRow>,
     );
   }
 
-  return <>{FieldClusters}</>;
+  return (
+    <div className="flex flex-col gap-2 min-w-max">
+      {sections.map((s, i) => (
+        <div key={s.title ?? `flat${i}`} className="flex flex-col gap-1 min-w-max">
+          {s.title && <SectionHeader>{s.title}</SectionHeader>}
+          <div className="flex flex-col gap-0.5">{s.rows}</div>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 // ---- style controls (typography — text/field only) -----------------------------
@@ -898,17 +927,23 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
           onChange={e => onPatch({ fontSize: Math.max(6, Math.min(48, Number(e.target.value) || 10)) })}
         />
       </Tooltip>
-      <div className={TB_DIVIDER} />
-      <Tooltip content="Bold">
-        <button disabled={disabled} onClick={() => onPatch({ bold: !block.bold })} className={`${TB_TOGGLE} ${block.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-          <span className="text-[11px] font-bold">B</span>
-        </button>
-      </Tooltip>
-      <Tooltip content="Italic">
-        <button disabled={disabled} onClick={() => onPatch({ italic: !block.italic })} className={`${TB_TOGGLE} ${block.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-          <span className="text-[11px] italic">I</span>
-        </button>
-      </Tooltip>
+      {/* block-level B/I only for field blocks — text blocks use the inline
+          selection toolbar for bold/italic instead */}
+      {block.type === 'field' && (
+        <>
+          <div className={TB_DIVIDER} />
+          <Tooltip content="Bold">
+            <button disabled={disabled} onClick={() => onPatch({ bold: !block.bold })} className={`${TB_TOGGLE} ${block.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+              <span className="text-[11px] font-bold">B</span>
+            </button>
+          </Tooltip>
+          <Tooltip content="Italic">
+            <button disabled={disabled} onClick={() => onPatch({ italic: !block.italic })} className={`${TB_TOGGLE} ${block.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+              <span className="text-[11px] italic">I</span>
+            </button>
+          </Tooltip>
+        </>
+      )}
       <div className={TB_DIVIDER} />
       {(['left', 'center', 'right'] as const).map(a => {
         const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
