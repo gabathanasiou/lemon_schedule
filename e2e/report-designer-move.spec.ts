@@ -86,7 +86,7 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
   expect(w3).toBe(730);
 });
 
-test('keys/values toggle inside view menu switches text blocks; tables always show values', async ({ page }) => {
+test('keys/values toggle switches text blocks and table cells', async ({ page }) => {
   await openSeededProject(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
@@ -101,13 +101,15 @@ test('keys/values toggle inside view menu switches text blocks; tables always sh
   await page.waitForTimeout(300);
 
   await expect(page.getByText('{{title}} — One-Liner')).toBeVisible({ timeout: 3000 });
-  await expect(page.getByText('FISHERMAN, BLACK')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('{{cast}}').first()).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('FISHERMAN, BLACK')).toHaveCount(0);
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.locator('.ui-menu').getByText('Show field values', { exact: true }).click();
   await page.waitForTimeout(300);
 
   await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText('FISHERMAN, BLACK')).toBeVisible({ timeout: 3000 });
 });
 
 

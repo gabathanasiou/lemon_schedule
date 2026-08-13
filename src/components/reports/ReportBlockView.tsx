@@ -267,16 +267,25 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     ? (item ? [item] : [])
     : (resolveCollectionItems(ctx, itemCollection, itemCollection === 'elements' || itemCollection === 'elementsOfScene' ? block.category : undefined, item, parentCategory, block, ancestors) as ReportCollectionItem[]);
   const filtered = filterItemsByScope(items, itemCollection, itemCollection === 'elements' ? block.category : undefined, scopeFilter);
-  if (filtered.length === 0) {
-    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block));
-    return null;
-  }
 
   const baseStyle = getReportBlockBaseStyle(block);
   const cellPad = { padding: `${block.paddingV ?? 2}px ${block.paddingH ?? 4}px` };
   const border = block.showBorders === false ? 'none' : '1px solid #d4d4d8';
   const attributes = block.columns || [];
   if (attributes.length === 0) return null;
+
+  const renderTable = (items: ReportCollectionItem[], skeleton = false) =>
+    (block.axis ?? 'columns') === 'rows'
+      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} />
+      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} />;
+
+  // Designer canvas: an empty collection still shows the table skeleton
+  // (header + field-key row) so the layout is visible without data.
+  if (filtered.length === 0) {
+    if (hint && attributes.length > 0) return renderTable([], true);
+    if (hint) return emptyHint('Empty — no items in this collection', getReportBlockBaseStyle(block));
+    return null;
+  }
   // Per-item tables (one row per parent item, e.g. a table inside an element
   // repeater) keep the parent repeat's index so the Counter numbers the
   // repetitions — not the single row.
@@ -294,11 +303,12 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
         return reportFieldValueByKey(ctx, fieldMap, c.field, it).trim() !== '';
       }))
     : filtered;
-  if (shown.length === 0) return null;
+  if (shown.length === 0) {
+    if (hint && attributes.length > 0) return renderTable([], true);
+    return null;
+  }
 
-  return (block.axis ?? 'columns') === 'rows'
-    ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={shown} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={perItemIndex} />
-    : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={shown} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={perItemIndex} />;
+  return renderTable(shown);
 };
 
 const TableColumnsGrid: React.FC<{
@@ -313,8 +323,12 @@ const TableColumnsGrid: React.FC<{
   showKeys?: boolean;
   aux?: FieldAux;
   perItemIndex?: number;
-}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex }) => {
+  skeleton?: boolean;
+}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton }) => {
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
+  const keyCell = (field: string) => (
+    <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
+  );
   return (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
       {block.showHeader && (
@@ -326,11 +340,21 @@ const TableColumnsGrid: React.FC<{
           ))}
         </div>
       )}
-      {items.map((it, i) => (
+      {skeleton ? (
+        <div style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          {attributes.map(c => (
+            <div key={c.id} data-col-ci={c.id} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
+              {keyCell(c.field)}
+            </div>
+          ))}
+        </div>
+      ) : items.map((it, i) => (
         <div key={i} style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map(c => (
             <div key={c.id} data-col-ci={c.id} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border }}>
-              {reportFieldValueByKey(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0'}
+              {showKeys
+                ? keyCell(c.field)
+                : (reportFieldValueByKey(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
             </div>
           ))}
         </div>
@@ -351,7 +375,8 @@ const TableRowsMatrix: React.FC<{
   showKeys?: boolean;
   aux?: FieldAux;
   perItemIndex?: number;
-}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex }) => {
+  skeleton?: boolean;
+}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [chunk, setChunk] = useState(() => Math.max(1, Math.floor((800 - TABLE_LABEL_W) / TABLE_ITEM_W)));
   useEffect(() => {
@@ -366,10 +391,41 @@ const TableRowsMatrix: React.FC<{
 
   const attributes = block.columns || [];
   const identityField = block.headerField || defaultIdentityField(itemCollection);
+  const keySpan = (field: string) => (
+    <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
+  );
   const groups: ReportCollectionItem[][] = [];
   for (let i = 0; i < items.length; i += chunk) groups.push(items.slice(i, i + chunk));
 
   const labelStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
+
+  if (skeleton) {
+    return (
+      <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="report-table-cols" style={{ borderTop: border, borderLeft: border, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <div style={{ display: 'flex' }}>
+            <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>
+              {fieldMap[identityField]?.label || identityField || ''}
+            </div>
+            <div style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
+              {keySpan(identityField)}
+            </div>
+          </div>
+          {attributes.map(a => (
+            <div key={a.id} style={{ display: 'flex' }}>
+              <div style={{ ...labelStyle, width: TABLE_LABEL_W, textAlign: 'left', borderRight: border, borderBottom: border }}>
+                {fieldMap[a.field]?.label || a.field || ''}
+              </div>
+              <div style={{ ...baseStyle, ...cellPad, flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
+                {keySpan(a.field)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {groups.map((g, gi) => (
@@ -381,7 +437,9 @@ const TableRowsMatrix: React.FC<{
                 const gIndex = perItemIndex ?? gi * chunk + ii;
                 return (
                   <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
-                    {reportFieldValueByKey(ctx, fieldMap, identityField, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0'}
+                    {showKeys
+                      ? keySpan(identityField)
+                      : (reportFieldValueByKey(ctx, fieldMap, identityField, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
                   </div>
                 );
               })}
@@ -396,7 +454,9 @@ const TableRowsMatrix: React.FC<{
                 const gIndex = perItemIndex ?? gi * chunk + ii;
                 return (
                   <div key={ii} style={{ ...baseStyle, ...cellPad, ...(a.bold ? { fontWeight: 700 } : {}), ...(a.italic ? { fontStyle: 'italic' } : {}), flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
-                    {reportFieldValueByKey(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0'}
+                    {showKeys
+                      ? keySpan(a.field)
+                      : (reportFieldValueByKey(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
                   </div>
                 );
               })}
