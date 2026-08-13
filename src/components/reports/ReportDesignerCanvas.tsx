@@ -11,7 +11,7 @@ import {
   BLOCK_TYPE_META, SectionHeader, useReportControlContext, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF,
   TB_BTN_ICON, TB_DANGER, ToolButton, BlockEditorContent,
 } from './blockControls';
-import { FieldPicker } from './FieldPicker';
+import { FieldPicker, TB_PICKER } from './FieldPicker';
 import { Tooltip } from '../Tooltip';
 import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical } from 'lucide-react';
 
@@ -732,7 +732,7 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
             onChange={f => patchCol({ field: f })}
             disabled={disabled}
             scope={scope}
-            className="w-32 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+            className={`w-32 ${TB_PICKER}`}
           />
           <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
         </div>

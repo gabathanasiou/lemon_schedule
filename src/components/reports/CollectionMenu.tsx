@@ -6,6 +6,7 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownSubmenu from '../DropdownSubmenu';
 import DropdownItem from '../DropdownItem';
 import { ChevronDown, Check } from 'lucide-react';
+import { TB_PICKER } from './FieldPicker';
 
 // Collection picker for report blocks (Repeat over / Table over). Replaces the
 // native selects with the shared Radix menu: top-level collections plus an
@@ -54,7 +55,7 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
         <button
           type="button"
           disabled={disabled}
-          className={`flex items-center justify-between gap-1 ${width} bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30 disabled:pointer-events-none`}
+          className={`${width} ${TB_PICKER}`}
         >
           <span className="truncate">{label}</span>
           <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />

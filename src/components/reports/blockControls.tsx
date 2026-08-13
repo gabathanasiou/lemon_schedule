@@ -6,7 +6,7 @@ import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
 import { IS_COARSE } from '../../lib/device';
-import { FieldPicker } from './FieldPicker';
+import { FieldPicker, TB_PICKER } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import RichTextEditor, { RichTextEditorHandle } from './RichTextEditor';
 import DropdownMenu from '../DropdownMenu';
@@ -41,7 +41,6 @@ export const TB_TOGGLE_ON = 'bg-blue-900/50 border-blue-700 text-blue-300';
 export const TB_TOGGLE_OFF = 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700';
 export const TB_INPUT = IS_COARSE ? 'h-10 px-2.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30' : 'h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30';
 export const TB_NUM = IS_COARSE ? 'w-14 h-9 bg-zinc-800 border border-zinc-700 rounded text-sm text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50' : 'w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50';
-export const TB_SELECT = IS_COARSE ? 'h-10 px-3 text-sm rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center gap-2 transition-colors disabled:opacity-30' : 'h-7 px-2.5 text-[10px] rounded bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center gap-1.5 transition-colors disabled:opacity-30';
 export const TB_DIVIDER = IS_COARSE ? 'w-px h-7 bg-zinc-700 mx-1' : 'w-px h-5 bg-zinc-700 mx-0.5';
 export const TB_SEG = 'inline-flex rounded overflow-hidden border border-zinc-700';
 
@@ -82,7 +81,7 @@ export const FontMenu: React.FC<{ value: string; disabled: boolean; onChange: (f
       theme="dark"
       width="w-44"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_SELECT} disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} disabled:pointer-events-none`}>
           <span className="truncate" style={{ fontFamily: value || 'Helvetica' }}>{value || 'Helvetica'}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
@@ -165,7 +164,7 @@ export const RichTextToolbar: React.FC<{
         theme="dark"
         width="w-36"
         trigger={
-          <button type="button" disabled={disabled} className={`${TB_SELECT} disabled:pointer-events-none`} title="Text color">
+          <button type="button" disabled={disabled} className={`${TB_PICKER} disabled:pointer-events-none`} title="Text color">
             <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: RT_COLORS[0] }} />
             <ChevronDown className="w-3 h-3 text-zinc-500" />
           </button>
@@ -193,7 +192,7 @@ export const RichTextToolbar: React.FC<{
             disabled={disabled}
             placeholder="Insert attribute…"
             scope={scope}
-            className="w-32 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30"
+            className={`w-32 ${TB_PICKER}`}
           />
         </>
       )}
@@ -268,7 +267,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
               disabled={readOnly}
               placeholder="Select attribute…"
               scope={parentCollection}
-              className="w-44 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200 hover:border-zinc-500"
+              className={`w-44 font-semibold ${TB_PICKER}`}
             />
           </>
         ) : (
@@ -351,7 +350,7 @@ export const TextStyleMenu: React.FC<{
       theme="dark"
       width="w-52"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_SELECT} w-32 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} w-32 disabled:pointer-events-none`}>
           <span className="truncate">{current ? current.name : 'Direct formatting'}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
@@ -518,7 +517,7 @@ const ExcludeCategoriesMenu: React.FC<{
       theme="dark"
       width="w-44"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_SELECT} w-32 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} w-32 disabled:pointer-events-none`}>
           <span className="truncate">{label}</span>
           <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
         </button>
@@ -583,7 +582,7 @@ const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disable
       theme="dark"
       width="w-44"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_SELECT} w-40 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} w-40 disabled:pointer-events-none`}>
           <span className="truncate">{designs.find(d => d.id === (block.ribbonId || project.activeRibbonId || ''))?.name || '—'}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
@@ -602,7 +601,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const checkboxCls = 'flex items-center gap-1.5 text-xs text-zinc-400';
-  const fieldPickerCls = 'w-36 bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 disabled:opacity-30';
+  const fieldPickerCls = `w-36 ${TB_PICKER}`;
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -1006,7 +1005,7 @@ export const DayFormatMenu: React.FC<{ value: string; disabled: boolean; onChang
       theme="dark"
       width="w-40"
       trigger={
-        <button type="button" disabled={disabled} className={`${TB_SELECT} w-36 disabled:pointer-events-none`}>
+        <button type="button" disabled={disabled} className={`${TB_PICKER} w-36 disabled:pointer-events-none`}>
           <span className="truncate">{DAY_FORMAT_OPTIONS.find(o => o.key === value)?.label || value}</span>
           <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
         </button>
