@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
-import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope } from '../../lib/reportBlocks';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
@@ -182,6 +182,77 @@ export const RichTextToolbar: React.FC<{ editorRef: React.RefObject<RichTextEdit
         </div>
       </DropdownMenu>
     </div>
+  );
+};
+
+// ---- shared block editor (floating chrome AND pinned toolbar) -----------------
+// One source of truth: the same controls render in the floating chrome above a
+// selected block or pinned into the top toolbar — the user can switch surfaces.
+
+export interface BlockEditorProps {
+  block: ReportBlock;
+  project: Project;
+  parentCollection?: ReportCollection;
+  parentCategory?: string;
+  readOnly: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+  onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  onInsertAbove?: () => void;
+  onInsertBelow?: () => void;
+  onDuplicate?: () => void;
+  onRemove?: () => void;
+  onMove?: (dir: -1 | 1) => void;
+  compact?: boolean;   // chrome mode: icon-only structure buttons
+  trailing?: React.ReactNode; // extra actions at the end of the Structure row
+}
+
+export const BlockEditorContent: React.FC<BlockEditorProps> = ({
+  block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
+  onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove, compact, trailing,
+}) => {
+  const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
+  const isTextLike = block.type === 'text' || block.type === 'field';
+  const label = (
+    <span className="flex items-center gap-1">
+      {meta.icon}
+      {meta.label}
+      {block.collection ? ` · ${COLLECTION_LABELS[block.collection]}` : ''}
+    </span>
+  );
+  return (
+    <>
+      <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
+        <span className={TB_ROW_LABEL}>Structure</span>
+        <StructureControls
+          label={label}
+          readOnly={readOnly}
+          onInsertAbove={onInsertAbove}
+          onInsertBelow={onInsertBelow}
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+          onMove={onMove}
+          compact={compact}
+        />
+        {trailing}
+      </div>
+      <div className="flex items-start gap-x-4 gap-y-2 px-3 py-1.5 flex-wrap min-w-max">
+        <span className={`${TB_ROW_LABEL} pt-0.5`}>Content</span>
+        <ContentControls {...ctx} />
+      </div>
+      {isTextLike && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
+          <span className={TB_ROW_LABEL}>Style</span>
+          <StyleControls {...ctx} />
+        </div>
+      )}
+      {isTextLike && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 flex-nowrap min-w-max">
+          <span className={TB_ROW_LABEL}>Layout</span>
+          <LayoutControls {...ctx} />
+        </div>
+      )}
+    </>
   );
 };
 

@@ -50,6 +50,16 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const [footerBlocks, setFooterBlocks] = useState<ReportBlock[]>(() => activeDesign?.footer || []);
   const [skipFirstHeader, setSkipFirstHeader] = useState(() => !!activeDesign?.headerSkipFirst);
   const [skipFirstFooter, setSkipFirstFooter] = useState(() => !!activeDesign?.footerSkipFirst);
+  const [editorMode, setEditorMode] = useState<'floating' | 'toolbar'>(() => {
+    try { return localStorage.getItem('lemon_schedule_report_editor_mode') === 'toolbar' ? 'toolbar' : 'floating'; } catch { return 'floating'; }
+  });
+  const toggleEditorMode = () => {
+    setEditorMode(prev => {
+      const next = prev === 'floating' ? 'toolbar' : 'floating';
+      try { localStorage.setItem('lemon_schedule_report_editor_mode', next); } catch { /* ignore */ }
+      return next;
+    });
+  };
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
@@ -346,7 +356,23 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
           <ReportPalette project={project} insertScope={insertScope} insertCategory={insertCategory} insideColumns={!!selId && insideColumnsBlock(allBlocks, selId)} onInsert={insertPayload} readOnly={readOnly} />
           <div className="flex-1 flex flex-col min-w-0 min-h-0">
-            <ReportToolbar block={selBlock} parentCollection={selParentCollection} />
+            <ReportToolbar
+              block={selBlock}
+              parentCollection={selParentCollection}
+              parentCategory={selParentCategory}
+              project={project}
+              readOnly={readOnly}
+              editorMode={editorMode}
+              onToggleEditorMode={toggleEditorMode}
+              onDeselect={() => { setSelId(null); setSelCol(null); }}
+              onPatch={p => selId && patch(selId, p)}
+              onSaveTextStyles={styles => dispatch({ type: 'SET_REPORT_TEXT_STYLES', payload: styles })}
+              onInsertAbove={() => selId && commitZone(selId, list => insertBefore(list, selId, makeReportBlock('text')))}
+              onInsertBelow={() => selId && commitZone(selId, list => insertAfter(list, selId, makeReportBlock('text')))}
+              onDuplicate={() => selId && commitZone(selId, list => duplicateBlock(list, selId))}
+              onRemove={() => { if (selId) { commitZone(selId, list => removeBlock(list, selId)); setSelId(null); } }}
+              onMove={d => selId && commitZone(selId, list => moveBlock(list, selId, d))}
+            />
             <ReportDesignerCanvas
               blocks={blocks}
               headerBlocks={headerBlocks}
@@ -377,6 +403,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 commit([...listOfZone(zone), b], zone);
                 setSelId(b.id);
               }}
+              editorMode={editorMode}
               onMoveTableColumn={(tableId, from, to) => {
                 const zone = zoneOf(tableId);
                 commit(moveTableColumn(listOfZone(zone), tableId, from, to), zone);

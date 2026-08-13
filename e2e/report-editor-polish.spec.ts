@@ -91,6 +91,40 @@ test('text styles: applying a heading style overrides direct formatting', async 
   expect(body.weight).toBe('400');
 });
 
+test('status bar: deselect clears selection; editor switches between chrome and toolbar', async ({ page }) => {
+  await openDesigner(page);
+
+  const title = page.getByText('Town - Jason — One-Liner').first();
+  await expect(title).toBeVisible({ timeout: 5000 });
+  await title.click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
+
+  // pin the editor into the toolbar → chrome disappears, editor appears in the bar
+  await page.getByRole('button', { name: 'Toolbar editor', exact: true }).click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.block-chrome')).toHaveCount(0);
+  await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
+
+  // deselect from the pinned editor → editor gone, hint back
+  await page.getByRole('button', { name: 'Deselect block', exact: true }).click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.richtext-editor')).toHaveCount(0);
+  await expect(page.getByText('Select a block to edit it. Click an item in the palette to add it.')).toBeVisible({ timeout: 3000 });
+
+  // re-select → still pinned in the toolbar (mode persists per session)
+  await page.getByText('Town - Jason — One-Liner').first().click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.block-chrome')).toHaveCount(0);
+  await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
+
+  // switch back to the floating editor
+  await page.getByRole('button', { name: 'Floating editor', exact: true }).click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
+  await expect(page.locator('.block-chrome .richtext-editor')).toBeVisible({ timeout: 3000 });
+});
+
 test('table columns edit on the canvas: select, insert, reorder', async ({ page }) => {
   await openDesigner(page);
 

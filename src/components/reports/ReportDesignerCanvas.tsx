@@ -9,7 +9,7 @@ import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
   StructureControls, ContentControls, StyleControls, LayoutControls, BLOCK_TYPE_META,
-  useReportControlContext, TB_DIVIDER, TB_ROW_LABEL, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_BTN_ICON, TB_DANGER, ToolButton,
+  useReportControlContext, TB_DIVIDER, TB_ROW_LABEL, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_BTN_ICON, TB_DANGER, ToolButton, BlockEditorContent,
 } from './blockControls';
 import { FieldPicker } from './FieldPicker';
 import { Tooltip } from '../Tooltip';
@@ -66,11 +66,12 @@ interface ReportDesignerCanvasProps {
   onRemoveTableColumn: (tableId: string, colIndex: number) => void;
   onMoveTableColumn: (tableId: string, from: number, to: number) => void;
   onInsertIntoZone: (zone: 'header' | 'body' | 'footer', payload: PaletteDropPayload) => void;
+  editorMode: 'floating' | 'toolbar';
   viewWidth?: number | null;
   pageSize?: 'portrait' | 'landscape';
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
@@ -113,7 +114,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       container.removeEventListener('scroll', repositionChrome);
       window.removeEventListener('resize', repositionChrome);
     };
-  }, [repositionChrome, selId, blocks, headerBlocks, footerBlocks]);
+  }, [repositionChrome, selId, blocks, headerBlocks, footerBlocks, editorMode]);
 
   performRef.current = (id, pos, payload) => {
     if (payload.moveId) {
@@ -252,7 +253,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 <EdgeZone side="right" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
               </>
             )}
-            {selected && (
+            {selected && editorMode === 'floating' && (
               <BlockChrome
                 block={b}
                 project={project}
@@ -619,7 +620,7 @@ const ReportZone: React.FC<{
 
 // ---- floating block editor (full per-type controls above the selected block) --
 
-interface BlockChromeProps {
+const BlockChrome: React.FC<{
   block: ReportBlock;
   project: Project;
   parentCollection?: ReportCollection;
@@ -632,54 +633,25 @@ interface BlockChromeProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
-}
-
-const BlockChrome: React.FC<BlockChromeProps> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove }) => {
-  const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
-  const { contextFields } = useReportControlContext(project, parentCollection);
-  const ctx: { block: ReportBlock; project: Project; parentCollection?: ReportCollection; parentCategory?: string; readOnly: boolean; onPatch: (p: Partial<ReportBlock>) => void; onSaveTextStyles?: (s: ReportTextStyle[]) => void } = {
-    block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
-  };
-  const label = (
-    <span className="flex items-center gap-1">
-      {meta.icon}
-      {meta.label}
-      {block.collection ? ` · ${COLLECTION_LABELS[block.collection]}` : ''}
-    </span>
-  );
-  const isTextLike = block.type === 'text' || block.type === 'field';
-  return (
-    <div className="block-chrome" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}>
-      <div className="flex items-center gap-1 flex-nowrap min-w-max">
-        <StructureControls
-          label={label}
-          readOnly={readOnly}
-          onInsertAbove={onInsertAbove}
-          onInsertBelow={onInsertBelow}
-          onDuplicate={onDuplicate}
-          onRemove={onRemove}
-          onMove={onMove}
-          compact
-        />
-      </div>
-      <div className="flex items-start gap-x-3 gap-y-1 flex-wrap min-w-max">
-        <ContentControls {...ctx} />
-      </div>
-      {isTextLike && (
-        <div className="flex items-center gap-1 flex-nowrap min-w-max">
-          <span className={TB_ROW_LABEL}>Style</span>
-          <StyleControls {...ctx} />
-        </div>
-      )}
-      {isTextLike && (
-        <div className="flex items-center gap-1 flex-nowrap min-w-max">
-          <span className={TB_ROW_LABEL}>Layout</span>
-          <LayoutControls {...ctx} />
-        </div>
-      )}
-    </div>
-  );
-};
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onInsertAbove, onInsertBelow, onDuplicate, onRemove, onMove }) => (
+  <div className="block-chrome" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}>
+    <BlockEditorContent
+      block={block}
+      project={project}
+      parentCollection={parentCollection}
+      parentCategory={parentCategory}
+      readOnly={readOnly}
+      onSaveTextStyles={onSaveTextStyles}
+      onPatch={onPatch}
+      onInsertAbove={onInsertAbove}
+      onInsertBelow={onInsertBelow}
+      onDuplicate={onDuplicate}
+      onRemove={onRemove}
+      onMove={onMove}
+      compact
+    />
+  </div>
+);
 
 // ---- floating table-column editor (columns-mode tables) ------------------------
 // Edits THE SELECTED COLUMN: field, bold/italic, align, skip-empty + structure.
