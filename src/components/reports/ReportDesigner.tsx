@@ -148,6 +148,13 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
     commit(next(listOfZone(zone)), zone);
   };
 
+  /** Multiple dispatches that must land as ONE undo entry (cross-zone moves). */
+  const batch = (fn: () => void) => {
+    dispatch({ type: 'BATCH_START' });
+    fn();
+    dispatch({ type: 'BATCH_COMMIT' });
+  };
+
   const patch = (id: string, p: Partial<ReportBlock>) => commitZone(id, list => updateBlock(list, id, p));
 
   const allBlocks = useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
@@ -404,11 +411,18 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                   const fm = findBlock(srcList, payload.moveId);
                   if (!fm) return;
                   const tgtList = listOfZone(zone);
-                  if (srcZone !== zone) commit(removeBlock(srcList, payload.moveId), srcZone);
+                  const moving = srcZone !== zone;
                   const next = payload.duplicate
                     ? [...tgtList, cloneBlock(fm.block)]
-                    : (srcZone !== zone ? [...tgtList, fm.block] : tgtList);
-                  commit(next, zone);
+                    : moving ? [...tgtList, fm.block] : tgtList;
+                  if (moving || payload.duplicate) {
+                    batch(() => {
+                      if (moving) commit(removeBlock(srcList, payload.moveId), srcZone);
+                      commit(next, zone);
+                    });
+                  } else {
+                    commit(next, zone);
+                  }
                   setSelId(payload.moveId);
                   return;
                 }
@@ -425,7 +439,21 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onInsertAfter={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(id ? insertAfter(listOfZone(zone), id, b) : [...listOfZone(zone), b], zone); setSelId(b.id); }}
               onInsertBefore={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(id ? insertBefore(listOfZone(zone), id, b) : [b, ...listOfZone(zone)], zone); setSelId(b.id); }}
               onInsertInto={(id, payload) => { const zone = zoneOf(id); const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), id)); commit(insertInto(listOfZone(zone), id, b), zone); setSelId(b.id); }}
-              onMoveInto={(containerId, moveId) => { const zone = zoneOf(containerId); commit(moveIntoChildren(listOfZone(zone), moveId, containerId), zone); setSelId(moveId); }}
+              onMoveInto={(containerId, moveId) => {
+                const zone = zoneOf(containerId);
+                const srcZone = zoneOf(moveId);
+                if (srcZone !== zone) {
+                  batch(() => {
+                    const fm = findBlock(listOfZone(srcZone), moveId);
+                    if (!fm) return;
+                    commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
+                    commit(insertInto(listOfZone(zone), containerId, fm.block), zone);
+                  });
+                } else {
+                  commit(moveIntoChildren(listOfZone(zone), moveId, containerId), zone);
+                }
+                setSelId(moveId);
+              }}
               onDuplicateInto={(containerId, moveId) => {
                 const zone = zoneOf(containerId);
                 const src = findBlock(listOfZone(zoneOf(moveId)), moveId);
@@ -438,10 +466,12 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 if (srcZone === tgtZone) {
                   commit(moveBlockTo(listOfZone(srcZone), moveId, targetId, pos), srcZone);
                 } else {
-                  const fm = findBlock(listOfZone(srcZone), moveId);
-                  if (!fm) return;
-                  commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
-                  commit(pos === 'before' ? insertBefore(listOfZone(tgtZone), targetId, fm.block) : insertAfter(listOfZone(tgtZone), targetId, fm.block), tgtZone);
+                  batch(() => {
+                    const fm = findBlock(listOfZone(srcZone), moveId);
+                    if (!fm) return;
+                    commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
+                    commit(pos === 'before' ? insertBefore(listOfZone(tgtZone), targetId, fm.block) : insertAfter(listOfZone(tgtZone), targetId, fm.block), tgtZone);
+                  });
                 }
                 setSelId(moveId);
               }}
@@ -472,9 +502,17 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               }}
               onMoveIntoColumn={(moveId, columnsId, colIndex) => {
                 const zone = zoneOf(columnsId);
-                const next = moveIntoColumn(listOfZone(zone), moveId, columnsId, colIndex);
-                if (zoneOf(moveId) !== zone) commit(removeBlock(listOfZone(zoneOf(moveId)), moveId), zoneOf(moveId));
-                commit(next, zone);
+                const srcZone = zoneOf(moveId);
+                if (srcZone !== zone) {
+                  batch(() => {
+                    const fm = findBlock(listOfZone(srcZone), moveId);
+                    if (!fm) return;
+                    commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
+                    commit(appendToColumn(listOfZone(zone), columnsId, colIndex, fm.block), zone);
+                  });
+                } else {
+                  commit(moveIntoColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
+                }
                 setSelId(moveId);
               }}
               onDuplicateIntoColumn={(moveId, columnsId, colIndex) => {
@@ -491,7 +529,17 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               }}
               onMoveToNewColumn={(moveId, columnsId, colIndex) => {
                 const zone = zoneOf(columnsId);
-                commit(moveIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
+                const srcZone = zoneOf(moveId);
+                if (srcZone !== zone) {
+                  batch(() => {
+                    const fm = findBlock(listOfZone(srcZone), moveId);
+                    if (!fm) return;
+                    commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
+                    commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, fm.block), zone);
+                  });
+                } else {
+                  commit(moveIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
+                }
                 setSelId(moveId);
               }}
               onDuplicateToNewColumn={(moveId, columnsId, colIndex) => {

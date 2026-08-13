@@ -680,7 +680,7 @@ const ReportZone: React.FC<{
     className="report-zone"
     data-zone-list={zone}
     style={{ border: '1.5px dashed #a1a1aa', borderRadius: 8, padding: '8px 10px', ...(gap === 'after' ? { marginBottom: 16 } : { marginTop: 16 }) }}
-    {...zoneDropHandlers(zone, onInsert, isDrag, pendingRef, endDrag)}
+    {...(empty ? zoneDropHandlers(zone, onInsert, isDrag, pendingRef, endDrag) : {})}
   >
     <div className="flex items-center gap-2 mb-1.5" onClick={e => e.stopPropagation()}>
       <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
