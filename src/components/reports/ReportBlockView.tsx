@@ -116,11 +116,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         const style = block.spacerStyle ?? 'none';
         if (style === 'none') return <div style={{ height: h }} aria-hidden />;
         if (style === 'black') {
-          return (
-            <div style={{ height: h, background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, letterSpacing: 1.5, fontWeight: 600, textTransform: 'uppercase' }}>
-              spacer
-            </div>
-          );
+          return <div style={{ height: h, background: '#000' }} aria-hidden />;
         }
         return (
           <div style={{ height: h, display: 'flex', alignItems: 'center' }}>

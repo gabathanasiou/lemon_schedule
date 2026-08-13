@@ -560,11 +560,10 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
               value={block.spacerStyle || 'none'}
               options={[
                 { v: 'none', l: 'None' },
-                { v: 'black', l: 'Solid' },
                 { v: 'line', l: 'Line' },
                 { v: 'dotted', l: 'Dotted' },
               ]}
-              onChange={v => onPatch({ spacerStyle: v as 'none' | 'black' | 'line' | 'dotted' })}
+              onChange={v => onPatch({ spacerStyle: v as 'none' | 'line' | 'dotted' })}
               disabled={disabled}
             />
           </Row>
@@ -609,16 +608,15 @@ const ReportToolbar: React.FC<ReportToolbarProps> = ({ block, parentCollection, 
           </Row>
           {(block.type === 'text' || block.type === 'field') && (
             <Row label="When empty">
-              <Seg
-                value={block.emptyBehavior || 'show'}
-                options={[
-                  { v: 'show', l: 'Show' },
-                  { v: 'hideText', l: 'Hide text' },
-                  { v: 'hideBlock', l: 'Hide block' },
-                ]}
-                onChange={v => onPatch({ emptyBehavior: v as 'show' | 'hideText' | 'hideBlock' })}
-                disabled={disabled}
-              />
+              <label className="flex items-center gap-1.5 text-xs text-zinc-400 pt-1">
+                <input
+                  type="checkbox"
+                  checked={block.emptyBehavior !== 'hideBlock'}
+                  disabled={disabled}
+                  onChange={e => onPatch({ emptyBehavior: e.target.checked ? 'show' : 'hideBlock' })}
+                />
+                Show when empty
+              </label>
             </Row>
           )}
         </>
