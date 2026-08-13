@@ -91,8 +91,9 @@ const ELEMENT_FIELDS: ReportFieldDef[] = [
 ];
 
 const CAST_FIELDS: ReportFieldDef[] = [
-  { key: 'id', label: 'ID', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementInfo) => s(it.id) },
+  { key: 'id', label: 'Cast ID', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 6, get: (_c, it: ReportElementInfo) => s(it.id) },
   { key: 'castName', label: 'Name', group: 'Cast & Talent', scope: 'cast', defaultWidth: 20, get: (_c, it: ReportElementInfo) => s(it.name) },
+  { key: 'castIdName', label: 'Cast ID & Name', group: 'Cast & Talent', scope: 'cast', defaultWidth: 22, get: (_c, it: ReportElementInfo) => s(`${it.id}. ${it.name}`) },
   { key: 'castWorkDays', label: 'Work Days', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.workDays) },
   { key: 'castHoldDays', label: 'Hold Days', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.holdDays) },
   { key: 'castTravelDays', label: 'Travel Days', group: 'Cast & Talent', scope: 'cast', align: 'center', defaultWidth: 9, get: (_c, it: ReportElementInfo) => s(it.travelDays) },
