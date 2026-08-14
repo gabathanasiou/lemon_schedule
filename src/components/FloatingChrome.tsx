@@ -41,6 +41,23 @@ export const FloatingChrome: React.FC<FloatingChromeProps> = ({ className, child
           el.style.maxHeight = `${availableHeight}px`;
         },
       }),
+      // Final hard clamp into the viewport. Floating UI's shift measures the
+      // panel's *current* DOM rect (one update behind), so a large scroll jump
+      // can leave it off-screen next to a scrolled-out reference — this clamp
+      // uses the freshly computed coords + measured size and always wins.
+      {
+        name: 'viewportClamp',
+        fn: (state) => {
+          const { elements, rects } = state;
+          const win = elements.floating.ownerDocument?.defaultView;
+          if (!win) return {};
+          const w = rects.floating.width;
+          const h = rects.floating.height;
+          const x = Math.max(8, Math.min(state.x, win.innerWidth - w - 8));
+          const y = Math.max(8, Math.min(state.y, win.innerHeight - h - 8));
+          return { x, y };
+        },
+      },
     ],
     whileElementsMounted: autoUpdate,
   });
@@ -53,7 +70,17 @@ export const FloatingChrome: React.FC<FloatingChromeProps> = ({ className, child
     <>
       {!reference && <div ref={refs.setReference} className="chrome-anchor" aria-hidden />}
       {win && createPortal(
-        <div ref={refs.setFloating} className={className} style={floatingStyles}>
+        <div
+          ref={refs.setFloating}
+          className={className}
+          style={floatingStyles}
+          // Portal events bubble through the React tree back to the block card
+          // (React re-dispatches them along the source tree), so a click inside
+          // the chrome would otherwise select/move the block underneath.
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
+          onDragStart={e => e.preventDefault()}
+        >
           {children}
         </div>,
         win.document.body,

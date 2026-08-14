@@ -14,7 +14,7 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Minus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff } from 'lucide-react';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -785,29 +785,17 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     const cols = block.cols || [];
     push(null,
       <ContentRow key="cols" label="Columns">
-        <div className="flex items-center gap-1">
-          <ToolButton
-            onClick={() => {
-              const n = cols.length || 1;
-              onPatch({ cols: [...cols, { id: `col${Date.now().toString(36)}`, width: 100 / (n + 1), blocks: [] }].map(c => ({ ...c, width: 100 / (n + 1) })) });
-            }}
-            disabled={disabled}
-            title="Add column"
-          >
-            <Plus className="w-3 h-3" /> Column
-          </ToolButton>
-          <ToolButton
-            onClick={() => {
-              if (cols.length <= 1) return;
-              onPatch({ cols: cols.slice(0, -1).map(c => ({ ...c, width: 100 / (cols.length - 1) })) });
-            }}
-            disabled={disabled || cols.length <= 1}
-            title="Remove last column"
-          >
-            <Minus className="w-3 h-3" /> Column
-          </ToolButton>
-          <span className="text-[10px] text-zinc-500 italic">Drag blocks from the palette onto a column to add content.</span>
-        </div>
+        <ToolButton
+          onClick={() => {
+            const n = cols.length || 1;
+            onPatch({ cols: [...cols, { id: `col${Date.now().toString(36)}`, width: 100 / (n + 1), blocks: [] }].map(c => ({ ...c, width: 100 / (n + 1) })) });
+          }}
+          disabled={disabled}
+          title="Add column"
+          className={TB_BTN}
+        >
+          <Plus className="w-3 h-3" /> Add column
+        </ToolButton>
       </ContentRow>,
     );
   }
