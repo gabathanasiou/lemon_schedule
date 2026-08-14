@@ -18,6 +18,22 @@ export interface PickedLocation {
   lat: number;
   lng: number;
   place?: string;
+  address?: string;
+  city?: string;
+  postcode?: string;
+  country?: string;
+}
+
+/** Maps Nominatim's `address` object onto our structured location parts. */
+function addressParts(addr: any): Pick<PickedLocation, 'address' | 'city' | 'postcode' | 'country'> {
+  const street = [addr?.house_number, addr?.road].filter(Boolean).join(' ');
+  const out: Pick<PickedLocation, 'address' | 'city' | 'postcode' | 'country'> = {};
+  if (street) out.address = street;
+  const city = addr?.city || addr?.town || addr?.village || addr?.suburb;
+  if (city) out.city = city;
+  if (addr?.postcode) out.postcode = addr.postcode;
+  if (addr?.country) out.country = addr.country;
+  return out;
 }
 
 function locationMarker() {
@@ -52,21 +68,23 @@ function Recenter({ center }: { center: [number, number] }) {
   return null;
 }
 
-async function reverseGeocode(lat: number, lng: number): Promise<string> {
+async function reverseGeocode(lat: number, lng: number): Promise<{ place: string; parts: Pick<PickedLocation, 'address' | 'city' | 'postcode' | 'country'> } | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16`,
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
       { headers: { Accept: 'application/json' } },
     );
-    if (!res.ok) return '';
+    if (!res.ok) return null;
     const data = await res.json();
-    return (data?.display_name || '').slice(0, MAX_PLACE);
+    const place = (data?.display_name || '').slice(0, MAX_PLACE);
+    if (!place) return null;
+    return { place, parts: addressParts(data?.address) };
   } catch {
-    return '';
+    return null;
   }
 }
 
-interface SearchResult { lat: number; lng: number; label: string }
+interface SearchResult { lat: number; lng: number; label: string; parts: Pick<PickedLocation, 'address' | 'city' | 'postcode' | 'country'> }
 
 export const LocationPickerModal: React.FC<{
   open: boolean;
@@ -75,6 +93,7 @@ export const LocationPickerModal: React.FC<{
 }> = ({ open, onClose, onConfirm }) => {
   const [pin, setPin] = useState<[number, number] | null>(null);
   const [place, setPlace] = useState('');
+  const [parts, setParts] = useState<Pick<PickedLocation, 'address' | 'city' | 'postcode' | 'country'> | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -87,6 +106,7 @@ export const LocationPickerModal: React.FC<{
     if (!open) return;
     setPin(null);
     setPlace('');
+    setParts(null);
     setQuery('');
     setResults([]);
     if (navigator.geolocation) {
@@ -95,7 +115,7 @@ export const LocationPickerModal: React.FC<{
           const c: [number, number] = [pos.coords.latitude, pos.coords.longitude];
           setCenter(c);
           setPin(c);
-          reverseGeocode(c[0], c[1]).then(p => setPlace(p));
+          reverseGeocode(c[0], c[1]).then(p => { if (p) { setPlace(p.place); setParts(p.parts); } });
         },
         () => {},
         { timeout: 8000, maximumAge: 60000 },
@@ -108,7 +128,7 @@ export const LocationPickerModal: React.FC<{
   const onPin = (lat: number, lng: number) => {
     setPin([lat, lng]);
     const seq = ++geocodeSeq.current;
-    reverseGeocode(lat, lng).then(p => { if (geocodeSeq.current === seq) setPlace(p); });
+    reverseGeocode(lat, lng).then(p => { if (geocodeSeq.current === seq && p) { setPlace(p.place); setParts(p.parts); } });
   };
 
   const search = (q: string) => {
@@ -119,12 +139,17 @@ export const LocationPickerModal: React.FC<{
     searchTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=jsonv2&limit=5`,
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=jsonv2&limit=5&addressdetails=1`,
           { headers: { Accept: 'application/json' } },
         );
         if (!res.ok) { setResults([]); return; }
         const data = await res.json();
-        setResults((data || []).map((r: any) => ({ lat: Number(r.lat), lng: Number(r.lon), label: r.display_name })));
+        setResults((data || []).map((r: any) => ({
+          lat: Number(r.lat),
+          lng: Number(r.lon),
+          label: r.display_name,
+          parts: addressParts(r.address),
+        })));
       } catch {
         setResults([]);
       } finally {
@@ -137,6 +162,7 @@ export const LocationPickerModal: React.FC<{
     setPin([r.lat, r.lng]);
     setCenter([r.lat, r.lng]);
     setPlace(r.label.slice(0, MAX_PLACE));
+    setParts(r.parts);
     setResults([]);
   };
 
@@ -160,7 +186,7 @@ export const LocationPickerModal: React.FC<{
         <ModalFooter>
           <button onClick={onClose} className="text-[11px] text-zinc-400 hover:text-zinc-200 px-3 py-1.5">Cancel</button>
           <button
-            onClick={() => pin && onConfirm({ lat: pin[0], lng: pin[1], ...(place ? { place } : {}) })}
+            onClick={() => pin && onConfirm({ lat: pin[0], lng: pin[1], ...(place ? { place } : {}), ...(parts || {}) })}
             disabled={!pin}
             className="text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5 disabled:opacity-30"
           >
@@ -205,7 +231,7 @@ export const LocationPickerModal: React.FC<{
             <TileLayer url={OSM_TILES} attribution={OSM_ATTRIBUTION} />
             <TapToPin onPin={onPin} />
             <Recenter center={pin || center} />
-            {pin && <Marker position={pin} icon={locationMarker()} />}
+            {pin && <Marker position={pin} icon={locationMarker()} interactive={false} />}
             <MapResize />
           </MapContainer>
           <button

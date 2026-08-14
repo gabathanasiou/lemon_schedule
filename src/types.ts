@@ -308,9 +308,10 @@ export interface ReportColumn {
 
 export interface ReportBlock {
   id: string;
-  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map';
+  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link';
   // text / field
   text?: string;                 // static text; may contain {{key}} tokens
+  url?: string;                  // link block: href (may contain {{key}} tokens)
   field?: string;                // empty = "Select field…" state
   prefix?: string;
   suffix?: string;
@@ -365,6 +366,9 @@ export interface ReportBlock {
   mapPlace?: string;             // reverse-geocoded place name
   mapHeight?: number;            // px
   mapZoom?: number;
+  mapShowAddress?: boolean;      // render an address bar below the map
+  mapOpenLink?: 'none' | 'google' | 'apple' | 'citymapper'; // "open in maps" button
+  mapInheritLocation?: boolean;  // resolve via getReportLocation(ctx, item) instead of own pin
 }
 
 export interface ReportDesign {

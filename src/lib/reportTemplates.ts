@@ -226,7 +226,8 @@ function callSheet(): ReportDesign {
         gap: 10,
         children: [
           textBlock('CALL SHEET — Day {{dayNumber}} · {{dayDate}} · Call {{dayCallTime}}', { fontSize: 15, bold: true, align: 'center' }),
-          textBlock('Weather: {{weather}} · Sunrise: {{sunrise}} · Sunset: {{sunset}}', { fontSize: 9, align: 'center', paddingV: 1 }),
+          textBlock('Weather: {{weather}} · Sunrise: {{sunrise}} · Sunset: {{sunset}} · Location: {{dayLocation}}', { fontSize: 9, align: 'center', paddingV: 1 }),
+          { id: cid(), type: 'link', text: '{{dayLocation}}', url: '{{dayLocationLink}}', fontSize: 9, align: 'center', paddingV: 1 },
           { id: cid(), type: 'ribbon' },
           tableBlock('crew', [
             { field: 'role', width: 34 },

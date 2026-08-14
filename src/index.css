@@ -14,6 +14,15 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+/* Leaflet's panes carry z-index 400–700 inside the container. The container
+   gets no position/z-index from leaflet.css, so without this the panes escape
+   into the root stacking context and paint OVER app UI (floating chrome,
+   dropdowns). position relative + z-index 0 contain them. */
+.leaflet-container {
+  position: relative;
+  z-index: 0;
+}
+
 /* Tailwind gates hover: utilities behind @media (hover: hover), which is false
    on iPadOS (primary pointer stays coarse even with a trackpad/pencil) — so
    hover styles were dead for the iPad cursor. Gate on any-hover instead: any

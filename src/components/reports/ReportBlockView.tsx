@@ -184,7 +184,31 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         );
       }
       case 'map': {
-        return <ReportMapView block={block} hint={hint} />;
+        return <ReportMapView block={block} ctx={ctx} item={item} hint={hint} />;
+      }
+      case 'link': {
+        const label = block.text || '';
+        const rawUrl = resolveReportTokens(ctx, fieldMap, block.url || '', item, blockAux, { showUnresolved: hint });
+        // Only real web/mail links — tokens can't inject javascript: URLs.
+        const safeUrl = /^(https?:\/\/|mailto:)/i.test(rawUrl) ? rawUrl : '';
+        if (!label && !safeUrl) {
+          return hint ? emptyHint('Link…', baseStyle) : null;
+        }
+        const st: React.CSSProperties = { ...baseStyle, display: 'block' };
+        if (!safeUrl) {
+          return <div style={{ ...st, color: '#8f8f8f', textDecoration: 'underline', textDecorationColor: '#b6b6bd' }}>{label || rawUrl || '\u00A0'}</div>;
+        }
+        return (
+          <a
+            href={safeUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ ...st, color: '#1d4ed8', textDecoration: 'underline', cursor: 'pointer' }}
+            className={hint ? 'pointer-events-none' : ''}
+          >
+            {label || rawUrl}
+          </a>
+        );
       }
       default:
         return null;

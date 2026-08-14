@@ -14,7 +14,7 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon } from 'lucide-react';
 import { LocationPickerModal } from './LocationPickerModal';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
@@ -32,6 +32,7 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   spacer: { label: 'Spacer', icon: <Ruler className="w-3 h-3" /> },
   image: { label: 'Image', icon: <ImageIcon className="w-3 h-3" /> },
   map: { label: 'Map', icon: <MapPin className="w-3 h-3" /> },
+  link: { label: 'Link', icon: <LinkIcon className="w-3 h-3" /> },
 };
 
 // Ribbon-designer toolbar vocabulary (touch devices scale up — app pattern)
@@ -223,7 +224,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
-  const isTextLike = block.type === 'text' || block.type === 'field';
+  const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
   const { contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
   const emptyHidden = block.emptyBehavior === 'hideBlock';
@@ -637,6 +638,17 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
   }
 
+  if (block.type === 'link') {
+    push(null,
+      <ContentRow key="label" label="Label">
+        <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.text || ''} onChange={e => onPatch({ text: e.target.value })} placeholder="Link text…" />
+      </ContentRow>,
+      <ContentRow key="url" label="URL">
+        <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.url || ''} onChange={e => onPatch({ url: e.target.value })} placeholder="https://… or {{dayLocationLink}}" />
+      </ContentRow>,
+    );
+  }
+
   if (block.type === 'field') {
     // the field picker itself lives in the chrome header; here only affixes
     const multi = !!block.field && !!allFields.find(f => f.key === block.field)?.multiValue;
@@ -903,9 +915,12 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
 
   if (block.type === 'map') {
     const hasPin = block.mapLat != null && block.mapLng != null;
+    const inherited = !!block.mapInheritLocation;
     push(null,
       <ContentRow key="loc" label="Location">
-        {hasPin ? (
+        {inherited ? (
+          <span className="text-[10px] text-zinc-400">Comes from the day's location (London)</span>
+        ) : hasPin ? (
           <>
             <span className="max-w-44 truncate text-[10px] text-zinc-400">
               {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
@@ -937,6 +952,33 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           className={TB_INPUT + ' w-14'}
           value={block.mapHeight ?? 240}
           onChange={e => onPatch({ mapHeight: Number(e.target.value) || 240 })}
+        />
+      </ContentRow>,
+    );
+    push('Map',
+      <ContentRow key="inherit" label="Day location">
+        <label className={checkboxCls}>
+          <input type="checkbox" checked={inherited} disabled={disabled} onChange={e => onPatch({ mapInheritLocation: e.target.checked })} />
+          Use the day's location
+        </label>
+      </ContentRow>,
+      <ContentRow key="address" label="Address">
+        <label className={checkboxCls}>
+          <input type="checkbox" checked={!!block.mapShowAddress} disabled={disabled} onChange={e => onPatch({ mapShowAddress: e.target.checked })} />
+          Show address below map
+        </label>
+      </ContentRow>,
+      <ContentRow key="open" label="Open in">
+        <Seg
+          value={block.mapOpenLink || 'none'}
+          options={[
+            { v: 'none', l: 'None' },
+            { v: 'google', l: 'Google Maps' },
+            { v: 'apple', l: 'Apple Maps' },
+            { v: 'citymapper', l: 'Citymapper' },
+          ]}
+          onChange={v => onPatch(v === 'none' ? { mapOpenLink: undefined } : { mapOpenLink: v as 'google' | 'apple' | 'citymapper' })}
+          disabled={disabled}
         />
       </ContentRow>,
     );

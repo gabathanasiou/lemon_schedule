@@ -16,12 +16,26 @@ import { getBrowserTimeZone } from './timezones';
 export interface ReportLocation {
   lat: number;
   lng: number;
-  place?: string;
+  place?: string;    // full display string
+  address?: string;  // street line, e.g. "112 Maryland Street"
+  city?: string;     // e.g. "London"
+  postcode?: string; // e.g. "E15 1QD"
+  country?: string;  // e.g. "United Kingdom"
   timezone: string;
 }
 
-/** Fixed location until the per-day location DB lands (London). */
-export const LONDON_LOCATION = { lat: 51.5074, lng: -0.1278, place: 'London' };
+/** Fixed location until the per-day location DB lands — a dummy London
+ *  address (placeholder for the real location attachment). */
+export const LONDON_LOCATION: ReportLocation = {
+  lat: 51.5074,
+  lng: -0.1278,
+  place: '112 Maryland Street, London E15 1QD, United Kingdom',
+  address: '112 Maryland Street',
+  city: 'London',
+  postcode: 'E15 1QD',
+  country: 'United Kingdom',
+  timezone: 'Europe/London',
+};
 
 /** The location a report day resolves to. Future location DB: route on the
  *  item (day/scene) here — nothing else in the report pipeline changes. */
@@ -30,6 +44,53 @@ export function getReportLocation(ctx: ReportCtx, _item?: any): ReportLocation {
     ...LONDON_LOCATION,
     timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone(),
   };
+}
+
+// ---- reverse geocoding (full address for the dayLocationAddress field) --------
+// Cache keyed `lat|lng`; `null` marks a failed fetch. Same lifecycle as the
+// sun/weather cache — prefetched before print, resolves in the canvas on tick.
+
+const addressCache = new Map<string, string | null>();
+
+function addressKey(lat: number, lng: number): string {
+  return `${lat.toFixed(4)}|${lng.toFixed(4)}`;
+}
+
+/** undefined = not fetched yet · null = fetch failed · string = full address. */
+export function getCachedAddress(lat: number, lng: number): string | null | undefined {
+  return addressCache.get(addressKey(lat, lng));
+}
+
+export async function reverseGeocodeAddress(lat: number, lng: number): Promise<void> {
+  const key = addressKey(lat, lng);
+  if (addressCache.has(key)) return;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18`,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!res.ok) { addressCache.set(key, null); return; }
+    const data = await res.json();
+    addressCache.set(key, (data?.display_name || '').slice(0, 160) || null);
+  } catch {
+    addressCache.set(key, null);
+  }
+}
+
+/** Street address for the day's location: the stored street line, else a
+ *  reverse-geocoded address when the location has no structured parts. `—`
+ *  when the address isn't available yet. */
+export function locationAddressFieldValue(ctx: ReportCtx, item: any): string {
+  const loc = getReportLocation(ctx, item);
+  if (loc.address) return loc.address;
+  if (loc.place) return loc.place;
+  const addr = getCachedAddress(loc.lat, loc.lng);
+  return addr ?? '—';
+}
+
+/** One structured location part (city/postcode/country/…) for a report day. */
+export function locationPartFieldValue(ctx: ReportCtx, item: any, part: keyof Pick<ReportLocation, 'address' | 'city' | 'postcode' | 'country'>): string {
+  return getReportLocation(ctx, item)[part] ?? '—';
 }
 
 export interface SunWeather {
@@ -83,6 +144,30 @@ export function formatWeatherValue(w: SunWeather): string {
     ? ` · ${Math.round(w.tempMin)}–${Math.round(w.tempMax)}°C`
     : '';
   return `${w.weather}${temps}`;
+}
+
+// ---- location display + map links (shared by the map block and the fields) ----
+
+export type MapLinkKind = 'google' | 'apple' | 'citymapper';
+
+/** Full display string: stored place, else composed from the structured
+ *  parts, else a `lat, lng` fallback. */
+export function reportLocationLabel(loc: ReportLocation): string {
+  if (loc.place) return loc.place;
+  const parts = [loc.address, loc.city, loc.postcode, loc.country].filter(Boolean);
+  if (parts.length > 0) return parts.join(', ');
+  return `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
+}
+
+/** Universal https deep links — work in print/PDF (anchors survive the
+ *  browser's "Save as PDF" path) and open the app or web page on any device. */
+export function reportLocationLink(kind: MapLinkKind, loc: ReportLocation): string {
+  const { lat, lng } = loc;
+  const q = encodeURIComponent(reportLocationLabel(loc));
+  if (kind === 'google') return `https://www.google.com/maps?q=${q}`;
+  if (kind === 'apple') return `https://maps.apple.com/?q=${q}`;
+  const name = encodeURIComponent(reportLocationLabel(loc));
+  return `https://citymapper.com/directions?endcoord=${lat.toFixed(5)}%2C${lng.toFixed(5)}&endname=${name}`;
 }
 
 // ---- cache -------------------------------------------------------------------
@@ -175,7 +260,13 @@ export function reportWeatherDates(ctx: ReportCtx): string[] {
 export async function prepareSunWeatherForCtx(ctx: ReportCtx): Promise<void> {
   const dates = reportWeatherDates(ctx);
   if (dates.length === 0) return;
-  await fetchSunWeatherBatch(getReportLocation(ctx), dates);
+  const loc = getReportLocation(ctx);
+  await Promise.all([
+    fetchSunWeatherBatch(loc, dates),
+    // Only reverse-geocode when the location has no place name yet (the
+    // dummy address and future location DB entries carry their own address).
+    loc.place ? Promise.resolve() : reverseGeocodeAddress(loc.lat, loc.lng),
+  ]);
 }
 
 export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, daybreak: ReportDaybreakData): Promise<void> {
