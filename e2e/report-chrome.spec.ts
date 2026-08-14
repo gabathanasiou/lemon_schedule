@@ -89,7 +89,7 @@ test('token autocomplete anchors to the caret and stays inside the window', asyn
   const editor = page.locator('.block-chrome .richtext-editor');
   await editor.click();
   await page.keyboard.press('End');
-  await page.keyboard.type(' {{');
+  await page.keyboard.type(' @');
 
   const popover = page.locator('.ac-token-popover');
   await expect(popover).toBeVisible({ timeout: 3000 });

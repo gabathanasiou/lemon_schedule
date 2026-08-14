@@ -609,10 +609,10 @@ export function fieldChipColor(group: string | undefined): ChipColor {
   return FALLBACK_CHIP_COLORS[h % FALLBACK_CHIP_COLORS.length];
 }
 
-/** Inline CSS for the flat token tag — shared by the editor chip spans and the
- *  canvas's unresolved-token spans (one source of truth for the tag look). */
+/** Inline CSS for the editor token chip (white text on the group color).
+ *  Canvas/preview tags use tokenTagCss (background-only) instead. */
 export function tokenChipCss(color: ChipColor, margin = '0 2px'): string {
-  return `background:${color.text};color:#fff;border-radius:2px;padding:1px 4px;margin:${margin};font-weight:600`;
+  return `background:${color.text};color:#fff;border-radius:2px;padding:4px;margin:${margin};font-weight:600;white-space:nowrap`;
 }
 
 /** Inline CSS for canvas/preview token tags: colored background only — the

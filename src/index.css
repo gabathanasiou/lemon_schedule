@@ -246,9 +246,10 @@ input, textarea, [contenteditable] {
 }
 .columns-row[data-dragging="1"] .columns-col:hover { background: transparent; }
 
-/* ---- Reports Designer rich-text editor ---- */
+/* ---- Reports Designer rich-text editor (TipTap) ---- */
 
-.richtext-editor {
+.richtext-editor { cursor: text; }
+.richtext-editor .tiptap {
   background: #18181b;
   border: 1px solid #3f3f46;
   border-radius: 6px;
@@ -258,13 +259,18 @@ input, textarea, [contenteditable] {
   overflow-y: auto;
   cursor: text;
   padding: 6px 8px;
+  height: 100%;
+  min-height: 100%;
 }
-.richtext-editor:focus { border-color: #52525b; }
-.richtext-editor:empty::before {
+.richtext-editor .tiptap:focus { border-color: #52525b; }
+.richtext-editor .tiptap:focus-visible { outline: none; }
+.richtext-editor .tiptap p.is-empty::before {
   content: attr(data-placeholder);
   color: #71717a;
   pointer-events: none;
+  float: left;
+  height: 0;
 }
-.richtext-editor span[data-rt-token].rt-token-selected {
+.richtext-editor .rt-token.rt-token-selected {
   filter: brightness(0.72);
 }

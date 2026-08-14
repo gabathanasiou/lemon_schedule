@@ -60,7 +60,9 @@ export function sanitizeRichText(html: string): string {
   const frag = document.createDocumentFragment();
   for (const child of Array.from(template.content.childNodes)) frag.appendChild(sanitizeNode(child));
   const serialized = new XMLSerializer().serializeToString(frag);
-  return serialized.replace(/<strong(\s|>)/gi, '<b$1').replace(/<em(\s|>)/gi, '<i$1');
+  return serialized
+    .replace(/<strong(\s|>)/gi, '<b$1').replace(/<\/strong>/gi, '</b>')
+    .replace(/<em(\s|>)/gi, '<i$1').replace(/<\/em>/gi, '</i>');
 }
 
 /** Removes all markup — used for showKeys previews and empty-value checks. */
