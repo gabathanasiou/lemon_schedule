@@ -60,7 +60,7 @@ export const TokenPreview: React.FC<{ text: string; fieldMap?: Record<string, Re
           const def = fieldMap?.[key];
           const color = def ? fieldChipColor(def.group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
           return (
-            <span key={i} style={{ background: color.text, color: '#ffffff', borderRadius: 999, padding: '1px 5px', margin: '0 2px', fontWeight: 600, fontStyle: 'normal' }}>{part}</span>
+            <span key={i} style={{ background: color.text, color: '#ffffff', borderRadius: 2, padding: '1px 4px', margin: '0 2px', fontWeight: 600, fontStyle: 'normal' }}>{part}</span>
           );
         }
         return <span key={i}>{part}</span>;

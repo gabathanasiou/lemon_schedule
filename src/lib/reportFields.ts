@@ -1,10 +1,10 @@
-import { Project } from '../types';
+import { Project, RuleViolation } from '../types';
 import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
 import {
-  ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem,
+  ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
 } from './reportData';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
@@ -20,7 +20,7 @@ export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
@@ -184,6 +184,14 @@ const PROJECT_FIELDS: ReportFieldDef[] = [
   { key: 'draftNumber', label: 'Draft #', group: 'Project', scope: 'project', defaultWidth: 8, get: (ctx) => s(ctx.project.draftNumber) },
 ];
 
+// ---- violation types (one item per rule type) --------------------------------
+
+const VIOLATION_TYPE_FIELDS: ReportFieldDef[] = [
+  { key: 'violationType', label: 'Type', group: 'Violations', scope: 'violationTypes', defaultWidth: 16, get: (_c, it: ReportViolationTypeInfo) => s(it.label) },
+  { key: 'violationTypeCount', label: 'Violation Count', group: 'Violations', scope: 'violationTypes', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportViolationTypeInfo) => s(it.count) },
+  { key: 'violationTypeMessages', label: 'Violation Details', group: 'Violations', scope: 'violationTypes', defaultWidth: 40, get: (_c, it: ReportViolationTypeInfo) => it.messages.join('; ') },
+];
+
 // ---- smart (universal contextual attributes) ----------------------------------
 // One field that resolves by the item it sits in: top level → whole production,
 // day → that day, scene → its day, element/cast → its scenes, category → its
@@ -249,6 +257,36 @@ function distinctElementsIn(ctx: ReportCtx, scenes: ReportSceneInfo[]): number {
     }
   }
   return seen.size;
+}
+
+/**
+ * Violations standing behind a smart context: scene → its own; day → the
+ * section's; element/cast/category → every violation flagging at least one of
+ * its scenes (Lego-scoped via the ancestor intersection). Deduped by ruleId.
+ */
+function violationsOf(ctx: ReportCtx, it: any, scope?: Set<string> | null): RuleViolation[] {
+  if (it.scene) return ctx.sceneViolations.get((it as ReportSceneInfo).scene.id) || [];
+  const day = smartDayOf(ctx, it);
+  if (day) return ctx.sectionViolations.get(day.section.index) || [];
+  const ids = new Set(smartScenesOf(ctx, it, scope).map(si => si.scene.id));
+  if (ids.size === 0) return [];
+  const seen = new Set<string>();
+  const out: RuleViolation[] = [];
+  for (const [, list] of ctx.sectionViolations) {
+    for (const v of list) {
+      if (!seen.has(v.ruleId) && flaggedIdsOf(v).some(id => ids.has(id))) {
+        seen.add(v.ruleId);
+        out.push(v);
+      }
+    }
+  }
+  return out;
+}
+
+function allViolations(ctx: ReportCtx): RuleViolation[] {
+  const out: RuleViolation[] = [];
+  for (const [, list] of ctx.sectionViolations) out.push(...list);
+  return out;
 }
 
 // Smart semantics are "the current item's own value", Lego-composed:
@@ -323,6 +361,22 @@ const SMART_FIELDS: ReportFieldDef[] = [
       return s(smartScenesOf(ctx, it, aux?.sceneScope).length);
     },
   },
+  {
+    key: 'smartViolationCount', label: 'Violation Count', group: 'Smart', scope: 'smart', align: 'center', defaultWidth: 8,
+    get: (ctx, it, aux) => {
+      if (!it) return s(ctx.totalViolations);
+      return s(violationsOf(ctx, it, aux?.sceneScope).length);
+    },
+  },
+  {
+    // Plain (NOT multiValue) — violation messages contain commas and
+    // applyItemAffixes would split them apart.
+    key: 'smartViolations', label: 'Violation Details', group: 'Smart', scope: 'smart', defaultWidth: 40,
+    get: (ctx, it, aux) => {
+      const list = it ? violationsOf(ctx, it, aux?.sceneScope) : allViolations(ctx);
+      return list.map(v => v.message).join('; ');
+    },
+  },
 ];
 
 // ---- registry ----------------------------------------------------------------
@@ -366,6 +420,7 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...ELEMENT_FIELDS,
     ...CAST_FIELDS,
     ...CATEGORY_FIELDS,
+    ...VIOLATION_TYPE_FIELDS,
     ...DOCUMENT_FIELDS,
     ...DAY_FIELDS,
     ...CREW_FIELDS,
@@ -472,7 +527,15 @@ export function resolveReportTokensHtml(
 ): string {
   return normalizeSpaces(html).replace(TOKEN_RE, (_m, raw: string) => {
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
-    return opts?.showUnresolved && !value ? `{{${escapeHtml(raw)}}}` : escapeHtml(value);
+    if (opts?.showUnresolved && !value) {
+      // Designer canvas: an empty token renders as a colored tag (background
+      // only — the token text inherits the block's typography) so templates
+      // stay visible instead of blank spots.
+      const base = raw.trim().split('.')[0];
+      const color = fieldMap[base] ? fieldChipColor(fieldMap[base].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
+      return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
+    }
+    return escapeHtml(value);
   });
 }
 
@@ -544,6 +607,18 @@ export function fieldChipColor(group: string | undefined): ChipColor {
   let h = 0;
   for (const ch of group) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return FALLBACK_CHIP_COLORS[h % FALLBACK_CHIP_COLORS.length];
+}
+
+/** Inline CSS for the flat token tag — shared by the editor chip spans and the
+ *  canvas's unresolved-token spans (one source of truth for the tag look). */
+export function tokenChipCss(color: ChipColor, margin = '0 2px'): string {
+  return `background:${color.text};color:#fff;border-radius:2px;padding:1px 4px;margin:${margin};font-weight:600`;
+}
+
+/** Inline CSS for canvas/preview token tags: colored background only — the
+ *  token text inherits the block's own typography (color, size, weight). */
+export function tokenTagCss(color: ChipColor, margin = '0 2px'): string {
+  return `background:${color.text};border-radius:2px;padding:1px 4px;margin:${margin}`;
 }
 
 /** Report-wide constant fields — grouped under the GLOBAL divider in pickers. */

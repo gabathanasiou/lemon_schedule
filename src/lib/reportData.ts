@@ -1,9 +1,10 @@
-import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, CrewPerson } from '../types';
+import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, CrewPerson, RuleViolation } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { loadCategoryElements, elementMatchId } from './elements';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort } from './utils';
+import { computeViolationIndex, violationTypeLabel } from './violations';
 
 // Collection resolvers for the Reports Designer.
 // ALL day/section/date/call-time data comes from the canonical daybreak
@@ -85,6 +86,15 @@ export interface ReportCategoryInfo {
   items: string[]; // display names of every element, for the Items attribute
 }
 
+/** One rule type, as a repeat/table item of the 'violationTypes' collection. */
+export interface ReportViolationTypeInfo {
+  type: string;
+  label: string;
+  count: number;
+  messages: string[];
+  violations: RuleViolation[]; // for Lego scoping — never a field value
+}
+
 /** Canonical daybreak output consumed by the reports (from useDaybreakSections). */
 export interface ReportDaybreakData {
   sections: SectionInfo[];
@@ -149,12 +159,22 @@ export function filterItemsByScope(
 // rule reduces to the same primitive: which SCENES does the parent item stand
 // for. crew has no scene association — it stays global.
 
+/** Scene ids a RuleViolation flags (sceneIds with sceneId fallback). */
+export function flaggedIdsOf(v: RuleViolation): string[] {
+  return v.sceneIds || (v.sceneId ? [v.sceneId] : []);
+}
+
 export function parentScenesOf(ctx: ReportCtx, parentItem: ReportCollectionItem | undefined): ReportSceneInfo[] {
   if (!parentItem) return [];
   const any = parentItem as any;
   if (any.scene) return [parentItem as ReportSceneInfo];                       // scene (or a scenes-of-* item)
   if (typeof any.section?.index === 'number') {                                 // day
     return ctx.sceneInfos.filter(si => si.sectionIndex === any.section.index);
+  }
+  if (Array.isArray(any.violations)) {                                          // violation type → its flagged scenes
+    const ids = new Set<string>();
+    for (const v of any.violations as RuleViolation[]) for (const id of flaggedIdsOf(v)) ids.add(id);
+    return ctx.sceneInfos.filter(si => ids.has(si.scene.id));
   }
   if (typeof any.key === 'string' && any.label !== undefined) {                 // category
     return ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, any.key).length > 0);
@@ -200,6 +220,9 @@ export interface ReportCtx {
   elementsCache: Map<string, ReportElementInfo[]>;
   crewItems: ReportCrewItem[];
   totals: ReportProductionTotals;
+  sectionViolations: Map<number, RuleViolation[]>;
+  sceneViolations: Map<string, RuleViolation[]>;
+  totalViolations: number;
   sceneFieldItems: (scene: Scene, category: string) => string[];
 }
 
@@ -321,6 +344,8 @@ export function buildReportCtx(
     lastDay: dayInfos[dayInfos.length - 1]?.date || version.productionStart || todayIso(),
   };
 
+  const { sectionViolations, sceneViolations, totalViolations } = computeViolationIndex(project, sections);
+
   return {
     project,
     version,
@@ -331,6 +356,9 @@ export function buildReportCtx(
     elementsCache: new Map(),
     crewItems,
     totals,
+    sectionViolations,
+    sceneViolations,
+    totalViolations,
     sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
   };
 }
@@ -409,7 +437,8 @@ export type ReportCollectionItem =
   | ReportDayInfo
   | ReportElementInfo
   | ReportCategoryInfo
-  | ReportCrewItem;
+  | ReportCrewItem
+  | ReportViolationTypeInfo;
 
 export function resolveCollection(
   ctx: ReportCtx,
@@ -468,6 +497,25 @@ export function resolveCollection(
       if (!scene) return [];
       return elementsOfSceneFor(ctx, scene, category);
     }
+    case 'violationTypes': {
+      // One item per rule type, in first-appearance (section) order.
+      const byType = new Map<string, ReportViolationTypeInfo>();
+      for (const d of ctx.dayInfos) {
+        const list = ctx.sectionViolations.get(d.section.index);
+        if (!list) continue;
+        for (const v of list) {
+          let info = byType.get(v.ruleType);
+          if (!info) {
+            info = { type: v.ruleType, label: violationTypeLabel(v.ruleType), count: 0, messages: [], violations: [] };
+            byType.set(v.ruleType, info);
+          }
+          info.count++;
+          info.messages.push(v.message);
+          info.violations.push(v);
+        }
+      }
+      return Array.from(byType.values());
+    }
     default: return [];
   }
 }
@@ -519,6 +567,11 @@ export function resolveCollectionItems(
           });
           break;
         }
+        case 'violationTypes': {
+          const idInSet = (id: string) => sceneSets.every(set => set.some(si => si.scene.id === id));
+          items = items.filter((t: any) => t.violations?.some((v: RuleViolation) => flaggedIdsOf(v).some(idInSet)));
+          break;
+        }
         default: break; // crew etc. — no scoping rule
       }
     }
@@ -542,6 +595,7 @@ export function ruleBearingAncestor(a: ReportCollectionItem): boolean {
   return !!any.scene
     || typeof any.section?.index === 'number'
     || (typeof any.key === 'string' && any.label !== undefined)
+    || Array.isArray(any.violations)
     || typeof any.id !== 'undefined';
 }
 

@@ -272,6 +272,17 @@ export function removeColumnAt(blocks: ReportBlock[], colsId: string, colIndex: 
   });
 }
 
+/** Reorders a columns-block column from `from` to `to`; widths stay normalized. */
+export function moveColumnAt(blocks: ReportBlock[], colsId: string, from: number, to: number): ReportBlock[] {
+  return mapColumns(blocks, colsId, cols => {
+    if (from === to || from < 0 || to < 0 || from >= cols.length || to >= cols.length) return cols;
+    const next = [...cols];
+    const [c] = next.splice(from, 1);
+    next.splice(to, 0, c);
+    return rescaleWidths(next, next.map(c => c.width));
+  });
+}
+
 /** Moves a block from anywhere into a brand-new column at `colIndex`. */
 export function moveIntoNewColumn(blocks: ReportBlock[], moveId: string, colsId: string, colIndex: number): ReportBlock[] {
   const fm = findBlock(blocks, moveId);
@@ -340,6 +351,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   elements: 'Elements',
   categories: 'Categories',
   crew: 'Crew',
+  violationTypes: 'Violation Types',
   scenesOfDay: 'Scenes (of this day)',
   scenesOfElement: 'Scenes (of this element)',
   scenesOfCast: 'Scenes (of this cast member)',
@@ -348,7 +360,7 @@ export const COLLECTION_LABELS: Record<string, string> = {
   elementsOfScene: 'Elements (of this scene)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
@@ -390,6 +402,7 @@ export function parentNoun(parentCollection?: ReportCollection): string {
     case 'categories': return 'category';
     case 'cast': return 'cast member';
     case 'crew': return 'crew member';
+    case 'violationTypes': return 'violation type';
     default: return 'item';
   }
 }
@@ -449,6 +462,7 @@ export function defaultIdentityField(collection?: ReportCollection): string {
     case 'elementsOfScene': return 'elementName';
     case 'categories': return 'categoryLabel';
     case 'crew': return 'crewName';
+    case 'violationTypes': return 'violationType';
     default: return 'title';
   }
 }

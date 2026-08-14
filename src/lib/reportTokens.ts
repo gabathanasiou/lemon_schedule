@@ -1,3 +1,5 @@
+import { ChipColor, tokenChipCss } from './reportFields';
+
 // DOM helpers for the reports text editor's {{token}} chips + autocomplete.
 //
 // Chips are decoration ONLY: the stored value stays plain `{{field}}` text.
@@ -10,13 +12,12 @@
  *  a shared global regex's lastIndex would flip-flop `.test()` results. */
 export const TOKEN_TEXT_RE = /\{\{[^{}]+\}\}/;
 
-/** Trailing open token prefix right before the caret (`{{` or `{{pag`). */
-const OPEN_TOKEN_RE = /\{\{[^{}]*$/;
+/** Trailing open token prefix right before the caret — either an unclosed
+ *  `{{…` or a bare `@` (with optional word chars after it). Both behave the
+ *  same: they stay in the text and the dropdown filters on what follows. */
+const TRIGGER_RE = /(\{\{[^{}]*|@\w*)$/;
 
-export interface TokenChipStyle {
-  /** Chip background color (chip text is white). */
-  text: string;
-  bg: string;
+export interface TokenChipStyle extends ChipColor {
   /** Display text — the attribute label. Defaults to the raw {{token}}. */
   label?: string;
 }
@@ -92,18 +93,14 @@ function decorateTextNode(t: Text, styleFor?: TokenStyleFor | null): void {
       span.setAttribute('data-rt-token', '1');
       span.setAttribute('data-rt-raw', p.text);
       span.setAttribute('contenteditable', 'false');
-      span.style.borderRadius = '999px';
-      span.style.padding = '1px 5px';
-      // Horizontal margin gives the caret a gap when it sits right next to the
-      // bubble — without it the cursor overlaps the chip's padding zone. The
-      // left side gets +1px because the caret (≈1px wide) is drawn inside the
-      // left gap but starts clear on the right — equal visual clearance both
-      // sides.
-      span.style.margin = '0 2px 0 3px';
-      span.style.fontWeight = '600';
+      // Flat tag look via the shared chip CSS. The left margin gets +1px
+      // because the caret (≈1px wide) is drawn inside the left gap but starts
+      // clear on the right — equal visual clearance both sides.
+      span.style.cssText = tokenChipCss(
+        color ? { text: color.text, bg: color.bg } : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' },
+        '0 3px 0 2px',
+      );
       span.style.fontStyle = 'normal';
-      span.style.color = '#ffffff';
-      span.style.background = color ? color.text : '#52525b';
       span.textContent = color?.label ? color.label : p.text;
       parent.insertBefore(span, anchor());
       prev = span;
@@ -130,6 +127,79 @@ export function undecorateTokens(el: HTMLElement): void {
       span.replaceWith(frag);
     }
   });
+}
+
+/** If the caret sits where Chrome renders nothing (an element boundary or an
+ *  empty text node — common right after a trailing chip), snap it to the
+ *  nearest visible text edge: the start of the next non-chip text node, else
+ *  the end of the previous one, else an appended empty anchor node. Pure caret
+ *  fix-up — never touches chip markup. */
+export function ensureCaretVisible(el: HTMLElement): void {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  if (!el.contains(range.startContainer)) return;
+  const c = range.startContainer;
+  if (c.nodeType === Node.TEXT_NODE) {
+    if ((c as Text).data.length > 0) return; // normal text caret — visible
+  } else if (range.getClientRects().length > 0) {
+    return; // element-boundary caret that renders
+  }
+  const isChipText = (t: Node): boolean =>
+    t.nodeType === Node.TEXT_NODE && (t.parentElement?.hasAttribute('data-rt-token') ?? false);
+  const place = (t: Text, offset: number) => {
+    const r = document.createRange();
+    r.setStart(t, offset);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  };
+  const fromNode = c.nodeType === Node.TEXT_NODE
+    ? (c as Text)
+    : ((c as HTMLElement).childNodes[range.startOffset] ?? null);
+  if (fromNode && fromNode !== c && fromNode.nodeType === Node.TEXT_NODE && !isChipText(fromNode)) {
+    place(fromNode as Text, 0);
+    return;
+  }
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  walker.currentNode = fromNode ?? el;
+  let n = walker.nextNode();
+  while (n) {
+    if (!isChipText(n)) { place(n as Text, 0); return; }
+    n = walker.nextNode();
+  }
+  const prevNode = c.nodeType === Node.TEXT_NODE
+    ? (c as Text).previousSibling ?? null
+    : ((c as HTMLElement).childNodes[range.startOffset - 1] ?? null);
+  if (prevNode && prevNode !== c && prevNode.nodeType === Node.TEXT_NODE && !isChipText(prevNode)) {
+    place(prevNode as Text, (prevNode as Text).data.length);
+    return;
+  }
+  const walker2 = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  walker2.currentNode = prevNode ?? el;
+  let m = walker2.previousNode();
+  while (m) {
+    if (!isChipText(m)) { place(m as Text, (m as Text).data.length); return; }
+    m = walker2.previousNode();
+  }
+  const anchor = document.createTextNode('');
+  el.appendChild(anchor);
+  place(anchor, 0);
+}
+
+/** The first/last non-chip text node of the editor (chip labels are skipped). */
+export function edgeTextNodes(el: HTMLElement): { first: Text | null; last: Text | null } {
+  let first: Text | null = null;
+  let last: Text | null = null;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let n: Node | null;
+  while ((n = walker.nextNode())) {
+    const t = n as Text;
+    if (t.parentElement?.hasAttribute('data-rt-token')) continue;
+    if (!first) first = t;
+    last = t;
+  }
+  return { first, last };
 }
 
 /** The source text of a text node for offset math: chip text nodes count as
@@ -204,16 +274,19 @@ export function textBeforeCaret(el: HTMLElement, range: Range): string {
   return out;
 }
 
-/** The trailing open `{{prefix` (possibly empty) at the end of `text`. */
+/** The filter prefix of the open trigger at the end of `text`: `{{pag` or
+ *  `@pag` → "pag"; a bare `{{`/`@` → "". Null when no trigger is open. */
 export function matchOpenToken(text: string): string | null {
-  const m = OPEN_TOKEN_RE.exec(text);
-  return m ? m[0].slice(2) : null;
+  const m = TRIGGER_RE.exec(text);
+  if (!m) return null;
+  const t = m[1];
+  return t.startsWith('{{') ? t.slice(2) : t.slice(1);
 }
 
 /** Inserts `{{field}}` at the caret. If the caret sits right after an open
- *  `{{prefix`, that prefix is replaced; otherwise the token is inserted at the
- *  caret. Returns the new caret range, or null when the editor isn't focused
- *  with a usable selection. */
+ *  `{{prefix` or a bare `@…` trigger, that prefix is replaced; otherwise the
+ *  token is inserted at the caret. Returns the new caret range, or null when
+ *  the editor isn't focused with a usable selection. */
 export function insertTokenAtCaret(el: HTMLElement, field: string): Range | null {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return null;
@@ -225,7 +298,7 @@ export function insertTokenAtCaret(el: HTMLElement, field: string): Range | null
     const tn = node as Text;
     const text = tn.data;
     const caret = range.startOffset;
-    const m = OPEN_TOKEN_RE.exec(text.slice(0, caret));
+    const m = TRIGGER_RE.exec(text.slice(0, caret));
     if (m) {
       const start = caret - m[0].length;
       const right = tn.splitText(start);

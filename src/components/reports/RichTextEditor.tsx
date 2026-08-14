@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } 
 import { sanitizeRichText } from '../../lib/richText';
 import { ReportFieldDef, searchReportFields, fieldChipColor } from '../../lib/reportFields';
 import {
-  decorateTokens, undecorateTokens, syncChipSelection, normalizeCaretOutOfChip,
+  decorateTokens, undecorateTokens, syncChipSelection, normalizeCaretOutOfChip, ensureCaretVisible, edgeTextNodes,
   textBeforeCaret, matchOpenToken, insertTokenAtCaret,
 } from '../../lib/reportTokens';
 import TokenAutocomplete, { TokenAcState } from './TokenAutocomplete';
@@ -113,19 +113,23 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
       ? { node: range.startContainer as Text, offset: range.startOffset }
       : null;
     decorateTokens(el, caret, styleForToken);
+    if (focused) ensureCaretVisible(el);
   }, []);
 
   const updateAutocomplete = useCallback(() => {
     const el = elRef.current;
     if (!el || disabledRef.current || !fieldsRef.current || fieldsRef.current.length === 0) { setAc(null); return; }
     const range = caretRange();
-    if (!range || !range.collapsed || range.startContainer.nodeType !== Node.TEXT_NODE) { setAc(null); return; }
-    const before = textBeforeCaret(el, range);
+    if (!range || !range.collapsed) { setAc(null); return; }
+    const before = range.startContainer.nodeType === Node.TEXT_NODE ? textBeforeCaret(el, range) : '';
+    // Open when the text right before the caret ends with an unclosed `{{` or
+    // a bare `@` — both stay visible and filter on what follows.
     const prefix = matchOpenToken(before);
     if (prefix === null) { setAc(null); return; }
     const items = searchReportFields(fieldsRef.current, prefix);
     if (items.length === 0) { setAc(null); return; }
-    const rect = range.getBoundingClientRect();
+    let rect = range.getBoundingClientRect();
+    if (!rect.width && !rect.height) rect = el.getBoundingClientRect();
     const below = rect.bottom + MAX_AC_H + 12 < window.innerHeight;
     setAc(prev => {
       if (prev && prev.prefix === prefix && prev.items === items) {
@@ -258,6 +262,24 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
           refreshChips();
         }}
         onKeyDown={e => {
+          // Home: Chrome quirks with a leading chip — snap to the true start
+          // (the first non-chip text node) so the caret is visible and
+          // Shift+Arrow from there selects the chips in order.
+          if (e.key === 'Home') {
+            e.preventDefault();
+            const el = elRef.current;
+            const first = el ? edgeTextNodes(el).first : null;
+            if (first) {
+              const r = document.createRange();
+              r.setStart(first, 0);
+              r.collapse(true);
+              const sel = window.getSelection();
+              sel?.removeAllRanges();
+              sel?.addRange(r);
+              updateAutocomplete();
+            }
+            return;
+          }
           if (!ac) return;
           if (e.key === 'ArrowDown') { e.preventDefault(); setAc(s => s && { ...s, highlight: Math.min(s.highlight + 1, s.items.length - 1) }); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); setAc(s => s && { ...s, highlight: Math.max(s.highlight - 1, 0) }); }
@@ -304,6 +326,7 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
           updateAutocomplete();
         }}
         onBlur={() => {
+          setAc(null);
           const el = elRef.current;
           if (el) {
             const range = caretRange();

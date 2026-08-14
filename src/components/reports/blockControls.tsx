@@ -437,14 +437,14 @@ const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   scenes: 'scenes', scenesOfDay: 'scenes', scenesOfElement: 'scenes', scenesOfCast: 'scenes',
   days: 'days', daysOfCast: 'days',
   elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
-  categories: 'categories', cast: 'cast', crew: 'crew',
+  categories: 'categories', cast: 'cast', crew: 'crew', violationTypes: 'violation types',
 };
 
 const PARENT_LABELS: Record<string, string> = {
   days: 'day', daysOfCast: 'day',
   scenes: 'scene', scenesOfDay: 'scene', scenesOfElement: 'scene', scenesOfCast: 'scene', elementsOfScene: 'scene',
   elements: 'element', elementsOfCategory: 'element',
-  categories: 'category', cast: 'cast member', crew: 'crew member',
+  categories: 'category', cast: 'cast member', crew: 'crew member', violationTypes: 'violation type',
 };
 
 // Content-control rows (label-left, ribbon style) — module scope so React
@@ -623,7 +623,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             ref={editorRef}
             value={block.text || ''}
             onChange={text => onPatch({ text })}
-            placeholder="Type text… type {{ to insert an attribute, or use the toolbar"
+            placeholder="Type text… type @ to insert an attribute"
             disabled={disabled}
             fields={contextFields}
             className="w-96 h-28"

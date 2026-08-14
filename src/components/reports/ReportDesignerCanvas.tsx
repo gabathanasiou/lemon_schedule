@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportTableColumn } from '../../types';
 import { ReportCtx, resolveCollectionItems, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux } from '../../lib/reportFields';
@@ -12,6 +12,7 @@ import {
   TB_BTN_ICON, TB_DANGER, ToolButton, BlockEditorContent,
 } from './blockControls';
 import { FieldPicker, TB_PICKER } from './FieldPicker';
+import { FloatingChrome } from '../FloatingChrome';
 import { Tooltip } from '../Tooltip';
 import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical } from 'lucide-react';
 
@@ -58,6 +59,7 @@ interface ReportDesignerCanvasProps {
   onMoveToNewColumn: (moveId: string, columnsId: string, colIndex: number) => void;
   onDuplicateToNewColumn: (moveId: string, columnsId: string, colIndex: number) => void;
   onRemoveColumn: (columnsId: string, colIndex: number) => void;
+  onMoveColumn: (columnsId: string, from: number, to: number) => void;
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
@@ -107,7 +109,7 @@ function zoneDropHandlers(
   };
 }
 
-const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode }) => {
+const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, headerBlocks, footerBlocks, skipFirstHeader, skipFirstFooter, onToggleHeaderSkipFirst, onToggleFooterSkipFirst, selId, selCol, ctx, fieldMap, readOnly, showKeys, project, parentCollection, parentCategory, onSaveTextStyles, viewWidth, pageSize, onSelect, onSelectCol, onPatch, onInsertAfter, onInsertBefore, onInsertInto, onMoveInto, onDuplicateInto, onMoveTo, onDuplicateTo, onWrap, onInsertIntoColumn, onMoveIntoColumn, onDuplicateIntoColumn, onInsertNewColumn, onMoveToNewColumn, onDuplicateToNewColumn, onRemoveColumn, onMoveColumn, onDuplicate, onRemove, onMove, onMenu, onInsertTableColumnAt, onRemoveTableColumn, onMoveTableColumn, onInsertIntoZone, editorMode }) => {
   const allBlocks = React.useMemo(() => [...headerBlocks, ...blocks, ...footerBlocks], [headerBlocks, blocks, footerBlocks]);
   const [dragging, setDragging] = useState(false);
   const [dragSourceId, setDragSourceId] = useState<string | null>(null);
@@ -117,66 +119,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
   const pendingRef = useRef<{ id: string; pos: 'before' | 'after' } | null>(null);
   const performRef = useRef<(id: string, pos: 'before' | 'after', payload: PaletteDropPayload) => void>(() => {});
   const containerRef = useRef<HTMLDivElement>(null);
-  const selectedCardRef = useRef<HTMLDivElement>(null);
 
-  // Floating editors are `position: fixed` and placed by JS next to their card
-  // (above when there's room, below otherwise), viewport-clamped horizontally
-  // and only capped in height when taller than the viewport — they never
-  // shrink to fit and are always fully visible. Re-placed on scroll/resize.
-  const chromeClampedRef = useRef(false);
-  const repositionChrome = useCallback(() => {
-    const card = selectedCardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const place = (el: HTMLElement) => {
-      // content-sized (CSS max-content) — only clamped to the viewport
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      const maxH = vh - 16;
-      if (h > maxH || chromeClampedRef.current) {
-        el.style.maxHeight = `${maxH}px`;
-        chromeClampedRef.current = true;
-      } else {
-        el.style.maxHeight = '';
-        chromeClampedRef.current = false;
-      }
-      el.style.left = `${Math.max(8, Math.min(rect.left, vw - w - 8))}px`;
-      const spaceAbove = rect.top - 8;
-      const spaceBelow = vh - rect.bottom - 8;
-      const above = spaceAbove >= h || (spaceBelow < h && spaceAbove >= spaceBelow);
-      const top = above ? rect.top - 8 - h : rect.bottom + 8;
-      // keep the whole chrome inside the viewport even when its card is off-screen
-      el.style.top = `${Math.max(8, Math.min(top, vh - h - 8))}px`;
-      el.style.bottom = 'auto';
-      el.style.transform = above ? 'translateY(-100%)' : 'none';
-    };
-    const chromeEl = card.querySelector<HTMLElement>('.block-chrome');
-    if (chromeEl) place(chromeEl);
-    const colChrome = card.querySelector<HTMLElement>('.table-column-chrome');
-    if (colChrome) place(colChrome);
-    const colBlockChrome = card.querySelector<HTMLElement>('.column-chrome');
-    if (colBlockChrome) place(colBlockChrome);
-  }, []);
-
-  useEffect(() => {
-    repositionChrome();
-    const card = selectedCardRef.current;
-    const container = containerRef.current;
-    if (!card || !container) return;
-    const ro = new ResizeObserver(repositionChrome);
-    ro.observe(card);
-    container.addEventListener('scroll', repositionChrome, { passive: true });
-    window.addEventListener('scroll', repositionChrome, { passive: true });
-    window.addEventListener('resize', repositionChrome);
-    return () => {
-      ro.disconnect();
-      container.removeEventListener('scroll', repositionChrome);
-      window.removeEventListener('scroll', repositionChrome);
-      window.removeEventListener('resize', repositionChrome);
-    };
-  }, [repositionChrome, selId, blocks, headerBlocks, footerBlocks, editorMode]);
+  // Floating editors live in FloatingChrome (portal to the current window's
+  // body, positioned by Floating UI with flip/shift/size middleware) so they
+  // always stay fully inside the viewport — see src/components/FloatingChrome.tsx.
 
   performRef.current = (id, pos, payload) => {
     if (payload.moveId) {
@@ -245,7 +191,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     setDragSourceId(b.id);
     const card = e.currentTarget as HTMLElement;
     const ghost = card.cloneNode(true) as HTMLElement;
-    ghost.querySelector('.block-chrome')?.remove();
     ghost.style.position = 'fixed';
     ghost.style.left = '-9999px';
     ghost.style.top = '0';
@@ -308,7 +253,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
           <div
             data-block-id={b.id}
             className={`block-card block-type-${b.type}${selected ? ' selected' : ''}`}
-            ref={selected ? selectedCardRef : undefined}
             onClick={e => {
               e.stopPropagation();
               // table cells own their clicks (column select/reorder); a click
@@ -319,8 +263,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); onMenu(e, b.id); }}
             draggable={!readOnly}
             onDragStart={e => {
-              // dragging the floating editors must not drag the block
-              if ((e.target as HTMLElement).closest?.('.block-chrome, .table-column-chrome')) { e.preventDefault(); return; }
               startBlockDrag(e, b);
             }}
             style={{
@@ -522,6 +464,8 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                                   readOnly={readOnly}
                                   onInsertBefore={() => onInsertNewColumn(b.id, ci, { kind: 'block', type: 'text' })}
                                   onInsertAfter={() => onInsertNewColumn(b.id, ci + 1, { kind: 'block', type: 'text' })}
+                                  onMoveLeft={() => onMoveColumn(b.id, ci, ci - 1)}
+                                  onMoveRight={() => onMoveColumn(b.id, ci, ci + 1)}
                                   onDelete={() => onRemoveColumn(b.id, ci)}
                                   onDeselect={() => onSelectCol(null)}
                                 />
@@ -695,6 +639,9 @@ const ReportZone: React.FC<{
 );
 
 // ---- floating block editor (full per-type controls above the selected block) --
+// The chrome portals to the window body and floats against the block card via
+// FloatingChrome; the inline `.chrome-anchor` div covers the (position:relative)
+// card so the panel anchors to the whole card rect.
 
 const BlockChrome: React.FC<{
   block: ReportBlock;
@@ -708,7 +655,7 @@ const BlockChrome: React.FC<{
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove }) => (
-  <div className="block-chrome" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}>
+  <FloatingChrome className="block-chrome">
     <BlockEditorContent
       block={block}
       project={project}
@@ -722,7 +669,7 @@ const BlockChrome: React.FC<{
       onMove={onMove}
       compact
     />
-  </div>
+  </FloatingChrome>
 );
 
 // ---- floating table-column editor (columns-mode tables) ------------------------
@@ -746,73 +693,87 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
   const scope = tableFieldScope(block, parentCollection);
   const columns = block.columns || [];
   const col = columns[colIndex];
+  // Anchor the panel to the selected column's header cell (`.report-table-cols
+  // [data-table-col-ci]`), falling back to the whole card. The query runs in a
+  // layout effect so the cell grid is committed before the anchor resolves.
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [reference, setReference] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const card = anchorRef.current?.closest('[data-block-id]');
+    if (!card) return;
+    const cell = card.querySelector<HTMLElement>(`.report-table-cols [data-table-col-ci="${colIndex}"]`);
+    setReference(cell instanceof HTMLElement ? cell : (card as HTMLElement));
+  }, [colIndex, block.id]);
   if (!col) return null;
   const disabled = readOnly;
   const patchCol = (p: Partial<ReportTableColumn>) => onPatch({ columns: columns.map((c, i) => i === colIndex ? { ...c, ...p } : c) });
   return (
-    <div className="table-column-chrome" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}>
-      {/* Header bar: column name + field */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
-        <span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {columns.length}</span>
-        <div className="ml-auto flex items-center gap-1">
-          <FieldPicker
-            value={col.field}
-            fields={fieldsForScope(allFields, scope, block.category)}
-            onChange={f => patchCol({ field: f })}
-            disabled={disabled}
-            scope={scope}
-            className={`w-32 ${TB_PICKER}`}
-          />
-          <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
+    <>
+      <div ref={anchorRef} className="chrome-anchor" aria-hidden />
+      <FloatingChrome className="table-column-chrome" reference={reference}>
+        {/* Header bar: column name + field */}
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
+          <span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {columns.length}</span>
+          <div className="ml-auto flex items-center gap-1">
+            <FieldPicker
+              value={col.field}
+              fields={fieldsForScope(allFields, scope, block.category)}
+              onChange={f => patchCol({ field: f })}
+              disabled={disabled}
+              scope={scope}
+              className={`w-32 ${TB_PICKER}`}
+            />
+            <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
+          </div>
         </div>
-      </div>
-      {/* Column style */}
-      <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max">
-        <SectionHeader>Column</SectionHeader>
-        <div className="flex items-center gap-1 flex-nowrap min-w-max">
-          <Tooltip content="Bold">
-            <button disabled={disabled} onClick={() => patchCol({ bold: !col.bold })} className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-              <span className="text-[10px] font-bold">B</span>
-            </button>
-          </Tooltip>
-          <Tooltip content="Italic">
-            <button disabled={disabled} onClick={() => patchCol({ italic: !col.italic })} className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-              <span className="text-[10px] italic">I</span>
-            </button>
-          </Tooltip>
-          <Tooltip content="Hide rows where this column is empty">
-            <button disabled={disabled} onClick={() => patchCol({ skipEmpty: !col.skipEmpty })} className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}>
-              <EyeOff className="w-3 h-3" />
-            </button>
-          </Tooltip>
-          <div className={TB_DIVIDER} />
-          {(['left', 'center', 'right'] as const).map(a => {
-            const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
-            const on = (col.align ?? 'left') === a;
-            return (
-              <Tooltip key={a} content={`Align ${a}`}>
-                <button disabled={disabled} onClick={() => patchCol({ align: a })} className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
-                  <Icon className="w-3 h-3" />
-                </button>
-              </Tooltip>
-            );
-          })}
+        {/* Column style */}
+        <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max">
+          <SectionHeader>Column</SectionHeader>
+          <div className="flex items-center gap-1 flex-nowrap min-w-max">
+            <Tooltip content="Bold">
+              <button disabled={disabled} onClick={() => patchCol({ bold: !col.bold })} className={`${TB_TOGGLE} ${col.bold ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                <span className="text-[10px] font-bold">B</span>
+              </button>
+            </Tooltip>
+            <Tooltip content="Italic">
+              <button disabled={disabled} onClick={() => patchCol({ italic: !col.italic })} className={`${TB_TOGGLE} ${col.italic ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                <span className="text-[10px] italic">I</span>
+              </button>
+            </Tooltip>
+            <Tooltip content="Hide rows where this column is empty">
+              <button disabled={disabled} onClick={() => patchCol({ skipEmpty: !col.skipEmpty })} className={`${TB_TOGGLE} ${col.skipEmpty ? 'bg-amber-900/50 border-amber-700 text-amber-300' : TB_TOGGLE_OFF}`}>
+                <EyeOff className="w-3 h-3" />
+              </button>
+            </Tooltip>
+            <div className={TB_DIVIDER} />
+            {(['left', 'center', 'right'] as const).map(a => {
+              const Icon = a === 'left' ? AlignLeft : a === 'center' ? AlignCenter : AlignRight;
+              const on = (col.align ?? 'left') === a;
+              return (
+                <Tooltip key={a} content={`Align ${a}`}>
+                  <button disabled={disabled} onClick={() => patchCol({ align: a })} className={`${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}>
+                    <Icon className="w-3 h-3" />
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
         </div>
-      </div>
-      {/* Structure */}
-      <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max border-t border-zinc-700/60">
-        <SectionHeader>Structure</SectionHeader>
-        <div className="flex items-center gap-1 flex-nowrap min-w-max">
-          <ToolButton onClick={() => onInsertAt(colIndex)} disabled={disabled} title="Insert column before" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> Before</ToolButton>
-          <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={disabled} title="Insert column after" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> After</ToolButton>
-          <div className={TB_DIVIDER} />
-          <ToolButton onClick={() => onMoveCol(-1)} disabled={disabled || colIndex <= 0} title="Move column left" className={TB_BTN_ICON}><ArrowLeft className="w-2.5 h-2.5" /> Left</ToolButton>
-          <ToolButton onClick={() => onMoveCol(1)} disabled={disabled || colIndex >= columns.length - 1} title="Move column right" className={TB_BTN_ICON}><ArrowRight className="w-2.5 h-2.5" /> Right</ToolButton>
-          <div className={TB_DIVIDER} />
-          <ToolButton onClick={onRemove} disabled={disabled || columns.length <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /> Delete</ToolButton>
+        {/* Structure */}
+        <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max border-t border-zinc-700/60">
+          <SectionHeader>Structure</SectionHeader>
+          <div className="flex items-center gap-1 flex-nowrap min-w-max">
+            <ToolButton onClick={() => onInsertAt(colIndex)} disabled={disabled} title="Insert column before" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> Before</ToolButton>
+            <ToolButton onClick={() => onInsertAt(colIndex + 1)} disabled={disabled} title="Insert column after" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> After</ToolButton>
+            <div className={TB_DIVIDER} />
+            <ToolButton onClick={() => onMoveCol(-1)} disabled={disabled || colIndex <= 0} title="Move column left" className={TB_BTN_ICON}><ArrowLeft className="w-2.5 h-2.5" /> Left</ToolButton>
+            <ToolButton onClick={() => onMoveCol(1)} disabled={disabled || colIndex >= columns.length - 1} title="Move column right" className={TB_BTN_ICON}><ArrowRight className="w-2.5 h-2.5" /> Right</ToolButton>
+            <div className={TB_DIVIDER} />
+            <ToolButton onClick={onRemove} disabled={disabled || columns.length <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /> Delete</ToolButton>
+          </div>
         </div>
-      </div>
-    </div>
+      </FloatingChrome>
+    </>
   );
 };
 
@@ -824,10 +785,12 @@ const ColumnBlockChrome: React.FC<{
   readOnly: boolean;
   onInsertBefore: () => void;
   onInsertAfter: () => void;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
   onDelete: () => void;
   onDeselect: () => void;
-}> = ({ colIndex, colsCount, readOnly, onInsertBefore, onInsertAfter, onDelete, onDeselect }) => (
-  <div className="column-chrome" onMouseDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()} onDragStart={e => e.preventDefault()}>
+}> = ({ colIndex, colsCount, readOnly, onInsertBefore, onInsertAfter, onMoveLeft, onMoveRight, onDelete, onDeselect }) => (
+  <FloatingChrome className="column-chrome">
     {/* Header bar: column name + deselect */}
     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
       <span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {colsCount}</span>
@@ -842,10 +805,13 @@ const ColumnBlockChrome: React.FC<{
         <ToolButton onClick={onInsertBefore} disabled={readOnly} title="Insert column before" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> Before</ToolButton>
         <ToolButton onClick={onInsertAfter} disabled={readOnly} title="Insert column after" className={TB_BTN_ICON}><Plus className="w-3 h-3" /> After</ToolButton>
         <div className={TB_DIVIDER} />
+        <ToolButton onClick={onMoveLeft} disabled={readOnly || colIndex <= 0} title="Move column left" className={TB_BTN_ICON}><ArrowLeft className="w-2.5 h-2.5" /> Left</ToolButton>
+        <ToolButton onClick={onMoveRight} disabled={readOnly || colIndex >= colsCount - 1} title="Move column right" className={TB_BTN_ICON}><ArrowRight className="w-2.5 h-2.5" /> Right</ToolButton>
+        <div className={TB_DIVIDER} />
         <ToolButton onClick={onDelete} disabled={readOnly || colsCount <= 1} title="Delete column" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /> Delete</ToolButton>
       </div>
     </div>
-  </div>
+  </FloatingChrome>
 );
 
 // ---- edge dropzones (Notion-style wrap into columns) --------------------------

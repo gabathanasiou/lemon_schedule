@@ -9,7 +9,7 @@ import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
   makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock,
-  insertColumnAt, removeColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
+  insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
   moveTableColumn, insertTableColumnAt, removeTableColumnAt,
 } from '../../lib/reportBlocks';
 import { getDefaultReportDesigns } from '../../lib/reportTemplates';
@@ -551,6 +551,11 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 const zone = zoneOf(columnsId);
                 commit(removeColumnAt(listOfZone(zone), columnsId, colIndex), zone);
                 setSelCol(null);
+              }}
+              onMoveColumn={(columnsId, from, to) => {
+                const zone = zoneOf(columnsId);
+                commit(moveColumnAt(listOfZone(zone), columnsId, from, to), zone);
+                setSelCol(prev => (prev && prev.colsId === columnsId ? { colsId: columnsId, colIndex: to } : prev));
               }}
               onDuplicate={id => commitZone(id, list => duplicateBlock(list, id))}
               onRemove={id => { commitZone(id, list => removeBlock(list, id)); if (selId === id) setSelId(null); if (selCol?.colsId === id) setSelCol(null); }}

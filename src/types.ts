@@ -271,7 +271,7 @@ export interface ProductionInfo {
 }
 
 export type ReportCollection =
-  | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew'
+  | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew' | 'violationTypes'
   | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
