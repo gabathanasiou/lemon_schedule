@@ -228,6 +228,29 @@ function smartDayOf(ctx: ReportCtx, it: any): ReportDayInfo | undefined {
   return undefined;
 }
 
+/**
+ * Distinct elements across the given scenes (all element categories; cast
+ * counts by ID). Used by the smart Element Count field — the count is the
+ * number of unique element values actually present in those scenes.
+ */
+function distinctElementsIn(ctx: ReportCtx, scenes: ReportSceneInfo[]): number {
+  const hidden = new Set(ctx.project.hiddenCategories || []);
+  const cats = [
+    ...ELEMENT_CATEGORIES.filter(c => !hidden.has(c.key)).map(c => c.key),
+    ...(ctx.project.customCategories || []).filter(c => !hidden.has(c.key)).map(c => c.key),
+  ];
+  const seen = new Set<string>();
+  for (const si of scenes) {
+    for (const cat of cats) {
+      for (const v of ctx.sceneFieldItems(si.scene, cat)) {
+        const k = v.trim().toLowerCase();
+        if (k) seen.add(k);
+      }
+    }
+  }
+  return seen.size;
+}
+
 // Smart semantics are "the current item's own value", Lego-composed:
 //   top level  → whole production
 //   day        → that day's total
@@ -268,6 +291,36 @@ const SMART_FIELDS: ReportFieldDef[] = [
       if (day) return formatPageCount(day.totalPages);
       const scenes = smartScenesOf(ctx, it, aux?.sceneScope);
       return scenes.length ? formatPageCount(scenes.reduce((sum, si) => sum + (si.scene.pageCountDecimal || 0), 0)) : '';
+    },
+  },
+  {
+    key: 'smartElementCount', label: 'Element Count', group: 'Smart', scope: 'smart', align: 'center', defaultWidth: 8,
+    get: (ctx, it, aux) => {
+      if (!it) return s(distinctElementsIn(ctx, ctx.sceneInfos));
+      if (it.scene) return s(distinctElementsIn(ctx, [it as ReportSceneInfo]));
+      const day = smartDayOf(ctx, it);
+      if (day) return s(distinctElementsIn(ctx, ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index)));
+      if (typeof it.key === 'string' && it.label !== undefined) {
+        const seen = new Set<string>();
+        for (const si of smartScenesOf(ctx, it, aux?.sceneScope)) {
+          for (const v of ctx.sceneFieldItems(si.scene, it.key)) {
+            const k = v.trim().toLowerCase();
+            if (k) seen.add(k);
+          }
+        }
+        return s(seen.size);
+      }
+      return s(1); // element/cast item → itself
+    },
+  },
+  {
+    key: 'smartSceneCount', label: 'Scene Count', group: 'Smart', scope: 'smart', align: 'center', defaultWidth: 8,
+    get: (ctx, it, aux) => {
+      if (!it) return s(ctx.totals.scenes);
+      if (it.scene) return s(1);
+      const day = smartDayOf(ctx, it);
+      if (day) return s(day.sceneCount);
+      return s(smartScenesOf(ctx, it, aux?.sceneScope).length);
     },
   },
 ];

@@ -124,6 +124,9 @@ CSV (PapaParse) / FDX (XML) / Fountain. `parseCSV`/`parseFDX`/`parseFountain` �
 ## Help Modal
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).
 
+## Reports Designer
+Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation.
+
 ## File Layout (post-refactor — see `docs/REFACTOR-PLAN.md`)
 - `src/store/` — barrel + storage/reducer(+actions)/provider/rows
 - `src/lib/` — shared: `sceneFactory`, `glideCells`, `glidePaste`, `glideEditor`, `elements`, `paletteOps`, `mergeGroups`, `sceneColors`, `ribbonDefaults` (ribbonUtils re-exports these), `useStripboardContextMenu`, `useDriveProjectList`, `import/`
