@@ -31,8 +31,8 @@ import Modal, { ModalFooter } from './Modal';
 
 const CREW_COLUMN_DEFS = [
   { key: 'actions', label: '', width: IS_COARSE ? 48 : 36 },
-  { key: 'role', label: 'Role', width: 160 },
   { key: 'name', label: 'Name', width: 200 },
+  { key: 'role', label: 'Role', width: 160 },
   { key: 'phone', label: 'Phone', width: 130 },
   { key: 'email', label: 'Email', width: 220 },
 ];
