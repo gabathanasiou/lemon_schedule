@@ -1,21 +1,16 @@
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useProject, PROTECTED_CATEGORIES, useIsCloudProject } from '../store';
-import { ProjectElement, CustomCategoryDef } from '../types';
-import { getElementsFromScenes } from '../store';
-import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDialog } from './Dialog';
-import { generateUUID } from '../lib/utils';
-import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check, ArrowRight } from 'lucide-react';
-import { ELEMENT_CATEGORIES, CAT_ICONS, CUSTOM_ICON_OPTIONS, getCustomIcon, getLabel } from '../lib/categories';
-import Modal from './Modal';
-import { ModalFooter } from './Modal';
+import { Trash2, Plus, Save, Undo2, Pencil, Eye, EyeOff, Check } from 'lucide-react';
+import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel, getFieldItems } from '../lib/categories';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
-import { useCurrentDocument } from '../lib/popoutTarget';
 import { loadCategoryElements, elementKey, countOccurrences } from '../lib/elements';
-import { registerUnsavedGuard, wasUnsavedPromptHandled, consumePendingTab, setPendingTab, notifyGuardChanged } from '../lib/unsavedGuard';
+import { useRowBuffer } from '../lib/rowBuffer';
+import { setPendingTab } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
+import { MergeRowsModal } from './elements/MergeRowsModal';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
 interface LocalRow {
@@ -41,7 +36,6 @@ interface CategoryDiff {
 export function ElementManager({ initialCategory, onCategoryChange, headerTarget }: { initialCategory?: string; onCategoryChange?: (cat: string) => void; headerTarget?: HTMLElement | null }) {
   const { state, dispatch, readOnly } = useProject();
   const isCloud = useIsCloudProject();
-  const currentDocument = useCurrentDocument();
   const dialog = useDialog();
   const project = state.present;
 
@@ -51,59 +45,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     if (initialCategory && initialCategory !== category) setCategory(initialCategory);
   }, [initialCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    rowsByCat.current = {};
-    snapByCat.current = {};
-    undoByCat.current = {};
-    redoByCat.current = {};
-    notifyGuardChanged();
-    const cat = initialCategory || 'cast';
-    const r = loadRows(cat);
-    snapByCat.current[cat] = [...r];
-    rowsByCat.current[cat] = r;
-    setRows(r);
-    setCategory(cat);
-  }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const prevElementsRef = useRef(project.breakdownElements);
-  const prevScenesRef = useRef(project.scenes);
-  useEffect(() => {
-    if (project.breakdownElements !== prevElementsRef.current || project.scenes !== prevScenesRef.current) {
-      rowsByCat.current = {};
-      snapByCat.current = {};
-      undoByCat.current = {};
-      redoByCat.current = {};
-      notifyGuardChanged();
-      const r = loadRows(category);
-      snapByCat.current[category] = [...r];
-      rowsByCat.current[category] = r;
-      setRows(r);
-      prevElementsRef.current = project.breakdownElements;
-      prevScenesRef.current = project.scenes;
-    }
-  }, [project.breakdownElements, project.scenes, category]);
-
   const isCast = category === 'cast';
   const isSet = category === 'set';
-
-  const rowsByCat = useRef<Record<string, LocalRow[]>>({});
-  const snapByCat = useRef<Record<string, LocalRow[]>>({});
-  const inputsRef = useRef<Map<string, HTMLInputElement>>(new Map());
-  const undoByCat = useRef<Record<string, LocalRow[][]>>({});
-  const redoByCat = useRef<Record<string, LocalRow[][]>>({});
-  // Rows captured when an input gains focus — pushed as ONE undo entry on the
-  // first keystroke, discarded on blur without changes (per-operation undo).
-  const pendingSnapshotRef = useRef<LocalRow[] | null>(null);
-
-  /** Pushes a pre-operation snapshot for `cat` and clears that category's redo. */
-  function pushUndo(cat: string, snapshot: LocalRow[]) {
-    const stack = undoByCat.current[cat] || [];
-    stack.push(snapshot);
-    if (stack.length > 50) stack.shift();
-    undoByCat.current[cat] = stack;
-    redoByCat.current[cat] = [];
-    notifyGuardChanged();
-  }
 
   function loadRows(cat: string): LocalRow[] {
     const elems = loadCategoryElements(project, cat);
@@ -125,48 +68,6 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     return rows;
   }
 
-  const [rows, setRows] = useState<LocalRow[]>(() => {
-    const cat = initialCategory || 'cast';
-    const r = loadRows(cat);
-    snapByCat.current[cat] = [...r];
-    return r;
-  });
-  const [saveVersion, setSaveVersion] = useState(0);
-
-  const categoryRef = useRef(category);
-  categoryRef.current = category;
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
-
-  const switchCategory = useCallback((newCat: string) => {
-    if (newCat === category) return;
-    rowsByCat.current[category] = rows;
-    if (rowsByCat.current[newCat]) {
-      setRows(rowsByCat.current[newCat]);
-    } else {
-      const r = loadRows(newCat);
-      snapByCat.current[newCat] = [...r];
-      rowsByCat.current[newCat] = r;
-      setRows(r);
-    }
-    setCategory(newCat);
-    onCategoryChange?.(newCat);
-  }, [category, rows, project, onCategoryChange]);
-
-  const hasChanges = useMemo(() => {
-    rowsByCat.current[category] = rows;
-    const allCats = new Set([...Object.keys(rowsByCat.current), ...Object.keys(snapByCat.current)]);
-    for (const cat of allCats) {
-      const r = rowsByCat.current[cat] || [];
-      const s = snapByCat.current[cat] || [];
-      if (r.length !== s.length) return true;
-      for (let i = 0; i < r.length; i++) {
-        if (r[i].id !== s[i].id || r[i].name !== s[i].name) return true;
-      }
-    }
-    return false;
-  }, [rows, category, saveVersion]);
-
   const [mergeDialog, setMergeDialog] = useState<{ categories: { label: string; merges: MergeInfo[] }[] } | null>(null);
   const pendingDiffsRef = useRef<Record<string, CategoryDiff> | null>(null);
   const [showAddCustom, setShowAddCustom] = useState(false);
@@ -184,18 +85,31 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     setSortMode(isCast ? 'id' : 'name');
   }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sortByIdFn = useCallback(() => {
-    pushUndo(categoryRef.current, rowsRef.current);
-    setRows(prev => [...prev].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })));
-  }, []);
-  const sortByNameFn = useCallback(() => {
-    pushUndo(categoryRef.current, rowsRef.current);
-    setRows(prev => [...prev].sort((a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase())));
-  }, []);
-  const sortByOccurrencesFn = useCallback(() => {
-    pushUndo(categoryRef.current, rowsRef.current);
-    setRows(prev => [...prev].sort((a, b) => b.occ - a.occ || (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase())));
-  }, []);
+  // The save flow is manager-specific (diff + merge confirmation), so it's
+  // reached through a ref — the hook's Cmd+S / guard call it on demand.
+  const doSaveRef = useRef<() => void>(() => {});
+
+  const buf = useRowBuffer<LocalRow>({
+    projectId: project.id,
+    scope: category,
+    loadRows,
+    makeBlankRow: () => ({ key: String(Date.now()), id: '', name: '', occ: 0 }),
+    fieldsPerRow: c => (c === 'cast' ? ['id', 'name'] : ['name']),
+    reloadDeps: [project.breakdownElements, project.scenes],
+    onSave: () => doSaveRef.current(),
+    hasPendingConfirmation: () => pendingDiffsRef.current !== null,
+  });
+  const { rows, hasChanges, doSave, doRevert } = buf;
+
+  const switchCategory = useCallback((newCat: string) => {
+    buf.switchScope(newCat);
+    setCategory(newCat);
+    onCategoryChange?.(newCat);
+  }, [buf.switchScope, onCategoryChange]);
+
+  const sortByIdFn = () => buf.sortRows((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  const sortByNameFn = () => buf.sortRows((a, b) => (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()));
+  const sortByOccurrencesFn = () => buf.sortRows((a, b) => b.occ - a.occ || (a.name || a.id).toLowerCase().localeCompare((b.name || b.id).toLowerCase()));
 
   const applySort = useCallback((mode: 'id' | 'name' | 'occurrences') => {
     setSortMode(mode);
@@ -203,78 +117,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     if (mode === 'id') sortByIdFn();
     else if (mode === 'name') sortByNameFn();
     else sortByOccurrencesFn();
-  }, [sortByIdFn, sortByNameFn, sortByOccurrencesFn]);
-
-  const updateRow = useCallback((key: string, field: 'id' | 'name', value: string) => {
-    // First mutation after an input gained focus: commit the pre-edit snapshot
-    // as one undo entry (further keystrokes of the same edit do not push).
-    if (pendingSnapshotRef.current) {
-      pushUndo(categoryRef.current, pendingSnapshotRef.current);
-      pendingSnapshotRef.current = null;
-    }
-    setRows(prev => prev.map(r => r.key === key ? { ...r, [field]: value } : r));
   }, []);
-
-  const deleteRow = useCallback((key: string) => {
-    pushUndo(categoryRef.current, rowsRef.current);
-    setRows(prev => prev.filter(r => r.key !== key));
-  }, []);
-
-  const addNew = useCallback(() => {
-    pushUndo(categoryRef.current, rowsRef.current);
-    setRows(prev => [...prev, { key: String(Date.now()), id: '', name: '', occ: 0 }]);
-  }, []);
-
-  const undoLocal = useCallback((): boolean => {
-    const cat = categoryRef.current;
-    const stack = undoByCat.current[cat] || [];
-    if (stack.length === 0) return false;
-    const snapshot = stack.pop()!;
-    undoByCat.current[cat] = stack;
-    const redoStack = redoByCat.current[cat] || [];
-    redoStack.push(rowsRef.current);
-    redoByCat.current[cat] = redoStack;
-    rowsByCat.current[cat] = snapshot;
-    setRows(snapshot);
-    // If an input is still focused, the next keystroke starts a fresh edit
-    // whose undo entry is the restored state.
-    pendingSnapshotRef.current = snapshot;
-    notifyGuardChanged();
-    return true;
-  }, []);
-
-  const redoLocal = useCallback((): boolean => {
-    const cat = categoryRef.current;
-    const stack = redoByCat.current[cat] || [];
-    if (stack.length === 0) return false;
-    const snapshot = stack.pop()!;
-    redoByCat.current[cat] = stack;
-    const undoStack = undoByCat.current[cat] || [];
-    undoStack.push(rowsRef.current);
-    undoByCat.current[cat] = undoStack;
-    rowsByCat.current[cat] = snapshot;
-    setRows(snapshot);
-    pendingSnapshotRef.current = snapshot;
-    notifyGuardChanged();
-    return true;
-  }, []);
-
-  const focusNext = useCallback((key: string, field: 'id' | 'name') => {
-    const idx = rows.findIndex(r => r.key === key);
-    if (idx < 0) return;
-    const isCastCat = category === 'cast';
-    const fields = isCastCat ? ['id', 'name'] : ['name'];
-    const curFieldIdx = fields.indexOf(field);
-    if (curFieldIdx < fields.length - 1) {
-      const nextKey = rows[idx].key;
-      const nextId = `${nextKey}-${fields[curFieldIdx + 1]}`;
-      inputsRef.current.get(nextId)?.focus();
-    } else if (idx < rows.length - 1) {
-      const nextKey = rows[idx + 1].key;
-      const nextId = `${nextKey}-${fields[0]}`;
-      inputsRef.current.get(nextId)?.focus();
-    }
-  }, [rows, category]);
 
   function collectSceneNumbers(name: string, cat: string, out: Set<string>) {
     const lower = name.trim().toLowerCase();
@@ -296,8 +139,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
    * - truly removed rows are deleted and pushed to trash
    */
   function computeCategoryDiff(cat: string): CategoryDiff {
-    const snap = snapByCat.current[cat] || [];
-    const current = rowsByCat.current[cat] || [];
+    const snap = buf.cachedSnapshot(cat) || [];
+    const current = buf.cachedRows(cat) || [];
     const snapByKey = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const snapByName = new Map<string, LocalRow>(snap.map(r => [r.name.trim().toLowerCase(), r]));
 
@@ -393,8 +236,8 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
   }
 
   function hasCastChanges(cat: string): boolean {
-    const snap = snapByCat.current[cat] || [];
-    const current = rowsByCat.current[cat] || [];
+    const snap = buf.cachedSnapshot(cat) || [];
+    const current = buf.cachedRows(cat) || [];
     if (snap.length !== current.length) return true;
     const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     for (const row of current) {
@@ -409,7 +252,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
   function commitSaves(diffs: Record<string, CategoryDiff>) {
     let willDispatch = false;
-    for (const cat of Object.keys(rowsByCat.current)) {
+    for (const cat of buf.bufferedScopes()) {
       if (cat === 'cast') {
         if (hasCastChanges(cat)) willDispatch = true;
         continue;
@@ -419,7 +262,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     }
     if (willDispatch) {
       dispatch({ type: 'BATCH_START' });
-      for (const cat of Object.keys(rowsByCat.current)) {
+      for (const cat of buf.bufferedScopes()) {
         if (cat === 'cast') {
           saveCastCategory(cat);
           continue;
@@ -431,26 +274,15 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       }
       dispatch({ type: 'BATCH_COMMIT' });
     }
-    snapByCat.current = {};
-    for (const cat of Object.keys(rowsByCat.current)) {
-      snapByCat.current[cat] = (rowsByCat.current[cat] || []).map(r => ({ ...r }));
-    }
     pendingDiffsRef.current = null;
     setMergeDialog(null);
-    setSaveVersion(v => v + 1);
-    // The save is committed — local history becomes one store undo entry.
-    undoByCat.current = {};
-    redoByCat.current = {};
-    notifyGuardChanged();
-    // Resume a tab switch that was waiting on this merge confirmation.
-    consumePendingTab()?.();
+    buf.commitSaved();
   }
 
-  const doSave = useCallback(() => {
-    rowsByCat.current[category] = rows;
+  const save = () => {
     const diffs: Record<string, CategoryDiff> = {};
     const dialogCats: { label: string; merges: MergeInfo[] }[] = [];
-    for (const cat of Object.keys(rowsByCat.current)) {
+    for (const cat of buf.bufferedScopes()) {
       if (cat === 'cast') continue;
       const d = computeCategoryDiff(cat);
       diffs[cat] = d;
@@ -464,15 +296,16 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       return;
     }
     commitSaves(diffs);
-  }, [rows, category, project]);
+  };
+  doSaveRef.current = save;
 
   /**
    * Cast members are ID-keyed (scenes store numeric ids) — saved with plain
    * ADD/UPDATE/DELETE dispatches, no name-based merging.
    */
   function saveCastCategory(cat: string) {
-    const snap = snapByCat.current[cat] || [];
-    const current = rowsByCat.current[cat] || [];
+    const snap = buf.cachedSnapshot(cat) || [];
+    const current = buf.cachedRows(cat) || [];
     const snapMap = new Map<string, LocalRow>(snap.map(r => [r.key, r]));
     const rowMap = new Map<string, LocalRow>(current.map(r => [r.key, r]));
     for (const row of current) {
@@ -496,86 +329,32 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     }
   }
 
-  const doRevert = useCallback(() => {
-    for (const cat of Object.keys(snapByCat.current)) rowsByCat.current[cat] = snapByCat.current[cat].map(r => ({ ...r }));
-    setRows(rowsByCat.current[category] || []);
-    setSaveVersion(v => v + 1);
-  }, [category]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey) {
-        if (e.key === 'n' && e.shiftKey) { e.preventDefault(); if (!readOnly) addNew(); }
-        if (e.key === 's') { e.preventDefault(); if (!readOnly) doSave(); }
-      }
-    };
-    currentDocument.addEventListener('keydown', onKey);
-    return () => currentDocument.removeEventListener('keydown', onKey);
-  }, [addNew, doSave, currentDocument, readOnly]);
-
-  const hasChangesRef = useRef(hasChanges);
-  hasChangesRef.current = hasChanges;
-  const doSaveRef = useRef(doSave);
-  doSaveRef.current = doSave;
-
-  const undoLocalRef = useRef(undoLocal);
-  undoLocalRef.current = undoLocal;
-  const redoLocalRef = useRef(redoLocal);
-  redoLocalRef.current = redoLocal;
-
-  useEffect(() => {
-    // Tab switches (top tabs, sub-tabs, popouts) consult this guard BEFORE
-    // unmounting, so save + merge confirmation run while still mounted.
-    // Undo/redo affordances (header buttons, Cmd+Z) route through it to the
-    // local edit history first, falling back to the store undo when empty.
-    registerUnsavedGuard({
-      hasUnsavedChanges: () => hasChangesRef.current,
-      save: () => { doSaveRef.current(); },
-      hasPendingConfirmation: () => pendingDiffsRef.current !== null,
-      hasLocalUndo: () => (undoByCat.current[categoryRef.current] || []).length > 0,
-      hasLocalRedo: () => (redoByCat.current[categoryRef.current] || []).length > 0,
-      undoLocal: () => undoLocalRef.current(),
-      redoLocal: () => redoLocalRef.current(),
-    });
-    return () => {
-      registerUnsavedGuard(null);
-      // Fallback for unmount paths that bypass the guard (window close).
-      if (!wasUnsavedPromptHandled() && hasChangesRef.current) {
-        const doSave = doSaveRef.current;
-        dialog.confirm({ title: 'Unsaved Changes', message: 'You have unsaved changes. Save before leaving?' }).then(ok => {
-          if (ok) doSave();
-        });
-      }
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const renderInput = (key: string, field: 'id' | 'name', val: string, onChange: (v: string) => void, numeric?: boolean, upper?: boolean) => {
-    const inputId = `${key}-${field}`;
     const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
       if (e.key === 'Tab') {
         e.preventDefault();
-        focusNext(key, field);
+        buf.focusNext(key, field);
       }
     };
     const transform = (v: string) => numeric ? v.replace(/[^0-9]/g, '') : upper ? v.toUpperCase() : v;
     return (
       <input
-        ref={el => { if (el) inputsRef.current.set(inputId, el); else inputsRef.current.delete(inputId); }}
+        ref={el => buf.registerInput(key, field, el)}
         type="text"
         value={val}
         readOnly={readOnly}
         onChange={e => onChange(transform(e.target.value))}
         onKeyDown={handleKey}
-        onFocus={() => { pendingSnapshotRef.current = rowsRef.current; }}
-        onBlur={() => { pendingSnapshotRef.current = null; }}
+        onFocus={buf.noteFocusStart}
+        onBlur={buf.noteFocusEnd}
         className="w-full border border-zinc-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 bg-white transition-shadow"
       />
     );
   };
 
   function countTotal(cat: string): number {
-    const r = rowsByCat.current[cat];
+    const r = buf.cachedRows(cat);
     if (r) return r.length;
     const elems = loadCategoryElements(project, cat);
     return elems.length;
@@ -653,7 +432,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
         </DropdownItem>
       </DropdownMenu>
       {isCast && (
-        <button onClick={() => { pushUndo(categoryRef.current, rowsRef.current); setRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); }); }} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        <button onClick={() => buf.mutateRows(prev => { const max = prev.reduce((m, r) => { const n = parseInt(r.id, 10); return isNaN(n) ? m : Math.max(m, n); }, 0); let n = max + 1; return prev.map(r => r.id.trim() ? r : { ...r, id: String(n++) }); })} disabled={readOnly} className="bg-white border border-zinc-300 px-2 py-1 text-zinc-600 rounded text-[11px] font-medium hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           Auto-ID
         </button>
       )}
@@ -779,12 +558,12 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                   {rows.map((r, ri) => (
                     <tr key={r.key} className={`border-b border-zinc-100 transition-colors ${ri % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-blue-50/20`}>
                       {isCast && (
-                        <td className="px-3 py-1">{renderInput(r.key, 'id', r.id, v => updateRow(r.key, 'id', v), true)}</td>
+                        <td className="px-3 py-1">{renderInput(r.key, 'id', r.id, v => buf.updateRow(r.key, 'id', v), true)}</td>
                       )}
-                      <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
+                      <td className="px-3 py-1">{renderInput(r.key, 'name', r.name, v => buf.updateRow(r.key, 'name', v), false, isCast || isSet)}</td>
                       <td className="px-3 py-1 text-center text-[11px] text-zinc-400 font-medium">{r.occ}</td>
                       <td className="px-3 py-1 text-center">
-                        <button onClick={() => deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
+                        <button onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
                       </td>
@@ -793,7 +572,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
                 </tbody>
               </table>
 
-              <button onClick={addNew} disabled={readOnly} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={buf.addNew} disabled={readOnly} className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed">
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add {getLabel(category, 'element', project.categoryLabels)}</span>
               </button>
@@ -803,44 +582,21 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
 
         {/* Merge confirmation dialog */}
         {mergeDialog && (
-          <Modal open onClose={() => { setMergeDialog(null); pendingDiffsRef.current = null; setPendingTab(null); }} title="Merge Elements" width="max-w-lg"
-            footer={
-              <ModalFooter>
-                <button onClick={() => { setMergeDialog(null); pendingDiffsRef.current = null; setPendingTab(null); }} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">Cancel</button>
-                <button onClick={() => commitSaves(pendingDiffsRef.current || {})} className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors">Merge & Save</button>
-              </ModalFooter>
-            }
-          >
-            <div className="p-6 space-y-5">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                The following elements now share a name. Saving will merge each set into a single element and update every scene that references them.
-              </p>
-              {mergeDialog.categories.map(cat => (
-                <div key={cat.label} className="space-y-2">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{cat.label}</h4>
-                  {cat.merges.map((m, i) => (
-                    <div key={i} className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                          <span className="text-xs text-zinc-300 font-medium">{m.sourceNames.join(', ')}</span>
-                          <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
-                          <span className="text-xs text-white font-semibold">{m.targetName}</span>
-                        </div>
-                        <span className="text-[10px] text-zinc-500 shrink-0 tabular-nums">
-                          {m.sceneNumbers.length} {m.sceneNumbers.length === 1 ? 'scene' : 'scenes'}
-                        </span>
-                      </div>
-                      {m.sceneNumbers.length > 0 && (
-                        <div className="mt-1.5 text-[10px] text-zinc-500 leading-relaxed max-h-20 overflow-y-auto tab-scroll">
-                          Scenes: {m.sceneNumbers.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Modal>
+          <MergeRowsModal
+            title="Merge Elements"
+            intro="The following elements now share a name. Saving will merge each set into a single element and update every scene that references them."
+            groups={mergeDialog.categories.map(cat => ({
+              label: cat.label,
+              merges: cat.merges.map(m => ({
+                sourceNames: m.sourceNames,
+                targetName: m.targetName,
+                summary: `${m.sceneNumbers.length} ${m.sceneNumbers.length === 1 ? 'scene' : 'scenes'}`,
+                detailLines: m.sceneNumbers.length > 0 ? [`Scenes: ${m.sceneNumbers.join(', ')}`] : undefined,
+              })),
+            }))}
+            onCancel={() => { setMergeDialog(null); pendingDiffsRef.current = null; setPendingTab(null); }}
+            onConfirm={() => commitSaves(pendingDiffsRef.current || {})}
+          />
         )}
 
         <AddCustomCategoryModal
