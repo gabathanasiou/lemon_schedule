@@ -15,7 +15,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/react-dom": "^2.1.8",
-    "@gabriel/ui-kit": "github:gabathanasiou/ui-kit#v0.1.14",
+    "@gabriel/ui-kit": "github:gabathanasiou/ui-kit#v0.1.21",
     "@glideapps/glide-data-grid": "^6.0.4-alpha24",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-dropdown-menu": "^2.1.17",
@@ -63,5 +63,8 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "allowScripts": {
+    "github:gabathanasiou/ui-kit#187329e6d395647e43f3433a9aa780ee77635d3d": true
   }
 }

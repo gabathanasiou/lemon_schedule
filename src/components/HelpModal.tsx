@@ -111,6 +111,8 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Type <Kbd>@</Kbd></>} action="Insert an attribute at the caret — opens the attribute picker (type to filter, ↑/↓ to move, ⏎ to insert)" />
           <Row keys={<>Click a tag</>} action="Select it — ⌫ deletes it, typing replaces it, Bold/Italic apply to it" />
           <Row keys={<>Tag colors</>} action="Each attribute group has its own color (Scene Info, Shooting, Document, …)" />
+          <Row keys={<>Named styles</>} action="A style (Heading 1, Body, …) formats the whole block. Bold/Italic then show dimmed — they come from the style, so the rest of the toolbar (Underline, Strikethrough, Color, Link) does the per-word work. Edit or restyle via Style → Edit styles…" />
+          <Row keys={<>Color “Default”</>} action="First color swatch clears the color — text shows light in the editor and prints black on paper" />
         </Section>
 
         <Section title="Touch / iPad">
@@ -185,6 +187,13 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo unsaved crew edits (one step per operation) — same as the top Undo/Redo buttons" />
           <Row keys={<>Revert</>} action="Discard all unsaved edits back to the last save" />
           <Row keys={<>Deleted members go to Trash</>} action="Restore from the File menu's Trash; a role is recreated automatically if it was deleted" />
+        </Section>
+
+        <Section title="Locations Manager & Glide">
+          <Row keys={<>Locations Manager</>} action="Type sidebar groups addresses. Each entry has a name, map pin (search + drag the pin), contact details and nearest hospital/police links" />
+          <Row keys={<>Locations Glide</>} action="Spreadsheet view — right-click a column header to sort, right-click a row for Go to Locations Manager" />
+          <Row keys={<>Type cell</>} action="Autocomplete creates a new type as you type; types are managed in the Locations Manager sidebar" />
+          <Row keys={<>CSV</>} action="Import / Export Locations CSV from the Edit menu (headers: Name, Type, Address, Contact, Phone, Email)" />
         </Section>
 
         <Section title="Pop-out Windows">

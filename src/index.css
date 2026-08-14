@@ -23,6 +23,13 @@ html, body, #root {
   z-index: 0;
 }
 
+/* ui-kit menus portal to document.body at z-[200] — beneath the modal overlay
+   (z-9999), so any dropdown opened inside a Modal was unclickable. Raise to
+   the app's in-modal menu layer (see ColorRuleFormParts). */
+.ui-menu {
+  z-index: 10001 !important;
+}
+
 /* Designer canvas: anchors inside blocks are inert so links can't hijack
    block selection (preview and print keep them clickable). */
 .block-card a {

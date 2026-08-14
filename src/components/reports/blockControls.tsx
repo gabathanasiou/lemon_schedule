@@ -9,7 +9,7 @@ import { IS_COARSE } from '../../lib/device';
 import { FieldPicker, TB_PICKER } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
 import RichTextEditor, { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
-import DropdownMenu from '../DropdownMenu';
+import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
@@ -180,7 +180,17 @@ const LinkMenu: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | nul
 
 // ---- rich-text formatting toolbar (selection-aware, via the editor ref) --------
 
-const RT_COLORS = ['#000000', '#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed', '#6b7280'];
+// Palette WITHOUT black: default ink is black in print/preview, so the first
+// entry is a "Default" (no color) swatch — unset text renders light in the
+// dark editor and falls back to black ink on paper.
+const RT_COLORS = ['#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed', '#6b7280'];
+
+/** "Default" swatch glyph — circle with a diagonal slash (no color). */
+const NoColorDot: React.FC<{ className?: string }> = ({ className = 'w-3 h-3' }) => (
+  <span className={`${className} rounded-full border border-zinc-600 relative inline-flex items-center justify-center shrink-0`}>
+    <span className="absolute left-0 right-0 top-1/2 h-px bg-zinc-400 -rotate-45" />
+  </span>
+);
 
 export const RichTextToolbar: React.FC<{
   editorRef: React.RefObject<RichTextEditorHandle | null>;
@@ -190,17 +200,21 @@ export const RichTextToolbar: React.FC<{
   onInsertAttribute?: (field: string) => void;
   /** Formatting at the caret/selection — lights the toggles up (Word-style). */
   active?: RichTextState;
-}> = ({ editorRef, disabled, fields, scope, onInsertAttribute, active }) => {
+  /** Axes pinned by the block's named style (whole-block) — button renders
+   *  lit-but-dimmed with the given tooltip. Undefined = free. */
+  lockedFormatting?: { bold?: string; italic?: string };
+}> = ({ editorRef, disabled, fields, scope, onInsertAttribute, active, lockedFormatting }) => {
   const [colorOpen, setColorOpen] = useState(false);
   const run = (cmd: string, value?: string) => editorRef.current?.exec(cmd, value);
   const toggle = (on: boolean) => `${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`;
+  const locked = (axis: 'bold' | 'italic') => !!lockedFormatting?.[axis];
   return (
     <div className="flex items-center gap-1">
-      <Tooltip content="Bold">
-        <button aria-label="Bold" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('bold')} className={`${toggle(active?.bold ?? false)} font-bold`}>B</button>
+      <Tooltip content={lockedFormatting?.bold || 'Bold'}>
+        <button aria-label="Bold" disabled={disabled || locked('bold')} onMouseDown={e => e.preventDefault()} onClick={() => run('bold')} className={`${toggle((active?.bold ?? false) || locked('bold'))} font-bold`}>B</button>
       </Tooltip>
-      <Tooltip content="Italic">
-        <button aria-label="Italic" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('italic')} className={`${toggle(active?.italic ?? false)} italic`}>I</button>
+      <Tooltip content={lockedFormatting?.italic || 'Italic'}>
+        <button aria-label="Italic" disabled={disabled || locked('italic')} onMouseDown={e => e.preventDefault()} onClick={() => run('italic')} className={`${toggle((active?.italic ?? false) || locked('italic'))} italic`}>I</button>
       </Tooltip>
       <Tooltip content="Underline">
         <button aria-label="Underline" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('underline')} className={toggle(active?.underline ?? false)}><Underline className="w-3 h-3" /></button>
@@ -218,12 +232,21 @@ export const RichTextToolbar: React.FC<{
         width="w-36"
         trigger={
           <button type="button" disabled={disabled} className={`${TB_PICKER} disabled:pointer-events-none`} title="Text color">
-            <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: active?.color || RT_COLORS[0] }} />
+            {active?.color
+              ? <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: active.color }} />
+              : <NoColorDot />}
             <ChevronDown className="w-3 h-3 text-zinc-500" />
           </button>
         }
       >
         <div className="grid grid-cols-4 gap-1 p-2">
+          <button
+            onClick={() => { run('unsetColor'); setColorOpen(false); }}
+            className={`w-7 h-7 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${!active?.color ? 'ring-2 ring-zinc-300' : ''}`}
+            title="Default (black ink)"
+          >
+            <NoColorDot className="w-3.5 h-3.5" />
+          </button>
           {RT_COLORS.map(c => (
             <button
               key={c}
@@ -434,66 +457,170 @@ export const TextStylesModal: React.FC<{
   onSave: (styles: ReportTextStyle[]) => void;
 }> = ({ open, project, onClose, onSave }) => {
   const [draft, setDraft] = useState<ReportTextStyle[] | null>(null);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
   const styles = draft ?? getTextStyles(project);
+  const sel = styles.find(s => s.id === selId) ?? styles[0];
   const set = (next: ReportTextStyle[]) => setDraft(next);
-  const patch = (id: string, p: Partial<ReportTextStyle>) => set(styles.map(s => s.id === id ? { ...s, ...p } : s));
-  const dup = (id: string) => {
-    const s = styles.find(x => x.id === id);
-    if (!s) return;
-    set([...styles, { ...s, id: newTextStyle('', []).id, name: `${s.name} Copy` }]);
-  };
-  const del = (id: string) => set(styles.filter(s => s.id !== id));
-  const commit = () => { onSave(draft ?? styles); setDraft(null); onClose(); };
+  const patchId = (id: string, p: Partial<ReportTextStyle>) => set(styles.map(s => s.id === id ? { ...s, ...p } : s));
+  const patch = (p: Partial<ReportTextStyle>) => sel && patchId(sel.id, p);
+  const commit = () => { onSave(draft ?? styles); setDraft(null); setSelId(null); onClose(); };
+  const close = () => { setDraft(null); setSelId(null); onClose(); };
 
+  // Fresh editing state each time the modal opens (registry → draft).
+  const wasOpen = React.useRef(false);
+  React.useEffect(() => {
+    if (open && !wasOpen.current) {
+      setDraft(null);
+      setImportErr(null);
+      setSelId(getTextStyles(project)[0]?.id ?? null);
+    }
+    wasOpen.current = open;
+  }, [open, project]);
+
+  const styleCss = (s: ReportTextStyle): React.CSSProperties => ({
+    fontFamily: s.fontFamily || 'Helvetica',
+    fontSize: s.fontSize,
+    fontWeight: s.bold ? 700 : 400,
+    fontStyle: s.italic ? 'italic' : 'normal',
+  });
+
+  const exportStyles = () => {
+    const blob = new Blob([JSON.stringify(styles, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'report-text-styles.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importStyles = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ''));
+        if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(s => s && typeof s.id === 'string' && typeof s.name === 'string' && typeof s.fontSize === 'number')) {
+          throw new Error('bad shape');
+        }
+        set(parsed as ReportTextStyle[]);
+        setSelId((parsed[0] as ReportTextStyle).id);
+        setImportErr(null);
+      } catch {
+        setImportErr("Couldn't import — not a valid styles file.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const rowLabel = 'w-14 text-[10px] font-medium text-zinc-500 uppercase tracking-wider shrink-0';
   const rowInput = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500';
+  const miniBtn = 'w-7 h-6 rounded text-[11px] transition-colors';
 
   return (
     <Modal
       open={open}
-      onClose={() => { setDraft(null); onClose(); }}
+      onClose={close}
       title="Text styles"
-      width="w-[480px]"
+      width="w-[400px]"
       footer={
         <ModalFooter>
-          <button onClick={() => { setDraft(null); onClose(); }} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
+          <button onClick={close} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
           <button onClick={commit} className="px-3 py-1.5 rounded text-xs bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Done</button>
         </ModalFooter>
       }
     >
       <div className="p-6 space-y-4">
-        <p className="text-xs text-zinc-500">Named styles link to every block using them — edits update all linked blocks. Blocks with direct formatting keep those overrides on top.</p>
-        <div className="space-y-2">
-          {styles.map(s => (
-            <div key={s.id} className="flex items-center gap-2 py-1 border-b border-zinc-800 last:border-0">
-              <input className={`${rowInput} flex-1 min-w-0`} value={s.name} onChange={e => patch(s.id, { name: e.target.value })} />
+        <p className="text-xs text-zinc-500">Named styles link to every block that uses them — edits update all linked blocks at once. Direct formatting on a block stays on top.</p>
+
+        {/* version-picker-style style selector: names + rename/duplicate/delete/create/import/export */}
+        <ItemManagerDropdown
+          open={pickerOpen}
+          onClose={setPickerOpen}
+          items={styles.map(s => ({ id: s.id, name: s.name }))}
+          activeId={sel?.id || ''}
+          closeOnSelect
+          onSelect={id => setSelId(id)}
+          onRename={(id, name) => patchId(id, { name })}
+          onDuplicate={id => {
+            const s = styles.find(x => x.id === id);
+            if (!s) return;
+            const copy = { ...s, id: newTextStyle('', []).id, name: `${s.name} Copy` };
+            set([...styles, copy]);
+            setSelId(copy.id);
+            return copy.id;
+          }}
+          onDelete={id => {
+            const next = styles.filter(s => s.id !== id);
+            if (next.length === styles.length) return;
+            set(next);
+            if (id === selId) setSelId(next[0]?.id ?? null);
+          }}
+          onCreate={() => {
+            const s = newTextStyle(`Style ${styles.length + 1}`, styles);
+            set([...styles, s]);
+            setSelId(s.id);
+            return s.id;
+          }}
+          onImport={() => fileRef.current?.click()}
+          onExport={exportStyles}
+          theme="dark"
+          label="Style"
+          header="TEXT STYLES"
+          itemLabel="Style"
+          trigger={
+            <button type="button" className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700/60 transition-colors">
+              {sel ? <span className="truncate">{sel.name}</span> : <span className="text-zinc-500">No styles</span>}
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto shrink-0" />
+            </button>
+          }
+        />
+
+        {/* edit the selected style */}
+        {sel && (
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <span className={rowLabel}>Size</span>
               <input
                 type="number" min={6} max={72}
-                className={`${rowInput} w-14 text-center`}
-                value={s.fontSize}
-                onChange={e => patch(s.id, { fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 10)) })}
+                className={`${rowInput} w-16 text-center`}
+                value={sel.fontSize}
+                onChange={e => patch({ fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 10)) })}
                 title="Font size (pt)"
               />
-              <button
-                title="Bold"
-                onClick={() => patch(s.id, { bold: !s.bold })}
-                className={`w-7 h-6 rounded text-[11px] font-bold transition-colors ${s.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
-              >B</button>
-              <button
-                title="Italic"
-                onClick={() => patch(s.id, { italic: !s.italic })}
-                className={`w-7 h-6 rounded text-[11px] italic transition-colors ${s.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
-              >I</button>
-              <button title="Duplicate style" onClick={() => dup(s.id)} className="w-6 h-6 rounded flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800"><Copy className="w-3 h-3" /></button>
-              <button title="Delete style" onClick={() => del(s.id)} className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-zinc-800"><Trash2 className="w-3 h-3" /></button>
+              <span className="text-[10px] text-zinc-500">pt</span>
+              <div className="flex items-center gap-1 ml-3">
+                <button title="Bold" onClick={() => patch({ bold: !sel.bold })} className={`${miniBtn} font-bold ${sel.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>B</button>
+                <button title="Italic" onClick={() => patch({ italic: !sel.italic })} className={`${miniBtn} italic ${sel.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>I</button>
+              </div>
             </div>
-          ))}
-        </div>
-        <button
-          onClick={() => set([...styles, newTextStyle(`Style ${styles.length + 1}`, styles)])}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-        >
-          <Plus className="w-3.5 h-3.5" /> Add style
-        </button>
+            <div className="flex items-center gap-2">
+              <span className={rowLabel}>Font</span>
+              <FontMenu value={sel.fontFamily || 'Helvetica'} disabled={false} onChange={f => patch({ fontFamily: f === 'Helvetica' ? undefined : f })} />
+            </div>
+          </div>
+        )}
+
+        {/* live preview — paper white so it matches print */}
+        {sel && (
+          <div className="rounded-md border border-zinc-700 bg-white px-3 py-2">
+            <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Preview</div>
+            <div className="leading-snug break-words" style={{ ...styleCss(sel), color: '#000' }}>
+              The quick brown fox jumps over the lazy dog
+            </div>
+          </div>
+        )}
+
+        {importErr && <p className="text-xs text-red-400">{importErr}</p>}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importStyles(f); }}
+        />
       </div>
     </Modal>
   );
@@ -717,6 +844,16 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
 
   if (block.type === 'text') {
     const linkedStyle = getTextStyleById(project, block.textStyle);
+    // A named style (or block-level direct formatting) pins bold/italic for
+    // the WHOLE block — per-selection toggling on that axis is a visual no-op,
+    // so the button renders lit-but-dimmed instead of misleadingly live.
+    const lockTooltip = (axis: 'bold' | 'italic') => {
+      const pinned = axis === 'bold' ? (block.bold ?? linkedStyle?.bold) : (block.italic ?? linkedStyle?.italic);
+      if (!pinned) return undefined;
+      return linkedStyle
+        ? `${axis === 'bold' ? 'Bold' : 'Italic'} comes from “${linkedStyle.name}” — applies to the whole block`
+        : `${axis === 'bold' ? 'Bold' : 'Italic'} is set for the whole block`;
+    };
     push(null,
       <ContentRow key="content" tall>
         <RichTextToolbar
@@ -725,6 +862,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           fields={contextFields}
           scope={parentCollection}
           active={rtActive}
+          lockedFormatting={{ bold: lockTooltip('bold'), italic: lockTooltip('italic') }}
           onInsertAttribute={f => editorRef.current?.insertToken(f)}
         />
         <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
@@ -1084,7 +1222,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       {sections.map((s, i) => (
         <div key={s.title ?? `flat${i}`} className="flex flex-col gap-1 min-w-max">
           {s.title && <SectionHeader>{s.title}</SectionHeader>}
-          <div className="flex flex-col gap-0.5">{s.rows}</div>
+          <div className="flex flex-col gap-1.5">{s.rows}</div>
         </div>
       ))}
     </div>

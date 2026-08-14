@@ -62,16 +62,23 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
   disabledRef.current = disabled;
   const onStateChangeRef = useRef(onStateChange);
   onStateChangeRef.current = onStateChange;
+  const lastStateRef = useRef<RichTextState | null>(null);
 
   const reportState = (ed: NonNullable<ReturnType<typeof useEditor>>) => {
-    onStateChangeRef.current?.({
+    const next: RichTextState = {
       bold: ed.isActive('bold'),
       italic: ed.isActive('italic'),
       underline: ed.isActive('underline'),
       strike: ed.isActive('strike'),
       link: ed.isActive('link'),
       color: (ed.getAttributes('textStyle').color as string | undefined) || '',
-    });
+    };
+    // Skip unchanged reports — onTransaction fires on every transaction
+    // (keystrokes, caret moves), and we don't want a setState per event.
+    const prev = lastStateRef.current;
+    if (prev && prev.bold === next.bold && prev.italic === next.italic && prev.underline === next.underline && prev.strike === next.strike && prev.link === next.link && prev.color === next.color) return;
+    lastStateRef.current = next;
+    onStateChangeRef.current?.(next);
   };
 
   // Storage form of the editor state: stripped tokens → sanitized; an
@@ -120,9 +127,11 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
     editable: !disabled,
     onUpdate: ({ editor: ed }) => {
       onChangeRef.current(toStorage(ed.getHTML()));
-      reportState(ed);
     },
-    onSelectionUpdate: ({ editor: ed }) => reportState(ed),
+    // Every transaction — including storedMarks-only toggles with a collapsed
+    // caret, which never reach `update` (doc unchanged) yet DO change what
+    // the next keystroke applies. reportState skips unchanged values.
+    onTransaction: ({ editor: ed }) => reportState(ed),
   });
 
   // External value sync — only while the editor isn't focused (typing never
@@ -132,6 +141,7 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
     if (!editor || editor.isFocused) return;
     const current = toStorage(editor.getHTML());
     if (current !== value) {
+      lastStateRef.current = null;
       editor.commands.setContent(preprocessTokenHtml(value || ''), { emitUpdate: false });
       reportState(editor);
     }
@@ -145,6 +155,7 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
   // Initial state report (mount/remount — e.g. switching blocks or surfaces).
   useEffect(() => {
     if (!editor) return;
+    lastStateRef.current = null;
     reportState(editor);
   }, [editor]);
 
@@ -157,6 +168,7 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
         case 'underline': editor.chain().focus().toggleUnderline().run(); break;
         case 'strikeThrough': editor.chain().focus().toggleStrike().run(); break;
         case 'foreColor': editor.chain().focus().setColor(execValue).run(); break;
+        case 'unsetColor': editor.chain().focus().unsetColor().run(); break;
         case 'link': if (execValue) editor.chain().focus().extendMarkRange('link').setLink({ href: execValue }).run(); break;
         case 'unlink': editor.chain().focus().extendMarkRange('link').unsetLink().run(); break;
         default: break;
