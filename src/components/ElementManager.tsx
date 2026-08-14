@@ -16,6 +16,7 @@ import { useCurrentDocument } from '../lib/popoutTarget';
 import { loadCategoryElements, elementKey, countOccurrences } from '../lib/elements';
 import { registerUnsavedGuard, wasUnsavedPromptHandled, consumePendingTab, setPendingTab, notifyGuardChanged } from '../lib/unsavedGuard';
 import { AddCustomCategoryModal, EditCustomCategoryModal, EditBuiltinLabelModal } from './elements/CategoryModals';
+import SidebarNav, { SidebarNavRow } from './SidebarNav';
 
 interface LocalRow {
   key: string;
@@ -659,120 +660,103 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
     </>
   );
 
+  const renderRowActions = (row: SidebarNavRow, active: boolean) => {
+    const key = row.key;
+    const isCustom = key.startsWith('_cat_');
+    const isHidden = !!row.dimmed;
+    const isProtected = PROTECTED_CATEGORIES.has(key);
+    const showHideToggle = !isCustom && !isProtected;
+    const showDelete = isCustom;
+    const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
+    return (
+      <>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isCustom) {
+              const cat = project.customCategories.find(c => c.key === key);
+              setEditCatKey(key); setNewCatName(cat?.label || row.label); setNewCatIcon(cat?.icon || 'Tag'); setNewCatMultiValue(cat?.multiValue ?? true); setShowEditCustom(true);
+            } else {
+              setEditCatKey(key); setNewCatName(row.label); setNewCatIcon('');
+              setShowEditBuiltin(true);
+            }
+          }}
+          disabled={readOnly}
+          className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+        >
+          <Pencil className="w-3 h-3 text-zinc-400" />
+        </button>
+        {showHideToggle && !isHidden && (
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const ok = await dialog.confirm({ title: `Hide "${row.label}"?`, message: 'Category will be hidden from all views.', danger: true, suppressKey: 'lemon_schedule_dnwa_hide_category' });
+              if (ok) {
+                dispatch({ type: 'HIDE_CATEGORY', payload: key });
+                if (category === key) switchCategory('cast');
+              }
+            }}
+            disabled={readOnly}
+            className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+          >
+            <EyeOff className="w-3 h-3 text-zinc-400" />
+          </button>
+        )}
+        {showHideToggle && isHidden && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              dispatch({ type: 'SHOW_CATEGORY', payload: key });
+            }}
+            disabled={readOnly}
+            className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
+            title="Unhide category"
+          >
+            <Eye className="w-3 h-3 text-zinc-400" />
+          </button>
+        )}
+        {showDelete && (
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              const ok = await dialog.confirm({ title: `Delete "${row.label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_category' });
+              if (ok) {
+                dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: key });
+                if (category === key) switchCategory('cast');
+              }
+            }}
+            disabled={readOnly}
+            className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
+          >
+            <Trash2 className="w-3 h-3 text-red-400" />
+          </button>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden">
       {headerTarget ? createPortal(headerContent, headerTarget) : null}
-      <aside className="w-[188px] shrink-0 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
-        <div className="sticky top-0 z-10 bg-zinc-50 px-3 pt-3 pb-1.5">
-          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Categories</span>
-        </div>
-        <div className="px-3 pb-20">
-          <div className="space-y-0.5">
-            {allCategoryKeys.map(({ key, isCustom, isHidden }) => {
-              const Icon = isCustom ? getCustomIcon(project.customCategories.find(c => c.key === key)?.icon || 'Tag') : CAT_ICONS[key];
-              const isActive = key === category;
-              const hasLabelOverride = !isCustom && !!project.categoryLabels?.[key];
-              const label = isCustom
-                ? project.customCategories.find(c => c.key === key)?.label || key
-                : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key, project.categoryLabels);
-              const isProtected = PROTECTED_CATEGORIES.has(key);
-              const showHideToggle = !isCustom && !isProtected;
-              const showDelete = isCustom;
-              return (
-                <div key={key} className="group">
-                  <button
-                    onClick={() => switchCategory(key)}
-                    className={`w-full text-left px-2 py-1.5 rounded-md transition-colors flex items-center gap-2 text-xs ${
-                      isHidden
-                        ? 'text-zinc-400 hover:bg-zinc-100 font-medium opacity-60'
-                        : isActive
-                        ? 'bg-zinc-900 text-white font-semibold'
-                        : 'text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 font-medium'
-                    }`}
-                  >
-                    {Icon && <Icon className={`w-3 h-3 shrink-0 ${isActive ? 'text-white' : isHidden ? 'text-zinc-300' : 'text-zinc-400'}`} />}
-                    <span className={`truncate flex-1 ${hasLabelOverride ? 'italic' : ''}`}>{label}</span>
-                    <span className={`flex items-center gap-0.5 shrink-0 ${isHidden ? '' : 'hover-reveal'}`} onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isCustom) {
-                            const cat = project.customCategories.find(c => c.key === key);
-                            setEditCatKey(key); setNewCatName(cat?.label || label); setNewCatIcon(cat?.icon || 'Tag'); setNewCatMultiValue(cat?.multiValue ?? true); setShowEditCustom(true);
-                          } else {
-                            setEditCatKey(key); setNewCatName(label); setNewCatIcon('');
-                            setShowEditBuiltin(true);
-                          }
-                        }}
-                        disabled={readOnly}
-                        className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                      >
-                        <Pencil className="w-3 h-3 text-zinc-400" />
-                      </button>
-                      {showHideToggle && !isHidden && (
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            const ok = await dialog.confirm({ title: `Hide "${label}"?`, message: 'Category will be hidden from all views.', danger: true, suppressKey: 'lemon_schedule_dnwa_hide_category' });
-                            if (ok) {
-                              dispatch({ type: 'HIDE_CATEGORY', payload: key });
-                              if (category === key) switchCategory('cast');
-                            }
-                          }}
-                          disabled={readOnly}
-                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          <EyeOff className="w-3 h-3 text-zinc-400" />
-                        </button>
-                      )}
-                      {showHideToggle && isHidden && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            dispatch({ type: 'SHOW_CATEGORY', payload: key });
-                          }}
-                          disabled={readOnly}
-                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                          title="Unhide category"
-                        >
-                          <Eye className="w-3 h-3 text-zinc-400" />
-                        </button>
-                      )}
-                      {showDelete && (
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            const ok = await dialog.confirm({ title: `Delete "${label}"?`, message: 'Category and all its data will be permanently deleted.', danger: true, suppressKey: 'lemon_schedule_dnwa_delete_category' });
-                            if (ok) {
-                              dispatch({ type: 'DELETE_CUSTOM_CATEGORY', payload: key });
-                              if (category === key) switchCategory('cast');
-                            }
-                          }}
-                          disabled={readOnly}
-                          className={`p-0.5 rounded transition-colors ${isActive ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                        >
-                          <Trash2 className="w-3 h-3 text-red-400" />
-                        </button>
-                      )}
-                    </span>
-                    <span className={`text-[10px] tabular-nums shrink-0 ${isActive ? 'text-zinc-400' : isHidden ? 'text-zinc-300' : 'text-zinc-400'}`}>
-                      {countTotal(key)}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <button
-            onClick={() => { setShowAddCustom(true); setNewCatName(''); setNewCatIcon('Tag'); }}
-            disabled={readOnly}
-            className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-3 h-3 shrink-0" />
-            <span>Add Custom</span>
-          </button>
-        </div>
-      </aside>
+      <SidebarNav
+        title="Categories"
+        rows={allCategoryKeys.map(({ key, isCustom, isHidden }) => ({
+          key,
+          label: isCustom
+            ? project.customCategories.find(c => c.key === key)?.label || key
+            : getLabel(key, ELEMENT_CATEGORIES.find(c => c.key === key)?.label || key, project.categoryLabels),
+          icon: isCustom ? getCustomIcon(project.customCategories.find(c => c.key === key)?.icon || 'Tag') : CAT_ICONS[key],
+          dimmed: isHidden,
+          italic: !isCustom && !!project.categoryLabels?.[key],
+          count: countTotal(key),
+        }))}
+        activeKey={category}
+        onSelect={switchCategory}
+        onAdd={() => { setShowAddCustom(true); setNewCatName(''); setNewCatIcon('Tag'); }}
+        addLabel="Add Custom"
+        addDisabled={readOnly}
+        renderRowActions={renderRowActions}
+      />
 
       <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
         {!headerTarget && topBar}
