@@ -1,5 +1,11 @@
 # Reports Token Editor — Session Handoff (WIP)
 
+> **SUPERSEDED (2026-08-14)**: the hand-rolled contentEditable chip/autocomplete
+> implementation described below was replaced by **TipTap (ProseMirror)** — see
+> `docs/REPORTS-TIPTAP-EDITOR.md`. Storage format is unchanged (`block.text` =
+> sanitized HTML with plain `{{field}}` tokens); `{{` is no longer a trigger
+> (`@` only). The notes below are kept for history.
+
 Branch: `reports/token-editor` (off `reports/editor-polish`, which has Phase 1 committed).
 Date: 2026-08-13. Session interrupted mid-verification — do NOT assume done.
 
