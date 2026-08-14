@@ -1,5 +1,6 @@
 import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle } from '../types';
 import { generateUUID, normalizePunctuation } from '../lib/utils';
+import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
 import {
@@ -122,7 +123,7 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     ribbonDesigns: [defaultDesign],
     activeRibbonId: defaultDesign.id,
     colorPalette: DEFAULT_COLOR_PALETTE,
-    productionInfo: {},
+    productionInfo: { timezone: getBrowserTimeZone() },
     crewRoles: DEFAULT_CREW_ROLES,
     crew: {},
     crewTrash: [],

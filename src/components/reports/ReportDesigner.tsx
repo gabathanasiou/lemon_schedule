@@ -4,6 +4,7 @@ import { useProject } from '../../store';
 import { useCurrentWindow } from '../../lib/popoutTarget';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { getReportFieldMap } from '../../lib/reportFields';
+import { prepareSunWeatherForCtx } from '../../lib/reportWeather';
 import { ReportDesign, ReportBlock } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
@@ -66,6 +67,16 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const [viewKeys, setViewKeys] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  // Sun & Weather values: warm the cache on load so canvas + preview render
+  // real values instead of "—" (prefetch skips cached dates — cheap no-op).
+  const [, setWeatherTick] = useState(0);
+
+  useEffect(() => {
+    if (!ctx || ctx.dayInfos.length === 0) return;
+    let cancelled = false;
+    prepareSunWeatherForCtx(ctx).then(() => { if (!cancelled) setWeatherTick(t => t + 1); });
+    return () => { cancelled = true; };
+  }, [ctx]);
 
   useEffect(() => {
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);

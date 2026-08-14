@@ -14,7 +14,8 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin } from 'lucide-react';
+import { LocationPickerModal } from './LocationPickerModal';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -29,6 +30,8 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   ribbon: { label: 'Ribbon', icon: <Printer className="w-3 h-3" /> },
   pageBreak: { label: 'Page Break', icon: <FilePlus className="w-3 h-3" /> },
   spacer: { label: 'Spacer', icon: <Ruler className="w-3 h-3" /> },
+  image: { label: 'Image', icon: <ImageIcon className="w-3 h-3" /> },
+  map: { label: 'Map', icon: <MapPin className="w-3 h-3" /> },
 };
 
 // Ribbon-designer toolbar vocabulary (touch devices scale up — app pattern)
@@ -589,6 +592,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   // === 'text')` changes the hook order when switching between block types,
   // which crashes React with a "Rendered more hooks" error).
   const editorRef = React.useRef<RichTextEditorHandle>(null);
+  const [locationOpen, setLocationOpen] = useState(false);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -834,6 +838,110 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
   }
 
+  if (block.type === 'image') {
+    const fileId = `report-image-input-${block.id}`;
+    push(null,
+      <ContentRow key="attach" label="Image">
+        <input
+          id={fileId}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={disabled}
+          onChange={e => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = () => onPatch({ imageDataUrl: String(reader.result || '') });
+            reader.readAsDataURL(f);
+          }}
+        />
+        <label
+          htmlFor={fileId}
+          className={`${TB_BTN} ${disabled ? 'disabled:opacity-30 pointer-events-none' : 'cursor-pointer'}`}
+        >
+          {block.imageDataUrl ? 'Replace image…' : 'Attach image…'}
+        </label>
+        {block.imageDataUrl && (
+          <ToolButton onClick={() => onPatch({ imageDataUrl: undefined, imageHeight: undefined })} disabled={disabled} title="Remove image" className={`${TB_BTN_ICON} ${TB_DANGER}`}>
+            <Trash2 className="w-3 h-3" />
+          </ToolButton>
+        )}
+      </ContentRow>,
+    );
+    if (block.imageDataUrl) {
+      push('Size',
+        <ContentRow key="height" label="Height (px)">
+          <input
+            type="number"
+            min={0}
+            max={3000}
+            disabled={disabled}
+            className={TB_INPUT + ' w-14'}
+            value={block.imageHeight ?? ''}
+            placeholder="Auto"
+            onChange={e => onPatch({ imageHeight: e.target.value ? Number(e.target.value) : undefined })}
+          />
+          <span className="text-[9px] text-zinc-500">blank = natural size (fits the container)</span>
+        </ContentRow>,
+        <ContentRow key="fit" label="Fit">
+          <Seg
+            value={block.imageFit ?? 'contain'}
+            options={[
+              { v: 'contain', l: 'Contain' },
+              { v: 'cover', l: 'Cover' },
+              { v: 'fill', l: 'Fill' },
+            ]}
+            onChange={v => onPatch({ imageFit: v as 'contain' | 'cover' | 'fill' })}
+            disabled={disabled}
+          />
+        </ContentRow>,
+      );
+    }
+  }
+
+  if (block.type === 'map') {
+    const hasPin = block.mapLat != null && block.mapLng != null;
+    push(null,
+      <ContentRow key="loc" label="Location">
+        {hasPin ? (
+          <>
+            <span className="max-w-44 truncate text-[10px] text-zinc-400">
+              {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
+            </span>
+            <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Change location" className={TB_BTN}>
+              <MapPin className="w-3 h-3" /> Change
+            </ToolButton>
+            <ToolButton
+              onClick={() => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined })}
+              disabled={disabled}
+              title="Clear location"
+              className={`${TB_BTN_ICON} ${TB_DANGER}`}
+            >
+              <Trash2 className="w-3 h-3" />
+            </ToolButton>
+          </>
+        ) : (
+          <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Set location" className={TB_BTN}>
+            <MapPin className="w-3 h-3" /> Set location…
+          </ToolButton>
+        )}
+      </ContentRow>,
+      <ContentRow key="height" label="Height (px)">
+        <input
+          type="number"
+          min={80}
+          max={1200}
+          disabled={disabled}
+          className={TB_INPUT + ' w-14'}
+          value={block.mapHeight ?? 240}
+          onChange={e => onPatch({ mapHeight: Number(e.target.value) || 240 })}
+        />
+      </ContentRow>,
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2 min-w-max">
       {sections.map((s, i) => (
@@ -842,6 +950,16 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <div className="flex flex-col gap-0.5">{s.rows}</div>
         </div>
       ))}
+      {block.type === 'map' && (
+        <LocationPickerModal
+          open={locationOpen}
+          onClose={() => setLocationOpen(false)}
+          onConfirm={loc => {
+            onPatch({ mapLat: loc.lat, mapLng: loc.lng, mapPlace: loc.place });
+            setLocationOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };

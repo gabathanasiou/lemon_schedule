@@ -3,6 +3,7 @@ import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
+import { sunWeatherFieldValue } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
 } from './reportData';
@@ -190,6 +191,14 @@ const VIOLATION_TYPE_FIELDS: ReportFieldDef[] = [
   { key: 'violationType', label: 'Type', group: 'Violations', scope: 'violationTypes', defaultWidth: 16, get: (_c, it: ReportViolationTypeInfo) => s(it.label) },
   { key: 'violationTypeCount', label: 'Violation Count', group: 'Violations', scope: 'violationTypes', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportViolationTypeInfo) => s(it.count) },
   { key: 'violationTypeMessages', label: 'Violation Details', group: 'Violations', scope: 'violationTypes', defaultWidth: 40, get: (_c, it: ReportViolationTypeInfo) => it.messages.join('; ') },
+];
+
+// ---- sun & weather (per-day; computed at print for the attached location) -----
+
+const SUN_WEATHER_FIELDS: ReportFieldDef[] = [
+  { key: 'sunrise', label: 'Sunrise', group: 'Sun & Weather', scope: 'days', align: 'center', defaultWidth: 9, get: (ctx, it) => sunWeatherFieldValue(ctx, it, 'sunrise') },
+  { key: 'sunset', label: 'Sunset', group: 'Sun & Weather', scope: 'days', align: 'center', defaultWidth: 9, get: (ctx, it) => sunWeatherFieldValue(ctx, it, 'sunset') },
+  { key: 'weather', label: 'Weather', group: 'Sun & Weather', scope: 'days', defaultWidth: 20, get: (ctx, it) => sunWeatherFieldValue(ctx, it, 'weather') },
 ];
 
 // ---- smart (universal contextual attributes) ----------------------------------
@@ -423,6 +432,7 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...VIOLATION_TYPE_FIELDS,
     ...DOCUMENT_FIELDS,
     ...DAY_FIELDS,
+    ...SUN_WEATHER_FIELDS,
     ...CREW_FIELDS,
     ...PRODUCTION_FIELDS,
     ...PROJECT_FIELDS,
@@ -581,6 +591,7 @@ const FIELD_GROUP_COLORS: Record<string, ChipColor> = {
   'Categories': { text: '#b45309', bg: 'rgba(217, 119, 6, 0.12)' },
   'Document': { text: '#475569', bg: 'rgba(100, 116, 139, 0.12)' },
   'Days': { text: '#c2410c', bg: 'rgba(234, 88, 12, 0.12)' },
+  'Sun & Weather': { text: '#ca8a04', bg: 'rgba(202, 138, 4, 0.12)' },
   'Crew': { text: '#4338ca', bg: 'rgba(79, 70, 229, 0.12)' },
   'Production': { text: '#0f766e', bg: 'rgba(13, 148, 136, 0.12)' },
   'Key Positions': { text: '#334155', bg: 'rgba(71, 85, 105, 0.12)' },

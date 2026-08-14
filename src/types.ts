@@ -275,6 +275,7 @@ export interface ProductionInfo {
   startDate?: string;
   wrapDate?: string;   // auto-computed from last section date (read-only display)
   dateFormat?: string; // global report date format (Production tab) — source of truth
+  timezone?: string;   // IANA id (e.g. 'Europe/London'); empty = browser default
 }
 
 export type ReportCollection =
@@ -307,7 +308,7 @@ export interface ReportColumn {
 
 export interface ReportBlock {
   id: string;
-  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer';
+  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map';
   // text / field
   text?: string;                 // static text; may contain {{key}} tokens
   field?: string;                // empty = "Select field…" state
@@ -354,6 +355,16 @@ export interface ReportBlock {
   // spacer
   height?: number;
   spacerStyle?: 'none' | 'black' | 'line' | 'dotted';
+  // image
+  imageDataUrl?: string;         // attached image (data URL, embedded in the design)
+  imageHeight?: number;          // px; unset = natural aspect ratio at container width
+  imageFit?: 'contain' | 'cover' | 'fill'; // only meaningful with imageHeight
+  // map
+  mapLat?: number;
+  mapLng?: number;
+  mapPlace?: string;             // reverse-geocoded place name
+  mapHeight?: number;            // px
+  mapZoom?: number;
 }
 
 export interface ReportDesign {

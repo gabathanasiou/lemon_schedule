@@ -47,6 +47,8 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'columns': base.cols = []; break;
     case 'ribbon': break;
     case 'spacer': base.height = partial.height ?? 16; break;
+    case 'image': break;
+    case 'map': base.mapHeight = partial.mapHeight ?? 240; base.mapZoom = partial.mapZoom ?? 15; break;
     default: break;
   }
   return { ...base, ...partial, id: base.id, type };

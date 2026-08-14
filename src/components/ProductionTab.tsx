@@ -2,8 +2,10 @@ import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { useProject } from '../store';
 import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../lib/utils';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import { getBrowserTimeZone, COMMON_TIMEZONES } from '../lib/timezones';
 import { CrewPerson } from '../types';
 import PageToolbar from './PageToolbar';
+import { AutocompleteDropdown } from './AutocompleteDropdown';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
 import DropdownDivider from './DropdownDivider';
@@ -180,6 +182,19 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
                       <option key={o.key} value={o.key}>{o.label}</option>
                     ))}
                   </select>
+                </label>
+                <label className="flex items-center gap-3 text-xs text-zinc-500">
+                  <span className="w-40 shrink-0 text-right">Timezone</span>
+                  <AutocompleteDropdown
+                    value={productionInfo.timezone || ''}
+                    onChange={v => commitInfo({ timezone: v })}
+                    options={COMMON_TIMEZONES}
+                    normalize={v => v.toLowerCase()}
+                    readOnly={readOnly}
+                    standalone
+                    placeholder={`Browser default (${getBrowserTimeZone()})`}
+                  />
+                  <span className="text-[10px] text-zinc-400">Sunrise / sunset & weather</span>
                 </label>
               </div>
             </section>

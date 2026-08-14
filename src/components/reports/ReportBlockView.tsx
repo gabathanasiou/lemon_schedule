@@ -4,6 +4,7 @@ import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope,
 import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
+import { ReportMapView } from './ReportMapView';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { stripRichText, normalizeSpaces } from '../../lib/richText';
 import { PageItem, stripEdgeBreaks } from '../../lib/reportPagination';
@@ -163,6 +164,27 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             <div style={{ width: '100%', borderTop: style === 'dotted' ? '2px dotted #000' : '1px solid #000' }} />
           </div>
         );
+      }
+      case 'image': {
+        if (!block.imageDataUrl) {
+          return hint ? emptyHint('Attach an image…', baseStyle) : null;
+        }
+        const height = block.imageHeight;
+        const fit = block.imageFit ?? 'contain';
+        return (
+          <img
+            src={block.imageDataUrl}
+            alt=""
+            style={{
+              display: 'block',
+              width: '100%',
+              ...(height ? { height, objectFit: fit } : { height: 'auto' }),
+            }}
+          />
+        );
+      }
+      case 'map': {
+        return <ReportMapView block={block} hint={hint} />;
       }
       default:
         return null;
