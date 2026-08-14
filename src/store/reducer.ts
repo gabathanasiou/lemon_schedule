@@ -1,7 +1,8 @@
-import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle } from '../types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation } from '../types';
 import { generateUUID, normalizePunctuation } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
+import { DEFAULT_LOCATION_TYPES } from '../lib/locations';
 import { ensurePinnedDaybreak, ensureAllScenesHaveRows } from './rows';
 import {
   caseUpdateProject, caseAddScene, caseUpdateScene, caseDeleteScene, caseRestoreScene,
@@ -30,6 +31,8 @@ import {
   caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
   caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
   caseRestoreCrewPersonFromTrash, caseSortCrewBy,
+  caseAddLocationType, caseRenameLocationType, caseDeleteLocationType,
+  caseAddLocation, caseUpdateLocation, caseDeleteLocation, caseRestoreLocation, caseSortLocationsBy,
   caseSetReportTextStyles,
 } from './actions/reports';
 import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
@@ -127,6 +130,9 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     crewRoles: DEFAULT_CREW_ROLES,
     crew: {},
     crewTrash: [],
+    locationTypes: DEFAULT_LOCATION_TYPES,
+    locations: [],
+    locationsTrash: [],
     reportDesigns: defaultReports,
     activeReportId: defaultReport.id,
     reportTrash: [],
@@ -212,6 +218,14 @@ export type Action =
   | { type: 'REORDER_CREW_PERSON'; payload: { role: string; id: string; dir: -1 | 1 } }
   | { type: 'RESTORE_CREW_PERSON_FROM_TRASH'; payload: string }
   | { type: 'SORT_CREW_BY'; payload: { key: 'role' | 'name' | 'phone' | 'email'; direction: 'asc' | 'desc' } }
+  | { type: 'ADD_LOCATION_TYPE'; payload: { type: CrewRole } }
+  | { type: 'RENAME_LOCATION_TYPE'; payload: { key: string; label: string } }
+  | { type: 'DELETE_LOCATION_TYPE'; payload: string }
+  | { type: 'ADD_LOCATION'; payload: { location: ProjectLocation } }
+  | { type: 'UPDATE_LOCATION'; payload: { id: string; updates: Partial<ProjectLocation> } }
+  | { type: 'DELETE_LOCATION'; payload: string }
+  | { type: 'RESTORE_LOCATION'; payload: string }
+  | { type: 'SORT_LOCATIONS_BY'; payload: { key: 'type' | 'name' | 'address' | 'contactName' | 'phone' | 'email'; direction: 'asc' | 'desc' } }
 
 export interface State {
   past: Project[];
@@ -264,6 +278,9 @@ export function reducer(state: State, action: Action): State {
     p.crewRoles = p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES;
     p.crew = p.crew || {};
     p.crewTrash = p.crewTrash || [];
+    p.locationTypes = p.locationTypes?.length ? p.locationTypes : DEFAULT_LOCATION_TYPES;
+    p.locations = p.locations || [];
+    p.locationsTrash = p.locationsTrash || [];
     p.reportTrash = p.reportTrash || [];
     if (!p.reportDesigns || p.reportDesigns.length === 0) {
       const defaultReports = getDefaultReportDesigns();
@@ -419,6 +436,14 @@ export function reducer(state: State, action: Action): State {
     case 'REORDER_CREW_PERSON': return caseReorderCrewPerson(state, action, applyChange);
     case 'RESTORE_CREW_PERSON_FROM_TRASH': return caseRestoreCrewPersonFromTrash(state, action, applyChange);
     case 'SORT_CREW_BY': return caseSortCrewBy(state, action, applyChange);
+    case 'ADD_LOCATION_TYPE': return caseAddLocationType(state, action, applyChange);
+    case 'RENAME_LOCATION_TYPE': return caseRenameLocationType(state, action, applyChange);
+    case 'DELETE_LOCATION_TYPE': return caseDeleteLocationType(state, action, applyChange);
+    case 'ADD_LOCATION': return caseAddLocation(state, action, applyChange);
+    case 'UPDATE_LOCATION': return caseUpdateLocation(state, action, applyChange);
+    case 'DELETE_LOCATION': return caseDeleteLocation(state, action, applyChange);
+    case 'RESTORE_LOCATION': return caseRestoreLocation(state, action, applyChange);
+    case 'SORT_LOCATIONS_BY': return caseSortLocationsBy(state, action, applyChange);
     default:
       return state;
   }

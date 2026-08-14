@@ -14,10 +14,12 @@ import { ChevronDown, Plus, UserPlus } from 'lucide-react';
 import { CommitInput } from './CommitInput';
 import { CrewManager } from './CrewManager';
 import { CrewGlideTab } from './CrewGlideTab';
+import { LocationsManager } from './LocationsManager';
+import { LocationsGlideTab } from './LocationsGlideTab';
 import { useDialog } from './Dialog';
 import { requestUnsavedSave } from '../lib/unsavedGuard';
 
-export type ProductionSubTab = 'details' | 'crew' | 'crewGlide';
+export type ProductionSubTab = 'details' | 'crew' | 'crewGlide' | 'locations' | 'locationsGlide';
 
 const KEY_POSITIONS: { key: string; label: string }[] = [
   { key: 'director', label: 'Director' },
@@ -58,9 +60,11 @@ interface ProductionTabProps {
   headerTarget?: HTMLElement | null;
   crewRoleTarget?: string | null;
   onCrewRoleTargetChange?: (role: string | null) => void;
+  locationTypeTarget?: string | null;
+  onLocationTypeTargetChange?: (type: string | null) => void;
 }
 
-export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange, locationTypeTarget, onLocationTypeTargetChange }: ProductionTabProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const dialog = useDialog();
@@ -113,7 +117,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
     dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } });
   };
 
-  const subTabLabels: Record<string, string> = { details: 'Project Details', crew: 'Crew', crewGlide: 'Crew Glide' };
+  const subTabLabels: Record<string, string> = { details: 'Project Details', crew: 'Crew', crewGlide: 'Crew Glide', locations: 'Locations', locationsGlide: 'Locations Glide' };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -123,6 +127,8 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
           { id: 'details', label: 'Project Details' },
           { id: 'crew', label: 'Crew' },
           { id: 'crewGlide', label: 'Crew Glide' },
+          { id: 'locations', label: 'Locations' },
+          { id: 'locationsGlide', label: 'Locations Glide' },
         ]}
         activeTab={subTab}
         onChange={requestSubTabChange}
@@ -249,10 +255,17 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
         </div>
       ) : subTab === 'crew' ? (
         <CrewManager headerTarget={headerTarget ?? portalTarget} initialRole={crewRoleTarget} onRoleChange={r => onCrewRoleTargetChange?.(r)} />
-      ) : (
+      ) : subTab === 'crewGlide' ? (
         <CrewGlideTab
           headerTarget={headerTarget ?? portalTarget}
           onGoToManager={(roleKey) => { onCrewRoleTargetChange?.(roleKey); onSubTabChange('crew'); }}
+        />
+      ) : subTab === 'locations' ? (
+        <LocationsManager headerTarget={headerTarget ?? portalTarget} initialType={locationTypeTarget} onTypeChange={t => onLocationTypeTargetChange?.(t)} />
+      ) : (
+        <LocationsGlideTab
+          headerTarget={headerTarget ?? portalTarget}
+          onGoToManager={(typeKey) => { onLocationTypeTargetChange?.(typeKey); onSubTabChange('locations'); }}
         />
       )}
     </div>

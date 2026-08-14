@@ -265,6 +265,36 @@ export interface CrewRole {
   builtin?: boolean;
 }
 
+export interface ProjectLocationNearby {
+  /** Location DB id of the nearest hospital / police station (links, not text). */
+  hospitalId?: string;
+  policeId?: string;
+}
+
+export interface ProjectLocation {
+  /** Stable uuid — scenes/days will reference locations by this id later. */
+  id: string;
+  name: string;
+  /** Key into `project.locationTypes` (label-based, like crew roles). */
+  type: string;
+  address?: string;
+  /** Human geocode label (e.g. Nominatim display_name). */
+  place?: string;
+  lat?: number;
+  lng?: number;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  /** Nearest-facility references into the same locations DB. */
+  nearby?: ProjectLocationNearby;
+}
+
+export interface LocationTrashItem {
+  location: ProjectLocation;
+  deletedAt: number;
+}
+
 export interface ProductionInfo {
   company?: string;
   studio?: string;
@@ -435,6 +465,9 @@ export interface Project {
   crewRoles?: CrewRole[];
   crew?: Record<string, CrewPerson[]>;
   crewTrash?: CrewTrashItem[];
+  locationTypes?: CrewRole[];
+  locations?: ProjectLocation[];
+  locationsTrash?: LocationTrashItem[];
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];

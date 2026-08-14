@@ -1,4 +1,4 @@
-import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, CrewTrashItem, ProductionInfo } from '../../types';
+import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, CrewTrashItem, ProductionInfo, ProjectLocation, LocationTrashItem } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { getDefaultReportDesign } from '../../lib/reportTemplates';
 import type { Action, State } from '../reducer';
@@ -277,4 +277,110 @@ export function caseReorderCrewPerson(state: State, action: Action, applyChange:
   list.splice(target, 0, p);
   crew[action.payload.role] = list;
   return applyChange({ ...state.present, crew });
+}
+
+// ---- location types ----------------------------------------------------------
+
+export function caseAddLocationType(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'ADD_LOCATION_TYPE') return state;
+  const existing = state.present.locationTypes || [];
+  if (existing.some(t => t.key === action.payload.type.key)) return state;
+  return applyChange({
+    ...state.present,
+    locationTypes: [...existing, action.payload.type],
+  });
+}
+
+export function caseRenameLocationType(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RENAME_LOCATION_TYPE') return state;
+  return applyChange({
+    ...state.present,
+    locationTypes: (state.present.locationTypes || []).map(t =>
+      t.key === action.payload.key ? { ...t, label: action.payload.label } : t
+    ),
+  });
+}
+
+export function caseDeleteLocationType(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'DELETE_LOCATION_TYPE') return state;
+  const locations = state.present.locations || [];
+  const trashItems: LocationTrashItem[] = locations
+    .filter(l => l.type === action.payload)
+    .map(location => ({ location, deletedAt: Date.now() }));
+  return applyChange({
+    ...state.present,
+    locationTypes: (state.present.locationTypes || []).filter(t => t.key !== action.payload),
+    locations: locations.filter(l => l.type !== action.payload),
+    locationsTrash: [...(state.present.locationsTrash || []), ...trashItems],
+  });
+}
+
+// ---- locations ---------------------------------------------------------------
+
+export function caseAddLocation(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'ADD_LOCATION') return state;
+  return applyChange({
+    ...state.present,
+    locations: [...(state.present.locations || []), action.payload.location],
+  });
+}
+
+export function caseUpdateLocation(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'UPDATE_LOCATION') return state;
+  return applyChange({
+    ...state.present,
+    locations: (state.present.locations || []).map(l =>
+      l.id === action.payload.id ? { ...l, ...action.payload.updates } : l
+    ),
+  });
+}
+
+export function caseDeleteLocation(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'DELETE_LOCATION') return state;
+  const locations = state.present.locations || [];
+  const location = locations.find(l => l.id === action.payload);
+  return applyChange({
+    ...state.present,
+    locations: locations.filter(l => l.id !== action.payload),
+    locationsTrash: location
+      ? [...(state.present.locationsTrash || []), { location, deletedAt: Date.now() }]
+      : state.present.locationsTrash || [],
+  });
+}
+
+export function caseRestoreLocation(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RESTORE_LOCATION') return state;
+  const item = (state.present.locationsTrash || []).find(t => t.location.id === action.payload);
+  if (!item) return state;
+  const locationTypes = [...(state.present.locationTypes || [])];
+  if (!locationTypes.some(t => t.key === item.location.type)) {
+    locationTypes.push({ key: item.location.type, label: item.location.type });
+  }
+  return applyChange({
+    ...state.present,
+    locationTypes,
+    locations: [...(state.present.locations || []), item.location],
+    locationsTrash: (state.present.locationsTrash || []).filter(t => t.location.id !== action.payload),
+  });
+}
+
+export function caseSortLocationsBy(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SORT_LOCATIONS_BY') return state;
+  const { key, direction } = action.payload;
+  const cmp = (aVal: string, bVal: string) => {
+    if (aVal === '' && bVal === '') return 0;
+    if (aVal === '') return 1;
+    if (bVal === '') return -1;
+    return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+  };
+  const types = state.present.locationTypes || [];
+  const valueOf = (l: ProjectLocation): string => {
+    if (key === 'type') return types.find(t => t.key === l.type)?.label || l.type;
+    return String((l as any)[key] ?? '');
+  };
+  const locations = [...(state.present.locations || [])].sort((a, b) => {
+    const c = cmp(valueOf(a), valueOf(b));
+    return direction === 'asc' ? c : -c;
+  });
+  return applyChange({ ...state.present, locations });
 }

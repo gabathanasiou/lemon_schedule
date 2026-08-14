@@ -16,8 +16,7 @@ import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
 import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon, Clock, Timer, StickyNote, Coffee, PanelTop, Square } from 'lucide-react';
-import { LocationPicker } from '../location/LocationPicker';
-import { PickedLocation } from '../../lib/places';
+import { LocationPickerModal } from '../location/LocationPickerModal';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -824,6 +823,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   // which crashes React with a "Rendered more hooks" error).
   const editorRef = React.useRef<RichTextEditorHandle>(null);
   const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
+  const [locationOpen, setLocationOpen] = useState(false);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -1141,16 +1141,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   if (block.type === 'map') {
     const hasPin = block.mapLat != null && block.mapLng != null;
     const inherited = !!block.mapInheritLocation;
-    const patchMapLocation = (loc: PickedLocation) => onPatch({
-      mapLat: loc.lat,
-      mapLng: loc.lng,
-      mapPlace: loc.place,
-      mapAddress: loc.address,
-      mapCity: loc.city,
-      mapPostcode: loc.postcode,
-      mapCountry: loc.country,
-    });
-    const clearMapLocation = () => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined, mapAddress: undefined, mapCity: undefined, mapPostcode: undefined, mapCountry: undefined });
     push(null,
       <ContentRow key="loc" label="Location">
         {inherited ? (
@@ -1160,26 +1150,22 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             <span className="max-w-44 truncate text-[10px] text-zinc-400">
               {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
             </span>
-            <LocationPicker
-              value={{ lat: block.mapLat!, lng: block.mapLng!, place: block.mapPlace, address: block.mapAddress, city: block.mapCity, postcode: block.mapPostcode, country: block.mapCountry }}
-              onChange={patchMapLocation}
-              onClear={clearMapLocation}
-              triggerLabel="Change"
-              triggerClassName={TB_BTN}
+            <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Change location" className={TB_BTN}>
+              <MapPin className="w-3 h-3" /> Change
+            </ToolButton>
+            <ToolButton
+              onClick={() => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined, mapAddress: undefined, mapCity: undefined, mapPostcode: undefined, mapCountry: undefined })}
               disabled={disabled}
-            />
-            <ToolButton onClick={clearMapLocation} disabled={disabled} title="Clear location" className={`${TB_BTN_ICON} ${TB_DANGER}`}>
+              title="Clear location"
+              className={`${TB_BTN_ICON} ${TB_DANGER}`}
+            >
               <Trash2 className="w-3 h-3" />
             </ToolButton>
           </>
         ) : (
-          <LocationPicker
-            value={null}
-            onChange={patchMapLocation}
-            triggerLabel="Set location…"
-            triggerClassName={TB_BTN}
-            disabled={disabled}
-          />
+          <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Set location" className={TB_BTN}>
+            <MapPin className="w-3 h-3" /> Set location…
+          </ToolButton>
         )}
       </ContentRow>,
       <ContentRow key="height" label="Height (px)">
@@ -1225,6 +1211,24 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <div className="flex flex-col gap-1.5">{s.rows}</div>
         </div>
       ))}
+      {block.type === 'map' && (
+        <LocationPickerModal
+          open={locationOpen}
+          onClose={() => setLocationOpen(false)}
+          onConfirm={loc => {
+            onPatch({
+              mapLat: loc.lat,
+              mapLng: loc.lng,
+              mapPlace: loc.place,
+              mapAddress: loc.address,
+              mapCity: loc.city,
+              mapPostcode: loc.postcode,
+              mapCountry: loc.country,
+            });
+            setLocationOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 };
