@@ -116,7 +116,7 @@ export const ReportMapView: React.FC<{
         </div>
         {/* Floating location label — the address (street, city postcode) on the
             map itself; a clickable link when an "Open in" service is set. */}
-        <div className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white/90 border border-zinc-200 rounded px-2 py-0.5 text-[10px] max-w-[80%] ${hint ? 'pointer-events-none' : ''}`}>
+        <div className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white border border-zinc-300 rounded px-2 py-0.5 text-[10px] max-w-[80%] shadow-sm ${hint ? 'pointer-events-none' : ''}`}>
           <span className="flex items-center gap-1 min-w-0">
             <MapPin className="w-3 h-3 text-zinc-400 shrink-0" />
             {href ? (
