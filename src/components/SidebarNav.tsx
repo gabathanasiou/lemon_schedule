@@ -18,13 +18,11 @@ interface SidebarNavProps {
   onAdd?: () => void;
   addLabel?: string;
   addDisabled?: boolean;
-  /** Replaces the add button when provided (e.g. inline add-input). */
-  addContent?: React.ReactNode;
   renderRowActions?: (row: SidebarNavRow, active: boolean) => React.ReactNode;
 }
 
 /** Light-theme master-detail sidebar: title, selectable rows with counts, add button. */
-export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, addContent, renderRowActions }: SidebarNavProps) {
+export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, addLabel, addDisabled, renderRowActions }: SidebarNavProps) {
   return (
     <aside className="w-[188px] shrink-0 bg-zinc-50 border-r border-zinc-200 overflow-y-auto">
       <div className="sticky top-0 z-10 bg-zinc-50 px-3 pt-3 pb-1.5">
@@ -66,16 +64,14 @@ export default function SidebarNav({ title, rows, activeKey, onSelect, onAdd, ad
           })}
         </div>
         {onAdd && (
-          addContent ?? (
-            <button
-              onClick={onAdd}
-              disabled={addDisabled}
-              className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-3 h-3 shrink-0" />
-              <span>{addLabel || 'Add'}</span>
-            </button>
-          )
+          <button
+            onClick={onAdd}
+            disabled={addDisabled}
+            className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 transition-colors flex items-center gap-2 font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Plus className="w-3 h-3 shrink-0" />
+            <span>{addLabel || 'Add'}</span>
+          </button>
         )}
       </div>
     </aside>

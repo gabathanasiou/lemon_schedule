@@ -100,11 +100,11 @@ export function EditCustomCategoryModal(props: Omit<CategoryFormProps, 'open' | 
   return <CategoryFormModal {...props} title="Edit Category" submitLabel="Save" icon={<Pencil className="w-4 h-4" />} withValueType />;
 }
 
-/** Generic single-field rename modal (label-only form). */
-export function RenameModal({ title = 'Rename', ...rest }: Omit<CategoryFormProps, 'open' | 'title' | 'submitLabel' | 'icon' | 'withValueType' | 'catIcon' | 'onIconChange' | 'multiValue' | 'onMultiValueChange'> & { open: boolean; title?: string }) {
-  return <CategoryFormModal {...rest} title={title} submitLabel="Save" icon={<Pencil className="w-4 h-4" />} withValueType={false} catIcon="" onIconChange={() => {}} multiValue={false} onMultiValueChange={() => {}} />;
+/** Generic single-field label modal (rename or add). */
+export function LabelModal({ title = 'Rename', submitLabel = 'Save', ...rest }: Omit<CategoryFormProps, 'open' | 'title' | 'submitLabel' | 'icon' | 'withValueType' | 'catIcon' | 'onIconChange' | 'multiValue' | 'onMultiValueChange'> & { open: boolean; title?: string; submitLabel?: string }) {
+  return <CategoryFormModal {...rest} title={title} submitLabel={submitLabel} icon={<Pencil className="w-4 h-4" />} withValueType={false} catIcon="" onIconChange={() => {}} multiValue={false} onMultiValueChange={() => {}} />;
 }
 
 export function EditBuiltinLabelModal(props: Omit<CategoryFormProps, 'open' | 'title' | 'submitLabel' | 'icon' | 'withValueType' | 'catIcon' | 'onIconChange' | 'multiValue' | 'onMultiValueChange'> & { open: boolean }) {
-  return <RenameModal {...props} title="Rename Category" />;
+  return <LabelModal {...props} title="Rename Category" />;
 }

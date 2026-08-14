@@ -23,12 +23,13 @@ test.describe('Crew Manager', () => {
     await expect(page.getByRole('button', { name: 'Add Member' })).toBeVisible();
     await expect(page.getByText('0 members', { exact: true })).toBeVisible();
 
-    // Add a member from the header
+    // Add a member: "Add Member" appends a blank row (element-manager style)
     await page.getByRole('button', { name: 'Add Member' }).click();
     const nameInput = page.getByPlaceholder('Name');
+    await expect(nameInput).toHaveCount(1);
     await nameInput.fill('Jane Doe');
     await nameInput.press('Enter');
-    await expect(page.getByPlaceholder('Name').first()).toHaveValue('Jane Doe');
+    await expect(page.getByPlaceholder('Name')).toHaveValue('Jane Doe');
 
     // Edit phone and email cells (commit on blur)
     await page.getByPlaceholder('Phone').fill('555-0123');
@@ -41,17 +42,24 @@ test.describe('Crew Manager', () => {
     // Sidebar count updates
     await expect(page.getByText('1 member', { exact: true })).toBeVisible();
 
+    // A blank appended row discards itself (Escape) without creating a member
+    await page.getByRole('button', { name: 'Add Director' }).click();
+    await expect(page.getByPlaceholder('Name')).toHaveCount(2);
+    await page.getByPlaceholder('Name').last().press('Escape');
+    await expect(page.getByPlaceholder('Name')).toHaveCount(1);
+    await expect(page.getByText('1 member', { exact: true })).toBeVisible();
+
     // Delete the member -> count drops back to zero
     const janeRow = page.getByPlaceholder('Name').first().locator('xpath=ancestor::tr');
     await janeRow.locator('button[title="Delete member"]').click();
     await expect(page.getByText('0 members', { exact: true })).toBeVisible();
     await expect(page.getByText('No members in this role yet.')).toBeVisible();
 
-    // Add a custom role from the sidebar; it becomes the active selection
+    // Add a custom role via the modal; it becomes the active selection
     await page.getByRole('button', { name: 'Add Role' }).click();
-    const roleInput = page.getByPlaceholder('New role name');
+    const roleInput = page.getByRole('dialog').getByRole('textbox');
     await roleInput.fill('Sound Designer');
-    await roleInput.press('Enter');
+    await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
     await expect(page.locator('button.bg-zinc-900', { hasText: 'Sound Designer' })).toBeVisible();
     await expect(page.getByText('0 members', { exact: true })).toBeVisible();
 

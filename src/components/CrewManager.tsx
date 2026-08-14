@@ -5,10 +5,17 @@ import { useDialog } from './Dialog';
 import { generateUUID } from '../lib/utils';
 import { Plus, Trash2, ArrowUp, ArrowDown, UserPlus, Pencil } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from './SidebarNav';
-import { CommitInput, AddPromptInput } from './CommitInput';
-import { RenameModal } from './elements/CategoryModals';
+import { CommitInput } from './CommitInput';
+import { LabelModal } from './elements/CategoryModals';
 
 const cellInputCls = 'w-full bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-800 outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow';
+
+interface PendingPerson {
+  key: string;
+  name: string;
+  phone: string;
+  email: string;
+}
 
 export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | null }) {
   const { state, dispatch, readOnly } = useProject();
@@ -20,8 +27,9 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
   const crew = project.crew || {};
 
   const [roleKey, setRoleKey] = useState(crewRoles[0]?.key || '');
-  const [addingPerson, setAddingPerson] = useState(false);
-  const [addingRole, setAddingRole] = useState(false);
+  const [pendings, setPendings] = useState<PendingPerson[]>([]);
+  const [showAddRole, setShowAddRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
 
@@ -29,13 +37,31 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
     if (!crewRoles.some(r => r.key === roleKey)) setRoleKey(crewRoles[0]?.key || '');
   }, [crewRoles, roleKey]);
 
+  // Pending (uncommitted) rows are discarded when the selected role changes.
+  useEffect(() => {
+    setPendings([]);
+  }, [roleKey]);
+
   const role = crewRoles.find(r => r.key === roleKey);
   const people = role ? crew[role.key] || [] : [];
 
-  const addPersonToRole = (role: string, name: string) => {
+  const addPerson = (name: string, phone: string, email: string) => {
+    dispatch({ type: 'ADD_CREW_PERSON', payload: { role: role!.key, person: { id: generateUUID(), name, phone, email } } });
+  };
+
+  const appendPending = () => {
+    if (!role || readOnly) return;
+    setPendings(prev => [...prev, { key: `new-${Date.now()}-${prev.length}`, name: '', phone: '', email: '' }]);
+  };
+
+  const commitPendingName = (pending: PendingPerson, name: string) => {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    dispatch({ type: 'ADD_CREW_PERSON', payload: { role, person: { id: generateUUID(), name: trimmed } } });
+    setPendings(prev => prev.filter(p => p.key !== pending.key));
+    if (trimmed) addPerson(trimmed, pending.phone, pending.email);
+  };
+
+  const updatePending = (key: string, patch: Partial<Pick<PendingPerson, 'name' | 'phone' | 'email'>>) => {
+    setPendings(prev => prev.map(p => (p.key === key ? { ...p, ...patch } : p)));
   };
 
   const addRole = (label: string): string | null => {
@@ -95,7 +121,7 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
       </span>
       <div className="w-px h-4 bg-zinc-300 mx-1.5" />
       <button
-        onClick={() => setAddingPerson(true)}
+        onClick={appendPending}
         disabled={!role || readOnly}
         className={`px-3 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${isCloud ? 'bg-blue-950 text-white hover:bg-blue-900' : 'bg-zinc-900 text-white hover:bg-zinc-800'} disabled:opacity-40 disabled:cursor-not-allowed`}
       >
@@ -108,7 +134,7 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
     <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white border border-zinc-200/80 shadow-sm shrink-0">
       <span className="text-xs font-semibold text-zinc-800">{role ? role.label : 'Crew'}</span>
       <button
-        onClick={() => setAddingPerson(true)}
+        onClick={appendPending}
         disabled={!role || readOnly}
         className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
@@ -125,17 +151,9 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
         rows={roleRows}
         activeKey={roleKey}
         onSelect={setRoleKey}
-        onAdd={() => setAddingRole(true)}
+        onAdd={() => { setNewRoleName(''); setShowAddRole(true); }}
         addLabel="Add Role"
         addDisabled={readOnly}
-        addContent={addingRole ? (
-          <AddPromptInput
-            placeholder="New role name"
-            className="w-full mt-1 bg-white border border-zinc-300 rounded px-2 py-1 text-xs text-zinc-800 outline-none"
-            onCommit={v => { setAddingRole(false); const key = addRole(v); if (key) setRoleKey(key); }}
-            onCancel={() => setAddingRole(false)}
-          />
-        ) : undefined}
         renderRowActions={renderRowActions}
       />
 
@@ -144,12 +162,12 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
         <div className="flex flex-col h-full px-4 py-4 gap-3">
           <div className="flex-1 overflow-hidden rounded-xl bg-white border border-zinc-200/80 shadow-sm min-h-0">
             <div className="h-full overflow-auto tab-scroll pb-10">
-              {role && people.length === 0 && !addingPerson && (
+              {role && people.length === 0 && pendings.length === 0 && (
                 <div className="text-xs text-zinc-400 py-8 text-center border-b border-zinc-100">
                   No members in this role yet.
                 </div>
               )}
-              {people.length > 0 && (
+              {(people.length > 0 || pendings.length > 0) && (
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-zinc-50 border-b border-zinc-200">
@@ -180,34 +198,50 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
                         </td>
                       </tr>
                     ))}
+                    {pendings.map((pending, pi) => (
+                      <tr key={pending.key} className={`border-b border-zinc-100 transition-colors ${(people.length + pi) % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'} hover:bg-blue-50/20`}>
+                        <td className="px-3 py-1">
+                          <CommitInput value={pending.name} autoFocus onEscape={() => setPendings(prev => prev.filter(p => p.key !== pending.key))} onCommit={v => commitPendingName(pending, v)} placeholder="Name" className={cellInputCls} />
+                        </td>
+                        <td className="px-3 py-1">
+                          <CommitInput value={pending.phone} onCommit={v => updatePending(pending.key, { phone: v })} placeholder="Phone" className={cellInputCls} />
+                        </td>
+                        <td className="px-3 py-1">
+                          <CommitInput value={pending.email} onCommit={v => updatePending(pending.key, { email: v })} placeholder="Email" className={cellInputCls} />
+                        </td>
+                        <td className="px-3 py-1" />
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               )}
-              {addingPerson && role ? (
-                <div className="flex items-center gap-2 px-3 py-2 border-t border-zinc-100">
-                  <span className="text-xs text-zinc-400 shrink-0">Add to {role.label}:</span>
-                  <AddPromptInput
-                    placeholder="Name"
-                    className="w-56 bg-white border border-zinc-300 rounded px-2 py-1 text-xs text-zinc-800 outline-none"
-                    onCommit={v => { setAddingPerson(false); addPersonToRole(role.key, v); }}
-                    onCancel={() => setAddingPerson(false)}
-                  />
-                </div>
-              ) : (
-                <button
-                  onClick={() => setAddingPerson(true)}
-                  disabled={!role || readOnly}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{role ? `Add ${role.label}` : 'Add Member'}</span>
-                </button>
-              )}
+              <button
+                onClick={appendPending}
+                disabled={!role || readOnly}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 transition-colors w-full disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{role ? `Add ${role.label}` : 'Add Member'}</span>
+              </button>
             </div>
           </div>
         </div>
 
-        <RenameModal
+        <LabelModal
+          title="Add Role"
+          submitLabel="Create"
+          open={showAddRole}
+          onClose={() => setShowAddRole(false)}
+          name={newRoleName}
+          onNameChange={setNewRoleName}
+          onSubmit={() => {
+            const key = addRole(newRoleName);
+            setShowAddRole(false);
+            if (key) setRoleKey(key);
+          }}
+        />
+        <LabelModal
+          title="Rename Role"
           open={renamingKey !== null}
           onClose={() => setRenamingKey(null)}
           name={renameDraft}
