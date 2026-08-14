@@ -11,10 +11,11 @@ import { PopoutPlaceholder } from './PopoutWindow';
 import { ChevronDown, Plus, UserPlus } from 'lucide-react';
 import { CommitInput } from './CommitInput';
 import { CrewManager } from './CrewManager';
+import { CrewGlideTab } from './CrewGlideTab';
 import { useDialog } from './Dialog';
 import { requestUnsavedSave } from '../lib/unsavedGuard';
 
-export type ProductionSubTab = 'details' | 'crew';
+export type ProductionSubTab = 'details' | 'crew' | 'crewGlide';
 
 const KEY_POSITIONS: { key: string; label: string }[] = [
   { key: 'director', label: 'Director' },
@@ -108,7 +109,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
     dispatch({ type: 'UPDATE_CREW_PERSON', payload: { role: fromRole, id: person.id, updates: {}, toRole } });
   };
 
-  const subTabLabels: Record<string, string> = { details: 'Project Details', crew: 'Crew' };
+  const subTabLabels: Record<string, string> = { details: 'Project Details', crew: 'Crew', crewGlide: 'Crew Glide' };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white">
@@ -117,6 +118,7 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
         tabs={[
           { id: 'details', label: 'Project Details' },
           { id: 'crew', label: 'Crew' },
+          { id: 'crewGlide', label: 'Crew Glide' },
         ]}
         activeTab={subTab}
         onChange={requestSubTabChange}
@@ -228,8 +230,10 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
             </section>
           </div>
         </div>
-      ) : (
+      ) : subTab === 'crew' ? (
         <CrewManager headerTarget={headerTarget ?? portalTarget} />
+      ) : (
+        <CrewGlideTab headerTarget={headerTarget ?? portalTarget} />
       )}
     </div>
   );
