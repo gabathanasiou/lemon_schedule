@@ -159,6 +159,40 @@ export function reportLocationLabel(loc: ReportLocation): string {
   return `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
 }
 
+/** Short link label: `address, city postcode` — the text shown on location
+ *  links (map block address bar, link attributes in text). Locations without
+ *  stored structured parts (legacy pins) get a best-effort split of the full
+ *  place string. Falls back to the city, then the full label. */
+export function reportLocationLinkLabel(loc: ReportLocation): string {
+  const effective = loc.address || loc.city || loc.postcode ? loc : partsFromPlace(loc.place || '');
+  const cityPost = [effective.city, effective.postcode].filter(Boolean).join(' ');
+  const joined = [effective.address, cityPost].filter(Boolean);
+  if (joined.length > 0) return joined.join(', ');
+  if (effective.city) return effective.city;
+  return reportLocationLabel(loc);
+}
+
+/** Best-effort split of a Nominatim display_name ("…, Westminster, London
+ *  SW1A 2JR, United Kingdom") into street/city/postcode. Display-only —
+ *  structured parts stored by the picker always win. */
+function partsFromPlace(place: string): Pick<ReportLocation, 'address' | 'city' | 'postcode'> {
+  const segs = place.split(',').map(s => s.trim()).filter(Boolean);
+  if (segs.length < 2) return {};
+  segs.pop(); // country
+  const cityPost = segs.pop() || '';
+  const m = cityPost.match(/\s*([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/);
+  const out: Pick<ReportLocation, 'address' | 'city' | 'postcode'> = {};
+  if (m) {
+    out.postcode = m[1];
+    out.city = cityPost.slice(0, cityPost.length - m[1].length).trim();
+  } else if (cityPost) {
+    out.city = cityPost;
+  }
+  const address = segs.join(', ');
+  if (address) out.address = address;
+  return out;
+}
+
 /** Universal https deep links — work in print/PDF (anchors survive the
  *  browser's "Save as PDF" path) and open the app or web page on any device. */
 export function reportLocationLink(kind: MapLinkKind, loc: ReportLocation): string {

@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
+import Link from '@tiptap/extension-link';
 import type { SuggestionOptions } from '@tiptap/suggestion';
 import { sanitizeRichText } from '../../lib/richText';
 import { ReportFieldDef, searchReportFields } from '../../lib/reportFields';
@@ -75,6 +76,15 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
       Placeholder.configure({ placeholder }),
       TextStyle,
       Color,
+      // Links: typed/pasted URLs auto-link; anchors open in a new tab and are
+      // inert while editing (openOnClick false). Stored HTML keeps the <a>
+      // (sanitizer whitelists it) so print/PDF anchors stay clickable.
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: { target: '_blank', rel: 'noreferrer' },
+      }),
       tokenExtension,
     ],
     content: preprocessTokenHtml(value || ''),
@@ -109,6 +119,8 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
         case 'underline': editor.chain().focus().toggleUnderline().run(); break;
         case 'strikeThrough': editor.chain().focus().toggleStrike().run(); break;
         case 'foreColor': editor.chain().focus().setColor(execValue).run(); break;
+        case 'link': if (execValue) editor.chain().focus().extendMarkRange('link').setLink({ href: execValue }).run(); break;
+        case 'unlink': editor.chain().focus().extendMarkRange('link').unsetLink().run(); break;
         default: break;
       }
     },

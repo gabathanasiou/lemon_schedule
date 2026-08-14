@@ -3,7 +3,7 @@ import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
-import { sunWeatherFieldValue, getReportLocation, reportLocationLabel, reportLocationLink, MapLinkKind, locationAddressFieldValue, locationPartFieldValue } from './reportWeather';
+import { sunWeatherFieldValue, getReportLocation, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, locationAddressFieldValue, locationPartFieldValue } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
 } from './reportData';
@@ -26,6 +26,13 @@ export interface ReportFieldDef {
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
   separator?: boolean;   // render a divider before this field inside its submenu
+  /** The value is a link — text blocks and table cells render it as a
+   *  clickable anchor. 'url' = the value is the href; 'mailto'/'tel' wrap it
+   *  in mailto:/tel: (no label changes, no icons). */
+  link?: boolean;
+  linkKind?: 'url' | 'mailto' | 'tel';
+  /** Anchor text for url link fields (defaults to the URL). */
+  linkLabel?: (ctx: ReportCtx, item?: any) => string;
   get: (ctx: ReportCtx, item?: any, aux?: FieldAux) => string;
 }
 
@@ -150,8 +157,8 @@ const DAY_FIELDS: ReportFieldDef[] = [
 const CREW_FIELDS: ReportFieldDef[] = [
   { key: 'role', label: 'Role', group: 'Crew', scope: 'crew', defaultWidth: 18, get: (_c, it: ReportCrewItem) => s(it.role) },
   { key: 'crewName', label: 'Name', group: 'Crew', scope: 'crew', defaultWidth: 18, get: (_c, it: ReportCrewItem) => s(it.name) },
-  { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew', defaultWidth: 14, get: (_c, it: ReportCrewItem) => s(it.phone) },
-  { key: 'email', label: 'Email', group: 'Crew', scope: 'crew', defaultWidth: 20, get: (_c, it: ReportCrewItem) => s(it.email) },
+  { key: 'phone', label: 'Phone', group: 'Crew', scope: 'crew', defaultWidth: 14, link: true, linkKind: 'tel', get: (_c, it: ReportCrewItem) => s(it.phone) },
+  { key: 'email', label: 'Email', group: 'Crew', scope: 'crew', defaultWidth: 20, link: true, linkKind: 'mailto', get: (_c, it: ReportCrewItem) => s(it.email) },
 ];
 
 // ---- production & project (static) ------------------------------------------
@@ -163,8 +170,8 @@ const PRODUCTION_FIELDS: ReportFieldDef[] = [
   { key: 'studio', label: 'Studio', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.studio) },
   { key: 'productionOffice', label: 'Production Office', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.productionOffice) },
   { key: 'address', label: 'Address', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.address) },
-  { key: 'prodPhone', label: 'Phone', group: 'Production', scope: 'production', defaultWidth: 14, get: (ctx) => s(ctx.project.productionInfo?.phone) },
-  { key: 'prodEmail', label: 'Email', group: 'Production', scope: 'production', defaultWidth: 18, get: (ctx) => s(ctx.project.productionInfo?.email) },
+  { key: 'prodPhone', label: 'Phone', group: 'Production', scope: 'production', defaultWidth: 14, link: true, linkKind: 'tel', get: (ctx) => s(ctx.project.productionInfo?.phone) },
+  { key: 'prodEmail', label: 'Email', group: 'Production', scope: 'production', defaultWidth: 18, link: true, linkKind: 'mailto', get: (ctx) => s(ctx.project.productionInfo?.email) },
   { key: 'firstProductionDay', label: 'First Production Day', group: 'Production', scope: 'production', defaultWidth: 12, separator: true, get: (ctx) => formatDateCustom(ctx.totals.firstDay, dateKey(ctx)) },
   { key: 'lastProductionDay', label: 'Last Production Day', group: 'Production', scope: 'production', defaultWidth: 12, get: (ctx) => formatDateCustom(ctx.totals.lastDay, dateKey(ctx)) },
   { key: 'totalShootDays', label: 'Total Shoot Days', group: 'Production', scope: 'production', align: 'center', defaultWidth: 9, separator: true, get: (ctx) => s(ctx.totals.shootDays) },
@@ -209,9 +216,9 @@ const LOCATION_FIELDS: ReportFieldDef[] = [
   { key: 'dayLocationCity', label: 'City', group: 'Location', scope: 'days', defaultWidth: 14, get: (ctx, it) => locationPartFieldValue(ctx, it, 'city') },
   { key: 'dayLocationPostcode', label: 'Postcode', group: 'Location', scope: 'days', defaultWidth: 12, get: (ctx, it) => locationPartFieldValue(ctx, it, 'postcode') },
   { key: 'dayLocationCountry', label: 'Country', group: 'Location', scope: 'days', defaultWidth: 18, get: (ctx, it) => locationPartFieldValue(ctx, it, 'country') },
-  { key: 'dayLocationLink', label: 'Map Link (Google Maps)', group: 'Location', scope: 'days', defaultWidth: 26, get: (ctx, it) => reportLocationLink('google' as MapLinkKind, getReportLocation(ctx, it)) },
-  { key: 'dayLocationLinkApple', label: 'Map Link (Apple Maps)', group: 'Location', scope: 'days', defaultWidth: 26, get: (ctx, it) => reportLocationLink('apple' as MapLinkKind, getReportLocation(ctx, it)) },
-  { key: 'dayLocationLinkCitymapper', label: 'Map Link (Citymapper)', group: 'Location', scope: 'days', defaultWidth: 26, get: (ctx, it) => reportLocationLink('citymapper' as MapLinkKind, getReportLocation(ctx, it)) },
+  { key: 'dayLocationLink', label: 'Map Link (Google Maps)', group: 'Location', scope: 'days', link: true, defaultWidth: 26, get: (ctx, it) => reportLocationLink('google' as MapLinkKind, getReportLocation(ctx, it)), linkLabel: (ctx, it) => reportLocationLinkLabel(getReportLocation(ctx, it)) },
+  { key: 'dayLocationLinkApple', label: 'Map Link (Apple Maps)', group: 'Location', scope: 'days', link: true, defaultWidth: 26, get: (ctx, it) => reportLocationLink('apple' as MapLinkKind, getReportLocation(ctx, it)), linkLabel: (ctx, it) => reportLocationLinkLabel(getReportLocation(ctx, it)) },
+  { key: 'dayLocationLinkCitymapper', label: 'Map Link (Citymapper)', group: 'Location', scope: 'days', link: true, defaultWidth: 26, get: (ctx, it) => reportLocationLink('citymapper' as MapLinkKind, getReportLocation(ctx, it)), linkLabel: (ctx, it) => reportLocationLinkLabel(getReportLocation(ctx, it)) },
 ];
 
 // ---- smart (universal contextual attributes) ----------------------------------
@@ -558,6 +565,22 @@ export function resolveReportTokensHtml(
       const base = raw.trim().split('.')[0];
       const color = fieldMap[base] ? fieldChipColor(fieldMap[base].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
       return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
+    }
+    // Link fields (map links, emails, phones) resolve to clickable anchors.
+    // Scheme-guarded so token values can't inject javascript: URLs. Key
+    // positions' .phone/.email sub-tokens link too.
+    const [baseKey, subKey] = raw.trim().split('.');
+    const def = fieldMap[baseKey];
+    let kind: 'url' | 'mailto' | 'tel' | null = null;
+    if (subKey === 'phone') kind = 'tel';
+    else if (subKey === 'email') kind = 'mailto';
+    else if (def?.link) kind = def.linkKind || 'url';
+    if (kind && value) {
+      const href = kind === 'mailto' ? `mailto:${value}` : kind === 'tel' ? `tel:${value}` : value;
+      if (/^(https?:\/\/|mailto:|tel:)/i.test(href)) {
+        const label = kind === 'url' && def?.linkLabel ? def.linkLabel(ctx, item) : value;
+        return `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${escapeHtml(label || href)}</a>`;
+      }
     }
     return escapeHtml(value);
   });

@@ -47,7 +47,9 @@ function mockWeatherBody(url: string) {
 }
 
 const BIG_BEN = {
-  place_id: 1, lat: '51.5007042', lon: '-0.1245721', display_name: 'Big Ben, Bridge Street, Westminster, London SW1A 2JR, United Kingdom',
+  place_id: 1, lat: '51.5007042', lon: '-0.1245721',
+  display_name: 'Big Ben, Bridge Street, Westminster, London SW1A 2JR, United Kingdom',
+  address: { house_number: '1', road: 'Bridge Street', city: 'London', postcode: 'SW1A 2JR', country: 'United Kingdom' },
 };
 
 test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
@@ -61,17 +63,28 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
         {
           id: 'r-days', type: 'repeat', collection: 'days', gap: 8,
           children: [
-            { id: 't-env', type: 'text', text: 'Sunrise {{sunrise}} · Sunset {{sunset}} · Weather {{weather}}' },
+            { id: 't-env', type: 'text', text: 'Sunrise {{sunrise}} · Sunset {{sunset}} · Weather {{weather}} · Map: {{dayLocationLink}} · Email: {{prodEmail}} · Tel: {{prodPhone}}' },
             { id: 'addr-field', type: 'field', field: 'dayLocationAddress' },
             { id: 'city-field', type: 'field', field: 'dayLocationCity' },
             { id: 'postcode-field', type: 'field', field: 'dayLocationPostcode' },
             { id: 'country-field', type: 'field', field: 'dayLocationCountry' },
             { id: 'link-block', type: 'link', text: 'Open in Google Maps', url: '{{dayLocationLink}}' },
-            { id: 'map-inherit', type: 'map', mapInheritLocation: true, mapShowAddress: true, mapHeight: 120, mapZoom: 12 },
+            { id: 'map-inherit', type: 'map', mapInheritLocation: true, mapOpenLink: 'google', mapHeight: 120, mapZoom: 12 },
+          ],
+        },
+        {
+          id: 'crew-table', type: 'table', collection: 'crew', showHeader: true,
+          columns: [
+            { id: 'ct1', field: 'crewName', width: 40 },
+            { id: 'ct2', field: 'phone', width: 30 },
+            { id: 'ct3', field: 'email', width: 30 },
           ],
         },
         { id: 'img-block', type: 'image' },
-        { id: 'map-block', type: 'map', mapLat: 51.5074, mapLng: -0.1278, mapPlace: 'London', mapShowAddress: true, mapOpenLink: 'google', mapHeight: 160, mapZoom: 13 },
+        { id: 'map-block', type: 'map', mapLat: 51.5074, mapLng: -0.1278, mapPlace: 'London', mapOpenLink: 'google', mapHeight: 160, mapZoom: 13 },
+        // Legacy pin: only a full display_name, no structured parts — the
+        // address bar must still derive the short label from it.
+        { id: 'map-legacy', type: 'map', mapLat: 51.5007, mapLng: -0.1246, mapPlace: 'Big Ben, Bridge Street, Westminster, London SW1A 2JR, United Kingdom', mapHeight: 120, mapZoom: 13 },
       ],
       header: [], footer: [],
     };
@@ -87,13 +100,15 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
       route.fulfill({ contentType: 'application/json', body: JSON.stringify([BIG_BEN]) });
     });
     await page.route('**://nominatim.openstreetmap.org/reverse**', route => {
-      route.fulfill({ contentType: 'application/json', body: JSON.stringify({ display_name: BIG_BEN.display_name }) });
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(BIG_BEN) });
     });
 
     await page.addInitScript(({ projectJson, meta, designJson }) => {
       const project = JSON.parse(projectJson);
       project.reportDesigns = [JSON.parse(designJson)];
       project.activeReportId = 'swm-test';
+      project.productionInfo = { ...(project.productionInfo || {}), email: 'office@example.com', phone: '+44 20 7946 0000' };
+      project.crew = { ...(project.crew || {}), productionCoordinator: [{ id: 'crew-pc', name: 'Jane Doe', phone: '+44 20 7946 1111', email: 'jane@example.com' }] };
       localStorage.setItem('lemon_schedule_project_v1_' + project.id, JSON.stringify(project));
       localStorage.setItem('lemon_schedule_project_index', JSON.stringify([meta]));
     }, {
@@ -119,12 +134,32 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     await expect(page.locator('[data-block-id="postcode-field"]')).toContainText('E15 1QD');
     await expect(page.locator('[data-block-id="country-field"]')).toContainText('United Kingdom');
 
-    // ---- inherited-location map inside the days repeat renders (dummy addr) ----
+    // ---- link attribute inside text: clickable anchor with the short label ----
+    const SHORT_LABEL = '112 Maryland Street, London E15 1QD';
+    const DUMMY_HREF = 'https://www.google.com/maps?q=112%20Maryland%20Street%2C%20London%20E15%201QD%2C%20United%20Kingdom';
+    const envLink = page.locator('[data-block-id="t-env"] a[href^="https://www.google.com/maps"]');
+    await expect(envLink).toBeAttached({ timeout: 8000 });
+    await expect(envLink).toHaveAttribute('href', DUMMY_HREF);
+    await expect(envLink).toHaveText(SHORT_LABEL);
+
+    // ---- email/phone attributes in text: mailto:/tel: anchors ----
+    const envMail = page.locator('[data-block-id="t-env"] a[href="mailto:office@example.com"]');
+    await expect(envMail).toHaveText('office@example.com');
+    const envTel = page.locator('[data-block-id="t-env"] a[href^="tel:"]');
+    await expect(envTel).toContainText('+44 20 7946 0000');
+
+    // ---- inherited-location map: address bar shows the short label ----
     await expect(page.locator('[data-block-id="map-inherit"] .leaflet-container')).toBeAttached({ timeout: 8000 });
-    await expect(page.locator('[data-block-id="map-inherit"]')).toContainText('112 Maryland Street');
+    const inheritLink = page.locator('[data-block-id="map-inherit"] a[href^="https://www.google.com/maps"]');
+    await expect(inheritLink).toHaveText(SHORT_LABEL);
+
+    // ---- links work inside tables too (crew table: phone + email cells) ----
+    const crewMail = page.locator('[data-block-id="crew-table"] a[href="mailto:jane@example.com"]');
+    await expect(crewMail).toHaveText('jane@example.com');
+    const crewTel = page.locator('[data-block-id="crew-table"] a[href^="tel:"]');
+    await expect(crewTel).toContainText('+44 20 7946 1111');
 
     // ---- link block inside the days repeat: label + resolved day link ----
-    const DUMMY_HREF = 'https://www.google.com/maps?q=112%20Maryland%20Street%2C%20London%20E15%201QD%2C%20United%20Kingdom';
     const linkBlock = page.locator('[data-block-id="link-block"]');
     await expect(linkBlock).toContainText('Open in Google Maps');
     await expect(linkBlock.locator('a[href^="https://www.google.com/maps"]')).toHaveAttribute('href', DUMMY_HREF);
@@ -136,17 +171,27 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     await expect(openLink).toHaveAttribute('href', 'https://www.google.com/maps?q=London');
     await expect(page.locator('[data-block-id="map-block"]')).toContainText('London');
 
+    // ---- legacy pin (place-only): address bar derives street/city/postcode ----
+    await expect(page.locator('[data-block-id="map-legacy"]')).toContainText('Westminster, London SW1A 2JR');
+
     // ---- location picker: search → pin → attach ----
+    // Capture the map pane position — after attaching a new pin the map must
+    // re-center (react-leaflet's center prop is init-only).
+    const paneBefore = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     await page.locator('[data-block-id="map-block"]').click({ force: true });
     await page.waitForTimeout(300);
     await page.getByRole('button', { name: 'Change location' }).click();
     await expect(page.getByText('Attach a location')).toBeVisible();
     await page.getByPlaceholder('Search an address or place…').fill('Big Ben');
     await page.waitForTimeout(700);
-    await page.getByText('Big Ben, Bridge Street', { exact: false }).click();
+    await page.getByRole('dialog').getByText('Big Ben, Bridge Street', { exact: false }).click();
     await page.getByRole('button', { name: 'Attach pin' }).click();
-    await page.waitForTimeout(300);
-    await expect(page.locator('[data-block-id="map-block"]')).toContainText('Big Ben, Bridge Street');
+    await page.waitForTimeout(500);
+    const paneAfter = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
+    expect(paneAfter).not.toBe(paneBefore);
+    // The address bar formats the picker's structured parts (address, city, postcode).
+    await expect(page.locator('[data-block-id="map-block"]')).toContainText('1 Bridge Street, London SW1A 2JR');
+    await expect(page.locator('[data-block-id="map-block"] a[href^="https://www.google.com/maps?q=Big%20Ben"]')).toBeAttached();
 
     // ---- image block: attach a file → data URL renders in the block ----
     // Deselect first: the map block's floating chrome overlaps the image card.
@@ -157,8 +202,21 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     await page.locator('#report-image-input-img-block').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG_1PX });
     await expect(page.locator('[data-block-id="img-block"] img[src^="data:image/png"]')).toBeVisible({ timeout: 5000 });
 
+    // ---- text block: a typed URL becomes a clickable link ----
+    // Deselect (map chrome overlaps the repeat card), then select the text block.
+    await page.locator('.flex-1.overflow-auto.p-8').click({ position: { x: 8, y: 300 } });
+    await page.waitForTimeout(200);
+    await page.locator('[data-block-id="t-env"]').click();
+    await page.waitForTimeout(300);
+    const prose = page.locator('.block-chrome .richtext-editor .ProseMirror');
+    await prose.click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' https://example.com ');
+    await expect(page.locator('[data-block-id="t-env"] a[href="https://example.com"]')).toBeAttached({ timeout: 5000 });
+
     // ---- preview: same values in the print-preview path ----
     await page.getByRole('button', { name: 'Preview' }).click();
     await expect(page.getByText('Sunrise 05:44', { exact: false }).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('a[href="https://example.com"]').first()).toBeAttached();
   });
 });

@@ -65,8 +65,7 @@ test('text styles: applying a heading style overrides direct formatting', async 
 
   const title = page.getByText('Town - Jason — One-Liner').first();
   await expect(title).toBeVisible({ timeout: 5000 });
-  const before = await title.evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
-  expect(before.size).toBe('16px');
+  await expect(title).toHaveCSS('font-size', '16px');
 
   await title.click();
   await page.waitForTimeout(300);
@@ -76,19 +75,16 @@ test('text styles: applying a heading style overrides direct formatting', async 
   // apply Heading 1 from the text-style menu
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();
   await page.locator('.ui-menu').getByText('Heading 1', { exact: true }).click();
-  await page.waitForTimeout(400);
-
-  const after = await page.getByText('Town - Jason — One-Liner').first().evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
-  expect(after.size).toBe('20px');
-  expect(after.weight).toBe('700');
+  // toHaveCSS auto-retries — a bare getComputedStyle can hit the element
+  // mid-re-render (detached node → empty values).
+  await expect(title).toHaveCSS('font-size', '20px');
+  await expect(title).toHaveCSS('font-weight', '700');
 
   // switching to Body (10/400) also takes effect
   await chrome.getByRole('button', { name: 'Heading 1' }).click();
   await page.locator('.ui-menu').getByText('Body', { exact: true }).click();
-  await page.waitForTimeout(400);
-  const body = await page.getByText('Town - Jason — One-Liner').first().evaluate(el => ({ size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
-  expect(body.size).toBe('10px');
-  expect(body.weight).toBe('400');
+  await expect(title).toHaveCSS('font-size', '10px');
+  await expect(title).toHaveCSS('font-weight', '400');
 });
 
 test('status bar: deselect clears selection; editor switches between chrome and toolbar', async ({ page }) => {

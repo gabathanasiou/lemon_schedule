@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ReportBlock } from '../../types';
 import { ReportCtx } from '../../lib/reportData';
-import { getReportLocation, reportLocationLabel, reportLocationLink, MapLinkKind } from '../../lib/reportWeather';
-import { MapPin, ExternalLink } from 'lucide-react';
+import { ReportLocation, getReportLocation, reportLocationLinkLabel, reportLocationLink, MapLinkKind } from '../../lib/reportWeather';
+import { ReportLocationLink } from './ReportLocationLink';
+import { MapPin } from 'lucide-react';
 
 // Static (non-interactive) map view for report blocks — renders in the
 // designer canvas, preview and print. Tiles are <img> elements, so they print.
@@ -13,16 +14,15 @@ import { MapPin, ExternalLink } from 'lucide-react';
 //
 // Location resolution: `mapInheritLocation` → getReportLocation(ctx, item)
 // (the same seam the Sun & Weather fields use; London until the per-day
-// location DB lands). Otherwise the block's own pin (mapLat/mapLng/mapPlace).
+// location DB lands). Otherwise the block's own pin + structured parts.
+//
+// The address bar is ALWAYS shown below the map (short label: address, city
+// postcode); when an "Open in" service is selected it becomes the clickable
+// link. The map itself re-centers when the pin/zoom changes (react-leaflet's
+// center prop is init-only).
 
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-
-const OPEN_LINK_LABELS: Record<string, string> = {
-  google: 'Open in Google Maps',
-  apple: 'Open in Apple Maps',
-  citymapper: 'Open in Citymapper',
-};
 
 /** Leaflet's default icon points at broken image paths in bundlers — use a
  *  divIcon teardrop instead (same marker as the "updates" map feature). */
@@ -48,31 +48,51 @@ function MapResize() {
   return null;
 }
 
-const LINK_BTN = 'inline-flex items-center gap-1 rounded bg-zinc-900 text-white px-2 py-1 text-[10px] font-medium';
+/** react-leaflet's MapContainer only uses center/zoom at init — pan when the
+ *  block's pin or zoom changes (e.g. picking a new location in the editor). */
+function MapCenterSync({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  const last = useRef(`${center[0]}|${center[1]}|${zoom}`);
+  useEffect(() => {
+    const key = `${center[0]}|${center[1]}|${zoom}`;
+    if (last.current === key) return;
+    last.current = key;
+    map.setView(center, zoom);
+  }, [center[0], center[1], zoom, map]);
+  return null;
+}
 
 export const ReportMapView: React.FC<{
   block: ReportBlock;
   ctx?: ReportCtx;
   item?: any;
-  hint?: boolean; // designer canvas: inert controls so block selection works
+  hint?: boolean; // designer canvas: anchors inert via .block-card a
 }> = ({ block, ctx, item, hint }) => {
-  let lat = block.mapLat;
-  let lng = block.mapLng;
-  let place = block.mapPlace;
+  // Resolved location: inherited from the day (getReportLocation seam) or the
+  // block's own pin + structured parts (from the location picker).
+  let loc: ReportLocation;
   if (block.mapInheritLocation && ctx) {
-    const loc = getReportLocation(ctx, item);
-    lat = loc.lat;
-    lng = loc.lng;
-    place = loc.place;
+    loc = getReportLocation(ctx, item);
+  } else {
+    loc = {
+      lat: block.mapLat ?? 0,
+      lng: block.mapLng ?? 0,
+      place: block.mapPlace,
+      address: block.mapAddress,
+      city: block.mapCity,
+      postcode: block.mapPostcode,
+      country: block.mapCountry,
+      timezone: 'UTC',
+    };
   }
-  if (lat == null || lng == null) {
-    return hint ? <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>Add a location…</div> : null;
+  if (loc.lat == null || loc.lng == null) {
+    return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>Add a location…</div>;
   }
-  const position: [number, number] = [lat, lng];
-  const showAddress = !!block.mapShowAddress;
+  const position: [number, number] = [loc.lat, loc.lng];
+  const zoom = block.mapZoom ?? 15;
   const openLink = (block.mapOpenLink || 'none') as MapLinkKind | 'none';
-  const href = openLink === 'none' ? null : reportLocationLink(openLink, { lat, lng, place, timezone: 'UTC' });
-  const addressText = reportLocationLabel({ lat, lng, place, timezone: 'UTC' });
+  const href = openLink === 'none' ? null : reportLocationLink(openLink, loc);
+  const addressText = reportLocationLinkLabel(loc);
 
   return (
     <div className="rounded-sm overflow-hidden border border-zinc-300">
@@ -80,7 +100,7 @@ export const ReportMapView: React.FC<{
         <div className="h-full w-full pointer-events-none">
           <MapContainer
             center={position}
-            zoom={block.mapZoom ?? 15}
+            zoom={zoom}
             scrollWheelZoom={false}
             dragging={false}
             zoomControl={false}
@@ -90,46 +110,27 @@ export const ReportMapView: React.FC<{
           >
             <TileLayer url={OSM_TILES} attribution={OSM_ATTRIBUTION} />
             <Marker position={position} icon={locationMarker()} interactive={false} />
+            <MapCenterSync center={position} zoom={zoom} />
             <MapResize />
           </MapContainer>
         </div>
-        {!showAddress && place && (
-          <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white/90 border border-zinc-200 rounded px-2 py-0.5 text-[10px] text-zinc-700 max-w-[70%] truncate pointer-events-none">
-            <MapPin className="w-3 h-3 text-zinc-400 shrink-0" /> {place}
-          </div>
-        )}
-        {!showAddress && href && (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className={`${LINK_BTN} absolute bottom-1.5 right-1.5 ${hint ? 'pointer-events-none' : ''}`}
-          >
-            <ExternalLink className="w-3 h-3" /> {OPEN_LINK_LABELS[openLink]}
-          </a>
-        )}
-      </div>
-      {showAddress && (
-        <div className="flex items-center gap-2 border-t border-zinc-300 bg-zinc-50 px-2 py-1">
-          <span className="flex items-center gap-1 min-w-0 truncate text-[10px]">
+        {/* Floating location label — the address (street, city postcode) on the
+            map itself; a clickable link when an "Open in" service is set. */}
+        <div className={`absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-white/90 border border-zinc-200 rounded px-2 py-0.5 text-[10px] max-w-[80%] ${hint ? 'pointer-events-none' : ''}`}>
+          <span className="flex items-center gap-1 min-w-0">
             <MapPin className="w-3 h-3 text-zinc-400 shrink-0" />
             {href ? (
-              // The address text itself is the link — prints as the location
-              // name, clickable in the PDF.
-              <a
+              <ReportLocationLink
                 href={href}
-                target="_blank"
-                rel="noreferrer"
-                className={`truncate text-zinc-700 underline underline-offset-2 ${hint ? 'pointer-events-none' : ''}`}
-              >
-                {addressText}
-              </a>
+                label={addressText}
+                className="truncate text-zinc-700 underline underline-offset-2"
+              />
             ) : (
-              <span className="truncate text-zinc-600">{addressText}</span>
+              <span className="truncate text-zinc-700">{addressText}</span>
             )}
           </span>
         </div>
-      )}
+      </div>
     </div>
   );
 };

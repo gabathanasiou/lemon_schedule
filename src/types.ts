@@ -344,6 +344,11 @@ export interface ReportBlock {
   // ribbon
   ribbonId?: string;
   ribbonDaySection?: boolean; // day context: full section (headers/totals) — on unless explicitly off
+  ribbonCallTimes?: boolean;  // show call-time cells in strips + header CALL — off unless explicitly on
+  ribbonDurations?: boolean;  // show duration cells in strips + footer shoot/break — off unless explicitly on
+  ribbonNotes?: boolean;      // show NOTE rows — on unless explicitly off
+  ribbonBreaks?: boolean;     // show BREAK rows — off unless explicitly on
+  ribbonHeaders?: boolean;    // day section header bar — off unless explicitly on
   // style
   fontFamily?: string;
   fontSize?: number;
@@ -363,11 +368,14 @@ export interface ReportBlock {
   // map
   mapLat?: number;
   mapLng?: number;
-  mapPlace?: string;             // reverse-geocoded place name
+  mapPlace?: string;             // full display string (reverse-geocoded)
+  mapAddress?: string;           // structured parts — drive the address bar format
+  mapCity?: string;
+  mapPostcode?: string;
+  mapCountry?: string;
   mapHeight?: number;            // px
   mapZoom?: number;
-  mapShowAddress?: boolean;      // render an address bar below the map
-  mapOpenLink?: 'none' | 'google' | 'apple' | 'citymapper'; // "open in maps" button
+  mapOpenLink?: 'none' | 'google' | 'apple' | 'citymapper'; // "open in maps" link
   mapInheritLocation?: boolean;  // resolve via getReportLocation(ctx, item) instead of own pin
 }
 

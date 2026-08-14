@@ -9,11 +9,15 @@
 // accumulate in stored text (visible as literal "&nbsp;" in key views and
 // breaking word-wrap on print).
 
-const ALLOWED_TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'br', 'div', 'p', 'span']);
+const ALLOWED_TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'br', 'div', 'p', 'span', 'a']);
 
 const STYLE_PROPS = new Set([
   'font-family', 'font-size', 'font-weight', 'font-style', 'text-decoration', 'text-align', 'color',
 ]);
+
+/** Anchors keep href/target/rel — but only http(s)/mailto targets. Anything
+ *  else (e.g. javascript:) unwraps to plain text. */
+const SAFE_HREF = /^(https?:\/\/|mailto:)/i;
 
 function sanitizeStyle(style: string): string {
   if (!style) return '';
@@ -33,16 +37,27 @@ function sanitizeNode(node: Node): Node {
   if (node.nodeType !== Node.ELEMENT_NODE) return document.createTextNode('');
   const el = node as HTMLElement;
   const tag = el.tagName.toLowerCase();
-  if (!ALLOWED_TAGS.has(tag)) {
-    // unwrap: replace the element with its sanitized children
+  const unwrap = (): Node => {
     const frag = document.createDocumentFragment();
     for (const child of Array.from(el.childNodes)) frag.appendChild(sanitizeNode(child));
     return frag;
+  };
+  if (!ALLOWED_TAGS.has(tag)) return unwrap();
+  if (tag === 'a') {
+    const href = el.getAttribute('href') || '';
+    if (!SAFE_HREF.test(href)) return unwrap();
   }
   const out = document.createElement(tag);
   const style = el.getAttribute('style');
   const cleaned = sanitizeStyle(style || '');
   if (cleaned) out.setAttribute('style', cleaned);
+  if (tag === 'a') {
+    out.setAttribute('href', el.getAttribute('href')!);
+    const target = el.getAttribute('target');
+    const rel = el.getAttribute('rel');
+    if (target) out.setAttribute('target', target);
+    if (rel) out.setAttribute('rel', rel);
+  }
   for (const child of Array.from(el.childNodes)) out.appendChild(sanitizeNode(child));
   return out;
 }

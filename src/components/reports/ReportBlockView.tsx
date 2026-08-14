@@ -5,6 +5,7 @@ import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, ap
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
+import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { stripRichText, normalizeSpaces } from '../../lib/richText';
 import { PageItem, stripEdgeBreaks } from '../../lib/reportPagination';
@@ -35,6 +36,26 @@ export interface ReportRenderProps {
 
 function isEmptyValue(v: string): boolean {
   return !v.trim();
+}
+
+/** Field value as a React node: plain text, or a clickable anchor when the
+ *  field is a link field (map links, emails, phones). Shared by field blocks
+ *  and table cells so links work everywhere. */
+function fieldValueNode(
+  ctx: ReportCtx,
+  fieldMap: Record<string, ReportFieldDef>,
+  field: string,
+  item: any,
+  aux?: FieldAux,
+): React.ReactNode {
+  const def = fieldMap[field];
+  const value = reportFieldValueByKey(ctx, fieldMap, field, item, aux);
+  if (!def?.link || !value || def.multiValue) return value;
+  const kind = def.linkKind || 'url';
+  const href = kind === 'mailto' ? `mailto:${value}` : kind === 'tel' ? `tel:${value}` : value;
+  if (!/^(https?:\/\/|mailto:|tel:)/i.test(href)) return value;
+  const label = kind === 'url' && def.linkLabel ? def.linkLabel(ctx, item) : value;
+  return <a href={href} target="_blank" rel="noreferrer">{label || href}</a>;
 }
 
 function visibleFor(b: ReportBlock, value: string): boolean {
@@ -103,9 +124,9 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
         const isHtml = html.includes('<');
         if (isHtml) {
-          return <div style={st} dangerouslySetInnerHTML={{ __html: html || '\u00A0' }} />;
+          return <div className="report-text-block" style={st} dangerouslySetInnerHTML={{ __html: html || '\u00A0' }} />;
         }
-        return <div style={{ ...st, whiteSpace: 'pre-wrap' }}>{text || '\u00A0'}</div>;
+        return <div className="report-text-block" style={{ ...st, whiteSpace: 'pre-wrap' }}>{text || '\u00A0'}</div>;
       }
       case 'field': {
         if (!block.field) {
@@ -123,6 +144,11 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         if (!visibleFor(block, text)) return null;
         const st: React.CSSProperties = { ...baseStyle };
         if ((block.emptyBehavior ?? 'show') === 'hideText' && isEmptyValue(text)) st.display = 'none';
+        // Link fields render a clickable anchor (prefix/suffix stay outside).
+        const node = fieldValueNode(ctx, fieldMap, block.field, item, blockAux);
+        if (node !== value) {
+          return <div style={st}>{block.prefix}{node}{block.suffix}</div>;
+        }
         return <div style={st}>{text || '\u00A0'}</div>;
       }
       case 'repeat': {
@@ -199,15 +225,11 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
           return <div style={{ ...st, color: '#8f8f8f', textDecoration: 'underline', textDecorationColor: '#b6b6bd' }}>{label || rawUrl || '\u00A0'}</div>;
         }
         return (
-          <a
+          <ReportLocationLink
             href={safeUrl}
-            target="_blank"
-            rel="noreferrer"
+            label={label || rawUrl}
             style={{ ...st, color: '#1d4ed8', textDecoration: 'underline', cursor: 'pointer' }}
-            className={hint ? 'pointer-events-none' : ''}
-          >
-            {label || rawUrl}
-          </a>
+          />
         );
       }
       default:
@@ -540,7 +562,7 @@ const TableColumnsGrid: React.FC<{
             <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {showKeys
                 ? keyCell(c.field)
-                : (reportFieldValueByKey(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
+                : (fieldValueNode(ctx, fieldMap, c.field, it, { ...aux, index: perItemIndex ?? i, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
             </div>
           ))}
         </div>
@@ -625,7 +647,7 @@ const TableRowsMatrix: React.FC<{
                   <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
                     {showKeys
                       ? keySpan(identityField)
-                      : (reportFieldValueByKey(ctx, fieldMap, identityField, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
+                      : (fieldValueNode(ctx, fieldMap, identityField, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
                   </div>
                 );
               })}
@@ -642,7 +664,7 @@ const TableRowsMatrix: React.FC<{
                   <div key={ii} style={{ ...baseStyle, ...cellPad, ...(a.bold ? { fontWeight: 700 } : {}), ...(a.italic ? { fontStyle: 'italic' } : {}), flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
                     {showKeys
                       ? keySpan(a.field)
-                      : (reportFieldValueByKey(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
+                      : (fieldValueNode(ctx, fieldMap, a.field, it, { ...aux, index: gIndex, counterStart: block.counterStart ?? aux?.counterStart }) || '\u00A0')}
                   </div>
                 );
               })}

@@ -14,7 +14,7 @@ import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon, Clock, Timer, StickyNote, Coffee, PanelTop, Square } from 'lucide-react';
 import { LocationPickerModal } from './LocationPickerModal';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
@@ -120,6 +120,62 @@ export const StructureControls: React.FC<StructureControlsProps> = ({ readOnly, 
   </>
 );
 
+// ---- link menu (text blocks): apply/remove a hyperlink to the selection ------
+
+const LinkMenu: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | null>; disabled: boolean }> = ({ editorRef, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const apply = () => {
+    const trimmed = url.trim();
+    if (trimmed) {
+      editorRef.current?.exec('link', trimmed);
+      setOpen(false);
+    }
+  };
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={setOpen}
+      theme="dark"
+      width="w-64"
+      trigger={
+        <button
+          type="button"
+          disabled={disabled}
+          onMouseDown={e => e.preventDefault()}
+          className={`${TB_TOGGLE} ${TB_TOGGLE_OFF}`}
+          title="Link"
+          aria-label="Link"
+        >
+          <LinkIcon className="w-3 h-3" />
+        </button>
+      }
+    >
+      <div className="p-2 flex flex-col gap-2">
+        <input
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="https://…"
+          autoFocus
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } }}
+          className={TB_INPUT + ' w-full'}
+        />
+        <div className="flex items-center gap-2">
+          <button onClick={apply} className={TB_BTN} disabled={!url.trim()}>
+            Apply
+          </button>
+          <button
+            onClick={() => { editorRef.current?.exec('unlink'); setOpen(false); }}
+            className={TB_BTN}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </DropdownMenu>
+  );
+};
+
 // ---- rich-text formatting toolbar (selection-aware, via the editor ref) --------
 
 const RT_COLORS = ['#000000', '#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed', '#6b7280'];
@@ -148,6 +204,8 @@ export const RichTextToolbar: React.FC<{
       <Tooltip content="Strikethrough">
         <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('strikeThrough')} className={btn}><Strikethrough className="w-3 h-3" /></button>
       </Tooltip>
+      <div className={TB_DIVIDER} />
+      <LinkMenu editorRef={editorRef} disabled={disabled} />
       <div className={TB_DIVIDER} />
       <DropdownMenu
         open={colorOpen}
@@ -584,6 +642,48 @@ const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disable
   );
 };
 
+/** Ribbon block visibility toggles — compact icon row, same style as the
+ *  column chrome's B/I/align toggles. */
+const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, disabled, onPatch }) => {
+  const toggles = [
+    { key: 'ribbonDaySection', icon: <Square className="w-3 h-3" />, title: 'Day section (header & totals)', on: block.ribbonDaySection !== false },
+    { key: 'ribbonHeaders', icon: <PanelTop className="w-3 h-3" />, title: 'Day header bar', on: block.ribbonHeaders === true },
+    { key: 'ribbonCallTimes', icon: <Clock className="w-3 h-3" />, title: 'Call times (strips & day header)', on: block.ribbonCallTimes === true },
+    { key: 'ribbonDurations', icon: <Timer className="w-3 h-3" />, title: 'Durations (strips & day totals)', on: block.ribbonDurations === true },
+    { key: 'ribbonNotes', icon: <StickyNote className="w-3 h-3" />, title: 'Note rows', on: block.ribbonNotes !== false },
+    { key: 'ribbonBreaks', icon: <Coffee className="w-3 h-3" />, title: 'Break rows', on: block.ribbonBreaks === true },
+  ];
+  return (
+    <div className="flex items-center gap-1 flex-nowrap min-w-max">
+      {toggles.slice(0, 2).map(t => (
+        <Tooltip key={t.key} content={t.title}>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
+            className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+          >
+            {t.icon}
+          </button>
+        </Tooltip>
+      ))}
+      <div className={TB_DIVIDER} />
+      {toggles.slice(2).map(t => (
+        <Tooltip key={t.key} content={t.title}>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
+            className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+          >
+            {t.icon}
+          </button>
+        </Tooltip>
+      ))}
+    </div>
+  );
+};
+
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
@@ -821,11 +921,8 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       <ContentRow key="ribbon" label="Ribbon design">
         <RibbonDesignMenu block={block} project={project} disabled={disabled} onPatch={onPatch} />
       </ContentRow>,
-      <ContentRow key="daySection" label="Day section">
-        <label className={checkboxCls}>
-          <input type="checkbox" checked={block.ribbonDaySection !== false} disabled={disabled} onChange={e => onPatch({ ribbonDaySection: e.target.checked })} />
-          Day section (header & totals)
-        </label>
+      <ContentRow key="show" label="Show">
+        <RibbonShowToggles block={block} disabled={disabled} onPatch={onPatch} />
       </ContentRow>,
     );
   }
@@ -929,7 +1026,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               <MapPin className="w-3 h-3" /> Change
             </ToolButton>
             <ToolButton
-              onClick={() => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined })}
+              onClick={() => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined, mapAddress: undefined, mapCity: undefined, mapPostcode: undefined, mapCountry: undefined })}
               disabled={disabled}
               title="Clear location"
               className={`${TB_BTN_ICON} ${TB_DANGER}`}
@@ -962,12 +1059,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           Use the day's location
         </label>
       </ContentRow>,
-      <ContentRow key="address" label="Address">
-        <label className={checkboxCls}>
-          <input type="checkbox" checked={!!block.mapShowAddress} disabled={disabled} onChange={e => onPatch({ mapShowAddress: e.target.checked })} />
-          Show address below map
-        </label>
-      </ContentRow>,
       <ContentRow key="open" label="Open in">
         <Seg
           value={block.mapOpenLink || 'none'}
@@ -980,6 +1071,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           onChange={v => onPatch(v === 'none' ? { mapOpenLink: undefined } : { mapOpenLink: v as 'google' | 'apple' | 'citymapper' })}
           disabled={disabled}
         />
+      </ContentRow>,
+      <ContentRow key="note" label="Address">
+        <span className="text-[10px] text-zinc-500">Shown as a floating label on the map — clickable when an open-in service is set.</span>
       </ContentRow>,
     );
   }
@@ -997,7 +1091,15 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           open={locationOpen}
           onClose={() => setLocationOpen(false)}
           onConfirm={loc => {
-            onPatch({ mapLat: loc.lat, mapLng: loc.lng, mapPlace: loc.place });
+            onPatch({
+              mapLat: loc.lat,
+              mapLng: loc.lng,
+              mapPlace: loc.place,
+              mapAddress: loc.address,
+              mapCity: loc.city,
+              mapPostcode: loc.postcode,
+              mapCountry: loc.country,
+            });
             setLocationOpen(false);
           }}
         />
