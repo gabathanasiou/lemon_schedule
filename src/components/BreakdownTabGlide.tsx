@@ -37,7 +37,9 @@ import { usePortalTarget, useCurrentDocument } from '../lib/popoutTarget';
 import { useMarqueeMode, getMarqueeMode } from '../lib/useLongPressMenu';
 import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { planPaste } from '../lib/glidePaste';
-import { createGlideCellEditor } from '../lib/glideEditor';
+import { createGlideCellEditor, type GlideColumnEditor } from '../lib/glideEditor';
+import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
+import { useGlideColumnWidths } from '../lib/glideColumns';
 import { createBlankScene } from '../lib/sceneFactory';
 
 const BREAKDOWN_CATEGORIES = [
@@ -45,31 +47,6 @@ const BREAKDOWN_CATEGORIES = [
   'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',
 ];
 
-// Native paste interception for the grid. Glide binds its own paste handler on
-// the window in the capture phase when the DataEditor mounts — AFTER this
-// module is imported — and it pastes from an async navigator.clipboard.read(),
-// so a paste event we also handle would paste twice (its async result lands
-// last and wins). Registering here, before any DataEditor exists, guarantees
-// our capture listener runs first, claims the event, and Glide never sees it.
-// Active only while a glide breakdown is mounted (ref + counter guard).
-let glideMounted = 0;
-const glidePasteHandlersRef: { pasteText: (text: string) => void } = { pasteText: () => {} };
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('paste', (e: ClipboardEvent) => {
-    if (glideMounted === 0) return;
-    const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    const text = e.clipboardData?.getData('text/plain');
-    if (!text) return;
-    e.preventDefault();
-    // Glide's own paste handler sits on the same window in the same capture
-    // phase — stopPropagation alone can't stop it (same-node listeners still
-    // run), and its async clipboard read would paste a second time on top.
-    e.stopImmediatePropagation();
-    glidePasteHandlersRef.pasteText(text);
-  }, true);
-}
 const BREAKDOWN_LABELS: Record<string, string> = {
   set: 'Set', backgroundActors: 'Background Actors', stunts: 'Stunts', vehicles: 'Vehicles',
   props: 'Props', wardrobe: 'Wardrobe', makeup: 'Makeup & Hair',
@@ -117,11 +94,7 @@ export function GlideBreakdownTab({
     return labels;
   }, [project.customCategories, project.categoryLabels]);
 
-  const STORAGE_KEY = `lemon_schedule_glide_cols_${project.id}`;
-
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
-  });
+  const [columnWidths, setColumnWidth] = useGlideColumnWidths(`lemon_schedule_glide_cols_${project.id}`);
 
   const [fontSize, setFontSizeBase] = useSpreadsheetFontSize(IS_COARSE ? 12.5 : undefined);
   const [fontVersion, setFontVersion] = useState(0);
@@ -144,15 +117,15 @@ export function GlideBreakdownTab({
   COLUMNSRef.current = COLUMNS;
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(columnWidths));
-  }, [STORAGE_KEY, columnWidths]);
+    localStorage.setItem(`lemon_schedule_glide_cols_${project.id}`, JSON.stringify(columnWidths));
+  }, [project.id, columnWidths]);
 
   const onColumnResize = useCallback((_col: any, w: number, ci: number) => {
     const key = COLUMNSRef.current[ci]?.key;
     if (!key) return;
     const scale = fontSize / SS_FONT_SIZE_DEFAULT;
-    setColumnWidths(prev => ({ ...prev, [key]: Math.max(40, Math.round(w / scale)) }));
-  }, [fontSize]);
+    setColumnWidth(key, Math.round(w / scale));
+  }, [fontSize, setColumnWidth]);
 
   const glideColumns: GridColumn[] = useMemo(() => {
     const scale = fontSize / SS_FONT_SIZE_DEFAULT;
@@ -505,20 +478,35 @@ export function GlideBreakdownTab({
     }
   }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber]);
 
+  const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
+    const editors: Record<string, GlideColumnEditor> = {
+      intExt: { kind: 'enum', options: intExtOptions, placeholder: 'INT, EXT, D/E...' },
+      dayNight: { kind: 'enum', options: dayNightOptions, placeholder: 'DAY, NIGHT, MORNING...' },
+      set: { kind: 'entity', mode: 'single', uppercase: true, keepAlphabetical: true, items: setItems, placeholder: 'Set' },
+      cast: {
+        kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast',
+        renderItem: (item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>),
+      },
+    };
+    for (const cat of allBreakdownCategories) {
+      if (cat === 'set' || cat === 'cast') continue;
+      editors[cat] = {
+        kind: 'entity',
+        mode: isMultiValue(cat, project.customCategories) ? 'multi' : 'single',
+        items: breakdownEditorItems.get(cat) || [],
+        placeholder: allBreakdownLabels[cat] || cat,
+      };
+    }
+    return editors;
+  }, [intExtOptions, dayNightOptions, setItems, castItems, allBreakdownCategories, allBreakdownLabels, project.customCategories, breakdownEditorItems]);
+
   const provideEditor = useMemo(() => createGlideCellEditor({
     readOnlyRef,
     columns: COLUMNS,
-    allBreakdownCategories,
-    allBreakdownLabels,
-    customCategories: project.customCategories,
-    scenesRef,
-    intExtOptions,
-    dayNightOptions,
-    setItems,
-    castItems,
-    breakdownEditorItems,
+    getValue: (row: number, colKey: string) => String(scenesRef.current[row]?.[colKey] ?? ''),
+    editors: glideEditors,
     portalRef,
-  }), [COLUMNS, allBreakdownCategories, allBreakdownLabels, project.customCategories, intExtOptions, dayNightOptions, setItems, castItems, breakdownEditorItems]);
+  }), [COLUMNS, glideEditors]);
 
   const onDelete = useCallback((sel: GridSelection): boolean => {
     if (selectModeRef.current) return false;
@@ -724,10 +712,9 @@ export function GlideBreakdownTab({
     paste: () => void;
   }>({ copy: () => {}, cut: () => {}, paste: () => {} });
   clipboardShortcutsRef.current = { copy: handleCopy, cut: handleCut, paste: handlePasteFromMenu };
-  glidePasteHandlersRef.pasteText = pasteTextAtSelection;
+  useGlidePasteInterception(pasteTextAtSelection);
 
   useEffect(() => {
-    glideMounted++;
     const doc = currentDocument;
     const isEditableTarget = (t: EventTarget | null) => {
       if (!(t instanceof HTMLElement)) return false;
@@ -751,7 +738,6 @@ export function GlideBreakdownTab({
     };
     doc.addEventListener('keydown', onKeyDown, true);
     return () => {
-      glideMounted--;
       doc.removeEventListener('keydown', onKeyDown, true);
     };
   }, [currentDocument]);

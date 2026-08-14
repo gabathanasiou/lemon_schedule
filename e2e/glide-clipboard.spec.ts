@@ -127,7 +127,7 @@ test.describe('Glide Breakdown clipboard', () => {
     await expect.poll(async () => (await sceneData(page, row))?.num, { timeout: 8000 }).toBe(num);
   };
 
-  const FIRST_ROW_CLIP = /^1\t7\/8\t\tEXT\tCITY STREET\tDAY\t\t11\t/;
+  const FIRST_ROW_CLIP = /^1\t7\/8\t\tEXT\tCITY STREET\tDAY\t\t4, 11\t/;
 
   test('CTX: Copy row', async ({ page }) => {
     await openGlide(page);

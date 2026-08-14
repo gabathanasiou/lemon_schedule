@@ -2,34 +2,37 @@ import React, { useRef } from 'react';
 import { GridCellKind, type Item } from '@glideapps/glide-data-grid';
 import { AutocompleteDropdown } from '../components/AutocompleteDropdown';
 import { EntityDropdown } from '../components/EntityDropdown';
-import { isMultiValue } from './categories';
-import type { CustomCategoryDef } from '../types';
+
+export type GlideColumnEditor =
+  | { kind: 'enum'; options: string[]; placeholder?: string }
+  | {
+      kind: 'entity';
+      mode: 'single' | 'multi';
+      displayMode?: 'id' | 'name';
+      items: { id: string; name: string }[];
+      placeholder?: string;
+      uppercase?: boolean;
+      keepAlphabetical?: boolean;
+      renderItem?: (item: any, selected: boolean) => React.ReactNode;
+    };
 
 export interface GlideEditorOptions {
   readOnlyRef: React.MutableRefObject<boolean>;
   columns: { key: string }[];
-  allBreakdownCategories: string[];
-  allBreakdownLabels: Record<string, string>;
-  customCategories: CustomCategoryDef[] | undefined;
-  scenesRef: React.MutableRefObject<any[]>;
-  intExtOptions: string[];
-  dayNightOptions: string[];
-  setItems: { id: string; name: string }[];
-  castItems: { id: string; name: string }[];
-  breakdownEditorItems: Map<string, { id: string; name: string }[]>;
+  /** Reads the stored cell value for a grid row (used for skipComma semantics). */
+  getValue: (row: number, colKey: string) => string;
+  /** Per-column editor config; columns without an entry use Glide's default text editor. */
+  editors: Record<string, GlideColumnEditor>;
   portalRef: React.MutableRefObject<HTMLElement | null>;
 }
 
 /**
- * Builds Glide's provideEditor callback: inline entity dropdowns for
- * cast/set/intExt/dayNight/custom-category columns. Uses the component's
- * row-marker offset (dataCol = col - 1) per Glide's provideEditor contract.
+ * Builds Glide's provideEditor callback: inline enum/entity dropdowns for the
+ * configured columns. Uses the component's row-marker offset (dataCol = col - 1)
+ * per Glide's provideEditor contract. Shared by the scenes and crew glides.
  */
 export function createGlideCellEditor(opts: GlideEditorOptions) {
-  const {
-    readOnlyRef, columns, allBreakdownCategories, allBreakdownLabels, customCategories,
-    scenesRef, intExtOptions, dayNightOptions, setItems, castItems, breakdownEditorItems, portalRef,
-  } = opts;
+  const { readOnlyRef, columns, getValue, editors, portalRef } = opts;
 
   return (cellData: any & { location?: Item }): any => {
     if (readOnlyRef.current) return undefined;
@@ -40,10 +43,10 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
     const colDef = columns[dataCol];
     if (!colDef) return undefined;
     const colKey = colDef.key;
-    const isEntity = colKey === 'cast' || colKey === 'set' || colKey === 'intExt' || colKey === 'dayNight' || allBreakdownCategories.includes(colKey);
-    if (!isEntity) return undefined;
+    const editorCfg = editors[colKey];
+    if (!editorCfg) return undefined;
 
-    const storedVal = String(scenesRef.current[row]?.[colKey] ?? '');
+    const storedVal = String(getValue(row, colKey) ?? '');
     const skipComma = storedVal !== (cellData.data ?? '');
 
     const editor = (p: any) => {
@@ -70,20 +73,11 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
         onFinishedEditing(latestRef.current, [1, 0] as any);
       };
 
-      if (colKey === 'intExt') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={intExtOptions} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="INT, EXT, D/E..." />;
+      if (editorCfg.kind === 'enum') {
+        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={editorCfg.options} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={editorCfg.placeholder} />;
       }
-      if (colKey === 'dayNight') {
-        return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={dayNightOptions} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="DAY, NIGHT, MORNING..." />;
-      }
-      if (colKey === 'set') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={setItems} mode="single" uppercase keepAlphabetical skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Set" className="text-xs" />;
-      }
-      if (colKey === 'cast') {
-        return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={castItems} mode="multi" displayMode="id" skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder="Cast" className="text-xs" renderItem={(item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>)} />;
-      }
-      const categoryItems = breakdownEditorItems.get(colKey) || [];
-      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={categoryItems} mode={isMultiValue(colKey, customCategories) ? 'multi' : 'single'} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={allBreakdownLabels[colKey] || colKey} className="text-xs" />;
+      const cfg = editorCfg;
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} />;
     };
     return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };
