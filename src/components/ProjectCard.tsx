@@ -83,7 +83,7 @@ export default function ProjectCard({
               )}
               <h3 className={`font-semibold truncate ${PM_TITLE}`}>{p.title}</h3>
               {p.driveFileId && (
-                <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} title="Cloud project" />
+                <Cloud className={`${PM_ICON_SM} text-zinc-500 shrink-0`} aria-label="Cloud project" />
               )}
               {isActive && (
                 <CheckCircle2 className={`${PM_ICON} text-emerald-400 shrink-0`} />

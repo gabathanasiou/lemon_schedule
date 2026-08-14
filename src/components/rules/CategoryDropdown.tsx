@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown } from 'lucide-react';
 import { CAT_ICONS, getCustomIcon } from '../../lib/categories';
@@ -19,6 +19,17 @@ export const CategoryDropdown: React.FC<{
   itemClass: string;
   minWidth?: string;
 }> = ({ value, onChange, allCategoryKeys, categoryLabelLookup, customCategories, open, onOpenChange, btnClass, itemClass, minWidth }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => {
+      const active = contentRef.current?.querySelector(`[data-cat="${value}"]`) as HTMLElement | null;
+      if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, value]);
+
   return (
     <RadixDropdownMenu.Root modal={true} open={open} onOpenChange={onOpenChange}>
       <RadixDropdownMenu.Trigger asChild>
@@ -29,18 +40,11 @@ export const CategoryDropdown: React.FC<{
       </RadixDropdownMenu.Trigger>
       <RadixDropdownMenu.Portal>
         <RadixDropdownMenu.Content
+          ref={contentRef}
           className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[160px]"
           align="start"
           sideOffset={4}
           collisionPadding={8}
-          onOpenAutoFocus={(e) => {
-            e.preventDefault();
-            const content = e.currentTarget as HTMLElement;
-            requestAnimationFrame(() => {
-              const active = content.querySelector(`[data-cat="${value}"]`) as HTMLElement | null;
-              if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
-            });
-          }}
         >
           {allCategoryKeys.map(({ key, isCustom }) => {
             const Icon = isCustom

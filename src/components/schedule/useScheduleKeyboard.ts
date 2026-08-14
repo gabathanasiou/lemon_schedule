@@ -137,7 +137,7 @@ export function useScheduleKeyboard(config: ScheduleKeyboardConfig) {
       const isNoteOrBreak = rowType === 'NOTE' || rowType === 'BREAK';
       const colSelector = isNoteOrBreak ? (e.shiftKey ? 'text' : 'duration') : 'duration';
       const selector = `[data-row-id="${selectedId}"] [data-col="${colSelector}"]`;
-      const input = scheduleScrollRef.current?.querySelector<HTMLElement>(selector);
+      const input = scheduleScrollRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
       input?.focus();
       input?.select();
     }

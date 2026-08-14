@@ -108,7 +108,7 @@ export const CastTab: React.FC = () => {
   }, [widthVersion]);
 
   const data = useMemo((): CellBase[][] => {
-    const rows = sorted.map(m => [
+    const rows: CellBase[][] = sorted.map(m => [
       { value: m.id },
       { value: m.name, DataEditor: NameEditor },
       { value: '', readOnly: true, DataViewer: DeleteViewer },

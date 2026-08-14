@@ -92,7 +92,7 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
   const tabBarRef = useRef<HTMLDivElement>(null);
   const previewSectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const cellClipboardRef = useRef<{ field: string; align?: string; wrap?: boolean; truncation?: boolean; overflowVisible?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
+  const cellClipboardRef = useRef<{ field: string; align?: RibbonCell['align']; wrap?: boolean; truncation?: boolean; overflowVisible?: boolean; prefix?: string; suffix?: string; textContent?: string; verticalAlign?: string } | null>(null);
 
   const initialRows = cloneRows(activeDesign?.rows || []);
   const [rows, setRows] = useState<RibbonRow[]>(cloneRows(initialRows));

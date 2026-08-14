@@ -87,6 +87,7 @@ interface EntityDropdownProps {
   portalTarget?: HTMLElement | null;
   /** Skip the auto-append of ', ' when opening a cell - used when a key press replaced the cell value */
   skipComma?: boolean;
+  style?: React.CSSProperties;
 }
 
 /**
@@ -216,6 +217,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   uppercase = false,
   portalTarget,
   skipComma = false,
+  style,
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -447,7 +449,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         onBlur={() => commit()}
         placeholder={standalone ? placeholder : ''}
         className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')} ${standalone ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
-        style={standalone ? undefined : { color: 'transparent', caretColor: '#2563eb' }}
+        style={standalone ? style : { ...style, color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
           if (e.key === 'Tab') {
@@ -561,7 +563,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         }}
       />
       {!standalone && (
-        <span className={`absolute inset-0 truncate pointer-events-none whitespace-nowrap text-left ${displayValue ? '' : 'italic opacity-50'}`}>
+        <span className={`absolute inset-0 truncate pointer-events-none whitespace-nowrap text-left ${displayValue ? '' : 'italic opacity-50'}`} style={style}>
           {displayValue || placeholder}
         </span>
       )}

@@ -17,7 +17,8 @@ export const CellInput: React.FC<{
   suffix?: string,
   prefix?: string,
   noTruncate?: boolean,
-}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, prefix, noTruncate }) => {
+  style?: React.CSSProperties,
+}> = ({ value, onChange, className = '', placeholder, clearOnType, col, readOnly, onBlur, autoFocus, multiline, navigateOnEnter = true, onRowNavigate, suffix, prefix, noTruncate, style }) => {
   const inputRef = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   const rawValue = value?.toString() || '';
   const [localVal, setLocalVal] = useState(rawValue);
@@ -161,7 +162,7 @@ export const CellInput: React.FC<{
       {prefix && <span className={affixClass}>{prefix}{localVal ? '\u00A0' : ''}</span>}
       <div className="relative grid items-center min-w-0 flex-1" style={{ gridTemplateColumns: gridCol }}>
         {readOnly ? (
-          <span className={`col-start-1 row-start-1 ${multiline ? '' : 'truncate'} ${className}`}>
+          <span className={`col-start-1 row-start-1 ${multiline ? '' : 'truncate'} ${className}`} style={style}>
             {rawValue ? `${rawValue}${suffix ? `\u00A0${suffix}` : ''}` : placeholder}
           </span>
         ) : multiline ? (
@@ -185,7 +186,7 @@ export const CellInput: React.FC<{
             readOnly={readOnly}
             rows={1}
             className={`${inputClass} resize-none overflow-hidden whitespace-pre-wrap selection:bg-black/15`}
-            style={{ color: 'transparent', caretColor: '#2563eb' }}
+            style={{ ...style, color: 'transparent', caretColor: '#2563eb' }}
           />
         ) : (
           <input
@@ -207,11 +208,11 @@ export const CellInput: React.FC<{
             onPointerUp={handlePointerUp}
             readOnly={readOnly}
             className={`${inputClass} ${noTruncate ? 'overflow-visible' : 'text-ellipsis overflow-hidden whitespace-nowrap'} col-start-1 row-start-1 h-[1lh] selection:bg-black/15`}
-            style={{ color: 'transparent', caretColor: '#2563eb' }}
+            style={{ ...style, color: 'transparent', caretColor: '#2563eb' }}
           />
         )}
         {!readOnly && (
-          <span className={`col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${localVal ? '' : 'italic opacity-50'} ${spanClassName}`}>
+          <span className={`col-start-1 row-start-1 whitespace-${multiline ? 'pre-wrap' : 'pre'} ${multiline ? '' : 'truncate'} pointer-events-none ${localVal ? '' : 'italic opacity-50'} ${spanClassName}`} style={style}>
             {localVal ? `${localVal}${suffix ? `\u00A0${suffix}` : ''}` : (placeholder || ' ')}
           </span>
         )}

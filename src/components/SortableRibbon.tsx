@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Scene, ScheduleRow, RibbonRow, RibbonCell, RuleViolation, SceneColorPalette, CustomCategoryDef, ProjectElement } from '../types';
-import { ComputedRow, formatElapsedCaption } from '../lib/daybreakUtils';
+import { ComputedRowInput, formatElapsedCaption } from '../lib/daybreakUtils';
 import { formatDuration, parseDuration, parsePageCount, formatPageCount } from '../lib/utils';
 import { getFieldValue, getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, formatCellText, getNoteBreakPad, sceneStyle, getSelectedStripColors, getNoteBannerColors, getDayHeaderColors, getDayFooterColors, getFallbackStripColors, getCellBorderProps, computeMergeGroups, getIntExtOptions, getDayNightOptions } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
@@ -52,7 +52,7 @@ const sortableRowPropsEqual = (a: any, b: any) => {
 };
 
 const SortableRowContent: React.FC<{ 
-  row: ComputedRow,
+  row: ComputedRowInput,
   scenes: Scene[],
   scene?: Scene | null,
   isSelected?: boolean,
@@ -662,7 +662,7 @@ const sortableRibbonPropsEqual = (a: any, b: any) => {
 export const SortableRibbon = React.memo(({
   row, scenes, scene, isOverlay, isSelected, isFaded, onSelectToggle, isCompact, isEditable, focusField, sceneViolations, sectionViolations, nextSectionViolations, focusedRowId, onDoubleClick, onRowNavigate, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding, cellBorders, nextDaybreakCallTime, onUpdateNextDaybreak, nextDateStr, readOnly, dispatch, activeVersionId, palette, castMembers, breakdownElements, customCategories, hiddenCategories,
 }: {
-  row: ScheduleRow & { computedCallTime?: string, computedElapsed?: number, computedDayElapsed?: number, previousBreakEndElapsed?: number },
+  row: ComputedRowInput,
   scenes: Scene[],
   scene?: Scene | null,
   isOverlay?: boolean,

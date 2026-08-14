@@ -8,6 +8,7 @@ import { CellBorders } from '../lib/persist';
 import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDayFooterColors, getFallbackStripColors, computeMergeGroups } from '../lib/ribbonUtils';
 import { checkSection } from '../lib/rulesEngine';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
+import { ComputedRowInput } from '../lib/daybreakUtils';
 
 /** Rows per virtualized chunk (≈ 12 × 43px, matched by the CSS intrinsic size). */
 const CHUNK_SIZE = 12;
@@ -23,7 +24,7 @@ function getSceneCardStyle(scene?: Scene | null, palette?: SceneColorPalette): R
   return resolveSceneColor(scene.intExt || '', scene.dayNight || '', palette?.sceneColors, getFallbackStripColors(palette), scene, palette?.colorRules);
 }
 
-const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ row, scenes, compact, ribbon, colWidths, palette }) => {
+const GhostCard: React.FC<{ row: ComputedRowInput, scenes: Scene[]; compact?: boolean; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ row, scenes, compact, ribbon, colWidths, palette }) => {
   const h = compact ? 'min-h-[30px]' : 'min-h-[44px]';
   const sz = compact ? 'text-[7pt]' : '';
   const noteColors = getNoteBannerColors(palette);
@@ -135,7 +136,7 @@ const GhostCard: React.FC<{ row: ScheduleRow, scenes: Scene[]; compact?: boolean
   );
 };
 
-export const StackedGhosts: React.FC<{ rows: ScheduleRow[]; scenes: Scene[]; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ rows, scenes, ribbon, colWidths, palette }) => {
+export const StackedGhosts: React.FC<{ rows: ComputedRowInput[]; scenes: Scene[]; ribbon?: RibbonRow[]; colWidths?: number[]; palette?: SceneColorPalette }> = ({ rows, scenes, ribbon, colWidths, palette }) => {
   if (rows.length === 0) return null;
   if (rows.length === 1) return <GhostCard row={rows[0]} scenes={scenes} ribbon={ribbon} colWidths={colWidths} palette={palette} />;
   const maxShow = Math.min(rows.length, 5);

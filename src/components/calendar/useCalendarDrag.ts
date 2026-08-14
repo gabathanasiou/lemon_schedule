@@ -25,7 +25,7 @@ export interface UseCalendarDragConfig {
   sections: { index: number; rows: ScheduleRow[]; daybreakRow?: ScheduleRow }[];
   dateSectionMap: Map<string, number>;
   sectionDateMap: Map<number, string>;
-  nonShootDateMap: Map<string, boolean>;
+  nonShootDateMap: Map<string, string>;
   flashDays: (entries: [number, 'a' | 'b'][]) => void;
   dispatch: React.Dispatch<any>;
 }

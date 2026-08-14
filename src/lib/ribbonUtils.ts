@@ -47,9 +47,9 @@ export const ALL_FIELDS: FieldDef[] = [
 export const FIELD_MAP = Object.fromEntries(ALL_FIELDS.map(f => [f.key, f])) as Record<string, FieldDef>;
 export const CATEGORIES = [...new Set(ALL_FIELDS.map(f => f.category))];
 
-export function getAlign(cell?: RibbonCell): string {
+export function getAlign(cell?: RibbonCell): React.CSSProperties['textAlign'] {
   if (cell?.align) return cell.align;
-  return FIELD_MAP[cell?.field || '']?.align || 'left';
+  return (FIELD_MAP[cell?.field || '']?.align as React.CSSProperties['textAlign']) || 'left';
 }
 
 export function getRibbonCellBaseStyle(cell: RibbonCell, cellPaddingV?: number, cellPaddingH?: number, span = 1): React.CSSProperties {

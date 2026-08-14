@@ -17,6 +17,7 @@ interface SelectDropdownProps {
   standalone?: boolean;
   autoFocus?: boolean;
   onTabExit?: (el: HTMLElement) => void;
+  style?: React.CSSProperties;
 }
 
 export const SelectDropdown: React.FC<SelectDropdownProps> = ({
@@ -30,6 +31,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   standalone = false,
   autoFocus = false,
   onTabExit,
+  style,
 }) => {
   const [open, setOpen] = useState(false);
   const initialIdx = options.indexOf(value);
@@ -90,7 +92,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
         onClick={() => { setHighlightedIndex(options.indexOf(value) >= 0 ? options.indexOf(value) : 0); handleOpen(); }}
         placeholder={standalone ? placeholder : ''}
         className={`${inputClasses} ${standalone ? '' : (className || '')}`}
-        style={standalone ? undefined : { color: 'transparent', caretColor: '#2563eb' }}
+        style={standalone ? style : { ...style, color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightedIndex(i => Math.min(i + 1, options.length - 1)); }
           if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightedIndex(i => Math.max(i - 1, 0)); }
@@ -103,7 +105,7 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
         }}
       />
       {!standalone && (
-        <span className={`absolute inset-0 truncate pointer-events-none uppercase whitespace-nowrap text-left ${value ? '' : 'italic opacity-50'}`}>
+        <span className={`absolute inset-0 truncate pointer-events-none uppercase whitespace-nowrap text-left ${value ? '' : 'italic opacity-50'}`} style={style}>
           {value || placeholder}
         </span>
       )}

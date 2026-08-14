@@ -1,5 +1,5 @@
 import React from 'react';
-import { ComputedRow } from '../../lib/daybreakUtils';
+import { ComputedRowInput } from '../../lib/daybreakUtils';
 import { formatDuration, parseDuration } from '../../lib/utils';
 import { getRibbonCellBaseStyle, getNoteBreakPad } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
@@ -7,7 +7,7 @@ import { CellInput } from '../CellInput';
 import DurationKeypad from '../DurationKeypad';
 import { RowRenderCtx } from './rowRenderTypes';
 
-export default function SortableRowBreak({ row, ctx }: { row: ComputedRow; ctx: RowRenderCtx }) {
+export default function SortableRowBreak({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
     cellPaddingV, cellPaddingH, edgePadding, palette, nb, sel,

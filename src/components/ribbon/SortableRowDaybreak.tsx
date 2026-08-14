@@ -1,12 +1,12 @@
 import React from 'react';
-import { ComputedRow } from '../../lib/daybreakUtils';
+import { ComputedRowInput } from '../../lib/daybreakUtils';
 import { formatDuration, formatPageCount } from '../../lib/utils';
 import { getRibbonCellBaseStyle, getNoteBreakPad, getDayHeaderColors, getDayFooterColors, getSelectedStripColors } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import { CellInput } from '../CellInput';
 import { RowRenderCtx } from './rowRenderTypes';
 
-export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRow; ctx: RowRenderCtx }) {
+export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
     isSelected, isFaded, isCompact, focusedRowId, onRowNavigate, ribbon, colWidths,
     cellPaddingV, cellPaddingH, edgePadding, palette,

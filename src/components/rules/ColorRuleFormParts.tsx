@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
 import { ColorRuleCondition, SceneColorEntry, SceneColorPalette, ProjectElement } from '../../types';
@@ -54,6 +54,16 @@ export function RuleConditionRow({
 }: RuleConditionRowProps) {
   const { XSZ, CREM_BTN_COND, CREM_DD_ITEM } = sizes;
   const isCast = cond.category === 'cast';
+  const elContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openDropdown !== `el-${idx}`) return;
+    const raf = requestAnimationFrame(() => {
+      const active = elContentRef.current?.querySelector(`[data-el="${cond.elementId}"]`) as HTMLElement | null;
+      if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [openDropdown, idx, cond.elementId]);
 
   return (
     <div className="flex items-center gap-2">
@@ -84,18 +94,11 @@ export function RuleConditionRow({
         </RadixDropdownMenu.Trigger>
         <RadixDropdownMenu.Portal>
           <RadixDropdownMenu.Content
+            ref={elContentRef}
             className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[160px]"
             align="start"
             sideOffset={4}
             collisionPadding={8}
-            onOpenAutoFocus={(e) => {
-              e.preventDefault();
-              const content = e.currentTarget as HTMLElement;
-              requestAnimationFrame(() => {
-                const active = content.querySelector(`[data-el="${cond.elementId}"]`) as HTMLElement | null;
-                if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
-              });
-            }}
           >
             {elements.length === 0 ? (
               <div className={`${CREM_DD_ITEM} text-zinc-500`}>No elements</div>

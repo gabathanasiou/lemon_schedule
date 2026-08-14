@@ -17,7 +17,7 @@ export interface ReportRenderProps {
   fieldMap: Record<string, ReportFieldDef>;
   item?: ReportCollectionItem;
   parentCategory?: string;
-  parentCollection?: string;
+  parentCollection?: ReportCollection;
   scopeFilter?: ReportScopeFilter;
   hint?: boolean;
   showKeys?: boolean;

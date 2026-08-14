@@ -1,5 +1,5 @@
 import React from 'react';
-import { ComputedRow } from '../../lib/daybreakUtils';
+import { ComputedRowInput } from '../../lib/daybreakUtils';
 import { sceneStyle, getFallbackStripColors, computeMergeGroups } from '../../lib/ribbonUtils';
 import { RibbonCell } from '../../types';
 import { Scene } from '../../types';
@@ -7,7 +7,7 @@ import { CellInput } from '../CellInput';
 import { EntityDropdown } from '../EntityDropdown';
 import { RowRenderCtx } from './rowRenderTypes';
 
-export default function SortableRowScene({ row, scene, ctx }: { row: ComputedRow; scene: Scene | null; ctx: RowRenderCtx }) {
+export default function SortableRowScene({ row, scene, ctx }: { row: ComputedRowInput; scene: Scene | null; ctx: RowRenderCtx }) {
   const {
     isSelected, isFaded, isCompact, ribbon, colWidths, cellPaddingV, cellPaddingH, edgePadding,
     palette, violationBadge, renderCellFlex, updateScene, inputClass, sel, castItems,

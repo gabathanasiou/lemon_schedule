@@ -2,7 +2,7 @@ import React from 'react';
 import { DragOverlay } from '@dnd-kit/core';
 import { SortableRibbon } from '../SortableRibbon';
 import { FloatingTooltip } from '../FloatingTooltip';
-import { ScheduleRow, Scene, RibbonDesign, SceneColorPalette, CustomCategoryDef, ProjectElement } from '../../types';
+import { ScheduleRow, Scene, RibbonRow, SceneColorPalette, CustomCategoryDef, ProjectElement } from '../../types';
 import { formatDuration } from '../../lib/utils';
 import { VIEW_WIDTHS } from '../../lib/persist';
 
@@ -23,7 +23,7 @@ interface ScheduleOverlaysProps {
   activeDragIds: Set<string>;
   activeDragRows: ScheduleRow[];
   scenes: Scene[];
-  ribbon: RibbonDesign;
+  ribbon: RibbonRow[];
   colWidths: number[];
   cellPaddingV: number;
   cellPaddingH: number;

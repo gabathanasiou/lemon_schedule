@@ -29,7 +29,7 @@ interface AppHeaderProps {
   isCloudProject: boolean;
   shiftHeld: boolean;
   togglePopout: (tabId: string) => void;
-  onTabContextMenu: (e: React.MouseEvent, tabId: string) => void;
+  onTabContextMenu: (e: React.MouseEvent, tabId: AppTabId) => void;
   onOpenProjectManager: () => void;
   onImportClick: () => void;
   onExportCSV: () => void;

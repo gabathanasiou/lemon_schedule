@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useProject } from '../../store';
 import { Printer, ChevronDown, Check } from 'lucide-react';
@@ -43,6 +43,16 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
   const selectedCategory = settings.selectedCategory;
   const setSelectedCategory = (c: string) => update({ selectedCategory: c });
   const [showCategories, setShowCategories] = useState(false);
+  const catContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showCategories) return;
+    const raf = requestAnimationFrame(() => {
+      const active = catContentRef.current?.querySelector(`[data-cat="${selectedCategory}"]`) as HTMLElement | null;
+      if (active) { active.focus(); active.scrollIntoView({ block: 'nearest' }); }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [showCategories, selectedCategory]);
 
   const categoryLabelLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -93,17 +103,7 @@ export default function ElementBreakdownDialog({ selectedCategory: initialCatego
             </RadixDropdownMenu.Trigger>
             <RadixDropdownMenu.Portal>
               <RadixDropdownMenu.Content
-                onOpenAutoFocus={(e) => {
-                  e.preventDefault();
-                  const content = e.currentTarget as HTMLElement;
-                  requestAnimationFrame(() => {
-                    const active = content.querySelector(`[data-cat="${selectedCategory}"]`) as HTMLElement | null;
-                    if (active) {
-                      active.focus();
-                      active.scrollIntoView({ block: 'nearest' });
-                    }
-                  });
-                }}
+                ref={catContentRef}
                 className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 max-h-64 overflow-y-auto min-w-[180px] scrollbar-custom"
                 align="start"
                 sideOffset={4}

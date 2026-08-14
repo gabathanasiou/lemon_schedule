@@ -23,6 +23,9 @@ export interface ComputedRow extends ScheduleRow {
   sectionEndTime: string;
 }
 
+/** Row as rendered on the stripboard: a ScheduleRow that MAY carry computed fields. */
+export type ComputedRowInput = ScheduleRow & Partial<Omit<ComputedRow, keyof ScheduleRow>>;
+
 export interface SectionSums {
   total: number;
   pages: number;

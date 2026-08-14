@@ -77,7 +77,7 @@ function formatTime(ts: number): string {
 function AppContent() {
   const { state, dispatch, currentProjectId, createProject, readOnly, projectList, renameProject, registerPostSaveHandler, closeProject, consumeLegacyMigrationNotice, retryConnectivity } = useProject();
   const dialog = useDialog();
-  const [activeTab, setActiveTab] = useState<'breakdown' | 'schedule' | 'calendar' | 'design' | 'rules' | 'reports'>('breakdown');
+  const [activeTab, setActiveTab] = useState<AppTabId>('breakdown');
   const [designSubTab, setDesignSubTab] = useState<'colors' | 'ribbons' | 'designer'>('ribbons');
   const [brSubTab, setBrSubTab] = useState<'elements' | 'sheet' | 'glide'>('glide');
   const [brCategory, setBrCategory] = useState('cast');
@@ -359,8 +359,8 @@ function AppContent() {
   }, [dialog, state.present.castMembers, state.present.customCategories, state.present.categoryLabels]);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [subHeaderTargets, setSubHeaderTargets] = useState<Record<string, HTMLDivElement | null>>({});
-  const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabId: string } | null>(null);
+  const [subHeaderTargets, setSubHeaderTargets] = useState<Record<string, HTMLElement | null>>({});
+  const [tabContextMenu, setTabContextMenu] = useState<{ x: number; y: number; tabId: AppTabId } | null>(null);
   const [reportSidebarCollapsed, setReportSidebarCollapsed] = useState<Record<string, boolean>>({});
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
