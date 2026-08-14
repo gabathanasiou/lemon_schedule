@@ -28,7 +28,7 @@ import {
   caseSetActiveReport, caseDeleteReportDesign, caseRestoreReportFromTrash,
   caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
   caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
-  caseRestoreCrewPersonFromTrash,
+  caseRestoreCrewPersonFromTrash, caseSortCrewBy,
   caseSetReportTextStyles,
 } from './actions/reports';
 import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
@@ -210,6 +210,7 @@ export type Action =
   | { type: 'DELETE_CREW_PERSON'; payload: { role: string; id: string } }
   | { type: 'REORDER_CREW_PERSON'; payload: { role: string; id: string; dir: -1 | 1 } }
   | { type: 'RESTORE_CREW_PERSON_FROM_TRASH'; payload: string }
+  | { type: 'SORT_CREW_BY'; payload: { key: 'role' | 'name' | 'phone' | 'email'; direction: 'asc' | 'desc' } }
 
 export interface State {
   past: Project[];
@@ -416,6 +417,7 @@ export function reducer(state: State, action: Action): State {
     case 'DELETE_CREW_PERSON': return caseDeleteCrewPerson(state, action, applyChange);
     case 'REORDER_CREW_PERSON': return caseReorderCrewPerson(state, action, applyChange);
     case 'RESTORE_CREW_PERSON_FROM_TRASH': return caseRestoreCrewPersonFromTrash(state, action, applyChange);
+    case 'SORT_CREW_BY': return caseSortCrewBy(state, action, applyChange);
     default:
       return state;
   }

@@ -37,7 +37,7 @@ interface CrewDiff {
 
 const cellInputCls = 'w-full bg-white border border-zinc-200 rounded-md px-2 py-1 text-xs text-zinc-800 outline-none focus:ring-1 focus:ring-zinc-900 focus:border-zinc-900 transition-shadow';
 
-export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | null }) {
+export function CrewManager({ headerTarget, initialRole, onRoleChange }: { headerTarget?: HTMLElement | null; initialRole?: string | null; onRoleChange?: (role: string) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const isCloud = useIsCloudProject();
   const dialog = useDialog();
@@ -46,7 +46,10 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
   const crewRoles = project.crewRoles || [];
   const crew = project.crew || {};
 
-  const [roleKey, setRoleKey] = useState(crewRoles[0]?.key || '');
+  const [roleKey, setRoleKey] = useState(() => {
+    if (initialRole && crewRoles.some(r => r.key === initialRole)) return initialRole;
+    return crewRoles[0]?.key || '';
+  });
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
@@ -84,14 +87,16 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
       const next = crewRoles[0]?.key || '';
       setRoleKey(next);
       buf.switchScope(next);
+      onRoleChange?.(next);
     }
-  }, [crewRoles, roleKey, buf.switchScope]);
+  }, [crewRoles, roleKey, buf.switchScope, onRoleChange]);
 
   const role = crewRoles.find(r => r.key === roleKey);
 
   const switchRole = (newKey: string) => {
     buf.switchScope(newKey);
     setRoleKey(newKey);
+    onRoleChange?.(newKey);
   };
 
   const addRole = (label: string): string | null => {
@@ -120,6 +125,7 @@ export function CrewManager({ headerTarget }: { headerTarget?: HTMLElement | nul
         const nextKey = next?.key || '';
         setRoleKey(nextKey);
         buf.switchScope(nextKey);
+        onRoleChange?.(nextKey);
       }
     }
   };

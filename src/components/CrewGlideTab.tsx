@@ -13,7 +13,7 @@ import DataEditor, {
 import '@glideapps/glide-data-grid/dist/index.css';
 import { useProject, useIsCloudProject } from '../store';
 import { generateUUID, clipboardWrite, clipboardRead } from '../lib/utils';
-import { ChevronDown, FileDown, Download, ZoomIn, ZoomOut, RotateCcw, CheckSquare, Square, Copy, Scissors, ClipboardPaste, Trash2 } from 'lucide-react';
+import { ChevronDown, FileDown, Download, ZoomIn, ZoomOut, RotateCcw, CheckSquare, Square, Copy, Scissors, ClipboardPaste, Trash2, ArrowUp, ArrowDown, Eye } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import DropdownMenu from './DropdownMenu';
 import DropdownItem from './DropdownItem';
@@ -26,6 +26,7 @@ import { textCell, buildCopyText, buildCutPlan } from '../lib/glideCells';
 import { createGlideCellEditor, type GlideColumnEditor } from '../lib/glideEditor';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { useGlideColumnWidths } from '../lib/glideColumns';
+import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { buildCrewRows, resolveRoleKey, planCrewPaste, parseCrewCSV, commitCrewImport, exportCrewCSV } from '../lib/crewGlide';
 import Modal, { ModalFooter } from './Modal';
 
@@ -39,7 +40,7 @@ const CREW_COLUMN_DEFS = [
 
 const SPARE_ROWS = 5;
 
-export function CrewGlideTab({ headerTarget }: { headerTarget?: HTMLElement | null }) {
+export function CrewGlideTab({ headerTarget, onGoToManager }: { headerTarget?: HTMLElement | null; onGoToManager?: (roleKey: string) => void }) {
   const { state, dispatch, readOnly } = useProject();
   const isCloud = useIsCloudProject();
   const currentDocument = useCurrentDocument();
@@ -222,18 +223,20 @@ export function CrewGlideTab({ headerTarget }: { headerTarget?: HTMLElement | nu
     dispatch({ type: 'BATCH_COMMIT' });
   }, [dispatch]);
 
+  const dedupeCellCommit = useDedupeCellCommit();
+
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
     const colDef = COLUMNS[col];
     if (!colDef || colDef.key === 'actions') return;
     if (newValue.kind !== GridCellKind.Text) return;
     const isAddRow = row >= crewRowsRef.current.length;
     if (isAddRow) {
+      if (!dedupeCellCommit(`${colDef.key}:${newValue.data}`)) return;
       createPersonFromAddRow(colDef.key, newValue.data);
       return;
     }
     commitEdit(row, colDef.key, newValue.data);
-  }, [COLUMNS, commitEdit, createPersonFromAddRow]);
-
+  }, [COLUMNS, commitEdit, createPersonFromAddRow, dedupeCellCommit]);
   const handlePaste = useCallback((target: Item, values: readonly (readonly string[])[]) => {
     if (readOnlyRef.current) return;
     const selection = gridSelectionRef.current?.current?.range ?? null;
@@ -402,6 +405,16 @@ export function CrewGlideTab({ headerTarget }: { headerTarget?: HTMLElement | nu
   }, [currentDocument]);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; row: number; col?: number } | null>(null);
+  const [sortMenu, setSortMenu] = useState<{ x: number; y: number; colKey: string; label: string } | null>(null);
+
+  const onHeaderContextMenu = useCallback((colIndex: number, e: any) => {
+    e.preventDefault();
+    const colKey = COLUMNS[colIndex]?.key;
+    if (!colKey || colKey === 'actions') return;
+    const x = (e.bounds?.x ?? 0) + (e.localEventX ?? 0);
+    const y = (e.bounds?.y ?? 0) + (e.localEventY ?? 0);
+    setSortMenu({ x, y, colKey, label: COLUMNS[colIndex]?.label || colKey });
+  }, [COLUMNS]);
 
   const onCellContextMenu = useCallback((cell: Item, e: any) => {
     e.preventDefault();
@@ -565,6 +578,7 @@ export function CrewGlideTab({ headerTarget }: { headerTarget?: HTMLElement | nu
           onColumnResize={onColumnResize}
           onCellContextMenu={onCellContextMenu}
           onCellClicked={onCellClicked}
+          onHeaderContextMenu={onHeaderContextMenu}
           drawCell={drawCell}
           provideEditor={provideEditor}
           rowMarkers={{ kind: 'clickable-number', width: IS_COARSE ? 72 : 50, startIndex: 1, theme: { bgCell: '#fafafa', accentLight: '#e8e8ec' } }}
@@ -598,8 +612,44 @@ export function CrewGlideTab({ headerTarget }: { headerTarget?: HTMLElement | nu
               Clear
             </ContextMenuItem>
             <ContextMenuDivider />
+            {(() => {
+              const row = crewRowsRef.current[contextMenu.row];
+              if (!row) return null;
+              return (
+                <ContextMenuItem
+                  onClick={() => { onGoToManager?.(row.roleKey); setContextMenu(null); }}
+                  icon={<Eye className="w-3 h-3 text-zinc-400" />}
+                  disabled={!onGoToManager}
+                >
+                  Go to Crew Manager → {row.role}
+                </ContextMenuItem>
+              );
+            })()}
+            <ContextMenuDivider />
             <ContextMenuItem onClick={deleteSelectedRows} icon={<Trash2 className="w-3.5 h-3.5" />} variant="danger">
               Delete Row{gridSelectionRef.current.rows.length > 1 ? 's' : ''}
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenu>
+
+      {/* Sort Context Menu */}
+      <ContextMenu open={!!sortMenu} x={sortMenu?.x ?? 0} y={sortMenu?.y ?? 0} onClose={() => setSortMenu(null)}>
+        {sortMenu && (
+          <>
+            <ContextMenuItem
+              onClick={() => { dispatch({ type: 'SORT_CREW_BY', payload: { key: sortMenu.colKey as any, direction: 'asc' } }); setSortMenu(null); }}
+              icon={<ArrowUp className="w-3 h-3 text-zinc-400" />}
+              disabled={readOnly}
+            >
+              Sort A to Z
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => { dispatch({ type: 'SORT_CREW_BY', payload: { key: sortMenu.colKey as any, direction: 'desc' } }); setSortMenu(null); }}
+              icon={<ArrowDown className="w-3 h-3 text-zinc-400" />}
+              disabled={readOnly}
+            >
+              Sort Z to A
             </ContextMenuItem>
           </>
         )}

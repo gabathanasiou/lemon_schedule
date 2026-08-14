@@ -9,7 +9,7 @@ test.describe('Crew Manager', () => {
 
     await page.getByRole('button', { name: 'Production' }).click();
     await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Crew' }).click();
+    await page.getByRole('button', { name: 'Crew', exact: true }).click();
     await page.waitForTimeout(500);
 
     // Roles sidebar with seeded roles, counts, and add button
@@ -114,7 +114,7 @@ test.describe('Crew Manager', () => {
 
     await page.getByRole('button', { name: 'Production' }).click();
     await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Crew' }).click();
+    await page.getByRole('button', { name: 'Crew', exact: true }).click();
     await page.waitForTimeout(500);
 
     await page.locator('button', { hasText: 'Director' }).first().click();
@@ -128,7 +128,7 @@ test.describe('Crew Manager', () => {
     await page.waitForTimeout(500);
 
     // Save ran during the prompt -> back to Crew, the member persisted
-    await page.getByRole('button', { name: 'Crew' }).click();
+    await page.getByRole('button', { name: 'Crew', exact: true }).click();
     await page.waitForTimeout(300);
     await page.locator('button', { hasText: 'Director' }).first().click();
     await expect(page.locator('input[value="Unsaved Person"]')).toBeVisible();

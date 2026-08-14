@@ -54,9 +54,11 @@ interface ProductionTabProps {
   onCloseSubPopout: (id: string) => void;
   shiftHeld?: boolean;
   headerTarget?: HTMLElement | null;
+  crewRoleTarget?: string | null;
+  onCrewRoleTargetChange?: (role: string | null) => void;
 }
 
-export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget }: ProductionTabProps) {
+export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget, crewRoleTarget, onCrewRoleTargetChange }: ProductionTabProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
   const dialog = useDialog();
@@ -231,9 +233,12 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
           </div>
         </div>
       ) : subTab === 'crew' ? (
-        <CrewManager headerTarget={headerTarget ?? portalTarget} />
+        <CrewManager headerTarget={headerTarget ?? portalTarget} initialRole={crewRoleTarget} onRoleChange={r => onCrewRoleTargetChange?.(r)} />
       ) : (
-        <CrewGlideTab headerTarget={headerTarget ?? portalTarget} />
+        <CrewGlideTab
+          headerTarget={headerTarget ?? portalTarget}
+          onGoToManager={(roleKey) => { onCrewRoleTargetChange?.(roleKey); onSubTabChange('crew'); }}
+        />
       )}
     </div>
   );

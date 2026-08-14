@@ -240,6 +240,32 @@ export function caseRestoreCrewPersonFromTrash(state: State, action: Action, app
   });
 }
 
+export function caseSortCrewBy(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SORT_CREW_BY') return state;
+  const { key, direction } = action.payload;
+  const cmp = (aVal: string, bVal: string) => {
+    if (aVal === '' && bVal === '') return 0;
+    if (aVal === '') return 1;
+    if (bVal === '') return -1;
+    return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+  };
+  if (key === 'role') {
+    const crewRoles = [...(state.present.crewRoles || [])].sort((a, b) => {
+      const c = cmp(a.label, b.label);
+      return direction === 'asc' ? c : -c;
+    });
+    return applyChange({ ...state.present, crewRoles });
+  }
+  const crew: Record<string, CrewPerson[]> = {};
+  for (const [roleKey, list] of Object.entries(state.present.crew || {})) {
+    crew[roleKey] = [...list].sort((a, b) => {
+      const c = cmp((a as any)[key] || '', (b as any)[key] || '');
+      return direction === 'asc' ? c : -c;
+    });
+  }
+  return applyChange({ ...state.present, crew });
+}
+
 export function caseReorderCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'REORDER_CREW_PERSON') return state;
   const crew = { ...(state.present.crew || {}) };

@@ -40,6 +40,7 @@ import { planPaste } from '../lib/glidePaste';
 import { createGlideCellEditor, type GlideColumnEditor } from '../lib/glideEditor';
 import { useGlidePasteInterception } from '../lib/glidePasteIntercept';
 import { useGlideColumnWidths } from '../lib/glideColumns';
+import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { createBlankScene } from '../lib/sceneFactory';
 
 const BREAKDOWN_CATEGORIES = [
@@ -444,11 +445,14 @@ export function GlideBreakdownTab({
     return String(parseInt(match[1], 10) + 1);
   }, []);
 
+  const dedupeCellCommit = useDedupeCellCommit();
+
   const onCellEdited = useCallback(([col, row]: Item, newValue: EditableGridCell) => {
     if (row === scenesRef.current.length) {
       const colDef = COLUMNS[col];
       if (!colDef || colDef.key === 'actions') return;
       if (newValue.kind !== GridCellKind.Text || !newValue.data.trim()) return;
+      if (!dedupeCellCommit(`${colDef.key}:${newValue.data}`)) return;
       const val = colDef.key === 'pageCount'
         ? formatPageCount(parsePageCount(newValue.data))
         : colDef.key === 'scriptDay'
@@ -476,7 +480,7 @@ export function GlideBreakdownTab({
     if (newValue.kind === GridCellKind.Text) {
       commitEdit(scene.id, colDef.key, newValue.data);
     }
-  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber]);
+  }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
     const editors: Record<string, GlideColumnEditor> = {
