@@ -295,6 +295,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                         }}
                       >
                         <Checkbox
+                          variant="plain"
                           checked={selectedHidden.has(key)}
                           onChange={() => {
                             const next = new Set(selectedHidden);
@@ -302,6 +303,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                             else next.add(key);
                             setSelectedHidden(next);
                           }}
+                          labelClassName="text-zinc-300"
                         />
                         <span className="text-zinc-300 text-xs">{label}</span>
                       </div>
@@ -358,6 +360,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                         }}
                       >
                         <Checkbox
+                          variant="plain"
                           checked={selectedCategories.has(cat)}
                           onChange={() => {
                             const next = new Set(selectedCategories);
@@ -365,6 +368,7 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                             else next.add(cat);
                             setSelectedCategories(next);
                           }}
+                          labelClassName="text-zinc-300"
                         />
                         <span className="text-zinc-300 text-xs">{cat}</span>
                       </div>

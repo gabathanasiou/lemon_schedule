@@ -28,6 +28,7 @@ import ImportDialog from './ImportDialog';
 import { exportBreakdownCSV, parseCSV } from '../lib/import';
 import type { ImportResult } from '../lib/import';
 import Modal, { ModalFooter } from './Modal';
+import Checkbox from './Checkbox';
 import { useSpreadsheetFontSize, SS_FONT_SIZE_DEFAULT, useGlideSmoothScroll, useKeyboardMode } from '../lib/persist';
 import { IS_COARSE, useHardwareKeyboard, isTouchLike } from '../lib/device';
 import { createGlideTheme } from '../lib/glideTheme';
@@ -1158,20 +1159,13 @@ export function GlideBreakdownTab({
           <p className="text-sm text-zinc-300">
             Are you sure you want to delete{deleteConfirm?.sceneId.includes(',') ? '' : ' scene'} <span className="font-semibold text-white">{deleteConfirm?.sceneNumber}</span>?
           </p>
-          <label
-            className="flex items-center gap-3 cursor-pointer select-none bg-zinc-800/50 hover:bg-zinc-800/70 rounded-lg px-3 py-2.5 transition-colors border border-zinc-800/50"
-            onClick={() => setSuppressDeleteWarning(!suppressDeleteWarning)}
-          >
-            <div className="shrink-0">
-              {suppressDeleteWarning
-                ? <CheckSquare className="w-4 h-4 text-red-500" />
-                : <Square className="w-4 h-4 text-zinc-500" />
-              }
-            </div>
-            <span className="text-xs text-zinc-400 select-none">
-              Don't ask again (24 hours)
-            </span>
-          </label>
+          <Checkbox
+            block
+            checked={suppressDeleteWarning}
+            onChange={setSuppressDeleteWarning}
+            tone="danger"
+            label="Don't ask again (24 hours)"
+          />
         </div>
       </Modal>
     </div>

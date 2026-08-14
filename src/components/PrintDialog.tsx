@@ -5,7 +5,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
-import Checkbox from './Checkbox';
+import Checklist from './Checklist';
 import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
@@ -321,60 +321,43 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
 
         <div className="grid grid-cols-2 gap-x-8">
           <div className="space-y-4 min-w-0">
-            <div>
-              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Stripboard</h3>
-              <div className="space-y-2">
-                <Checkbox checked={settings.showTimes} onChange={on => update({ showTimes: on })} label="Call Times" />
-                <Checkbox checked={settings.showDurations} onChange={on => update({ showDurations: on })} label="Durations" />
-                <Checkbox checked={settings.includeStatusDays} onChange={on => update({ includeStatusDays: on })} label="Hold / Travel / Holiday days" />
-              </div>
-            </div>
-            <div>
-              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Page Style</h3>
-              <div className="space-y-2">
-                <Checkbox checked={settings.showCastList} onChange={on => update({ showCastList: on })} label="Cast List" />
-                <Checkbox checked={settings.showExportDate} onChange={on => update({ showExportDate: on })} label="Export date on title" />
-                <Checkbox checked={settings.showPageNumbers} onChange={on => update({ showPageNumbers: on })} label="Page numbers" />
-              </div>
-            </div>
-
+            <Checklist
+              title="Stripboard"
+              items={[
+                { id: 'showTimes', label: 'Call Times' },
+                { id: 'showDurations', label: 'Durations' },
+                { id: 'includeStatusDays', label: 'Hold / Travel / Holiday days' },
+              ]}
+              selected={(['showTimes', 'showDurations', 'includeStatusDays'] as const).filter(k => settings[k])}
+              onToggle={k => update({ [k]: !settings[k] })}
+            />
+            <Checklist
+              title="Page Style"
+              items={[
+                { id: 'showCastList', label: 'Cast List' },
+                { id: 'showExportDate', label: 'Export date on title' },
+                { id: 'showPageNumbers', label: 'Page numbers' },
+              ]}
+              selected={(['showCastList', 'showExportDate', 'showPageNumbers'] as const).filter(k => settings[k])}
+              onToggle={k => update({ [k]: !settings[k] })}
+            />
           </div>
 
-          <div className="space-y-2 min-w-0">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5">
-              <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Days to Print</h3>
-              <button onClick={toggleAll} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
-                {selectedDays.size === dayEntries.length ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-96">
-              {dayEntries.map(d => {
-                 const checked = selectedDays.has(d.sectionIndex);
-                 return (
-                   <button
-                     key={d.sectionIndex}
-                     onClick={() => {
-                       setSelectedDays(prev => {
-                         const next = new Set(prev);
-                         if (next.has(d.sectionIndex)) next.delete(d.sectionIndex); else next.add(d.sectionIndex);
-                         persistDays(Array.from(next));
-                         return next;
-                       });
-                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
-                  >
-                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-                      {checked && <svg className="w-3 h-3 text-zinc-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                    </span>
-                    <span className="font-medium">{sectionLabelMap.get(d.sectionIndex) || `Day ${d.chrono}`}</span>
-                    {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateShort(d.date)}</span>}
-                  </button>
-                );
-              })}
-              {dayEntries.length === 0 && (
-                <div className="px-3 py-4 text-xs text-zinc-600 text-center">No days with dates configured yet.</div>
-              )}
-            </div>
+          <div className="min-w-0">
+            <Checklist
+              title="Days to Print"
+              items={dayEntries.map(d => ({
+                id: d.sectionIndex,
+                label: sectionLabelMap.get(d.sectionIndex) || `Day ${d.chrono}`,
+                secondary: d.date ? formatDayDateShort(d.date) : undefined,
+              }))}
+              selected={selectedDays}
+              onToggle={toggleDayInt}
+              onToggleAll={toggleAll}
+              allSelected={selectedDays.size === dayEntries.length && dayEntries.length > 0}
+              emptyHint="No days with dates configured yet."
+              maxHeight={384}
+            />
           </div>
         </div>
       </div>

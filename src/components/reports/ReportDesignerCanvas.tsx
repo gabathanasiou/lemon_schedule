@@ -630,7 +630,7 @@ const ReportZone: React.FC<{
     <div className="flex items-center gap-2 mb-1.5" onClick={e => e.stopPropagation()}>
       <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
       <span className="text-[10px] text-zinc-400 italic">{hint}</span>
-      <Checkbox checked={skipFirst} disabled={readOnly} onChange={onToggleSkipFirst} label="Skip first page" className="ml-auto" />
+      <Checkbox variant="plain" theme="light" checked={skipFirst} disabled={readOnly} onChange={onToggleSkipFirst} label="Skip first page" labelClassName="text-[10px] text-zinc-500" className="ml-auto" />
     </div>
     <div onClick={empty ? (e => { e.stopPropagation(); onInsert(zone, { kind: 'block', type: 'text' }); }) : undefined}>{children}</div>
   </div>

@@ -513,7 +513,6 @@ export const TextStylesModal: React.FC<{
     reader.readAsText(file);
   };
 
-  const rowLabel = 'w-14 text-[10px] font-medium text-zinc-500 uppercase tracking-wider shrink-0';
   const rowInput = 'bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-xs text-zinc-200 outline-none focus:border-zinc-500';
   const miniBtn = 'w-7 h-6 rounded text-[11px] transition-colors';
 
@@ -522,7 +521,7 @@ export const TextStylesModal: React.FC<{
       open={open}
       onClose={close}
       title="Text styles"
-      width="w-[400px]"
+      width="w-[380px]"
       footer={
         <ModalFooter>
           <button onClick={close} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
@@ -530,82 +529,77 @@ export const TextStylesModal: React.FC<{
         </ModalFooter>
       }
     >
-      <div className="p-6 space-y-4">
-        <p className="text-xs text-zinc-500">Named styles link to every block that uses them — edits update all linked blocks at once. Direct formatting on a block stays on top.</p>
+      <div className="p-6 space-y-3">
+        <p className="text-xs text-zinc-500">Edits update every block that uses the style.</p>
 
-        {/* version-picker-style style selector: names + rename/duplicate/delete/create/import/export */}
-        <ItemManagerDropdown
-          open={pickerOpen}
-          onClose={setPickerOpen}
-          items={styles.map(s => ({ id: s.id, name: s.name }))}
-          activeId={sel?.id || ''}
-          closeOnSelect
-          onSelect={id => setSelId(id)}
-          onRename={(id, name) => patchId(id, { name })}
-          onDuplicate={id => {
-            const s = styles.find(x => x.id === id);
-            if (!s) return;
-            const copy = { ...s, id: newTextStyle('', []).id, name: `${s.name} Copy` };
-            set([...styles, copy]);
-            setSelId(copy.id);
-            return copy.id;
-          }}
-          onDelete={id => {
-            const next = styles.filter(s => s.id !== id);
-            if (next.length === styles.length) return;
-            set(next);
-            if (id === selId) setSelId(next[0]?.id ?? null);
-          }}
-          onCreate={() => {
-            const s = newTextStyle(`Style ${styles.length + 1}`, styles);
-            set([...styles, s]);
-            setSelId(s.id);
-            return s.id;
-          }}
-          onImport={() => fileRef.current?.click()}
-          onExport={exportStyles}
-          theme="dark"
-          label="Style"
-          header="TEXT STYLES"
-          itemLabel="Style"
-          trigger={
-            <button type="button" className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700/60 transition-colors">
-              {sel ? <span className="truncate">{sel.name}</span> : <span className="text-zinc-500">No styles</span>}
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto shrink-0" />
-            </button>
-          }
-        />
-
-        {/* edit the selected style */}
-        {sel && (
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <span className={rowLabel}>Size</span>
+        {/* one compact row: version-picker-style selector + size + bold/italic + font */}
+        <div className="flex items-center gap-1">
+          <ItemManagerDropdown
+            open={pickerOpen}
+            onClose={setPickerOpen}
+            items={styles.map(s => ({ id: s.id, name: s.name }))}
+            activeId={sel?.id || ''}
+            closeOnSelect
+            onSelect={id => setSelId(id)}
+            onRename={(id, name) => patchId(id, { name })}
+            onDuplicate={id => {
+              const s = styles.find(x => x.id === id);
+              if (!s) return;
+              const copy = { ...s, id: newTextStyle('', []).id, name: `${s.name} Copy` };
+              set([...styles, copy]);
+              setSelId(copy.id);
+              return copy.id;
+            }}
+            onDelete={id => {
+              const next = styles.filter(s => s.id !== id);
+              if (next.length === styles.length) return;
+              set(next);
+              if (id === selId) setSelId(next[0]?.id ?? null);
+            }}
+            onCreate={() => {
+              const s = newTextStyle(`Style ${styles.length + 1}`, styles);
+              set([...styles, s]);
+              setSelId(s.id);
+              return s.id;
+            }}
+            onImport={() => fileRef.current?.click()}
+            onExport={exportStyles}
+            theme="dark"
+            label="Style"
+            header="TEXT STYLES"
+            itemLabel="Style"
+            itemRender={s => {
+              const st = styles.find(x => x.id === s.id);
+              return st ? <span className="truncate" style={styleCss(st)}>{s.name}</span> : s.name;
+            }}
+            trigger={
+              <button type="button" className="w-32 flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-zinc-800 border border-zinc-700 text-xs text-zinc-200 hover:bg-zinc-700/60 transition-colors">
+                {sel ? <span className="truncate">{sel.name}</span> : <span className="truncate text-zinc-500">No styles</span>}
+                <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto shrink-0" />
+              </button>
+            }
+          />
+          {sel && (
+            <>
               <input
                 type="number" min={6} max={72}
-                className={`${rowInput} w-16 text-center`}
+                className={`${rowInput} w-14 text-center`}
                 value={sel.fontSize}
                 onChange={e => patch({ fontSize: Math.max(6, Math.min(72, Number(e.target.value) || 10)) })}
                 title="Font size (pt)"
               />
-              <span className="text-[10px] text-zinc-500">pt</span>
-              <div className="flex items-center gap-1 ml-3">
-                <button title="Bold" onClick={() => patch({ bold: !sel.bold })} className={`${miniBtn} font-bold ${sel.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>B</button>
-                <button title="Italic" onClick={() => patch({ italic: !sel.italic })} className={`${miniBtn} italic ${sel.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>I</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={rowLabel}>Font</span>
+              <button title="Bold" onClick={() => patch({ bold: !sel.bold })} className={`${miniBtn} font-bold ${sel.bold ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>B</button>
+              <button title="Italic" onClick={() => patch({ italic: !sel.italic })} className={`${miniBtn} italic ${sel.italic ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}>I</button>
               <FontMenu value={sel.fontFamily || 'Helvetica'} disabled={false} onChange={f => patch({ fontFamily: f === 'Helvetica' ? undefined : f })} />
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
 
-        {/* live preview — paper white so it matches print */}
+        {/* live preview — paper white so it matches print; content-sized so it
+            doesn't stretch the modal wider than its controls */}
         {sel && (
-          <div className="rounded-md border border-zinc-700 bg-white px-3 py-2">
-            <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Preview</div>
-            <div className="leading-snug break-words" style={{ ...styleCss(sel), color: '#000' }}>
+          <div className="w-max max-w-full rounded-md border border-zinc-700 bg-white px-2.5 py-1.5">
+            <div className="truncate whitespace-nowrap" style={{ ...styleCss(sel), color: '#000' }}>
               The quick brown fox jumps over the lazy dog
             </div>
           </div>

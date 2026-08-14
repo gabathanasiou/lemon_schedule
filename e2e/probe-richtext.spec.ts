@@ -170,13 +170,24 @@ test('text styles modal: version-picker editing — create, rename, live preview
   await expect(modal).toBeVisible({ timeout: 3000 });
   await expect(modal.getByText('TEXT STYLES')).toBeVisible();
 
+  // the modal must be as compact as its controls — no horizontal overflow
+  const overflow = await modal.evaluate(el => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(2);
+
   // trigger shows the first registry style
   const trigger = modal.getByRole('button', { name: 'Heading 1' });
   await expect(trigger).toBeVisible({ timeout: 3000 });
 
+  // the dropdown previews each style in its own typography
+  await trigger.click();
+  const menu = page.locator('.ui-menu');
+  await expect(menu.getByText('Heading 1', { exact: true })).toHaveCSS('font-size', '20px');
+  await expect(menu.getByText('Body', { exact: true })).toHaveCSS('font-size', '10px');
+  await page.keyboard.press('Escape');
+
   // New Style → inline rename → Enter
   await trigger.click();
-  await page.locator('.ui-menu').getByText('New Style', { exact: true }).click();
+  await menu.getByText('New Style', { exact: true }).click();
   const renameInput = page.locator('.ui-menu input');
   await expect(renameInput).toBeVisible({ timeout: 3000 });
   await renameInput.fill('Test');

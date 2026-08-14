@@ -7,6 +7,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
+import Checklist from '../Checklist';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
 
 export interface DoodOptions {
@@ -271,80 +272,44 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-              <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">
-                {isCast ? 'Cast Members' : 'Elements'}
-              </label>
-              <button onClick={toggleAllElements} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
-                {selectedElementIds.size === elementItems.length && elementItems.length > 0 ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-80 scrollbar-custom">
-              {elementItems.map(item => {
-                const selected = selectedElementIds.has(item.id);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => toggleElement(item.id)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${selected ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
-                  >
-                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${selected ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-                      {selected && <Check className="w-3 h-3 text-zinc-200" />}
-                    </span>
-                    {isCast ? (
-                      <>
-                        <span className="text-zinc-500 shrink-0">{item.id}.</span>
-                        <span className="truncate">{item.name !== '?' ? item.name : '?'}</span>
-                      </>
-                    ) : (
-                      <span className="truncate">{item.name}</span>
-                    )}
-                  </button>
-                );
-              })}
-              {elementItems.length === 0 && (
-                <div className="px-3 py-4 text-xs text-zinc-600 text-center">No elements</div>
-              )}
-            </div>
+            <Checklist
+              title={isCast ? 'Cast Members' : 'Elements'}
+              items={elementItems.map(item => ({
+                id: item.id,
+                label: item.name !== '?' ? item.name : '?',
+                leading: isCast ? `${item.id}.` : undefined,
+              }))}
+              selected={selectedElementIds}
+              onToggle={toggleElement}
+              onToggleAll={toggleAllElements}
+              allSelected={selectedElementIds.size === elementItems.length && elementItems.length > 0}
+              emptyHint="No elements"
+              maxHeight={320}
+            />
           </div>
 
           <div>
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-3">
-              <label className="text-[10px] text-zinc-500 uppercase font-semibold tracking-wider">
-                Days to Include
-              </label>
-              <button onClick={toggleAllDays} className="text-[10px] text-zinc-400 hover:text-zinc-200 font-medium">
-                {selectedDayInts.size === dayEntries.length && dayEntries.length > 0 ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>
-            <div className="bg-zinc-950 border border-zinc-700 rounded-md overflow-y-auto max-h-80 scrollbar-custom">
-              {dayEntries.map(d => {
-                const checked = selectedDayInts.has(d.dayInt);
-                return (
-                  <button
-                    key={d.dayInt}
-                    onClick={() => toggleDayInt(d.dayInt)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${checked ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-900'}`}
-                  >
-                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${checked ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-600'}`}>
-                      {checked && <Check className="w-3 h-3 text-zinc-200" />}
-                    </span>
-                    <span className="font-medium">Day {d.chrono}</span>
-                    {d.date && <span className="text-zinc-500 ml-auto">{formatDayDateLong(d.date)}</span>}
-                  </button>
-                );
-              })}
-              {dayEntries.length === 0 && (
-                <div className="px-3 py-4 text-xs text-zinc-600 text-center">No days scheduled</div>
-              )}
-            </div>
+            <Checklist
+              title="Days to Include"
+              items={dayEntries.map(d => ({
+                id: d.dayInt,
+                label: `Day ${d.chrono}`,
+                secondary: d.date ? formatDayDateLong(d.date) : undefined,
+              }))}
+              selected={selectedDayInts}
+              onToggle={toggleDayInt}
+              onToggleAll={toggleAllDays}
+              allSelected={selectedDayInts.size === dayEntries.length && dayEntries.length > 0}
+              emptyHint="No days scheduled"
+              maxHeight={320}
+            />
           </div>
         </div>
 
         <div className="space-y-3">
           <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Options</h3>
-          <Checkbox checked={includeNonShooting} onChange={on => update({ includeNonShooting: on })} label="Include non-shooting days (grey columns)" />
-          <Checkbox checked={showTotals} onChange={on => update({ showTotals: on })} label="Show totals columns" />
+          <Checkbox block checked={includeNonShooting} onChange={on => update({ includeNonShooting: on })} label="Include non-shooting days (grey columns)" labelClassName="text-zinc-300" />
+          <Checkbox block checked={showTotals} onChange={on => update({ showTotals: on })} label="Show totals columns" labelClassName="text-zinc-300" />
         </div>
       </div>
     </Modal>

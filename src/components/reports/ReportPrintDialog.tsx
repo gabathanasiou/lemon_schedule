@@ -5,7 +5,7 @@ import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { formatDateShort } from '../../lib/utils';
 import Modal, { ModalFooter } from '../Modal';
-import Checkbox from '../Checkbox';
+import Checklist from '../Checklist';
 
 // Print-options dialog for custom reports (File → Print → Custom Reports).
 // For every top-level repeat/table it lets you include ALL of its items or a
@@ -106,24 +106,15 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
               </div>
               {blockMode === 'selected' && (
                 <div className="mt-2">
-                  <Checkbox
-                    checked={allChecked}
-                    onChange={on => setInclude(prev => ({ ...prev, [block.id]: on ? [...keys] : [] }))}
-                    label={`Select all (${items.length})`}
-                    className="mb-1"
+                  <Checklist
+                    items={items.map((it, i) => ({ id: String(keys[i]), label: itemLabel(scope.collection, it) || String(keys[i]) }))}
+                    selected={selected !== undefined ? selected.map(String) : []}
+                    onToggle={key => toggleItem(block.id, key)}
+                    onToggleAll={() => setInclude(prev => ({ ...prev, [block.id]: allChecked ? [] : [...keys] }))}
+                    allSelected={allChecked}
+                    toggleAllLabel={allChecked ? 'Deselect all' : `Select all (${items.length})`}
+                    maxHeight={224}
                   />
-                  <div className="max-h-56 overflow-y-auto border border-zinc-800 rounded p-1 space-y-0.5">
-                    {items.map((it, i) => {
-                      const key = keys[i];
-                      const checked = selected !== undefined && selected.map(String).includes(String(key));
-                      return (
-                        <div key={String(key)} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-900 text-xs text-zinc-300 cursor-pointer" onClick={() => toggleItem(block.id, key)}>
-                          <Checkbox checked={checked} onChange={() => toggleItem(block.id, key)} />
-                          <span className="truncate">{itemLabel(scope.collection, it) || String(key)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
               )}
             </div>
