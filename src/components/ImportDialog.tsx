@@ -4,6 +4,7 @@ import { parseFDX, parseFountain, parseCSV, ImportResult, ImportCharacter, commi
 import { Upload, Loader2, GripVertical } from 'lucide-react';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import Checkbox from './Checkbox';
 import {
   DndContext,
   closestCenter,
@@ -283,9 +284,17 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                   <p className="text-zinc-500 text-[10px] mb-2">These categories were previously hidden but contain data in this file.</p>
                   <div className="space-y-1.5">
                     {hiddenWithData.map(({ key, label }) => (
-                      <label key={key} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
+                      <div
+                        key={key}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                        onClick={() => {
+                          const next = new Set(selectedHidden);
+                          if (next.has(key)) next.delete(key);
+                          else next.add(key);
+                          setSelectedHidden(next);
+                        }}
+                      >
+                        <Checkbox
                           checked={selectedHidden.has(key)}
                           onChange={() => {
                             const next = new Set(selectedHidden);
@@ -293,10 +302,9 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                             else next.add(key);
                             setSelectedHidden(next);
                           }}
-                          className="w-3.5 h-3.5 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-0 cursor-pointer"
                         />
                         <span className="text-zinc-300 text-xs">{label}</span>
-                      </label>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -339,9 +347,17 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                   </h3>
                   <div className="space-y-1.5">
                     {result.unknownCategories.map(cat => (
-                      <label key={cat} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
+                      <div
+                        key={cat}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                        onClick={() => {
+                          const next = new Set(selectedCategories);
+                          if (next.has(cat)) next.delete(cat);
+                          else next.add(cat);
+                          setSelectedCategories(next);
+                        }}
+                      >
+                        <Checkbox
                           checked={selectedCategories.has(cat)}
                           onChange={() => {
                             const next = new Set(selectedCategories);
@@ -349,10 +365,9 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
                             else next.add(cat);
                             setSelectedCategories(next);
                           }}
-                          className="w-3.5 h-3.5 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-0 cursor-pointer"
                         />
                         <span className="text-zinc-300 text-xs">{cat}</span>
-                      </label>
+                      </div>
                     ))}
                   </div>
                 </div>

@@ -77,7 +77,10 @@ export function sanitizeRichText(html: string): string {
   const serialized = new XMLSerializer().serializeToString(frag);
   return serialized
     .replace(/<strong(\s|>)/gi, '<b$1').replace(/<\/strong>/gi, '</b>')
-    .replace(/<em(\s|>)/gi, '<i$1').replace(/<\/em>/gi, '</i>');
+    .replace(/<em(\s|>)/gi, '<i$1').replace(/<\/em>/gi, '</i>')
+    // Empty paragraphs collapse to zero height (Tailwind resets p margins) —
+    // keep a <br> so blank lines survive into preview and print.
+    .replace(/<p([^>]*)><\/p>/gi, '<p$1><br></p>');
 }
 
 /** Removes all markup — used for showKeys previews and empty-value checks. */

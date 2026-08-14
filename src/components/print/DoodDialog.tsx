@@ -6,6 +6,7 @@ import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
+import Checkbox from '../Checkbox';
 import { ELEMENT_CATEGORIES, CAT_ICONS, getCustomIcon, getLabel } from '../../lib/categories';
 
 export interface DoodOptions {
@@ -342,24 +343,8 @@ export default function DoodDialog({ selectedCategory: initialCategory, onPrint,
 
         <div className="space-y-3">
           <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Options</h3>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeNonShooting}
-              onChange={e => update({ includeNonShooting: e.target.checked })}
-              className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-white focus:ring-0 focus:outline-none"
-            />
-            <span className="text-xs text-zinc-300">Include non-shooting days (grey columns)</span>
-          </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showTotals}
-              onChange={e => update({ showTotals: e.target.checked })}
-              className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-white focus:ring-0 focus:outline-none"
-            />
-            <span className="text-xs text-zinc-300">Show totals columns</span>
-          </label>
+          <Checkbox checked={includeNonShooting} onChange={on => update({ includeNonShooting: on })} label="Include non-shooting days (grey columns)" />
+          <Checkbox checked={showTotals} onChange={on => update({ showTotals: on })} label="Show totals columns" />
         </div>
       </div>
     </Modal>

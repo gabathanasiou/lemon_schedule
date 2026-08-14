@@ -1,5 +1,5 @@
 import React from 'react';
-import { ReportBlock, RibbonRow } from '../../types';
+import { ReportBlock, RibbonRow, RibbonCell } from '../../types';
 import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportCollectionItem, ruleBearingAncestor, parentScenesOf } from '../../lib/reportData';
 import { getFieldValue } from '../../lib/ribbonDefaults';
 import { getRibbonCellBaseStyle } from '../../lib/ribbonUtils';
@@ -35,7 +35,7 @@ function sceneDataFor(it: ReportSceneInfo) {
   };
 }
 
-const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>> }> = ({ it, ctx, design }) => {
+const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; hiddenFields?: Set<string> }> = ({ it, ctx, design, hiddenFields }) => {
   const rows = design.rows as RibbonRow[];
   const mergeLookup = getMergeLookup(rows);
   const cpv = design.cellPaddingV ?? 3;
@@ -43,9 +43,32 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
   const edge = design.edgePadding ?? 3;
   const style = sceneStyle(it.scene, ctx.project.colorPalette?.sceneColors, getFallbackStripColors(ctx.project.colorPalette), ctx.project.colorPalette?.colorRules);
   const numCols = Math.max(...rows.map(r => r.cells.length));
-  const colWidths = design.colWidths && design.colWidths.length === numCols
+  const baseWidths = design.colWidths && design.colWidths.length === numCols
     ? design.colWidths
     : Array.from({ length: numCols }, () => 100 / numCols);
+
+  const filtering = !!(hiddenFields && hiddenFields.size > 0);
+  // A merged cell renders as its group's lead — hide the whole group when the
+  // lead's field is hidden.
+  const isHidden = (cell: RibbonCell): boolean => {
+    if (!filtering) return false;
+    const m = mergeLookup.get(cell.id);
+    const lead = m && !m.isLead ? rows[m.group.rowIndex]?.cells[m.group.colIndex] : cell;
+    return !!lead && hiddenFields!.has(lead.field);
+  };
+
+  // Column widths: when cells are hidden, rebuild the template from the first
+  // row's visible cells (their original widths renormalized to 100%).
+  let templateWidths: number[] = baseWidths;
+  if (filtering) {
+    const first = rows[0]?.cells || [];
+    const visible = first.map((c, i) => ({ c, i })).filter(x => !isHidden(x.c));
+    templateWidths = visible.length > 0
+      ? visible.map(x => baseWidths[x.i] ?? 100 / baseWidths.length)
+      : [];
+  }
+  const total = templateWidths.reduce((a, b) => a + b, 0);
+  const colPct = total > 0 ? templateWidths.map(w => `${(w / total) * 100}%`).join(' ') : undefined;
 
   return (
     <div
@@ -53,7 +76,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
         ...style,
         border: '1px solid #000',
         display: 'grid',
-        gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
+        gridTemplateColumns: colPct,
         gridTemplateRows: `repeat(${rows.length}, auto)`,
         padding: `${edge}px ${edge}px`,
         fontSize: 8,
@@ -63,6 +86,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
     >
       {rows.flatMap((row, ri) =>
         row.cells.map((cell, ci) => {
+          if (isHidden(cell)) return null;
           const m = mergeLookup.get(cell.id);
           if (m && !m.isLead) return null;
           const span = m ? m.group.span : 1;
@@ -92,6 +116,15 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
   );
 };
 
+const NoteRow: React.FC<{ r: any; ctx: ReportCtx }> = ({ r, ctx }) => {
+  const palette = ctx.project.colorPalette;
+  return (
+    <div style={{ background: palette?.noteBg || '#3f0000', color: palette?.noteText || '#ffffff', fontSize: 8, padding: '4px 6px', borderTop: '1px solid #000' }}>
+      NOTE — {r.noteText}
+    </div>
+  );
+};
+
 const NoteBreakRow: React.FC<{ label: string; ctx: ReportCtx }> = ({ label, ctx }) => {
   const palette = ctx.project.colorPalette;
   const bg = palette?.noteBg || '#3f0000';
@@ -103,54 +136,77 @@ const NoteBreakRow: React.FC<{ label: string; ctx: ReportCtx }> = ({ label, ctx 
   );
 };
 
-const DaySectionView: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; sceneFilter?: Set<string> }> = ({ day, ctx, design, sceneFilter }) => {
+interface SectionRowFlags {
+  showHeader: boolean;
+  showCall: boolean;
+  showDurations: boolean;
+  showNotes: boolean;
+  showBreaks: boolean;
+}
+
+interface SectionRenderProps {
+  day: ReportDayInfo;
+  ctx: ReportCtx;
+  design: NonNullable<ReturnType<typeof designFor>>;
+  sceneFilter?: Set<string>;
+  flags: SectionRowFlags;
+  hiddenFields?: Set<string>;
+}
+
+const sectionRow = (r: any, i: number, flags: SectionRowFlags, ctx: ReportCtx) => {
+  if (r.type === 'NOTE') return flags.showNotes ? <NoteRow key={i} r={r} ctx={ctx} /> : null;
+  if (r.type === 'BREAK') return flags.showBreaks ? <NoteBreakRow key={i} label={r.breakLabel || 'BREAK'} ctx={ctx} /> : null;
+  return null;
+};
+
+const DayHeaderBar: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; showCall: boolean }> = ({ day, ctx, showCall }) => {
   const header = getDayHeaderColors(ctx.project.colorPalette);
+  return (
+    <div style={{ background: header.background, color: header.color, fontSize: 8, padding: '3px 6px', display: 'flex', justifyContent: 'space-between' }}>
+      <span>{day.label ? `START OF ${day.label.toUpperCase()}` : `START OF DAY ${day.chronoDay}`} — {day.date}</span>
+      {showCall && <span>CALL {day.callTime}</span>}
+    </div>
+  );
+};
+
+const DaySectionView: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneFilter, flags, hiddenFields }) => {
   const footer = getDayFooterColors(ctx.project.colorPalette);
   const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
-  const palette = ctx.project.colorPalette;
-  const noteBg = palette?.noteBg || '#3f0000';
-  const noteColor = palette?.noteText || '#ffffff';
   const stripFor = (r: any) => {
     if (r.type !== 'SCENE' || !r.sceneId) return null;
     const it = scenes.find(s => s.scene.id === r.sceneId);
     if (!it) return null;
     if (sceneFilter && !sceneFilter.has(it.scene.id)) return null;
-    return <Strip key={r.id} it={it} ctx={ctx} design={design} />;
+    return <Strip key={r.id} it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} />;
   };
-  const noteRow = (r: any) => (
-    <div key={r.id} style={{ background: noteBg, color: noteColor, fontSize: 8, padding: '4px 6px', borderTop: '1px solid #000' }}>NOTE — {r.noteText}</div>
-  );
-  const breakRow = (r: any) => <NoteBreakRow key={r.id} label={r.breakLabel || 'BREAK'} ctx={ctx} />;
   return (
     <div style={{ border: '1px solid #000', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-      <div style={{ background: header.background, color: header.color, fontSize: 8, padding: '3px 6px', display: 'flex', justifyContent: 'space-between' }}>
-        <span>{day.label ? `START OF ${day.label.toUpperCase()}` : `START OF DAY ${day.chronoDay}`} — {day.date}</span>
-        <span>CALL {day.callTime}</span>
-      </div>
-      {day.section.rows.map((r, i) => {
-        if (r.type === 'SCENE' && r.sceneId) return stripFor(r);
-        if (r.type === 'NOTE') return noteRow(r);
-        if (r.type === 'BREAK') return breakRow(r);
-        return null;
-      })}
+      {flags.showHeader && <DayHeaderBar day={day} ctx={ctx} showCall={flags.showCall} />}
+      {day.section.rows.map((r, i) => stripFor(r) || sectionRow(r, i, flags, ctx))}
       <div style={{ background: footer.background, color: footer.color, fontSize: 8, padding: '3px 6px', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #000' }}>
         <span>{day.label ? `END OF ${day.label.toUpperCase()}` : `END OF DAY ${day.chronoDay}`}</span>
-        <span>{day.totalPages} pgs · {formatDuration(day.shootMin)} shoot{day.breakMin ? ` + ${formatDuration(day.breakMin)} break` : ''}</span>
+        <span>
+          {day.totalPages} pgs
+          {flags.showDurations && ` · ${formatDuration(day.shootMin)} shoot${day.breakMin ? ` + ${formatDuration(day.breakMin)} break` : ''}`}
+        </span>
       </div>
     </div>
   );
 };
 
-const DayStripsOnly: React.FC<{ day: ReportDayInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; sceneFilter?: Set<string> }> = ({ day, ctx, design, sceneFilter }) => {
+const DayStripsOnly: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneFilter, flags, hiddenFields }) => {
   const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+    <div style={{ border: '1px solid #000', display: 'flex', flexDirection: 'column', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+      {flags.showHeader && <DayHeaderBar day={day} ctx={ctx} showCall={flags.showCall} />}
       {day.section.rows.map((r, i) => {
-        if (r.type !== 'SCENE' || !r.sceneId) return null;
-        const it = scenes.find(s => s.scene.id === r.sceneId);
-        if (!it) return null;
-        if (sceneFilter && !sceneFilter.has(it.scene.id)) return null;
-        return <Strip key={i} it={it} ctx={ctx} design={design} />;
+        if (r.type === 'SCENE' && r.sceneId) {
+          const it = scenes.find(s => s.scene.id === r.sceneId);
+          if (!it) return null;
+          if (sceneFilter && !sceneFilter.has(it.scene.id)) return null;
+          return <Strip key={i} it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} />;
+        }
+        return sectionRow(r, i, flags, ctx);
       })}
     </div>
   );
@@ -172,19 +228,31 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
   if (!design) return null;
   const any = item as any;
 
+  // Cell fields dropped from every strip (call time / duration off by default).
+  const hiddenFields = new Set<string>();
+  if (block.ribbonCallTimes !== true) hiddenFields.add('callTime');
+  if (block.ribbonDurations !== true) hiddenFields.add('duration');
+
   if (any?.scene) {
     return (
       <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} />
+        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} hiddenFields={hiddenFields} />
       </div>
     );
   }
 
   if (typeof any?.section?.index === 'number') {
     const sceneFilter = personSceneFilter(ctx, ancestors);
+    const flags: SectionRowFlags = {
+      showHeader: block.ribbonHeaders === true,
+      showCall: block.ribbonCallTimes === true,
+      showDurations: block.ribbonDurations === true,
+      showNotes: block.ribbonNotes !== false,
+      showBreaks: block.ribbonBreaks === true,
+    };
     return block.ribbonDaySection === false
-      ? <DayStripsOnly day={item as ReportDayInfo} ctx={ctx} design={design} sceneFilter={sceneFilter} />
-      : <DaySectionView day={item as ReportDayInfo} ctx={ctx} design={design} sceneFilter={sceneFilter} />;
+      ? <DayStripsOnly day={item as ReportDayInfo} ctx={ctx} design={design} sceneFilter={sceneFilter} flags={flags} hiddenFields={hiddenFields} />
+      : <DaySectionView day={item as ReportDayInfo} ctx={ctx} design={design} sceneFilter={sceneFilter} flags={flags} hiddenFields={hiddenFields} />;
   }
 
   if (hint) {

@@ -5,6 +5,7 @@ import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { formatDateShort } from '../../lib/utils';
 import Modal, { ModalFooter } from '../Modal';
+import Checkbox from '../Checkbox';
 
 // Print-options dialog for custom reports (File → Print → Custom Reports).
 // For every top-level repeat/table it lets you include ALL of its items or a
@@ -105,23 +106,21 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
               </div>
               {blockMode === 'selected' && (
                 <div className="mt-2">
-                  <label className="flex items-center gap-1.5 text-xs text-zinc-400 mb-1">
-                    <input
-                      type="checkbox"
-                      checked={allChecked}
-                      onChange={e => setInclude(prev => ({ ...prev, [block.id]: e.target.checked ? [...keys] : [] }))}
-                    />
-                    Select all ({items.length})
-                  </label>
+                  <Checkbox
+                    checked={allChecked}
+                    onChange={on => setInclude(prev => ({ ...prev, [block.id]: on ? [...keys] : [] }))}
+                    label={`Select all (${items.length})`}
+                    className="mb-1"
+                  />
                   <div className="max-h-56 overflow-y-auto border border-zinc-800 rounded p-1 space-y-0.5">
                     {items.map((it, i) => {
                       const key = keys[i];
                       const checked = selected !== undefined && selected.map(String).includes(String(key));
                       return (
-                        <label key={String(key)} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-900 text-xs text-zinc-300 cursor-pointer">
-                          <input type="checkbox" checked={checked} onChange={() => toggleItem(block.id, key)} />
+                        <div key={String(key)} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-zinc-900 text-xs text-zinc-300 cursor-pointer" onClick={() => toggleItem(block.id, key)}>
+                          <Checkbox checked={checked} onChange={() => toggleItem(block.id, key)} />
                           <span className="truncate">{itemLabel(scope.collection, it) || String(key)}</span>
-                        </label>
+                        </div>
                       );
                     })}
                   </div>

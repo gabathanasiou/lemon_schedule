@@ -5,6 +5,7 @@ import { Printer, ChevronDown, Check } from 'lucide-react';
 import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
+import Checkbox from './Checkbox';
 import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
@@ -323,35 +324,17 @@ export default function PrintDialog({ onPrint, onClose }: { onPrint: (options: P
             <div>
               <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Stripboard</h3>
               <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.showTimes} onChange={e => update({ showTimes: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                  <span className="text-xs text-zinc-300">Call Times</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.showDurations} onChange={e => update({ showDurations: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                  <span className="text-xs text-zinc-300">Durations</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.includeStatusDays} onChange={e => update({ includeStatusDays: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                  <span className="text-xs text-zinc-300">Hold / Travel / Holiday days</span>
-                </label>
+                <Checkbox checked={settings.showTimes} onChange={on => update({ showTimes: on })} label="Call Times" />
+                <Checkbox checked={settings.showDurations} onChange={on => update({ showDurations: on })} label="Durations" />
+                <Checkbox checked={settings.includeStatusDays} onChange={on => update({ includeStatusDays: on })} label="Hold / Travel / Holiday days" />
               </div>
             </div>
             <div>
               <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5 mb-3">Page Style</h3>
               <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.showCastList} onChange={e => update({ showCastList: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                  <span className="text-xs text-zinc-300">Cast List</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.showExportDate} onChange={e => update({ showExportDate: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                  <span className="text-xs text-zinc-300">Export date on title</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.showPageNumbers} onChange={e => update({ showPageNumbers: e.target.checked })} className="w-4 h-4 rounded border-zinc-600 bg-zinc-800" />
-                  <span className="text-xs text-zinc-300">Page numbers</span>
-                </label>
+                <Checkbox checked={settings.showCastList} onChange={on => update({ showCastList: on })} label="Cast List" />
+                <Checkbox checked={settings.showExportDate} onChange={on => update({ showExportDate: on })} label="Export date on title" />
+                <Checkbox checked={settings.showPageNumbers} onChange={on => update({ showPageNumbers: on })} label="Page numbers" />
               </div>
             </div>
 

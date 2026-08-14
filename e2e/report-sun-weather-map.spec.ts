@@ -174,18 +174,18 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     // ---- legacy pin (place-only): address bar derives street/city/postcode ----
     await expect(page.locator('[data-block-id="map-legacy"]')).toContainText('Westminster, London SW1A 2JR');
 
-    // ---- location picker: search → pin → attach ----
+    // ---- location picker: search → pin → use (dropdown, not modal) ----
     // Capture the map pane position — after attaching a new pin the map must
     // re-center (react-leaflet's center prop is init-only).
     const paneBefore = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     await page.locator('[data-block-id="map-block"]').click({ force: true });
     await page.waitForTimeout(300);
-    await page.getByRole('button', { name: 'Change location' }).click();
-    await expect(page.getByText('Attach a location')).toBeVisible();
+    await page.getByRole('button', { name: 'Change', exact: true }).click();
+    await expect(page.getByTestId('location-picker-panel')).toBeVisible();
     await page.getByPlaceholder('Search an address or place…').fill('Big Ben');
     await page.waitForTimeout(700);
-    await page.getByRole('dialog').getByText('Big Ben, Bridge Street', { exact: false }).click();
-    await page.getByRole('button', { name: 'Attach pin' }).click();
+    await page.getByTestId('location-picker-panel').getByText('Big Ben, Bridge Street', { exact: false }).click();
+    await page.getByRole('button', { name: 'Use this location', exact: true }).click();
     await page.waitForTimeout(500);
     const paneAfter = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     expect(paneAfter).not.toBe(paneBefore);

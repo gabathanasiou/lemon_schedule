@@ -8,14 +8,16 @@ import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportT
 import { IS_COARSE } from '../../lib/device';
 import { FieldPicker, TB_PICKER } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
-import RichTextEditor, { RichTextEditorHandle } from './RichTextEditor';
+import RichTextEditor, { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
 import DropdownMenu from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
+import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
 import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon, Clock, Timer, StickyNote, Coffee, PanelTop, Square } from 'lucide-react';
-import { LocationPickerModal } from './LocationPickerModal';
+import { LocationPicker } from '../location/LocationPicker';
+import { PickedLocation } from '../../lib/places';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -122,7 +124,7 @@ export const StructureControls: React.FC<StructureControlsProps> = ({ readOnly, 
 
 // ---- link menu (text blocks): apply/remove a hyperlink to the selection ------
 
-const LinkMenu: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | null>; disabled: boolean }> = ({ editorRef, disabled }) => {
+const LinkMenu: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | null>; disabled: boolean; active: boolean }> = ({ editorRef, disabled, active }) => {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
   const apply = () => {
@@ -143,7 +145,7 @@ const LinkMenu: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | nul
           type="button"
           disabled={disabled}
           onMouseDown={e => e.preventDefault()}
-          className={`${TB_TOGGLE} ${TB_TOGGLE_OFF}`}
+          className={`${TB_TOGGLE} ${active ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
           title="Link"
           aria-label="Link"
         >
@@ -186,26 +188,28 @@ export const RichTextToolbar: React.FC<{
   fields?: ReportFieldDef[];
   scope?: string | null;
   onInsertAttribute?: (field: string) => void;
-}> = ({ editorRef, disabled, fields, scope, onInsertAttribute }) => {
+  /** Formatting at the caret/selection — lights the toggles up (Word-style). */
+  active?: RichTextState;
+}> = ({ editorRef, disabled, fields, scope, onInsertAttribute, active }) => {
   const [colorOpen, setColorOpen] = useState(false);
   const run = (cmd: string, value?: string) => editorRef.current?.exec(cmd, value);
-  const btn = `${TB_TOGGLE} ${TB_TOGGLE_OFF}`;
+  const toggle = (on: boolean) => `${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`;
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
       <Tooltip content="Bold">
-        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('bold')} className={`${btn} font-bold`}>B</button>
+        <button aria-label="Bold" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('bold')} className={`${toggle(active?.bold ?? false)} font-bold`}>B</button>
       </Tooltip>
       <Tooltip content="Italic">
-        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('italic')} className={`${btn} italic`}>I</button>
+        <button aria-label="Italic" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('italic')} className={`${toggle(active?.italic ?? false)} italic`}>I</button>
       </Tooltip>
       <Tooltip content="Underline">
-        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('underline')} className={btn}><Underline className="w-3 h-3" /></button>
+        <button aria-label="Underline" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('underline')} className={toggle(active?.underline ?? false)}><Underline className="w-3 h-3" /></button>
       </Tooltip>
       <Tooltip content="Strikethrough">
-        <button disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('strikeThrough')} className={btn}><Strikethrough className="w-3 h-3" /></button>
+        <button aria-label="Strikethrough" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('strikeThrough')} className={toggle(active?.strike ?? false)}><Strikethrough className="w-3 h-3" /></button>
       </Tooltip>
       <div className={TB_DIVIDER} />
-      <LinkMenu editorRef={editorRef} disabled={disabled} />
+      <LinkMenu editorRef={editorRef} disabled={disabled} active={active?.link ?? false} />
       <div className={TB_DIVIDER} />
       <DropdownMenu
         open={colorOpen}
@@ -214,7 +218,7 @@ export const RichTextToolbar: React.FC<{
         width="w-36"
         trigger={
           <button type="button" disabled={disabled} className={`${TB_PICKER} disabled:pointer-events-none`} title="Text color">
-            <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: RT_COLORS[0] }} />
+            <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: active?.color || RT_COLORS[0] }} />
             <ChevronDown className="w-3 h-3 text-zinc-500" />
           </button>
         }
@@ -224,7 +228,7 @@ export const RichTextToolbar: React.FC<{
             <button
               key={c}
               onClick={() => { run('foreColor', c); setColorOpen(false); }}
-              className="w-7 h-7 rounded border border-zinc-700 hover:border-zinc-500 transition-colors"
+              className={`w-7 h-7 rounded border border-zinc-700 hover:border-zinc-500 transition-colors ${c === active?.color ? 'ring-2 ring-zinc-300' : ''}`}
               style={{ background: c }}
               title={c}
             />
@@ -687,13 +691,12 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
 export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
-  const checkboxCls = 'flex items-center gap-1.5 text-xs text-zinc-400';
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
   // Hoisted hooks — must run unconditionally (a useRef inside `if (block.type
   // === 'text')` changes the hook order when switching between block types,
   // which crashes React with a "Rendered more hooks" error).
   const editorRef = React.useRef<RichTextEditorHandle>(null);
-  const [locationOpen, setLocationOpen] = useState(false);
+  const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -721,6 +724,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
           fields={contextFields}
           scope={parentCollection}
+          active={rtActive}
           onInsertAttribute={f => editorRef.current?.insertToken(f)}
         />
         <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
@@ -728,6 +732,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             ref={editorRef}
             value={block.text || ''}
             onChange={text => onPatch({ text })}
+            onStateChange={setRtActive}
             placeholder="Type text… type @ to insert an attribute"
             disabled={disabled}
             fields={contextFields}
@@ -824,14 +829,8 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         </ContentRow>,
         (block.axis ?? 'columns') === 'columns' ? (
           <ContentRow key="headerBorders" label="Header & borders">
-            <label className={checkboxCls}>
-              <input type="checkbox" checked={!!block.showHeader} disabled={disabled} onChange={e => onPatch({ showHeader: e.target.checked })} />
-              Header row
-            </label>
-            <label className={checkboxCls}>
-              <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
-              Cell borders
-            </label>
+            <Checkbox checked={!!block.showHeader} disabled={disabled} onChange={on => onPatch({ showHeader: on })} label="Header row" />
+            <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
           </ContentRow>
         ) : (
           <ContentRow key="headerBorders" label="Item header">
@@ -844,10 +843,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
               scope={tableFieldScope(block, parentCollection)}
               className={fieldPickerCls}
             />
-            <label className={checkboxCls}>
-              <input type="checkbox" checked={block.showBorders !== false} disabled={disabled} onChange={e => onPatch({ showBorders: e.target.checked })} />
-              Cell borders
-            </label>
+            <Checkbox checked={block.showBorders !== false} disabled={disabled} onChange={on => onPatch({ showBorders: on })} label="Cell borders" />
           </ContentRow>
         ),
         hasDayList ? (
@@ -869,20 +865,14 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       </ContentRow>,
       parentCollection && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
         <ContentRow key="scope" label="Scope">
-          <label className={checkboxCls}>
-            <input type="checkbox" checked={block.scopedToParent !== false} disabled={disabled} onChange={e => onPatch({ scopedToParent: e.target.checked })} />
-            Only {COLLECTION_LABELS_LOCAL[effective] || 'items'} in this {PARENT_LABELS[parentCollection] || 'item'}
-          </label>
+          <Checkbox checked={block.scopedToParent !== false} disabled={disabled} onChange={on => onPatch({ scopedToParent: on })} label={`Only ${COLLECTION_LABELS_LOCAL[effective] || 'items'} in this ${PARENT_LABELS[parentCollection] || 'item'}`} />
         </ContentRow>
       ) : null,
     );
     if (block.collection === 'categories') {
       push('Filters',
         <ContentRow key="skipEmpty" label="Skip empty">
-          <label className={checkboxCls}>
-            <input type="checkbox" checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={e => onPatch({ skipEmptyCategories: e.target.checked })} />
-            Skip categories with no elements
-          </label>
+          <Checkbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label="Skip categories with no elements" />
         </ContentRow>,
         <ContentRow key="exclude" label="Exclude categories">
           <ExcludeCategoriesMenu
@@ -1013,6 +1003,16 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   if (block.type === 'map') {
     const hasPin = block.mapLat != null && block.mapLng != null;
     const inherited = !!block.mapInheritLocation;
+    const patchMapLocation = (loc: PickedLocation) => onPatch({
+      mapLat: loc.lat,
+      mapLng: loc.lng,
+      mapPlace: loc.place,
+      mapAddress: loc.address,
+      mapCity: loc.city,
+      mapPostcode: loc.postcode,
+      mapCountry: loc.country,
+    });
+    const clearMapLocation = () => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined, mapAddress: undefined, mapCity: undefined, mapPostcode: undefined, mapCountry: undefined });
     push(null,
       <ContentRow key="loc" label="Location">
         {inherited ? (
@@ -1022,22 +1022,26 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             <span className="max-w-44 truncate text-[10px] text-zinc-400">
               {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
             </span>
-            <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Change location" className={TB_BTN}>
-              <MapPin className="w-3 h-3" /> Change
-            </ToolButton>
-            <ToolButton
-              onClick={() => onPatch({ mapLat: undefined, mapLng: undefined, mapPlace: undefined, mapAddress: undefined, mapCity: undefined, mapPostcode: undefined, mapCountry: undefined })}
+            <LocationPicker
+              value={{ lat: block.mapLat!, lng: block.mapLng!, place: block.mapPlace, address: block.mapAddress, city: block.mapCity, postcode: block.mapPostcode, country: block.mapCountry }}
+              onChange={patchMapLocation}
+              onClear={clearMapLocation}
+              triggerLabel="Change"
+              triggerClassName={TB_BTN}
               disabled={disabled}
-              title="Clear location"
-              className={`${TB_BTN_ICON} ${TB_DANGER}`}
-            >
+            />
+            <ToolButton onClick={clearMapLocation} disabled={disabled} title="Clear location" className={`${TB_BTN_ICON} ${TB_DANGER}`}>
               <Trash2 className="w-3 h-3" />
             </ToolButton>
           </>
         ) : (
-          <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Set location" className={TB_BTN}>
-            <MapPin className="w-3 h-3" /> Set location…
-          </ToolButton>
+          <LocationPicker
+            value={null}
+            onChange={patchMapLocation}
+            triggerLabel="Set location…"
+            triggerClassName={TB_BTN}
+            disabled={disabled}
+          />
         )}
       </ContentRow>,
       <ContentRow key="height" label="Height (px)">
@@ -1054,10 +1058,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
     push('Map',
       <ContentRow key="inherit" label="Day location">
-        <label className={checkboxCls}>
-          <input type="checkbox" checked={inherited} disabled={disabled} onChange={e => onPatch({ mapInheritLocation: e.target.checked })} />
-          Use the day's location
-        </label>
+        <Checkbox checked={inherited} disabled={disabled} onChange={on => onPatch({ mapInheritLocation: on })} label="Use the day's location" />
       </ContentRow>,
       <ContentRow key="open" label="Open in">
         <Seg
@@ -1086,24 +1087,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <div className="flex flex-col gap-0.5">{s.rows}</div>
         </div>
       ))}
-      {block.type === 'map' && (
-        <LocationPickerModal
-          open={locationOpen}
-          onClose={() => setLocationOpen(false)}
-          onConfirm={loc => {
-            onPatch({
-              mapLat: loc.lat,
-              mapLng: loc.lng,
-              mapPlace: loc.place,
-              mapAddress: loc.address,
-              mapCity: loc.city,
-              mapPostcode: loc.postcode,
-              mapCountry: loc.country,
-            });
-            setLocationOpen(false);
-          }}
-        />
-      )}
     </div>
   );
 };

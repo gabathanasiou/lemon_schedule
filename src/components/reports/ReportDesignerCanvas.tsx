@@ -14,6 +14,7 @@ import {
 import { FieldPicker, TB_PICKER } from './FieldPicker';
 import { FloatingChrome } from '../FloatingChrome';
 import { Tooltip } from '../Tooltip';
+import Checkbox from '../Checkbox';
 import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical } from 'lucide-react';
 
 function firstItemOf(ctx: ReportCtx, b: ReportBlock, parentItem: any, parentCategory?: string, ancestors?: any): any {
@@ -629,10 +630,7 @@ const ReportZone: React.FC<{
     <div className="flex items-center gap-2 mb-1.5" onClick={e => e.stopPropagation()}>
       <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
       <span className="text-[10px] text-zinc-400 italic">{hint}</span>
-      <label className="flex items-center gap-1 ml-auto text-[10px] text-zinc-500 select-none">
-        <input type="checkbox" checked={skipFirst} disabled={readOnly} onChange={onToggleSkipFirst} />
-        Skip first page
-      </label>
+      <Checkbox checked={skipFirst} disabled={readOnly} onChange={onToggleSkipFirst} label="Skip first page" className="ml-auto" />
     </div>
     <div onClick={empty ? (e => { e.stopPropagation(); onInsert(zone, { kind: 'block', type: 'text' }); }) : undefined}>{children}</div>
   </div>
