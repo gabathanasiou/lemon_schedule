@@ -196,6 +196,13 @@ export interface CategoryTrashItem {
   deletedAt: number;
 }
 
+export interface CrewTrashItem {
+  person: CrewPerson;
+  role: string;
+  roleLabel: string;
+  deletedAt: number;
+}
+
 // Legacy single-row ribbon column (kept for migration)
 export interface SceneRibbonColumn {
   key: string;
@@ -404,6 +411,7 @@ export interface Project {
   productionInfo?: ProductionInfo;
   crewRoles?: CrewRole[];
   crew?: Record<string, CrewPerson[]>;
+  crewTrash?: CrewTrashItem[];
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];

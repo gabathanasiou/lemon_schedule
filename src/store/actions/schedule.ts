@@ -108,6 +108,7 @@ export function caseEmptyTrash(state: State, action: Action, applyChange: ApplyC
     ribbonTrash: [],
     elementsTrash: [],
     categoryTrash: [],
+    crewTrash: [],
   });
 }
 

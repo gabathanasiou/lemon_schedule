@@ -180,6 +180,14 @@ export default function HelpModal({ open, onClose }: HelpModalProps) {
           <Row keys={<>Save then <Kbd>⌘</Kbd> + <Kbd>Z</Kbd></>} action="Undoes the whole save as one step" />
         </Section>
 
+        <Section title="Crew Manager">
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>S</Kbd></>} action="Save crew changes (or the Save button). Same-name merges are confirmed before saving" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>N</Kbd></>} action="Add a new member row" />
+          <Row keys={<><Kbd>⌘</Kbd> + <Kbd>Z</Kbd> / <Kbd>⌘</Kbd> + <Kbd>⇧</Kbd> + <Kbd>Z</Kbd></>} action="Undo / redo unsaved crew edits (one step per operation) — same as the top Undo/Redo buttons" />
+          <Row keys={<>Revert</>} action="Discard all unsaved edits back to the last save" />
+          <Row keys={<>Deleted members go to Trash</>} action="Restore from the File menu's Trash; a role is recreated automatically if it was deleted" />
+        </Section>
+
         <Section title="Pop-out Windows">
           <Row keys={<><Kbd>⇧</Kbd> + Double-click</>} action="Open scene sheet in a new window (from stripboard, calendar, or Glide grid)" />
           <Row keys={<><Kbd>⇧</Kbd> + Right-click</>} action={'Context menu shows "Open in New Window" instead of "Open Sheet"'} />

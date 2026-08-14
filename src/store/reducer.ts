@@ -28,6 +28,7 @@ import {
   caseSetActiveReport, caseDeleteReportDesign, caseRestoreReportFromTrash,
   caseSetProductionInfo, caseAddCrewRole, caseRenameCrewRole, caseDeleteCrewRole,
   caseAddCrewPerson, caseUpdateCrewPerson, caseDeleteCrewPerson, caseReorderCrewPerson,
+  caseRestoreCrewPersonFromTrash,
   caseSetReportTextStyles,
 } from './actions/reports';
 import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
@@ -124,6 +125,7 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     productionInfo: {},
     crewRoles: DEFAULT_CREW_ROLES,
     crew: {},
+    crewTrash: [],
     reportDesigns: defaultReports,
     activeReportId: defaultReport.id,
     reportTrash: [],
@@ -207,6 +209,7 @@ export type Action =
   | { type: 'UPDATE_CREW_PERSON'; payload: { role: string; id: string; updates: Partial<CrewPerson>; toRole?: string } }
   | { type: 'DELETE_CREW_PERSON'; payload: { role: string; id: string } }
   | { type: 'REORDER_CREW_PERSON'; payload: { role: string; id: string; dir: -1 | 1 } }
+  | { type: 'RESTORE_CREW_PERSON_FROM_TRASH'; payload: string }
 
 export interface State {
   past: Project[];
@@ -258,6 +261,7 @@ export function reducer(state: State, action: Action): State {
     p.productionInfo = p.productionInfo || {};
     p.crewRoles = p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES;
     p.crew = p.crew || {};
+    p.crewTrash = p.crewTrash || [];
     p.reportTrash = p.reportTrash || [];
     if (!p.reportDesigns || p.reportDesigns.length === 0) {
       const defaultReports = getDefaultReportDesigns();
@@ -411,6 +415,7 @@ export function reducer(state: State, action: Action): State {
     case 'UPDATE_CREW_PERSON': return caseUpdateCrewPerson(state, action, applyChange);
     case 'DELETE_CREW_PERSON': return caseDeleteCrewPerson(state, action, applyChange);
     case 'REORDER_CREW_PERSON': return caseReorderCrewPerson(state, action, applyChange);
+    case 'RESTORE_CREW_PERSON_FROM_TRASH': return caseRestoreCrewPersonFromTrash(state, action, applyChange);
     default:
       return state;
   }

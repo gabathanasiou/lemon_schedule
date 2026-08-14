@@ -42,6 +42,8 @@ export interface RowBufferResult<T extends BufferedRow> {
   focusNext: (key: string, field: string) => void;
   /** Call after the manager's save dispatches committed: snapshots refresh, local history clears. */
   commitSaved: () => void;
+  /** Drop buffered rows absorbed by a save (e.g. merged-away new rows) without an undo entry. */
+  commitDroppedRows: (scopeKey: string, keys: string[]) => void;
   cachedRows: (scope: string) => T[] | undefined;
   cachedSnapshot: (scope: string) => T[] | undefined;
   bufferedScopes: () => string[];
@@ -254,6 +256,12 @@ export function useRowBuffer<T extends BufferedRow>(opts: RowBufferOptions<T>): 
     consumePendingTab()?.();
   }, []);
 
+  const commitDroppedRows = useCallback((scopeKey: string, keys: string[]) => {
+    const next = (rowsByScope.current[scopeKey] || []).filter(r => !keys.includes(r.key));
+    rowsByScope.current[scopeKey] = next;
+    if (scopeKey === scopeRef.current) setRows(next);
+  }, []);
+
   const registerInput = useCallback((key: string, field: string, el: HTMLInputElement | null) => {
     const id = `${key}-${field}`;
     if (el) inputsRef.current.set(id, el);
@@ -351,6 +359,7 @@ export function useRowBuffer<T extends BufferedRow>(opts: RowBufferOptions<T>): 
     registerInput,
     focusNext,
     commitSaved,
+    commitDroppedRows,
     cachedRows,
     cachedSnapshot,
     bufferedScopes,

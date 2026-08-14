@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ProjectProvider, useProject, useIsCloudProject, DEFAULT_CATEGORY_LABELS } from './store';
 import { useDialog } from './components/Dialog';
-import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, Project } from './types';
+import { TrashItem, VersionTrashItem, RuleTrashItem, RibbonTrashItem, ElementTrashItem, CategoryTrashItem, ColorRuleTrashItem, CrewTrashItem, Project } from './types';
 import { BreakdownTab } from './components/BreakdownTab';
 import { ScheduleTab } from './components/ScheduleTab';
 import { CalendarTab } from './components/CalendarTab';
@@ -799,7 +799,7 @@ function AppContent() {
                 <p className="text-zinc-500 text-[11px] mt-0.5">Items expire after 30 days</p>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
-                {(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) + (project.colorRulesTrash?.length || 0) > 0 && (
+                {(project.trash?.length || 0) + (project.versionTrash?.length || 0) + (project.rulesTrash?.length || 0) + (project.ribbonTrash?.length || 0) + (project.elementsTrash?.length || 0) + (project.categoryTrash?.length || 0) + (project.colorRulesTrash?.length || 0) + (project.crewTrash?.length || 0) > 0 && (
                   <button
                     onClick={async () => { const ok = await dialog.confirm({ title: 'Empty Trash?', message: 'Permanently delete all trash items?', danger: true, suppressKey: 'lemon_schedule_dnwa_empty_trash' }); if (ok) dispatch({ type: 'EMPTY_TRASH' }); }}
                     className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-1.5 py-0.5 rounded hover:bg-red-500/10 transition-colors"
@@ -820,7 +820,8 @@ function AppContent() {
                   | { kind: 'ribbon'; id: string; data: RibbonTrashItem }
                   | { kind: 'element'; id: string; data: ElementTrashItem }
                   | { kind: 'category'; id: string; data: CategoryTrashItem }
-                  | { kind: 'colorrule'; id: string; data: ColorRuleTrashItem }> = [
+                  | { kind: 'colorrule'; id: string; data: ColorRuleTrashItem }
+                  | { kind: 'crew'; id: string; data: CrewTrashItem }> = [
                     ...(project.trash || []).map(t => ({ kind: 'scene' as const, id: t.scene.id, data: t })),
                     ...(project.versionTrash || []).map(t => ({ kind: 'version' as const, id: t.version.id, data: t })),
                     ...(project.rulesTrash || []).map(t => ({ kind: 'rule' as const, id: t.rule.id, data: t })),
@@ -828,6 +829,7 @@ function AppContent() {
                     ...(project.elementsTrash || []).map(t => ({ kind: 'element' as const, id: t.element.id, data: t })),
                     ...(project.categoryTrash || []).map(t => ({ kind: 'category' as const, id: t.category.key, data: t })),
                     ...(project.colorRulesTrash || []).map(t => ({ kind: 'colorrule' as const, id: t.rule.id, data: t })),
+                    ...(project.crewTrash || []).map(t => ({ kind: 'crew' as const, id: t.person.id, data: t })),
                   ].sort((a, b) => b.data.deletedAt - a.data.deletedAt);
                 if (items.length === 0) {
                   return <div className="text-zinc-500 text-center py-12 text-sm">Trash is empty</div>;
@@ -865,6 +867,10 @@ function AppContent() {
                     const t = item.data as ColorRuleTrashItem;
                     title = t.rule.name;
                     subtitle = `Color Rule · ${formatTime(t.deletedAt)}`;
+                  } else if (item.kind === 'crew') {
+                    const t = item.data as CrewTrashItem;
+                    title = t.person.name || 'Unnamed';
+                    subtitle = `${t.roleLabel} · Crew · ${formatTime(t.deletedAt)}`;
                   } else {
                     const t = item.data as RibbonTrashItem;
                     title = t.design.name;
@@ -876,9 +882,10 @@ function AppContent() {
                     : item.kind === 'element' ? 'RESTORE_ELEMENT_FROM_TRASH'
                     : item.kind === 'category' ? 'RESTORE_CATEGORY_FROM_TRASH'
                     : item.kind === 'colorrule' ? 'RESTORE_COLOR_RULE_FROM_TRASH'
+                    : item.kind === 'crew' ? 'RESTORE_CREW_PERSON_FROM_TRASH'
                     : 'RESTORE_RIBBON_FROM_TRASH';
-                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'rule' ? 'Rule' : item.kind === 'element' ? 'Element' : item.kind === 'category' ? 'Category' : item.kind === 'colorrule' ? 'Color Rule' : 'Ribbon';
-                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'rule' ? 'text-amber-400' : item.kind === 'element' ? 'text-orange-400' : item.kind === 'category' ? 'text-pink-400' : item.kind === 'colorrule' ? 'text-teal-400' : 'text-violet-400';
+                  const kindLabel = item.kind === 'scene' ? 'Scene' : item.kind === 'version' ? 'Version' : item.kind === 'rule' ? 'Rule' : item.kind === 'element' ? 'Element' : item.kind === 'category' ? 'Category' : item.kind === 'colorrule' ? 'Color Rule' : item.kind === 'crew' ? 'Crew' : 'Ribbon';
+                  const kindColor = item.kind === 'scene' ? 'text-sky-400' : item.kind === 'version' ? 'text-emerald-400' : item.kind === 'rule' ? 'text-amber-400' : item.kind === 'element' ? 'text-orange-400' : item.kind === 'category' ? 'text-pink-400' : item.kind === 'colorrule' ? 'text-teal-400' : item.kind === 'crew' ? 'text-cyan-400' : 'text-violet-400';
                   return (
                     <div key={`${item.kind}-${item.id}`} className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-zinc-900 group">
                       <div className="min-w-0">

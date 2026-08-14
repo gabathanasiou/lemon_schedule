@@ -1,4 +1,4 @@
-import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, ProductionInfo } from '../../types';
+import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, CrewTrashItem, ProductionInfo } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { getDefaultReportDesign } from '../../lib/reportTemplates';
 import type { Action, State } from '../reducer';
@@ -164,11 +164,18 @@ export function caseRenameCrewRole(state: State, action: Action, applyChange: Ap
 export function caseDeleteCrewRole(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'DELETE_CREW_ROLE') return state;
   const crew = { ...(state.present.crew || {}) };
+  const trashItems: CrewTrashItem[] = (crew[action.payload] || []).map(person => ({
+    person,
+    role: action.payload,
+    roleLabel: (state.present.crewRoles || []).find(r => r.key === action.payload)?.label || action.payload,
+    deletedAt: Date.now(),
+  }));
   delete crew[action.payload];
   return applyChange({
     ...state.present,
     crewRoles: (state.present.crewRoles || []).filter(r => r.key !== action.payload),
     crew,
+    crewTrash: [...(state.present.crewTrash || []), ...trashItems],
   });
 }
 
@@ -197,8 +204,40 @@ export function caseUpdateCrewPerson(state: State, action: Action, applyChange: 
 export function caseDeleteCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'DELETE_CREW_PERSON') return state;
   const crew = { ...(state.present.crew || {}) };
-  crew[action.payload.role] = (crew[action.payload.role] || []).filter(p => p.id !== action.payload.id);
-  return applyChange({ ...state.present, crew });
+  const list = crew[action.payload.role] || [];
+  const person = list.find(p => p.id === action.payload.id);
+  crew[action.payload.role] = list.filter(p => p.id !== action.payload.id);
+  const trashItems: CrewTrashItem[] = person
+    ? [{
+        person,
+        role: action.payload.role,
+        roleLabel: (state.present.crewRoles || []).find(r => r.key === action.payload.role)?.label || action.payload.role,
+        deletedAt: Date.now(),
+      }]
+    : [];
+  return applyChange({
+    ...state.present,
+    crew,
+    crewTrash: [...(state.present.crewTrash || []), ...trashItems],
+  });
+}
+
+export function caseRestoreCrewPersonFromTrash(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'RESTORE_CREW_PERSON_FROM_TRASH') return state;
+  const item = (state.present.crewTrash || []).find(t => t.person.id === action.payload);
+  if (!item) return state;
+  const crewRoles = [...(state.present.crewRoles || [])];
+  if (!crewRoles.some(r => r.key === item.role)) {
+    crewRoles.push({ key: item.role, label: item.roleLabel });
+  }
+  const crew = { ...(state.present.crew || {}) };
+  crew[item.role] = [...(crew[item.role] || []), item.person];
+  return applyChange({
+    ...state.present,
+    crewRoles,
+    crew,
+    crewTrash: (state.present.crewTrash || []).filter(t => t.person.id !== action.payload),
+  });
 }
 
 export function caseReorderCrewPerson(state: State, action: Action, applyChange: ApplyChange): State {

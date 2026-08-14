@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { useProject } from '../store';
 import { generateUUID, formatDateShort, DATE_FORMAT_OPTIONS } from '../lib/utils';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
@@ -11,6 +11,8 @@ import { PopoutPlaceholder } from './PopoutWindow';
 import { ChevronDown, Plus, UserPlus } from 'lucide-react';
 import { CommitInput } from './CommitInput';
 import { CrewManager } from './CrewManager';
+import { useDialog } from './Dialog';
+import { requestUnsavedSave } from '../lib/unsavedGuard';
 
 export type ProductionSubTab = 'details' | 'crew';
 
@@ -56,10 +58,21 @@ interface ProductionTabProps {
 export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs, onToggleSubPopout, onCloseSubPopout, shiftHeld, headerTarget }: ProductionTabProps) {
   const { state, dispatch, readOnly } = useProject();
   const project = state.present;
+  const dialog = useDialog();
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
 
   const portalTargetRef = useRef<HTMLDivElement>(null);
   const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
+
+  // Sub-tab switches/popouts that would unmount the crew manager go through
+  // the unsaved-changes guard so the prompt fires before leaving.
+  const requestSubTabChange = useCallback((id: string) => {
+    void requestUnsavedSave(dialog, () => onSubTabChange(id as ProductionSubTab));
+  }, [dialog, onSubTabChange]);
+
+  const requestSubTabPopout = useCallback((id: string) => {
+    void requestUnsavedSave(dialog, () => onToggleSubPopout(id));
+  }, [dialog, onToggleSubPopout]);
 
   const { productionSections } = useDaybreakSections();
   const wrapDate = useMemo(() => {
@@ -106,8 +119,8 @@ export default function ProductionTab({ subTab, onSubTabChange, poppedOutSubTabs
           { id: 'crew', label: 'Crew' },
         ]}
         activeTab={subTab}
-        onChange={onSubTabChange}
-        onPopout={onToggleSubPopout}
+        onChange={requestSubTabChange}
+        onPopout={requestSubTabPopout}
         shiftHeld={shiftHeld}
         rightContent={
           <div ref={el => { portalTargetRef.current = el; setPortalTarget(el); }} className="flex items-center gap-2" />
