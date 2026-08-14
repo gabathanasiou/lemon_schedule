@@ -38,7 +38,9 @@ interface RichTextEditorProps {
 
 const MAX_AC_H = 240;
 
-/** Collapsed range at a character offset from the editor's text start. */
+/** Collapsed range at a character offset from the editor's text start (chip
+ *  text nodes count as their raw {{token}} length, matching the serialized
+ *  text). */
 function rangeAtOffset(el: HTMLElement, offset: number): Range | null {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   let n: Node | null;
@@ -47,13 +49,17 @@ function rangeAtOffset(el: HTMLElement, offset: number): Range | null {
   while ((n = walker.nextNode())) {
     const t = n as Text;
     lastText = t;
-    if (t.data.length >= remaining) {
+    const chip = t.parentElement;
+    const len = chip?.hasAttribute('data-rt-token')
+      ? (chip.getAttribute('data-rt-raw') || t.data).length
+      : t.data.length;
+    if (len >= remaining) {
       const r = document.createRange();
       r.setStart(t, remaining);
       r.collapse(true);
       return r;
     }
-    remaining -= t.data.length;
+    remaining -= len;
   }
   if (lastText) {
     const r = document.createRange();
@@ -86,9 +92,13 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
     return el && el.contains(r.startContainer) ? r : null;
   };
 
-  const styleForToken = (key: string): { text: string; bg: string } => {
+  const styleForToken = (key: string): { text: string; bg: string; label?: string } => {
     const def = fieldsRef.current?.find(f => f.key === key);
-    return def ? fieldChipColor(def.group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
+    if (def) {
+      const color = fieldChipColor(def.group);
+      return { text: color.text, bg: color.bg, label: def.label };
+    }
+    return { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
   };
 
   const refreshChips = useCallback(() => {
@@ -179,10 +189,12 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
       const t = e.target as Node;
       if (el && ac && !el.contains(t) && !acRef.current?.contains(t)) setAc(null);
     };
-    window.addEventListener('selectionchange', onSelectionChange);
+    // selectionchange fires on the DOCUMENT, not the window — a window
+    // listener never runs for real caret moves.
+    document.addEventListener('selectionchange', onSelectionChange);
     window.addEventListener('mousedown', onDocMouseDown);
     return () => {
-      window.removeEventListener('selectionchange', onSelectionChange);
+      document.removeEventListener('selectionchange', onSelectionChange);
       window.removeEventListener('mousedown', onDocMouseDown);
     };
   }, [ac, updateAutocomplete, refreshChips]);

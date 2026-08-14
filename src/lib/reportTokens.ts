@@ -14,11 +14,14 @@ export const TOKEN_TEXT_RE = /\{\{[^{}]+\}\}/;
 const OPEN_TOKEN_RE = /\{\{[^{}]*$/;
 
 export interface TokenChipStyle {
+  /** Chip background color (chip text is white). */
   text: string;
   bg: string;
+  /** Display text — the attribute label. Defaults to the raw {{token}}. */
+  label?: string;
 }
 
-export type TokenStyleFor = (field: string) => TokenChipStyle;
+export type TokenStyleFor = (field: string) => TokenChipStyle | null | undefined;
 
 export interface CaretInfo {
   node: Text;
@@ -87,14 +90,21 @@ function decorateTextNode(t: Text, styleFor?: TokenStyleFor | null): void {
       const color = styleFor?.(key) ?? null;
       const span = document.createElement('span');
       span.setAttribute('data-rt-token', '1');
+      span.setAttribute('data-rt-raw', p.text);
       span.setAttribute('contenteditable', 'false');
       span.style.borderRadius = '999px';
-      span.style.padding = '1px 6px';
+      span.style.padding = '1px 5px';
+      // Horizontal margin gives the caret a gap when it sits right next to the
+      // bubble — without it the cursor overlaps the chip's padding zone. The
+      // left side gets +1px because the caret (≈1px wide) is drawn inside the
+      // left gap but starts clear on the right — equal visual clearance both
+      // sides.
+      span.style.margin = '0 2px 0 3px';
       span.style.fontWeight = '600';
       span.style.fontStyle = 'normal';
       span.style.color = '#ffffff';
       span.style.background = color ? color.text : '#52525b';
-      span.textContent = p.text;
+      span.textContent = color?.label ? color.label : p.text;
       parent.insertBefore(span, anchor());
       prev = span;
     } else if (p.text) {
@@ -106,13 +116,30 @@ function decorateTextNode(t: Text, styleFor?: TokenStyleFor | null): void {
   parent.removeChild(t);
 }
 
-/** Replaces every chip span with its text content (safe to call any time). */
+/** Replaces every chip span with its text content (safe to call any time).
+ *  Chips may display a label (data-rt-raw holds the real {{token}}), so the
+ *  raw text is restored — never the displayed label. */
 export function undecorateTokens(el: HTMLElement): void {
   el.querySelectorAll('span[data-rt-token]').forEach(span => {
-    const frag = document.createDocumentFragment();
-    while (span.firstChild) frag.appendChild(span.firstChild);
-    span.replaceWith(frag);
+    const raw = span.getAttribute('data-rt-raw');
+    if (raw) {
+      span.replaceWith(document.createTextNode(raw));
+    } else {
+      const frag = document.createDocumentFragment();
+      while (span.firstChild) frag.appendChild(span.firstChild);
+      span.replaceWith(frag);
+    }
   });
+}
+
+/** The source text of a text node for offset math: chip text nodes count as
+ *  their raw {{token}} (labels are display-only). */
+function textNodeSource(t: Text): string {
+  const chip = t.parentElement;
+  if (chip?.hasAttribute('data-rt-token')) {
+    return chip.getAttribute('data-rt-raw') || t.data;
+  }
+  return t.data;
 }
 
 /** If the caret ended up INSIDE a chip span (edge-click quirk after blur /
@@ -157,7 +184,9 @@ export function syncChipSelection(el: HTMLElement): void {
 }
 
 /** Full text of the editor up to the range's start (caret must be in a text
- *  node for token matching — element-boundary carets return an empty tail). */
+ *  node for token matching — element-boundary carets return an empty tail).
+ *  Chip text nodes contribute their raw {{token}} so offsets match the
+ *  undecorated serialization. */
 export function textBeforeCaret(el: HTMLElement, range: Range): string {
   let out = '';
   const start = range.startContainer;
@@ -167,10 +196,10 @@ export function textBeforeCaret(el: HTMLElement, range: Range): string {
   while ((n = walker.nextNode())) {
     const t = n as Text;
     if (t === start) {
-      out += t.data.slice(0, range.startOffset);
+      out += textNodeSource(t).slice(0, range.startOffset);
       break;
     }
-    out += t.data;
+    out += textNodeSource(t);
   }
   return out;
 }

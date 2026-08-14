@@ -129,3 +129,32 @@ Untracked helper: `e2e/probe-richtext.spec.ts` — the playtest harness. REMOVE 
   format and `dangerouslySetInnerHTML` print path are untouched.
 - Popover closes on outside mousedown (window listener) and Escape; re-anchors to the
   caret rect on selectionchange.
+
+## Session 2 update (2026-08-14)
+
+All user-reported issues from session 1 are FIXED and verified via playtest probes:
+
+- **Chips now display the attribute LABEL** ("Page Number") instead of `{{pageNumber}}`.
+  The chip stores `data-rt-raw`; `undecorateTokens` restores the RAW token (labels
+  never reach the stored text). `textBeforeCaret`/`rangeAtOffset` count chip text
+  nodes as their raw length so blur-offset restore stays exact. "Show field keys"
+  view in the designer still shows RAW tokens (that view's purpose is keys).
+- **Caret-vs-bubble margins equalized**: chips use `margin: 0 2px 0 3px` — the caret
+  (~1px) is drawn inside the left gap, so the left margin gets +1px for identical
+  visual clearance (measured: 2px each side).
+- **Selection highlight fix (big one)**: Chrome fires `selectionchange` on the
+  DOCUMENT, not the window. The handler was attached to `window`, so it NEVER ran —
+  highlights stuck, caret normalization never fired, chips never re-decorated on
+  caret moves. Now attached to `document`. Verified: click chip → highlight on;
+  click text → highlight clears; caret visible next to chips.
+- **Toolbar "Insert attribute…"** verified inserting at the caret (through the
+  Document submenu) → chip forms, caret lands outside the bubble.
+- Autocomplete-created chips: caret ends OUTSIDE the chip (split-at-caret).
+
+Files changed since last commit: `RichTextEditor.tsx` (document listener, label
+style, raw-aware rangeAtOffset), `reportTokens.ts` (TokenChipStyle.label,
+data-rt-raw, raw-aware textNodeSource/undecorateTokens, asymmetric margin),
+`ReportBlockView.tsx` (pill-styled TokenPreview, raw keys).
+
+Status: lint clean, report e2e 16/17 (only pre-existing
+"Elements (of this category)" failure). Probes deleted before commit.
