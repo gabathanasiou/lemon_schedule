@@ -143,7 +143,8 @@ test('columns block: clicking a column shows the chrome; move left/right and del
   const addCol = page.locator('.block-chrome').getByLabel('Add column');
   await expect(addCol).toBeVisible({ timeout: 3000 });
   // the Add-column button lives in the Content section, not the header bar
-  const headerBar = page.locator('.block-chrome .grid > div').first();
+  // (the chrome panel is a flex-wrap column: wrapper's first child = header)
+  const headerBar = page.locator('.block-chrome .flex.flex-wrap > div').first();
   await expect(headerBar.getByLabel('Add column')).toHaveCount(0);
   await expect(page.locator('.block-chrome')).toContainText('Content');
   await addCol.click();

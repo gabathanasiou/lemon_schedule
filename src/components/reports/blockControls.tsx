@@ -1,26 +1,24 @@
 import React, { useMemo, useState } from 'react';
+import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
-import { IS_COARSE } from '../../lib/device';
-import { FieldPicker, TB_PICKER } from './FieldPicker';
+import { FieldPicker } from './FieldPicker';
 import CollectionMenu from './CollectionMenu';
-import RichTextEditor, { RichTextEditorHandle, RichTextState, RICH_TEXT_STATE_IDLE } from './RichTextEditor';
+import RichTextEditor, { RichTextEditorHandle, RichTextState } from './RichTextEditor';
 import DropdownMenu, { ItemManagerDropdown } from '../DropdownMenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon, Clock, Timer, StickyNote, Coffee, PanelTop } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
-
-export const FONTS = ['Helvetica', 'Arial', 'Times New Roman', 'Georgia', 'Courier New'];
 
 export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
   text: { label: 'Text', icon: <Type className="w-3 h-3" /> },
@@ -33,259 +31,13 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   spacer: { label: 'Spacer', icon: <Ruler className="w-3 h-3" /> },
   image: { label: 'Image', icon: <ImageIcon className="w-3 h-3" /> },
   map: { label: 'Map', icon: <MapPin className="w-3 h-3" /> },
-  link: { label: 'Link', icon: <LinkIcon className="w-3 h-3" /> },
+  callSheetEdit: { label: 'Call Sheet Edit', icon: <Sheet className="w-3 h-3" /> },
 };
 
-// Ribbon-designer toolbar vocabulary (touch devices scale up — app pattern)
-export const TB_ROW_LABEL = IS_COARSE ? 'text-xs font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-24' : 'text-[9px] font-semibold text-zinc-600 uppercase tracking-wider shrink-0 w-16';
-export const TB_BTN = IS_COARSE ? 'h-10 px-3.5 text-sm font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-2 transition-colors' : 'h-7 px-2.5 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-zinc-700 disabled:opacity-30 flex items-center gap-1.5 transition-colors';
-export const TB_BTN_ICON = IS_COARSE ? 'h-10 px-3 text-sm font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-1 transition-colors' : 'h-7 px-2 text-[10px] font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400 hover:bg-zinc-700 disabled:opacity-25 flex items-center gap-0.5 transition-colors';
-export const TB_DANGER = 'hover:bg-red-950/50';
-export const TB_TOGGLE = IS_COARSE ? 'h-10 w-10 rounded border flex items-center justify-center disabled:opacity-25 transition-colors' : 'h-7 w-7 rounded border flex items-center justify-center disabled:opacity-25 transition-colors';
-export const TB_TOGGLE_ON = 'bg-blue-900/50 border-blue-700 text-blue-300';
-export const TB_TOGGLE_OFF = 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:bg-zinc-700';
-export const TB_INPUT = IS_COARSE ? 'h-10 px-2.5 text-sm bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30' : 'h-7 px-2 text-[10px] bg-zinc-800 border border-zinc-700 rounded text-zinc-300 placeholder:text-zinc-600 outline-none focus:border-zinc-500 disabled:opacity-30';
-export const TB_NUM = IS_COARSE ? 'w-14 h-9 bg-zinc-800 border border-zinc-700 rounded text-sm text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50' : 'w-10 h-6 bg-zinc-800 border border-zinc-700 rounded text-[11px] text-center text-zinc-300 outline-none focus:border-blue-500 shrink-0 read-only:opacity-50';
-export const TB_DIVIDER = IS_COARSE ? 'w-px h-7 bg-zinc-700 mx-1' : 'w-px h-5 bg-zinc-700 mx-0.5';
-export const TB_SEG = 'inline-flex rounded overflow-hidden border border-zinc-700';
-
-export const ToolButton: React.FC<{ onClick: () => void; disabled?: boolean; title: string; className?: string; children: React.ReactNode }> = ({ onClick, disabled, title, className = TB_BTN, children }) => (
-  <Tooltip content={title}>
-    <button onClick={onClick} disabled={disabled} aria-label={title} className={`${className} ${disabled ? 'disabled:opacity-30 disabled:pointer-events-none' : ''}`}>
-      {children}
-    </button>
-  </Tooltip>
-);
-
-export const Seg: React.FC<{ value: string; options: { v: string; l: string }[]; onChange: (v: string) => void; disabled?: boolean; active?: (v: string) => boolean }> = ({ value, options, onChange, disabled, active }) => (
-  <div className={TB_SEG}>
-    {options.map(o => {
-      const on = active ? active(o.v) : value === o.v;
-      return (
-        <button
-          key={o.v}
-          disabled={disabled}
-          onClick={() => onChange(o.v)}
-          className={`${IS_COARSE ? 'h-10 px-3.5 text-sm' : 'h-7 px-2 text-[10px]'} font-medium transition-colors disabled:opacity-30 ${on ? 'bg-blue-900/50 text-blue-300' : 'bg-zinc-800 text-zinc-500 hover:bg-zinc-700'} ${o.v !== options[options.length - 1].v ? 'border-r border-zinc-700' : ''}`}
-        >
-          {o.l}
-        </button>
-      );
-    })}
-  </div>
-);
-
-// ---- font picker (custom dropdown, options styled in their own typeface) ------
-
-export const FontMenu: React.FC<{ value: string; disabled: boolean; onChange: (f: string) => void }> = ({ value, disabled, onChange }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      theme="dark"
-      width="w-44"
-      trigger={
-        <button type="button" disabled={disabled} className={`${TB_PICKER} disabled:pointer-events-none`}>
-          <span className="truncate" style={{ fontFamily: value || 'Helvetica' }}>{value || 'Helvetica'}</span>
-          <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
-        </button>
-      }
-    >
-      {FONTS.map(f => (
-        <DropdownItem key={f} onClick={() => { onChange(f); setOpen(false); }} icon={f === value ? <Check className="w-3.5 h-3.5" /> : undefined}>
-          <span style={{ fontFamily: f }}>{f}</span>
-        </DropdownItem>
-      ))}
-    </DropdownMenu>
-  );
-};
-
-// ---- structure (insert / move / duplicate / delete) ---------------------------
-
-export interface StructureControlsProps {
-  readOnly: boolean;
-  onDuplicate: () => void;
-  onRemove: () => void;
-  onMove: (dir: -1 | 1) => void;
-  compact?: boolean;
-}
-
-export const StructureControls: React.FC<StructureControlsProps> = ({ readOnly, onDuplicate, onRemove, onMove, compact }) => (
-  <>
-    <ToolButton onClick={() => onMove(-1)} disabled={readOnly} title="Move up" className={TB_BTN_ICON}><ArrowUp className="w-2.5 h-2.5" /></ToolButton>
-    <ToolButton onClick={() => onMove(1)} disabled={readOnly} title="Move down" className={TB_BTN_ICON}><ArrowDown className="w-2.5 h-2.5" /></ToolButton>
-    <ToolButton onClick={onDuplicate} disabled={readOnly} title="Duplicate" className={TB_BTN_ICON}><Copy className="w-2.5 h-2.5" /></ToolButton>
-    <div className={TB_DIVIDER} />
-    <ToolButton onClick={onRemove} disabled={readOnly} title="Delete" className={`${TB_BTN_ICON} ${TB_DANGER}`}><Trash2 className="w-2.5 h-2.5" /></ToolButton>
-  </>
-);
-
-// ---- link menu (text blocks): apply/remove a hyperlink to the selection ------
-
-const LinkMenu: React.FC<{ editorRef: React.RefObject<RichTextEditorHandle | null>; disabled: boolean; active: boolean }> = ({ editorRef, disabled, active }) => {
-  const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState('');
-  const apply = () => {
-    const trimmed = url.trim();
-    if (trimmed) {
-      editorRef.current?.exec('link', trimmed);
-      setOpen(false);
-    }
-  };
-  return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={setOpen}
-      theme="dark"
-      width="w-64"
-      trigger={
-        <button
-          type="button"
-          disabled={disabled}
-          onMouseDown={e => e.preventDefault()}
-          className={`${TB_TOGGLE} ${active ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-          title="Link"
-          aria-label="Link"
-        >
-          <LinkIcon className="w-3 h-3" />
-        </button>
-      }
-    >
-      <div className="p-2 flex flex-col gap-2">
-        <input
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder="https://…"
-          autoFocus
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } }}
-          className={TB_INPUT + ' w-full'}
-        />
-        <div className="flex items-center gap-2">
-          <button onClick={apply} className={TB_BTN} disabled={!url.trim()}>
-            Apply
-          </button>
-          <button
-            onClick={() => { editorRef.current?.exec('unlink'); setOpen(false); }}
-            className={TB_BTN}
-          >
-            Remove
-          </button>
-        </div>
-      </div>
-    </DropdownMenu>
-  );
-};
-
-// ---- rich-text formatting toolbar (selection-aware, via the editor ref) --------
-
-// Palette WITHOUT black: default ink is black in print/preview, so the first
-// entry is a "Default" (no color) swatch — unset text renders light in the
-// dark editor and falls back to black ink on paper.
-const RT_COLORS = ['#b91c1c', '#b45309', '#15803d', '#1d4ed8', '#7c3aed', '#6b7280'];
-
-/** "Default" swatch glyph — circle with a diagonal slash (no color). */
-const NoColorDot: React.FC<{ className?: string }> = ({ className = 'w-3 h-3' }) => (
-  <span className={`${className} rounded-full border border-zinc-600 relative inline-flex items-center justify-center shrink-0`}>
-    <span className="absolute left-0 right-0 top-1/2 h-px bg-zinc-400 -rotate-45" />
-  </span>
-);
-
-export const RichTextToolbar: React.FC<{
-  editorRef: React.RefObject<RichTextEditorHandle | null>;
-  disabled: boolean;
-  fields?: ReportFieldDef[];
-  scope?: string | null;
-  onInsertAttribute?: (field: string) => void;
-  /** Formatting at the caret/selection — lights the toggles up (Word-style). */
-  active?: RichTextState;
-  /** Axes pinned by the block's named style (whole-block) — button renders
-   *  lit-but-dimmed with the given tooltip. Undefined = free. */
-  lockedFormatting?: { bold?: string; italic?: string };
-}> = ({ editorRef, disabled, fields, scope, onInsertAttribute, active, lockedFormatting }) => {
-  const [colorOpen, setColorOpen] = useState(false);
-  const run = (cmd: string, value?: string) => editorRef.current?.exec(cmd, value);
-  const toggle = (on: boolean) => `${TB_TOGGLE} ${on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`;
-  const locked = (axis: 'bold' | 'italic') => !!lockedFormatting?.[axis];
-  return (
-    <div className="flex items-center gap-1">
-      <Tooltip content={lockedFormatting?.bold || 'Bold'}>
-        <button aria-label="Bold" disabled={disabled || locked('bold')} onMouseDown={e => e.preventDefault()} onClick={() => run('bold')} className={`${toggle((active?.bold ?? false) || locked('bold'))} font-bold`}>B</button>
-      </Tooltip>
-      <Tooltip content={lockedFormatting?.italic || 'Italic'}>
-        <button aria-label="Italic" disabled={disabled || locked('italic')} onMouseDown={e => e.preventDefault()} onClick={() => run('italic')} className={`${toggle((active?.italic ?? false) || locked('italic'))} italic`}>I</button>
-      </Tooltip>
-      <Tooltip content="Underline">
-        <button aria-label="Underline" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('underline')} className={toggle(active?.underline ?? false)}><Underline className="w-3 h-3" /></button>
-      </Tooltip>
-      <Tooltip content="Strikethrough">
-        <button aria-label="Strikethrough" disabled={disabled} onMouseDown={e => e.preventDefault()} onClick={() => run('strikeThrough')} className={toggle(active?.strike ?? false)}><Strikethrough className="w-3 h-3" /></button>
-      </Tooltip>
-      <div className={TB_DIVIDER} />
-      <LinkMenu editorRef={editorRef} disabled={disabled} active={active?.link ?? false} />
-      <div className={TB_DIVIDER} />
-      <DropdownMenu
-        open={colorOpen}
-        onOpenChange={setColorOpen}
-        theme="dark"
-        width="w-36"
-        trigger={
-          <button type="button" disabled={disabled} className={`${TB_PICKER} disabled:pointer-events-none`} title="Text color">
-            {active?.color
-              ? <span className="w-3 h-3 rounded-full border border-zinc-600 shrink-0" style={{ background: active.color }} />
-              : <NoColorDot />}
-            <ChevronDown className="w-3 h-3 text-zinc-500" />
-          </button>
-        }
-      >
-        <div className="grid grid-cols-4 gap-1 p-2">
-          <button
-            onClick={() => { run('unsetColor'); setColorOpen(false); }}
-            className={`w-7 h-7 rounded border border-zinc-700 hover:border-zinc-500 transition-colors flex items-center justify-center ${!active?.color ? 'ring-2 ring-zinc-300' : ''}`}
-            title="Default (black ink)"
-          >
-            <NoColorDot className="w-3.5 h-3.5" />
-          </button>
-          {RT_COLORS.map(c => (
-            <button
-              key={c}
-              onClick={() => { run('foreColor', c); setColorOpen(false); }}
-              className={`w-7 h-7 rounded border border-zinc-700 hover:border-zinc-500 transition-colors ${c === active?.color ? 'ring-2 ring-zinc-300' : ''}`}
-              style={{ background: c }}
-              title={c}
-            />
-          ))}
-        </div>
-      </DropdownMenu>
-      {onInsertAttribute && fields && (
-        <>
-          <div className={TB_DIVIDER} />
-          <FieldPicker
-            value=""
-            fields={fields}
-            onChange={f => onInsertAttribute(f)}
-            disabled={disabled}
-            placeholder="Insert attribute…"
-            scope={scope}
-            className={`w-32 ${TB_PICKER}`}
-          />
-        </>
-      )}
-    </div>
-  );
-};
 
 // ---- shared block editor (floating chrome AND pinned toolbar) -----------------
 // One source of truth: the same controls render in the floating chrome above a
 // selected block or pinned into the top toolbar — the user can switch surfaces.
-
-/** Section eyebrow: uppercase label with a hairline rule. */
-export const SectionHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="flex items-center gap-2 min-w-max">
-    <span className={IS_COARSE ? 'text-xs font-semibold text-zinc-500 uppercase tracking-wider' : 'text-[9px] font-semibold text-zinc-500 uppercase tracking-wider'}>{children}</span>
-    <div className="h-px bg-zinc-700/50" style={{ minWidth: 24, flex: 1 }} />
-  </div>
-);
 
 export interface BlockEditorProps {
   block: ReportBlock;
@@ -327,53 +79,58 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
     </div>
   ) : null;
   return (
-    <div className="grid grid-cols-[max-content_max-content] gap-x-4 gap-y-1.5 min-w-max">
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5">
       {/* Header bar: block type (or attribute name) + quick controls */}
-      <div className="col-span-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
-        {isField ? (
+      <ChromeHeader
+        className="w-full"
+        leading={
+          isField ? (
+            <>
+              <span className="flex items-center text-zinc-400 shrink-0">{meta.icon}</span>
+              <FieldPicker
+                value={block.field || ''}
+                fields={contextFields}
+                onChange={f => onPatch({ field: f })}
+                disabled={readOnly}
+                placeholder="Select attribute…"
+                scope={parentCollection}
+                className={`w-44 font-semibold ${TB_PICKER}`}
+              />
+            </>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[10px] font-semibold text-zinc-300 pr-1">
+              {meta.icon}
+              {meta.label}
+              {block.collection && <span className="text-zinc-500 font-normal">· {COLLECTION_LABELS[block.collection]}</span>}
+            </span>
+          )
+        }
+        trailing={
           <>
-            <span className="flex items-center text-zinc-400 shrink-0">{meta.icon}</span>
-            <FieldPicker
-              value={block.field || ''}
-              fields={contextFields}
-              onChange={f => onPatch({ field: f })}
-              disabled={readOnly}
-              placeholder="Select attribute…"
-              scope={parentCollection}
-              className={`w-44 font-semibold ${TB_PICKER}`}
+            {isTextLike && (
+              <ToolButton
+                onClick={() => onPatch({ emptyBehavior: emptyHidden ? 'show' : 'hideBlock' })}
+                title={emptyHidden ? 'Hidden when empty — click to show' : 'Show when empty — click to hide'}
+                className={TB_BTN_ICON}
+              >
+                {emptyHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </ToolButton>
+            )}
+            <StructureControls
+              readOnly={readOnly}
+              onDuplicate={onDuplicate}
+              onRemove={onRemove}
+              onMove={onMove}
+              compact={compact}
             />
+            {trailing}
           </>
-        ) : (
-          <span className="flex items-center gap-1.5 text-[10px] font-semibold text-zinc-300 pr-1">
-            {meta.icon}
-            {meta.label}
-            {block.collection && <span className="text-zinc-500 font-normal">· {COLLECTION_LABELS[block.collection]}</span>}
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          {isTextLike && (
-            <ToolButton
-              onClick={() => onPatch({ emptyBehavior: emptyHidden ? 'show' : 'hideBlock' })}
-              title={emptyHidden ? 'Hidden when empty — click to show' : 'Show when empty — click to hide'}
-              className={TB_BTN_ICON}
-            >
-              {emptyHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-            </ToolButton>
-          )}
-          <StructureControls
-            readOnly={readOnly}
-            onDuplicate={onDuplicate}
-            onRemove={onRemove}
-            onMove={onMove}
-            compact={compact}
-          />
-          {trailing}
-        </div>
-      </div>
+        }
+      />
       {/* Style + Layout — above the editor for text blocks */}
       {textFull && styleLayoutCell}
-      {/* Content — full width for text (editor), column 1 otherwise */}
-      <div className={`flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max ${textFull ? 'col-span-2' : ''}`}>
+      {/* Content — full width for text (editor), beside style for others */}
+      <div className={`flex flex-col gap-1.5 px-2.5 py-1.5 min-w-0 ${textFull ? 'w-full' : ''}`}>
         <SectionHeader>Content</SectionHeader>
         <ContentControls {...ctx} />
       </div>
@@ -633,19 +390,6 @@ const PARENT_LABELS: Record<string, string> = {
   categories: 'category', cast: 'cast member', crew: 'crew member', violationTypes: 'violation type',
 };
 
-// Content-control rows (label-left, ribbon style) — module scope so React
-// keeps the subtree stable (a component defined inside another component is
-// remounted on every render, killing focus inside the rich-text editor).
-const CONTENT_LABEL_CLS = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1';
-const CONTENT_ROW_LABEL_CLS = 'text-[10px] font-medium text-zinc-500 uppercase tracking-wider w-28 shrink-0';
-
-const ContentRow: React.FC<{ label?: string; children: React.ReactNode; tall?: boolean }> = ({ label, children, tall }) => (
-  <div className={tall ? 'flex flex-col gap-1 py-0.5' : 'flex items-center gap-2 py-0.5'}>
-    {label && <span className={tall ? CONTENT_LABEL_CLS : CONTENT_ROW_LABEL_CLS}>{label}</span>}
-    {children}
-  </div>
-);
-
 const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
 
 export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
@@ -852,14 +596,22 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     };
     push(null,
       <ContentRow key="content" tall>
-        <RichTextToolbar
+        <FormatToolbar
           editorRef={editorRef}
           disabled={disabled}
-          fields={contextFields}
-          scope={parentCollection}
           active={rtActive}
           lockedFormatting={{ bold: lockTooltip('bold'), italic: lockTooltip('italic') }}
-          onInsertAttribute={f => editorRef.current?.insertToken(f)}
+          trailing={
+            <FieldPicker
+              value=""
+              fields={contextFields}
+              onChange={f => editorRef.current?.insertToken(f)}
+              disabled={disabled}
+              placeholder="Insert attribute…"
+              scope={parentCollection}
+              className={`w-32 ${TB_PICKER}`}
+            />
+          }
         />
         <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
           <RichTextEditor

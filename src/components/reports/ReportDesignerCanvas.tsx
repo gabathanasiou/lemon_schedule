@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
+import { TB_PICKER, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_BTN_ICON, TB_DANGER, ToolButton, ChromeHeader, SectionHeader } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportTableColumn } from '../../types';
 import { ReportCtx, resolveCollectionItems, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux } from '../../lib/reportFields';
@@ -8,10 +9,10 @@ import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
-  BLOCK_TYPE_META, SectionHeader, useReportControlContext, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF,
-  TB_BTN_ICON, TB_DANGER, ToolButton, BlockEditorContent,
+  BLOCK_TYPE_META, useReportControlContext,
+  BlockEditorContent,
 } from './blockControls';
-import { FieldPicker, TB_PICKER } from './FieldPicker';
+import { FieldPicker } from './FieldPicker';
 import { FloatingChrome } from '../FloatingChrome';
 import { Tooltip } from '../Tooltip';
 import Checkbox from '../Checkbox';
@@ -653,7 +654,10 @@ const BlockChrome: React.FC<{
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove }) => (
-  <FloatingChrome className="block-chrome">
+  // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
+  // so the panel floats above the VISIBLE part of the card — identical feel
+  // for a small text card and a tall repeat/ribbon card.
+  <FloatingChrome className="block-chrome" anchorMode="visible">
     <BlockEditorContent
       block={block}
       project={project}
@@ -710,20 +714,22 @@ const TableColumnChrome: React.FC<TableColumnChromeProps> = ({ block, colIndex, 
       <div ref={anchorRef} className="chrome-anchor" aria-hidden />
       <FloatingChrome className="table-column-chrome" reference={reference}>
         {/* Header bar: column name + field */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
-          <span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {columns.length}</span>
-          <div className="ml-auto flex items-center gap-1">
-            <FieldPicker
-              value={col.field}
-              fields={fieldsForScope(allFields, scope, block.category)}
-              onChange={f => patchCol({ field: f })}
-              disabled={disabled}
-              scope={scope}
-              className={`w-32 ${TB_PICKER}`}
-            />
-            <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
-          </div>
-        </div>
+        <ChromeHeader
+          leading={<span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {columns.length}</span>}
+          trailing={
+            <>
+              <FieldPicker
+                value={col.field}
+                fields={fieldsForScope(allFields, scope, block.category)}
+                onChange={f => patchCol({ field: f })}
+                disabled={disabled}
+                scope={scope}
+                className={`w-32 ${TB_PICKER}`}
+              />
+              <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
+            </>
+          }
+        />
         {/* Column style */}
         <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max">
           <SectionHeader>Column</SectionHeader>
@@ -790,12 +796,12 @@ const ColumnBlockChrome: React.FC<{
 }> = ({ colIndex, colsCount, readOnly, onInsertBefore, onInsertAfter, onMoveLeft, onMoveRight, onDelete, onDeselect }) => (
   <FloatingChrome className="column-chrome">
     {/* Header bar: column name + deselect */}
-    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-zinc-700/40 border border-zinc-700/60 min-w-max">
-      <span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {colsCount}</span>
-      <div className="ml-auto flex items-center gap-1">
+    <ChromeHeader
+      leading={<span className="text-[10px] font-semibold text-zinc-300 pr-1">Column {colIndex + 1} of {colsCount}</span>}
+      trailing={
         <ToolButton onClick={onDeselect} disabled={false} title="Deselect column" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
-      </div>
-    </div>
+      }
+    />
     {/* Structure */}
     <div className="flex flex-col gap-1 px-2.5 py-1.5 min-w-max">
       <SectionHeader>Structure</SectionHeader>

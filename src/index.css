@@ -163,40 +163,21 @@ input, textarea, [contenteditable] {
   background: rgba(59, 130, 246, 0.08);
 }
 
-/* floating block editor — portaled to the window body by FloatingChrome and
-   positioned with Floating UI (strategy fixed) against the block card. The
-   offset/flip/shift/size middleware keep it fully inside the viewport; the
-   size middleware writes max-width/max-height inline, so overflow scrolls
-   internally when the panel is taller than the viewport. */
-.block-chrome,
-.table-column-chrome,
-.column-chrome {
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  width: max-content;
-  max-width: calc(100vw - 16px);
-  background: #27272a;
-  border: 1px solid #3f3f46;
-  border-radius: 8px;
-  padding: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  overflow-x: auto;
-  overflow-y: auto;
-}
-.block-chrome { z-index: 40; gap: 6px; }
-.table-column-chrome { z-index: 41; gap: 4px; }
-.column-chrome { z-index: 41; gap: 4px; }
-@media (pointer: coarse) {
-  .block-chrome { padding: 10px; }
-}
-
 /* invisible anchor that defines the floating chrome's reference rect — must
    sit inside a position: relative parent (block card / columns col) */
 .chrome-anchor {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+/* floating editor chrome — portaled + positioned by kit FloatingChrome (see
+   @gabriel/ui-kit ui-kit.css .ui-chrome); these are per-panel tweaks only */
+.block-chrome { z-index: 40; gap: 6px; }
+.table-column-chrome { z-index: 41; gap: 4px; }
+.column-chrome { z-index: 41; gap: 4px; }
+@media (pointer: coarse) {
+  .block-chrome { padding: 10px; }
 }
 
 .chrome-btn {
@@ -277,32 +258,3 @@ input, textarea, [contenteditable] {
   background: #3b82f6;
 }
 .columns-row[data-dragging="1"] .columns-col:hover { background: transparent; }
-
-/* ---- Reports Designer rich-text editor (TipTap) ---- */
-
-.richtext-editor { cursor: text; }
-.richtext-editor .tiptap {
-  background: #18181b;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
-  color: #e4e4e7;
-  line-height: 1.5;
-  outline: none;
-  overflow-y: auto;
-  cursor: text;
-  padding: 6px 8px;
-  height: 100%;
-  min-height: 100%;
-}
-.richtext-editor .tiptap:focus { border-color: #52525b; }
-.richtext-editor .tiptap:focus-visible { outline: none; }
-.richtext-editor .tiptap p.is-empty::before {
-  content: attr(data-placeholder);
-  color: #71717a;
-  pointer-events: none;
-  float: left;
-  height: 0;
-}
-.richtext-editor .rt-token.rt-token-selected {
-  filter: brightness(0.72);
-}

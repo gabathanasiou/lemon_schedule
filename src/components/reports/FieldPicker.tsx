@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
+import { TB_PICKER } from '@gabriel/ui-kit';
 import { ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import DropdownMenu from '../DropdownMenu';
 import DropdownSubmenu from '../DropdownSubmenu';
 import DropdownItem from '../DropdownItem';
 import DropdownDivider from '../DropdownDivider';
 import { ChevronDown, Check } from 'lucide-react';
-import { IS_COARSE } from '../../lib/device';
-
-/** Dropdown trigger look shared by every picker — matches the ribbon designer's
- *  dropdown buttons (h-7, coarse h-10) instead of the old thin strip. */
-export const TB_PICKER = IS_COARSE
-  ? 'h-10 px-3 text-sm rounded bg-zinc-800 border border-zinc-700 text-zinc-200 hover:border-zinc-500 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-between gap-1'
-  : 'h-7 px-2.5 text-[10px] rounded bg-zinc-800 border border-zinc-700 text-zinc-200 hover:border-zinc-500 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-between gap-1';
 
 // Attribute picker for the reports toolbar: groups become submenus (Scene Info,
 // Shooting, Cast & Talent, ...). Display vocabulary:

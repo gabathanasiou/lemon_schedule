@@ -1,45 +1,11 @@
-import React, { useEffect, useImperativeHandle, useRef } from 'react';
-import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import { TextStyle } from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import Link from '@tiptap/extension-link';
-import Underline from '@tiptap/extension-underline';
-import type { SuggestionOptions } from '@tiptap/suggestion';
-import { sanitizeRichText } from '../../lib/richText';
-import { ReportFieldDef, searchReportFields } from '../../lib/reportFields';
-import { Token, preprocessTokenHtml, stripTokenWrappers } from '../../lib/reportTokenExtension';
-import { TokenSuggestion } from './TokenSuggestionPopup';
+import React from 'react';
+import { RichTextEditor as KitRichTextEditor, RICH_TEXT_STATE_IDLE } from '@gabriel/ui-kit';
+import type { RichTextEditorHandle, RichTextState, TokenItem } from '@gabriel/ui-kit';
+import { ReportFieldDef, searchReportFields, fieldChipColor } from '../../lib/reportFields';
 
-// TipTap-based rich-text editor for report text blocks. Stored value is
-// sanitized HTML (see lib/richText.ts) where `{{field}}` tokens are PLAIN text.
-// In the editor, tokens are engine-native atom nodes (see
-// lib/reportTokenExtension.ts) with a React chip view; the `@` autocomplete is
-// the TipTap suggestion plugin reusing the existing popup visuals. Storage is
-// untouched: getHTML emits bare `{{field}}` text, so saved projects, print,
-// preview and the canvas keep working byte-compatibly.
-//
-// `{{` is NOT a trigger — only `@` (user decision).
-
-export interface RichTextEditorHandle {
-  exec: (command: string, value?: string) => void;
-  focus: () => void;
-  /** Inserts a `{{field}}` token node at the caret. */
-  insertToken: (field: string) => void;
-}
-
-/** Formatting state at the caret/selection — drives the toolbar's toggle lighting. */
-export interface RichTextState {
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strike: boolean;
-  link: boolean;
-  color: string;
-}
-
-export const RICH_TEXT_STATE_IDLE: RichTextState = { bold: false, italic: false, underline: false, strike: false, link: false, color: '' };
+// App adapter: wires the kit's generic rich-text editor to the report field
+// vocabulary — `{{field}}` tokens resolve to report attributes (label + group
+// color) and the `@` autocomplete searches report fields.
 
 interface RichTextEditorProps {
   value: string;
@@ -53,139 +19,29 @@ interface RichTextEditorProps {
   onStateChange?: (state: RichTextState) => void;
 }
 
-const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ value, onChange, placeholder, disabled, className, fields, onStateChange }, ref) => {
-  const fieldsRef = useRef(fields);
+const toToken = (f: ReportFieldDef): TokenItem => {
+  const c = fieldChipColor(f.group);
+  return { key: f.key, label: f.label, color: c, group: f.group };
+};
+
+const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ fields, ...rest }, ref) => {
+  const fieldsRef = React.useRef(fields);
   fieldsRef.current = fields;
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  const disabledRef = useRef(disabled);
-  disabledRef.current = disabled;
-  const onStateChangeRef = useRef(onStateChange);
-  onStateChangeRef.current = onStateChange;
-  const lastStateRef = useRef<RichTextState | null>(null);
-
-  const reportState = (ed: NonNullable<ReturnType<typeof useEditor>>) => {
-    const next: RichTextState = {
-      bold: ed.isActive('bold'),
-      italic: ed.isActive('italic'),
-      underline: ed.isActive('underline'),
-      strike: ed.isActive('strike'),
-      link: ed.isActive('link'),
-      color: (ed.getAttributes('textStyle').color as string | undefined) || '',
-    };
-    // Skip unchanged reports — onTransaction fires on every transaction
-    // (keystrokes, caret moves), and we don't want a setState per event.
-    const prev = lastStateRef.current;
-    if (prev && prev.bold === next.bold && prev.italic === next.italic && prev.underline === next.underline && prev.strike === next.strike && prev.link === next.link && prev.color === next.color) return;
-    lastStateRef.current = next;
-    onStateChangeRef.current?.(next);
-  };
-
-  // Storage form of the editor state: stripped tokens → sanitized; an
-  // emptied doc serializes as empty paragraphs — store '' like the old
-  // editor so hideBlock/hideText keep working.
-  const toStorage = (html: string): string => {
-    const clean = sanitizeRichText(stripTokenWrappers(html));
-    return /^(<p[^>]*>(?:<br\s*\/?>)?<\/p>)+$/.test(clean) ? '' : clean;
-  };
-
-  // Stable per-fields instance: rebuilding the extension mid-session would
-  // recreate the editor and drop the caret.
-  const tokenExtension = React.useMemo(() => {
-    const suggestion: Omit<SuggestionOptions<ReportFieldDef, { field: string }>, 'editor'> = {
-      char: '@',
-      // default allowedPrefixes (space) — a mid-word `@` does not trigger
-      items: ({ query }) => searchReportFields(fieldsRef.current, query),
-      command: ({ editor: ed, range, props }) => {
-        ed.chain().focus().insertContentAt(range, { type: 'token', attrs: { field: props.field } }).run();
-      },
-      render: TokenSuggestion,
-    };
-    return Token.configure({ fields: fields ?? [], suggestion } as unknown as Parameters<typeof Token.configure>[0]);
-  }, [fields]);
-
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder }),
-      TextStyle,
-      Color,
-      Underline,
-      // Links: typed/pasted URLs auto-link; anchors open in a new tab and are
-      // inert while editing (openOnClick false). Stored HTML keeps the <a>
-      // (sanitizer whitelists it) so print/PDF anchors stay clickable.
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        linkOnPaste: true,
-        HTMLAttributes: { target: '_blank', rel: 'noreferrer' },
-      }),
-      tokenExtension,
-    ],
-    content: preprocessTokenHtml(value || ''),
-    editable: !disabled,
-    onUpdate: ({ editor: ed }) => {
-      onChangeRef.current(toStorage(ed.getHTML()));
-    },
-    // Every transaction — including storedMarks-only toggles with a collapsed
-    // caret, which never reach `update` (doc unchanged) yet DO change what
-    // the next keystroke applies. reportState skips unchanged values.
-    onTransaction: ({ editor: ed }) => reportState(ed),
-  });
-
-  // External value sync — only while the editor isn't focused (typing never
-  // resets the caret). Compare in storage form so the comparison is a no-op
-  // when the editor state already matches the stored value.
-  useEffect(() => {
-    if (!editor || editor.isFocused) return;
-    const current = toStorage(editor.getHTML());
-    if (current !== value) {
-      lastStateRef.current = null;
-      editor.commands.setContent(preprocessTokenHtml(value || ''), { emitUpdate: false });
-      reportState(editor);
-    }
-  }, [value, editor]);
-
-  useEffect(() => {
-    if (!editor) return;
-    editor.setEditable(!disabled);
-  }, [disabled, editor]);
-
-  // Initial state report (mount/remount — e.g. switching blocks or surfaces).
-  useEffect(() => {
-    if (!editor) return;
-    lastStateRef.current = null;
-    reportState(editor);
-  }, [editor]);
-
-  useImperativeHandle(ref, () => ({
-    exec: (command: string, execValue?: string) => {
-      if (!editor || disabledRef.current) return;
-      switch (command) {
-        case 'bold': editor.chain().focus().toggleBold().run(); break;
-        case 'italic': editor.chain().focus().toggleItalic().run(); break;
-        case 'underline': editor.chain().focus().toggleUnderline().run(); break;
-        case 'strikeThrough': editor.chain().focus().toggleStrike().run(); break;
-        case 'foreColor': editor.chain().focus().setColor(execValue).run(); break;
-        case 'unsetColor': editor.chain().focus().unsetColor().run(); break;
-        case 'link': if (execValue) editor.chain().focus().extendMarkRange('link').setLink({ href: execValue }).run(); break;
-        case 'unlink': editor.chain().focus().extendMarkRange('link').unsetLink().run(); break;
-        default: break;
-      }
-    },
-    focus: () => editor?.commands.focus(),
-    insertToken: (field: string) => {
-      if (!editor || disabledRef.current) return;
-      editor.chain().focus().insertContent({ type: 'token', attrs: { field } }).run();
-    },
-  }), [editor]);
-
   return (
-    <EditorContent editor={editor} className={`richtext-editor ${className || ''}`} />
+    <KitRichTextEditor
+      ref={ref}
+      {...rest}
+      resolveToken={key => {
+        const f = fieldsRef.current?.find(x => x.key === key);
+        return f ? toToken(f) : null;
+      }}
+      suggestionItems={q => searchReportFields(fieldsRef.current, q).map(toToken)}
+    />
   );
 });
 
 RichTextEditor.displayName = 'RichTextEditor';
 
 export default RichTextEditor;
+export { RICH_TEXT_STATE_IDLE };
+export type { RichTextEditorHandle, RichTextState };

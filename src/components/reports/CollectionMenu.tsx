@@ -6,7 +6,7 @@ import DropdownMenu from '../DropdownMenu';
 import DropdownSubmenu from '../DropdownSubmenu';
 import DropdownItem from '../DropdownItem';
 import { ChevronDown, Check } from 'lucide-react';
-import { TB_PICKER } from './FieldPicker';
+import { TB_PICKER } from '@gabriel/ui-kit';
 
 // Collection picker for report blocks (Repeat over / Table over). Replaces the
 // native selects with the shared Radix menu: top-level collections plus an

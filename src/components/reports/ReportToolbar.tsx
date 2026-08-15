@@ -1,10 +1,11 @@
 import React from 'react';
+import { TB_BTN_ICON, TB_DIVIDER, ToolButton } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, ReportTextStyle } from '../../types';
 import { Project } from '../../types';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { X, ArrowRightLeft } from 'lucide-react';
 import {
-  BlockCtx, BlockEditorContent, BLOCK_TYPE_META, TB_BTN_ICON, TB_DIVIDER, ToolButton,
+  BlockCtx, BlockEditorContent, BLOCK_TYPE_META,
 } from './blockControls';
 
 // Two surfaces for the block editor, one source of truth (BlockEditorContent):
