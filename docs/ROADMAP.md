@@ -132,7 +132,6 @@ Related bugs to fix while here:
   (designer canvas only — print/preview stay clean).
 - When the style is **"line"**, expose **thickness options** for the line
   (e.g. thin/medium/thick, or a px value) in the block's properties. `[ ]`
-  (blocked: controls live in `blockControls.tsx`, in use by another agent).
 
 ## 14. Text block editor: don't scale font size (`[ ]`)
 
