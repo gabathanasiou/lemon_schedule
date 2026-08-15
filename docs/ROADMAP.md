@@ -136,6 +136,13 @@ Related bugs to fix while here:
 - It should instead render text at a **normal/comfortable editing size** —
   only the **preview** reflects the real text size.
 
+## 15. Emails/phones in tables: clickable but not blue/underlined (`[ ]`)
+
+- In report **tables** (and anywhere `fieldValueNode` renders link fields),
+  **email and phone cells** are currently **blue and underlined**.
+- They must stay **clickable** but render like normal cell text — drop the
+  link-blue/underline styling while keeping the anchor behavior.
+
 ---
 
 ## Session handoff
