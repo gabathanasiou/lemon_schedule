@@ -64,7 +64,6 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const { contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
   const emptyHidden = block.emptyBehavior === 'hideBlock';
-  const textFull = block.type === 'text';
   const styleLayoutCell = isTextLike ? (
     <div className="flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max">
       <SectionHeader>Style</SectionHeader>
@@ -79,8 +78,9 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
     </div>
   ) : null;
   return (
-    <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5">
-      {/* Header bar: block type (or attribute name) + quick controls */}
+    <div className="flex flex-col gap-1.5 min-w-max">
+      {/* Header bar: block type (or attribute name) + quick controls — always
+          full panel width on top; everything else stacks under it */}
       <ChromeHeader
         className="w-full"
         leading={
@@ -127,15 +127,15 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
           </>
         }
       />
-      {/* Style + Layout — above the editor for text blocks */}
-      {textFull && styleLayoutCell}
-      {/* Content — full width for text (editor), beside style for others */}
-      <div className={`flex flex-col gap-1.5 px-2.5 py-1.5 min-w-0 ${textFull ? 'w-full' : ''}`}>
-        <SectionHeader>Content</SectionHeader>
-        <ContentControls {...ctx} />
-      </div>
-      {/* Style + Layout — beside content for field blocks */}
-      {!textFull && styleLayoutCell}
+      {/* Style + Layout — above Content for every block type */}
+      {styleLayoutCell}
+      {/* Content — hidden when the block type has no content controls */}
+      {block.type !== 'pageBreak' && (
+        <div className="flex flex-col gap-1.5 px-2.5 py-1.5">
+          <SectionHeader>Content</SectionHeader>
+          <ContentControls {...ctx} />
+        </div>
+      )}
     </div>
   );
 };
@@ -667,7 +667,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }
 
   if (block.type === 'repeat' || block.type === 'table') {
-    push('Data',
+    push(null,
       <ContentRow key="over" label={block.type === 'repeat' ? 'Repeat over' : 'Table over'}>
         {block.type === 'repeat' ? (
           <CollectionMenu
