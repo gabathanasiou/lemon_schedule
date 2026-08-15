@@ -165,6 +165,23 @@ Related bugs to fix while here:
 - Visual cue: chips with custom formatting render with a `*` on their label
   (editor chips + canvas `TokenPreview`).
 
+## 17. Report designer iPad-friendly (`[ ]`)
+
+- The **report designer must work on iPad** — both the **looks** and the
+  **designer preview/canvas itself**.
+- **Drag & drop does not work on iPads** (HTML5 DnD is desktop-only; pen =
+  touch = coarse pointer) — the palette → canvas and block reordering flows
+  must fall back to touch-friendly interactions (tap to add, move via
+  controls) or a pointer-based drag shim.
+- Audit everything touch-related in the designer:
+  - canvas scrolling/panning over block cards,
+  - selecting blocks/cells, column reorder grips, resize handles,
+  - hover-dependent affordances (any-hover gating, hover-reveal),
+  - the floating chrome panels (coarse-pointer sizing/padding),
+  - drop zones / edge zones during drag.
+- Visual audit on iPad viewport (730px portrait / 1060px landscape per
+  `useViewMode`): palette, chrome panels, tables, preview.
+
 ---
 
 ## Session handoff
