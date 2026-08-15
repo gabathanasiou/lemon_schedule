@@ -182,6 +182,17 @@ Related bugs to fix while here:
 - Visual audit on iPad viewport (730px portrait / 1060px landscape per
   `useViewMode`): palette, chrome panels, tables, preview.
 
+## 18. Move local→cloud bumps the project's modified time (`[ ]`)
+
+- Moving a project **from Local to Cloud (Drive)** changes its
+  `lastModified` to the time the move happened.
+- Why it currently does: the cloud copy must not appear OLDER than the local
+  one, or a later sync could overwrite the moved file (modified time going
+  backwards = regression).
+- Desired: **preserve the original modified time** across the move where
+  safe (write the cloud file, then carry the original `lastModified` over
+  instead of stamping "now"), while keeping the overwrite protection above.
+
 ---
 
 ## Session handoff
