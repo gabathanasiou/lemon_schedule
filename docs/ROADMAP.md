@@ -150,7 +150,7 @@ Related bugs to fix while here:
 - Fixed: `fieldValueNode` anchors inherit surrounding typography
   (`color: inherit`, no underline); the explicit Link block keeps link styling.
 
-## 16. Text-token item formatting (affixes) + chip editor (`[~]`)
+## 16. Text-token item formatting (affixes) + chip editor (`[x]`)
 
 - Extend the token syntax: `{{field|itemPrefix|itemSuffix|itemSeparator}}` —
   empty segments = defaults (no prefix, no suffix, ", " separator); tokens
@@ -159,14 +159,12 @@ Related bugs to fix while here:
   applies `applyItemAffixes` for multi-value fields (plain prefix/suffix for
   single values). One change covers canvas chips, preview AND print (all
   token paths flow through `resolveToken`).
-- Stage 1 `[x]`: grammar + resolution (safe files, `reportFields.ts` +
-  `ReportBlockView` chip parsing).
-- Editor UX (after the RichTextEditor/blockControls refactor lands): clicking
-  a token chip in the text editor reveals token-attribute controls
-  (Item prefix / Item suffix / Item separator); edits apply ONLY to that
-  chip's token occurrence (rewrite its `{{…}}` text in the block).
-- Visual cue: chips with custom formatting render with an indicator
-  (asterisk / distinct tint) so "this chip was edited" is obvious.
+- Editor UX: clicking a token chip in the text editor opens an "Item
+  formatting" popover (Item prefix / Item suffix / Item separator); Apply
+  rewrites ONLY that chip's token via the kit's `replaceToken` handle
+  (ui-kit v0.1.29 `onTokenClick`/`replaceToken`).
+- Visual cue: chips with custom formatting render with a `*` on their label
+  (editor chips + canvas `TokenPreview`).
 
 ---
 
