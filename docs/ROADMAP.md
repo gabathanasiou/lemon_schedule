@@ -150,6 +150,24 @@ Related bugs to fix while here:
 - Fixed: `fieldValueNode` anchors inherit surrounding typography
   (`color: inherit`, no underline); the explicit Link block keeps link styling.
 
+## 16. Text-token item formatting (affixes) + chip editor (`[~]`)
+
+- Extend the token syntax: `{{field|itemPrefix|itemSuffix|itemSeparator}}` —
+  empty segments = defaults (no prefix, no suffix, ", " separator); tokens
+  without pipes behave exactly as today (back-compat).
+- Resolution: `resolveToken` (`lib/reportFields.ts`) parses the pipes and
+  applies `applyItemAffixes` for multi-value fields (plain prefix/suffix for
+  single values). One change covers canvas chips, preview AND print (all
+  token paths flow through `resolveToken`).
+- Stage 1 `[x]`: grammar + resolution (safe files, `reportFields.ts` +
+  `ReportBlockView` chip parsing).
+- Editor UX (after the RichTextEditor/blockControls refactor lands): clicking
+  a token chip in the text editor reveals token-attribute controls
+  (Item prefix / Item suffix / Item separator); edits apply ONLY to that
+  chip's token occurrence (rewrite its `{{…}}` text in the block).
+- Visual cue: chips with custom formatting render with an indicator
+  (asterisk / distinct tint) so "this chip was edited" is obvious.
+
 ---
 
 ## Session handoff

@@ -513,6 +513,29 @@ export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, R
 const TOKEN_RE = /\{\{([^}]+)\}\}/g;
 const KEY_POSITION_KEYS = new Set(['director', 'producer', 'lineProducer', 'firstAD', 'upm']);
 
+/** Item-formatting options parsed from a token's `|`-separated tail:
+ *  `{{field|itemPrefix|itemSuffix|itemSeparator}}` — empty segments mean
+ *  defaults. Tokens without pipes carry no options (exact current behavior). */
+export interface TokenItemOpts {
+  itemPrefix?: string;
+  itemSuffix?: string;
+  itemSeparator?: string;
+}
+
+export function parseToken(raw: string): { field: string; opts: TokenItemOpts } {
+  const parts = raw.split('|');
+  const field = parts[0].trim();
+  if (parts.length === 1) return { field, opts: {} };
+  return {
+    field,
+    opts: {
+      itemPrefix: parts[1] ?? '',
+      itemSuffix: parts[2] ?? '',
+      itemSeparator: parts[3] ?? '',
+    },
+  };
+}
+
 export interface TokenResolveOptions {
   /** Designer canvas: render the raw token ({{field}}) when its value is empty
    *  so templates stay visible instead of showing a blank spot. Print/preview
@@ -521,7 +544,8 @@ export interface TokenResolveOptions {
 }
 
 function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, raw: string, item: any, aux?: FieldAux): string {
-  const [base, sub] = raw.trim().split('.');
+  const { field, opts } = parseToken(raw);
+  const [base, sub] = field.split('.');
   const def = fieldMap[base];
   if (!def) return '';
   if (def.scope === 'production' && KEY_POSITION_KEYS.has(base)) {
@@ -530,7 +554,14 @@ function resolveToken(ctx: ReportCtx, fieldMap: Record<string, ReportFieldDef>, 
     if (sub === 'email') return people[0]?.email || '';
     return people.map(p => p.name).join(', ');
   }
-  return fieldValueSafe(def, ctx, item, aux);
+  const value = fieldValueSafe(def, ctx, item, aux);
+  // Item affixes only apply to multi-value attributes (the same rule as the
+  // retired attribute block) — single values are formatted by typing around
+  // the token, and link fields must stay unaffixed so their hrefs stay valid.
+  if (def.multiValue && (opts.itemPrefix !== undefined || opts.itemSuffix !== undefined || opts.itemSeparator !== undefined)) {
+    return applyItemAffixes(value, opts);
+  }
+  return value;
 }
 
 export function resolveReportTokens(
@@ -557,19 +588,20 @@ export function resolveReportTokensHtml(
   opts?: TokenResolveOptions,
 ): string {
   return normalizeSpaces(html).replace(TOKEN_RE, (_m, raw: string) => {
+    const { field } = parseToken(raw);
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
     if (opts?.showUnresolved && !value) {
       // Designer canvas: an empty token renders as a colored tag (background
       // only — the token text inherits the block's typography) so templates
       // stay visible instead of blank spots.
-      const base = raw.trim().split('.')[0];
+      const base = field.split('.')[0];
       const color = fieldMap[base] ? fieldChipColor(fieldMap[base].group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
       return `<span style="${tokenTagCss(color)}">{{${escapeHtml(raw)}}}</span>`;
     }
     // Link fields (map links, emails, phones) resolve to clickable anchors.
     // Scheme-guarded so token values can't inject javascript: URLs. Key
     // positions' .phone/.email sub-tokens link too.
-    const [baseKey, subKey] = raw.trim().split('.');
+    const [baseKey, subKey] = field.split('.');
     const def = fieldMap[baseKey];
     let kind: 'url' | 'mailto' | 'tel' | null = null;
     if (subKey === 'phone') kind = 'tel';

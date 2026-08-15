@@ -93,11 +93,16 @@ export const TokenPreview: React.FC<{ text: string; fieldMap?: Record<string, Re
     <>
       {parts.map((part, i) => {
         const key = part.startsWith('{{') && part.endsWith('}}') && part.length > 4 ? part.slice(2, -2).trim() : null;
+        const fieldKey = key ? key.split('|')[0].trim() : null;
+        const customized = key ? key.includes('|') : false;
         if (key !== null) {
-          const def = fieldMap?.[key];
+          const def = fieldKey ? fieldMap?.[fieldKey] : undefined;
           const color = def ? fieldChipColor(def.group) : { text: '#52525b', bg: 'rgba(82, 82, 91, 0.12)' };
           return (
-            <span key={i} style={{ background: color.text, color: '#ffffff', borderRadius: 2, padding: '1px 4px', margin: '0 2px', fontWeight: 600, fontStyle: 'normal' }}>{part}</span>
+            <span key={i} style={{ background: color.text, color: '#ffffff', borderRadius: 2, padding: '1px 4px', margin: '0 2px', fontWeight: 600, fontStyle: 'normal' }}>
+              {part}
+              {customized && <span style={{ opacity: 0.7, marginLeft: 2 }}>*</span>}
+            </span>
           );
         }
         return <span key={i}>{part}</span>;
