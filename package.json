@@ -15,7 +15,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@floating-ui/react-dom": "^2.1.8",
-    "@gabriel/ui-kit": "github:gabathanasiou/ui-kit#v0.1.28",
+    "@gabriel/ui-kit": "github:gabathanasiou/ui-kit#v0.1.29",
     "@glideapps/glide-data-grid": "^6.0.4-alpha24",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-dropdown-menu": "^2.1.17",
@@ -67,6 +67,7 @@
   "allowScripts": {
     "github:gabathanasiou/ui-kit#187329e6d395647e43f3433a9aa780ee77635d3d": true,
     "github:gabathanasiou/ui-kit#09ada05cf8c53d6f6c284b5187b7f665e4d0c8e8": true,
-    "github:gabathanasiou/ui-kit#7a2e65ca16c7d3ba696aee6bc2ed93c9e483e766": true
+    "github:gabathanasiou/ui-kit#7a2e65ca16c7d3ba696aee6bc2ed93c9e483e766": true,
+    "github:gabathanasiou/ui-kit#1af85f1cd55cd53770498952e6a4a5d0a26b0289": true
   }
 }
