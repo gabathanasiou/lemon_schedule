@@ -713,7 +713,7 @@ function AppContent() {
       )}
       {poppedOutTabs.has('design') && popoutWindowsRef.current.get('design') && (
         <PopoutFrame title={`${project.title || 'Untitled'} - Design`} win={popoutWindowsRef.current.get('design')!} onClose={() => closePopout('design')} tabName="Design" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} bg="bg-zinc-950">
-          <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} onReportPrint={(design) => handleReportPrint(design)} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} />
+          <DesignTab subTab={designSubTab} onSubTabChange={setDesignSubTab} onReportPrint={(design) => setCustomReportPrint(design)} poppedOutSubTabs={poppedOutSubTabs.design || new Set()} onToggleSubPopout={(id) => toggleSubPopout('design', id)} onCloseSubPopout={(id) => closeSubPopout('design', id)} shiftHeld={shiftHeld} />
         </PopoutFrame>
       )}
       {poppedOutTabs.has('rules') && popoutWindowsRef.current.get('rules') && (
@@ -755,7 +755,7 @@ function AppContent() {
       )}
       {poppedOutSubTabs.design?.has('designer') && popoutSubWindowsRef.current.get('sub_design_designer') && (
         <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Reports Designer`} win={popoutSubWindowsRef.current.get('sub_design_designer')!} onClose={() => closeSubPopout('design', 'designer')} tabName="Design" subTabId="designer" tabLabel="Reports Designer" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_design_designer']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_design_designer: el }))} theme="dark" bg="bg-zinc-950">
-          <ReportDesigner headerTarget={subHeaderTargets['sub_design_designer']} onPrint={(design) => handleReportPrint(design)} />
+          <ReportDesigner headerTarget={subHeaderTargets['sub_design_designer']} onPrint={(design) => setCustomReportPrint(design)} />
         </SubTabPopoutFrame>
       )}
       {poppedOutSubTabs.reports?.has('doods') && popoutSubWindowsRef.current.get('sub_reports_doods') && (

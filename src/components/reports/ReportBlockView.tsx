@@ -400,7 +400,10 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
 const TABLE_LABEL_W = 120;
 const TABLE_ITEM_W = 72;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
+/** Preview surfaces cap tables at this many item rows (+N more indicator). */
+const TABLE_PREVIEW_LIMIT = 6;
+
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -447,6 +450,22 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   if (shown.length === 0) {
     if (hint && attributes.length > 0) return renderTable([], true);
     return null;
+  }
+
+  // Preview surfaces cap the table at the first TABLE_PREVIEW_LIMIT rows and
+  // show a "+N more" row; print always renders everything.
+  if (previewLimit && shown.length > TABLE_PREVIEW_LIMIT) {
+    const more = shown.length - TABLE_PREVIEW_LIMIT;
+    return (
+      <>
+        {renderTable(shown.slice(0, TABLE_PREVIEW_LIMIT))}
+        <div className="report-table-cols" style={{ border: 'none', borderLeft: border, borderRight: border, borderBottom: border }}>
+          <div style={{ padding: '4px 8px', textAlign: 'center', fontStyle: 'italic', color: '#8f8f8f', fontSize: 10, background: '#fafafa' }}>
+            +{more} more
+          </div>
+        </div>
+      </>
+    );
   }
 
   return renderTable(shown);

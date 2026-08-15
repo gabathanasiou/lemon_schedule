@@ -45,7 +45,7 @@ Related bugs to fix while here:
   reports.** Existing spec: `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md`
   (`paginateBlocks` in `src/lib/reportBlocks.ts` — read before touching).
 
-## 4. Reports page print button skips the modal (`[ ]`)
+## 4. Reports page print button skips the modal (`[x]`)
 
 - The **print button in the Reports page currently skips the print report
   modal** — it must open the modal first (same as the designer flow).
@@ -64,7 +64,7 @@ Related bugs to fix while here:
 - **Make that logic shared** so future databases can plug into the repeater
   pipeline without new per-collection code.
 
-## 7. Bug: remove the Link block from the report designer (`[ ]`)
+## 7. Bug: remove the Link block from the report designer (`[x]`)
 
 - Remove the **Link block** from the block palette/designer.
 
@@ -116,7 +116,7 @@ Related bugs to fix while here:
 - Change it to render only the **first 6 rows**, followed by a
   **"+N more" row** (N = remaining rows) indicating the rest are hidden.
 - Full content must still be rendered in **print** — truncation is a
-  preview-only behavior.
+  preview-only behavior. `[x]`
 
 ## 13. Spacer block preview: label + line thickness options (`[ ]`)
 
