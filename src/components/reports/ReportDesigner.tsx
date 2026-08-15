@@ -26,8 +26,9 @@ import ReportPreview from './ReportPreview';
 import { Printer, Eye, EyeOff, ChevronDown, Check } from 'lucide-react';
 
 function payloadToBlock(p: PaletteDropPayload, scope: string | null): ReportBlock {
-  if (p.kind === 'field') return makeReportBlock('field', { field: p.field });
-  if (p.type === 'field') return makeReportBlock('field', { field: undefined });
+  // Palette attributes become text blocks with the {{field}} token embedded —
+  // an attribute block is just a text block with one token already in it.
+  if (p.field) return makeReportBlock('text', { text: `{{${p.field}}}` });
   return makeReportBlock((p.type || 'text') as ReportBlock['type']);
 }
 

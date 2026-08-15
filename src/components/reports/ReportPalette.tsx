@@ -4,7 +4,7 @@ import { ReportCollection } from '../../types';
 import { getReportFieldDefs, fieldsForScope, searchReportFields, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
-import { Type, AlignLeft, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet } from 'lucide-react';
+import { Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet } from 'lucide-react';
 
 export interface PaletteDropPayload {
   kind: 'block' | 'field';
@@ -20,7 +20,6 @@ export const DROP_MIME = 'application/x-report-block';
 
 const BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactNode }[] = [
   { type: { kind: 'block', type: 'text' }, label: 'Text', icon: <Type className="w-3.5 h-3.5" /> },
-  { type: { kind: 'block', type: 'field' }, label: 'Attribute', icon: <AlignLeft className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'repeat' }, label: 'Repeat', icon: <Repeat className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'table' }, label: 'Table', icon: <Table2 className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'columns' }, label: 'Columns', icon: <Columns3 className="w-3.5 h-3.5" /> },
@@ -85,8 +84,8 @@ const ReportPalette: React.FC<ReportPaletteProps> = ({ project, insertScope, ins
     <button
       key={f.key}
       draggable={!readOnly && !unavailable}
-      onDragStart={unavailable ? undefined : (e => startDrag(e, { kind: 'field', field: f.key }))}
-      onClick={unavailable ? undefined : (() => !readOnly && onInsert({ kind: 'field', field: f.key }))}
+      onDragStart={unavailable ? undefined : (e => startDrag(e, { kind: 'block', type: 'text', field: f.key }))}
+      onClick={unavailable ? undefined : (() => !readOnly && onInsert({ kind: 'block', type: 'text', field: f.key }))}
       className={`w-full flex items-center gap-2 px-2 py-1 rounded text-left text-xs transition-colors disabled:opacity-40 ${unavailable ? 'text-zinc-600 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 active:bg-zinc-800'}`}
     >
       <span className="truncate">{labelOf(f)}</span>
