@@ -68,12 +68,14 @@ Related bugs to fix while here:
 
 - Remove the **Link block** from the block palette/designer.
 
-## 8. Bug: Attribute-block links not clickable in print (`[ ]`)
+## 8. Bug: Attribute-block links not clickable in print (`[x]`)
 
 - A **text block** with an inserted link prints a **pressable link**.
 - Selecting the **same attribute via an attribute block** produces a link that
   is **NOT clickable** in print.
 - The attribute block must **match the text block behavior**.
+- Fixed: `fieldValueNode` auto-detects scheme-guarded URLs in plain attribute
+  values (field blocks AND table cells).
 
 ## 9. Map block location awareness (`[ ]`)
 
@@ -118,12 +120,14 @@ Related bugs to fix while here:
 - Full content must still be rendered in **print** — truncation is a
   preview-only behavior. `[x]`
 
-## 13. Spacer block preview: label + line thickness options (`[ ]`)
+## 13. Spacer block preview: label + line thickness options (`[~]`)
 
 - In the **report preview**, when the Spacer block's style is **"none"**,
-  show a **"SPACER" label** so the empty spacer is visible in the canvas.
+  show a **"SPACER" label** so the empty spacer is visible in the canvas. `[x]`
+  (designer canvas only — print/preview stay clean).
 - When the style is **"line"**, expose **thickness options** for the line
-  (e.g. thin/medium/thick, or a px value) in the block's properties.
+  (e.g. thin/medium/thick, or a px value) in the block's properties. `[ ]`
+  (blocked: controls live in `blockControls.tsx`, in use by another agent).
 
 ## 14. Text block editor: don't scale font size (`[ ]`)
 

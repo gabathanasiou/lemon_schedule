@@ -42,8 +42,8 @@ function isEmptyValue(v: string): boolean {
 }
 
 /** Field value as a React node: plain text, or a clickable anchor when the
- *  field is a link field (map links, emails, phones). Shared by field blocks
- *  and table cells so links work everywhere. */
+ *  field is a link field (map links, emails, phones) or its value is itself a
+ *  URL. Shared by field blocks and table cells so links work everywhere. */
 function fieldValueNode(
   ctx: ReportCtx,
   fieldMap: Record<string, ReportFieldDef>,
@@ -53,12 +53,21 @@ function fieldValueNode(
 ): React.ReactNode {
   const def = fieldMap[field];
   const value = reportFieldValueByKey(ctx, fieldMap, field, item, aux);
-  if (!def?.link || !value || def.multiValue) return value;
-  const kind = def.linkKind || 'url';
-  const href = kind === 'mailto' ? `mailto:${value}` : kind === 'tel' ? `tel:${value}` : value;
-  if (!/^(https?:\/\/|mailto:|tel:)/i.test(href)) return value;
-  const label = kind === 'url' && def.linkLabel ? def.linkLabel(ctx, item) : value;
-  return <a href={href} target="_blank" rel="noreferrer">{label || href}</a>;
+  if (!value || def.multiValue) return value;
+  if (def?.link) {
+    const kind = def.linkKind || 'url';
+    const href = kind === 'mailto' ? `mailto:${value}` : kind === 'tel' ? `tel:${value}` : value;
+    if (!/^(https?:\/\/|mailto:|tel:)/i.test(href)) return value;
+    const label = kind === 'url' && def.linkLabel ? def.linkLabel(ctx, item) : value;
+    return <a href={href} target="_blank" rel="noreferrer">{label || href}</a>;
+  }
+  // Plain attributes holding a URL link like rich-text links do (scheme
+  // guarded — a raw value can't inject javascript: URLs).
+  const trimmed = value.trim();
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) {
+    return <a href={trimmed} target="_blank" rel="noreferrer">{value}</a>;
+  }
+  return value;
 }
 
 function visibleFor(b: ReportBlock, value: string): boolean {
@@ -184,7 +193,18 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
       case 'spacer': {
         const h = block.height ?? 16;
         const style = block.spacerStyle ?? 'none';
-        if (style === 'none') return <div style={{ height: h }} aria-hidden />;
+        if (style === 'none') {
+          // Designer canvas: an empty spacer is invisible — label it so the
+          // block is obvious (print/preview stay clean).
+          if (hint) {
+            return (
+              <div style={{ height: h, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#a1a1aa', fontStyle: 'italic', letterSpacing: '0.08em' }}>
+                SPACER
+              </div>
+            );
+          }
+          return <div style={{ height: h }} aria-hidden />;
+        }
         if (style === 'black') {
           return <div style={{ height: h, background: '#000' }} aria-hidden />;
         }
