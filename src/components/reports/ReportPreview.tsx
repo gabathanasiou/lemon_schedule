@@ -54,6 +54,7 @@ const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, sc
               footer={design.footer}
               headerSkipFirst={design.headerSkipFirst}
               footerSkipFirst={design.footerSkipFirst}
+              previewLimit
             />
           </div>
         ))}

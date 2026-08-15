@@ -15,7 +15,7 @@ import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon, Clock, Timer, StickyNote, Coffee, PanelTop, Square } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, ArrowUp, ArrowDown, Copy, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Underline, Strikethrough, Eye, EyeOff, Image as ImageIcon, MapPin, Link as LinkIcon, Clock, Timer, StickyNote, Coffee, PanelTop } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
@@ -769,22 +769,24 @@ const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disable
 /** Ribbon block visibility toggles — compact icon row, same style as the
  *  column chrome's B/I/align toggles. */
 const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, disabled, onPatch }) => {
+  const dayBreaksOn = block.ribbonDayBreaks === true || block.ribbonHeaders === true;
   const toggles = [
-    { key: 'ribbonDaySection', icon: <Square className="w-3 h-3" />, title: 'Day section (header & totals)', on: block.ribbonDaySection !== false },
-    { key: 'ribbonHeaders', icon: <PanelTop className="w-3 h-3" />, title: 'Day header bar', on: block.ribbonHeaders === true },
-    { key: 'ribbonCallTimes', icon: <Clock className="w-3 h-3" />, title: 'Call times (strips & day header)', on: block.ribbonCallTimes === true },
+    { key: 'ribbonDayBreaks', icon: <PanelTop className="w-3 h-3" />, title: 'Day breaks (START OF DAY / End of Day)', on: dayBreaksOn },
+    { key: 'ribbonCallTimes', icon: <Clock className="w-3 h-3" />, title: 'Call times (strips & day breaks)', on: block.ribbonCallTimes === true },
     { key: 'ribbonDurations', icon: <Timer className="w-3 h-3" />, title: 'Durations (strips & day totals)', on: block.ribbonDurations === true },
     { key: 'ribbonNotes', icon: <StickyNote className="w-3 h-3" />, title: 'Note rows', on: block.ribbonNotes !== false },
     { key: 'ribbonBreaks', icon: <Coffee className="w-3 h-3" />, title: 'Break rows', on: block.ribbonBreaks === true },
   ];
   return (
     <div className="flex items-center gap-1 flex-nowrap min-w-max">
-      {toggles.slice(0, 2).map(t => (
+      {toggles.slice(0, 1).map(t => (
         <Tooltip key={t.key} content={t.title}>
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
+            onClick={() => t.key === 'ribbonDayBreaks'
+              ? onPatch(dayBreaksOn ? { ribbonDayBreaks: false, ribbonHeaders: false } : { ribbonDayBreaks: true })
+              : onPatch({ [t.key]: !t.on } as Partial<ReportBlock>)}
             className={`${TB_TOGGLE} ${t.on ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
           >
             {t.icon}
@@ -792,7 +794,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
         </Tooltip>
       ))}
       <div className={TB_DIVIDER} />
-      {toggles.slice(2).map(t => (
+      {toggles.slice(1).map(t => (
         <Tooltip key={t.key} content={t.title}>
           <button
             type="button"

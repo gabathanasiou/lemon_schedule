@@ -94,6 +94,44 @@ Related bugs to fix while here:
   not put things inside that block**; everything else remains static and taken
   from the template.
 
+## 11. Link crew positions to element categories (`[ ]`)
+
+- Let the user **link a crew position with an element category**: e.g. HMU →
+  Makeup, Grip → G&E, etc.
+- **Ship sensible defaults** for the standard positions/categories (HMU →
+  Makeup, Sound → Sound, etc.) out of the box, still fully editable by the
+  user.
+- The link must be **manageable from both sides**:
+  - **Element Manager**: pick which crew positions are associated with a
+    category.
+  - **Crew Manager**: pick which element categories are associated with a
+    position.
+  - The **Glide Crew tab** must also allow managing the link per crew
+    position.
+- Both sides must stay in sync (one source of truth for the mapping).
+
+## 12. Report preview: truncate table rows (`[ ]`)
+
+- In the **report preview**, tables currently render **all rows**.
+- Change it to render only the **first 6 rows**, followed by a
+  **"+N more" row** (N = remaining rows) indicating the rest are hidden.
+- Full content must still be rendered in **print** — truncation is a
+  preview-only behavior.
+
+## 13. Spacer block preview: label + line thickness options (`[ ]`)
+
+- In the **report preview**, when the Spacer block's style is **"none"**,
+  show a **"SPACER" label** so the empty spacer is visible in the canvas.
+- When the style is **"line"**, expose **thickness options** for the line
+  (e.g. thin/medium/thick, or a px value) in the block's properties.
+
+## 14. Text block editor: don't scale font size (`[ ]`)
+
+- In the **text block editor**, the rich text editor currently renders the
+  text at its **actual size** (true to the preview).
+- It should instead render text at a **normal/comfortable editing size** —
+  only the **preview** reflects the real text size.
+
 ---
 
 ## Session handoff

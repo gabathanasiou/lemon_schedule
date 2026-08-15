@@ -373,12 +373,12 @@ export interface ReportBlock {
   cols?: ReportColumn[];
   // ribbon
   ribbonId?: string;
-  ribbonDaySection?: boolean; // day context: full section (headers/totals) — on unless explicitly off
-  ribbonCallTimes?: boolean;  // show call-time cells in strips + header CALL — off unless explicitly on
+  ribbonCallTimes?: boolean;  // show call-time cells in strips + daybreak CALL/end time — off unless explicitly on
   ribbonDurations?: boolean;  // show duration cells in strips + footer shoot/break — off unless explicitly on
   ribbonNotes?: boolean;      // show NOTE rows — on unless explicitly off
   ribbonBreaks?: boolean;     // show BREAK rows — off unless explicitly on
-  ribbonHeaders?: boolean;    // day section header bar — off unless explicitly on
+  ribbonDayBreaks?: boolean;  // daybreak halves (START OF DAY / End of Day) — off unless explicitly on
+  ribbonHeaders?: boolean;    // legacy alias of ribbonDayBreaks (read-only fallback)
   // style
   fontFamily?: string;
   fontSize?: number;

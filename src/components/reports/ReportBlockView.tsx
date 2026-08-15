@@ -32,6 +32,9 @@ export interface ReportRenderProps {
   onColumnContextMenu?: (e: React.MouseEvent, colIndex: number) => void;
   onMoveColumn?: (from: number, to: number) => void;
   selectedColumn?: number | null;
+  /** Preview surfaces: full-schedule ribbon blocks render the first strips
+   *  plus an "…N more" indicator instead of the whole schedule. */
+  previewLimit?: boolean;
 }
 
 function isEmptyValue(v: string): boolean {
@@ -99,7 +102,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -173,7 +176,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         );
       }
       case 'ribbon': {
-        return <ReportRibbonView block={block} ctx={ctx} item={item} hint={hint} ancestors={ancestors} />;
+        return <ReportRibbonView block={block} ctx={ctx} item={item} hint={hint} ancestors={ancestors} previewLimit={previewLimit} />;
       }
       case 'pageBreak': {
         return <div className="report-page-break" style={{ height: 1 }} />;
@@ -253,7 +256,8 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.onColumnSelect === b.onColumnSelect &&
     a.onColumnContextMenu === b.onColumnContextMenu &&
     a.onMoveColumn === b.onMoveColumn &&
-    a.selectedColumn === b.selectedColumn,
+    a.selectedColumn === b.selectedColumn &&
+    a.previewLimit === b.previewLimit,
 );
 
 // ---- page-level rendering (print + preview): one PageItem per page -----------
@@ -271,7 +275,8 @@ export const ReportPageItems: React.FC<{
   footer?: ReportBlock[];
   headerSkipFirst?: boolean;
   footerSkipFirst?: boolean;
-}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, header, footer, headerSkipFirst, footerSkipFirst }) => {
+  previewLimit?: boolean;
+}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, header, footer, headerSkipFirst, footerSkipFirst, previewLimit }) => {
   const pageAux: FieldAux = { pageIndex, pageCount };
   const showHeader = !!(header && header.length > 0 && !(headerSkipFirst && pageIndex === 0));
   const showFooter = !!(footer && footer.length > 0 && !(footerSkipFirst && pageIndex === 0));
@@ -280,7 +285,7 @@ export const ReportPageItems: React.FC<{
       {showHeader && (
         <div className="report-page-header">
           {header!.map(b => (
-            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} />
           ))}
         </div>
       )}
@@ -304,18 +309,19 @@ export const ReportPageItems: React.FC<{
                     showKeys={showKeys}
                     aux={{ ...pageAux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
                     ancestors={[item]}
+                    previewLimit={previewLimit}
                   />
                 ))}
               </div>
             );
           }
-          return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />;
+          return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} />;
         })}
       </div>
       {showFooter && (
         <div className="report-page-footer">
           {footer!.map(b => (
-            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} />
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} />
           ))}
         </div>
       )}

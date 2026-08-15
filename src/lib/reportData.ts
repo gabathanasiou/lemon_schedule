@@ -224,6 +224,9 @@ export interface ReportCtx {
   sceneViolations: Map<string, RuleViolation[]>;
   totalViolations: number;
   sceneFieldItems: (scene: Scene, category: string) => string[];
+  /** Canonical computed rows by raw row id (call times, daybreak halves,
+   *  elapsed captions) — for static note/break/daybreak rendering. */
+  computedByRowId: Map<string, ComputedRow>;
 }
 
 export function todayIso(): string {
@@ -346,6 +349,9 @@ export function buildReportCtx(
 
   const { sectionViolations, sceneViolations, totalViolations } = computeViolationIndex(project, sections);
 
+  const computedByRowId = new Map<string, ComputedRow>();
+  for (const cr of computedRows) computedByRowId.set(cr.id, cr);
+
   return {
     project,
     version,
@@ -360,6 +366,7 @@ export function buildReportCtx(
     sceneViolations,
     totalViolations,
     sceneFieldItems: (scene, category) => getFieldItems(category, String((scene as any)[category] ?? '')),
+    computedByRowId,
   };
 }
 

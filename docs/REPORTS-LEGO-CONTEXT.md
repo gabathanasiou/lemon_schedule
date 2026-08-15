@@ -92,9 +92,10 @@ The ribbon has NO mode dropdown — it renders from the Lego context:
 | Context | Renders |
 |---|---|
 | inside a Scenes repeat (item = scene) | that scene's strip |
-| inside a Days repeat (item = day) | the day section — or just its strips when `ribbonDaySection` is off |
+| inside a Days repeat (item = day) | the day's boxed section (always bordered) — daybreak halves when `ribbonDayBreaks` |
 | day section with an element/cast ancestor | the day's strips FILTERED to that person's scenes ("personal scenes within this day") |
-| anywhere else (top level, elements/categories/cast/crew item) | nothing; canvas shows a "place inside a Scenes or Days repeat" hint |
+| anywhere else at top level | the full schedule in stripboard order (daybreak halves + strips + notes/breaks); empty schedule shows a hint |
+| inside elements/categories/cast/crew item | nothing |
 
 Person-filtered chains: `Cast → Days → Ribbon` = each cast member's workdays,
 each showing the full day section with only their strips.
