@@ -43,7 +43,9 @@ function isEmptyValue(v: string): boolean {
 
 /** Field value as a React node: plain text, or a clickable anchor when the
  *  field is a link field (map links, emails, phones) or its value is itself a
- *  URL. Shared by field blocks and table cells so links work everywhere. */
+ *  URL. Shared by field blocks and table cells so links work everywhere.
+ *  Anchors inherit the surrounding typography — cells stay readable, links
+ *  only exist as behavior (the explicit Link block keeps link styling). */
 function fieldValueNode(
   ctx: ReportCtx,
   fieldMap: Record<string, ReportFieldDef>,
@@ -53,19 +55,20 @@ function fieldValueNode(
 ): React.ReactNode {
   const def = fieldMap[field];
   const value = reportFieldValueByKey(ctx, fieldMap, field, item, aux);
+  const anchorStyle: React.CSSProperties = { color: 'inherit', textDecoration: 'none' };
   if (!value || def.multiValue) return value;
   if (def?.link) {
     const kind = def.linkKind || 'url';
     const href = kind === 'mailto' ? `mailto:${value}` : kind === 'tel' ? `tel:${value}` : value;
     if (!/^(https?:\/\/|mailto:|tel:)/i.test(href)) return value;
     const label = kind === 'url' && def.linkLabel ? def.linkLabel(ctx, item) : value;
-    return <a href={href} target="_blank" rel="noreferrer">{label || href}</a>;
+    return <a href={href} target="_blank" rel="noreferrer" style={anchorStyle}>{label || href}</a>;
   }
   // Plain attributes holding a URL link like rich-text links do (scheme
   // guarded — a raw value can't inject javascript: URLs).
   const trimmed = value.trim();
   if (/^(https?:\/\/|mailto:|tel:)/i.test(trimmed)) {
-    return <a href={trimmed} target="_blank" rel="noreferrer">{value}</a>;
+    return <a href={trimmed} target="_blank" rel="noreferrer" style={anchorStyle}>{value}</a>;
   }
   return value;
 }
