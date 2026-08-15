@@ -592,7 +592,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
   const updateProjectMeta = useCallback((id: string, updates: Partial<ProjectMeta>) => {
     setProjectList(prev => {
-      const updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
+      const idx = prev.findIndex(p => p.id === id);
+      let updated: ProjectMeta[];
+      if (idx >= 0) {
+        updated = prev.map(p => p.id === id ? { ...p, ...updates } : p);
+      } else {
+        // Upsert: a Drive-only project (not in the localStorage index, e.g. after
+        // a reload) must be added when it comes back local (move-to-local), or it
+        // would vanish from the index entirely.
+        const base: ProjectMeta = {
+          id,
+          title: updates.title || 'Project',
+          lastModified: updates.lastModified ?? Date.now(),
+          createdAt: updates.createdAt ?? Date.now(),
+        };
+        updated = [...prev, { ...base, ...updates }];
+      }
       saveProjectListToStorage(updated);
       return updated;
     });

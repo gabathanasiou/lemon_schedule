@@ -102,19 +102,26 @@ async function listAppDataFiles(accessToken: string): Promise<
 > {
   const params = new URLSearchParams({
     spaces: 'appDataFolder',
-    fields: 'files(id,name,mimeType,size,modifiedTime)',
+    fields: 'files(id,name,mimeType,size,modifiedTime),nextPageToken',
     pageSize: '100',
   });
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Drive list error: ${res.status} ${text}`);
-  }
-  const data = await res.json();
-  return data.files || [];
+  const files: { id: string; name: string; modifiedTime: string }[] = [];
+  let next = '';
+  do {
+    if (next) params.set('pageToken', next);
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Drive list error: ${res.status} ${text}`);
+    }
+    const data = await res.json();
+    files.push(...(data.files || []));
+    next = data.nextPageToken || '';
+  } while (next);
+  return files;
 }
 
 async function deleteFile(accessToken: string, fileId: string): Promise<void> {
@@ -132,8 +139,15 @@ export async function listDriveProjectMetas(
   accessToken: string,
 ): Promise<DriveProjectMeta[]> {
   const files = await listAppDataFiles(accessToken);
-  const indexFile = files.find(f => f.name === '_lemon_schedule_index.json');
+  // There may be multiple index files (older builds created a new one on every
+  // save). Always read the NEWEST and record its id so the next save PATCHes it
+  // instead of orphaning another copy.
+  const indexFiles = files
+    .filter(f => f.name === '_lemon_schedule_index.json')
+    .sort((a, b) => b.modifiedTime.localeCompare(a.modifiedTime));
+  const indexFile = indexFiles[0];
   if (!indexFile) return [];
+  _cachedIndexFileId = indexFile.id;
 
   const fileIdByName = new Map<string, string>();
   for (const f of files) {
@@ -192,9 +206,29 @@ export async function deleteDriveProject(
 }
 
 let _cachedIndexFileId: string | null = null;
+let _indexCleanupAttempted = false;
 
 export function invalidateDriveIndexCache() {
   _cachedIndexFileId = null;
+}
+
+// Older builds orphaned a new `_lemon_schedule_index.json` on every save.
+// Best-effort sweep: once per session, delete every index file except the one
+// just written. Failure is non-fatal (the extras only cost list flicker).
+async function cleanupStaleIndexFiles(accessToken: string, keepFileId: string): Promise<void> {
+  if (_indexCleanupAttempted) return;
+  _indexCleanupAttempted = true;
+  try {
+    const files = await listAppDataFiles(accessToken);
+    for (const f of files) {
+      if (f.name === '_lemon_schedule_index.json' && f.id !== keepFileId) {
+        await deleteFile(accessToken, f.id);
+      }
+    }
+  } catch (e) {
+    console.warn('[Drive] Index cleanup failed:', e);
+    _indexCleanupAttempted = false; // retry on the next save
+  }
 }
 
 export async function saveDriveIndex(
@@ -210,6 +244,7 @@ export async function saveDriveIndex(
     existingIndexFileId ?? _cachedIndexFileId ?? undefined,
   );
   _cachedIndexFileId = fileId;
+  cleanupStaleIndexFiles(accessToken, fileId);
   return fileId;
 }
 

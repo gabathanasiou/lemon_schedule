@@ -137,22 +137,31 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     setImporting(true);
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
-      if (!data.scenes || !data.versions) {
+      let data: unknown;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        dialog.alert({ title: 'Invalid File', message: 'Could not read file.' });
+        return;
+      }
+      if (!data || typeof data !== 'object' || !('scenes' in data) || !('versions' in data)) {
         dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
         return;
       }
       const newId = importProjectFromData(data as Project);
       if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
-        const proj = loadProjectFromStorage(newId);
-        if (proj) {
-          const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
-          updateProjectMeta(newId, { driveFileId });
+        try {
+          const proj = loadProjectFromStorage(newId);
+          if (proj) {
+            const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
+            updateProjectMeta(newId, { driveFileId });
+            refetchDrive();
+          }
+        } catch (err: any) {
+          dialog.alert({ title: 'Upload Failed', message: formatDriveError(err, 'The project was imported locally, but uploading it to Drive failed.') });
         }
       }
       onClose?.();
-    } catch {
-      dialog.alert({ title: 'Invalid File', message: 'Could not read file.' });
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -250,7 +259,10 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         await deleteDriveProject(auth.accessToken!, p.driveFileId);
         await removeFromDriveIndex(auth.accessToken!, p.id);
       }
-      updateProjectMeta(p.id, { driveFileId: undefined });
+      // Pass full meta so updateProjectMeta can UPSERT — a Drive-only project
+      // (fresh session, not in projectList) would otherwise vanish from the
+      // local index after its Drive copy is deleted.
+      updateProjectMeta(p.id, { driveFileId: undefined, title: p.title, lastModified: Date.now(), createdAt: p.createdAt ?? Date.now() });
       refetchDrive();
     } catch (e: any) {
       dialog.alert({ title: 'Remove Failed', message: formatDriveError(e, 'Could not remove from Drive.') });
