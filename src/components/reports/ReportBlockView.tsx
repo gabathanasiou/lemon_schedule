@@ -258,6 +258,46 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
           />
         );
       }
+      case 'callSheetEdit': {
+        // Future Call Sheet Designer: this is the per-day editable region of a
+        // call-sheet template. In the reports designer it's a locked zone —
+        // the designer only accepts drops into repeat/table containers, so no
+        // children can be added here. Children render if the block already has
+        // them (forward-compat for the callsheet designer).
+        const children = block.children || [];
+        if (children.length === 0) {
+          if (hint) {
+            return (
+              <div style={{ border: '1px dashed #a1a1aa', borderRadius: 6, padding: 10, textAlign: 'center', fontSize: 10, color: '#8f8f8f', fontStyle: 'italic' }}>
+                Call Sheet Edit Zone — per-day content lives here (editable in the Call Sheet Designer)
+              </div>
+            );
+          }
+          return null;
+        }
+        return (
+          <div style={{ border: '1px dashed #a1a1aa', borderRadius: 6, padding: 8 }}>
+            {children.map(cb => (
+              <ReportBlockView
+                key={cb.id}
+                block={cb}
+                ctx={ctx}
+                fieldMap={fieldMap}
+                item={item}
+                parentCategory={parentCategory}
+                parentCollection={parentCollection}
+                scopeFilter={scopeFilter}
+                hint={hint}
+                showKeys={showKeys}
+                showUnresolved={showUnresolved}
+                aux={aux}
+                onceTable={onceTable}
+                ancestors={ancestors}
+              />
+            ))}
+          </div>
+        );
+      }
       default:
         return null;
     }

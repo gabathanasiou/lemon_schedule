@@ -50,6 +50,7 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'image': break;
     case 'map': base.mapHeight = partial.mapHeight ?? 240; base.mapZoom = partial.mapZoom ?? 15; break;
     case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{dayLocationLink}}'; break;
+    case 'callSheetEdit': base.children = []; break;
     default: break;
   }
   return { ...base, ...partial, id: base.id, type };

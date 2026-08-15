@@ -85,7 +85,7 @@ Related bugs to fix while here:
   **multiple locations attached** — the block must choose intelligently
   (default = first) and/or let the user select another.
 
-## 10. Future: CallSheet Designer (`[ ]`)
+## 10. Future: CallSheet Designer (`[~]`)
 
 - A **CallSheet Designer**: a **variant of the Report Designer** sharing the
   same code — almost a toggle.
@@ -95,6 +95,11 @@ Related bugs to fix while here:
   reports designer: in the call sheet editor you're **only allowed to put or
   not put things inside that block**; everything else remains static and taken
   from the template.
+- Block container implemented (`[x]`): new `callSheetEdit` block type
+  (palette + renderer + tree support). The reports designer CANNOT drop
+  blocks into it (drop-zones are type-derived — repeat/table only), so it's a
+  locked zone; the future callsheet designer opts in. Children rendering is
+  forward-compatible.
 
 ## 11. Link crew positions to element categories (`[ ]`)
 

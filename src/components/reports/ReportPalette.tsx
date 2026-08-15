@@ -4,7 +4,7 @@ import { ReportCollection } from '../../types';
 import { getReportFieldDefs, fieldsForScope, searchReportFields, ReportFieldDef, isGlobalField, smartFieldLabel } from '../../lib/reportFields';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { Project } from '../../types';
-import { Type, AlignLeft, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin } from 'lucide-react';
+import { Type, AlignLeft, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Search, X, Image as ImageIcon, MapPin, Sheet } from 'lucide-react';
 
 export interface PaletteDropPayload {
   kind: 'block' | 'field';
@@ -29,6 +29,7 @@ const BLOCK_ITEMS: { type: PaletteDropPayload; label: string; icon: React.ReactN
   { type: { kind: 'block', type: 'spacer' }, label: 'Spacer', icon: <Ruler className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'image' }, label: 'Image', icon: <ImageIcon className="w-3.5 h-3.5" /> },
   { type: { kind: 'block', type: 'map' }, label: 'Map', icon: <MapPin className="w-3.5 h-3.5" /> },
+  { type: { kind: 'block', type: 'callSheetEdit' }, label: 'Call Sheet Edit', icon: <Sheet className="w-3.5 h-3.5" /> },
 ];
 
 interface ReportPaletteProps {
