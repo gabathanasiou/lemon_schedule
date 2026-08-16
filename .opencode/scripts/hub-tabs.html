@@ -13,21 +13,12 @@
   .tab .port { opacity: .55; margin-left: 6px; font-size: 11px; }
   .back { font: inherit; font-size: 12px; color: #93c5fd; background: transparent; border: 1px solid #1d4ed8; border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; flex: 0 0 auto; text-decoration: none; }
   .back:hover { background: #1e3a8a; color: #fff; }
-  .panel { display: none; height: calc(100vh - 104px); }
+  .panel { display: none; height: calc(100vh - 48px); }
   .panel.active { display: flex; flex-direction: column; }
   .bar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; color: #71717a; background: #101013; border-bottom: 1px solid #1f1f23; }
   .bar button { font: inherit; font-size: 11px; background: #1f1f23; border: 1px solid #2e2e33; color: #a1a1aa; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
   .hint { margin-left: auto; font-size: 11px; color: #52525b; }
   iframe { flex: 1; width: 100%; border: 0; background: #fff; }
-  .workers { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; background: #101013; border-bottom: 1px solid #27272a; }
-  .wrow { display: flex; align-items: center; gap: 10px; font-size: 12px; min-width: 0; }
-  .wname { font-weight: 600; color: #d4d4d8; white-space: nowrap; }
-  .wdoing { color: #8b8b94; font-style: italic; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wrow button { font: inherit; font-size: 11px; background: #1f1f23; border: 1px solid #2e2e33; color: #a1a1aa; border-radius: 6px; padding: 2px 10px; cursor: pointer; }
-  .wrow button:hover { background: #26262b; color: #fff; }
-  .wurl { color: #60a5fa; font-size: 11px; text-decoration: none; white-space: nowrap; }
-  .wurl:hover { text-decoration: underline; }
-  .whead { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #52525b; margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -36,7 +27,6 @@
   <button class="tab active" data-panel="pmain">main<span class="port">3000</span></button>
   __TABS__
 </div>
-<div class="workers" id="workers"><div class="whead">Workers</div></div>
 <div class="panel active" id="pmain"><div class="bar">main — port 3000 <button class="reload">Reload</button><span class="hint">project data is shared across tabs</span></div><iframe data-src="3000"></iframe></div>
 __PANELS__
 <script>
@@ -54,29 +44,6 @@ __PANELS__
     const base = f.src.split('?')[0];
     f.src = base + '?t=' + Date.now();
   }));
-
-  // --- workers strip: live status, what they're doing, start/stop, LAN URLs ---
-  const esc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  const host = location.hostname;
-  async function refreshWorkers() {
-    try {
-      const s = await (await fetch('/api/status')).json();
-      const rows = s.items.map(it => {
-        const on = it.running === 'yes' || it.running === 'external';
-        return '<div class="wrow"><span class="dot ' + it.running + '"></span>' +
-          '<span class="wname" title="' + esc(it.label) + '">' + esc(it.label) + '</span>' +
-          '<span class="wdoing" title="' + esc(it.doing) + '">' + (it.doing ? esc(it.doing) : on ? 'running' : 'stopped') + '</span>' +
-          '<button onclick="wctl(\'start/' + it.item + '\')">Start</button>' +
-          '<button onclick="wctl(\'stop/' + it.item + '\')">Stop</button>' +
-          '<a class="wurl" href="http://' + host + ':' + it.port + '" target="_blank">' + host + ':' + it.port + '</a>' +
-          '</div>';
-      }).join('');
-      document.getElementById('workers').innerHTML = '<div class="whead">Workers — shared project data · one refresh after first load if the list looks empty</div>' + rows;
-    } catch (err) { /* hub restarting — retry */ }
-  }
-  async function wctl(cmd) { try { await fetch('/api/' + cmd, { method: 'POST' }); } catch (err) {} setTimeout(refreshWorkers, 700); }
-  refreshWorkers();
-  setInterval(refreshWorkers, 4000);
 
   // --- shared localStorage store (parent side of the hub-bridge) ---
   // Safety: the MAIN frame is the only authoritative writer. Worker frames

@@ -48,6 +48,9 @@ item is done, committed, and pushed.
      to the main tree and shared with all other workers. If the app shows
      stale/corrupt behavior (e.g. "Invalid hook call", old code rendering),
      stop your server, `rm -rf node_modules/.vite`, and retry.
+   - `vite.config.ts` and `public/hub-bridge.js` may appear MODIFIED in your
+     worktree — that's the hub's dev-config sync (per-port cache + storage
+     bridge), identical to main. NEVER commit them or "clean them up".
 
 ## Questions: the two-tier protocol
 

@@ -14,10 +14,28 @@ const hubStorageBridge = () => ({
   },
 });
 
+// Per-port dep cache: the hub runs several dev servers (main + worker
+// worktrees) that share the SYMLINKED node_modules — a shared .vite cache
+// lets one server's re-optimization nuke another's hashed chunks
+// (504 "Outdated Optimize Dep"). Each server gets its own cache dir,
+// keyed by the EFFECTIVE port (last --port in argv — workers are spawned
+// as `vite --port=3000 … --port 3101` where 3101 wins).
+const argvPort = (() => {
+  let port;
+  for (let i = 0; i < process.argv.length; i++) {
+    const a = process.argv[i];
+    if (a.startsWith('--port=')) port = a.split('=')[1];
+    else if (a === '--port' && i + 1 < process.argv.length) port = process.argv[i + 1];
+  }
+  return port;
+})();
+const cacheDir = argvPort ? `node_modules/.vite-${argvPort}` : 'node_modules/.vite';
+
 export default defineConfig(() => {
   return {
     base: '/lemon_schedule/',
     plugins: [react(), tailwindcss(), hubStorageBridge()],
+    cacheDir,
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

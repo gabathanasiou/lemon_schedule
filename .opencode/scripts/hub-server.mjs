@@ -111,6 +111,32 @@ const agentDoing = (item) => {
   }
 };
 
+// Dev-config sync: worktrees branch off older commits whose vite.config.ts
+// lacks the per-port cache + storage bridge. Copy the current dev files in
+// (they're identical to main's — merging them is a no-op). Workers see them
+// as modified; the worker contract says not to commit them.
+const DEV_SYNC = ['vite.config.ts', 'public/hub-bridge.js'];
+const syncDevFiles = () => {
+  for (const { item } of items()) {
+    const wt = path.join(ROOT, '..', `lemon_schedule-wt/${item}`);
+    if (!fs.existsSync(wt)) continue;
+    for (const rel of DEV_SYNC) {
+      const src = path.join(ROOT, rel);
+      const dst = path.join(wt, rel);
+      if (!fs.existsSync(src)) continue;
+      try {
+        if (!fs.existsSync(dst) || fs.readFileSync(src).toString() !== fs.readFileSync(dst).toString()) {
+          fs.mkdirSync(path.dirname(dst), { recursive: true });
+          fs.copyFileSync(src, dst);
+          console.log(`  synced ${rel} → ${item}`);
+        }
+      } catch (err) {
+        console.log(`  sync ${rel} → ${item} failed: ${err.message}`);
+      }
+    }
+  }
+};
+
 const status = () => ({
   hubPort: HUB_PORT,
   main: {
@@ -146,6 +172,9 @@ const MANAGER_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"
   button { font: inherit; font-size: 12px; background: #1f1f23; border: 1px solid #2e2e33; color: #d4d4d8; border-radius: 7px; padding: 5px 12px; cursor: pointer; }
   button:hover { background: #26262b; color: #fff; }
   button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .doing { color: #8b8b94; font-style: italic; font-size: 11px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  a.url { color: #60a5fa; font-size: 11px; text-decoration: none; }
+  a.url:hover { text-decoration: underline; }
   pre { background: #0a0a0c; border: 1px solid #1f1f23; border-radius: 8px; padding: 8px 10px; font-size: 11px; color: #9ca3af; overflow: auto; max-height: 120px; white-space: pre-wrap; margin: 8px 0 0; }
 </style></head><body>
 <h1>🍋 Worker preview hub</h1>
@@ -154,29 +183,38 @@ const MANAGER_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"
 <script>
 const $ = (s, r = document) => r.querySelector(s);
 const hostUrl = (p) => 'http://' + location.hostname + ':' + p;
+const stLabel = (r) => r === 'yes' ? 'running' : r === 'external' ? 'running (external)' : 'stopped';
 async function refresh() {
   const s = await (await fetch('/api/status')).json();
-  const esc = (t) => t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  const card = (it) => '<div class="card"><h2>' + esc(it.label) + '</h2>' +
-    '<div class="port">port ' + it.port + '</div><div class="row">' +
-    '<span class="dot ' + it.running + '"></span><span>' + (it.running === 'yes' ? 'running' : it.running === 'external' ? 'running (external)' : 'stopped') + '</span>' +
-    '<button onclick="act(\'start\\\'' + it.item + '\\\'\')">Start</button>' +
-    '<button onclick="act(\'stop\\\'' + it.item + '\\\'\')">Stop</button>' +
-    '<button class="primary" onclick="window.open(hostUrl(' + it.port + '))">Open tab</button>' +
-    '</div><pre>' + esc(it.log) + '</pre></div>';
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   const mainSt = s.main.running;
-  const main = '<div class="card"><h2>main</h2><div class="port">port 3000</div><div class="row">' +
-    '<span class="dot ' + mainSt + '"></span><span>' + (mainSt === 'yes' ? 'running' : mainSt === 'external' ? 'running (external)' : 'stopped') + '</span>' +
-    '<button onclick="act(\'start/main\')">Start</button>' +
-    '<button onclick="act(\'stop/main\')">Stop</button>' +
-    '<button class="primary" onclick="window.open(hostUrl(3000))">Open</button></div>' +
+  const main = '<div class="card" data-item="main"><h2>main</h2>' +
+    '<div class="port">port 3000 · <a class="url" href="' + hostUrl(3000) + '" target="_blank">' + location.hostname + ':3000</a></div>' +
+    '<div class="doing">' + esc(s.main.doing || '') + '</div><div class="row">' +
+    '<span class="dot ' + mainSt + '"></span><span>' + stLabel(mainSt) + '</span>' +
+    '<button data-act="start">Start</button><button data-act="stop">Stop</button>' +
+    '<button class="primary" data-act="open">Open</button></div>' +
     '<pre>' + esc(s.main.log || '(no log yet)') + '</pre></div>';
-  $('#list').innerHTML = main + s.items.map(card).join('');
+  const cards = s.items.map(it => '<div class="card" data-item="' + esc(it.item) + '" data-port="' + it.port + '"><h2>' + esc(it.label) + '</h2>' +
+    '<div class="port">port ' + it.port + ' · <a class="url" href="' + hostUrl(it.port) + '" target="_blank">' + location.hostname + ':' + it.port + '</a></div>' +
+    '<div class="doing">' + esc(it.doing || (it.running !== 'no' ? 'running' : '')) + '</div><div class="row">' +
+    '<span class="dot ' + it.running + '"></span><span>' + stLabel(it.running) + '</span>' +
+    '<button data-act="start">Start</button><button data-act="stop">Stop</button>' +
+    '<button class="primary" data-act="open">Open tab</button></div>' +
+    '<pre>' + esc(it.log) + '</pre></div>');
+  $('#list').innerHTML = main + cards.join('');
 }
-async function act(cmd) {
-  await fetch('/api/' + cmd, { method: 'POST' });
-  setTimeout(refresh, 700);
-}
+async function act(cmd) { await fetch('/api/' + cmd, { method: 'POST' }); setTimeout(refresh, 700); }
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const cardEl = btn.closest('.card');
+  if (!cardEl) return;
+  const item = cardEl.dataset.item;
+  const a = btn.dataset.act;
+  if (a === 'open') { window.open(hostUrl(item === 'main' ? 3000 : Number(cardEl.dataset.port))); return; }
+  fetch('/api/' + a + '/' + item, { method: 'POST' }).then(() => setTimeout(refresh, 700));
+});
 refresh();
 setInterval(refresh, 4000);
 </script></body></html>`;
@@ -236,6 +274,7 @@ server.listen(HUB_PORT, () => {
   console.log(`   viewer tabs:         http://localhost:${HUB_PORT}/hub.html`);
   console.log('   auto-starting main + all workers…');
   setTimeout(() => {
+    syncDevFiles();
     const m = startMain();
     console.log('  main:', m.msg);
     items().forEach(it => { const r = startItem(it.item, it.port); console.log(`  ${it.item}:`, r.msg); });
