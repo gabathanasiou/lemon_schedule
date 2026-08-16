@@ -88,7 +88,10 @@ const TOKEN_CHIP_RE = /(\{\{[^}]+\}\})/g;
  *  per attribute group) so the "this is a template" nature of a text block is
  *  obvious in key mode. */
 export const TokenPreview: React.FC<{ text: string; fieldMap?: Record<string, ReportFieldDef> }> = ({ text, fieldMap }) => {
-  const parts = normalizeSpaces(text).split(TOKEN_CHIP_RE);
+  // stripRichText removes any stored markup (editor saves wrap text in <p>,
+  // old kit builds polluted it with xmlns attrs) — key mode must show the
+  // template text, never tags.
+  const parts = stripRichText(text).split(TOKEN_CHIP_RE);
   return (
     <>
       {parts.map((part, i) => {

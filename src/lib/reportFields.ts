@@ -593,7 +593,11 @@ export function resolveReportTokensHtml(
   aux?: FieldAux,
   opts?: TokenResolveOptions,
 ): string {
-  return normalizeSpaces(html).replace(TOKEN_RE, (_m, raw: string) => {
+  return normalizeSpaces(html)
+    // Old kit builds serialized via XMLSerializer — drop the xmlns noise it
+    // left on every element so polluted stored text renders clean.
+    .replace(/ xmlns="http:\/\/www\.w3\.org\/1999\/xhtml"/g, '')
+    .replace(TOKEN_RE, (_m, raw: string) => {
     const { field } = parseToken(raw);
     const value = resolveToken(ctx, fieldMap, raw, item, aux);
     if (opts?.showUnresolved && !value) {

@@ -65,7 +65,14 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const [selId, setSelId] = useState<string | null>(null);
   const [selCol, setSelCol] = useState<ColSel | null>(null);
   const [preview, setPreview] = useState(false);
-  const [viewKeys, setViewKeys] = useState(false);
+  const [viewKeys, setViewKeys] = useState<boolean>(() => {
+    // Show field values is the default; the choice persists across sessions.
+    try { return localStorage.getItem('lemon_schedule_report_view_keys') === '1'; } catch { return false; }
+  });
+  const setViewKeysPersisted = (keys: boolean) => {
+    setViewKeys(keys);
+    try { localStorage.setItem('lemon_schedule_report_view_keys', keys ? '1' : '0'); } catch { /* ignore */ }
+  };
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   // Sun & Weather values: warm the cache on load so canvas + preview render
@@ -321,13 +328,13 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
         ))}
         <div className="border-t border-zinc-800 my-1" />
         <DropdownItem
-          onClick={() => { setViewKeys(true); setViewMenuOpen(false); }}
+          onClick={() => { setViewKeysPersisted(true); setViewMenuOpen(false); }}
           icon={viewKeys ? <Check className="w-3.5 h-3.5" /> : undefined}
         >
           Show field keys
         </DropdownItem>
         <DropdownItem
-          onClick={() => { setViewKeys(false); setViewMenuOpen(false); }}
+          onClick={() => { setViewKeysPersisted(false); setViewMenuOpen(false); }}
           icon={!viewKeys ? <Check className="w-3.5 h-3.5" /> : undefined}
         >
           Show field values
