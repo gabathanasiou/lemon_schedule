@@ -24,9 +24,13 @@
   <button class="tab active" data-panel="pmain">main<span class="port">3000</span></button>
   __TABS__
 </div>
-<div class="panel active" id="pmain"><div class="bar">main — http://localhost:3000 <button class="reload">Reload</button><span class="hint">project data is shared across tabs</span></div><iframe src="http://localhost:3000"></iframe></div>
+<div class="panel active" id="pmain"><div class="bar">main — port 3000 <button class="reload">Reload</button><span class="hint">project data is shared across tabs</span></div><iframe data-src="3000"></iframe></div>
 __PANELS__
 <script>
+  // Host-aware iframes — works from the Mac AND from LAN devices (iPad),
+  // where "localhost" would point at the device itself.
+  document.querySelectorAll('iframe[data-src]').forEach(f => { f.src = 'http://' + location.hostname + ':' + f.dataset.src; });
+
   // --- tab switching + reload ---
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));

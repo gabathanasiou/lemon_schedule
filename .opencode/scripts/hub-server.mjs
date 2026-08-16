@@ -126,6 +126,7 @@ const MANAGER_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"
 <div id="list"></div>
 <script>
 const $ = (s, r = document) => r.querySelector(s);
+const hostUrl = (p) => 'http://' + location.hostname + ':' + p;
 async function refresh() {
   const s = await (await fetch('/api/status')).json();
   const esc = (t) => t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -134,11 +135,11 @@ async function refresh() {
     '<span class="dot ' + it.running + '"></span><span>' + (it.running === 'yes' ? 'running' : it.running === 'external' ? 'running (external)' : 'stopped') + '</span>' +
     '<button onclick="act(\'start\\\'' + it.item + '\\\'\')">Start</button>' +
     '<button onclick="act(\'stop\\\'' + it.item + '\\\'\')">Stop</button>' +
-    '<button class="primary" onclick="window.open(\'http://localhost:' + it.port + '\')">Open tab</button>' +
+    '<button class="primary" onclick="window.open(hostUrl(' + it.port + '))">Open tab</button>' +
     '</div><pre>' + esc(it.log) + '</pre></div>';
   const main = '<div class="card"><h2>main</h2><div class="port">port 3000</div><div class="row">' +
     '<span class="dot ' + (s.main.running ? 'yes' : 'no') + '"></span><span>' + (s.main.running ? 'running' : 'stopped') + '</span>' +
-    '<button class="primary" onclick="window.open(\'http://localhost:3000\')">Open</button></div></div>';
+    '<button class="primary" onclick="window.open(hostUrl(3000))">Open</button></div></div>';
   $('#list').innerHTML = main + s.items.map(card).join('');
 }
 async function act(cmd) {
@@ -163,7 +164,7 @@ const server = http.createServer((req, res) => {
     items().forEach(({ item, port }, i) => {
       const label = titleFor(item);
       tabs.push(`<button class="tab" data-panel="p${i}" title="${label.replace(/"/g, '&quot;')}">${item}<span class="port">${port}</span></button>`);
-      panels.push(`<div class="panel" id="p${i}"><div class="bar">${label.replace(/</g, '&lt;')} — http://localhost:${port} <button class="reload">Reload</button></div><iframe src="http://localhost:${port}"></iframe></div>`);
+      panels.push(`<div class="panel" id="p${i}"><div class="bar">${label.replace(/</g, '&lt;')} — port ${port} <button class="reload">Reload</button></div><iframe data-src="${port}"></iframe></div>`);
     });
     html = html.replace('__TABS__', tabs.join('')).replace('__PANELS__', panels.join(''));
     res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(html);
