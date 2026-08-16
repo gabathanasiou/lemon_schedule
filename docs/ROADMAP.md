@@ -135,13 +135,16 @@ Related bugs to fix while here:
   ("Only crew in this day"), scoped crew labels/checkbox come back, and the
   interim honest-label special case from item 25 is removed.
 
-## 12. Report preview: truncate table rows (`[ ]`)
+## 12. Report preview: truncate table rows (`[x]`)
+- Done: `TABLE_PREVIEW_LIMIT = 6` (`ReportBlockView.tsx:617`) + "+N more" row,
+  preview surfaces only (designer canvas + preview — `previewLimit`); print
+  always renders everything; continuation fragments show the bar once.
 
 - In the **report preview**, tables currently render **all rows**.
 - Change it to render only the **first 6 rows**, followed by a
   **"+N more" row** (N = remaining rows) indicating the rest are hidden.
 - Full content must still be rendered in **print** — truncation is a
-  preview-only behavior. `[x]`
+  preview-only behavior.
 
 ## 13. Spacer block preview: label + line thickness options (`[x]`)
 
