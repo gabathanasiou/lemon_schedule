@@ -39,7 +39,8 @@ review, test (serialized), merge, and keep docs + roadmap statuses truthful.
 7. **Docs**: dispatch `docs-curator` with each worker's architecture report
    (`.opencode/reports/<item>.md`) — it updates AGENTS.md/docs and flips
    `docs/ROADMAP.md` statuses. Never let feature workers edit docs themselves.
-8. **Cleanup**: remove the worktree + feature branch after merge.
+8. **Cleanup**: `/cleanup-worker <item>` after merge (hub stop → worktree
+   remove --force → branch delete local + remote).
 
 ## Rules
 

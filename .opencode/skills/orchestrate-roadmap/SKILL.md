@@ -45,7 +45,8 @@ read-only reviewers, and a docs curator. Agents + commands already exist:
 5. **Verify SERIALIZED** — `npm run lint` per branch; playwright suite ONE
    branch at a time (dev servers fight over ports 3001/4173). Never two test
    runs concurrently.
-6. **Merge** each branch; remove worktree + branch.
+6. **Merge** each branch; then cleanup via `/cleanup-worker <item>`
+   (hub stop → worktree remove --force → branch delete local+remote).
 7. **Docs loop** — dispatch `docs-curator` with each `.opencode/reports/<item>.md`
    (what changed / invariants touched / docs needed / assumptions /
    verification). Flip `docs/ROADMAP.md` statuses. Workers never edit docs.
