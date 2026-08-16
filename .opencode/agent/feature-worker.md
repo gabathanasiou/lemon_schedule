@@ -1,6 +1,6 @@
 ---
 description: Headless worker that implements a single roadmap item inside an isolated git worktree. Reads AGENTS.md and the domain docs FIRST, follows the repo rules, never edits docs, commits small, pushes its branch, and files an architecture report. Use for implementing roadmap items 22-29 style work.
-mode: subagent
+mode: all
 permission:
   bash:
     "*": "allow"
