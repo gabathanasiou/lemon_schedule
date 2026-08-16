@@ -15,8 +15,9 @@ import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
+import ColorField from '../ColorField';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -1141,6 +1142,36 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
           </Tooltip>
         );
       })}
+      {/* Background fill + border (roadmap 28) — text/field blocks only; the
+          link block keeps its fixed link blue (unreadable on dark fills). The
+          text color auto-switches white on dark backgrounds. */}
+      {block.type !== 'link' && (
+        <>
+          <div className={TB_DIVIDER} />
+          <Tooltip content="Background color — text turns white on dark fills">
+            <span className="flex items-center">
+              <ColorField value={block.background ?? '#FFFFFF'} onChange={v => onPatch({ background: v })} size="sm" hexVariant="sm" />
+            </span>
+          </Tooltip>
+          {block.background && (
+            <Tooltip content="Remove background">
+              <button disabled={disabled} onClick={() => onPatch({ background: undefined })} className={TB_BTN_ICON} title="Remove background">
+                <X className="w-3 h-3" />
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip content="Border around the block">
+            <button
+              disabled={disabled}
+              onClick={() => onPatch({ border: !block.border })}
+              className={`${TB_TOGGLE} ${block.border ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+              title="Border"
+            >
+              <span className="w-3 h-3 border border-current" />
+            </button>
+          </Tooltip>
+        </>
+      )}
     </>
   );
 };

@@ -393,6 +393,11 @@ export interface ReportBlock {
    *  no migration. pageBreak blocks never get a margin; the first block in
    *  each stack stays flush. */
   blockGap?: number;
+  /** Background fill (hex) for text/field blocks — auto text color follows
+   *  the background's relative luminance (roadmap 28). */
+  background?: string;
+  /** Full-box 1px border for text/field blocks (default off). */
+  border?: boolean;
   // spacer
   height?: number;
   spacerStyle?: 'none' | 'black' | 'line' | 'dotted';
