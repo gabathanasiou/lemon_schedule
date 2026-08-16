@@ -1,6 +1,7 @@
 #!/bin/bash
-# Watches feature-worker progress: notifies (macOS) + logs when a worker
-# pushes its branch (ready for review) or when all workers exit.
+# Watches feature-worker progress: notifies (macOS + iOS via ntfy) + logs when
+# a worker pushes its branch (ready for review) or when all workers exit.
+# iOS: install the "ntfy" app, subscribe to ntfy.sh/<NTFY_TOPIC> (from .env).
 # Run: nohup "$HOME/Documents/Software Apps/lemon_schedule/.opencode/scripts/watch-workers.sh" > /dev/null 2>&1 &
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG="$ROOT/.opencode/logs/watch.log"
@@ -8,7 +9,19 @@ STATE="$ROOT/.opencode/logs/watch.state"
 mkdir -p "$(dirname "$LOG")"
 touch "$STATE"
 
-notify() { osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1; echo "$(date '+%H:%M:%S') $1: $2" >> "$LOG"; }
+set -a
+[ -f "$ROOT/.env" ] && source "$ROOT/.env"
+set +a
+
+notify() {
+  osascript -e "display notification \"$2\" with title \"$1\"" >/dev/null 2>&1
+  if [ -n "$NTFY_TOPIC" ]; then
+    curl -s -m 10 -H "Title: $1" -d "$2" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null 2>&1
+  fi
+  echo "$(date '+%H:%M:%S') $1: $2" >> "$LOG"
+}
+
+notify "Watcher online" "iOS push channel live — worker events will ping here"
 
 while true; do
   cd "$ROOT" || exit 1

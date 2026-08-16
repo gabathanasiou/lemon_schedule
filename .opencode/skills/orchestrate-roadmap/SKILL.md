@@ -54,6 +54,9 @@ read-only reviewers, and a docs curator. Agents + commands already exist:
 - Web server: auto-started from `~/.zshrc` guard → `.opencode/scripts/start-web.sh`
   (`opencode web --port 4096 --mdns`). Phone: `http://opencode.local:4096`,
   user `opencode`, password in `.env` (`OPENCODE_SERVER_PASSWORD`).
+- **iOS push (ntfy)**: the watcher (`watch-workers.sh`) pushes worker events to
+  `ntfy.sh/<NTFY_TOPIC>` (topic in `.env`, gitignored). iOS: install the "ntfy"
+  app → subscribe to that topic → worker-done/blocked events ping the phone.
 - The web UI lists this project's sessions; the orchestrator session is where
   questions are asked — the user answers there.
 - **Live streaming requires ONE server process**: the web UI only receives
