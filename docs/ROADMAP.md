@@ -128,6 +128,11 @@ Related bugs to fix while here:
   - The **Glide Crew tab** must also allow managing the link per crew
     position.
 - Both sides must stay in sync (one source of truth for the mapping).
+- **Reports designer (when this lands)**: crew must become rule-bearing —
+  `ruleBearingAncestor`/`parentScenesOf` (`lib/reportData.ts:620`, LEGO spec)
+  gain a linked-category scene rule so crew repeats/tables scope for real
+  ("Only crew in this day"), scoped crew labels/checkbox come back, and the
+  interim honest-label special case from item 25 is removed.
 
 ## 12. Report preview: truncate table rows (`[ ]`)
 
@@ -199,6 +204,13 @@ Related bugs to fix while here:
   - drop zones / edge zones during drag.
 - Visual audit on iPad viewport (730px portrait / 1060px landscape per
   `useViewMode`): palette, chrome panels, tables, preview.
+- **WebKit play-test (required before done)**: Playwright WebKit + touch
+  emulation (`playwright.ipad.config.ts` — `devices['iPad Pro 11']`,
+  `hasTouch`) covering palette → canvas block drag, block reordering, resize
+  handles (table columns + columns-block gutters), edge/zone drops, column
+  reorder grips. Touch fallbacks: tap-to-add from the palette; pointer-based
+  drag shim (`touch-action: none` — the ribbon dragger pattern, item 24) or
+  move-via-controls. Re-run after item 24 lands (shared draggers).
 
 ## 18. Move local→cloud bumps the project's modified time (`[x]`)
 
@@ -267,6 +279,244 @@ Related bugs to fix while here:
 - Fixed: `makeReportBlock('text')` defaults to empty text (`reportBlocks.ts`);
   the canvas already renders empty text blocks as blank selectable cards with
   the editor placeholder ("Type text… type @ to insert an attribute").
+
+---
+
+## 22. Day-repeater text fields can't pick the "Breakdown" attribute type (`[ ]`)
+
+- In the reports designer, a text field (also field blocks, table columns and
+  the palette) inside a repeater over **days** offers no "Breakdown" group in
+  the attribute picker / `@` autocomplete.
+- Why: every Breakdown-group field is scene-scope — `cast` + `backgroundActors`
+  (`SCENE_FIELDS`, `lib/reportFields.ts:94-95`) and all element/custom
+  categories (`buildCategorySceneFields`, `:415-445`, group 'Breakdown') —
+  and the picker filters by context via `fieldsForScope`
+  (`reportFields.ts:635-651`). A days context only includes `days` + global/
+  smart, so Breakdown never appears inside a day repeater (`contextFields` at
+  `blockControls.tsx:427`). Breakdown fields appear only in scene contexts
+  today: `scenes`, `scenesOfDay`, `scenesOfElement`, `scenesOfCast`,
+  `elementsOfCategory`.
+- Desired: Breakdown attributes pickable inside day repeaters, resolving
+  per-day with the same parenting/Lego logic the repeaters use — the union of
+  that day's scenes' values (Cast Members List → distinct cast working that
+  day; Props → distinct props across that day's scenes), composed with the
+  ancestor `sceneScope` intersection like the smart fields (`smartScenesOf`
+  `reportFields.ts:246-261` already resolves day items via `it.section.index`).
+- Touch points: `fieldsForScope` day-context inclusion; day-item-aware
+  resolution in `reportFieldValueByKey`/`resolveToken`; picker/autocomplete
+  plumbing in `blockControls.tsx`.
+- Verify: seeded project — days repeat + `{{cast}}`/`{{props}}` resolve
+  differently per day; nested days→scenes behavior unchanged.
+
+## 23. Bug: table column-width resize broken when the table has multiple rows (`[ ]`)
+
+- Repro: reports designer, columns-axis table with several data rows →
+  select the table (resize bar appears above it) → drag a resize handle.
+- `TableResizeBar` (`ReportDesignerCanvas.tsx:948-1007`) applies widths to ALL
+  `[data-col-ci]` cells via `columns.findIndex(c => c.id === ...)` — the
+  attribute carries the column **id** while `data-table-col-ci` carries the
+  index (`ReportBlockView.tsx:771`); prime suspect, plus the top-anchored
+  handle strip and the `normalizeColWidths` commit (`ribbonDefaults.ts:79`).
+- Fix + verify: 1-row and multi-row tables (header + all body cells track the
+  drag), commit lands in the design, preview/print reflect the widths; add a
+  Playwright assertion if practical. Expected to be superseded by item 24's
+  shared dragger swap — verify there.
+
+## 24. Extract the ribbon designer's resize draggers into a shared component (`[ ]`)
+
+- The ribbon designer's resize tabs (`RibbonDesignerGrid.tsx:51-73`) +
+  pointer logic (`startResize`, `RibbonTab.tsx:410-481`) are the gold
+  standard: pointer capture, `touch-action: none` during drag,
+  document-level move/up, live CSS on grid + tab bar + previews, MIN_PCT
+  clamps, Shift = scale all right columns, store commit on release. Works
+  for touch/pen (coarse-pointer sizing variants).
+- The reports table's `TableResizeBar` (`ReportDesignerCanvas.tsx:948-1007`)
+  re-implements a thinner version (no touch handling, no pointer capture,
+  id-lookup width application).
+- Plan: extract a shared column-resize dragger (component + pointer logic)
+  in `src/components/` consumed by BOTH RibbonDesignerGrid and
+  TableResizeBar — the ribbon behavior becomes the single standard; delete
+  the duplicate. Also benefits the columns-block gutter resize and item 17
+  (iPad designer).
+- Verify: ribbon designer resizes identically (desktop + touch), table
+  resize fixed (item 23) with the shared dragger, `npm run lint` +
+  playwright.
+
+## 25. Repeater/table "over" menus: hide self-redundant collections (`[ ]`)
+
+- Problem: nested repeat/table menus offer every base collection in every
+  context; self-repeats produce 1-item (or combinatorial) nonsense — e.g. a
+  Days repeat inside a Days repeat ("days of this day").
+- Menus today: `blockControls.tsx:705` (repeat) / `NestedTableMenu:498` build
+  `[...contextualCollectionsFor(parent), ...baseValidCollections(parent)]` —
+  `validCollections` (`reportBlocks.ts:369`) only gates the contextual
+  variants.
+- Hide (self-redundant):
+  - `days` under day-item parents (`days`, `daysOfCast`);
+  - `scenes` under scene-item parents (`scenes`, `scenesOfDay`,
+    `scenesOfElement`, `scenesOfCast`);
+  - `crew` under `crew`;
+  - gray out the parent's own category in the Elements submenu under
+    element/cast-item parents (`elements` same category, `elementsOfCategory`
+    same category, `cast`/`scenesOfCast` → category `cast`).
+- Keep (user decision): `categories` under `categories` (≈ all categories in
+  the parent's scenes — intentional), `violationTypes` under
+  `violationTypes` (rare cross-type overlaps).
+- Implementation: `isSelfRepeat(parent, collection, parentCategory,
+  category)` in `lib/reportBlocks.ts` (single source of truth); filter the
+  two menu call sites, ALWAYS exempting the current value so existing
+  designs stay editable and keep rendering (no migration); `CollectionMenu`
+  gains `disabledCategories` for the grayed self-category.
+- Crew interim (until item 11 lands): crew stays available in nested
+  repeaters but honest — no "(of this crew member)" decoration, no "Only … in
+  this crew member" checkbox; same for every option nested inside a crew
+  repeater (crew ancestors are non-rule-bearing — `ruleBearingAncestor`,
+  `reportData.ts:620`). When crew↔category linkage lands (item 11) crew
+  becomes rule-bearing and this special case is removed.
+- Verify: menu contents per parent context (repeat + table), current-value
+  exemption, seeded project renders unchanged, lint + playwright.
+
+## 26. Block gap: default 10px vertical spacing between blocks (`[ ]`)
+
+- Problem: blocks stack flush — no breathing room top/bottom in the design
+  body, repeat children, or columns.
+- New prop `blockGap?: number` (px, vertical) on ReportBlock. Render-time
+  global default **10** (`blockGap ?? 10`) so existing designs get spacing
+  with no migration (user decision). Vertical only — sides stay flush.
+- Chrome: "Gap (px)" number input for every block type (mirroring the
+  repeat's "Item gap (px)" row, `blockControls.tsx:729-733`).
+- Rendering (canvas + preview + print must match — rule 8 of
+  `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md`):
+  - Canvas: `renderBlocks` card wrapper (`ReportDesignerCanvas.tsx:286`)
+    gets `marginTop`, skipped for the first block in each stack (body,
+    repeat children, columns — everywhere).
+  - Print/preview: `ReportMeasureContainer` `.rm-block` wrappers
+    (`useReportPaginator.tsx:398`) AND `ReportChunkPage` chunk mounts
+    (`ReportBlockView.tsx:496-506`) get the same marginTop; first-child CSS
+    suppression (`.rm-body > :first-child`, `.report-page-content >
+    :first-child`) keeps page tops clean.
+  - Pagination: `wholeUnit` reads the wrapper's computed `marginTop` into
+    `gapBefore` (mirrors the header-margin read `useReportPaginator.tsx:295`
+    and the repeat rowGap read `:100`) so page budgets include the spacing;
+    nested repeat-fragment margins live inside the item → `offsetHeight`
+    already includes them (no change).
+  - Columns: hardcoded `gap: 8` (`ReportBlockView.tsx:196`) replaced by the
+    block-gap margins for parity.
+- Exclusions: `pageBreak` blocks get no margin; spacer blocks remain for
+  exact manual spacing.
+- Verify: canvas = preview = print, no page overflow with many blocks;
+  `npm run lint`; `npx playwright test --config=playwright.ipad.config.ts
+  report-pagination` (budget assertion, both engines) + standard suite.
+
+## 27. `relative` block — next/previous-item context shifter (`[ ]`)
+
+- New `ReportBlock` type `'relative'`: `offset?: number` (default `+1`,
+  negative = previous) + `count?: number` (default `1`; explicit only — no
+  "until end" mode) + `children`. A mini-repeater: resolves
+  `parentList.slice(idx + offset, idx + offset + count)` — `parentList` is
+  the parent repeat's post-scope resolved list, `idx` the current item's
+  index; children render once per item with full Lego context (`ancestors =
+  [item, ...ancestors]`).
+- Use case: call sheet template — inside a Days repeat, `relative(+1,1)` +
+  ribbon child renders the NEXT day's boxed section; `relative(+1,2)` stacks
+  the next two days. Tables of `scenesOfDay`, smart fields and
+  `scopedToParent` all compose against the target item for free.
+- No collection picker: the relative unit IS the parent's collection — inside
+  days it's the next/previous DAY, scenes the next SCENE (stripboard order),
+  elements/cast the next element of its category, categories/crew/
+  violationTypes likewise. Cross-collection via nesting (`cast → days ☑scoped
+  → relative(+1)` = the member's next workday). Relative-inside-relative
+  allowed (offset 2 does the same).
+- Placement: gated to repeat/relative children only — no top level (no
+  current item); palette entry shown only in repeat contexts; inserting a
+  relative into a selected container appends as a child.
+- Implementation:
+  - `types.ts` + `makeReportBlock('relative')` (offset 1, count 1).
+  - `ReportRepeatView` passes its post-scope resolved list to children
+    (`parentItems`); `ReportRelativeView` finds the current item's index
+    (identity; key fallback via `reportItemKey` for rebuilt items like
+    violation types) and slices.
+  - Extract `ReportRepeatView`'s per-item fragment renderer into a shared
+    helper reused by the relative view — the paginator's universal fragment
+    splitting (`.rm-frag-child`, `data-rm-fragment-index`) applies untouched.
+  - Tree ops: `insertInto` (`reportBlocks.ts:158`) treats `relative` as a
+    container; `insertScopeFor` falls through to the nearest repeat's
+    collection (`b.collection || ctx` already propagates).
+  - Chrome: Offset + Count steppers + resolved-target preview in the designer
+    ("→ Day 4 · Wed 12 Mar"); `BLOCK_TYPE_META` icon.
+  - Item gap reuses the repeat's `gap`; blockGap (item 26) applies to the
+    block itself; pageBreak children filtered like any nested container.
+- Update `docs/REPORTS-LEGO-CONTEXT.md` (parentItems addition to the context
+  contract) alongside.
+- Verify: call sheet template (days repeat + ribbon + relative(+1,1) + ribbon
+  → next day's boxed section; relative(+1,2) → two stacked sections; last day
+  → empty), scoped cast→days→relative chain, lint + playwright.
+
+## 28. Text/field blocks: border + background with auto text color (`[ ]`)
+
+- New props on text + field blocks (the `isTextLike` family minus link):
+  `background?: string` (hex) + `border?: boolean` (default off). Goal: build
+  custom tables from columns of bordered cells — no column-level styling
+  needed; the columns block stays a transparent layout container and nothing
+  overrides the cell.
+- Auto text color: `getReportBlockBaseStyle` (`reportStyle.ts:13`) computes
+  `#fff` on dark backgrounds / `#000` on light (relative-luminance helper)
+  instead of the hardcoded `color: '#000'` (`:22`). Black bg → white text.
+- Extract the table look into one shared module (new `src/lib/reportLook.ts`):
+  `getReportBorder(showBorders)` → `1px solid #d4d4d8` (today hardcoded at
+  `ReportBlockView.tsx:614`), the table header bg `#f4f4f5` (`:694`), and the
+  luminance helper. Table cells AND text blocks consume it — future table-look
+  changes happen in one place and update both.
+- Render everywhere automatically: the designer canvas, preview and print all
+  render text blocks through `ReportBlockView` (`ReportDesignerCanvas.tsx:416`)
+  — the border/background shows live in the editor (WYSIWYG) and identically
+  in preview/print (colors print via the global `print-color-adjust: exact`).
+  The added border height is measured correctly by the paginator
+  (`offsetHeight` includes borders).
+- Chrome: StyleControls gains a "Background" `ColorField` + "Border" toggle
+  (text/field blocks).
+- Notes: full-box border (all 4 sides) — adjacent bordered cells double their
+  shared edge only when touching (gap 0; columns space 12px apart so custom
+  tables stay clean). Link blocks excluded (fixed blue link color unreadable
+  on dark bg). Named text styles stay typography-only.
+- Verify: custom table (columns row + bordered cells + black header cells →
+  white text auto), canvas = preview = print, seeded project, lint +
+  playwright.
+
+## 29. Ribbon block: full designer parity + sample-cell fallbacks (`[ ]`)
+
+- Part A — 1:1 parity audit: diff every RibbonDesign setting between the
+  ribbon designer/stripboard pipeline and `ReportRibbonView`.
+  - CONFIRMED GAP: cell affixes don't render — `Strip` uses
+    `getFieldValue(cell.field, sceneDataFor(it))` directly
+    (`ReportRibbonView.tsx:136-138`); only call-time cells apply prefix/
+    suffix via a local `fmt` (`:46`). Fix: every cell (strips, daybreak
+    halves, note/break rows) uses the shared `formatCellText`
+    (`ribbonUtils.ts:114`); delete the local `fmt`.
+  - Audit checklist: text cells (textContent), align/verticalAlign/wrap/
+    truncation/overflow, merge groups (h/v), cell padding V/H, edge padding,
+    colWidths, cell borders (`getCellBorderProps`), duration incl. the `↑`
+    zero marker, pageCount, computedCallTime, day header/footer + strip
+    colors (`sceneStyle`), note/break rows + daybreak halves 1:1 with the
+    stripboard, custom field labels, print-dialog hidden-field toggles.
+- Part B — sample fallbacks (empty projects / empty values / custom
+  categories), adopting the LivePreview pattern (`RibbonLivePreview.tsx:85-
+  103`):
+  - cell value = real value → sample (`getFieldValueFromSample`, sample
+    sceneNumber) → field label (`FIELD_MAP`/customFieldLabels) in italic +
+    reduced opacity — every cell always shows something, including custom
+    categories (their name in italics);
+  - affixes only on real values (LivePreview: `val ? c.prefix : undefined`);
+  - empty project (no days): render the PREVIEW_SAMPLES trio (INT DAY / EXT
+    DAY / INT NIGHT) instead of the "schedule is empty" hint so the design
+    stays visible;
+  - shared helper (e.g. `ribbonCellDisplayValue(cell, scene, { sample })`) in
+    `ribbonUtils` used by Strip + halves + note/break rows — one source;
+  - scope: designer canvas + preview only (documented preview affordance like
+    the table "+N more") — print NEVER renders samples.
+- Verify: seeded project (affixes print 1:1 with the stripboard), empty
+  project shows the design on canvas/preview, custom category cells show the
+  label in italics, lint + playwright.
 
 ---
 
