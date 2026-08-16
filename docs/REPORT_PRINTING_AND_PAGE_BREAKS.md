@@ -25,27 +25,54 @@ Designer Print button
 
 ## 2. Pagination model (the source of truth)
 
-Two helpers, used by BOTH print and preview so the preview always equals the print:
+TWO layers, used by BOTH print and preview so the preview always equals the
+print:
 
-### `paginateBlocks(blocks)` — `src/lib/reportBlocks.ts`
-Splits the design's **top-level** blocks into pages at each `pageBreak` block:
+### Layer 1 — structural pages
+- `paginateBlocks(blocks)` (`src/lib/reportBlocks.ts:20`): splits the design's
+  **top-level** blocks at each `pageBreak` block. Leading break → no-op;
+  consecutive breaks → blank pages; trailing break → dropped.
+- `buildReportPages(blocks, ctx)` (`src/lib/reportPagination.ts:73`): top-level
+  split **plus** per-item expansion: a repeat whose children contain **ANY**
+  `pageBreak` (`hasItemBreaks`, `reportPagination.ts:58` — not just trailing)
+  is expanded into one page per item (the Call Sheet pattern). The pageBreak
+  children are **dropped** in per-item rendering (`FragmentBody`,
+  `ReportBlockView.tsx:416`).
 
-- leading page break → no-op (a forced break at the start of the document does nothing)
-- consecutive page breaks → **blank pages** are produced
-- trailing page break → dropped (a trailing break would print a blank final page)
+### Layer 2 — measured chunks (`useReportPaginator`)
+Structural pages alone cannot paginate overflowing content (a huge table) nor
+repeat header/footer per PHYSICAL page. `useReportPaginator`
+(`src/components/reports/useReportPaginator.tsx:425`) renders the structural
+pages offscreen ONCE (`ReportMeasureContainer`, `:363`), reads real element
+heights, and splits content into page-sized `PageChunk`s (types in
+`src/lib/reportPagination.ts`). BOTH print (`ReportPrint.tsx`) and preview
+(`ReportPreview.tsx`) render the SAME chunks via `ReportChunkPage`
+(`ReportBlockView.tsx:468`) — never one without the other.
 
-### `buildReportPages(blocks, ctx)` — `src/lib/reportPagination.ts`
-Top-level split **plus** expansion of per-item repeats: a `repeat` block whose
-children **end with a page break** (the Call Sheet pattern — one day per page) is
-expanded into one page per repeated item. Each page is a `PageItem[]`:
-`ReportBlock | { repeatItem, item }`. Expanded items render via `ReportPageItems`
-(`ReportBlockView.tsx`): the repeat's children are rendered against the single
-item, with edge page breaks stripped (`stripEdgeBreaks`) and the content wrapped
-in `break-inside: avoid`.
+**Chunk granularity (universal — any block can flow to the next page, at any
+nesting depth):**
+- whole blocks (text/field/link/image/map/columns/spacer) move WHOLE;
+- repeats split between ITEMS;
+- tables split between ROWS — the column header REPEATS on continuation chunks;
+- ribbons split between STRIPS, never mid-strip (split day boxes drop the box
+  border on fragments — `unitRange` on `ReportRibbonView`);
+- per-item repeat fragments split between their CHILDREN (`repeatItemPart`
+  chunks carry `parts`, one slice per child).
 
-**Why structural?** Safari is unreliable with forced breaks nested inside
-`break-inside: avoid` wrappers and flex containers. Moving every forced break to a
-**top-level block-level page container** is the one path every engine honors.
+**Canonical geometry:** `REPORT_PAGE_METRICS` (`reportStyle.ts:45`) —
+contentWidth = A4 minus 12mm side margins (697px portrait / 960px landscape);
+contentHeight conservative so one chunk fits EVERY common sheet in Safari
+(880px portrait / 620px landscape — bound by US Letter portrait and A4
+landscape under the print dialog's 0.5in margins). The measurement budget
+subtracts header + footer + the 8pt header margin, so a chunk never exceeds
+the box. Oversize: a single unit taller than a page stays put and overflows
+(slices at the sheet boundary — the pre-measurement browser behavior).
+
+**Why structural + measured?** Safari only honors forced breaks at the TOP
+level (`break-before: page` on the `.report-page` divs, `ReportPrint.tsx:56`).
+The measured chunks guarantee each div's content fits its sheet, so the
+browser never auto-splits mid-chunk — header/footer repeat per physical page
+instead of only the first/last.
 
 ## 3. The rules (hard-won)
 
@@ -58,14 +85,22 @@ in `break-inside: avoid`.
 3. **Always emit both properties** — legacy `page-break-before: always` AND
    modern `break-before: page` (React: `pageBreakBefore` + `breakBefore`).
 4. **Trailing breaks print a blank page** — drop them. Top-level: `paginateBlocks`.
-   Per-item: `stripEdgeBreaks`/`dropTrailingBreaks`. This is the "why is my last
-   page empty" bug.
+   Repeat children: `FragmentBody` FILTERS every `pageBreak` child
+   (`ReportBlockView.tsx:416`) — never render a pageBreak inside a per-item page.
+   This is the "why is my last page empty" bug.
 5. **`break-inside: avoid` is honored only when the content fits one page** — a
    taller element still splits. Use it on rows/cards/items, never on page-sized things.
-6. **A per-item repeat break = a trailing pageBreak in the repeat's children.**
+6. **ANY pageBreak in a repeat's children = one page per item** (`hasItemBreaks`).
    Do NOT add break-before divs inside repeat items — expand via `buildReportPages`.
-7. **Preview must use the same pagination function as print** — otherwise the
-   preview lies. `ReportPreview` uses `buildReportPages`; if you change one, change both.
+7. **Preview must use the same pagination as print** — otherwise the preview
+   lies. Both render the measured `useReportPaginator` chunks via
+   `ReportChunkPage`; if you change chunking, change it once.
+8. **Chunk budget = contentHeight − header − footer − 8pt header margin.**
+   The measurement container must mirror the render's margins exactly
+   (header margin-bottom, footer padding-top — see `ReportMeasureContainer`).
+9. **An oversized single unit stays and overflows** — never auto-split mid-strip/
+   mid-row beyond the walker's units; document the slice instead (measurement is
+   engine-local, so the chunk list itself is always consistent).
 
 ## 4. Safari specifics
 
@@ -81,15 +116,33 @@ in `break-inside: avoid`.
 
 ## 5. Testing (before claiming print works)
 
+The automated spec is `e2e/report-pagination.spec.ts` (run with
+`npx playwright test --config=playwright.ipad.config.ts report-pagination` —
+every project in the config runs it: Desktop Chrome + iPad WebKit, print AND
+preview). It injects a stress design (header/footer + a scenes table that
+splits + a full-schedule ribbon), clicks through the print dialog, then asserts
+on BOTH engines:
+- header/footer text on EVERY `.report-page` (the original bug: footer only on
+  the last physical page);
+- the table's column header repeats on continuation pages;
+- no page's CONTENT exceeds the budget (measure `.report-page-content`
+  children, NOT `scrollHeight` — the page div is `min-height: 100vh`);
+- Chromium-only: `page.pdf({ format: 'A4' })` page count == `.report-page`
+  count (measured pagination == what reaches paper);
+- WebKit-only: `getComputedStyle(page2).pageBreakBefore === 'always'`.
+
+Manual/one-off checks:
+
 **Chromium** (can count real pages):
 1. Seed a project + inject the design (see `e2e/helpers.ts`).
 2. Stub `window.print` in an init script (the print view stays rendered).
-3. Click the designer **Print** button, `page.pdf({ printBackground: true })`.
+3. Click the designer **Print** button (through the dialog), `page.pdf({ printBackground: true })`.
 4. Count PDF pages (`/Type /Page` matches) and decode text per page
    (ToUnicode CMaps — see past debug specs) to confirm which content landed where.
 
 Expected for the Call Sheet pattern: `N` pages, exactly one day per page,
-no trailing blank page.
+no trailing blank page; oversized days SPLIT between strips with header/footer
+repeating on each continuation page.
 
 **WebKit / Safari engine** (`page.pdf()` is Chromium-only — you CANNOT count pages):
 1. Same setup, `browserName: 'webkit'`.
@@ -153,8 +206,12 @@ When a report is picked from the header menu, show a small print-options modal
 
 ## 7. Future-work checklist
 
-- [ ] Page breaks split only top-level blocks; per-item pagination goes through `buildReportPages`.
-- [ ] Any new container block type that can hold `pageBreak` children: decide its
-      pagination semantics in `reportPagination.ts` — never rely on nested CSS breaks.
+- [x] Page breaks split only top-level blocks; per-item pagination goes through `buildReportPages`.
+- [x] Any `pageBreak` inside a repeat's children = one page per item (`hasItemBreaks`).
+- [ ] Any NEW container block type that can hold `pageBreak` children, or any new
+      splittable content inside repeat fragments: decide its chunk semantics in
+      `useReportPaginator.tsx` (`flattenBlock` + `assembleChunks`) — never rely
+      on nested CSS breaks.
 - [ ] Re-run both engine checks above after touching `ReportPrint`, `ReportPreview`,
-      `reportPagination.ts`, or `ReportBlockView`'s repeat/table rendering.
+      `useReportPaginator.tsx`, `reportPagination.ts`, or `ReportBlockView`'s
+      repeat/table/fragment rendering.

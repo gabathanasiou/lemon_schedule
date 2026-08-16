@@ -203,7 +203,7 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   const insertIntoSelected = () => {
     if (!selId) return;
-    const b = makeReportBlock('text', { text: 'Line {{title}}' });
+    const b = makeReportBlock('text');
     commitZone(selId, list => insertInto(list, selId, b));
   };
 

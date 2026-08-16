@@ -37,7 +37,7 @@ export function paginateBlocks(blocks: ReportBlock[]): ReportBlock[][] {
 export function makeReportBlock(type: ReportBlock['type'], partial: Partial<ReportBlock> = {}): ReportBlock {
   const base: ReportBlock = { id: blockId(), type };
   switch (type) {
-    case 'text': base.text = partial.text ?? 'Text — {{title}}'; break;
+    case 'text': base.text = partial.text ?? ''; break;
     case 'field': base.field = partial.field ?? undefined; break;
     case 'repeat': base.collection = partial.collection ?? 'scenes'; base.children = []; base.gap = partial.gap ?? 8; break;
     case 'table': base.collection = partial.collection ?? 'scenes'; base.columns = partial.columns ?? [

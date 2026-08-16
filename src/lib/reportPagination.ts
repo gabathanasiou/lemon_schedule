@@ -46,25 +46,10 @@ export interface PageChunk {
   body: BodyChunk[];
 }
 
-/** Strips pageBreak blocks from the very start and end of a block list. */
-export function stripEdgeBreaks(list: ReportBlock[]): ReportBlock[] {
-  let start = 0;
-  let end = list.length;
-  while (start < end && list[start].type === 'pageBreak') start++;
-  while (end > start && list[end - 1].type === 'pageBreak') end--;
-  return list.slice(start, end);
-}
-
-/** True when the repeat's children end with a page break (per-item pages). */
-export function hasTrailingBreak(b: ReportBlock): boolean {
-  const children = b.children || [];
-  return children.length > 0 && children[children.length - 1].type === 'pageBreak';
-}
-
 /** True when the repeat's children contain ANY page break. Any break inside
  *  repeat children means "one item per page" (the Call Sheet pattern) — the
  *  breaks themselves are redundant once each item owns a page, so they are
- *  dropped in per-item rendering. */
+ *  dropped in per-item rendering (FragmentBody filters them). */
 export function hasItemBreaks(b: ReportBlock): boolean {
   const children = b.children || [];
   return children.length > 0 && children.some(c => c.type === 'pageBreak');

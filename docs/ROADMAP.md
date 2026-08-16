@@ -241,7 +241,7 @@ Related bugs to fix while here:
   per-keystroke patches via `replaceToken`, ✕ clears the selection);
   `parseToken`/`composeTokenKey` shared in `lib/reportFields.ts`.
 
-## 20. Reports designer: edge-drop inside a column + deselect UX (`[~]`)
+## 20. Reports designer: edge-drop inside a column + deselect UX (`[x]`)
 
 - **Edge-drop inside a column adds a column to that container**: dragging a
   block onto the left/right edge of a block that lives inside a `columns`
@@ -258,6 +258,15 @@ Related bugs to fix while here:
 - **Deselect button in the block chrome header** (far-right ✕, matching the
   column chrome) — wired through the existing `trailing` slot in
   `BlockEditorContent` (the toolbar mode already had one).
+
+## 21. New text blocks start empty (`[x]`)
+
+- Adding a text block (palette click/drag, context-menu Insert Above/Below,
+  Add child, repeat/column empty-drop, zone empty click) previously
+  pre-filled it with "Text — {{title}}" ("Line {{title}}" for Add child).
+- Fixed: `makeReportBlock('text')` defaults to empty text (`reportBlocks.ts`);
+  the canvas already renders empty text blocks as blank selectable cards with
+  the editor placeholder ("Type text… type @ to insert an attribute").
 
 ---
 
