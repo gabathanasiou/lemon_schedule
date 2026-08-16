@@ -29,8 +29,10 @@ read-only reviewers, and a docs curator. Agents + commands already exist:
    `ReportDesignerCanvas.tsx` → one worker.)
 2. **Spawn** per disjoint group (see `spawn-feature`):
    `git worktree add ../lemon_schedule-wt/<item> -b feat/<item>` + symlink
-   `node_modules` + `.env`, then
-   `nohup opencode run --dir <worktree> --agent feature-worker --auto --title "roadmap <item>" "<item text verbatim>" >> .opencode/logs/worker-<item>.log 2>&1 &`
+   `node_modules` + `.env`, then (with `OPENCODE_SERVER_PASSWORD` exported so
+   the attach authenticates):
+   `nohup opencode run --attach http://localhost:4096 --dir <worktree> --agent feature-worker --auto --title "roadmap <item>" "<item text verbatim>" >> .opencode/logs/worker-<item>.log 2>&1 &`
+   Workers attach to the web server, so the phone streams their progress live.
 3. **Decisions hand-off** (workers can't prompt): blocking questions →
    `.opencode/decisions/<item>.md` → orchestrator relays via the question tool
    → answer written to the file → worker resumed with
