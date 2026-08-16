@@ -613,7 +613,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             />
           }
         />
-        <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: block.fontSize ?? linkedStyle?.fontSize ?? 10 }}>
+        {/* Editing surface stays at a comfortable size — the block's real font
+            size is only honored by the preview/print renderers. */}
+        <div style={{ fontFamily: block.fontFamily || linkedStyle?.fontFamily || 'Helvetica', fontSize: 14, lineHeight: 1.5 }}>
           <RichTextEditor
             ref={editorRef}
             value={block.text || ''}
@@ -804,13 +806,14 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }
 
   if (block.type === 'spacer') {
+    const spacerStyle = block.spacerStyle || 'none';
     push(null,
       <ContentRow key="height" label="Height (px)">
         <input type="number" min={4} max={200} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.height ?? 16} onChange={e => onPatch({ height: Number(e.target.value) || 16 })} />
       </ContentRow>,
       <ContentRow key="style" label="Style">
         <Seg
-          value={block.spacerStyle || 'none'}
+          value={spacerStyle}
           options={[
             { v: 'none', l: 'None' },
             { v: 'line', l: 'Line' },
@@ -820,6 +823,11 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
         />
       </ContentRow>,
+      ...(spacerStyle === 'line' ? [
+        <ContentRow key="thickness" label="Thickness (px)">
+          <input type="number" min={1} max={8} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.spacerThickness ?? 1} onChange={e => onPatch({ spacerThickness: Math.min(8, Math.max(1, Number(e.target.value) || 1)) })} />
+        </ContentRow>,
+      ] : []),
     );
   }
 
