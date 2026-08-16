@@ -553,10 +553,9 @@ const FullSchedule: React.FC<{
 const SampleSchedule: React.FC<{
   ctx: ReportCtx;
   design: NonNullable<ReturnType<typeof designFor>>;
-  flags: SectionRowFlags;
   hiddenFields?: Set<string>;
   cellBorders?: CellBorders;
-}> = ({ ctx, design, flags, hiddenFields, cellBorders }) => {
+}> = ({ ctx, design, hiddenFields, cellBorders }) => {
   const scenes: ReportSceneInfo[] = PREVIEW_SAMPLES.map((s, i) => ({
     scene: {
       id: `sample-scene-${i}`,
@@ -655,7 +654,7 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
     // the PREVIEW_SAMPLES trio (INT DAY / EXT DAY / INT NIGHT) instead of the
     // "schedule is empty" hint. Print renders nothing for an empty schedule.
     if (sample) {
-      return <SampleSchedule ctx={ctx} design={design} flags={flagsFor()} hiddenFields={hiddenFields} cellBorders={cellBorders} />;
+      return <SampleSchedule ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />;
     }
     if (hint) {
       return (
