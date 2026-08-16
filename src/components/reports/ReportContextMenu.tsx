@@ -104,7 +104,7 @@ const ReportContextMenu: React.FC<ReportContextMenuProps> = ({ menu, block, proj
             <div className="border-t border-zinc-800 my-1" />
           </>
         )}
-        {!isColumnMenu && (block.type === 'repeat' || block.type === 'table') && (
+        {!isColumnMenu && (block.type === 'repeat' || block.type === 'table' || block.type === 'relative') && (
           <>
             <button className={itemCls} onClick={() => { onAddChild(); onClose(); }}>
               Add block inside ({COLLECTION_LABELS[block.collection || 'scenes']})

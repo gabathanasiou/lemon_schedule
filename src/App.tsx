@@ -624,7 +624,7 @@ function AppContent() {
   const handleReportPrint = async (design: ReportDesign, scopeFilter?: ReportScopeFilter, printOptions?: ReportPrintOptions) => {
     if (version) {
       try {
-        await prepareSunWeatherForDesign(project, version, { sections, computedRows });
+        await prepareSunWeatherForDesign(project, version, { sections, computedRows }, design);
       } catch { /* best-effort */ }
     }
     setReportPrintReady(false);

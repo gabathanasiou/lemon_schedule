@@ -49,7 +49,7 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'spacer': base.height = partial.height ?? 16; base.spacerThickness = partial.spacerThickness ?? 1; break;
     case 'image': break;
     case 'map': base.mapHeight = partial.mapHeight ?? 240; base.mapZoom = partial.mapZoom ?? 15; break;
-    case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{dayLocationLink}}'; break;
+    case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{locationMapLink}}'; break;
     case 'callSheetEdit': base.children = []; break;
     case 'relative': base.children = []; base.relativeOffset = partial.relativeOffset ?? 1; base.relativeCount = partial.relativeCount ?? 1; break;
     default: break;
@@ -508,6 +508,7 @@ export function tableItemCollection(block: ReportBlock, parentCollection?: Repor
 export function tableFieldScope(block: ReportBlock, parentCollection?: ReportCollection): ReportCollection | undefined {
   if (!parentCollection) return block.collection;
   if (parentCollection === 'categories') return 'elements';
+  if (parentCollection === 'locationTypes') return 'locations';
   if (parentCollection === 'scenes') return 'elements';
   const contextual = contextualCollectionsFor(parentCollection);
   if (block.collection && block.collection !== 'scenes' && !contextual.includes(block.collection)) return block.collection;

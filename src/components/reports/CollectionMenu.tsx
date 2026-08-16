@@ -23,6 +23,9 @@ interface CollectionMenuProps {
   categoryKeys: { key: string; isCustom: boolean }[];
   categoryLabels: Record<string, string>;
   customCategories?: { key: string; icon?: string }[];
+  /** Location types for the Locations submenu (roadmap 6 — same shape as the
+   *  Elements category submenu, backed by project.locationTypes). */
+  locationTypes?: { key: string; label: string }[];
   disabled?: boolean;
   width?: string;
   parentCollection?: ReportCollection;
@@ -34,15 +37,18 @@ interface CollectionMenuProps {
 }
 
 const CollectionMenu: React.FC<CollectionMenuProps> = ({
-  value, category, collections, categoryKeys, categoryLabels, customCategories,
+  value, category, collections, categoryKeys, categoryLabels, customCategories, locationTypes,
   disabled, width = 'w-40', parentCollection, scopedToParent = true, disabledCategories,
   onChange,
 }) => {
   const [open, setOpen] = useState(false);
   const scoped = scopedToParent !== false;
+  const typeLabel = (locationTypes || []).find(t => t.key === category)?.label;
   const label = value === 'elements'
     ? `${scopedCollectionLabel('elements', parentCollection, scoped)} · ${categoryLabels[category] || category}`
-    : scopedCollectionLabel(value, parentCollection, scoped);
+    : value === 'locations'
+      ? `${scopedCollectionLabel('locations', parentCollection, scoped)}${typeLabel ? ` · ${typeLabel}` : ''}`
+      : scopedCollectionLabel(value, parentCollection, scoped);
 
   const pick = (collection: ReportCollection, cat?: string) => {
     onChange(collection, cat);
@@ -93,6 +99,23 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
                     </DropdownItem>
                   );
                 })}
+              </DropdownSubmenu>
+            </React.Fragment>
+          );
+        }
+        if (c === 'locations' && locationTypes && locationTypes.length > 0) {
+          return (
+            <React.Fragment key="locations">
+              <DropdownSubmenu id="locations" label="Locations" width={width}>
+                {locationTypes.map(t => (
+                  <DropdownItem
+                    key={t.key}
+                    onClick={() => pick('locations', t.key)}
+                    icon={value === 'locations' && category === t.key ? <Check className="w-3.5 h-3.5" /> : undefined}
+                  >
+                    {t.label}
+                  </DropdownItem>
+                ))}
               </DropdownSubmenu>
             </React.Fragment>
           );

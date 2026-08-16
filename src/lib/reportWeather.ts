@@ -9,8 +9,8 @@
 //  - https://archive-api.open-meteo.com/v1/archive   — any past date (ERA5)
 // Both return weather_code + sunrise/sunset in local time via `timezone=`.
 
-import { Project, ScheduleVersion } from '../types';
-import { ReportCtx, ReportDaybreakData, buildReportCtx } from './reportData';
+import { Project, ScheduleVersion, ReportDesign } from '../types';
+import { ReportCtx, ReportDaybreakData, buildReportCtx, getReportLocation, LONDON_LOCATION, pickLocation, designLocationsIn, type ReportLocationInfo } from './reportData';
 import { getBrowserTimeZone } from './timezones';
 
 export interface ReportLocation {
@@ -22,31 +22,18 @@ export interface ReportLocation {
   postcode?: string; // e.g. "E15 1QD"
   country?: string;  // e.g. "United Kingdom"
   timezone: string;
+  /** When this resolved location IS a locations-DB entry (roadmap 6). */
+  info?: ReportLocationInfo;
+  /** Type key of the location (DB entries only; the day seam has none yet). */
+  typeKey?: string;
 }
 
-/** Fixed location until the per-day location DB lands — a dummy London
- *  address (placeholder for the real location attachment). */
-export const LONDON_LOCATION: ReportLocation = {
-  lat: 51.5074,
-  lng: -0.1278,
-  place: '112 Maryland Street, London E15 1QD, United Kingdom',
-  address: '112 Maryland Street',
-  city: 'London',
-  postcode: 'E15 1QD',
-  country: 'United Kingdom',
-  timezone: 'Europe/London',
-};
+// Re-exported from reportData (the single location seam): the day-location
+// stub lives there next to locationsOfItem so both share one home.
 
-/** The location a report day resolves to. Future location DB: route on the
- *  item (day/scene) here — nothing else in the report pipeline changes. */
-export function getReportLocation(ctx: ReportCtx, _item?: any): ReportLocation {
-  return {
-    ...LONDON_LOCATION,
-    timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone(),
-  };
-}
+export { getReportLocation, LONDON_LOCATION } from './reportData';
 
-// ---- reverse geocoding (full address for the dayLocationAddress field) --------
+// ---- reverse geocoding (full address for the map block's location picker) -----
 // Cache keyed `lat|lng`; `null` marks a failed fetch. Same lifecycle as the
 // sun/weather cache — prefetched before print, resolves in the canvas on tick.
 
@@ -75,22 +62,6 @@ export async function reverseGeocodeAddress(lat: number, lng: number): Promise<v
   } catch {
     addressCache.set(key, null);
   }
-}
-
-/** Street address for the day's location: the stored street line, else a
- *  reverse-geocoded address when the location has no structured parts. `—`
- *  when the address isn't available yet. */
-export function locationAddressFieldValue(ctx: ReportCtx, item: any): string {
-  const loc = getReportLocation(ctx, item);
-  if (loc.address) return loc.address;
-  if (loc.place) return loc.place;
-  const addr = getCachedAddress(loc.lat, loc.lng);
-  return addr ?? '—';
-}
-
-/** One structured location part (city/postcode/country/…) for a report day. */
-export function locationPartFieldValue(ctx: ReportCtx, item: any, part: keyof Pick<ReportLocation, 'address' | 'city' | 'postcode' | 'country'>): string {
-  return getReportLocation(ctx, item)[part] ?? '—';
 }
 
 export interface SunWeather {
@@ -289,31 +260,51 @@ export function reportWeatherDates(ctx: ReportCtx): string[] {
   return ctx.dayInfos.map(d => d.date);
 }
 
-/** Warms the cache for every day in the context. Used by the designer (canvas
- *  + preview) and awaited before print so window.print() never races the net. */
-export async function prepareSunWeatherForCtx(ctx: ReportCtx): Promise<void> {
+/** Warms the cache for every day in the context — at the day-seam location
+ *  plus every pinned locations-DB entry the design references (a locations
+ *  table/repeater in the design). Used by the designer (canvas + preview) and
+ *  awaited before print so window.print() never races the net. */
+export async function prepareSunWeatherForCtx(ctx: ReportCtx, design?: ReportDesign): Promise<void> {
   const dates = reportWeatherDates(ctx);
   if (dates.length === 0) return;
-  const loc = getReportLocation(ctx);
+  const seam = getReportLocation(ctx);
+  const extra = design ? designLocationsIn(ctx, design) : [];
+  const batch = extra
+    .filter(l => l.lat != null && l.lng != null)
+    .map(l => ({
+      lat: l.lat as number,
+      lng: l.lng as number,
+      timezone: ctx.project.productionInfo?.timezone || seam.timezone,
+    }));
   await Promise.all([
-    fetchSunWeatherBatch(loc, dates),
+    fetchSunWeatherBatch(seam, dates),
+    ...batch.map(loc => fetchSunWeatherBatch(loc, dates)),
     // Only reverse-geocode when the location has no place name yet (the
     // dummy address and future location DB entries carry their own address).
-    loc.place ? Promise.resolve() : reverseGeocodeAddress(loc.lat, loc.lng),
+    seam.place ? Promise.resolve() : reverseGeocodeAddress(seam.lat, seam.lng),
   ]);
 }
 
-export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, daybreak: ReportDaybreakData): Promise<void> {
+export async function prepareSunWeatherForDesign(project: Project, version: ScheduleVersion, daybreak: ReportDaybreakData, design?: ReportDesign): Promise<void> {
   const ctx = buildReportCtx(project, version, daybreak);
-  await prepareSunWeatherForCtx(ctx);
+  await prepareSunWeatherForCtx(ctx, design);
 }
 
-/** Field get(): the day item's sun/weather. `—` when the data isn't cached
+/** Field get(): sun/weather for the resolved location on the in-scope day —
+ *  a day item uses its own date; a location item uses the nearest day
+ *  ancestor's date. Empty when no day is in scope or the data isn't cached
  *  (canvas before a prefetch) or the fetch failed. */
-export function sunWeatherFieldValue(ctx: ReportCtx, item: any, kind: 'sunrise' | 'sunset' | 'weather'): string {
-  const date = item?.date as string | undefined;
+export function sunWeatherFieldValue(
+  ctx: ReportCtx,
+  item: any,
+  aux: { dayDate?: string; locationChoice?: string } | undefined,
+  kind: 'sunrise' | 'sunset' | 'weather',
+): string {
+  const date = aux?.dayDate || (item?.date as string | undefined);
   if (!date) return '—';
-  const w = getCachedSunWeather(getReportLocation(ctx, item), date);
+  const loc = pickLocation(ctx, item, aux?.locationChoice);
+  if (!loc) return '—';
+  const w = getCachedSunWeather(loc, date);
   if (!w) return '—';
   if (kind === 'weather') return formatWeatherValue(w);
   return w[kind];

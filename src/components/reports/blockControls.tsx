@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
-import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey } from '../../lib/reportFields';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat, CONTEXTUAL_COLLECTIONS, NON_SCOPABLE_COLLECTIONS } from '../../lib/reportBlocks';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey, TOKEN_RE } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
@@ -15,9 +15,11 @@ import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import ColorField from '../ColorField';
+import { reportLocationLabel } from '../../lib/reportWeather';
+import type { ReportLocation } from '../../lib/reportWeather';
 
 // ---- shared block-editor controls (toolbar + floating chrome) -----------------
 
@@ -33,6 +35,7 @@ export const BLOCK_TYPE_META: Record<string, { label: string; icon: React.ReactN
   image: { label: 'Image', icon: <ImageIcon className="w-3 h-3" /> },
   map: { label: 'Map', icon: <MapPin className="w-3 h-3" /> },
   callSheetEdit: { label: 'Call Sheet Edit', icon: <Sheet className="w-3 h-3" /> },
+  relative: { label: 'Relative', icon: <SkipForward className="w-3 h-3" /> },
 };
 
 
@@ -53,14 +56,19 @@ export interface BlockEditorProps {
   onMove?: (dir: -1 | 1) => void;
   compact?: boolean;   // chrome mode: icon-only structure buttons
   trailing?: React.ReactNode; // extra actions at the end of the Structure row
+  /** Designer chrome only: resolved relative-block target ("→ Day 4 …"). */
+  relativeTarget?: string | null;
+  /** Designer chrome only: the sampled item's available locations (roadmap 6
+   *  "Show location" picker — rendered only when more than one exists). */
+  availableLocations?: ReportLocation[];
 }
 
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
-  onDuplicate, onRemove, onMove, compact, trailing,
+  onDuplicate, onRemove, onMove, compact, trailing, relativeTarget, availableLocations,
 }) => {
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
-  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
+  const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles, relativeTarget, availableLocations };
   const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
   const { allFields, contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
@@ -184,6 +192,10 @@ export interface BlockCtx {
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
   /** Text blocks only: the selected chip changed (key + pos), or null. */
   onSelectionChange?: (sel: { key: string; pos: number } | null) => void;
+  /** Designer chrome only: resolved relative-block target ("→ Day 4 …"). */
+  relativeTarget?: string | null;
+  /** Designer chrome only: the sampled item's available locations. */
+  availableLocations?: ReportLocation[];
 }
 
 // ---- named text styles (Word/Pages-like) ---------------------------------------
@@ -415,6 +427,7 @@ const COLLECTION_LABELS_LOCAL: Record<string, string> = {
   days: 'days', daysOfCast: 'days',
   elements: 'elements', elementsOfCategory: 'elements', elementsOfScene: 'elements',
   categories: 'categories', cast: 'cast', crew: 'crew', violationTypes: 'violation types',
+  locations: 'locations', locationsOfType: 'locations', locationTypes: 'location types',
 };
 
 const PARENT_LABELS: Record<string, string> = {
@@ -422,9 +435,8 @@ const PARENT_LABELS: Record<string, string> = {
   scenes: 'scene', scenesOfDay: 'scene', scenesOfElement: 'scene', scenesOfCast: 'scene', elementsOfScene: 'scene',
   elements: 'element', elementsOfCategory: 'element',
   categories: 'category', cast: 'cast member', crew: 'crew member', violationTypes: 'violation type',
+  locations: 'location', locationsOfType: 'location', locationTypes: 'location type',
 };
-
-const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
 
 export function useReportControlContext(project: Project, parentCollection?: ReportCollection): { allFields: ReportFieldDef[]; contextFields: ReportFieldDef[]; categoryKeys: { key: string; isCustom: boolean }[]; categoryLabels: Record<string, string>; } {
   const allFields = useMemo(() => getReportFieldDefs(project), [project]);
@@ -491,9 +503,10 @@ const NestedTableMenu: React.FC<{
   allCategoryKeys: { key: string; isCustom: boolean }[];
   categoryLabelLookup: Record<string, string>;
   customCategories?: { key: string; icon?: string }[];
+  locationTypes?: { key: string; label: string }[];
   disabled: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
-}> = ({ block, parentCollection, parentCategory, allCategoryKeys, categoryLabelLookup, customCategories, disabled, onPatch }) => {
+}> = ({ block, parentCollection, parentCategory, allCategoryKeys, categoryLabelLookup, customCategories, locationTypes, disabled, onPatch }) => {
   const contextual = contextualCollectionsFor(parentCollection);
   const collections: ReportCollection[] = [];
   const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
@@ -511,6 +524,7 @@ const NestedTableMenu: React.FC<{
       categoryKeys={allCategoryKeys}
       categoryLabels={categoryLabelLookup}
       customCategories={customCategories}
+      locationTypes={locationTypes}
       disabled={disabled}
       parentCollection={parentCollection}
       scopedToParent={block.scopedToParent !== false}
@@ -612,12 +626,13 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onSelectionChange }) => {
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onSelectionChange, relativeTarget, availableLocations }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
   const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locMenuOpen, setLocMenuOpen] = useState(false);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -692,7 +707,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.text || ''} onChange={e => onPatch({ text: e.target.value })} placeholder="Link text…" />
       </ContentRow>,
       <ContentRow key="url" label="URL">
-        <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.url || ''} onChange={e => onPatch({ url: e.target.value })} placeholder="https://… or {{dayLocationLink}}" />
+        <input className={TB_INPUT + ' w-64'} disabled={disabled} value={block.url || ''} onChange={e => onPatch({ url: e.target.value })} placeholder="https://… or {{locationMapLink}}" />
       </ContentRow>,
     );
   }
@@ -734,6 +749,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             categoryKeys={categoryKeys}
             categoryLabels={categoryLabels}
             customCategories={project.customCategories}
+            locationTypes={project.locationTypes}
             disabled={disabled}
             parentCollection={parentCollection}
             scopedToParent={block.scopedToParent !== false}
@@ -741,7 +757,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
           />
         ) : parentCollection ? (
-          <NestedTableMenu block={block} parentCollection={parentCollection} parentCategory={parentCategory} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} disabled={disabled} onPatch={onPatch} />
+          <NestedTableMenu block={block} parentCollection={parentCollection} parentCategory={parentCategory} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} locationTypes={project.locationTypes} disabled={disabled} onPatch={onPatch} />
         ) : (
           <CollectionMenu
             value={block.collection || 'scenes'}
@@ -750,6 +766,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             categoryKeys={categoryKeys}
             categoryLabels={categoryLabels}
             customCategories={project.customCategories}
+            locationTypes={project.locationTypes}
             disabled={disabled}
             onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
           />
@@ -807,7 +824,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
         />
       </ContentRow>,
-      parentCollection && parentCollection !== 'crew' && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
+      parentCollection && !NON_SCOPABLE_COLLECTIONS.has(effective) && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
         <ContentRow key="scope" label="Scope">
           <Checkbox checked={block.scopedToParent !== false} disabled={disabled} onChange={on => onPatch({ scopedToParent: on })} label={`Only ${COLLECTION_LABELS_LOCAL[effective] || 'items'} in this ${PARENT_LABELS[parentCollection] || 'item'}`} />
         </ContentRow>
@@ -857,6 +874,73 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       </ContentRow>,
       <ContentRow key="show" label="Show">
         <RibbonShowToggles block={block} disabled={disabled} onPatch={onPatch} />
+      </ContentRow>,
+    );
+  }
+
+  if (block.type === 'relative') {
+    const offset = block.relativeOffset ?? 1;
+    const count = Math.max(1, block.relativeCount ?? 1);
+    push(null,
+      <ContentRow key="offset" label="Offset">
+        <div className="flex items-center gap-1">
+          <ToolButton onClick={() => onPatch({ relativeOffset: offset - 1 })} disabled={disabled} title="Previous item" className={TB_BTN}><Minus className="w-3 h-3" /></ToolButton>
+          <input type="number" min={-20} max={20} disabled={disabled} className={TB_INPUT + ' w-12 text-center'} value={offset} onChange={e => onPatch({ relativeOffset: Number(e.target.value) || 1 })} />
+          <ToolButton onClick={() => onPatch({ relativeOffset: offset + 1 })} disabled={disabled} title="Next item" className={TB_BTN}><Plus className="w-3 h-3" /></ToolButton>
+        </div>
+      </ContentRow>,
+      <ContentRow key="count" label="Count">
+        <div className="flex items-center gap-1">
+          <ToolButton onClick={() => onPatch({ relativeCount: Math.max(1, count - 1) })} disabled={disabled} title="Fewer" className={TB_BTN}><Minus className="w-3 h-3" /></ToolButton>
+          <input type="number" min={1} max={20} disabled={disabled} className={TB_INPUT + ' w-12 text-center'} value={count} onChange={e => onPatch({ relativeCount: Math.max(1, Number(e.target.value) || 1) })} />
+          <ToolButton onClick={() => onPatch({ relativeCount: count + 1 })} disabled={disabled} title="More" className={TB_BTN}><Plus className="w-3 h-3" /></ToolButton>
+        </div>
+      </ContentRow>,
+      relativeTarget ? (
+        <ContentRow key="target" label="Resolves to">
+          <span className="text-xs text-sky-600 font-semibold">{relativeTarget}</span>
+        </ContentRow>
+      ) : null,
+    );
+  }
+
+  // "Show location" — a text/field block carrying a Location attribute renders
+  // the item's FIRST location by default; when the item has several (future:
+  // a day with multiple attached/derived locations), this row picks which one
+  // by type key (roadmap 6 + 9). Hidden until more than one exists.
+  const locationTokens = useMemo(() => {
+    if (block.type === 'text') return [...(block.text || '').matchAll(TOKEN_RE)].map(m => parseToken(m[1]).field);
+    if (block.type === 'field') return block.field ? [block.field] : [];
+    return [];
+  }, [block.type, block.text, block.field]);
+  const hasLocationAttr = locationTokens.some(f => allFields.find(x => x.key === f)?.scope === 'locations');
+  if ((block.type === 'text' || block.type === 'field') && hasLocationAttr && availableLocations && availableLocations.length > 1) {
+    const choices = availableLocations;
+    const current = block.locationChoice || (choices[0].typeKey || '');
+    push(null,
+      <ContentRow key="showLoc" label="Show location">
+        <DropdownMenu
+          open={locMenuOpen}
+          onOpenChange={setLocMenuOpen}
+          theme="dark"
+          width="w-56"
+          trigger={
+            <button type="button" disabled={disabled} className={`w-44 ${TB_PICKER}`}>
+              <span className="truncate">
+                {choices.find(l => l.typeKey === current)?.info
+                  ? (() => { const l = choices.find(x => x.typeKey === current)!; return `${l.info!.name} · ${l.info!.typeLabel}`; })()
+                  : reportLocationLabel(choices[0])}
+              </span>
+              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+            </button>
+          }
+        >
+          {choices.map(l => (
+            <DropdownItem key={l.typeKey || 'first'} onClick={() => { onPatch({ locationChoice: l.typeKey }); setLocMenuOpen(false); }} icon={l.typeKey === current ? <Check className="w-3.5 h-3.5" /> : undefined}>
+              {l.info ? `${l.info.name} · ${l.info.typeLabel}` : reportLocationLabel(l)}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
       </ContentRow>,
     );
   }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { TB_PICKER, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_BTN_ICON, TB_DANGER, ToolButton, ChromeHeader, SectionHeader } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportTableColumn } from '../../types';
-import { ReportCtx, resolveCollectionItems, ReportCollectionItem } from '../../lib/reportData';
+import { ReportCtx, resolveCollectionItems, resolveRelativeItems, reportItemLabel, locationsOfItem, filterItemsByScope, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux } from '../../lib/reportFields';
 import { ReportFieldDef, fieldsForScope, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, tableFieldScope, scopedCollectionLabel } from '../../lib/reportBlocks';
@@ -17,6 +17,7 @@ import { FieldPicker } from './FieldPicker';
 import { FloatingChrome } from '../FloatingChrome';
 import { Tooltip } from '../Tooltip';
 import Checkbox from '../Checkbox';
+import type { ReportLocation } from '../../lib/reportWeather';
 import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical } from 'lucide-react';
 
 function firstItemOf(ctx: ReportCtx, b: ReportBlock, fieldMap: Record<string, ReportFieldDef>, parentItem: any, parentCategory?: string, ancestors?: any): any {
@@ -273,7 +274,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
     </div>
   );
 
-  const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: ReportCollection, parentItem?: any, parentCategory?: string, onceIds?: Set<string>, ancestors?: any): React.ReactNode[] => {
+  const renderBlocks = (list: ReportBlock[], depth: number, parentColl?: ReportCollection, parentItem?: any, parentCategory?: string, onceIds?: Set<string>, ancestors?: any, parentItems?: ReportCollectionItem[], parentItemIndex?: number): React.ReactNode[] => {
     const out: React.ReactNode[] = [];
     list.forEach((b, i) => {
       const selected = selId === b.id;
@@ -281,6 +282,16 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       const meta = BLOCK_TYPE_META[b.type] || { label: b.type, icon: null };
       const isTable = b.type === 'table' && (b.axis ?? 'columns') === 'columns';
       const selectedTableCol = isTable && selCol && selCol.colsId === b.id ? selCol : null;
+      // Designer chrome extras (sampled template context): the relative block's
+      // resolved target label + a text/field block's item locations (the
+      // "Show location" picker needs the item's available locations).
+      const relItems = b.type === 'relative'
+        ? resolveRelativeItems(ctx, b, parentCollection, parentCategory, undefined, parentItems, parentItem, parentItemIndex, ancestors)
+        : null;
+      const relTarget = b.type === 'relative' && relItems && relItems.length > 0 && parentCollection
+        ? `→ ${reportItemLabel(parentCollection, relItems[0])}`
+        : null;
+      const itemLocations = (b.type === 'text' || b.type === 'field') && parentItem ? locationsOfItem(ctx, parentItem) : [];
 
       out.push(
         <div key={`z-${b.id}`}>{renderZone(b, 'before', depth)}</div>,
@@ -333,6 +344,8 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 onRemove={() => onRemove(b.id)}
                 onMove={d => onMove(b.id, d)}
                 onDeselect={() => onSelect(null)}
+                relativeTarget={relTarget}
+                availableLocations={itemLocations}
               />
             )}
             {selectedTableCol && !externalDrag && (
@@ -350,14 +363,17 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               />
             )}
 
-            {(b.type === 'repeat' || b.type === 'table') ? (
+            {(b.type === 'repeat' || b.type === 'table' || b.type === 'relative') ? (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
                   {meta.icon}
-                  {b.type === 'table'
-                    ? `Table: ${scopedCollectionLabel(tableItemCollection(b, parentCollection as ReportCollection | undefined), parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`
-                    : `Repeat: ${scopedCollectionLabel(b.collection || 'scenes', parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`}
+                  {b.type === 'relative'
+                    ? `Relative · ${b.relativeOffset ?? 1} ${(b.relativeOffset ?? 1) < 0 ? 'back' : 'ahead'} × ${Math.max(1, b.relativeCount ?? 1)}${relTarget ? ` — ${relTarget}` : ''}`
+                    : b.type === 'table'
+                      ? `Table: ${scopedCollectionLabel(tableItemCollection(b, parentCollection as ReportCollection | undefined), parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`
+                      : `Repeat: ${scopedCollectionLabel(b.collection || 'scenes', parentCollection as ReportCollection | undefined, b.scopedToParent !== false)}`}
                   {b.collection === 'elements' ? ` (${b.category || 'props'})` : ''}
+                  {b.collection === 'locations' && b.category ? ` (${(project.locationTypes || []).find(t => t.key === b.category)?.label || b.category})` : ''}
                   {b.type === 'table' && (b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}
                 </div>
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
@@ -368,15 +384,25 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                       const onceIds = new Set(onceTables.map(cb => cb.id));
                       const regular = (b.children || []).filter(cb => !onceIds.has(cb.id));
                       const childItem = firstItemOf(ctx, b, fieldMap, parentItem, parentCategory, ancestors);
+                      const parentList = coll ? filterItemsByScope(resolveCollectionItems(ctx, coll, b.category, parentItem, parentCategory, b, ancestors) as ReportCollectionItem[], coll, coll === 'elements' ? b.category : undefined, undefined) : [];
+                      const childIdx = childItem ? parentList.findIndex(it => it === childItem) : -1;
                       return (
                         <>
-                          {renderBlocks(regular, depth + 1, b.collection, childItem, b.category, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined)}
+                          {renderBlocks(regular, depth + 1, b.collection, childItem, b.category, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined, parentList, childIdx >= 0 ? childIdx : undefined)}
                           {onceTables.length > 0 && renderBlocks(onceTables, depth + 1, b.collection, parentItem, parentCategory, onceIds, parentItem ? [parentItem, ...(ancestors || [])] : undefined)}
                         </>
                       );
                     })()}
                   </div>
-                ) : b.type === 'repeat' ? (
+                ) : b.type === 'relative' && b.children && b.children.length > 0 ? (
+                  <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
+                    {(() => {
+                      const relChildren = b.children || [];
+                      const childItem = relItems && relItems.length > 0 ? relItems[0] : undefined;
+                      return renderBlocks(relChildren, depth + 1, parentCollection, childItem, parentCategory, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined, relItems || [], 0);
+                    })()}
+                  </div>
+                ) : b.type === 'repeat' || b.type === 'relative' ? (
                   <div
                     className="repeat-drop-empty"
                     style={{ minHeight: 56, border: '2px dashed #c4c4cc', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
@@ -412,7 +438,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                     }}
                   >
                     <Plus className="w-3.5 h-3.5 text-zinc-400" />
-                    <span className="text-[10px] text-zinc-400 italic">Drop inside repeat (or click to add text)</span>
+                    <span className="text-[10px] text-zinc-400 italic">Drop inside {b.type === 'relative' ? 'relative' : 'repeat'} (or click to add text)</span>
                   </div>
                 ) : (
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} item={parentItem} parentCategory={parentCategory} parentCollection={parentCollection} hint showKeys={showKeys} showUnresolved aux={{ index: 0, pageSize }} onceTable={onceIds?.has(b.id)} ancestors={ancestors} editorTableLimit onColumnSelect={isTable ? (ci => onSelectCol({ colsId: b.id, colIndex: ci })) : undefined} onColumnContextMenu={isTable ? ((e, ci) => onMenu(e, b.id, ci)) : undefined} onMoveColumn={isTable ? ((from, to) => onMoveTableColumn(b.id, from, to)) : undefined} selectedColumn={selectedTableCol?.colIndex ?? null} />
@@ -664,7 +690,9 @@ const BlockChrome: React.FC<{
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
   onDeselect: () => void;
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onDeselect }) => (
+  relativeTarget?: string | null;
+  availableLocations?: ReportLocation[];
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onDeselect, relativeTarget, availableLocations }) => (
   // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
@@ -684,6 +712,8 @@ const BlockChrome: React.FC<{
       trailing={
         <ToolButton onClick={onDeselect} disabled={false} title="Deselect block" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
       }
+      relativeTarget={relativeTarget}
+      availableLocations={availableLocations}
     />
   </FloatingChrome>
 );

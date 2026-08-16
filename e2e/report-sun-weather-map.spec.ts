@@ -63,12 +63,12 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
         {
           id: 'r-days', type: 'repeat', collection: 'days', gap: 8,
           children: [
-            { id: 't-env', type: 'text', text: 'Sunrise {{sunrise}} · Sunset {{sunset}} · Weather {{weather}} · Map: {{dayLocationLink}} · Email: {{prodEmail}} · Tel: {{prodPhone}}' },
-            { id: 'addr-field', type: 'field', field: 'dayLocationAddress' },
-            { id: 'city-field', type: 'field', field: 'dayLocationCity' },
-            { id: 'postcode-field', type: 'field', field: 'dayLocationPostcode' },
-            { id: 'country-field', type: 'field', field: 'dayLocationCountry' },
-            { id: 'link-block', type: 'link', text: 'Open in Google Maps', url: '{{dayLocationLink}}' },
+            { id: 't-env', type: 'text', text: 'Sunrise {{sunrise}} · Sunset {{sunset}} · Weather {{weather}} · Map: {{locationMapLink}} · Email: {{prodEmail}} · Tel: {{prodPhone}}' },
+            { id: 'addr-field', type: 'field', field: 'locationAddress' },
+            { id: 'city-field', type: 'field', field: 'locationCity' },
+            { id: 'postcode-field', type: 'field', field: 'locationPostcode' },
+            { id: 'country-field', type: 'field', field: 'locationCountry' },
+            { id: 'link-block', type: 'link', text: 'Open in Google Maps', url: '{{locationMapLink}}' },
             { id: 'map-inherit', type: 'map', mapInheritLocation: true, mapOpenLink: 'google', mapHeight: 120, mapZoom: 12 },
           ],
         },

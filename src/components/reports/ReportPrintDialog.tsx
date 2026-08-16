@@ -2,10 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Printer, ChevronDown, Check } from 'lucide-react';
 import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign } from '../../types';
-import { ReportScope, reportItemKey, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
+import { ReportScope, reportItemKey, reportItemLabel, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
-import { formatDateShort } from '../../lib/utils';
 import { useCellBorders, CellBorders } from '../../lib/persist';
 import Modal, { ModalFooter } from '../Modal';
 import Checklist from '../Checklist';
@@ -22,7 +21,7 @@ import { RibbonDummyPreview } from './ReportRibbonView';
 // always START from the block's own properties; only the page-size override
 // persists per project.
 
-const TOP_LEVEL_COLLECTIONS: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew'];
+const TOP_LEVEL_COLLECTIONS: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'locations', 'locationTypes'];
 
 /** Top-level REPEAT blocks only — tables always print everything. */
 function scopeFor(block: ReportBlock): { collection: ReportCollection; category?: string } | null {
@@ -33,14 +32,7 @@ function scopeFor(block: ReportBlock): { collection: ReportCollection; category?
 }
 
 function itemLabel(collection: ReportCollection, it: any): string {
-  switch (collection) {
-    case 'scenes': return `${it.scene.sceneNumber} · ${it.scene.set || it.scene.description || it.scene.intExt || ''}`.replace(/ · $/, '');
-    case 'days': return `Day ${it.chronoDay} (${formatDateShort(it.date)})`;
-    case 'cast': case 'elements': return it.name;
-    case 'categories': return it.label;
-    case 'crew': return `${it.role}: ${it.name}`;
-    default: return '';
-  }
+  return reportItemLabel(collection, it);
 }
 
 /** Every ribbon block in the design — top-level AND nested (repeat/columns/
@@ -49,7 +41,7 @@ function collectRibbonBlocks(list: ReportBlock[] | undefined, out: ReportBlock[]
   if (!list) return out;
   for (const b of list) {
     if (b.type === 'ribbon') out.push(b);
-    if ((b.type === 'repeat' || b.type === 'callSheetEdit')) collectRibbonBlocks(b.children, out);
+    if (b.type === 'repeat' || b.type === 'callSheetEdit' || b.type === 'relative') collectRibbonBlocks(b.children, out);
     if (b.type === 'columns') for (const c of b.cols || []) collectRibbonBlocks(c.blocks, out);
   }
   return out;

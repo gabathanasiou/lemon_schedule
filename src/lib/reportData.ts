@@ -1,10 +1,109 @@
-import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, CrewPerson, RuleViolation } from '../types';
+import { Project, ScheduleVersion, Scene, ScheduleRow, ReportCollection, ReportBlock, ReportDesign, CrewPerson, RuleViolation } from '../types';
 import { SectionInfo, ComputedRow } from './daybreakUtils';
 import { loadCategoryElements, elementMatchId } from './elements';
 import { ELEMENT_CATEGORIES, getFieldItems, getLabel } from './categories';
 import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
+import { typeLabelOf } from './locations';
+import { getBrowserTimeZone } from './timezones';
+import type { ReportLocation } from './reportWeather';
+
+// ---- the location seam (shared by the report location attributes, the map
+// block and sun/weather) --------------------------------------------------------
+//
+// Roadmap 6/9: `locationsOfItem` is the plural primitive — "the locations this
+// item stands for". A locations-DB item resolves to itself; anything else (a
+// day today) resolves through `getReportLocation`, which will route to the
+// day's derived/attached locations (from its scenes, future attachments) when
+// the Location Manager wiring lands. Single-valued consumers show the FIRST
+// location; multi-location items get a per-block "Show location" picker.
+
+/** Fixed location until the per-day location DB lands — a dummy London
+ *  address (placeholder for the real location attachment). */
+export const LONDON_LOCATION: ReportLocation = {
+  lat: 51.5074,
+  lng: -0.1278,
+  place: '112 Maryland Street, London E15 1QD, United Kingdom',
+  address: '112 Maryland Street',
+  city: 'London',
+  postcode: 'E15 1QD',
+  country: 'United Kingdom',
+  timezone: 'Europe/London',
+};
+
+/** The location a report day resolves to. Future location DB: route on the
+ *  item (day/scene) here — nothing else in the report pipeline changes. */
+export function getReportLocation(ctx: ReportCtx, _item?: any): ReportLocation {
+  return {
+    ...LONDON_LOCATION,
+    timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone(),
+  };
+}
+
+/** True when the item is a locations-DB entry (ReportLocationInfo shape). */
+export function isLocationItem(it: any): it is ReportLocationInfo {
+  return !!it && typeof it.id === 'string' && typeof it.name === 'string' && typeof it.type === 'string' && typeof it.typeLabel === 'string';
+}
+
+/** The locations an item stands for (plural — a day may have several later).
+ *  Location DB items resolve to themselves; days resolve via getReportLocation.
+ *  Consumers render the first location; `locationChoice` (a type key) picks
+ *  another when several exist. */
+export function locationsOfItem(ctx: ReportCtx, item: any): ReportLocation[] {
+  if (isLocationItem(item)) {
+    return [{
+      lat: item.lat ?? 0,
+      lng: item.lng ?? 0,
+      place: item.place,
+      address: item.address,
+      timezone: ctx.project.productionInfo?.timezone || getBrowserTimeZone(),
+      info: item,
+      typeKey: item.type,
+    }];
+  }
+  return [getReportLocation(ctx, item)];
+}
+
+/** The location an item's attribute renders: first by default, else the one
+ *  whose type key matches `locationChoice` (per-block "Show location" picker). */
+export function pickLocation(ctx: ReportCtx, item: any, locationChoice?: string): ReportLocation | undefined {
+  const locs = locationsOfItem(ctx, item);
+  if (locs.length === 0) return undefined;
+  if (locs.length > 1 && locationChoice) {
+    const hit = locs.find(l => l.typeKey === locationChoice);
+    if (hit) return hit;
+  }
+  return locs[0];
+}
+
+/** Locations a report design expects: every pinned locations-DB entry the
+ *  design iterates (a top-level or nested `locations` / `locationsOfType`
+ *  repeat or table). Powers weather prefetch for location scopes. */
+export function designLocationsIn(ctx: ReportCtx, design: ReportDesign): ReportLocationInfo[] {
+  const refs = new Set<ReportLocationInfo>();
+  const walk = (list: ReportBlock[] | undefined) => {
+    if (!list) return;
+    for (const b of list) {
+      if (b.collection === 'locations' || b.collection === 'locationsOfType') {
+        const byType = b.collection === 'locationsOfType'
+          ? ctx.locationInfos.filter(l => l.type === b.category)
+          : ctx.locationInfos;
+        if (b.collection === 'locations' && b.category) {
+          for (const l of byType) if (l.type === b.category) refs.add(l);
+        } else {
+          for (const l of byType) refs.add(l);
+        }
+      }
+      if (b.type === 'columns') for (const c of b.cols || []) walk(c.blocks);
+      if (b.children) walk(b.children);
+    }
+  };
+  walk(design.blocks);
+  walk(design.header);
+  walk(design.footer);
+  return Array.from(refs);
+}
 
 // Collection resolvers for the Reports Designer.
 // ALL day/section/date/call-time data comes from the canonical daybreak
@@ -95,6 +194,31 @@ export interface ReportViolationTypeInfo {
   violations: RuleViolation[]; // for Lego scoping — never a field value
 }
 
+/** One location from the locations DB, as a repeat/table item of the
+ *  'locations' / 'locationsOfType' collections. */
+export interface ReportLocationInfo {
+  id: string;
+  name: string;
+  type: string;      // key into project.locationTypes
+  typeLabel: string;
+  address?: string;
+  place?: string;
+  lat?: number;
+  lng?: number;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}
+
+/** One location type, as a repeat/table item of the 'locationTypes'
+ *  collection. No scene data — not a rule-bearing ancestor. */
+export interface ReportLocationTypeInfo {
+  key: string;
+  label: string;
+  count: number;     // locations of this type
+}
+
 /** Canonical daybreak output consumed by the reports (from useDaybreakSections). */
 export interface ReportDaybreakData {
   sections: SectionInfo[];
@@ -147,7 +271,26 @@ export function reportItemKey(collection: ReportCollection, item: ReportCollecti
       return elementMatchId(el, el.category || 'props');
     }
     case 'categories': return (item as ReportCategoryInfo).key;
+    case 'locations': case 'locationsOfType': return (item as ReportLocationInfo).id;
+    case 'locationTypes': return (item as ReportLocationTypeInfo).key;
     default: return 0;
+  }
+}
+
+/** Human label for one collection item — shared by the print dialog's
+ *  checklists and the relative block's resolved-target preview. */
+export function reportItemLabel(collection: ReportCollection, it: ReportCollectionItem): string {
+  switch (collection) {
+    case 'scenes': case 'scenesOfDay': case 'scenesOfElement': case 'scenesOfCast':
+      return `${(it as ReportSceneInfo).scene.sceneNumber} · ${(it as ReportSceneInfo).scene.set || (it as ReportSceneInfo).scene.description || (it as ReportSceneInfo).scene.intExt || ''}`.replace(/ · $/, '');
+    case 'days': case 'daysOfCast': return `Day ${(it as ReportDayInfo).chronoDay} (${formatDateShort((it as ReportDayInfo).date)})`;
+    case 'cast': case 'elements': case 'elementsOfCategory': case 'elementsOfScene': return (it as ReportElementInfo).name;
+    case 'categories': return (it as ReportCategoryInfo).label;
+    case 'crew': return `${(it as ReportCrewItem).role}: ${(it as ReportCrewItem).name}`;
+    case 'violationTypes': return (it as ReportViolationTypeInfo).label;
+    case 'locations': case 'locationsOfType': return (it as ReportLocationInfo).name;
+    case 'locationTypes': return (it as ReportLocationTypeInfo).label;
+    default: return '';
   }
 }
 
@@ -239,6 +382,8 @@ export interface ReportCtx {
   castNames: Map<string, string>;
   elementsCache: Map<string, ReportElementInfo[]>;
   crewItems: ReportCrewItem[];
+  locationInfos: ReportLocationInfo[];
+  locationTypeInfos: ReportLocationTypeInfo[];
   totals: ReportProductionTotals;
   sectionViolations: Map<number, RuleViolation[]>;
   sceneViolations: Map<string, RuleViolation[]>;
@@ -357,6 +502,32 @@ export function buildReportCtx(
     }
   }
 
+  // locations DB — flat list + per-type rollup. Types come from the project's
+  // locationTypes (label-based, like crew roles).
+  const locationTypes = project.locationTypes || [];
+  const locationInfos: ReportLocationInfo[] = (project.locations || []).map(l => ({
+    id: l.id,
+    name: l.name,
+    type: l.type,
+    typeLabel: typeLabelOf(l, locationTypes),
+    address: l.address,
+    place: l.place,
+    lat: l.lat,
+    lng: l.lng,
+    contactName: l.contactName,
+    phone: l.phone,
+    email: l.email,
+    notes: l.notes,
+  }));
+  const locationTypeInfos: ReportLocationTypeInfo[] = locationTypes.map(t => ({
+    key: t.key,
+    label: t.label,
+    count: 0,
+  }));
+  for (const info of locationTypeInfos) {
+    info.count = locationInfos.filter(l => l.type === info.key).length;
+  }
+
   const totals: ReportProductionTotals = {
     shootDays: dayInfos.length,
     shootMin: dayInfos.reduce((sum, d) => sum + d.shootMin, 0),
@@ -381,6 +552,8 @@ export function buildReportCtx(
     castNames,
     elementsCache: new Map(),
     crewItems,
+    locationInfos,
+    locationTypeInfos,
     totals,
     sectionViolations,
     sceneViolations,
@@ -465,7 +638,9 @@ export type ReportCollectionItem =
   | ReportElementInfo
   | ReportCategoryInfo
   | ReportCrewItem
-  | ReportViolationTypeInfo;
+  | ReportViolationTypeInfo
+  | ReportLocationInfo
+  | ReportLocationTypeInfo;
 
 export function resolveCollection(
   ctx: ReportCtx,
@@ -481,6 +656,13 @@ export function resolveCollection(
     case 'elements': return getElementsFor(ctx, category || 'props');
     case 'categories': return ctx.categoryInfos;
     case 'crew': return ctx.crewItems;
+    case 'locations': return ctx.locationInfos;
+    case 'locationTypes': return ctx.locationTypeInfos;
+    case 'locationsOfType': {
+      const type = parentItem as ReportLocationTypeInfo | undefined;
+      if (!type) return [];
+      return ctx.locationInfos.filter(l => l.type === type.key);
+    }
     case 'scenesOfDay': {
       const day = parentItem as ReportDayInfo | undefined;
       if (!day) return [];
@@ -616,14 +798,54 @@ export function resolveCollectionItems(
   return items;
 }
 
-/** Ancestors with a scoping rule (anything except crew — no scene data). */
+/** Ancestors with a scoping rule (anything except crew and locations — no
+ *  scene data). Element/cast items are distinguished from location items by
+ *  `category`/`sceneIds` (locations carry neither). */
 export function ruleBearingAncestor(a: ReportCollectionItem): boolean {
   const any = a as any;
   return !!any.scene
     || typeof any.section?.index === 'number'
-    || (typeof any.key === 'string' && any.label !== undefined)
-    || Array.isArray(any.violations)
-    || typeof any.id !== 'undefined';
+    || (typeof any.key === 'string' && Array.isArray(any.items))                       // category
+    || Array.isArray(any.violations)                                                   // violation type
+    || (typeof any.id !== 'undefined' && (typeof any.category === 'string' || Array.isArray(any.sceneIds))); // element / cast member
+}
+
+/**
+ * Relative block resolution (roadmap 27) — a mini-repeater over the PARENT
+ * repeat's post-scope resolved list: `parentList.slice(idx + offset, idx +
+ * offset + count)` where `idx` is the current item's index in that list.
+ * `parentItems`/`itemIndex` come from the parent repeat/relative view (exact);
+ * the fallback (fragment rendering of a top-level repeat) resolves the parent
+ * list from the ancestor chain — ancestors[0] is the current item, ancestors[1]
+ * the parent repeat's own parent item.
+ */
+export function resolveRelativeItems(
+  ctx: ReportCtx,
+  block: ReportBlock,
+  parentCollection: ReportCollection | undefined,
+  parentCategory: string | undefined,
+  scopeFilter: ReportScopeFilter | undefined,
+  parentItems: ReportCollectionItem[] | undefined,
+  item: ReportCollectionItem | undefined,
+  itemIndex: number | undefined,
+  ancestors: ReportCollectionItem[] | undefined,
+): ReportCollectionItem[] {
+  const offset = block.relativeOffset ?? 1;
+  const count = Math.max(1, block.relativeCount ?? 1);
+  let list = parentItems;
+  if (!list && parentCollection) {
+    const parentItem = ancestors && ancestors.length > 1 ? ancestors[1] : undefined;
+    const base = resolveCollectionItems(ctx, parentCollection, parentCategory, parentItem, parentCategory, undefined, parentItem ? ancestors?.slice(1) : undefined);
+    list = filterItemsByScope(base, parentCollection, parentCollection === 'elements' ? parentCategory : undefined, scopeFilter);
+  }
+  list = list || [];
+  let idx = itemIndex;
+  if (idx === undefined && item && list.length > 0 && parentCollection) {
+    idx = list.findIndex(it => it === item || reportItemKey(parentCollection, it) === reportItemKey(parentCollection, item));
+    if (idx < 0) idx = 0;
+  }
+  if (idx === undefined) return [];
+  return list.slice(idx + offset, idx + offset + count);
 }
 
 /**

@@ -3,9 +3,10 @@ import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
-import { sunWeatherFieldValue, getReportLocation, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, locationAddressFieldValue, locationPartFieldValue } from './reportWeather';
+import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
+  ReportLocationInfo, ReportLocationTypeInfo, locationsOfItem, pickLocation,
 } from './reportData';
 
 // Single field registry for the Reports Designer. Attributes only exist in the
@@ -21,7 +22,7 @@ export interface ReportFieldDef {
   key: string;
   label: string;
   group: string;
-  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes';
+  scope: 'scenes' | 'elements' | 'cast' | 'categories' | 'document' | 'days' | 'crew' | 'production' | 'project' | 'smart' | 'violationTypes' | 'locations' | 'locationTypes';
   align?: 'left' | 'center' | 'right';
   defaultWidth?: number;
   multiValue?: boolean;  // value is a comma-separated list → per-item affixes apply
@@ -45,6 +46,8 @@ export interface FieldAux {
   pageSize?: 'portrait' | 'landscape';
   dayFormat?: DayFormatMode;       // from the block's day-list display mode
   sceneScope?: Set<string> | null; // Lego ancestor intersection — smart fields resolve within it
+  locationChoice?: string;         // block-level "Show location" pick: a location TYPE key
+  dayDate?: string;                // nearest in-scope DAY's date (location rows inside a day repeat)
 }
 
 const s = (v: unknown): string => (v == null ? '' : String(v));
@@ -202,25 +205,80 @@ const VIOLATION_TYPE_FIELDS: ReportFieldDef[] = [
   { key: 'violationTypeMessages', label: 'Violation Details', group: 'Violations', scope: 'violationTypes', defaultWidth: 40, get: (_c, it: ReportViolationTypeInfo) => it.messages.join('; ') },
 ];
 
-// ---- sun & weather (per-day; computed at print for the attached location) -----
+// ---- sun & weather (location-aware — same locationsOfItem seam) ----------------
+// Scope 'locations' (+ admitted in day contexts): weather is computed for the
+// resolved location (day → the day seam; location item → its pin) on the in-
+// scope day. The date comes from the item when it's a day, else the nearest
+// day ancestor — a locations table inside a days repeat shows that day's
+// weather at each location. No day in scope → empty until one is.
 
 const SUN_WEATHER_FIELDS: ReportFieldDef[] = [
-  { key: 'sunrise', label: 'Sunrise', group: 'Sun & Weather', scope: 'days', align: 'center', defaultWidth: 9, get: (ctx, it) => sunWeatherFieldValue(ctx, it, 'sunrise') },
-  { key: 'sunset', label: 'Sunset', group: 'Sun & Weather', scope: 'days', align: 'center', defaultWidth: 9, get: (ctx, it) => sunWeatherFieldValue(ctx, it, 'sunset') },
-  { key: 'weather', label: 'Weather', group: 'Sun & Weather', scope: 'days', defaultWidth: 20, get: (ctx, it) => sunWeatherFieldValue(ctx, it, 'weather') },
+  { key: 'sunrise', label: 'Sunrise', group: 'Sun & Weather', scope: 'locations', align: 'center', defaultWidth: 9, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'sunrise') },
+  { key: 'sunset', label: 'Sunset', group: 'Sun & Weather', scope: 'locations', align: 'center', defaultWidth: 9, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'sunset') },
+  { key: 'weather', label: 'Weather', group: 'Sun & Weather', scope: 'locations', defaultWidth: 20, get: (ctx, it, aux) => sunWeatherFieldValue(ctx, it, aux, 'weather') },
 ];
 
-// ---- location (per-day; same getReportLocation seam as the map block) ---------
+// ---- location (merged family — one source of truth, per-item dispatch) -------
+// Scope 'locations' (+ admitted in day contexts): a location-DB item reads its
+// own entry; anything else (a day today) resolves through the locationsOfItem
+// seam (London stub until the Location Manager wiring lands). Single-valued
+// fields render the FIRST location — no joined lists; a per-block
+// `locationChoice` (type key) picks another when a day has several. The old
+// dayLocation* keys are gone (no migration per user decision).
+
+const locPart = (
+  ctx: ReportCtx,
+  it: any,
+  aux: FieldAux | undefined,
+  part: (loc: ReportLocation) => string,
+  dbPart: (info: ReportLocationInfo) => string,
+): string => {
+  const loc = pickLocation(ctx, it, aux?.locationChoice);
+  if (!loc) return '';
+  return loc.info ? dbPart(loc.info) : part(loc);
+};
+
+const mapLinkField = (kind: MapLinkKind, key: string, label: string): ReportFieldDef => ({
+  key, label, group: 'Location', scope: 'locations', link: true, defaultWidth: 20,
+  get: (ctx, it, aux) => {
+    const loc = pickLocation(ctx, it, aux?.locationChoice);
+    if (!loc) return '';
+    if (loc.info) {
+      const { lat, lng } = loc.info;
+      if (lat == null || lng == null) return '';
+      return reportLocationLink(kind, { lat, lng, place: loc.info.place, address: loc.info.address, timezone: loc.timezone });
+    }
+    return reportLocationLink(kind, loc);
+  },
+  linkLabel: (ctx, it) => {
+    const loc = pickLocation(ctx, it);
+    if (!loc) return '';
+    return loc.info ? loc.info.name : reportLocationLinkLabel(loc);
+  },
+});
 
 const LOCATION_FIELDS: ReportFieldDef[] = [
-  { key: 'dayLocation', label: 'Location', group: 'Location', scope: 'days', defaultWidth: 22, get: (ctx, it) => reportLocationLabel(getReportLocation(ctx, it)) },
-  { key: 'dayLocationAddress', label: 'Street Address', group: 'Location', scope: 'days', defaultWidth: 26, get: (ctx, it) => locationAddressFieldValue(ctx, it) },
-  { key: 'dayLocationCity', label: 'City', group: 'Location', scope: 'days', defaultWidth: 14, get: (ctx, it) => locationPartFieldValue(ctx, it, 'city') },
-  { key: 'dayLocationPostcode', label: 'Postcode', group: 'Location', scope: 'days', defaultWidth: 12, get: (ctx, it) => locationPartFieldValue(ctx, it, 'postcode') },
-  { key: 'dayLocationCountry', label: 'Country', group: 'Location', scope: 'days', defaultWidth: 18, get: (ctx, it) => locationPartFieldValue(ctx, it, 'country') },
-  { key: 'dayLocationLink', label: 'Map Link (Google Maps)', group: 'Location', scope: 'days', link: true, defaultWidth: 26, get: (ctx, it) => reportLocationLink('google' as MapLinkKind, getReportLocation(ctx, it)), linkLabel: (ctx, it) => reportLocationLinkLabel(getReportLocation(ctx, it)) },
-  { key: 'dayLocationLinkApple', label: 'Map Link (Apple Maps)', group: 'Location', scope: 'days', link: true, defaultWidth: 26, get: (ctx, it) => reportLocationLink('apple' as MapLinkKind, getReportLocation(ctx, it)), linkLabel: (ctx, it) => reportLocationLinkLabel(getReportLocation(ctx, it)) },
-  { key: 'dayLocationLinkCitymapper', label: 'Map Link (Citymapper)', group: 'Location', scope: 'days', link: true, defaultWidth: 26, get: (ctx, it) => reportLocationLink('citymapper' as MapLinkKind, getReportLocation(ctx, it)), linkLabel: (ctx, it) => reportLocationLinkLabel(getReportLocation(ctx, it)) },
+  { key: 'locationName', label: 'Name', group: 'Location', scope: 'locations', defaultWidth: 22, get: (ctx, it, aux) => locPart(ctx, it, aux, loc => reportLocationLabel(loc), info => info.name) },
+  { key: 'locationType', label: 'Type', group: 'Location', scope: 'locations', defaultWidth: 12, get: (ctx, it, aux) => locPart(ctx, it, aux, () => '', info => info.typeLabel) },
+  { key: 'locationAddress', label: 'Street Address', group: 'Location', scope: 'locations', defaultWidth: 24, get: (ctx, it, aux) => locPart(ctx, it, aux, loc => loc.address || '', info => info.address || '') },
+  { key: 'locationPlace', label: 'Place', group: 'Location', scope: 'locations', defaultWidth: 24, get: (ctx, it, aux) => locPart(ctx, it, aux, loc => loc.place || '', info => info.place || '') },
+  { key: 'locationCity', label: 'City', group: 'Location', scope: 'locations', defaultWidth: 12, get: (ctx, it, aux) => locPart(ctx, it, aux, loc => loc.city || '', () => '') },
+  { key: 'locationPostcode', label: 'Postcode', group: 'Location', scope: 'locations', defaultWidth: 10, get: (ctx, it, aux) => locPart(ctx, it, aux, loc => loc.postcode || '', () => '') },
+  { key: 'locationCountry', label: 'Country', group: 'Location', scope: 'locations', defaultWidth: 14, get: (ctx, it, aux) => locPart(ctx, it, aux, loc => loc.country || '', () => '') },
+  { key: 'locationContact', label: 'Contact', group: 'Location', scope: 'locations', defaultWidth: 14, get: (ctx, it, aux) => locPart(ctx, it, aux, () => '', info => info.contactName || '') },
+  { key: 'locationPhone', label: 'Phone', group: 'Location', scope: 'locations', link: true, linkKind: 'tel', defaultWidth: 14, get: (ctx, it, aux) => locPart(ctx, it, aux, () => '', info => info.phone || '') },
+  { key: 'locationEmail', label: 'Email', group: 'Location', scope: 'locations', link: true, linkKind: 'mailto', defaultWidth: 18, get: (ctx, it, aux) => locPart(ctx, it, aux, () => '', info => info.email || '') },
+  { key: 'locationNotes', label: 'Notes', group: 'Location', scope: 'locations', defaultWidth: 26, get: (ctx, it, aux) => locPart(ctx, it, aux, () => '', info => info.notes || '') },
+  mapLinkField('google', 'locationMapLink', 'Map Link (Google Maps)'),
+  mapLinkField('apple', 'locationMapLinkApple', 'Map Link (Apple Maps)'),
+  mapLinkField('citymapper', 'locationMapLinkCitymapper', 'Map Link (Citymapper)'),
+];
+
+// ---- location types (locationTypes items — the typed-parent rollup) ----------
+
+const LOCATION_TYPE_FIELDS: ReportFieldDef[] = [
+  { key: 'locationTypeLabel', label: 'Type', group: 'Location', scope: 'locationTypes', defaultWidth: 20, get: (_c, it: ReportLocationTypeInfo) => s(it.label) },
+  { key: 'locationTypeCount', label: 'Location Count', group: 'Location', scope: 'locationTypes', align: 'center', defaultWidth: 10, separator: true, get: (_c, it: ReportLocationTypeInfo) => s(it.count) },
 ];
 
 // ---- smart (universal contextual attributes) ----------------------------------
@@ -250,7 +308,10 @@ function smartScenesOf(ctx: ReportCtx, it: any, scope?: Set<string> | null): Rep
   if (typeof it.key === 'string' && it.label !== undefined) {
     return within(ctx.sceneInfos.filter(si => ctx.sceneFieldItems(si.scene, it.key).length > 0));
   }
-  if (typeof it.id !== 'undefined' && typeof it.name !== 'undefined') {
+  // Element/cast items carry a category or sceneIds — guard both so a
+  // locations-DB item (id + name + type, no scene data) can't be mistaken for
+  // an element by the smart fields.
+  if (typeof it.id !== 'undefined' && typeof it.name !== 'undefined' && (typeof it.category === 'string' || Array.isArray(it.sceneIds))) {
     const ids = new Set(it.sceneIds || []);
     const byId = ids.size > 0
       ? ctx.sceneInfos.filter(si => ids.has(si.scene.id))
@@ -456,6 +517,7 @@ export function getReportFieldDefs(project: Project): ReportFieldDef[] {
     ...DAY_FIELDS,
     ...SUN_WEATHER_FIELDS,
     ...LOCATION_FIELDS,
+    ...LOCATION_TYPE_FIELDS,
     ...CREW_FIELDS,
     ...PRODUCTION_FIELDS,
     ...PROJECT_FIELDS,
@@ -495,7 +557,7 @@ export function getReportFieldMap(project: Project): Record<string, ReportFieldD
 
 /** Scopes whose values come from the resolved collection ITEM (repeat/table
  *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
-export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew']);
+export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew', 'locations', 'locationTypes']);
 
 /**
  * Breakdown attributes (group 'Breakdown', scene-scope) inside a DAY repeater:
@@ -689,6 +751,9 @@ export function fieldsForScope(
     // Breakdown attributes (scene-scope) resolve per-day inside a days repeater
     // (roadmap 22) — the only scene fields pickable in a day context.
     if (dayScope && f.scope === 'scenes' && f.group === 'Breakdown') return true;
+    // Location + weather attributes (scope 'locations') are pickable in day
+    // contexts too — they resolve through the day's location seam (roadmap 6).
+    if (dayScope && f.scope === 'locations') return true;
     return false;
   });
 }

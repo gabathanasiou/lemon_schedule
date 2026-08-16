@@ -77,14 +77,19 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   // Sun & Weather values: warm the cache on load so canvas + preview render
   // real values instead of "—" (prefetch skips cached dates — cheap no-op).
+  // Location-aware: also warms every pinned location the ACTIVE design
+  // iterates (a locations repeat/table in the tree).
   const [, setWeatherTick] = useState(0);
+  const activeDesignRef = useRef(activeDesign);
+  activeDesignRef.current = activeDesign;
+  const designId = activeDesign?.id;
 
   useEffect(() => {
     if (!ctx || ctx.dayInfos.length === 0) return;
     let cancelled = false;
-    prepareSunWeatherForCtx(ctx).then(() => { if (!cancelled) setWeatherTick(t => t + 1); });
+    prepareSunWeatherForCtx(ctx, activeDesignRef.current).then(() => { if (!cancelled) setWeatherTick(t => t + 1); });
     return () => { cancelled = true; };
-  }, [ctx]);
+  }, [ctx, designId]);
 
   useEffect(() => {
     setBlocks(activeDesign?.blocks ? JSON.parse(JSON.stringify(activeDesign.blocks)) : []);

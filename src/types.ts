@@ -362,6 +362,9 @@ export interface ReportBlock {
   // relative (next/previous-item context shifter — mini-repeater)
   relativeOffset?: number;       // +1 = next item, -1 = previous
   relativeCount?: number;        // how many items to stack (default 1)
+  /** "Show location" pick: the TYPE key of the location an item's location
+   *  attributes render (roadmap 6/9). Unset = the item's FIRST location. */
+  locationChoice?: string;
   // table (repeat + table shape)
   repeatAxis?: RepeatAxis;
   colWidths?: number[];          // rows-mode, % summing to 100
