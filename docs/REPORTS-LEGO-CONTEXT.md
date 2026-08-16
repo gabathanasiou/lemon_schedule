@@ -17,9 +17,12 @@ Every nested block receives, and must forward (containers pass-through):
 | `scopeFilter` | print scope selection | print dialog (top-level) |
 | `aux` | counter index / page / pageSize / counterStart | repeat loop + page renderer |
 | `showKeys` / `hint` / `onceTable` | view chrome | the renderer |
+| `parentItems` | the parent repeat/relative's post-scope resolved list — the `relative` block slices it (roadmap 27) | the parent repeat/relative view (exact); FragmentBody re-resolves it for top-level fragments |
+| `itemIndex` | the current item's index in `parentItems` | same as above |
 
 Rules:
-- **repeat** = iteration container: provides `item`, passes `outerItem = item` to children.
+- **repeat** = iteration container: provides `item`, passes `outerItem = item` to children, AND passes `parentItems` (its post-scope filtered list) + the current `itemIndex` to children.
+- **relative** = mini-repeater: resolves `parentItems.slice(idx + offset, idx + offset + count)`, renders children once per sliced item with `parentItems` = the slice + the local `itemIndex` (relative-in-relative = offset composition). No collection of its own — the unit IS the parent's collection.
 - **columns** = transparent layout container: forwards everything unchanged
   (`item`, `parentCollection`, `parentCategory`, `outerItem`, `scopeFilter`, `aux`, `showKeys`).
 - **table** = data container: consumes the context to resolve its items/fields;

@@ -69,7 +69,21 @@ Related bugs to fix while here:
   (From design / Portrait / Landscape, persisted). Overrides flow through the
   paginator as `ribbonOverrides` (per block id) + `page`.
 
-## 6. Repeater type for Locations / Location Types (`[ ]`)
+## 6. Repeater type for Locations / Location Types (`[x]`)
+- Done: `locations` / `locationTypes` / `locationsOfType` collections through
+  the shared typed-parent registry (`TYPED_PARENT_COLLECTIONS`,
+  `reportBlocks.ts` — categories→elements pattern); Locations repeats/tables
+  get a Type filter (`block.category`, CollectionMenu Locations submenu);
+  merged Location attribute family (`locationName`, `locationAddress`,
+  `locationPhone`, `locationMapLink`… — scope `locations` + day contexts)
+  resolving per-item via `locationsOfItem`/`pickLocation` (`reportData.ts` —
+  DB entry vs the `getReportLocation` day seam; London stub until item 2).
+  Per-block `locationChoice` (type key) picks another location once a day has
+  several (Show-location picker renders when >1 exist); no migration — old
+  `dayLocation*` keys removed. Weather fields are location-aware too
+  (sunrise/sunset/weather resolve per resolved location, date from the
+  nearest day ancestor, empty until a day is in scope; prefetch warms
+  design-referenced pins via `designLocationsIn`).
 
 - Add a **new repeating type + table inside the report designer that repeats
   locations and location types** (both — location types exist).
@@ -421,7 +435,15 @@ Related bugs to fix while here:
   `npm run lint`; `npx playwright test --config=playwright.ipad.config.ts
   report-pagination` (budget assertion, both engines) + standard suite.
 
-## 27. `relative` block — next/previous-item context shifter (`[ ]`)
+## 27. `relative` block — next/previous-item context shifter (`[x]`)
+- Done: `relative` block type (offset/count steppers + resolved-target label
+  in chrome); `resolveRelativeItems` slices the parent repeat's post-scope
+  list via `parentItems`/`itemIndex` threading (exact in repeat/relative
+  views; fragment fallback resolves the top-level list in `FragmentBody`);
+  `ReportRelativeView` mirrors the repeat view (`.rm-repeat-col`/`.rm-item`)
+  so paginator fragment splitting applies; palette gated to repeat contexts;
+  `insertInto`/context menu treat it as a container; print dialog collects
+  ribbons inside it.
 
 - New `ReportBlock` type `'relative'`: `offset?: number` (default `+1`,
   negative = previous) + `count?: number` (default `1`; explicit only — no
