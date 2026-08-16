@@ -639,13 +639,21 @@ Known issues to fix together (all in the locations/type machinery):
 
 ## 33. Block gap in preview + print (like the repeat item gap) (`[ ]`)
 
-- **Requested**: between adjacent blocks (body/header/footer, columns,
-  repeat children) there should be vertical spacing in the PREVIEW and
-  PRINT — same gap by default as the repeat's "Item gap (px)" (the repeat's
-  `gap ?? 8`), i.e. blocks should breathe like repeated items do. The
-  designer CANVAS stays flush (per the item 26 veto — "canvas flush per
-  veto" was the previous decision; the gap is a print/preview affordance,
-  not an editing affordance).
+- **Requested**: EVERY block gets the same vertical gap the repeat's ITEMS
+  have (the `gap ?? 8` between `.rm-item`s) — body/header/footer blocks,
+  repeat children, columns children — in the PREVIEW and PRINT. The designer
+  CANVAS stays flush (per the item 26 veto — "canvas flush per veto" was the
+  previous decision; the gap is a print/preview affordance, not an editing
+  affordance).
+- **No duplicated gaps** (user clarification): the repeat's ITEM spacing
+  stays the flex `gap` on `.rm-repeat-col` — item wrappers are NOT blocks,
+  so they get no margin and the item gap is never doubled. The blocks inside
+  an item (repeat children, currently flush — `.rm-repeat-child` divs in
+  normal flow) get the margin instead (first child of the item suppressed).
+  Columns children drop their hardcoded flex `gap: 8`
+  (`ReportBlockView.tsx:197`) in favor of the uniform margin — one spacing
+  mechanism everywhere. First-child suppression per stack: body, header,
+  footer, repeat item, columns child list.
 - This is a re-request of item 26 ("Block gap: default 10px…") which was
   implemented (default 16px, preview/print only, canvas flush) then REMOVED
   per user decision. Read the item 26 notes for the full prior
@@ -660,7 +668,8 @@ Known issues to fix together (all in the locations/type machinery):
 - Differences vs the reverted 26: default should match the repeat item gap
   (8px — or reuse the same default constant), and there is NO per-block
   "Gap (px)" control (user decision) — a single global default for every
-  block type, no chrome input.
+  block type, no chrome input. The repeat's existing "Item gap (px)" control
+  keeps governing ITS item spacing (items aren't blocks — no conflict).
 - Exclusions (as before): `pageBreak` blocks get no margin; spacer blocks
   remain for exact manual spacing; a second veto of the feature is a
   legitimate outcome — keep the change isolated and easy to revert.
