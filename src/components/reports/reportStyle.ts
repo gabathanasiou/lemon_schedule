@@ -27,3 +27,22 @@ export const REPORT_PAGE_WIDTHS: Record<'portrait' | 'landscape', number> = {
   portrait: 794,
   landscape: 1123,
 };
+
+// Canonical page geometry for measured pagination (print + preview MUST use
+// the same numbers — the preview lies otherwise). Derivation, @96dpi:
+//  - contentWidth:  A4 minus 12mm side margins (Safari ignores @page margins
+//    and uses its dialog's 0.5in margins instead — 210mm - 25.4mm = 697px is
+//    the binding constraint for portrait).
+//  - contentHeight: conservative so one measured page fits EVERY common
+//    sheet: portrait bound by US Letter (279.4mm - 25.4mm = 960px), landscape
+//    bound by A4 (210mm - 25.4mm = 697px). The slack also absorbs WebKit
+//    reflow drift between the measurement pass and the final render.
+export const REPORT_PAGE_PADDING = {
+  v: Math.round((14 * 96) / 25.4), // 14mm top/bottom (~53px)
+  h: Math.round((12 * 96) / 25.4), // 12mm sides (~45px)
+} as const;
+
+export const REPORT_PAGE_METRICS: Record<'portrait' | 'landscape', { width: number; contentWidth: number; contentHeight: number }> = {
+  portrait: { width: 697 + REPORT_PAGE_PADDING.h * 2, contentWidth: 697, contentHeight: 880 },
+  landscape: { width: 960 + REPORT_PAGE_PADDING.h * 2, contentWidth: 960, contentHeight: 620 },
+};

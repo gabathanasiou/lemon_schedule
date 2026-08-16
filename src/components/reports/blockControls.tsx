@@ -64,9 +64,10 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const { allFields, contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
   const emptyHidden = block.emptyBehavior === 'hideBlock';
-  // Text blocks: the item-formatting editor targets the last-clicked chip
-  // (list attributes only). Lifted here so the affix section can live in the
-  // panel where the Layout section used to be.
+  // Text blocks: the item-formatting editor follows the editor's chip
+  // SELECTION — it shows only while a chip is selected (deselect hides it).
+  // Lifted here so the affix section can live in the panel where the Layout
+  // section used to be.
   const editorRef = React.useRef<RichTextEditorHandle>(null);
   const [chipKey, setChipKey] = React.useState<string | null>(null);
   React.useEffect(() => { setChipKey(null); }, [block.id]);
@@ -90,7 +91,6 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
               setChipKey(key);
               editorRef.current?.replaceToken(key);
             }}
-            onClose={() => setChipKey(null)}
           />
         ) : null
       ) : (
@@ -159,7 +159,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       {block.type !== 'pageBreak' && (
         <div className="flex flex-col gap-1.5 px-2.5 py-1.5">
           <SectionHeader>Content</SectionHeader>
-          <ContentControls {...ctx} editorRef={editorRef} onTokenClick={(key) => setChipKey(key)} />
+          <ContentControls {...ctx} editorRef={editorRef} onSelectionChange={(sel) => setChipKey(sel ? sel.key : null)} />
         </div>
       )}
     </div>
@@ -178,8 +178,8 @@ export interface BlockCtx {
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
   /** Text blocks only: the editor handle (formatting + chip rewriting). */
   editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
-  /** Text blocks only: a token chip was clicked (its full key + rect). */
-  onTokenClick?: (key: string, rect: DOMRect) => void;
+  /** Text blocks only: the selected chip changed (key + pos), or null. */
+  onSelectionChange?: (sel: { key: string; pos: number } | null) => void;
 }
 
 // ---- named text styles (Word/Pages-like) ---------------------------------------
@@ -584,7 +584,7 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onTokenClick }) => {
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onSelectionChange }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
@@ -647,7 +647,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             value={block.text || ''}
             onChange={text => onPatch({ text })}
             onStateChange={setRtActive}
-            onTokenClick={onTokenClick}
+            onSelectionChange={onSelectionChange}
             placeholder="Type text… type @ to insert an attribute"
             disabled={disabled}
             fields={contextFields}
@@ -1146,8 +1146,7 @@ export const ChipAffixSection: React.FC<{
   fieldLabel: string;
   readOnly: boolean;
   onChange: (key: string) => void;
-  onClose: () => void;
-}> = ({ chipKey, fieldLabel, readOnly, onChange, onClose }) => {
+}> = ({ chipKey, fieldLabel, readOnly, onChange }) => {
   const { field, opts } = parseToken(chipKey);
   const setOpt = (kind: 'itemPrefix' | 'itemSuffix' | 'itemSeparator', value: string) => {
     onChange(composeTokenKey(
@@ -1159,12 +1158,7 @@ export const ChipAffixSection: React.FC<{
   };
   return (
     <>
-      <SectionHeader>
-        <span className="flex items-center gap-1.5">
-          <span>Item formatting — {fieldLabel}</span>
-          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-200 cursor-pointer">✕</button>
-        </span>
-      </SectionHeader>
+      <SectionHeader>Item formatting — {fieldLabel}</SectionHeader>
       <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
         <span className="text-[10px] text-zinc-500 shrink-0">Prefix</span>
         <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />

@@ -7,9 +7,9 @@ import { ReportFieldDef, searchReportFields, fieldChipColor, parseToken } from '
 // vocabulary — `{{field}}` tokens resolve to report attributes (label + group
 // color) and the `@` autocomplete searches report fields.
 //
-// Chip clicks are forwarded to the consumer (`onTokenClick`) — the block
-// properties panel renders the item-formatting controls for the last-clicked
-// chip (list attributes only), patching it via the kit's replaceToken handle.
+// Chip selection changes are forwarded to the consumer (`onSelectionChange`) —
+// the block properties panel shows the item-formatting controls while a chip
+// is selected, patching it via the kit's replaceToken handle.
 
 interface RichTextEditorProps {
   value: string;
@@ -21,8 +21,8 @@ interface RichTextEditorProps {
   fields?: ReportFieldDef[];
   /** Fired whenever the caret/selection moves or formatting changes. */
   onStateChange?: (state: RichTextState) => void;
-  /** Fired when a token chip is clicked (full key incl. `|`-options + rect). */
-  onTokenClick?: (key: string, rect: DOMRect) => void;
+  /** Fired when the selected chip changes: key + doc pos, or null on deselect. */
+  onSelectionChange?: (sel: { key: string; pos: number } | null) => void;
 }
 
 const toToken = (f: ReportFieldDef): TokenItem => {
@@ -30,7 +30,7 @@ const toToken = (f: ReportFieldDef): TokenItem => {
   return { key: f.key, label: f.label, color: c, group: f.group };
 };
 
-const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ fields, onTokenClick, ...rest }, ref) => {
+const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProps>(({ fields, onSelectionChange, ...rest }, ref) => {
   const fieldsRef = React.useRef(fields);
   fieldsRef.current = fields;
   const editorRef = React.useRef<RichTextEditorHandle | null>(null);
@@ -52,7 +52,7 @@ const RichTextEditor = React.forwardRef<RichTextEditorHandle, RichTextEditorProp
         return { label: customized ? `${f.label} *` : f.label, color: c };
       }}
       suggestionItems={q => searchReportFields(fieldsRef.current, q).map(toToken)}
-      onTokenClick={onTokenClick}
+      onSelectionChange={onSelectionChange}
     />
   );
 });

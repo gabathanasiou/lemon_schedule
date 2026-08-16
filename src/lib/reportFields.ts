@@ -60,7 +60,9 @@ const dateKey = (ctx: ReportCtx) => ctx.project.productionInfo?.dateFormat;
 export function applyItemAffixes(value: string, opts: { itemPrefix?: string; itemSuffix?: string; itemSeparator?: string }): string {
   const parts = value.split(',').map(x => x.trim()).filter(Boolean);
   if (parts.length === 0) return value;
-  const sep = opts.itemSeparator ?? ', ';
+  // Empty separator segment = ", " default — joining items with no spacing is
+  // never wanted, so only an EXPLICIT separator (e.g. "; ") overrides it.
+  const sep = opts.itemSeparator || ', ';
   return parts.map(p => `${opts.itemPrefix ?? ''}${p}${opts.itemSuffix ?? ''}`).join(sep);
 }
 
@@ -491,7 +493,9 @@ export function getReportFieldMap(project: Project): Record<string, ReportFieldD
   return map;
 }
 
-const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew']);
+/** Scopes whose values come from the resolved collection ITEM (repeat/table
+ *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
+export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew']);
 
 function fieldValueSafe(def: ReportFieldDef, ctx: ReportCtx, item: any, aux?: FieldAux): string {
   if (ITEM_SCOPES.has(def.scope) && !item) return '';
@@ -510,7 +514,7 @@ export function reportFieldValueByKey(ctx: ReportCtx, fieldMap: Record<string, R
 
 // ---- token resolution (text blocks) ------------------------------------------
 
-const TOKEN_RE = /\{\{([^}]+)\}\}/g;
+export const TOKEN_RE = /\{\{([^}]+)\}\}/g;
 const KEY_POSITION_KEYS = new Set(['director', 'producer', 'lineProducer', 'firstAD', 'upm']);
 
 /** Item-formatting options parsed from a token's `|`-separated tail:

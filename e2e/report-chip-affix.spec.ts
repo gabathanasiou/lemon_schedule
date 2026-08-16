@@ -34,7 +34,7 @@ test('chip affix editor: list-only section in the properties panel, no popover',
   await expect(chip).toBeVisible({ timeout: 3000 });
   await expect(chip).toContainText('Cast Members List');
 
-  // clicking the multi-value chip shows the affix section INSIDE the chrome —
+  // selecting the multi-value chip shows the affix section INSIDE the chrome —
   // no popover floating over the editor
   await chip.click();
   await page.waitForTimeout(300);
@@ -43,18 +43,30 @@ test('chip affix editor: list-only section in the properties panel, no popover',
   await expect(chrome.getByText(/^Suffix$/)).toBeVisible();
   await expect(chrome.getByText(/^Sep$/)).toBeVisible();
 
-  // typing an item prefix patches ONLY that chip: the stored token gains pipes
-  // and the chip renders the customized-* cue
+  // REAL keystrokes in the affix input must keep the input focused (the patch
+  // must not steal focus into the editor) and patch the chip on EVERY
+  // keystroke (target position is remapped, not one-shot)
   const prefixInput = chrome.getByLabel('Item prefix');
-  await prefixInput.fill('· ');
+  await prefixInput.click();
+  await page.keyboard.type('· ');
   await page.waitForTimeout(300);
+  await expect(prefixInput).toHaveValue('· ', { timeout: 3000 });
+  const focusedTag = await page.evaluate(() => (document.activeElement as HTMLElement)?.getAttribute('aria-label') ?? document.activeElement?.tagName);
+  expect(focusedTag).toBe('Item prefix');
   await expect(chip).toContainText('*', { timeout: 3000 });
   await expect(chrome).toContainText('Item formatting — Cast Members List');
-  await expect(prefixInput).toHaveValue('· ');
 
-  // the section closes with ✕
-  await chrome.getByText('✕').click();
-  await page.waitForTimeout(200);
+  // the canvas must resolve the affixed token live (the prefix is applied to
+  // the sampled scene's cast items)
+  const canvasCastCard = page.locator('.block-card.block-type-text').filter({ hasText: 'Cast' }).first();
+  await expect(canvasCastCard).toContainText('Cast: · ', { timeout: 3000 });
+  await expect(canvasCastCard).not.toContainText('{{cast}}');
+
+  // the section shows only while the chip is SELECTED — clicking into the text
+  // deselects the chip and hides it (no ✕ needed)
+  await editor.click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press('Home');
+  await page.waitForTimeout(300);
   await expect(chrome).not.toContainText('Item formatting');
 
   // a SINGLE-VALUE chip must NOT open the affix section

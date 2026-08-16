@@ -10,6 +10,42 @@ import { paginateBlocks } from './reportBlocks';
 
 export type PageItem = ReportBlock | { repeatItem: ReportBlock; item: ReportCollectionItem; itemIndex?: number };
 
+// Measured-pagination chunks. `useReportPaginator` (components/reports)
+// renders the structural pages offscreen, measures element heights and splits
+// content into page-sized chunks. Whole blocks stay whole (BlockChunk) — a
+// block is only chunked when it actually splits across pages.
+
+export type BodyChunk =
+  | { kind: 'block'; block: ReportBlock }
+  | { kind: 'repeatItem'; repeatItem: ReportBlock; item: ReportCollectionItem; itemIndex?: number }
+  | {
+      kind: 'repeatItemPart';
+      repeatItem: ReportBlock;
+      item: ReportCollectionItem;
+      itemIndex?: number;
+      /** One part per repeat child present on this page (in child order). */
+      parts: FragmentPartUnit[];
+    }
+  | { kind: 'repeat'; block: ReportBlock; itemStart: number; itemEnd: number }
+  | { kind: 'table'; block: ReportBlock; rowStart: number; rowEnd: number; repeatHeader: boolean }
+  | { kind: 'ribbon'; block: ReportBlock; unitStart: number; unitEnd: number };
+
+/** A slice of one child of a split repeat-item fragment. No range = the whole
+ *  child renders. Exactly one of ribbonRange/tableRowRange/itemRange applies. */
+export interface FragmentPartUnit {
+  childIndex: number;
+  ribbonRange?: [number, number];
+  tableRowRange?: [number, number];
+  repeatTableHeader?: boolean;
+  itemRange?: [number, number];
+}
+
+export interface PageChunk {
+  header: boolean;
+  footer: boolean;
+  body: BodyChunk[];
+}
+
 /** Strips pageBreak blocks from the very start and end of a block list. */
 export function stripEdgeBreaks(list: ReportBlock[]): ReportBlock[] {
   let start = 0;
@@ -25,6 +61,15 @@ export function hasTrailingBreak(b: ReportBlock): boolean {
   return children.length > 0 && children[children.length - 1].type === 'pageBreak';
 }
 
+/** True when the repeat's children contain ANY page break. Any break inside
+ *  repeat children means "one item per page" (the Call Sheet pattern) — the
+ *  breaks themselves are redundant once each item owns a page, so they are
+ *  dropped in per-item rendering. */
+export function hasItemBreaks(b: ReportBlock): boolean {
+  const children = b.children || [];
+  return children.length > 0 && children.some(c => c.type === 'pageBreak');
+}
+
 export function buildReportPages(blocks: ReportBlock[], ctx: ReportCtx, scopeFilter?: ReportScopeFilter): PageItem[][] {
   const pages: PageItem[][] = [];
   for (const pageBlocks of paginateBlocks(blocks)) {
@@ -34,7 +79,7 @@ export function buildReportPages(blocks: ReportBlock[], ctx: ReportCtx, scopeFil
     }
     let current: PageItem[] = [];
     for (const b of pageBlocks) {
-      if (b.type === 'repeat' && hasTrailingBreak(b)) {
+      if (b.type === 'repeat' && hasItemBreaks(b)) {
         const items = filterItemsByScope(
           resolveCollectionItems(ctx, b.collection, b.category, undefined, undefined, b) as ReportCollectionItem[],
           b.collection,

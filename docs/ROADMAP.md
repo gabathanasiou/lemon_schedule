@@ -241,6 +241,24 @@ Related bugs to fix while here:
   per-keystroke patches via `replaceToken`, ✕ clears the selection);
   `parseToken`/`composeTokenKey` shared in `lib/reportFields.ts`.
 
+## 20. Reports designer: edge-drop inside a column + deselect UX (`[~]`)
+
+- **Edge-drop inside a column adds a column to that container**: dragging a
+  block onto the left/right edge of a block that lives inside a `columns`
+  block inserts a NEW column into that columns block (left edge → before the
+  target's column, right edge → after) instead of the top-level behavior of
+  wrapping the target in a new columns block. Reuses the gutter drop ops
+  (`insertColumnAt` / `moveIntoNewColumn` / `duplicateIntoNewColumn` via the
+  existing new-column handlers — hoisted in `ReportDesigner.tsx` and shared by
+  both paths); `listOwnerOf` resolves the owning columns block, so no nested
+  columns blocks ever form. Blocks nested in a repeat inside a column keep no
+  edge zones (same as before).
+- **Escape deselects the selected block** (hides the floating chrome) — same
+  key that already deselects columns/closes menus.
+- **Deselect button in the block chrome header** (far-right ✕, matching the
+  column chrome) — wired through the existing `trailing` slot in
+  `BlockEditorContent` (the toolbar mode already had one).
+
 ---
 
 ## Session handoff

@@ -3,8 +3,8 @@ import { TB_PICKER, TB_DIVIDER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_BTN_I
 import { ReportBlock, ReportCollection, Project, ReportTextStyle, ReportTableColumn } from '../../types';
 import { ReportCtx, resolveCollectionItems, ReportCollectionItem } from '../../lib/reportData';
 import { FieldAux } from '../../lib/reportFields';
-import { ReportFieldDef, fieldsForScope } from '../../lib/reportFields';
-import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, tableItemCollection, tableFieldScope, scopedCollectionLabel } from '../../lib/reportBlocks';
+import { ReportFieldDef, fieldsForScope, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
+import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, tableFieldScope, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
@@ -18,9 +18,41 @@ import { Tooltip } from '../Tooltip';
 import Checkbox from '../Checkbox';
 import { EyeOff, AlignLeft, AlignCenter, AlignRight, ArrowLeft, ArrowRight, Trash2, Plus, Columns3, GripVertical } from 'lucide-react';
 
-function firstItemOf(ctx: ReportCtx, b: ReportBlock, parentItem: any, parentCategory?: string, ancestors?: any): any {
+function firstItemOf(ctx: ReportCtx, b: ReportBlock, fieldMap: Record<string, ReportFieldDef>, parentItem: any, parentCategory?: string, ancestors?: any): any {
   const items = resolveCollectionItems(ctx, b.collection, b.category, parentItem, parentCategory, b, ancestors);
-  return items[0];
+  if (items.length === 0) return undefined;
+  // The canvas samples ONE item for the repeat's template preview. Pick the
+  // first item that resolves the most ITEM data — sampling a data-less scene
+  // (no cast/breakdown attached) would show raw {{tokens}} on the canvas
+  // while print/preview render the real items from later scenes. Document
+  // fields ({{pageCount}}, {{title}}…) resolve from ctx/aux, never from item
+  // data, so they're excluded from the comparison.
+  const itemTokens = new Set<string>();
+  for (const cb of (b.children || [])) {
+    if (cb.type === 'text' && cb.text) {
+      for (const m of cb.text.matchAll(TOKEN_RE)) {
+        const base = parseToken(m[1]).field.split('.')[0];
+        const def = fieldMap[base];
+        if (def && ITEM_SCOPES.has(def.scope)) itemTokens.add(m[1]);
+      }
+    } else if (cb.type === 'field' && cb.field) {
+      const def = fieldMap[cb.field];
+      if (def && ITEM_SCOPES.has(def.scope)) itemTokens.add(cb.field);
+    }
+  }
+  if (itemTokens.size === 0) return items[0];
+  let best = items[0];
+  let bestMissing = Infinity;
+  for (const it of items) {
+    let missing = 0;
+    for (const raw of itemTokens) {
+      const base = parseToken(raw).field.split('.')[0];
+      if (!reportFieldValueByKey(ctx, fieldMap, base, it, undefined)) missing++;
+    }
+    if (missing === 0) return it;
+    if (missing < bestMissing) { bestMissing = missing; best = it; }
+  }
+  return best;
 }
 
 export interface ColSel { colsId: string; colIndex: number; }
@@ -280,7 +312,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 onResize={widths => onPatch(resizeTarget.id, { columns: (resizeTarget.columns || []).map((c, i) => ({ ...c, width: widths[i] ?? c.width })) })}
               />
             )}
-            {dragging && !insideColumnsBlock(allBlocks, b.id) && (
+            {dragging && (!insideColumnsBlock(allBlocks, b.id) || listOwnerOf(allBlocks, b.id)?.colIndex !== undefined) && (
               <>
                 <EdgeZone side="left" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
                 <EdgeZone side="right" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
@@ -298,6 +330,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                 onDuplicate={() => onDuplicate(b.id)}
                 onRemove={() => onRemove(b.id)}
                 onMove={d => onMove(b.id, d)}
+                onDeselect={() => onSelect(null)}
               />
             )}
             {selectedTableCol && !externalDrag && (
@@ -332,7 +365,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                       const onceTables = (b.children || []).filter(cb => cb.type === 'table' && coll === 'elementsOfCategory' && tableItemCollection(cb, coll) === coll);
                       const onceIds = new Set(onceTables.map(cb => cb.id));
                       const regular = (b.children || []).filter(cb => !onceIds.has(cb.id));
-                      const childItem = firstItemOf(ctx, b, parentItem, parentCategory, ancestors);
+                      const childItem = firstItemOf(ctx, b, fieldMap, parentItem, parentCategory, ancestors);
                       return (
                         <>
                           {renderBlocks(regular, depth + 1, b.collection, childItem, b.category, undefined, childItem ? [childItem, ...(ancestors || [])] : undefined)}
@@ -653,7 +686,8 @@ const BlockChrome: React.FC<{
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
-}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove }) => (
+  onDeselect: () => void;
+}> = ({ block, project, parentCollection, parentCategory, readOnly, onSaveTextStyles, onPatch, onDuplicate, onRemove, onMove, onDeselect }) => (
   // anchorMode 'visible' (default): the anchor rect is clipped to the viewport
   // so the panel floats above the VISIBLE part of the card — identical feel
   // for a small text card and a tall repeat/ribbon card.
@@ -670,6 +704,9 @@ const BlockChrome: React.FC<{
       onRemove={onRemove}
       onMove={onMove}
       compact
+      trailing={
+        <ToolButton onClick={onDeselect} disabled={false} title="Deselect block" className={TB_BTN_ICON}><span className="text-[10px]">✕</span></ToolButton>
+      }
     />
   </FloatingChrome>
 );

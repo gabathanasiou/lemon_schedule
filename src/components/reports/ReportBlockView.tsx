@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
-import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, ancestorSceneScope } from '../../lib/reportData';
+import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
 import { getReportBlockBaseStyle } from './reportStyle';
 import { ReportRibbonView } from './ReportRibbonView';
@@ -8,7 +8,7 @@ import { ReportMapView } from './ReportMapView';
 import { ReportLocationLink } from './ReportLocationLink';
 import { contextualCollectionsFor, defaultIdentityField, tableItemCollection } from '../../lib/reportBlocks';
 import { stripRichText, normalizeSpaces } from '../../lib/richText';
-import { PageItem, stripEdgeBreaks } from '../../lib/reportPagination';
+import { PageItem, PageChunk, FragmentPartUnit } from '../../lib/reportPagination';
 
 // Pure block renderer for reports (designer canvas + print). All data comes
 // from the canonical ReportCtx; items are resolved by the parent repeat.
@@ -35,6 +35,13 @@ export interface ReportRenderProps {
   /** Preview surfaces: full-schedule ribbon blocks render the first strips
    *  plus an "…N more" indicator instead of the whole schedule. */
   previewLimit?: boolean;
+  /** Print-time ribbon overrides keyed by block id (custom report print). */
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
+  /** Measured-pagination ranges: render only a slice of a splittable block. */
+  itemRange?: [number, number];        // repeat: item index range
+  rowRange?: [number, number];         // table: row index range (into `shown`)
+  repeatTableHeader?: boolean;         // table: continuation chunk repeats the header row
+  unitRange?: [number, number];        // ribbon: strip/row unit range
 }
 
 function isEmptyValue(v: string): boolean {
@@ -122,7 +129,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -175,10 +182,10 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <div style={st}>{text || '\u00A0'}</div>;
       }
       case 'repeat': {
-        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} />;
+        return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -188,7 +195,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
             {cols.map(col => (
               <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 { (col.blocks || []).map(cb => (
-                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} />
+                  <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} />
                 ))}
               </div>
             ))}
@@ -196,7 +203,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         );
       }
       case 'ribbon': {
-        return <ReportRibbonView block={block} ctx={ctx} item={item} hint={hint} ancestors={ancestors} previewLimit={previewLimit} />;
+        return <ReportRibbonView block={block} ctx={ctx} item={item} hint={hint} ancestors={ancestors} previewLimit={previewLimit} overrides={ribbonOverrides?.[block.id]} unitRange={unitRange} />;
       }
       case 'pageBreak': {
         return <div className="report-page-break" style={{ height: 1 }} />;
@@ -301,6 +308,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
                 aux={aux}
                 onceTable={onceTable}
                 ancestors={ancestors}
+                ribbonOverrides={ribbonOverrides}
               />
             ))}
           </div>
@@ -328,10 +336,36 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.onColumnContextMenu === b.onColumnContextMenu &&
     a.onMoveColumn === b.onMoveColumn &&
     a.selectedColumn === b.selectedColumn &&
-    a.previewLimit === b.previewLimit,
+    a.previewLimit === b.previewLimit &&
+    a.ribbonOverrides === b.ribbonOverrides &&
+    a.itemRange === b.itemRange &&
+    a.rowRange === b.rowRange &&
+    a.repeatTableHeader === b.repeatTableHeader &&
+    a.unitRange === b.unitRange,
 );
 
 // ---- page-level rendering (print + preview): one PageItem per page -----------
+
+/** Renders one PageItem (a whole block, or a per-item repeat fragment) with
+ *  the shared aux context. Used by the structural renderer, the chunked
+ *  renderer and the measurement pass — one source of truth per item. */
+export const PageItemBody: React.FC<{
+  pi: PageItem;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  scopeFilter?: ReportScopeFilter;
+  hint?: boolean;
+  showKeys?: boolean;
+  aux: FieldAux;
+  previewLimit?: boolean;
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
+}> = ({ pi, ctx, fieldMap, scopeFilter, hint, showKeys, aux, previewLimit, ribbonOverrides }) => {
+  if ('repeatItem' in pi) {
+    const { repeatItem, item, itemIndex } = pi;
+    return <FragmentBody repeatItem={repeatItem} item={item} itemIndex={itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={aux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />;
+  }
+  return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={aux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />;
+};
 
 export const ReportPageItems: React.FC<{
   items: PageItem[];
@@ -347,7 +381,8 @@ export const ReportPageItems: React.FC<{
   headerSkipFirst?: boolean;
   footerSkipFirst?: boolean;
   previewLimit?: boolean;
-}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, header, footer, headerSkipFirst, footerSkipFirst, previewLimit }) => {
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
+}> = ({ items, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, header, footer, headerSkipFirst, footerSkipFirst, previewLimit, ribbonOverrides }) => {
   const pageAux: FieldAux = { pageIndex, pageCount };
   const showHeader = !!(header && header.length > 0 && !(headerSkipFirst && pageIndex === 0));
   const showFooter = !!(footer && footer.length > 0 && !(footerSkipFirst && pageIndex === 0));
@@ -356,43 +391,128 @@ export const ReportPageItems: React.FC<{
       {showHeader && (
         <div className="report-page-header">
           {header!.map(b => (
-            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} />
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
           ))}
         </div>
       )}
-      <div style={{ flex: 1 }}>
-        {items.map((pi, i) => {
-          if ('repeatItem' in pi) {
-            const { repeatItem, item, itemIndex } = pi;
-            return (
-              <div key={`ri-${repeatItem.id}-${i}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                {stripEdgeBreaks(repeatItem.children || []).map(cb => (
-                  <ReportBlockView
-                    key={cb.id}
-                    block={cb}
-                    ctx={ctx}
-                    fieldMap={fieldMap}
-                    item={item}
-                    parentCategory={repeatItem.collection === 'elements' ? repeatItem.category : undefined}
-                    parentCollection={repeatItem.collection}
-                    scopeFilter={scopeFilter}
-                    hint={hint}
-                    showKeys={showKeys}
-                    aux={{ ...pageAux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
-                    ancestors={[item]}
-                    previewLimit={previewLimit}
-                  />
-                ))}
-              </div>
-            );
-          }
-          return <ReportBlockView key={pi.id} block={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} />;
-        })}
+      <div className="report-page-content" style={{ flex: 1 }}>
+        {items.map((pi, i) => (
+          <PageItemBody key={`pi-${i}`} pi={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+        ))}
       </div>
       {showFooter && (
         <div className="report-page-footer">
           {footer!.map(b => (
-            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} />
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---- chunked page rendering (measured pagination) -----------------------------
+
+const FragmentBody: React.FC<{
+  repeatItem: ReportBlock;
+  item: ReportCollectionItem;
+  itemIndex?: number;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  scopeFilter?: ReportScopeFilter;
+  hint?: boolean;
+  showKeys?: boolean;
+  aux: FieldAux;
+  previewLimit?: boolean;
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
+  /** Measured-pagination split: only these children render (default: all). */
+  parts?: FragmentPartUnit[];
+}> = ({ repeatItem, item, itemIndex, ctx, fieldMap, scopeFilter, hint, showKeys, aux, previewLimit, ribbonOverrides, parts }) => {
+  const children = (repeatItem.children || []).filter(cb => cb.type !== 'pageBreak');
+  return (
+    <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+      {children.map((cb, ci) => {
+        const part = parts ? parts.find(p => p.childIndex === ci) : undefined;
+        if (parts && !part) return null;
+        return (
+          <div key={cb.id} className="rm-frag-child">
+            <ReportBlockView
+              block={cb}
+              ctx={ctx}
+              fieldMap={fieldMap}
+              item={item}
+              parentCategory={repeatItem.collection === 'elements' ? repeatItem.category : undefined}
+              parentCollection={repeatItem.collection}
+              scopeFilter={scopeFilter}
+              hint={hint}
+              showKeys={showKeys}
+              aux={{ ...aux, index: itemIndex ?? 0, counterStart: repeatItem.counterStart }}
+              ancestors={[item]}
+              previewLimit={previewLimit}
+              ribbonOverrides={ribbonOverrides}
+              unitRange={part?.ribbonRange}
+              rowRange={part?.tableRowRange}
+              repeatTableHeader={part?.repeatTableHeader}
+              itemRange={part?.itemRange}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/** Renders one measured page chunk: header zone, body chunks, footer zone.
+ *  Mirrors ReportPageItems so the chunked flow looks identical to the
+ *  structural flow. */
+export const ReportChunkPage: React.FC<{
+  chunk: PageChunk;
+  ctx: ReportCtx;
+  fieldMap: Record<string, ReportFieldDef>;
+  scopeFilter?: ReportScopeFilter;
+  hint?: boolean;
+  showKeys?: boolean;
+  pageIndex?: number;
+  pageCount?: number;
+  headerBlocks?: ReportBlock[];
+  footerBlocks?: ReportBlock[];
+  previewLimit?: boolean;
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
+}> = ({ chunk, ctx, fieldMap, scopeFilter, hint, showKeys, pageIndex = 0, pageCount = 1, headerBlocks, footerBlocks, previewLimit, ribbonOverrides }) => {
+  const pageAux: FieldAux = { pageIndex, pageCount };
+  return (
+    <div className="report-page-body" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {chunk.header && headerBlocks && headerBlocks.length > 0 && (
+        <div className="report-page-header">
+          {headerBlocks.map(b => (
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+          ))}
+        </div>
+      )}
+      <div className="report-page-content" style={{ flex: 1 }}>
+        {chunk.body.map((ci, i) => {
+          switch (ci.kind) {
+            case 'block':
+              return <ReportBlockView key={ci.block.id} block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />;
+            case 'repeatItem':
+              return <div key={`ri-${ci.repeatItem.id}-${i}`}><FragmentBody repeatItem={ci.repeatItem} item={ci.item} itemIndex={ci.itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} /></div>;
+            case 'repeatItemPart':
+              return <div key={`ri-${ci.repeatItem.id}-${i}`}><FragmentBody repeatItem={ci.repeatItem} item={ci.item} itemIndex={ci.itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} parts={ci.parts} /></div>;
+            case 'repeat':
+              return <ReportBlockView key={ci.block.id} block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} itemRange={[ci.itemStart, ci.itemEnd]} />;
+            case 'table':
+              return <ReportBlockView key={ci.block.id} block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} rowRange={[ci.rowStart, ci.rowEnd]} repeatTableHeader={ci.repeatHeader} />;
+            case 'ribbon':
+              return <ReportBlockView key={ci.block.id} block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} unitRange={[ci.unitStart, ci.unitEnd]} />;
+            default:
+              return null;
+          }
+        })}
+      </div>
+      {chunk.footer && footerBlocks && footerBlocks.length > 0 && (
+        <div className="report-page-footer">
+          {footerBlocks.map(b => (
+            <ReportBlockView key={b.id} block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
           ))}
         </div>
       )}
@@ -402,7 +522,7 @@ export const ReportPageItems: React.FC<{
 
 // ---- repeat (vertical stack of children) ------------------------------------
 
-const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, showUnresolved, aux, ancestors }) => {
+const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, scopeFilter, hint, showKeys, showUnresolved, aux, ancestors, ribbonOverrides, itemRange }) => {
   const items = resolveCollectionItems(ctx, block.collection, block.category, item, parentCategory, block, ancestors) as ReportCollectionItem[];
   const filtered = filterItemsByScope(items, block.collection, block.collection === 'elements' ? block.category : undefined, scopeFilter);
   if (filtered.length === 0) {
@@ -436,31 +556,37 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
       aux={aux}
       ancestors={[item, ...(ancestors || [])]}
       onceTable
+      ribbonOverrides={ribbonOverrides}
     />
   ));
 
   if (!hasContent) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap }}>
+      <div className="rm-repeat-col" style={{ display: 'flex', flexDirection: 'column', gap }}>
         {renderOnceTables()}
       </div>
     );
   }
 
+  const total = filtered.length;
+  const shown = itemRange ? filtered.slice(itemRange[0], itemRange[1]) : filtered;
+  const renderOnce = itemRange ? itemRange[1] === total : true;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap }}>
-      {filtered.map((it, i) => {
+    <div className="rm-repeat-col" style={{ display: 'flex', flexDirection: 'column', gap }}>
+      {shown.map((it, localI) => {
+        const i = itemRange ? itemRange[0] + localI : localI;
         const itemChildren = i === filtered.length - 1 ? dropTrailingBreaks(perItemChildren) : perItemChildren;
         return (
-          <div key={i} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <div key={i} className="rm-item" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             {itemChildren.map(cb => (
-              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} ancestors={[it, ...(ancestors || [])]} />
+              <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} ancestors={[it, ...(ancestors || [])]} ribbonOverrides={ribbonOverrides} />
             ))}
           </div>
         );
       })}
-      {onceTables.length > 0 && (
-        <div>{renderOnceTables()}</div>
+      {renderOnce && onceTables.length > 0 && (
+        <div className="rm-once">{renderOnceTables()}</div>
       )}
     </div>
   );
@@ -474,7 +600,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, rowRange, repeatTableHeader }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -491,8 +617,8 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
 
   const renderTable = (items: ReportCollectionItem[], skeleton = false) =>
     (block.axis ?? 'columns') === 'rows'
-      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} />
-      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} />;
+      ? <TableRowsMatrix block={block} ctx={ctx} fieldMap={fieldMap} items={items} itemCollection={itemCollection} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} rowOffset={rowRange?.[0]} skeleton={skeleton} />
+      : <TableColumnsGrid block={block} ctx={ctx} fieldMap={fieldMap} items={items} attributes={attributes} baseStyle={baseStyle} cellPad={cellPad} border={border} showKeys={showKeys} aux={aux} perItemIndex={undefined} skeleton={skeleton} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
 
   // Designer canvas: an empty collection still shows the table skeleton
   // (header + field-key row) so the layout is visible without data.
@@ -524,8 +650,11 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
   }
 
   // Preview surfaces cap the table at the first TABLE_PREVIEW_LIMIT rows and
-  // show a "+N more" row; print always renders everything.
-  if (previewLimit && shown.length > TABLE_PREVIEW_LIMIT) {
+  // show a "+N more" row; print always renders everything. A rowRange chunk
+  // shows the bar only on its last fragment (the fragment containing the
+  // final row).
+  const isLastFragment = !rowRange || rowRange[1] === shown.length;
+  if (previewLimit && isLastFragment && shown.length > TABLE_PREVIEW_LIMIT) {
     const more = shown.length - TABLE_PREVIEW_LIMIT;
     return (
       <>
@@ -539,7 +668,7 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     );
   }
 
-  return renderTable(shown);
+  return renderTable(rowRange ? shown.slice(rowRange[0], rowRange[1]) : shown);
 };
 
 const TableColumnsGrid: React.FC<{
@@ -559,7 +688,9 @@ const TableColumnsGrid: React.FC<{
   onColumnContextMenu?: (e: React.MouseEvent, colIndex: number) => void;
   onMoveColumn?: (from: number, to: number) => void;
   selectedColumn?: number | null;
-}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn }) => {
+  rowRange?: [number, number];
+  repeatTableHeader?: boolean;
+}> = ({ block, ctx, fieldMap, items, attributes, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, rowRange, repeatTableHeader }) => {
   const headerStyle = { ...baseStyle, ...cellPad, fontWeight: 700, background: '#f4f4f5' } as React.CSSProperties;
   const keyCell = (field: string) => (
     <span style={{ color: '#8f8f8f', fontStyle: 'italic' }}>{`{{${field}}}`}</span>
@@ -634,8 +765,8 @@ const TableColumnsGrid: React.FC<{
 
   return (
     <div className="report-table-cols" style={{ borderTop: border, borderLeft: border }}>
-      {block.showHeader && (
-        <div style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+      {block.showHeader && (rowRange ? rowRange[0] === 0 || repeatTableHeader : true) && (
+        <div className="rm-header" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
             <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...headerStyle, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {fieldMap[c.field]?.label || c.field || ''}
@@ -645,7 +776,7 @@ const TableColumnsGrid: React.FC<{
         </div>
       )}
       {skeleton ? (
-        <div style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
             <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {keyCell(c.field)}
@@ -653,7 +784,7 @@ const TableColumnsGrid: React.FC<{
           ))}
         </div>
       ) : items.map((it, i) => (
-        <div key={i} style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div key={i} className="rm-row" style={{ display: 'flex', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {attributes.map((c, ci) => (
             <div key={c.id} data-col-ci={c.id} data-table-col-ci={ci} {...cellHandlers(ci)} style={{ ...baseStyle, ...cellPad, ...(c.bold ? { fontWeight: 700 } : {}), ...(c.italic ? { fontStyle: 'italic' } : {}), width: `${c.width}%`, textAlign: c.align || 'left', borderRight: border, borderBottom: border, cursor: editable ? 'pointer' : undefined, ...colOutline(ci) }}>
               {showKeys
@@ -679,8 +810,9 @@ const TableRowsMatrix: React.FC<{
   showKeys?: boolean;
   aux?: FieldAux;
   perItemIndex?: number;
+  rowOffset?: number;
   skeleton?: boolean;
-}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex, skeleton }) => {
+}> = ({ block, ctx, fieldMap, items, itemCollection, baseStyle, cellPad, border, showKeys, aux, perItemIndex, rowOffset = 0, skeleton }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [chunk, setChunk] = useState(() => Math.max(1, Math.floor((800 - TABLE_LABEL_W) / TABLE_ITEM_W)));
   useEffect(() => {
@@ -733,12 +865,12 @@ const TableRowsMatrix: React.FC<{
   return (
     <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {groups.map((g, gi) => (
-        <div key={gi} className="report-table-cols" style={{ borderTop: border, borderLeft: border, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div key={gi} className="report-table-cols rm-row" style={{ borderTop: border, borderLeft: border, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           {g.length > 1 && (
             <div style={{ display: 'flex' }}>
               <div style={{ ...labelStyle, width: TABLE_LABEL_W, borderRight: border, borderBottom: border }}>&nbsp;</div>
               {g.map((it, ii) => {
-                const gIndex = perItemIndex ?? gi * chunk + ii;
+                const gIndex = perItemIndex ?? rowOffset + gi * chunk + ii;
                 return (
                   <div key={ii} style={{ ...labelStyle, flex: '1 1 0%', minWidth: 0, textAlign: 'center', borderRight: border, borderBottom: border }}>
                     {showKeys
@@ -755,7 +887,7 @@ const TableRowsMatrix: React.FC<{
                 {fieldMap[a.field]?.label || a.field || ''}
               </div>
               {g.map((it, ii) => {
-                const gIndex = perItemIndex ?? gi * chunk + ii;
+                const gIndex = perItemIndex ?? rowOffset + gi * chunk + ii;
                 return (
                   <div key={ii} style={{ ...baseStyle, ...cellPad, ...(a.bold ? { fontWeight: 700 } : {}), ...(a.italic ? { fontStyle: 'italic' } : {}), flex: '1 1 0%', minWidth: 0, textAlign: a.align || 'left', borderRight: border, borderBottom: border }}>
                     {showKeys

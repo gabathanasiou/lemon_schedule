@@ -34,7 +34,7 @@ import ElementBreakdown from './components/print/ElementBreakdown';
 import ReportsTab from './components/ReportsTab';
 import ReportPrint from './components/reports/ReportPrint';
 import ReportPrintDialog from './components/reports/ReportPrintDialog';
-import { ReportScopeFilter } from './lib/reportData';
+import { ReportScopeFilter, ReportPrintOptions } from './lib/reportData';
 import DropdownMenu from './components/DropdownMenu';
 import { ItemManagerDropdown } from './components/DropdownMenu';
 import DropdownItem from './components/DropdownItem';
@@ -368,7 +368,11 @@ function AppContent() {
   const [doodOptions, setDoodOptions] = useState<DoodOptions | null>(null);
   const [breakdownSheetOptions, setBreakdownSheetOptions] = useState<BreakdownSheetOptions | null>(null);
   const [elementBreakdownOptions, setElementBreakdownOptions] = useState<ElementBreakdownOptions | null>(null);
-  const [reportPrint, setReportPrint] = useState<{ design: ReportDesign; daybreak: ReportDaybreakData; scopeFilter?: ReportScopeFilter } | null>(null);
+  const [reportPrint, setReportPrint] = useState<{ design: ReportDesign; daybreak: ReportDaybreakData; scopeFilter?: ReportScopeFilter; printOptions?: ReportPrintOptions } | null>(null);
+  // ReportPrint measures content and paginates in a layout effect; it signals
+  // readiness so window.print() never fires against un-paginated content
+  // (slow iPads/iPhone).
+  const [reportPrintReady, setReportPrintReady] = useState(false);
   const [customReportPrint, setCustomReportPrint] = useState<ReportDesign | null>(null);
   const [showTrash, setShowTrash] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState<{ entries: ProjectIndexEntry[]; projects: { id: string; data: string }[] } | null>(null);
@@ -481,7 +485,7 @@ function AppContent() {
   }, [printOptions, project.title, version?.name]);
 
   useEffect(() => {
-    if (!reportPrint) return;
+    if (!reportPrint || !reportPrintReady) return;
     const title = (project.title || 'Report').replace(/[<>:"/\\|?*]/g, '');
     const fileName = `${title}_${(reportPrint.design.name || 'Report').replace(/[^a-z0-9-_ ]/gi, '')}`;
     const oldTitle = document.title;
@@ -491,9 +495,9 @@ function AppContent() {
       setReportPrint(null);
     };
     window.addEventListener('afterprint', onAfterPrint);
-    setTimeout(() => window.print(), 200);
+    setTimeout(() => window.print(), 50);
     return () => window.removeEventListener('afterprint', onAfterPrint);
-  }, [reportPrint, project.title]);
+  }, [reportPrint, reportPrintReady, project.title]);
 
   useEffect(() => {
     if (!doodOptions) return;
@@ -585,7 +589,7 @@ function AppContent() {
   if (reportPrint && version) {
     return (
       <div>
-        <ReportPrint project={project} version={version} design={reportPrint.design} daybreak={reportPrint.daybreak} scopeFilter={reportPrint.scopeFilter} />
+        <ReportPrint project={project} version={version} design={reportPrint.design} daybreak={reportPrint.daybreak} scopeFilter={reportPrint.scopeFilter} printOptions={reportPrint.printOptions} onReady={() => setReportPrintReady(true)} />
       </div>
     );
   }
@@ -617,13 +621,14 @@ function AppContent() {
   // print state is set (window.print() fires 200ms later) so {{weather}} /
   // {{sunrise}} / {{sunset}} never print empty. Best-effort — a network miss
   // just leaves the fields as "—".
-  const handleReportPrint = async (design: ReportDesign, scopeFilter?: ReportScopeFilter) => {
+  const handleReportPrint = async (design: ReportDesign, scopeFilter?: ReportScopeFilter, printOptions?: ReportPrintOptions) => {
     if (version) {
       try {
         await prepareSunWeatherForDesign(project, version, { sections, computedRows });
       } catch { /* best-effort */ }
     }
-    setReportPrint({ design, daybreak: { sections, computedRows }, scopeFilter });
+    setReportPrintReady(false);
+    setReportPrint({ design, daybreak: { sections, computedRows }, scopeFilter, printOptions });
   };
   
   const handleExportCSV = () => {

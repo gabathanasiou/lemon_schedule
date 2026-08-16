@@ -9,7 +9,7 @@ import { ReportDesign, ReportBlock } from '../../types';
 import {
   findBlock, insertAfter, insertBefore, insertInto, removeBlock, duplicateBlock,
   moveBlock, moveBlockTo, duplicateBlockTo, updateBlock, parentCollectionOf, parentCategoryOf, insertScopeFor,
-  makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock,
+  makeReportBlock, wrapWithColumns, appendToColumn, moveIntoColumn, moveIntoChildren, cloneBlock, listOwnerOf,
   insertColumnAt, removeColumnAt, moveColumnAt, moveIntoNewColumn, duplicateIntoNewColumn, insideColumnsBlock,
   moveTableColumn, insertTableColumnAt, removeTableColumnAt,
 } from '../../lib/reportBlocks';
@@ -207,9 +207,38 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
     commitZone(selId, list => insertInto(list, selId, b));
   };
 
+  // New-column ops (gutter drops AND edge drops inside a column): a brand-new
+  // column of the existing columns block receives the dropped block.
+  const insertNewColumn = (columnsId: string, colIndex: number, payload: PaletteDropPayload) => {
+    const zone = zoneOf(columnsId);
+    const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), columnsId));
+    commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, b), zone);
+    setSelId(b.id);
+  };
+  const moveToNewColumn = (moveId: string, columnsId: string, colIndex: number) => {
+    const zone = zoneOf(columnsId);
+    const srcZone = zoneOf(moveId);
+    if (srcZone !== zone) {
+      batch(() => {
+        const fm = findBlock(listOfZone(srcZone), moveId);
+        if (!fm) return;
+        commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
+        commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, fm.block), zone);
+      });
+    } else {
+      commit(moveIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
+    }
+    setSelId(moveId);
+  };
+  const duplicateToNewColumn = (moveId: string, columnsId: string, colIndex: number) => {
+    const zone = zoneOf(columnsId);
+    commit(duplicateIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
+    setSelId(moveId);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setMenu(null); setPreview(false); setSelCol(null); return; }
+      if (e.key === 'Escape') { setMenu(null); setPreview(false); setSelId(null); setSelCol(null); return; }
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
       const col = selColRef.current;
@@ -503,6 +532,21 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
               onWrap={(targetId, payload, side) => {
                 const zone = zoneOf(targetId);
                 const list = listOfZone(zone);
+                const owner = listOwnerOf(list, targetId);
+                if (owner?.colIndex !== undefined) {
+                  // Target lives inside a column → add a NEW column to that
+                  // columns block (left edge = before its column, right edge =
+                  // after), reusing the gutter's new-column ops — no nested
+                  // columns block.
+                  const colIndex = side === 'left' ? owner.colIndex : owner.colIndex + 1;
+                  if (payload.moveId) {
+                    if (payload.duplicate) duplicateToNewColumn(payload.moveId, owner.blockId, colIndex);
+                    else moveToNewColumn(payload.moveId, owner.blockId, colIndex);
+                  } else {
+                    insertNewColumn(owner.blockId, colIndex, payload);
+                  }
+                  return;
+                }
                 const dropped = payload.moveId
                   ? findBlock(listOfZone(zoneOf(payload.moveId)), payload.moveId)?.block ?? null
                   : payloadToBlock(payload, insertScopeFor(list, targetId));
@@ -540,32 +584,9 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
                 if (!fm) return;
                 commit(appendToColumn(listOfZone(zone), columnsId, colIndex, cloneBlock(fm.block)), zone);
               }}
-              onInsertNewColumn={(columnsId, colIndex, payload) => {
-                const zone = zoneOf(columnsId);
-                const b = payloadToBlock(payload, insertScopeFor(listOfZone(zone), columnsId));
-                commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, b), zone);
-                setSelId(b.id);
-              }}
-              onMoveToNewColumn={(moveId, columnsId, colIndex) => {
-                const zone = zoneOf(columnsId);
-                const srcZone = zoneOf(moveId);
-                if (srcZone !== zone) {
-                  batch(() => {
-                    const fm = findBlock(listOfZone(srcZone), moveId);
-                    if (!fm) return;
-                    commit(removeBlock(listOfZone(srcZone), moveId), srcZone);
-                    commit(insertColumnAt(listOfZone(zone), columnsId, colIndex, fm.block), zone);
-                  });
-                } else {
-                  commit(moveIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
-                }
-                setSelId(moveId);
-              }}
-              onDuplicateToNewColumn={(moveId, columnsId, colIndex) => {
-                const zone = zoneOf(columnsId);
-                commit(duplicateIntoNewColumn(listOfZone(zone), moveId, columnsId, colIndex), zone);
-                setSelId(moveId);
-              }}
+              onInsertNewColumn={insertNewColumn}
+              onMoveToNewColumn={moveToNewColumn}
+              onDuplicateToNewColumn={duplicateToNewColumn}
               onRemoveColumn={(columnsId, colIndex) => {
                 const zone = zoneOf(columnsId);
                 commit(removeColumnAt(listOfZone(zone), columnsId, colIndex), zone);

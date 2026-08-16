@@ -189,10 +189,11 @@ test('header/footer zones: footer repeats in preview, skip first page hides it',
   await expect(footerZone).toBeVisible({ timeout: 5000 });
   await expect(footerZone.locator('[data-block-id]').first()).toContainText('Page 1 of', { timeout: 3000 });
 
-  // preview shows the footer on page 1
+  // preview shows the footer on page 1 (the preview paginates the report —
+  // one card per measured page, footer repeats on every card)
   await page.getByRole('button', { name: 'Preview' }).click();
   await page.waitForTimeout(600);
-  await expect(page.getByText('Page 1 of 1', { exact: true }).first()).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText(/Page 1 of \d+/, { exact: true }).first()).toBeVisible({ timeout: 3000 });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.waitForTimeout(300);
 
@@ -201,7 +202,7 @@ test('header/footer zones: footer repeats in preview, skip first page hides it',
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Preview' }).click();
   await page.waitForTimeout(600);
-  await expect(page.getByText('Page 1 of 1', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Page 1 of \d+/, { exact: true })).toHaveCount(0);
 });
 
 test('clicking an empty zone inserts a text block into it', async ({ page }) => {
