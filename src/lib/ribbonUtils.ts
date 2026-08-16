@@ -153,7 +153,7 @@ export function ribbonCellDisplayValue(
   scene: Record<string, any> | null,
   opts?: RibbonSampleOptions,
 ): RibbonDisplayValue {
-  if (!cell.field) {
+  if (!cell.field || cell.field === 'text') {
     const t = cell.textContent || '';
     return { text: t, isValue: !!t };
   }

@@ -312,7 +312,7 @@ const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNul
             // 1:1 with the print pipeline: a zero/absent row duration shows
             // nothing (no ↑ marker — that's a scene-strip affordance).
             const v = row.estimatedDuration ? formatDuration(row.estimatedDuration) : '';
-            const text = formatCellText(cell.prefix, v, cell.suffix);
+            const text = v ? formatCellText(cell.prefix, v, cell.suffix) : '';
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center' }}>
                 <RibbonCellText cell={cell}>{text}</RibbonCellText>
@@ -359,7 +359,7 @@ const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNu
           if (cell.field === 'duration') {
             // 1:1 with the print pipeline: zero/absent break duration → nothing.
             const v = row.breakDuration ? formatDuration(row.breakDuration) : '';
-            const text = formatCellText(cell.prefix, v, cell.suffix);
+            const text = v ? formatCellText(cell.prefix, v, cell.suffix) : '';
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center', gap: 1, justifyContent: 'center' }}>
                 <RibbonCellText cell={cell}>{text}</RibbonCellText>
