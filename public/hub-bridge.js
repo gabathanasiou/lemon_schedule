@@ -37,6 +37,7 @@
       var s = String(v);
       if (k.indexOf(PREFIX) === 0) {
         cache.set(k, s);
+        try { real.setItem(k, s); } catch (err) {}   // own-origin copy (workers are read-only in the shared store)
         try { target.postMessage({ hubBridge: 'set', key: k, value: s }, '*'); } catch (err) {}
       } else {
         try { real.setItem(k, s); } catch (err) {}
@@ -45,6 +46,7 @@
     removeItem: function (k) {
       if (k.indexOf(PREFIX) === 0) {
         cache.delete(k);
+        try { real.removeItem(k); } catch (err) {}
         try { target.postMessage({ hubBridge: 'remove', key: k }, '*'); } catch (err) {}
       } else {
         try { real.removeItem(k); } catch (err) {}
@@ -52,6 +54,11 @@
     },
     clear: function () {
       cache.clear();
+      try {
+        var doomed = [];
+        for (var i = 0; i < real.length; i++) { var k = real.key(i); if (k && k.indexOf(PREFIX) === 0) doomed.push(k); }
+        for (var j = 0; j < doomed.length; j++) real.removeItem(doomed[j]);
+      } catch (err) {}
       try { target.postMessage({ hubBridge: 'clear' }, '*'); } catch (err) {}
     },
     key: function (i) { return Array.from(cache.keys())[i] ?? null; },

@@ -35,7 +35,8 @@ const titleFor = (item) => {
     const m = txt.match(re);
     if (!m) return item;
     const line = txt.slice(m.index).split('\n')[0].replace(/^## /, '');
-    return `${item} — ${line.replace(/^\d+\.\s*/, '')}`;
+    const clean = line.replace(/^\d+\.\s*/, '').replace(/\s*\(`\[[ x]\]`\)\s*$/, '');
+    return `${item} — ${clean}`;
   } catch {
     return item;
   }
@@ -100,6 +101,16 @@ const logTail = (item) => {
   }
 };
 
+// What the agent is doing right now — last line of the worker session log.
+const agentDoing = (item) => {
+  try {
+    const s = fs.readFileSync(path.join(LOGS, `worker-${item}.log`), 'utf8').replace(/\x1b\[[0-9;]*m/g, '');
+    return s.split('\n').filter(Boolean).slice(-2).join(' ').slice(-150);
+  } catch {
+    return '';
+  }
+};
+
 const status = () => ({
   hubPort: HUB_PORT,
   main: {
@@ -111,12 +122,13 @@ const status = () => ({
     label: titleFor(item),
     port,
     running: running.has(item) ? (running.get(item).external ? 'external' : 'yes') : portBusy(port) ? 'external' : 'no',
+    doing: agentDoing(item),
     log: logTail(item),
   })),
 });
 
 // ---------- UI templates ----------
-const TABS_HTML = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'hub-tabs.html'), 'utf8');
+const TABS_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'hub-tabs.html');
 
 const MANAGER_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Worker hub</title>
 <style>
@@ -178,7 +190,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && p === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(MANAGER_HTML);
   } else if (req.method === 'GET' && p === '/hub.html') {
-    let html = TABS_HTML;
+    let html = fs.readFileSync(TABS_PATH, 'utf8'); // read per request — hub file edits need no restart
     const tabs = [], panels = [];
     items().forEach(({ item, port }, i) => {
       const label = titleFor(item);
