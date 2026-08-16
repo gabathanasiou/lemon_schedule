@@ -50,11 +50,22 @@ Related bugs to fix while here:
 - The **print button in the Reports page currently skips the print report
   modal** — it must open the modal first (same as the designer flow).
 
-## 5. Custom report print modal polish (`[ ]`)
+## 5. Custom report print modal polish (`[x]`)
 
 - Improve the **custom report print modal to closely match the style of the
   print schedule modal** (`PrintDialog` — grouped checklists, days selector,
   etc.). Right now it's subpar.
+- Done: modal matches the PrintDialog chrome (max-w-3xl, Printer icon, Reset,
+  "Print / Save PDF", per-project persistence). Repeats/tables show pre-checked
+  item checklists (no All/Selected toggle — unchecking limits that block).
+  Every ribbon block in the design (top-level OR nested in a repeat/columns/
+  header/footer) gets its own panel: Ribbon Layout picker, Cell Borders
+  (None/Vertical/Horizontal/Both), Call times / Durations / Note rows / Break
+  rows / Day breaks toggles, a live dummy preview (real design, daybreak half +
+  2 strips + note/break rows so every toggle is visible) — all inherited from
+  the block's own options, print-only (design untouched). Page Size override
+  (From design / Portrait / Landscape, persisted). Overrides flow through the
+  paginator as `ribbonOverrides` (per block id) + `page`.
 
 ## 6. Repeater type for Locations / Location Types (`[ ]`)
 

@@ -1,16 +1,24 @@
-import React, { useMemo, useState } from 'react';
-import { ReportBlock, ReportCollection, ReportDesign } from '../../types';
-import { ReportScope, reportItemKey, resolveCollectionItems } from '../../lib/reportData';
+import React, { useEffect, useMemo, useState } from 'react';
+import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
+import { Printer, ChevronDown, Check } from 'lucide-react';
+import { ReportBlock, ReportCollection, ReportDesign, RibbonDesign } from '../../types';
+import { ReportScope, reportItemKey, resolveCollectionItems, RibbonPrintOptions, ReportPrintOptions } from '../../lib/reportData';
 import { useReportCtx } from '../../lib/useReportCtx';
 import { COLLECTION_LABELS } from '../../lib/reportBlocks';
 import { formatDateShort } from '../../lib/utils';
+import { useCellBorders, CellBorders } from '../../lib/persist';
 import Modal, { ModalFooter } from '../Modal';
 import Checklist from '../Checklist';
+import { RibbonDummyPreview } from './ReportRibbonView';
 
 // Print-options dialog for custom reports (File → Print → Custom Reports).
-// For every top-level repeat/table it lets you include ALL of its items or a
-// SELECTED subset — days, scenes, elements, categories, crew — whatever the
-// block iterates. Scopes are explicit include lists: an omitted scope = all.
+// Every top-level repeat/table shows a checklist of its items — all items are
+// pre-checked, unchecking any limits that block to the remaining selection
+// (scopes are explicit include lists; an omitted item = excluded).
+// Every ribbon block in the design (top-level or nested inside a repeat) gets
+// its own option panel (design, cell borders, visibility toggles) plus a live
+// sample preview; a page-size override applies to the whole run. All settings
+// persist per project.
 
 const TOP_LEVEL_COLLECTIONS: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew'];
 
@@ -32,14 +40,35 @@ function itemLabel(collection: ReportCollection, it: any): string {
   }
 }
 
+/** Every ribbon block in the design — top-level AND nested (repeat/columns/
+ *  callSheetEdit children, header/footer). Print options apply per block id. */
+function collectRibbonBlocks(list: ReportBlock[] | undefined, out: ReportBlock[] = []): ReportBlock[] {
+  if (!list) return out;
+  for (const b of list) {
+    if (b.type === 'ribbon') out.push(b);
+    if ((b.type === 'repeat' || b.type === 'callSheetEdit')) collectRibbonBlocks(b.children, out);
+    if (b.type === 'columns') for (const c of b.cols || []) collectRibbonBlocks(c.blocks, out);
+  }
+  return out;
+}
+
 interface ReportPrintDialogProps {
   design: ReportDesign;
-  onPrint: (scopes: ReportScope[]) => void;
+  onPrint: (scopes: ReportScope[], printOptions: ReportPrintOptions) => void;
   onClose: () => void;
 }
 
 const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, onClose }) => {
   const ctx = useReportCtx();
+  const [currentCellBorders] = useCellBorders();
+
+  const project = ctx?.project;
+  const ribbonBlocks = useMemo(() => collectRibbonBlocks([
+    ...(design.blocks || []),
+    ...(design.header || []),
+    ...(design.footer || []),
+  ]), [design]);
+
   const resolved = useMemo(() => (design.blocks || [])
     .filter(b => scopeFor(b))
     .map(b => {
@@ -48,19 +77,13 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
       return { block: b, scope: sc, items, keys: items.map((it, i) => sc.collection === 'crew' ? i : reportItemKey(sc.collection, it)) };
     }), [design.blocks, ctx]);
 
-  // per-block explicit include lists (Selected mode only)
-  const [include, setInclude] = useState<Record<string, (string | number)[]>>({});
-  const [mode, setMode] = useState<Record<string, 'all' | 'selected'>>({});
-
-  const setModeFor = (id: string, m: 'all' | 'selected') => {
-    setMode(prev => ({ ...prev, [id]: m }));
-    if (m === 'selected' && include[id] === undefined) {
-      const r = resolved.find(x => x.block.id === id);
-      if (r) setInclude(prev => ({ ...prev, [id]: [...r.keys] }));
-    } else if (m === 'all') {
-      setInclude(prev => ({ ...prev, [id]: [] }));
-    }
-  };
+  // per-block explicit include lists — pre-checked with ALL items; unchecking
+  // any item limits that repeat/table to the remaining selection
+  const [include, setInclude] = useState<Record<string, (string | number)[]>>(() => {
+    const base: Record<string, (string | number)[]> = {};
+    for (const r of resolved) base[r.block.id] = [...r.keys];
+    return base;
+  });
 
   const toggleItem = (id: string, key: string | number) => {
     setInclude(prev => {
@@ -70,61 +93,240 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
     });
   };
 
-  const doPrint = () => {
-    onPrint(resolved
-      .filter(r => (mode[r.block.id] ?? 'all') === 'selected')
-      .map(r => ({ collection: r.scope.collection, category: r.scope.category, include: include[r.block.id] ?? [] })));
+  // ---- ribbon options (per block) + page size --------------------------------
+  // Ribbon options always START from the block's own properties — the dialog
+  // never remembers previous ribbon settings. Only the page-size override is
+  // persisted per project.
+
+  const defaultsFor = (b: ReportBlock): RibbonPrintOptions => ({
+    ribbonId: b.ribbonId || project?.activeRibbonId,
+    cellBorders: currentCellBorders,
+    showCallTimes: b.ribbonCallTimes === true,
+    showDurations: b.ribbonDurations === true,
+    showNotes: b.ribbonNotes !== false,
+    showBreaks: b.ribbonBreaks === true,
+    showDayBreaks: b.ribbonDayBreaks === true || b.ribbonHeaders === true,
+  });
+
+  const [ribbonOverrides, setRibbonOverrides] = useState<Record<string, RibbonPrintOptions>>(() => {
+    const base: Record<string, RibbonPrintOptions> = {};
+    for (const b of ribbonBlocks) base[b.id] = defaultsFor(b);
+    return base;
+  });
+
+  const pageKey = project ? `lemon_schedule_report_print_page_${project.id}` : '';
+  const [page, setPage] = useState<'inherit' | 'portrait' | 'landscape'>(() => {
+    if (!pageKey) return 'inherit';
+    try {
+      const stored = localStorage.getItem(pageKey);
+      if (stored === 'portrait' || stored === 'landscape') return stored;
+    } catch { /* ignore */ }
+    return 'inherit';
+  });
+
+  useEffect(() => {
+    if (!pageKey) return;
+    try {
+      localStorage.setItem(pageKey, page);
+    } catch { /* ignore */ }
+  }, [pageKey, page]);
+
+  const patchRibbon = (id: string, patch: Partial<RibbonPrintOptions>) => {
+    setRibbonOverrides(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   };
 
+  const ribbonChecklist = (b: ReportBlock, o: RibbonPrintOptions) => [
+    { id: 'showCallTimes', label: 'Call times (strips & day breaks)', on: o.showCallTimes === true },
+    { id: 'showDurations', label: 'Durations (strips & day totals)', on: o.showDurations === true },
+    { id: 'showNotes', label: 'Note rows', on: o.showNotes !== false },
+    { id: 'showBreaks', label: 'Break rows', on: o.showBreaks === true },
+    { id: 'showDayBreaks', label: 'Day breaks (START OF DAY / End of Day)', on: o.showDayBreaks === true },
+  ];
+
+  const resetSettings = () => {
+    setInclude(prev => {
+      const next = { ...prev };
+      for (const r of resolved) next[r.block.id] = [...r.keys];
+      return next;
+    });
+    setPage('inherit');
+    setRibbonOverrides(prev => {
+      const next = { ...prev };
+      for (const b of ribbonBlocks) next[b.id] = defaultsFor(b);
+      return next;
+    });
+    if (pageKey) { try { localStorage.removeItem(pageKey); } catch { /* ignore */ } }
+  };
+
+  const doPrint = () => {
+    onPrint(
+      resolved.map(r => ({ collection: r.scope.collection, category: r.scope.category, include: include[r.block.id] ?? [] })),
+      {
+        ribbonOverrides,
+        page: page === 'inherit' ? undefined : page,
+      },
+    );
+  };
+
+  const ribbonDesigns = project?.ribbonDesigns || [];
+
   return (
-    <Modal open onClose={onClose} title={`Print — ${design.name || 'Report'}`} width="w-[520px]">
-      <div className="p-6 space-y-5">
-        {resolved.length === 0 && (
+    <Modal open onClose={onClose} onReset={resetSettings} title={`Print — ${design.name || 'Report'}`} icon={<Printer className="w-4 h-4" />} width="max-w-3xl"
+      footer={
+        <ModalFooter>
+          <button onClick={onClose} className="px-6 py-2 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={doPrint}
+            className="px-6 py-2 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print / Save PDF
+          </button>
+        </ModalFooter>
+      }
+    >
+      <div className="px-6 py-4 space-y-4">
+        <div className="flex items-center border-b border-zinc-800 pb-1.5">
+          <div className="flex items-center gap-2 flex-1">
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Page Size</span>
+            <RadixDropdownMenu.Root>
+              <RadixDropdownMenu.Trigger asChild>
+                <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                  <span className="tabular-nums">{page === 'inherit' ? 'From design' : page === 'portrait' ? 'Portrait' : 'Landscape'}</span>
+                  <ChevronDown className="w-3 h-3 text-zinc-500" />
+                </button>
+              </RadixDropdownMenu.Trigger>
+              <RadixDropdownMenu.Portal>
+                <RadixDropdownMenu.Content
+                  className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
+                  align="start"
+                  sideOffset={4}
+                  collisionPadding={8}
+                >
+                  {(['inherit', 'portrait', 'landscape'] as const).map(m => (
+                    <RadixDropdownMenu.Item
+                      key={m}
+                      onSelect={() => setPage(m)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${page === m ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                    >
+                      <span className="flex-1">{m === 'inherit' ? 'From design' : m === 'portrait' ? 'Portrait' : 'Landscape'}</span>
+                      {page === m && <Check className="w-3 h-3 shrink-0" />}
+                    </RadixDropdownMenu.Item>
+                  ))}
+                </RadixDropdownMenu.Content>
+              </RadixDropdownMenu.Portal>
+            </RadixDropdownMenu.Root>
+          </div>
+        </div>
+
+        {resolved.length === 0 && ribbonBlocks.length === 0 && (
           <div className="text-sm text-zinc-400">This report has no repeated content — it prints as-is.</div>
         )}
+
         {resolved.map(({ block, scope, items, keys }) => {
-          const blockMode = mode[block.id] ?? 'all';
-          const selected = include[block.id];
-          const allChecked = selected !== undefined && selected.length === keys.length;
+          const selected = include[block.id] ?? [];
+          const allChecked = selected.length === keys.length;
           return (
-            <div key={block.id}>
-              <div className="flex items-center justify-between py-1">
-                <span className="text-xs text-zinc-300">
-                  {block.type === 'repeat' ? 'Repeat over' : 'Table over'} {COLLECTION_LABELS[scope.collection]}
-                </span>
-                <div className="flex border border-zinc-700 rounded p-0.5">
-                  {(['all', 'selected'] as const).map(m => (
+            <div key={block.id} className="space-y-2">
+              <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
+                {block.type === 'repeat' ? 'Repeat over' : 'Table over'} {COLLECTION_LABELS[scope.collection]}
+              </span>
+              <Checklist
+                items={items.map((it, i) => ({ id: String(keys[i]), label: itemLabel(scope.collection, it) || String(keys[i]) }))}
+                selected={selected.map(String)}
+                onToggle={key => toggleItem(block.id, key)}
+                onToggleAll={() => setInclude(prev => ({ ...prev, [block.id]: allChecked ? [] : [...keys] }))}
+                allSelected={allChecked}
+                toggleAllLabel={allChecked ? 'Deselect all' : `Select all (${items.length})`}
+                maxHeight={224}
+              />
+            </div>
+          );
+        })}
+
+        {ribbonBlocks.map(b => {
+          const o = ribbonOverrides[b.id] || defaultsFor(b);
+          const design = ribbonDesigns.find(d => d.id === o.ribbonId) || ribbonDesigns[0];
+          const checks = ribbonChecklist(b, o);
+          const leftChecks = checks.slice(0, 2);
+          const rightChecks = checks.slice(2);
+          return (
+            <div key={b.id} className="space-y-3">
+              <div className="flex items-center border-b border-zinc-800 pb-1.5">
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Ribbon Layout</span>
+                  <RadixDropdownMenu.Root>
+                    <RadixDropdownMenu.Trigger asChild>
+                      <button className="flex items-center justify-between px-2.5 py-1.5 bg-zinc-950 border border-zinc-700 rounded-md text-xs text-zinc-200 hover:bg-zinc-900 transition-colors gap-1.5">
+                        <span className="tabular-nums truncate max-w-[160px]">{design?.name || '—'}</span>
+                        <ChevronDown className="w-3 h-3 text-zinc-500" />
+                      </button>
+                    </RadixDropdownMenu.Trigger>
+                    <RadixDropdownMenu.Portal>
+                      <RadixDropdownMenu.Content
+                        className="bg-zinc-950/95 backdrop-blur-md border border-zinc-800 rounded-lg shadow-2xl z-[10001] p-1 min-w-[180px]"
+                        align="start"
+                        sideOffset={4}
+                        collisionPadding={8}
+                      >
+                        {ribbonDesigns.map(d => (
+                          <RadixDropdownMenu.Item
+                            key={d.id}
+                            onSelect={() => patchRibbon(b.id, { ribbonId: d.id })}
+                            className={`flex items-center gap-2 px-3 py-2 rounded text-xs transition-colors outline-none cursor-pointer ${o.ribbonId === d.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}`}
+                          >
+                            <span className="flex-1">{d.name}</span>
+                            {o.ribbonId === d.id && <Check className="w-3 h-3 shrink-0" />}
+                          </RadixDropdownMenu.Item>
+                        ))}
+                      </RadixDropdownMenu.Content>
+                    </RadixDropdownMenu.Portal>
+                  </RadixDropdownMenu.Root>
+                </div>
+              </div>
+
+              <div className="mb-3 border border-zinc-700 rounded overflow-hidden">
+                {ctx && (
+                  <RibbonDummyPreview ctx={ctx} overrides={o} />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Cell Borders</h3>
+                <div className="flex gap-1.5">
+                  {(['none', 'vertical', 'horizontal', 'both'] as CellBorders[]).map(m => (
                     <button
                       key={m}
-                      onClick={() => setModeFor(block.id, m)}
-                      className={`px-2 py-0.5 rounded text-xs transition-colors ${blockMode === m ? 'bg-white text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}
+                      onClick={() => patchRibbon(b.id, { cellBorders: m })}
+                      className={`flex-1 px-3 py-1.5 rounded text-xs font-medium transition-colors ${(o.cellBorders ?? 'none') === m ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'}`}
                     >
-                      {m === 'all' ? 'All items' : 'Selected…'}
+                      {m === 'none' ? 'None' : m === 'vertical' ? 'Vertical' : m === 'horizontal' ? 'Horizontal' : 'Both'}
                     </button>
                   ))}
                 </div>
               </div>
-              {blockMode === 'selected' && (
-                <div className="mt-2">
+
+              <div className="space-y-2">
+                <h3 className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-800 pb-1.5">Ribbon</h3>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2">
                   <Checklist
-                    items={items.map((it, i) => ({ id: String(keys[i]), label: itemLabel(scope.collection, it) || String(keys[i]) }))}
-                    selected={selected !== undefined ? selected.map(String) : []}
-                    onToggle={key => toggleItem(block.id, key)}
-                    onToggleAll={() => setInclude(prev => ({ ...prev, [block.id]: allChecked ? [] : [...keys] }))}
-                    allSelected={allChecked}
-                    toggleAllLabel={allChecked ? 'Deselect all' : `Select all (${items.length})`}
-                    maxHeight={224}
+                    items={leftChecks.map(c => ({ id: c.id, label: c.label }))}
+                    selected={leftChecks.filter(c => c.on).map(c => c.id)}
+                    onToggle={k => patchRibbon(b.id, { [k]: !leftChecks.find(c => c.id === k)!.on } as Partial<RibbonPrintOptions>)}
+                  />
+                  <Checklist
+                    items={rightChecks.map(c => ({ id: c.id, label: c.label }))}
+                    selected={rightChecks.filter(c => c.on).map(c => c.id)}
+                    onToggle={k => patchRibbon(b.id, { [k]: !rightChecks.find(c => c.id === k)!.on } as Partial<RibbonPrintOptions>)}
                   />
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
       </div>
-      <ModalFooter>
-        <button onClick={onClose} className="px-3 py-1.5 rounded text-xs text-zinc-400 hover:text-zinc-200">Cancel</button>
-        <button onClick={doPrint} className="px-3 py-1.5 rounded text-xs bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Print</button>
-      </ModalFooter>
     </Modal>
   );
 };

@@ -1,8 +1,9 @@
 import React from 'react';
-import { ReportBlock, RibbonRow, RibbonCell, RibbonDesign } from '../../types';
-import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportCollectionItem, ruleBearingAncestor, parentScenesOf } from '../../lib/reportData';
+import { ReportBlock, RibbonRow, RibbonCell, RibbonDesign, Scene } from '../../types';
+import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportCollectionItem, ruleBearingAncestor, parentScenesOf, RibbonPrintOptions } from '../../lib/reportData';
+import { CellBorders } from '../../lib/persist';
 import { getFieldValue } from '../../lib/ribbonDefaults';
-import { getRibbonCellBaseStyle, getNoteBreakPad } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, getNoteBreakPad, getCellBorderProps } from '../../lib/ribbonUtils';
 import { getMergeLookup } from '../../lib/mergeGroups';
 import {
   sceneStyle, getDayHeaderColors, getDayFooterColors, getFallbackStripColors,
@@ -28,8 +29,8 @@ import { RibbonCellText } from '../RibbonCellText';
 
 const DAYBREAK_PREVIEW_LIMIT = 4;
 
-function designFor(ctx: ReportCtx, block: ReportBlock) {
-  const id = block.ribbonId || ctx.project.activeRibbonId || ctx.project.ribbonDesigns?.[0]?.id;
+function designFor(ctx: ReportCtx, block: ReportBlock, overrides?: RibbonPrintOptions) {
+  const id = overrides?.ribbonId || block.ribbonId || ctx.project.activeRibbonId || ctx.project.ribbonDesigns?.[0]?.id;
   return ctx.project.ribbonDesigns?.find(d => d.id === id) || ctx.project.ribbonDesigns?.[0];
 }
 
@@ -74,7 +75,7 @@ function gridGeometry(design: RibbonDesign) {
   return { cells, cw, mainCellIdx, durationColIdx, pageCountColIdx, lastCellIdx, estColIdx };
 }
 
-const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; hiddenFields?: Set<string> }> = ({ it, ctx, design, hiddenFields }) => {
+const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; hiddenFields?: Set<string>; cellBorders?: CellBorders }> = ({ it, ctx, design, hiddenFields, cellBorders }) => {
   const rows = design.rows as RibbonRow[];
   const mergeLookup = getMergeLookup(rows);
   const cpv = design.cellPaddingV ?? 3;
@@ -135,6 +136,8 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
           const value = cell.field === 'text'
             ? (cell.textContent || '')
             : getFieldValue(cell.field, sceneDataFor(it));
+          const lastInRow = (ci + (isH ? span : 1) - 1) >= rows[0].cells.length - 1;
+          const lastRow = (ri + (isV ? span : 1) - 1) >= rows.length - 1;
           return (
             <div
               key={`${ri}-${ci}`}
@@ -144,6 +147,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
                 gridRow: isV ? `span ${span}` : undefined,
                 color: style.color,
                 overflow: 'hidden',
+                ...getCellBorderProps(cellBorders, style.color, lastInRow, lastRow),
               }}
             >
               {value || '\u00A0'}
@@ -389,55 +393,80 @@ interface SectionRenderProps {
   sceneFilter?: Set<string>;
   flags: SectionRowFlags;
   hiddenFields?: Set<string>;
+  cellBorders?: CellBorders;
+  /** Measured-pagination slice: render only units [start, end) of the day box,
+   *  border-less (a split day box renders like the full-schedule view). */
+  unitRange?: [number, number];
 }
 
 const sectionRow = (r: any, flags: SectionRowFlags, ctx: ReportCtx, design: NonNullable<ReturnType<typeof designFor>>) => {
   if (r.type === 'NOTE' && flags.showNotes) {
     const cr = ctx.computedByRowId.get(r.id);
-    return cr ? <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticNoteRow row={cr} ctx={ctx} design={design} /></div> : null;
+    return cr ? <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticNoteRow row={cr} ctx={ctx} design={design} /></div> : null;
   }
   if (r.type === 'BREAK' && flags.showBreaks) {
     const cr = ctx.computedByRowId.get(r.id);
-    return cr ? <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticBreakRow row={cr} ctx={ctx} design={design} /></div> : null;
+    return cr ? <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticBreakRow row={cr} ctx={ctx} design={design} /></div> : null;
   }
   return null;
 };
 
-const DaySectionView: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneFilter, flags, hiddenFields }) => {
+const DaySectionView: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneFilter, flags, hiddenFields, cellBorders, unitRange }) => {
   const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
   const daybreakProps = { day, ctx, design };
-  const rows = day.section.rows.map((r) => {
+  const units: React.ReactNode[] = [];
+  if (flags.showDayBreaks) {
+    units.push(
+      <div key="h" className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <DaybreakHeaderHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />
+      </div>,
+    );
+  }
+  for (const r of day.section.rows) {
     if (r.type === 'SCENE' && r.sceneId) {
       const it = scenes.find(s => s.scene.id === r.sceneId);
-      if (!it) return null;
-      if (sceneFilter && !sceneFilter.has(it.scene.id)) return null;
-      return (
-        <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} />
-        </div>
+      if (!it) continue;
+      if (sceneFilter && !sceneFilter.has(it.scene.id)) continue;
+      units.push(
+        <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />
+        </div>,
       );
+    } else {
+      const rowNode = sectionRow(r, flags, ctx, design);
+      if (rowNode) units.push(rowNode);
     }
-    return sectionRow(r, flags, ctx, design);
-  });
+  }
+  if (flags.showDayBreaks && day.section.daybreakRow) {
+    units.push(
+      <div key="f" className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <DaybreakFooterHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />
+      </div>,
+    );
+  }
+  if (unitRange) {
+    return <div>{units.slice(unitRange[0], unitRange[1])}</div>;
+  }
   return (
-    <div style={{ border: '1px solid #000', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-      {flags.showDayBreaks && <DaybreakHeaderHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />}
-      {rows}
-      {flags.showDayBreaks && day.section.daybreakRow && <DaybreakFooterHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />}
+    <div className="rm-daybox" style={{ border: '1px solid #000', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+      {units}
     </div>
   );
 };
 
 /** Full schedule in stripboard order: daybreak halves + strips + note/break
  *  rows. `previewLimit` caps scene strips at DAYBREAK_PREVIEW_LIMIT and shows
- *  an "…N more" indicator instead of the tail. */
+ *  an "…N more" indicator instead of the tail. `unitRange` renders a
+ *  measured-pagination slice (units across all days). */
 const FullSchedule: React.FC<{
   ctx: ReportCtx;
   design: NonNullable<ReturnType<typeof designFor>>;
   flags: SectionRowFlags;
   hiddenFields?: Set<string>;
+  cellBorders?: CellBorders;
   previewLimit?: boolean;
-}> = ({ ctx, design, flags, hiddenFields, previewLimit }) => {
+  unitRange?: [number, number];
+}> = ({ ctx, design, flags, hiddenFields, cellBorders, previewLimit, unitRange }) => {
   const limit = previewLimit ? DAYBREAK_PREVIEW_LIMIT : Infinity;
   const totalStrips = ctx.sceneInfos.length;
   let stripsShown = 0;
@@ -450,7 +479,7 @@ const FullSchedule: React.FC<{
 
     if (flags.showDayBreaks) {
       out.push(
-        <div key={`h-${day.section.index}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div key={`h-${day.section.index}`} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <DaybreakHeaderHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />
         </div>,
       );
@@ -467,8 +496,8 @@ const FullSchedule: React.FC<{
         }
         stripsShown++;
         out.push(
-          <div key={r.id} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} />
+          <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />
           </div>,
         );
       } else {
@@ -481,7 +510,7 @@ const FullSchedule: React.FC<{
       const remaining = totalStrips - DAYBREAK_PREVIEW_LIMIT;
       if (remaining > 0) {
         out.push(
-          <div key="more" style={{ border: '1px solid #a1a1aa', borderRadius: 4, padding: '4px 8px', marginTop: 4, fontSize: 9, color: '#71717a', textAlign: 'center', fontStyle: 'italic' }}>
+          <div key="more" className="rm-ribbon-unit" style={{ border: '1px solid #a1a1aa', borderRadius: 4, padding: '4px 8px', marginTop: 4, fontSize: 9, color: '#71717a', textAlign: 'center', fontStyle: 'italic' }}>
             …{remaining} more strip{remaining !== 1 ? 's' : ''}
           </div>,
         );
@@ -491,14 +520,14 @@ const FullSchedule: React.FC<{
 
     if (flags.showDayBreaks && day.section.daybreakRow) {
       out.push(
-        <div key={`f-${day.section.index}`} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div key={`f-${day.section.index}`} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
           <DaybreakFooterHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />
         </div>,
       );
     }
   }
 
-  return <div style={{ display: 'flex', flexDirection: 'column' }}>{out}</div>;
+  return <div style={{ display: 'flex', flexDirection: 'column' }}>{unitRange ? out.slice(unitRange[0], unitRange[1]) : out}</div>;
 };
 
 /** Scene ids for the nearest element/cast ancestor (person-filtered day strips). */
@@ -512,41 +541,46 @@ function personSceneFilter(ctx: ReportCtx, ancestors: ReportCollectionItem[] | u
   return new Set(parentScenesOf(ctx, person).map(s => s.scene.id));
 }
 
-export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; item?: ReportCollectionItem; hint?: boolean; ancestors?: ReportCollectionItem[]; previewLimit?: boolean }> = ({ block, ctx, item, hint, ancestors, previewLimit }) => {
-  const design = designFor(ctx, block);
+export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; item?: ReportCollectionItem; hint?: boolean; ancestors?: ReportCollectionItem[]; previewLimit?: boolean; overrides?: RibbonPrintOptions; unitRange?: [number, number] }> = ({ block, ctx, item, hint, ancestors, previewLimit, overrides, unitRange }) => {
+  const design = designFor(ctx, block, overrides);
   if (!design) return null;
   const any = item as any;
 
   // Cell fields dropped from every strip (call time / duration off by default).
+  // Print overrides replace the block's own flags entirely when present.
   const hiddenFields = new Set<string>();
-  if (block.ribbonCallTimes !== true) hiddenFields.add('callTime');
-  if (block.ribbonDurations !== true) hiddenFields.add('duration');
+  if (overrides ? overrides.showCallTimes !== true : block.ribbonCallTimes !== true) hiddenFields.add('callTime');
+  if (overrides ? overrides.showDurations !== true : block.ribbonDurations !== true) hiddenFields.add('duration');
+  const cellBorders = overrides?.cellBorders;
+
+  const flagsFor = (): SectionRowFlags => ({
+    showDayBreaks: overrides ? overrides.showDayBreaks === true : (block.ribbonDayBreaks === true || block.ribbonHeaders === true),
+    showCall: overrides ? overrides.showCallTimes === true : block.ribbonCallTimes === true,
+    showDurations: overrides ? overrides.showDurations === true : block.ribbonDurations === true,
+    showNotes: overrides ? overrides.showNotes !== false : block.ribbonNotes !== false,
+    showBreaks: overrides ? overrides.showBreaks === true : block.ribbonBreaks === true,
+  });
 
   if (any?.scene) {
     return (
       <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} hiddenFields={hiddenFields} />
+        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />
       </div>
     );
   }
 
   if (typeof any?.section?.index === 'number') {
     const sceneFilter = personSceneFilter(ctx, ancestors);
-    const flags: SectionRowFlags = {
-      showDayBreaks: block.ribbonDayBreaks === true || block.ribbonHeaders === true,
-      showCall: block.ribbonCallTimes === true,
-      showDurations: block.ribbonDurations === true,
-      showNotes: block.ribbonNotes !== false,
-      showBreaks: block.ribbonBreaks === true,
-    };
     return (
       <DaySectionView
         day={item as ReportDayInfo}
         ctx={ctx}
         design={design}
         sceneFilter={sceneFilter}
-        flags={flags}
+        flags={flagsFor()}
         hiddenFields={hiddenFields}
+        cellBorders={cellBorders}
+        unitRange={unitRange}
       />
     );
   }
@@ -562,12 +596,76 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
     }
     return null;
   }
+  return <FullSchedule ctx={ctx} design={design} flags={flagsFor()} hiddenFields={hiddenFields} cellBorders={cellBorders} previewLimit={previewLimit} unitRange={unitRange} />;
+};
+
+// ---- print-dialog preview ---------------------------------------------------
+// A compact dummy slice of the schedule so the ribbon option toggles in the
+// print dialog visibly show/hide daybreak halves, note rows and break rows.
+// Reuses the same row renderers as the real output (Strip, daybreak halves,
+// note/break rows) with fabricated data; the real design + borders + hidden
+// fields apply.
+
+const DUMMY_DATE = '2026-08-16';
+
+function dummyScene(id: string, num: string, intExt: 'INT' | 'EXT', dayNight: 'DAY' | 'NIGHT', set: string): ReportSceneInfo {
+  return {
+    scene: { id, sceneNumber: num, intExt, dayNight, set, cast: 'SAM, JOE', pageCount: '3', description: 'Dummy scene for the print preview.' } as Scene,
+    row: { id: `dummy-row-${id}` } as any,
+    sectionIndex: 1, chronoDay: 1, date: DUMMY_DATE, callTime: '07:00', durationMin: 40, sheetNumber: Number(num),
+  } as ReportSceneInfo;
+}
+
+const dummyDay: ReportDayInfo = {
+  section: { index: 1 } as any, chronoDay: 1, date: DUMMY_DATE, callTime: '07:00',
+  endTime: '16:30', totalPages: 4, shootMin: 480, breakMin: 45,
+  label: 'DAY 1', sceneCount: 2, firstScene: '1', lastScene: '2',
+} as ReportDayInfo;
+
+const dummyNoteRow: ComputedRow = {
+  id: 'dummy-note', type: 'NOTE', noteText: 'Production note — call time moves up 30 minutes.',
+  computedCallTime: '07:00', computedElapsed: 0, estimatedDuration: 10,
+} as ComputedRow;
+
+const dummyBreakRow: ComputedRow = {
+  id: 'dummy-break', type: 'BREAK', breakLabel: 'LUNCH', breakDuration: 45,
+  computedCallTime: '12:30', computedElapsed: 1, estimatedDuration: 20,
+} as ComputedRow;
+
+export const RibbonDummyPreview: React.FC<{ ctx: ReportCtx; overrides: RibbonPrintOptions }> = ({ ctx, overrides }) => {
+  const design = designFor(ctx, { type: 'ribbon' } as ReportBlock, overrides);
+  if (!design) return null;
+  const hiddenFields = new Set<string>();
+  if (overrides.showCallTimes !== true) hiddenFields.add('callTime');
+  if (overrides.showDurations !== true) hiddenFields.add('duration');
   const flags: SectionRowFlags = {
-    showDayBreaks: block.ribbonDayBreaks === true || block.ribbonHeaders === true,
-    showCall: block.ribbonCallTimes === true,
-    showDurations: block.ribbonDurations === true,
-    showNotes: block.ribbonNotes !== false,
-    showBreaks: block.ribbonBreaks === true,
+    showDayBreaks: overrides.showDayBreaks === true,
+    showCall: overrides.showCallTimes === true,
+    showDurations: overrides.showDurations === true,
+    showNotes: overrides.showNotes !== false,
+    showBreaks: overrides.showBreaks === true,
   };
-  return <FullSchedule ctx={ctx} design={design} flags={flags} hiddenFields={hiddenFields} previewLimit={previewLimit} />;
+  const daybreakProps = { day: dummyDay, ctx, design };
+  const strips = [dummyScene('d1', '1', 'INT', 'DAY', 'COFFEE SHOP'), dummyScene('d2', '2', 'EXT', 'NIGHT', 'PARKING LOT')];
+  return (
+    <>
+      {flags.showDayBreaks && (
+        <div style={{ pageBreakInside: 'avoid' }}>
+          <DaybreakHeaderHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />
+        </div>
+      )}
+      {strips.map(it => (
+        <div key={it.scene.id} style={{ pageBreakInside: 'avoid' }}>
+          <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={overrides.cellBorders} />
+        </div>
+      ))}
+      {flags.showNotes && <StaticNoteRow row={dummyNoteRow} ctx={ctx} design={design} />}
+      {flags.showBreaks && <StaticBreakRow row={dummyBreakRow} ctx={ctx} design={design} />}
+      {flags.showDayBreaks && (
+        <div style={{ pageBreakInside: 'avoid' }}>
+          <DaybreakFooterHalf {...daybreakProps} showCall={flags.showCall} showDurations={flags.showDurations} />
+        </div>
+      )}
+    </>
+  );
 };

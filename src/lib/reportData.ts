@@ -117,6 +117,26 @@ export interface ReportScopeFilter {
   scopes: ReportScope[];
 }
 
+/** Print-time overrides for ONE ribbon block (custom report print dialog).
+ *  Every field defaults to the block's own property — the overrides only
+ *  change what the print run renders, never the design. */
+export interface RibbonPrintOptions {
+  ribbonId?: string;                  // override block.ribbonId
+  cellBorders?: 'none' | 'vertical' | 'horizontal' | 'both';
+  showCallTimes?: boolean;            // override ribbonCallTimes
+  showDurations?: boolean;            // override ribbonDurations
+  showNotes?: boolean;                // override ribbonNotes (default true)
+  showBreaks?: boolean;               // override ribbonBreaks
+  showDayBreaks?: boolean;            // override ribbonDayBreaks
+}
+
+/** Custom-report print options: per-block ribbon overrides (keyed by block
+ *  id — only blocks the user touched appear) + a page-size override. */
+export interface ReportPrintOptions {
+  ribbonOverrides?: Record<string, RibbonPrintOptions>;
+  page?: 'portrait' | 'landscape';    // override the design's page size
+}
+
 /** Stable identity key of a report item within its collection. */
 export function reportItemKey(collection: ReportCollection, item: ReportCollectionItem): string | number {
   switch (collection) {
