@@ -6,6 +6,7 @@ import { FieldAux } from '../../lib/reportFields';
 import { ReportFieldDef, fieldsForScope, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, tableFieldScope, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
+import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
@@ -309,6 +310,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
             {resizeTarget && resizeTarget.id === b.id && (
               <TableResizeBar
                 block={resizeTarget}
+                canvasRef={containerRef}
                 onResize={widths => onPatch(resizeTarget.id, { columns: (resizeTarget.columns || []).map((c, i) => ({ ...c, width: widths[i] ?? c.width })) })}
               />
             )}
@@ -435,34 +437,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                   }
                   endDrag();
                 };
-                const startResize = (e: React.PointerEvent, ci: number) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const row = (e.currentTarget as HTMLElement).parentElement;
-                  const startX = e.clientX;
-                  const startWidths = cols.map(c => c.width);
-                  let lastNorm = startWidths;
-                  const onMove = (ev: PointerEvent) => {
-                    ev.preventDefault();
-                    const deltaPct = ((ev.clientX - startX) / (row?.clientWidth || 1)) * 100;
-                    const next = [...startWidths];
-                    next[ci] = Math.max(5, startWidths[ci] + deltaPct);
-                    next[ci + 1] = Math.max(5, startWidths[ci + 1] - deltaPct);
-                    const t = next.reduce((a, b) => a + b, 0);
-                    lastNorm = next.map(w => (w / t) * 100);
-                    if (row) row.querySelectorAll('.columns-col').forEach((el, i) => {
-                      (el as HTMLElement).style.flex = `${lastNorm[i]} 1 0%`;
-                    });
-                  };
-                  const onUp = () => {
-                    window.removeEventListener('pointermove', onMove);
-                    window.removeEventListener('pointerup', onUp);
-                    if (row) row.querySelectorAll('.columns-col').forEach(el => { (el as HTMLElement).style.flex = ''; });
-                    onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: lastNorm[i] })) });
-                  };
-                  window.addEventListener('pointermove', onMove);
-                  window.addEventListener('pointerup', onUp);
-                };
+                const colWidths = cols.map(c => c.width);
                 return (
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-700 uppercase tracking-wider px-1">
@@ -479,8 +454,10 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                               colIndex={ci}
                               edge={ci === 0 ? 'left' : undefined}
                               resizable={resizable}
+                              widths={colWidths}
+                              canvasRef={containerRef}
                               onDrop={dropNewColumn}
-                              onResize={resizable ? e => startResize(e, ci - 1) : undefined}
+                              onCommitWidths={cw => onPatch(b.id, { cols: cols.map((c, i) => ({ ...c, width: cw[i] })) })}
                             />
                             <div
                               className={`columns-col${colSelected ? ' selected' : ''}${ci > 0 ? ' col-has-prev' : ''}${ci < cols.length - 1 ? ' col-has-next' : ''}`}
@@ -547,7 +524,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                           </React.Fragment>
                         );
                       })}
-                      <GutterZone colIndex={cols.length} edge="right" onDrop={dropNewColumn} />
+                      <GutterZone colIndex={cols.length} edge="right" widths={colWidths} canvasRef={containerRef} onDrop={dropNewColumn} />
                     </div>
                   </div>
                 );
@@ -902,24 +879,41 @@ const EdgeZone: React.FC<{
   );
 };
 
-// ---- columns block: Notion-style gutter zones (drop → new column) ------------
+// ---- columns block: Notion-style gutter zones (drop → new column) ----------
 
 const GutterZone: React.FC<{
   colIndex: number;
   edge?: 'left' | 'right';
   resizable?: boolean;
+  widths: number[];
+  canvasRef: React.RefObject<HTMLDivElement | null>;
   onDrop: (colIndex: number, payload: PaletteDropPayload) => void;
-  onResize?: (e: React.PointerEvent) => void;
-}> = ({ colIndex, edge, resizable, onDrop, onResize }) => {
+  onCommitWidths?: (widths: number[]) => void;
+}> = ({ colIndex, edge, resizable, widths, canvasRef, onDrop, onCommitWidths }) => {
   const isDrag = (e: React.DragEvent) => e.dataTransfer.types.includes(DROP_MIME);
+  const selfRef = useRef<HTMLDivElement>(null);
+  // The resizable gutter at colIndex ci resizes the boundary (ci-1, ci).
+  const startResize = useColumnResize(widths, {
+    getWidth: () => selfRef.current?.parentElement?.clientWidth || 1,
+    touchActionTargets: [canvasRef.current],
+    apply: (cw) => {
+      const row = selfRef.current?.parentElement;
+      if (!row) return;
+      row.querySelectorAll('.columns-col').forEach((el, i) => {
+        (el as HTMLElement).style.flex = `${cw[i]} 1 0%`;
+      });
+    },
+    commit: (cw) => onCommitWidths?.(normalizeColWidths(cw)),
+  });
   return (
     <div
+      ref={selfRef}
       className={`column-gutter${resizable ? ' resizable' : ''}`}
       data-zone={`gutter:${colIndex}`}
       style={edge
         ? { position: 'absolute', top: 0, bottom: 0, width: 8, zIndex: 50, ...(edge === 'left' ? { left: -8 } : { right: -8 }) }
         : { flex: '0 0 8px', alignSelf: 'stretch', position: 'relative', zIndex: 50 }}
-      onPointerDown={resizable && onResize ? onResize : undefined}
+      onPointerDown={resizable && onCommitWidths ? (e => startResize(colIndex - 1, e)) : undefined}
       onDragOver={e => {
         if (!isDrag(e)) return;
         e.preventDefault();
@@ -945,63 +939,54 @@ const GutterZone: React.FC<{
   );
 };
 
-// ---- table column resize bar (pointer drag, ribbon-style) ---------------------
+// ---- table column resize bar (shared ribbon-style dragger) ----------------
 
-const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]) => void }> = ({ block, onResize }) => {
+const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]) => void; canvasRef: React.RefObject<HTMLDivElement | null> }> = ({ block, onResize, canvasRef }) => {
   const columns = block.columns || [];
   const widths = columns.map(c => c.width);
-  if (widths.length < 2) return null;
+  const stripRef = useRef<HTMLDivElement>(null);
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
 
-  const startResize = (e: React.PointerEvent, ci: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const card = (e.currentTarget.closest('[data-block-id]') as HTMLElement | null)?.querySelector('.report-table-cols') as HTMLElement | null;
-    const startX = e.clientX;
-    const startWidths = [...widths];
-    let lastNorm: number[] = startWidths;
-    const applyWidths = () => {
-      if (!card) return;
-      const cols = lastNorm;
-      card.querySelectorAll('[data-col-ci]').forEach(el => {
-        const elm = el as HTMLElement;
-        const w = cols[columns.findIndex(c => c.id === elm.getAttribute('data-col-ci'))];
-        if (w) elm.style.width = `${w}%`;
-      });
-    };
-    const onMove = (ev: PointerEvent) => {
-      ev.preventDefault();
-      const deltaPct = ((ev.clientX - startX) / (card?.clientWidth || 1)) * 100;
-      const next = [...startWidths];
-      next[ci] = Math.max(5, startWidths[ci] + deltaPct);
-      next[ci + 1] = Math.max(5, startWidths[ci + 1] - deltaPct);
-      const total = next.reduce((a, b) => a + b, 0);
-      lastNorm = next.map(w => (w / total) * 100);
-      applyWidths();
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      if (card) card.querySelectorAll('[data-col-ci]').forEach(el => { (el as HTMLElement).style.width = ''; });
-      onResize(normalizeColWidths(lastNorm));
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+  const resolveCard = () => {
+    // Resolve fresh on every call — the canvas re-renders/remounts the table
+    // when designs switch, and a cached node would go stale.
+    return stripRef.current?.closest('[data-block-id]')?.querySelector('.report-table-cols') as HTMLElement | null;
   };
 
-  let acc = 0;
-  const boundaries = widths.slice(0, -1).map(w => { acc += w; return acc; });
+  const startResize = useColumnResize(widths, {
+    getWidth: () => resolveCard()?.clientWidth || 1,
+    touchActionTargets: [canvasRef.current],
+    // Widths apply to EVERY cell by column index (data-table-col-ci) — header
+    // and every body row track the drag together.
+    apply: (cw) => {
+      const card = resolveCard();
+      if (!card) return;
+      card.querySelectorAll('[data-table-col-ci]').forEach(el => {
+        const elm = el as HTMLElement;
+        const ci = Number(elm.getAttribute('data-table-col-ci'));
+        if (Number.isFinite(ci)) elm.style.width = `${cw[ci]}%`;
+      });
+      // Keep the handle strip tracking the live columns.
+      if (stripRef.current) stripRef.current.style.gridTemplateColumns = cw.map(w => `${w}%`).join(' ');
+    },
+    commit: (cw) => {
+      // NOTE: do NOT clear the live inline widths here. React's style diff
+      // compares against the previous RENDER's style objects, so columns whose
+      // width is unchanged (e.g. 7% → 7%) would be left without an inline
+      // width after the direct-DOM manipulation was cleared — the flex row
+      // then re-distributes and the whole table shifts (the item 23 bug). The
+      // drag-applied widths equal the committed design, and React overwrites
+      // the DOM wherever the design differs.
+      onResizeRef.current(normalizeColWidths(cw));
+    },
+  });
+
+  if (widths.length < 2) return null;
 
   return (
     <div className="absolute -top-2.5 left-0 right-0 h-5 pointer-events-none" style={{ zIndex: 40 }}>
-      {boundaries.map((pct, ci) => (
-        <div
-          key={ci}
-          className="pointer-events-auto absolute top-0 bottom-0 cursor-col-resize touch-none"
-          style={{ left: `calc(${pct}% - 3px)`, width: 6, background: 'rgba(59,130,246,0.6)', borderRadius: 3 }}
-          onPointerDown={e => startResize(e, ci)}
-          title={`Resize column ${ci + 1}/${ci + 2}`}
-        />
-      ))}
+      <ColumnResizeStrip variant="bar" widths={widths} startResize={startResize} containerRef={stripRef} />
     </div>
   );
 };
