@@ -35,10 +35,12 @@ export const REPORT_PAGE_WIDTHS: Record<'portrait' | 'landscape', number> = {
 // ---- block gap (roadmap 26) ---------------------------------------------------
 // Stacked blocks get a vertical margin above them (`blockGap ?? DEFAULT_BLOCK_GAP`)
 // so the design body, repeat children and columns breathe. Applied identically
-// by the canvas card wrappers, the measurement container's .rm-block wrappers
-// and the chunk-page mounts — canvas = preview = print (rule 8).
+// by the paginator's .rm-block measure wrappers and the chunk-page mounts.
+// The DESIGNER CANVAS is deliberately excluded (user veto): blocks render
+// flush in the composer exactly like before this feature — the gap shows only
+// in preview and print.
 
-export const DEFAULT_BLOCK_GAP = 10;
+export const DEFAULT_BLOCK_GAP = 16;
 
 /** The vertical gap (px) above a block in a stacked list. The first block in
  *  each stack stays flush (clean page top); pageBreak blocks never get one. */

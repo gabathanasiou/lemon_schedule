@@ -3,6 +3,7 @@ import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureCont
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey } from '../../lib/reportFields';
+import { DEFAULT_BLOCK_GAP } from './reportStyle';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
@@ -1013,13 +1014,13 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }
 
   // Block gap (roadmap 26): every block type gets a "Gap (px)" input — the
-  // vertical margin above the block in a stacked list (default 10; pageBreak
-  // blocks never render one, spacer blocks keep the default like everything
-  // else and zero their own gap for exact manual spacing).
+  // vertical margin above the block in a stacked list (default 16 = a spacer's
+  // worth; pageBreak blocks never render one). The composer canvas stays flush
+  // (user veto); the gap applies to preview and print only.
   if (block.type !== 'pageBreak') {
     push('Layout',
       <ContentRow key="gap" label="Gap (px)">
-        <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.blockGap ?? 10} onChange={e => onPatch({ blockGap: Math.max(0, Number(e.target.value) || 0) })} />
+        <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.blockGap ?? DEFAULT_BLOCK_GAP} onChange={e => onPatch({ blockGap: Math.max(0, Number(e.target.value) || 0) })} />
       </ContentRow>,
     );
   }
