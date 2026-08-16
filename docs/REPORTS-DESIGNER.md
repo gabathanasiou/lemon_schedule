@@ -38,13 +38,44 @@ canonical implementation. Never re-derive them.
 - `aux.index` is 0-based; `counterStart` (block prop) decides where the Counter field starts.
 - Nested `elementsOfCategory` repeats render their same-collection tables **once per category** (summary tables — the `onceTables` special case in `ReportRepeatView`, `ReportBlockView.tsx:273`). Don't "fix" this; it's intentional.
 - Table axis: `columns` = attributes as columns (one row per item), `rows` = matrix (attributes as rows). `tableItemCollection`/`tableFieldScope` derive the effective collection/field scope — use them, don't inline.
-- Pagination (`lib/reportPagination.ts`): pages split at top-level `pageBreak`; a trailing pageBreak on a top-level repeat = "one page per item". Design changes → `UPDATE_REPORT_DESIGN` (store `actions/reports.ts`); designs are versioned and trashed like other entities.
-- Print scoping: `ReportScopeFilter`/`filterItemsByScope` — repeat views MUST apply it after `resolveCollectionItems` (see `ReportRepeatView`).
+- Pagination (`lib/reportPagination.ts`): pages split at top-level `pageBreak`; a trailing pageBreak on a top-level repeat = "one page per item". Measured pagination (chunking by rendered height) lives in `components/reports/useReportPaginator.tsx` — print renders chunks via `ReportChunkPage` (`ReportBlockView.tsx`); `reportPagination.ts` still builds the page model. Design changes → `UPDATE_REPORT_DESIGN` (store `actions/reports.ts`); designs are versioned and trashed like other entities.
+- Print scoping: `ReportScopeFilter`/`filterItemsByScope` — repeat views MUST apply it after `resolveCollectionItems` (see `ReportRepeatView`). Scopes cover top-level REPEATS only; TABLES always print all items.
 - Empty collections: render `emptyHint` in designer, render nothing in print/preview.
 - The canvas editor (`ReportDesignerCanvas.tsx`) uses `elementFromPoint` behind a `pointer-events: none` backdrop for right-click targeting — same pattern as the ribbon context menu.
+
+## Printing flow (custom reports)
+
+Print NEVER fires directly — every entry point opens `ReportPrintDialog`
+(`components/reports/ReportPrintDialog.tsx`) first: designer toolbar Print
+(`ReportDesigner.tsx:351`) and File → Print → Custom Reports
+(`AppHeader.tsx:135`) both call `setCustomReportPrint(design)` in `App.tsx`.
+The dialog calls `onPrint(scopes, printOptions)` → `handleReportPrint`
+(`App.tsx:624`) → `ReportPrint` renders through the measured paginator; it
+signals `onReady` and only then does `window.print()` fire.
+
+### Dialog invariants (MUST NOT)
+
+1. **Never print without the dialog** — `handleReportPrint(design)` called
+   straight from a button was the direct-print bug (main-window DesignTab);
+   every entry point goes through `setCustomReportPrint`.
+2. **Scopes cover top-level REPEATS only** — `scopeFor` in
+   `ReportPrintDialog.tsx` matches `block.type === 'repeat'`; TABLES always
+   print all items — never add table controls to the dialog.
+3. **Ribbon overrides are print-only** — `RibbonPrintOptions`/`ReportPrintOptions`
+   (`reportData.ts:123`) never mutate the `ReportDesign`. Keyed by block id,
+   they apply to every ribbon block anywhere in the design (nested in repeats/
+   columns/header/footer — `collectRibbonBlocks`).
+4. **Ribbon defaults come from the block's own props every time the dialog
+   opens** — ribbon settings are never persisted; only `page` persists
+   (`lemon_schedule_report_print_page_{projectId}`).
+5. **Overrides flow through `ReportRibbonView`'s `overrides` prop**
+   (`ReportRibbonView.tsx:544`) and replace the block's flags entirely when
+   present. The modal preview is `RibbonDummyPreview` (`ReportRibbonView.tsx:635`)
+   — dummy daybreak + strips + note/break rows rendered with the REAL row
+   renderers and the override flags, so every toggle is visible.
 
 ## Verify
 
 - `npm run lint` after every change (tsc --noEmit).
 - `npx playwright test` — `seeded-smoke.spec.ts` exercises the designer with the seeded "Town" project; perf harness in `docs/PERF-DIAGNOSIS.md`.
-- Manual: Design → Reports Designer → toggle preview; Print path goes through the Reports → Print dialog (`ReportPrintDialog.tsx`).
+- Manual: Design → Reports Designer → Print (toolbar) or File → Custom Reports → the modal MUST open first — never a direct print.
