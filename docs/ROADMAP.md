@@ -56,8 +56,9 @@ Related bugs to fix while here:
   print schedule modal** (`PrintDialog` — grouped checklists, days selector,
   etc.). Right now it's subpar.
 - Done: modal matches the PrintDialog chrome (max-w-3xl, Printer icon, Reset,
-  "Print / Save PDF", per-project persistence). Repeats/tables show pre-checked
-  item checklists (no All/Selected toggle — unchecking limits that block).
+  "Print / Save PDF", per-project page-size persistence). Top-level REPEAT
+  blocks show pre-checked item checklists (no All/Selected toggle — unchecking
+  limits that block); TABLES always print all items — no controls.
   Every ribbon block in the design (top-level OR nested in a repeat/columns/
   header/footer) gets its own panel: Ribbon Layout picker, Cell Borders
   (None/Vertical/Horizontal/Both), Call times / Durations / Note rows / Break
