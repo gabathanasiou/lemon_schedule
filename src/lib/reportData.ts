@@ -656,7 +656,11 @@ export function resolveCollection(
     case 'elements': return getElementsFor(ctx, category || 'props');
     case 'categories': return ctx.categoryInfos;
     case 'crew': return ctx.crewItems;
-    case 'locations': return ctx.locationInfos;
+    case 'locations': {
+      // Type filter (block.category) — "only the unit bases" etc.
+      const list = ctx.locationInfos;
+      return category ? list.filter(l => l.type === category) : list;
+    }
     case 'locationTypes': return ctx.locationTypeInfos;
     case 'locationsOfType': {
       const type = parentItem as ReportLocationTypeInfo | undefined;
