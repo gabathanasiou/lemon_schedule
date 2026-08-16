@@ -43,7 +43,7 @@ test.describe('ribbon design default save', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
     // leave the design tab without touching anything
-    await page.getByRole('button', { name: 'Reports' }).click();
+    await page.getByRole('button', { name: 'Reports', exact: true }).click();
     await page.waitForTimeout(800);
 
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -62,7 +62,7 @@ test.describe('ribbon design default save', () => {
     await page.getByRole('button', { name: /Wardrobe/ }).click();
     await page.waitForTimeout(500);
 
-    await page.getByRole('button', { name: 'Reports' }).click();
+    await page.getByRole('button', { name: 'Reports', exact: true }).click();
     await page.waitForTimeout(800);
     await expect(page.getByRole('dialog')).toHaveCount(0);
 

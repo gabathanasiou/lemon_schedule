@@ -308,7 +308,8 @@ Related bugs to fix while here:
 - Verify: seeded project — days repeat + `{{cast}}`/`{{props}}` resolve
   differently per day; nested days→scenes behavior unchanged.
 
-## 23. Bug: table column-width resize broken when the table has multiple rows (`[ ]`)
+## 23. Bug: table column-width resize broken when the table has multiple rows (`[x]`)
+- Fixed with item 24: shared dragger applies widths by column index to header AND every body row; the clear-then-patch reflow bug was the root cause.
 
 - Repro: reports designer, columns-axis table with several data rows →
   select the table (resize bar appears above it) → drag a resize handle.
@@ -322,7 +323,8 @@ Related bugs to fix while here:
   Playwright assertion if practical. Expected to be superseded by item 24's
   shared dragger swap — verify there.
 
-## 24. Extract the ribbon designer's resize draggers into a shared component (`[ ]`)
+## 24. Extract the ribbon designer's resize draggers into a shared component (`[x]`)
+- `src/components/columnResize.tsx` (useColumnResize + ColumnResizeStrip) consumed by RibbonTab, RibbonDesignerGrid and TableResizeBar; columns gutters deduped too.
 
 - The ribbon designer's resize tabs (`RibbonDesignerGrid.tsx:51-73`) +
   pointer logic (`startResize`, `RibbonTab.tsx:410-481`) are the gold
@@ -342,7 +344,8 @@ Related bugs to fix while here:
   resize fixed (item 23) with the shared dragger, `npm run lint` +
   playwright.
 
-## 25. Repeater/table "over" menus: hide self-redundant collections (`[ ]`)
+## 25. Repeater/table "over" menus: hide self-redundant collections (`[x]`)
+- `isSelfRepeat` in reportBlocks.ts gates both menus (current value exempt); Elements self-category grays out; crew labels/checkbox honest until item 11.
 
 - Problem: nested repeat/table menus offer every base collection in every
   context; self-repeats produce 1-item (or combinatorial) nonsense — e.g. a
@@ -483,7 +486,8 @@ Related bugs to fix while here:
   white text auto), canvas = preview = print, seeded project, lint +
   playwright.
 
-## 29. Ribbon block: full designer parity + sample-cell fallbacks (`[ ]`)
+## 29. Ribbon block: full designer parity + sample-cell fallbacks (`[x]`)
+- Affixes via shared formatCellText everywhere; sample fallbacks (ribbonCellDisplayValue) gated to canvas/preview, never print; empty-project sample trio.
 
 - Part A — 1:1 parity audit: diff every RibbonDesign setting between the
   ribbon designer/stripboard pipeline and `ReportRibbonView`.

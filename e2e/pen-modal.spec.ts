@@ -50,7 +50,7 @@ test.describe('Apple Pencil in modals', () => {
   test('note editor (Edit Banner): pen taps work', async ({ page }) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-row-id]', { timeout: 15000 });
 
     const noteId = await page.evaluate(() => {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
@@ -114,7 +114,7 @@ test.describe('Apple Pencil in modals', () => {
   test('color picker (ColorField): pen tap opens via showPicker', async ({ page }) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(500);
+    await page.waitForSelector('[data-row-id]', { timeout: 15000 });
 
     const noteId = await page.evaluate(() => {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
