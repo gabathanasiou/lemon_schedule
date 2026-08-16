@@ -4,15 +4,10 @@ import { RibbonRow, RibbonCell, SceneColorPalette } from '../../types';
 import {
   resolveSceneColor, getFallbackStripColors, computeMergeGroups,
   getFieldValueFromSample, getCellBorderProps, getRibbonCellBaseStyle, formatCellText, FIELD_MAP,
+  PREVIEW_SAMPLES,
 } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
 import type { CellBorders } from '../../lib/persist';
-
-const PREVIEW_SAMPLES = [
-  { intExt: 'INT', dayNight: 'DAY', sceneNumber: '5' },
-  { intExt: 'EXT', dayNight: 'DAY', sceneNumber: '12' },
-  { intExt: 'INT', dayNight: 'NIGHT', sceneNumber: '20A' },
-];
 
 interface RibbonLivePreviewProps {
   rows: RibbonRow[];
