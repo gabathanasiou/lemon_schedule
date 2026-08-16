@@ -233,8 +233,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     try {
       const project = p.id === currentProjectId ? { ...state.present } : loadProjectFromStorage(p.id);
       if (!project) { dialog.alert({ title: 'Error', message: 'Could not load project data.' }); return; }
-      const newFileId = await pushProjectAndUpdateIndex(auth.accessToken!, project);
-      updateProjectMeta(p.id, { driveFileId: newFileId });
+      const newFileId = await pushProjectAndUpdateIndex(auth.accessToken!, project, undefined, p.lastModified);
+      // Preserve the original modified time: stamping "now" would make the cloud
+      // copy look newer than the local one, and a later sync regression check
+      // would refuse to treat the moved file as the same revision.
+      updateProjectMeta(p.id, { driveFileId: newFileId, lastModified: p.lastModified });
       refetchDrive();
     } catch (e: any) {
       dialog.alert({ title: 'Upload Failed', message: formatDriveError(e, 'Could not upload to Drive.') });
