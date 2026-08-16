@@ -650,9 +650,9 @@ function AppContent() {
       {customReportPrint && (
         <ReportPrintDialog
           design={customReportPrint}
-          onPrint={(scopes) => {
+          onPrint={(scopes, printOptions) => {
             setCustomReportPrint(null);
-            handleReportPrint(customReportPrint, { scopes });
+            handleReportPrint(customReportPrint, { scopes }, printOptions);
           }}
           onClose={() => setCustomReportPrint(null)}
         />

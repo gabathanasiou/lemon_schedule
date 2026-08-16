@@ -12,18 +12,21 @@ import Checklist from '../Checklist';
 import { RibbonDummyPreview } from './ReportRibbonView';
 
 // Print-options dialog for custom reports (File → Print → Custom Reports).
-// Every top-level repeat/table shows a checklist of its items — all items are
+// Every top-level REPEAT shows a checklist of its items — all items are
 // pre-checked, unchecking any limits that block to the remaining selection
-// (scopes are explicit include lists; an omitted item = excluded).
+// (scopes are explicit include lists; an omitted item = excluded). TABLES
+// always print ALL their items — no controls.
 // Every ribbon block in the design (top-level or nested inside a repeat) gets
 // its own option panel (design, cell borders, visibility toggles) plus a live
-// sample preview; a page-size override applies to the whole run. All settings
-// persist per project.
+// dummy preview; a page-size override applies to the whole run. Ribbon options
+// always START from the block's own properties; only the page-size override
+// persists per project.
 
 const TOP_LEVEL_COLLECTIONS: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew'];
 
+/** Top-level REPEAT blocks only — tables always print everything. */
 function scopeFor(block: ReportBlock): { collection: ReportCollection; category?: string } | null {
-  if (block.type !== 'repeat' && block.type !== 'table') return null;
+  if (block.type !== 'repeat') return null;
   const coll = block.collection || 'scenes';
   if (!TOP_LEVEL_COLLECTIONS.includes(coll as any)) return null;
   return { collection: coll as ReportCollection, category: block.category };
@@ -78,7 +81,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
     }), [design.blocks, ctx]);
 
   // per-block explicit include lists — pre-checked with ALL items; unchecking
-  // any item limits that repeat/table to the remaining selection
+  // any item limits that repeat to the remaining selection
   const [include, setInclude] = useState<Record<string, (string | number)[]>>(() => {
     const base: Record<string, (string | number)[]> = {};
     for (const r of resolved) base[r.block.id] = [...r.keys];
@@ -231,7 +234,7 @@ const ReportPrintDialog: React.FC<ReportPrintDialogProps> = ({ design, onPrint, 
           return (
             <div key={block.id} className="space-y-2">
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
-                {block.type === 'repeat' ? 'Repeat over' : 'Table over'} {COLLECTION_LABELS[scope.collection]}
+                Repeat over {COLLECTION_LABELS[scope.collection]}
               </span>
               <Checklist
                 items={items.map((it, i) => ({ id: String(keys[i]), label: itemLabel(scope.collection, it) || String(keys[i]) }))}
