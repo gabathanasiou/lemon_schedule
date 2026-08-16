@@ -2,8 +2,7 @@ import React from 'react';
 import { ReportBlock, RibbonRow, RibbonCell, RibbonDesign, Scene } from '../../types';
 import { ReportCtx, ReportSceneInfo, ReportDayInfo, ReportCollectionItem, ruleBearingAncestor, parentScenesOf, RibbonPrintOptions } from '../../lib/reportData';
 import { CellBorders } from '../../lib/persist';
-import { getFieldValue } from '../../lib/ribbonDefaults';
-import { getRibbonCellBaseStyle, getNoteBreakPad, getCellBorderProps } from '../../lib/ribbonUtils';
+import { getRibbonCellBaseStyle, getNoteBreakPad, getCellBorderProps, formatCellText, ribbonCellDisplayValue, PREVIEW_SAMPLES } from '../../lib/ribbonUtils';
 import { getMergeLookup } from '../../lib/mergeGroups';
 import {
   sceneStyle, getDayHeaderColors, getDayFooterColors, getFallbackStripColors,
@@ -13,7 +12,7 @@ import { formatElapsedCaption, ComputedRow } from '../../lib/daybreakUtils';
 import { RibbonCellText } from '../RibbonCellText';
 
 // Ribbon block: renders real scene strips with the chosen RibbonDesign.
-// Reuses the shared ribbon helpers (getRibbonCellBaseStyle, getFieldValue,
+// Reuses the shared ribbon helpers (getRibbonCellBaseStyle, ribbonCellDisplayValue,
 // merge groups, sceneStyle, day header/footer colors) — the same pipeline the
 // stripboard and schedule print use. Daybreak halves, notes and breaks render
 // 1:1 from the stripboard (mirroring SortableRowDaybreak/Note/Break).
@@ -42,8 +41,6 @@ function sceneDataFor(it: ReportSceneInfo) {
     sheetNumber: String(it.sheetNumber),
   };
 }
-
-const fmt = (prefix?: string, v?: string, suffix?: string) => `${prefix ?? ''}${v ?? ''}${suffix ?? ''}`;
 
 const formatLongDate = (iso: string): string => {
   const d = new Date(iso + 'T00:00:00');
@@ -75,7 +72,7 @@ function gridGeometry(design: RibbonDesign) {
   return { cells, cw, mainCellIdx, durationColIdx, pageCountColIdx, lastCellIdx, estColIdx };
 }
 
-const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; hiddenFields?: Set<string>; cellBorders?: CellBorders }> = ({ it, ctx, design, hiddenFields, cellBorders }) => {
+const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; hiddenFields?: Set<string>; cellBorders?: CellBorders; sample?: boolean }> = ({ it, ctx, design, hiddenFields, cellBorders, sample }) => {
   const rows = design.rows as RibbonRow[];
   const mergeLookup = getMergeLookup(rows);
   const cpv = design.cellPaddingV ?? 3;
@@ -86,6 +83,11 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
   const baseWidths = design.colWidths && design.colWidths.length === numCols
     ? design.colWidths
     : Array.from({ length: numCols }, () => 100 / numCols);
+  const customFieldLabels = React.useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of ctx.project.customCategories || []) m[c.key] = c.label;
+    return m;
+  }, [ctx.project.customCategories]);
 
   const filtering = !!(hiddenFields && hiddenFields.size > 0);
   // A merged cell renders as its group's lead — hide the whole group when the
@@ -133,9 +135,7 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
           const isH = m ? m.group.direction === 'h' : false;
           const isV = m ? m.group.direction === 'v' : false;
           const base = getRibbonCellBaseStyle(cell, cpv, cph, span);
-          const value = cell.field === 'text'
-            ? (cell.textContent || '')
-            : getFieldValue(cell.field, sceneDataFor(it));
+          const d = ribbonCellDisplayValue(cell, sceneDataFor(it), { sample, customFieldLabels });
           const lastInRow = (ci + (isH ? span : 1) - 1) >= rows[0].cells.length - 1;
           const lastRow = (ri + (isV ? span : 1) - 1) >= rows.length - 1;
           return (
@@ -150,7 +150,9 @@ const Strip: React.FC<{ it: ReportSceneInfo; ctx: ReportCtx; design: NonNullable
                 ...getCellBorderProps(cellBorders, style.color, lastInRow, lastRow),
               }}
             >
-              {value || '\u00A0'}
+              <RibbonCellText cell={cell} span={span} cellPadding={cpv} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>
+                {d.text || '\u00A0'}
+              </RibbonCellText>
             </div>
           );
         }),
@@ -167,9 +169,10 @@ interface DaybreakProps {
   design: NonNullable<ReturnType<typeof designFor>>;
   showCall: boolean;
   showDurations: boolean;
+  sample?: boolean;
 }
 
-const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCall, showDurations }) => {
+const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCall, showDurations, sample }) => {
   const palette = ctx.project.colorPalette;
   const df = getDayFooterColors(palette);
   const { cells, cw, mainCellIdx, estColIdx, pageCountColIdx, durationColIdx } = gridGeometry(design);
@@ -215,9 +218,10 @@ const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
             );
           }
           if (cell.field === 'callTime') {
+            const d = ribbonCellDisplayValue(cell, { computedCallTime: day.endTime }, { sample });
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {showCall && day.endTime ? <RibbonCellText cell={cell}>{fmt(cell.prefix, day.endTime, cell.suffix)}</RibbonCellText> : ''}
+                {showCall && d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
@@ -231,7 +235,7 @@ const DaybreakFooterHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
   );
 };
 
-const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCall }) => {
+const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCall, sample }) => {
   const palette = ctx.project.colorPalette;
   const dh = getDayHeaderColors(palette);
   const { cells, cw, mainCellIdx, durationColIdx, lastCellIdx } = gridGeometry(design);
@@ -256,9 +260,10 @@ const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
             );
           }
           if (cell.field === 'callTime') {
+            const d = ribbonCellDisplayValue(cell, { computedCallTime: day.callTime }, { sample });
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {showCall && day.callTime ? <RibbonCellText cell={cell}>{fmt(cell.prefix, day.callTime, cell.suffix)}</RibbonCellText> : ''}
+                {showCall && d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
@@ -282,7 +287,7 @@ const DaybreakHeaderHalf: React.FC<DaybreakProps> = ({ day, ctx, design, showCal
 
 // ---- note / break rows (1:1 with SortableRowNote/Break, static text) --------
 
-const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>> }> = ({ row, ctx, design }) => {
+const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; sample?: boolean }> = ({ row, ctx, design, sample }) => {
   const palette = ctx.project.colorPalette;
   const bg = row.noteColor || palette?.noteBg || '#3f0000';
   const color = row.noteTextColor || palette?.noteText || '#ffffff';
@@ -304,16 +309,21 @@ const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNul
             );
           }
           if (cell.field === 'duration') {
+            // 1:1 with the print pipeline: a zero/absent row duration shows
+            // nothing (no ↑ marker — that's a scene-strip affordance).
+            const v = row.estimatedDuration ? formatDuration(row.estimatedDuration) : '';
+            const text = formatCellText(cell.prefix, v, cell.suffix);
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center' }}>
-                <RibbonCellText cell={cell}>{row.estimatedDuration ? formatDuration(row.estimatedDuration) : ''}</RibbonCellText>
+                <RibbonCellText cell={cell}>{text}</RibbonCellText>
               </div>
             );
           }
           if (cell.field === 'callTime') {
+            const d = ribbonCellDisplayValue(cell, { computedCallTime: row.computedCallTime }, { sample });
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {row.computedCallTime ? <RibbonCellText cell={cell}>{fmt(cell.prefix, row.computedCallTime, cell.suffix)}</RibbonCellText> : ''}
+                {d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
@@ -324,7 +334,7 @@ const StaticNoteRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNul
   );
 };
 
-const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>> }> = ({ row, ctx, design }) => {
+const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNullable<ReturnType<typeof designFor>>; sample?: boolean }> = ({ row, ctx, design, sample }) => {
   const palette = ctx.project.colorPalette;
   const bg = palette?.noteBg || '#3f0000';
   const color = palette?.noteText || '#ffffff';
@@ -347,9 +357,12 @@ const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNu
             );
           }
           if (cell.field === 'duration') {
+            // 1:1 with the print pipeline: zero/absent break duration → nothing.
+            const v = row.breakDuration ? formatDuration(row.breakDuration) : '';
+            const text = formatCellText(cell.prefix, v, cell.suffix);
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible', display: 'flex', flexDirection: 'column', alignItems: cell.align === 'right' ? 'flex-end' : cell.align === 'left' ? 'flex-start' : 'center', gap: 1, justifyContent: 'center' }}>
-                <RibbonCellText cell={cell}>{row.breakDuration ? formatDuration(row.breakDuration) : ''}</RibbonCellText>
+                <RibbonCellText cell={cell}>{text}</RibbonCellText>
                 {ci === estColIdx && caption && <span style={{ fontSize: '8pt' }}>{caption}</span>}
               </div>
             );
@@ -363,9 +376,10 @@ const StaticBreakRow: React.FC<{ row: ComputedRow; ctx: ReportCtx; design: NonNu
             );
           }
           if (cell.field === 'callTime') {
+            const d = ribbonCellDisplayValue(cell, { computedCallTime: row.computedCallTime }, { sample });
             return (
               <div key={cell.id} style={{ gridColumn: ci + 1, gridRow: 1, ...getRibbonCellBaseStyle(cell, cpv, cph, 1), padding: pad, overflow: 'visible' }}>
-                {row.computedCallTime ? <RibbonCellText cell={cell}>{fmt(cell.prefix, row.computedCallTime, cell.suffix)}</RibbonCellText> : ''}
+                {d.text ? <RibbonCellText cell={cell} style={{ fontStyle: d.isValue ? 'normal' : 'italic', opacity: d.isValue ? 1 : 0.5 }}>{d.text}</RibbonCellText> : ''}
               </div>
             );
           }
@@ -394,26 +408,28 @@ interface SectionRenderProps {
   flags: SectionRowFlags;
   hiddenFields?: Set<string>;
   cellBorders?: CellBorders;
+  /** Sample-value / field-label fallbacks (designer canvas + preview only). */
+  sample?: boolean;
   /** Measured-pagination slice: render only units [start, end) of the day box,
    *  border-less (a split day box renders like the full-schedule view). */
   unitRange?: [number, number];
 }
 
-const sectionRow = (r: any, flags: SectionRowFlags, ctx: ReportCtx, design: NonNullable<ReturnType<typeof designFor>>) => {
+const sectionRow = (r: any, flags: SectionRowFlags, ctx: ReportCtx, design: NonNullable<ReturnType<typeof designFor>>, sample?: boolean) => {
   if (r.type === 'NOTE' && flags.showNotes) {
     const cr = ctx.computedByRowId.get(r.id);
-    return cr ? <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticNoteRow row={cr} ctx={ctx} design={design} /></div> : null;
+    return cr ? <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticNoteRow row={cr} ctx={ctx} design={design} sample={sample} /></div> : null;
   }
   if (r.type === 'BREAK' && flags.showBreaks) {
     const cr = ctx.computedByRowId.get(r.id);
-    return cr ? <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticBreakRow row={cr} ctx={ctx} design={design} /></div> : null;
+    return cr ? <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}><StaticBreakRow row={cr} ctx={ctx} design={design} sample={sample} /></div> : null;
   }
   return null;
 };
 
-const DaySectionView: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneFilter, flags, hiddenFields, cellBorders, unitRange }) => {
+const DaySectionView: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneFilter, flags, hiddenFields, cellBorders, sample, unitRange }) => {
   const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
-  const daybreakProps = { day, ctx, design };
+  const daybreakProps = { day, ctx, design, sample };
   const units: React.ReactNode[] = [];
   if (flags.showDayBreaks) {
     units.push(
@@ -429,11 +445,11 @@ const DaySectionView: React.FC<SectionRenderProps> = ({ day, ctx, design, sceneF
       if (sceneFilter && !sceneFilter.has(it.scene.id)) continue;
       units.push(
         <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-          <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />
+          <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} sample={sample} />
         </div>,
       );
     } else {
-      const rowNode = sectionRow(r, flags, ctx, design);
+      const rowNode = sectionRow(r, flags, ctx, design, sample);
       if (rowNode) units.push(rowNode);
     }
   }
@@ -465,8 +481,9 @@ const FullSchedule: React.FC<{
   hiddenFields?: Set<string>;
   cellBorders?: CellBorders;
   previewLimit?: boolean;
+  sample?: boolean;
   unitRange?: [number, number];
-}> = ({ ctx, design, flags, hiddenFields, cellBorders, previewLimit, unitRange }) => {
+}> = ({ ctx, design, flags, hiddenFields, cellBorders, previewLimit, sample, unitRange }) => {
   const limit = previewLimit ? DAYBREAK_PREVIEW_LIMIT : Infinity;
   const totalStrips = ctx.sceneInfos.length;
   let stripsShown = 0;
@@ -475,7 +492,7 @@ const FullSchedule: React.FC<{
   for (let di = 0; di < ctx.dayInfos.length; di++) {
     const day = ctx.dayInfos[di];
     const scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
-    const daybreakProps = { day, ctx, design };
+    const daybreakProps = { day, ctx, design, sample };
 
     if (flags.showDayBreaks) {
       out.push(
@@ -497,11 +514,11 @@ const FullSchedule: React.FC<{
         stripsShown++;
         out.push(
           <div key={r.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />
+            <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} sample={sample} />
           </div>,
         );
       } else {
-        const rowNode = sectionRow(r, flags, ctx, design);
+        const rowNode = sectionRow(r, flags, ctx, design, sample);
         if (rowNode) out.push(rowNode);
       }
     }
@@ -528,6 +545,47 @@ const FullSchedule: React.FC<{
   }
 
   return <div style={{ display: 'flex', flexDirection: 'column' }}>{unitRange ? out.slice(unitRange[0], unitRange[1]) : out}</div>;
+};
+
+/** Empty-schedule preview (designer canvas + preview only): renders the
+ *  PREVIEW_SAMPLES trio (INT DAY / EXT DAY / INT NIGHT) as real strips so the
+ *  design stays visible before any days exist. Mirrors RibbonLivePreview. */
+const SampleSchedule: React.FC<{
+  ctx: ReportCtx;
+  design: NonNullable<ReturnType<typeof designFor>>;
+  flags: SectionRowFlags;
+  hiddenFields?: Set<string>;
+  cellBorders?: CellBorders;
+}> = ({ ctx, design, flags, hiddenFields, cellBorders }) => {
+  const scenes: ReportSceneInfo[] = PREVIEW_SAMPLES.map((s, i) => ({
+    scene: {
+      id: `sample-scene-${i}`,
+      sceneNumber: s.sceneNumber,
+      intExt: s.intExt,
+      dayNight: s.dayNight,
+      set: '', cast: '', pageCount: '', description: '', notes: '',
+      backgroundActors: '', stunts: '', vehicles: '', props: '', wardrobe: '',
+      makeup: '', sfx: '', vfx: '', sound: '', music: '',
+      animalsAndWranglers: '', weapons: '', greenery: '', artDept: '',
+      scriptDay: '', pageCountDecimal: 0,
+    } as Scene,
+    row: { id: `sample-row-${i}` } as any,
+    sectionIndex: 0,
+    chronoDay: i + 1,
+    date: '',
+    callTime: '08:00',
+    durationMin: 0,
+    sheetNumber: i + 1,
+  }));
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {scenes.map(it => (
+        <div key={it.scene.id} className="rm-ribbon-unit" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+          <Strip it={it} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} sample />
+        </div>
+      ))}
+    </div>
+  );
 };
 
 /** Scene ids for the nearest element/cast ancestor (person-filtered day strips). */
@@ -561,10 +619,15 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
     showBreaks: overrides ? overrides.showBreaks === true : block.ribbonBreaks === true,
   });
 
+  // Sample-value / field-label fallbacks are a designer-canvas + preview
+  // affordance only (previewLimit is true there, false in print) — print
+  // NEVER renders samples.
+  const sample = !!previewLimit;
+
   if (any?.scene) {
     return (
       <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} />
+        <Strip it={item as ReportSceneInfo} ctx={ctx} design={design} hiddenFields={hiddenFields} cellBorders={cellBorders} sample={sample} />
       </div>
     );
   }
@@ -580,6 +643,7 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
         flags={flagsFor()}
         hiddenFields={hiddenFields}
         cellBorders={cellBorders}
+        sample={sample}
         unitRange={unitRange}
       />
     );
@@ -587,6 +651,12 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
 
   // Top level — the full schedule.
   if (ctx.dayInfos.length === 0) {
+    // Empty project: keep the design visible on canvas/preview by rendering
+    // the PREVIEW_SAMPLES trio (INT DAY / EXT DAY / INT NIGHT) instead of the
+    // "schedule is empty" hint. Print renders nothing for an empty schedule.
+    if (sample) {
+      return <SampleSchedule ctx={ctx} design={design} flags={flagsFor()} hiddenFields={hiddenFields} cellBorders={cellBorders} />;
+    }
     if (hint) {
       return (
         <div style={{ fontSize: 10, color: '#8f8f8f', fontStyle: 'italic', border: '1px dashed #a1a1aa', borderRadius: 6, padding: 8, textAlign: 'center' }}>
@@ -596,7 +666,7 @@ export const ReportRibbonView: React.FC<{ block: ReportBlock; ctx: ReportCtx; it
     }
     return null;
   }
-  return <FullSchedule ctx={ctx} design={design} flags={flagsFor()} hiddenFields={hiddenFields} cellBorders={cellBorders} previewLimit={previewLimit} unitRange={unitRange} />;
+  return <FullSchedule ctx={ctx} design={design} flags={flagsFor()} hiddenFields={hiddenFields} cellBorders={cellBorders} previewLimit={previewLimit} sample={sample} unitRange={unitRange} />;
 };
 
 // ---- print-dialog preview ---------------------------------------------------
