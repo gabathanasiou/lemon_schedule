@@ -658,10 +658,9 @@ Known issues to fix together (all in the locations/type machinery):
   (`useReportPaginator.tsx:295` mirrors the header-margin read), repeat
   item gap read at `:100`, columns `gap: 8` replaced by the margins.
 - Differences vs the reverted 26: default should match the repeat item gap
-  (8px — or reuse the same default constant), and a chrome "Gap (px)" input
-  for every block type mirroring the repeat's "Item gap (px)" row
-  (`blockControls.tsx:729-733`) — unless the user wants a single global
-  default with no per-block control (ask).
+  (8px — or reuse the same default constant), and there is NO per-block
+  "Gap (px)" control (user decision) — a single global default for every
+  block type, no chrome input.
 - Exclusions (as before): `pageBreak` blocks get no margin; spacer blocks
   remain for exact manual spacing; a second veto of the feature is a
   legitimate outcome — keep the change isolated and easy to revert.
