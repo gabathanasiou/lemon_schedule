@@ -137,16 +137,6 @@ input, textarea, [contenteditable] {
 
 /* ---- Reports Designer canvas ---- */
 
-/* Block gap (roadmap 26): stacked blocks carry a vertical margin above them
-   (canvas card wrappers, .rm-block measure wrappers, chunk-page mounts). The
-   first block of a page/stack must stay flush so page tops are clean — the
-   inline marginTop on the mounts is zeroed for the first child here, and the
-   paginator mirrors it (the opening unit never pays its gapBefore). */
-.rm-body > :first-child,
-.report-page-content > :first-child {
-  margin-top: 0 !important;
-}
-
 .block-card {
   position: relative;
   background: #ffffff;

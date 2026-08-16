@@ -384,8 +384,8 @@ Related bugs to fix while here:
 - Verify: menu contents per parent context (repeat + table), current-value
   exemption, seeded project renders unchanged, lint + playwright.
 
-## 26. Block gap: default 10px vertical spacing between blocks (`[x]`)
-- Done: blockGap default 16px — spacer-height "line of text" — applied to PREVIEW + PRINT only; designer canvas renders flush per user veto; `blockGapMargin` in `reportStyle.ts`; `DEFAULT_BLOCK_GAP = 16`.
+## 26. Block gap: default 10px vertical spacing between blocks (`[x]` REVERTED)
+- Done: implemented (default 16px, preview/print only, canvas flush per veto) then REMOVED entirely per user decision — the feature sucked. `blockGap` prop, `DEFAULT_BLOCK_GAP`/`blockGapMargin`, the Gap (px) chrome input and the paginator gap accounting are all gone; blocks stack flush again (the repeat's own "Item gap (px)" remains the only gap control).
 
 - Problem: blocks stack flush — no breathing room top/bottom in the design
   body, repeat children, or columns.

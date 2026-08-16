@@ -3,7 +3,7 @@ import { ReportBlock } from '../../types';
 import { ReportCtx, ReportScopeFilter, RibbonPrintOptions } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
 import { BodyChunk, FragmentPartUnit, PageChunk, PageItem } from '../../lib/reportPagination';
-import { REPORT_PAGE_METRICS, blockGapMargin } from './reportStyle';
+import { REPORT_PAGE_METRICS } from './reportStyle';
 import { PageItemBody, ReportBlockView } from './ReportBlockView';
 
 // Measured pagination for reports. The structural pages from buildReportPages
@@ -57,35 +57,19 @@ interface FlatUnit {
 }
 
 function wholeUnit(wrapper: HTMLElement): FlatUnit {
-  // The wrapper's marginTop is the block's gap (roadmap 26) — read it into
-  // gapBefore so page budgets include the spacing between stacked blocks
-  // (mirrors the header-margin and repeat rowGap reads). The first wrapper in
-  // a page has margin 0 via .rm-body > :first-child, so a block that opens a
-  // page never pays the gap.
-  const gapBefore = parseFloat(getComputedStyle(wrapper).marginTop) || 0;
-  return { h: wrapper.offsetHeight, gapBefore, pageStartExtra: 0, el: wrapper, local: 0, blockEl: wrapper };
+  return { h: wrapper.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: wrapper, local: 0, blockEl: wrapper };
 }
 
-/** The block's own gap (roadmap 26): the .rm-block wrapper's marginTop, paid
- *  before the block's FIRST unit so splittable blocks (repeat/table/ribbon)
- *  budget their spacing too. Fragment-internal calls (fragChild set) skip it —
- *  those margins live inside the fragment item and are covered by its
- *  offsetHeight (no paginator change for fragments). */
-function blockGapBefore(wrapper: HTMLElement, fragChild?: number): number {
-  if (fragChild !== undefined) return 0;
-  return parseFloat(getComputedStyle(wrapper).marginTop) || 0;
-}
 
 /** Columns-grid table: one unit per row, plus a header unit (local -1) when
  *  showHeader. Continuation rows reserve the repeated header height. */
 function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', fragChild?: number): FlatUnit[] {
   const containers = scope.querySelectorAll('.report-table-cols');
   const first = containers[0] as HTMLElement | undefined;
-  const blockGap = blockGapBefore(scope, fragChild);
   if (first && first.classList.contains('rm-row')) {
     // rows-matrix: one self-contained grid per row group (label header is
     // inside each group) — no repeated header needed.
-    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, unitKind: 'table' }));
+    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, unitKind: 'table' }));
   }
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
@@ -93,9 +77,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
     const rows = Array.from(first.children).filter(c => c.classList.contains('rm-row')) as HTMLElement[];
     const units = rows.map((el, i): FlatUnit => ({
       h: el.offsetHeight,
-      // The block's own gap rides on the FIRST row's gapBefore (a header-less
-      // table) — a header unit below gets it instead.
-      gapBefore: i === 0 && !headerEl ? blockGap : 0,
+      gapBefore: 0,
       // A continuation chunk renders the column header again at its top
       // (classic "thead repeats") — reserve that height when a row opens a
       // page. local -1 marks the header unit (folded into row ranges below).
@@ -106,7 +88,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       fragChild,
       unitKind: 'table',
     }));
-    if (headerEl) units.unshift({ h: headerH, gapBefore: blockGap, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, unitKind: 'table' } as FlatUnit);
+    if (headerEl) units.unshift({ h: headerH, gapBefore: 0, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, unitKind: 'table' } as FlatUnit);
     return units;
   }
   return [{ ...wholeUnit(scope), blockEl, fragChild, unitKind: kind } as FlatUnit];
@@ -118,8 +100,7 @@ function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: num
   if (items.length === 0) return [{ ...wholeUnit(scope), blockEl, fragChild, unitKind: 'repeat' } as FlatUnit];
   const gap = parseFloat(getComputedStyle(col).rowGap || '') || 8;
   const once = scope.querySelector('.rm-once') as HTMLElement | null;
-  const blockGap = blockGapBefore(scope, fragChild);
-  const units = items.map((el, i): FlatUnit => ({ h: el.offsetHeight, gapBefore: i === 0 ? blockGap : gap, pageStartExtra: 0, el, local: i, blockEl, fragChild, unitKind: 'repeat' }));
+  const units = items.map((el, i): FlatUnit => ({ h: el.offsetHeight, gapBefore: i === 0 ? 0 : gap, pageStartExtra: 0, el, local: i, blockEl, fragChild, unitKind: 'repeat' }));
   if (once) units[units.length - 1].h += once.offsetHeight + gap;
   return units;
 }
@@ -168,8 +149,7 @@ function flattenBlock(wrapper: HTMLElement): FlatUnit[] {
   if (kind === 'ribbon') {
     const units = Array.from(wrapper.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
     if (units.length === 0) return [wholeUnit(wrapper)];
-    const blockGap = blockGapBefore(wrapper);
-    return units.map((el, i) => ({ h: el.offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el, local: i, blockEl: wrapper, unitKind: 'ribbon' }));
+    return units.map((el, i) => ({ h: el.offsetHeight, gapBefore: 0, pageStartExtra: 0, el, local: i, blockEl: wrapper, unitKind: 'ribbon' }));
   }
   return [wholeUnit(wrapper)];
 }
@@ -403,7 +383,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           {!(headerSkipFirst && pi === 0) && headerBlocks && headerBlocks.length > 0 && (
             <div className="rm-header-zone" style={{ marginBottom: '8pt' }}>
               {headerBlocks.map((b, i) => (
-                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
+                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id}>
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ))}
@@ -412,11 +392,11 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           <div className="rm-body">
             {items.map((it, k) => (
               'repeatItem' in it ? (
-                <div key={k} className="rm-block" data-rm-kind="block" data-rm-fragment-index={k} style={{ marginTop: blockGapMargin(it.repeatItem, k === 0) }}>
+                <div key={k} className="rm-block" data-rm-kind="block" data-rm-fragment-index={k}>
                   <PageItemBody pi={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ) : (
-                <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} style={{ marginTop: blockGapMargin(it, k === 0) }}>
+                <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0}>
                   <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               )
@@ -425,7 +405,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           {!(footerSkipFirst && pi === 0) && footerBlocks && footerBlocks.length > 0 && (
             <div className="rm-footer-zone" style={{ paddingTop: "8pt" }}>
               {footerBlocks.map((b, i) => (
-                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
+                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id}>
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ))}

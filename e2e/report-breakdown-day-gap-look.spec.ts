@@ -1,11 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { loadSeedProject, seedProjectScript } from './helpers';
 
-// Roadmap 22/26/28 verification:
+// Roadmap 22/28 verification:
 //  - 22: Breakdown attributes (cast, props, …) are pickable inside DAY
 //    repeaters and resolve per-day — the union of that day's scenes' values.
-//  - 26: stacked blocks get a default 10px vertical gap on the canvas (the
-//    preview/print budget side is the report-pagination spec's job).
 //  - 28: text/field border + background render WYSIWYG with auto text color
 //    (black header cells → white text; light cells stay black).
 
@@ -169,55 +167,6 @@ test('preview renders a different Breakdown union for every day', async ({ page 
   expect(joined).toContain(`Day 1 — ${days[0].cast}`);
   expect(joined).toContain(`Day 2 — ${days[1].cast}`);
   expect(joined).toContain(`Props: ${days[1].props}`);
-});
-
-test('composer canvas renders blocks flush — no block gap in the designer', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [gapBreakdownLookDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = gapBreakdownLookDesign().id;
-  await openDesignerWithDesign(page, project);
-
-  // User veto: the gap applies to preview/print only — the canvas card
-  // wrappers stay flush exactly like before this feature.
-  const wrapperMargin = (id: string) =>
-    page.locator(`[data-block-id="${id}"]`).evaluate(el =>
-      parseFloat(getComputedStyle(el.parentElement as HTMLElement).marginTop) || 0,
-    );
-
-  expect(await wrapperMargin(B('g1'))).toBe(0); // first block in the body stack
-  expect(await wrapperMargin(B('g2'))).toBe(0); // second block flush too
-});
-
-test('preview and print apply the 16px block gap between stacked blocks', async ({ page }) => {
-  const seed = loadSeedProject();
-  const project = JSON.parse(seed.raw);
-  project.reportDesigns = [gapBreakdownLookDesign(), ...(project.reportDesigns || [])];
-  project.activeReportId = gapBreakdownLookDesign().id;
-  await openDesignerWithDesign(page, project);
-
-  const gapBetween = async () => {
-    const one = page.locator('.report-page .report-text-block', { hasText: 'Gap block one' }).first();
-    const two = page.locator('.report-page .report-text-block', { hasText: 'Gap block two' }).first();
-    const r1 = await one.boundingBox();
-    const r2 = await two.boundingBox();
-    expect(r1).toBeTruthy();
-    expect(r2).toBeTruthy();
-    return Math.round(r2!.y - (r1!.y + r1!.height));
-  };
-
-  // Preview: the two top-level text blocks sit 16px apart.
-  await page.getByRole('button', { name: 'Preview' }).click();
-  await expect(page.locator('.report-page').first()).toBeVisible({ timeout: 15000 });
-  expect(await gapBetween()).toBe(16);
-
-  // Print: same renderer (ReportChunkPage) → same 16px gap.
-  await page.getByRole('button', { name: 'Exit Preview' }).click();
-  await page.getByRole('button', { name: 'Print', exact: true }).click();
-  await page.getByRole('button', { name: /Print \/ Save PDF/ }).click();
-  await expect(page.locator('.report-root .report-page').first()).toBeVisible({ timeout: 15000 });
-  await expect(page.locator('.report-root .report-page .report-text-block', { hasText: 'Gap block one' }).first()).toBeVisible({ timeout: 15000 });
-  expect(await gapBetween()).toBe(16);
 });
 
 test('bordered cells with background render with auto text color (canvas + preview)', async ({ page }) => {

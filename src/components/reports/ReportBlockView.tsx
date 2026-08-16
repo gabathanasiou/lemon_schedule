@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ReportBlock, ReportCollection } from '../../types';
 import { ReportCtx, ReportCollectionItem, ReportScopeFilter, filterItemsByScope, resolveCollectionItems, ancestorSceneScope, RibbonPrintOptions } from '../../lib/reportData';
 import { reportFieldValueByKey, resolveReportTokens, resolveReportTokensHtml, applyItemAffixes, ReportFieldDef, FieldAux, fieldChipColor } from '../../lib/reportFields';
-import { getReportBlockBaseStyle, blockGapMargin } from './reportStyle';
+import { getReportBlockBaseStyle } from './reportStyle';
 import { getReportBorder, REPORT_TABLE_HEADER_BG } from '../../lib/reportLook';
 import { ReportRibbonView } from './ReportRibbonView';
 import { ReportMapView } from './ReportMapView';
@@ -194,9 +194,9 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return (
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             {cols.map(col => (
-              <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <div key={col.id} style={{ flex: `${total > 0 ? col.width / total : 1 / cols.length} 1 0%`, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 { (col.blocks || []).map((cb, cbi) => (
-                  <div key={cb.id} style={{ marginTop: blockGapMargin(cb, cbi === 0) }}>
+                  <div key={cb.id}>
                     <ReportBlockView block={cb} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} />
                   </div>
                 ))}
@@ -394,7 +394,7 @@ export const ReportPageItems: React.FC<{
       {showHeader && (
         <div className="report-page-header">
           {header!.map((b, bi) => (
-            <div key={b.id} style={{ marginTop: blockGapMargin(b, bi === 0) }}>
+            <div key={b.id}>
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
             </div>
           ))}
@@ -402,7 +402,7 @@ export const ReportPageItems: React.FC<{
       )}
       <div className="report-page-content" style={{ flex: 1 }}>
         {items.map((pi, i) => (
-          <div key={`pi-${i}`} style={{ marginTop: 'repeatItem' in pi ? blockGapMargin(pi.repeatItem, i === 0) : blockGapMargin(pi, i === 0) }}>
+          <div key={`pi-${i}`}>
             <PageItemBody pi={pi} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
           </div>
         ))}
@@ -410,7 +410,7 @@ export const ReportPageItems: React.FC<{
       {showFooter && (
         <div className="report-page-footer">
           {footer!.map((b, bi) => (
-            <div key={b.id} style={{ marginTop: blockGapMargin(b, bi === 0) }}>
+            <div key={b.id}>
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
             </div>
           ))}
@@ -444,7 +444,7 @@ const FragmentBody: React.FC<{
         const part = parts ? parts.find(p => p.childIndex === ci) : undefined;
         if (parts && !part) return null;
         return (
-          <div key={cb.id} className="rm-frag-child" style={{ marginTop: blockGapMargin(cb, ci === 0) }}>
+          <div key={cb.id} className="rm-frag-child">
             <ReportBlockView
               block={cb}
               ctx={ctx}
@@ -494,7 +494,7 @@ export const ReportChunkPage: React.FC<{
       {chunk.header && headerBlocks && headerBlocks.length > 0 && (
         <div className="report-page-header">
           {headerBlocks.map((b, bi) => (
-            <div key={b.id} style={{ marginTop: blockGapMargin(b, bi === 0) }}>
+            <div key={b.id}>
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
             </div>
           ))}
@@ -504,17 +504,17 @@ export const ReportChunkPage: React.FC<{
         {chunk.body.map((ci, i) => {
           switch (ci.kind) {
             case 'block':
-              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} /></div>;
+              return <div key={ci.block.id}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} /></div>;
             case 'repeatItem':
-              return <div key={`ri-${ci.repeatItem.id}-${i}`} style={{ marginTop: blockGapMargin(ci.repeatItem, false) }}><FragmentBody repeatItem={ci.repeatItem} item={ci.item} itemIndex={ci.itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} /></div>;
+              return <div key={`ri-${ci.repeatItem.id}-${i}`}><FragmentBody repeatItem={ci.repeatItem} item={ci.item} itemIndex={ci.itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} /></div>;
             case 'repeatItemPart':
-              return <div key={`ri-${ci.repeatItem.id}-${i}`} style={{ marginTop: blockGapMargin(ci.repeatItem, false) }}><FragmentBody repeatItem={ci.repeatItem} item={ci.item} itemIndex={ci.itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} parts={ci.parts} /></div>;
+              return <div key={`ri-${ci.repeatItem.id}-${i}`}><FragmentBody repeatItem={ci.repeatItem} item={ci.item} itemIndex={ci.itemIndex} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} parts={ci.parts} /></div>;
             case 'repeat':
-              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} itemRange={[ci.itemStart, ci.itemEnd]} /></div>;
+              return <div key={ci.block.id}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} itemRange={[ci.itemStart, ci.itemEnd]} /></div>;
             case 'table':
-              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} rowRange={[ci.rowStart, ci.rowEnd]} repeatTableHeader={ci.repeatHeader} /></div>;
+              return <div key={ci.block.id}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} rowRange={[ci.rowStart, ci.rowEnd]} repeatTableHeader={ci.repeatHeader} /></div>;
             case 'ribbon':
-              return <div key={ci.block.id} style={{ marginTop: blockGapMargin(ci.block, false) }}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} unitRange={[ci.unitStart, ci.unitEnd]} /></div>;
+              return <div key={ci.block.id}><ReportBlockView block={ci.block} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} unitRange={[ci.unitStart, ci.unitEnd]} /></div>;
             default:
               return null;
           }
@@ -523,7 +523,7 @@ export const ReportChunkPage: React.FC<{
       {chunk.footer && footerBlocks && footerBlocks.length > 0 && (
         <div className="report-page-footer">
           {footerBlocks.map((b, bi) => (
-            <div key={b.id} style={{ marginTop: blockGapMargin(b, bi === 0) }}>
+            <div key={b.id}>
               <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={pageAux} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
             </div>
           ))}
@@ -554,7 +554,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
   const hasContent = perItemChildren.some(cb => cb.type !== 'pageBreak');
 
   const renderOnceTables = () => onceTables.map((cb, cbi) => (
-    <div key={cb.id} className="rm-repeat-child" style={{ marginTop: blockGapMargin(cb, cbi === 0) }}>
+    <div key={cb.id} className="rm-repeat-child">
       <ReportBlockView
         block={cb}
         ctx={ctx}
@@ -594,7 +594,7 @@ const ReportRepeatView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Rep
         return (
           <div key={i} className="rm-item" style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
             {itemChildren.map((cb, cbi) => (
-              <div key={cb.id} className="rm-repeat-child" style={{ marginTop: blockGapMargin(cb, cbi === 0) }}>
+              <div key={cb.id} className="rm-repeat-child">
                 <ReportBlockView key={cb.id} block={cb} ctx={ctx} fieldMap={fieldMap} item={it} parentCategory={block.collection === 'elements' ? block.category : parentCategory} parentCollection={block.collection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={{ ...aux, index: i, counterStart: block.counterStart ?? aux?.counterStart }} ancestors={[it, ...(ancestors || [])]} ribbonOverrides={ribbonOverrides} />
               </div>
             ))}
