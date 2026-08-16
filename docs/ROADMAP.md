@@ -125,20 +125,24 @@ Related bugs to fix while here:
 - Full content must still be rendered in **print** — truncation is a
   preview-only behavior. `[x]`
 
-## 13. Spacer block preview: label + line thickness options (`[~]`)
+## 13. Spacer block preview: label + line thickness options (`[x]`)
 
 - In the **report preview**, when the Spacer block's style is **"none"**,
   show a **"SPACER" label** so the empty spacer is visible in the canvas. `[x]`
   (designer canvas only — print/preview stay clean).
 - When the style is **"line"**, expose **thickness options** for the line
-  (e.g. thin/medium/thick, or a px value) in the block's properties. `[ ]`
+  (e.g. thin/medium/thick, or a px value) in the block's properties. `[x]`
+  (px input 1–8 in the block properties; `spacerThickness` honored by canvas,
+  preview and print — all share `ReportBlockView`).
 
-## 14. Text block editor: don't scale font size (`[ ]`)
+## 14. Text block editor: don't scale font size (`[x]`)
 
 - In the **text block editor**, the rich text editor currently renders the
   text at its **actual size** (true to the preview).
 - It should instead render text at a **normal/comfortable editing size** —
   only the **preview** reflects the real text size.
+- Fixed: the editor wrapper in `blockControls.tsx` pins a 14px base — the
+  block's real `fontSize` is only applied by the preview/print renderers.
 
 ## 15. Emails/phones in tables: clickable but not blue/underlined (`[x]`)
 
@@ -182,7 +186,7 @@ Related bugs to fix while here:
 - Visual audit on iPad viewport (730px portrait / 1060px landscape per
   `useViewMode`): palette, chrome panels, tables, preview.
 
-## 18. Move local→cloud bumps the project's modified time (`[ ]`)
+## 18. Move local→cloud bumps the project's modified time (`[x]`)
 
 - Moving a project **from Local to Cloud (Drive)** changes its
   `lastModified` to the time the move happened.
@@ -192,6 +196,31 @@ Related bugs to fix while here:
 - Desired: **preserve the original modified time** across the move where
   safe (write the cloud file, then carry the original `lastModified` over
   instead of stamping "now"), while keeping the overwrite protection above.
+- Fixed: `handleMoveToDrive` passes `p.lastModified` to both the local index
+  (`updateProjectMeta`) and the Drive index entry (new optional param on
+  `pushProjectAndUpdateIndex`).
+
+## 19. Token chip affix editor: list-only + inline in the properties panel (`[ ]`)
+
+- Today, clicking ANY token chip in the text block editor opens the "Item
+  formatting" popover (`ChipOptionsPopover` in
+  `src/components/reports/RichTextEditor.tsx`) with Item prefix / Item suffix /
+  Item separator — even for single-value attributes.
+- **Fix 1 — list-only**: only show these options for **multi-value ("list")
+  attributes** (detect via the field registry `multiValue` /
+  `isMultiValue(field, customCategories)` — never raw `split(',')`). Clicking a
+  single-value chip opens nothing (typed `{{field|prefix|suffix}}` still
+  resolves as today per roadmap 16).
+- **Fix 2 — no popup**: remove the popover entirely; render the affix inputs
+  in the block properties panel instead.
+- **Replace the "Layout" section** (`styleLayoutCell` in `blockControls.tsx` —
+  Pad V / Pad H inputs via `LayoutControls`): the user never uses it. Put the
+  affix section in that slot for text blocks (field/link blocks can keep the
+  padding inputs).
+- Needs a per-chip target without the popover: lift the clicked-chip state up
+  (the `onTokenClick` handle already exists at the adapter level — forward it
+  to `ContentControls`) and have the panel's affix inputs patch ONLY that
+  chip's token via `replaceToken`. Keep the `*` customized-chip cue.
 
 ---
 
