@@ -4,7 +4,7 @@ import { useProject } from '../store';
 import { RibbonCell, RibbonRow, RibbonDesign } from '../types';
 import {
   ALL_FIELDS, FIELD_MAP, CATEGORIES, SAMPLE,
-  getDefaultRibbonRows, getDefaultColWidths, cid, MIN_PCT,
+  getDefaultRibbonRows, getDefaultColWidths, cid,
   getCustomFieldDefs, getAlign, getRibbonCellBaseStyle,
   getMergeLookup, mergeSiblingIds, normalizeColWidths,
 } from '../lib/ribbonUtils';
@@ -35,6 +35,7 @@ import RibbonToolbar from './ribbon/RibbonToolbar';
 import RibbonDesignerGrid from './ribbon/RibbonDesignerGrid';
 import RibbonLivePreview from './ribbon/RibbonLivePreview';
 import RibbonContextMenu from './ribbon/RibbonContextMenu';
+import { useColumnResize } from './columnResize';
 
 function cloneRows(rs: RibbonRow[]): RibbonRow[] {
   return JSON.parse(JSON.stringify(rs));
@@ -407,26 +408,16 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
     }), colWidths);
   }, [rows, colWidths, commit]);
 
-  /* ── Direct-DOM column resize ── */
+  /* ── Direct-DOM column resize (shared dragger — src/components/columnResize.tsx) ── */
   const currentDocumentRef = useRef(currentDocument);
   currentDocumentRef.current = currentDocument;
-  const startResize = useCallback((ci: number, e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    const gridEl = gridRef.current;
-    if (!gridEl) return;
-    gridEl.style.touchAction = 'none';
-    document.body.style.touchAction = 'none';
-    const canvasEl = canvasRef.current;
-    if (canvasEl) canvasEl.style.touchAction = 'none';
-    const startX = e.clientX;
-    const gridWidth = gridEl.offsetWidth;
-    const initial = colWidthsRef.current;
-
-    const applyCss = (cw: number[]) => {
+  const startResize = useColumnResize(colWidths, {
+    getWidth: () => gridRef.current?.offsetWidth || 1,
+    touchActionTargets: [gridRef.current, canvasRef.current],
+    apply: (cw) => {
       const css = cw.map(w => `${w}%`).join(' ');
-      gridEl.style.gridTemplateColumns = css;
+      const gridEl = gridRef.current;
+      if (gridEl) gridEl.style.gridTemplateColumns = css;
       if (tabBarRef.current) {
         tabBarRef.current.style.gridTemplateColumns = css;
       }
@@ -436,49 +427,11 @@ export default function RibbonTab({ headerTarget }: { headerTarget?: HTMLElement
           (pg as HTMLElement).style.gridTemplateColumns = css;
         });
       }
-    };
-
-    const onMove = (e: PointerEvent) => {
-      const deltaPct = ((e.clientX - startX) / gridWidth) * 100;
-      const cw = [...initial];
-      if (ci >= cw.length - 1) return;
-      const curA = cw[ci];
-      const curB = cw[ci + 1];
-      const totalAB = curA + curB;
-
-      if (e.shiftKey) {
-        const rightSum = cw.slice(ci + 1).reduce((s, w) => s + w, 0);
-        const nRight = cw.length - ci - 1;
-        const newA = Math.max(MIN_PCT, Math.min(curA + rightSum - MIN_PCT * nRight, curA + deltaPct));
-        const remaining = rightSum + curA - newA;
-        const scale = remaining / rightSum;
-        cw[ci] = Math.round(newA * 100) / 100;
-        for (let i = ci + 1; i < cw.length; i++) {
-          cw[i] = Math.max(MIN_PCT, Math.round(cw[i] * scale * 100) / 100);
-        }
-      } else {
-        const newA = Math.max(MIN_PCT, Math.min(totalAB - MIN_PCT, curA + deltaPct));
-        const newB = totalAB - newA;
-        cw[ci] = Math.round(newA * 100) / 100;
-        cw[ci + 1] = Math.round(newB * 100) / 100;
-      }
-
-      applyCss(cw);
-      colWidthsRef.current = cw;
-    };
-
-    const onUp = () => {
-      currentDocumentRef.current.removeEventListener('pointermove', onMove);
-      currentDocumentRef.current.removeEventListener('pointerup', onUp);
-      gridEl.style.touchAction = '';
-      document.body.style.touchAction = '';
-      if (canvasEl) canvasEl.style.touchAction = '';
-      saveToStore(rowsRef.current, [...colWidthsRef.current]);
-    };
-
-    currentDocumentRef.current.addEventListener('pointermove', onMove);
-    currentDocumentRef.current.addEventListener('pointerup', onUp);
-  }, [saveToStore]);
+    },
+    commit: (cw) => {
+      saveToStore(rowsRef.current, [...cw]);
+    },
+  });
 
   /* ── Keyboard (use refs for stable closures) ── */
   const selIdRef = useRef(selId);
