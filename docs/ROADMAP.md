@@ -136,9 +136,10 @@ Related bugs to fix while here:
   interim honest-label special case from item 25 is removed.
 
 ## 12. Report preview: truncate table rows (`[x]`)
-- Done: `TABLE_PREVIEW_LIMIT = 6` (`ReportBlockView.tsx:617`) + "+N more" row,
-  preview surfaces only (designer canvas + preview — `previewLimit`); print
-  always renders everything; continuation fragments show the bar once.
+- Done: `TABLE_PREVIEW_LIMIT = 6` (`ReportBlockView.tsx:617`) + "+N more" row.
+  Truncation is **designer canvas only** (`editorTableLimit` — the canvas table
+  branch sets it); the preview and print always render every row (per user
+  decision: "it should show normally on the preview and the print").
 
 - In the **report preview**, tables currently render **all rows**.
 - Change it to render only the **first 6 rows**, followed by a

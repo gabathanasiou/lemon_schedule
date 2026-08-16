@@ -309,8 +309,8 @@ export interface ProductionInfo {
 }
 
 export type ReportCollection =
-  | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew' | 'violationTypes'
-  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene';
+  | 'scenes' | 'days' | 'cast' | 'elements' | 'categories' | 'crew' | 'violationTypes' | 'locations' | 'locationTypes'
+  | 'scenesOfDay' | 'scenesOfElement' | 'scenesOfCast' | 'daysOfCast' | 'elementsOfCategory' | 'elementsOfScene' | 'locationsOfType';
 
 export type EmptyBehavior = 'show' | 'hideText' | 'hideBlock';
 export type RepeatAxis = 'rows' | 'columns';
@@ -338,7 +338,7 @@ export interface ReportColumn {
 
 export interface ReportBlock {
   id: string;
-  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit';
+  type: 'text' | 'field' | 'repeat' | 'table' | 'columns' | 'ribbon' | 'pageBreak' | 'spacer' | 'image' | 'map' | 'link' | 'callSheetEdit' | 'relative';
   // text / field
   text?: string;                 // static text; may contain {{key}} tokens
   url?: string;                  // link block: href (may contain {{key}} tokens)
@@ -359,6 +359,9 @@ export interface ReportBlock {
   scopedToParent?: boolean;      // nested repeats/tables: only items in the parent's context — on unless explicitly off
   children?: ReportBlock[];
   gap?: number;                  // pt between repeated items
+  // relative (next/previous-item context shifter — mini-repeater)
+  relativeOffset?: number;       // +1 = next item, -1 = previous
+  relativeCount?: number;        // how many items to stack (default 1)
   // table (repeat + table shape)
   repeatAxis?: RepeatAxis;
   colWidths?: number[];          // rows-mode, % summing to 100

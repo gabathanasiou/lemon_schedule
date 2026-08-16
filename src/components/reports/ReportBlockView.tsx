@@ -36,6 +36,9 @@ export interface ReportRenderProps {
   /** Preview surfaces: full-schedule ribbon blocks render the first strips
    *  plus an "…N more" indicator instead of the whole schedule. */
   previewLimit?: boolean;
+  /** Designer canvas only: tables render the first TABLE_PREVIEW_LIMIT rows
+   *  plus a "+N more" row. Preview and print always render everything. */
+  editorTableLimit?: boolean;
   /** Print-time ribbon overrides keyed by block id (custom report print). */
   ribbonOverrides?: Record<string, RibbonPrintOptions>;
   /** Measured-pagination ranges: render only a slice of a splittable block. */
@@ -130,7 +133,7 @@ function dropTrailingBreaks(list: ReportBlock[]): ReportBlock[] {
 }
 
 export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
-  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange }) => {
+  ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, showUnresolved, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, editorTableLimit, ribbonOverrides, itemRange, rowRange, repeatTableHeader, unitRange }) => {
     const baseStyle = getReportBlockBaseStyle(block, ctx.project);
     const blockAux: FieldAux = {
       ...aux,
@@ -186,7 +189,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         return <ReportRepeatView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} showUnresolved={showUnresolved} aux={blockAux} ancestors={ancestors} ribbonOverrides={ribbonOverrides} itemRange={itemRange} />;
       }
       case 'table': {
-        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} />;
+        return <ReportTableView block={block} ctx={ctx} fieldMap={fieldMap} item={item} parentCategory={parentCategory} parentCollection={parentCollection} scopeFilter={scopeFilter} hint={hint} showKeys={showKeys} aux={blockAux} onceTable={onceTable} ancestors={ancestors} onColumnSelect={onColumnSelect} onColumnContextMenu={onColumnContextMenu} onMoveColumn={onMoveColumn} selectedColumn={selectedColumn} rowRange={rowRange} repeatTableHeader={repeatTableHeader} editorTableLimit={editorTableLimit} />;
       }
       case 'columns': {
         const cols = block.cols || [];
@@ -340,6 +343,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
     a.onMoveColumn === b.onMoveColumn &&
     a.selectedColumn === b.selectedColumn &&
     a.previewLimit === b.previewLimit &&
+    a.editorTableLimit === b.editorTableLimit &&
     a.ribbonOverrides === b.ribbonOverrides &&
     a.itemRange === b.itemRange &&
     a.rowRange === b.rowRange &&
@@ -616,7 +620,7 @@ const TABLE_ITEM_W = 72;
 /** Preview surfaces cap tables at this many item rows (+N more indicator). */
 const TABLE_PREVIEW_LIMIT = 6;
 
-const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, previewLimit, rowRange, repeatTableHeader }) => {
+const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: ReportBlock }> = ({ block, ctx, fieldMap, item, parentCategory, parentCollection, scopeFilter, hint, showKeys, aux, onceTable, ancestors, onColumnSelect, onColumnContextMenu, onMoveColumn, selectedColumn, editorTableLimit, rowRange, repeatTableHeader }) => {
   const nested = !!parentCollection;
   const itemCollection = tableItemCollection(block, parentCollection);
   const isPerItem = nested && contextualCollectionsFor(parentCollection).length === 0 && !onceTable;
@@ -665,12 +669,12 @@ const ReportTableView: React.FC<Omit<ReportRenderProps, 'block'> & { block: Repo
     return null;
   }
 
-  // Preview surfaces cap the table at the first TABLE_PREVIEW_LIMIT rows and
-  // show a "+N more" row; print always renders everything. A rowRange chunk
-  // shows the bar only on its last fragment (the fragment containing the
-  // final row).
+  // The designer canvas caps tables at the first TABLE_PREVIEW_LIMIT rows and
+  // shows a "+N more" row; preview and print always render everything. A
+  // rowRange chunk shows the bar only on its last fragment (the fragment
+  // containing the final row).
   const isLastFragment = !rowRange || rowRange[1] === shown.length;
-  if (previewLimit && isLastFragment && shown.length > TABLE_PREVIEW_LIMIT) {
+  if (editorTableLimit && isLastFragment && shown.length > TABLE_PREVIEW_LIMIT) {
     const more = shown.length - TABLE_PREVIEW_LIMIT;
     return (
       <>

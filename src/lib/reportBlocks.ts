@@ -51,6 +51,7 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     case 'map': base.mapHeight = partial.mapHeight ?? 240; base.mapZoom = partial.mapZoom ?? 15; break;
     case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{dayLocationLink}}'; break;
     case 'callSheetEdit': base.children = []; break;
+    case 'relative': base.children = []; base.relativeOffset = partial.relativeOffset ?? 1; base.relativeCount = partial.relativeCount ?? 1; break;
     default: break;
   }
   return { ...base, ...partial, id: base.id, type };
@@ -155,7 +156,7 @@ export function insertInto(blocks: ReportBlock[], id: string | null, b: ReportBl
   if (!id) return [...blocks, b];
   const f = findBlock(blocks, id);
   if (!f) return blocks;
-  if (f.block.type === 'repeat' || f.block.type === 'table') {
+  if (f.block.type === 'repeat' || f.block.type === 'table' || f.block.type === 'relative') {
     return updateBlock(blocks, id, { children: [...(f.block.children || []), b] });
   }
   return insertSibling(blocks, f, b, f.index + 1);
@@ -356,15 +357,18 @@ export const COLLECTION_LABELS: Record<string, string> = {
   categories: 'Categories',
   crew: 'Crew',
   violationTypes: 'Violation Types',
+  locations: 'Locations',
+  locationTypes: 'Location Types',
   scenesOfDay: 'Scenes (of this day)',
   scenesOfElement: 'Scenes (of this element)',
   scenesOfCast: 'Scenes (of this cast member)',
   daysOfCast: 'Days (of this cast member)',
   elementsOfCategory: 'Elements (of this category)',
   elementsOfScene: 'Elements (of this scene)',
+  locationsOfType: 'Locations (of this type)',
 };
 
-export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene'];
+export const COLLECTION_ORDER: ReportCollection[] = ['scenes', 'days', 'cast', 'elements', 'categories', 'crew', 'violationTypes', 'locations', 'locationTypes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType'];
 
 export function validCollections(parentCollection?: ReportCollection): ReportCollection[] {
   return COLLECTION_ORDER.filter(c => {
@@ -373,9 +377,22 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
     if (c === 'scenesOfCast' || c === 'daysOfCast') return parentCollection === 'cast';
     if (c === 'elementsOfCategory') return parentCollection === 'categories';
     if (c === 'elementsOfScene') return parentCollection === 'scenes';
+    if (c === 'locationsOfType') return parentCollection === 'locationTypes';
     return true;
   });
 }
+
+/**
+ * Typed parent collections — a `parent` item has a `key` and its contextual
+ * child collection lists the items sharing that key (categories → elements,
+ * locationTypes → locations). New databases plug in here + a
+ * `resolveCollection` branch + ctx data; the menus/defaults/labels pipeline
+ * is shared (roadmap 6).
+ */
+export const TYPED_PARENT_COLLECTIONS: { parent: ReportCollection; child: ReportCollection }[] = [
+  { parent: 'categories', child: 'elementsOfCategory' },
+  { parent: 'locationTypes', child: 'locationsOfType' },
+];
 
 /**
  * True when a nested repeat/table over `collection` inside a parent of
@@ -404,6 +421,10 @@ export function isSelfRepeat(
   }
   // crew under crew
   if (collection === 'crew') return parent === 'crew';
+  // flat databases under their own item type ("locations of this location")
+  if (collection === 'locations') return parent === 'locations' || parent === 'locationsOfType';
+  // typed parents: repeating the type collection inside itself is nonsense
+  if (collection === 'locationTypes') return parent === 'locationTypes';
   // Elements submenu: the parent's own category under element/cast-item parents
   if (collection === 'elements') {
     if ((parent === 'elements' || parent === 'elementsOfCategory') && category !== undefined && category === parentCategory) return true;
@@ -414,15 +435,20 @@ export function isSelfRepeat(
 
 /** Contextual sub-collections available for a table nested in a parent repeat. */
 export function contextualCollectionsFor(parentCollection?: ReportCollection): ReportCollection[] {
+  const typed = TYPED_PARENT_COLLECTIONS.find(t => t.parent === parentCollection);
+  if (typed) return [typed.child];
   if (parentCollection === 'days') return ['scenesOfDay'];
   if (parentCollection === 'elements') return ['scenesOfElement'];
   if (parentCollection === 'cast') return ['scenesOfCast', 'daysOfCast'];
-  if (parentCollection === 'categories') return ['elementsOfCategory'];
   if (parentCollection === 'scenes') return ['elementsOfScene'];
   return [];
 }
 
-const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene']);
+export const CONTEXTUAL_COLLECTIONS = new Set(['scenesOfDay', 'scenesOfElement', 'scenesOfCast', 'daysOfCast', 'elementsOfCategory', 'elementsOfScene', 'locationsOfType']);
+
+/** Collections with NO Lego scene-rule — the "Only … in this …" scope checkbox
+ *  is hidden for them and ancestor scoping is a no-op. */
+export const NON_SCOPABLE_COLLECTIONS = new Set(['crew', 'locations', 'locationTypes']);
 
 /**
  * Menu options: BASE collections only — the contextual variants ("Scenes (of
@@ -442,6 +468,8 @@ export function parentNoun(parentCollection?: ReportCollection): string {
     case 'cast': return 'cast member';
     case 'crew': return 'crew member';
     case 'violationTypes': return 'violation type';
+    case 'locations': case 'locationsOfType': return 'location';
+    case 'locationTypes': return 'location type';
     default: return 'item';
   }
 }
