@@ -1,6 +1,7 @@
 import React from 'react';
 import { RibbonCell } from '../types';
 import type { CellBorders } from './persist';
+import { getFieldValue, getFieldValueFromSample } from './ribbonDefaults';
 
 export interface FieldDef {
   key: string;
@@ -116,6 +117,55 @@ export function formatCellText(prefix: string | undefined, value: string | undef
   const v = value || '';
   const s = suffix || '';
   return `${p}${p && v ? ' ' : ''}${v}${s && v ? ' ' : ''}${s}`;
+}
+
+/** The sample strip trio (INT DAY / EXT DAY / INT NIGHT) used by the ribbon
+ *  designer's live preview, the print-dialog dummy, and the reports ribbon
+ *  block's empty-schedule preview. One source of truth. */
+export const PREVIEW_SAMPLES = [
+  { intExt: 'INT', dayNight: 'DAY', sceneNumber: '5' },
+  { intExt: 'EXT', dayNight: 'DAY', sceneNumber: '12' },
+  { intExt: 'INT', dayNight: 'NIGHT', sceneNumber: '20A' },
+];
+
+export interface RibbonSampleOptions {
+  /** Enable sample-value / field-label fallbacks (designer canvas + preview). */
+  sample?: boolean;
+  /** Custom category labels (key → label) for the italic label fallback. */
+  customFieldLabels?: Record<string, string>;
+}
+
+export interface RibbonDisplayValue {
+  /** Final display text — affixes applied when a real/sample value exists. */
+  text: string;
+  /** True when the text is a real (or static-text/sample) value — normal
+   *  weight, full opacity. False = the italic, dimmed field-label fallback. */
+  isValue: boolean;
+}
+
+/** One source for ribbon cell display text (LivePreview pattern): real value
+ *  → sample value (`getFieldValueFromSample`, sample sceneNumber included) →
+ *  field label (`FIELD_MAP`/`customFieldLabels`) in italic + reduced opacity.
+ *  Affixes only apply when a value exists (real or sample). Static text cells
+ *  render their textContent. Print never enables `sample`. */
+export function ribbonCellDisplayValue(
+  cell: RibbonCell,
+  scene: Record<string, any> | null,
+  opts?: RibbonSampleOptions,
+): RibbonDisplayValue {
+  if (!cell.field || cell.field === 'text') {
+    const t = cell.textContent || '';
+    return { text: t, isValue: !!t };
+  }
+  const real = scene ? getFieldValue(cell.field, scene) : '';
+  if (real) return { text: formatCellText(cell.prefix, real, cell.suffix), isValue: true };
+  if (opts?.sample) {
+    const sampleVal = getFieldValueFromSample(cell.field);
+    if (sampleVal) return { text: formatCellText(cell.prefix, sampleVal, cell.suffix), isValue: true };
+    const label = FIELD_MAP[cell.field]?.label || opts.customFieldLabels?.[cell.field] || '';
+    if (label) return { text: label, isValue: false };
+  }
+  return { text: '', isValue: false };
 }
 
 export function getCellBorderProps(borders: CellBorders | undefined, textColor: string, isLastInRow: boolean, isLastRow: boolean): React.CSSProperties {

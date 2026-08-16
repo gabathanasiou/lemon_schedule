@@ -6,7 +6,7 @@ import { RibbonCell } from '../types';
 import Modal from './Modal';
 import { ModalFooter } from './Modal';
 import Checklist from './Checklist';
-import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText } from '../lib/ribbonUtils';
+import { getFieldValueFromSample, FIELD_MAP, getRibbonCellBaseStyle, resolveSceneColor, getCellBorderProps, getFallbackStripColors, computeMergeGroups, formatCellText, PREVIEW_SAMPLES } from '../lib/ribbonUtils';
 import { RibbonCellText } from './RibbonCellText';
 import { useViewMode, useCellBorders, CellBorders } from '../lib/persist';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
@@ -20,12 +20,6 @@ function formatDayDateShort(dateStr: string): string {
   const suffix = (day >= 11 && day <= 13) ? 'th' : suffixes[day % 10] || 'th';
   return `${weekday}, ${day}${suffix}`;
 }
-
-const PREVIEW_SAMPLES = [
-  { intExt: 'INT', dayNight: 'DAY' },
-  { intExt: 'EXT', dayNight: 'DAY' },
-  { intExt: 'INT', dayNight: 'NIGHT' },
-];
 
 export interface PrintOptions {
   showTimes: boolean;
