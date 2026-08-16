@@ -497,9 +497,45 @@ export function getReportFieldMap(project: Project): Record<string, ReportFieldD
  *  rows) — vs document/project/smart fields that resolve from ctx/aux. */
 export const ITEM_SCOPES = new Set(['scenes', 'elements', 'cast', 'days', 'crew']);
 
+/**
+ * Breakdown attributes (group 'Breakdown', scene-scope) inside a DAY repeater:
+ * resolve to the union of that day's scenes' values — Cast Members List →
+ * distinct cast working that day, Props → distinct props across the day's
+ * scenes. Composed with the ancestor `sceneScope` intersection like the smart
+ * fields, so a days repeater nested in a cast/element chain only unions the
+ * scenes that survive the Lego intersection. Field extraction stays in the
+ * registry (`def.get` per scene — never re-derived).
+ */
+function dayBreakdownValue(ctx: ReportCtx, def: ReportFieldDef, day: any, scope?: Set<string> | null): string {
+  let scenes = ctx.sceneInfos.filter(si => si.sectionIndex === day.section.index);
+  if (scope && scope.size > 0) scenes = scenes.filter(si => scope.has(si.scene.id));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (v: string) => {
+    const k = v.toLowerCase();
+    if (k && !seen.has(k)) { seen.add(k); out.push(v); }
+  };
+  for (const si of scenes) {
+    if (def.multiValue) {
+      for (const part of String(def.get(ctx, si) || '').split(',').map(x => x.trim()).filter(Boolean)) push(part);
+    } else {
+      const v = String(def.get(ctx, si) || '').trim();
+      if (v) push(v);
+    }
+  }
+  return out.join(', ');
+}
+
 function fieldValueSafe(def: ReportFieldDef, ctx: ReportCtx, item: any, aux?: FieldAux): string {
   if (ITEM_SCOPES.has(def.scope) && !item) return '';
   try {
+    // Breakdown attributes inside a day repeater can't read `it.scene` (a day
+    // item has none) — resolve them per-day instead of blanking out. Only the
+    // Breakdown group: other scene-scope fields stay scene-only, so legacy
+    // {{sceneNumber}}-style tokens inside day repeaters keep rendering ''.
+    if (def.scope === 'scenes' && def.group === 'Breakdown' && item && typeof item.section?.index === 'number') {
+      return dayBreakdownValue(ctx, def, item, aux?.sceneScope) || '';
+    }
     return def.get(ctx, item, aux) || '';
   } catch {
     return '';
@@ -638,6 +674,7 @@ export function fieldsForScope(
   category?: string,
 ): ReportFieldDef[] {
   const scopeSet = new Set(['production', 'project', 'document', 'smart']);
+  const dayScope = scope === 'days' || scope === 'daysOfCast';
   if (scope) {
     if (['scenes', 'scenesOfDay', 'scenesOfElement', 'scenesOfCast'].includes(scope)) scopeSet.add('scenes');
     else if (scope === 'elementsOfCategory') scopeSet.add('elements');
@@ -647,7 +684,13 @@ export function fieldsForScope(
   // category 'cast') or a categories repeat's Cast item ('elementsOfCategory')
   // — their identity fields (Cast ID, Cast ID & Name) belong there too.
   if (scope === 'cast' || category === 'cast' || scope === 'elementsOfCategory') scopeSet.add('cast');
-  return fields.filter(f => scopeSet.has(f.scope));
+  return fields.filter(f => {
+    if (scopeSet.has(f.scope)) return true;
+    // Breakdown attributes (scene-scope) resolve per-day inside a days repeater
+    // (roadmap 22) — the only scene fields pickable in a day context.
+    if (dayScope && f.scope === 'scenes' && f.group === 'Breakdown') return true;
+    return false;
+  });
 }
 
 /** Search-by-label-or-key shared by the palette search box and the text
