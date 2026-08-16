@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
-import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS } from '../../lib/reportBlocks';
+import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS, isSelfRepeat } from '../../lib/reportBlocks';
 import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
@@ -483,12 +483,13 @@ const ExcludeCategoriesMenu: React.FC<{
 const NestedTableMenu: React.FC<{
   block: ReportBlock;
   parentCollection: ReportCollection;
+  parentCategory?: string;
   allCategoryKeys: { key: string; isCustom: boolean }[];
   categoryLabelLookup: Record<string, string>;
   customCategories?: { key: string; icon?: string }[];
   disabled: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
-}> = ({ block, parentCollection, allCategoryKeys, categoryLabelLookup, customCategories, disabled, onPatch }) => {
+}> = ({ block, parentCollection, parentCategory, allCategoryKeys, categoryLabelLookup, customCategories, disabled, onPatch }) => {
   const contextual = contextualCollectionsFor(parentCollection);
   const collections: ReportCollection[] = [];
   const preserved = block.collection && !contextual.includes(block.collection) && block.collection !== 'scenes' && block.collection !== 'cast'
@@ -496,7 +497,7 @@ const NestedTableMenu: React.FC<{
     : null;
   if (preserved) collections.push(preserved as ReportCollection);
   for (const c of baseValidCollections(parentCollection)) {
-    if (c !== 'cast' && !collections.includes(c)) collections.push(c);
+    if (c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory) && !collections.includes(c)) collections.push(c);
   }
   return (
     <CollectionMenu
@@ -509,10 +510,33 @@ const NestedTableMenu: React.FC<{
       disabled={disabled}
       parentCollection={parentCollection}
       scopedToParent={block.scopedToParent !== false}
+      disabledCategories={allCategoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
       onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
     />
   );
 };
+
+/**
+ * Repeat "Repeat over" menu collections — contextual variants first, then the
+ * base collections minus self-redundant picks (isSelfRepeat). The block's own
+ * effective current collection is ALWAYS re-included (if it was filtered out)
+ * so existing self-repeat designs stay editable and keep rendering (no
+ * migration). `cast` is never listed here — it's reached via the Elements
+ * submenu in CollectionMenu.
+ */
+function repeatMenuCollections(
+  current: ReportCollection | undefined,
+  parentCollection: ReportCollection | undefined,
+  parentCategory: string | undefined,
+): ReportCollection[] {
+  const effective = current || 'scenes';
+  const list = [
+    ...contextualCollectionsFor(parentCollection),
+    ...baseValidCollections(parentCollection).filter(c => c !== 'cast' && !isSelfRepeat(parentCollection, c, parentCategory)),
+  ];
+  if (effective !== 'cast' && !list.includes(effective)) list.push(effective);
+  return list;
+}
 
 /** Ribbon design picker for ribbon blocks (module scope — stable identity). */
 const RibbonDesignMenu: React.FC<{ block: ReportBlock; project: Project; disabled: boolean; onPatch: (p: Partial<ReportBlock>) => void }> = ({ block, project, disabled, onPatch }) => {
@@ -702,17 +726,18 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <CollectionMenu
             value={block.collection || 'scenes'}
             category={block.category || 'props'}
-            collections={[...contextualCollectionsFor(parentCollection), ...baseValidCollections(parentCollection).filter(c => c !== 'cast')]}
+            collections={repeatMenuCollections(block.collection, parentCollection, parentCategory)}
             categoryKeys={categoryKeys}
             categoryLabels={categoryLabels}
             customCategories={project.customCategories}
             disabled={disabled}
             parentCollection={parentCollection}
             scopedToParent={block.scopedToParent !== false}
+            disabledCategories={categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
             onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
           />
         ) : parentCollection ? (
-          <NestedTableMenu block={block} parentCollection={parentCollection} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} disabled={disabled} onPatch={onPatch} />
+          <NestedTableMenu block={block} parentCollection={parentCollection} parentCategory={parentCategory} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} disabled={disabled} onPatch={onPatch} />
         ) : (
           <CollectionMenu
             value={block.collection || 'scenes'}
@@ -778,7 +803,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           disabled={disabled}
         />
       </ContentRow>,
-      parentCollection && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
+      parentCollection && parentCollection !== 'crew' && !CONTEXTUAL_COLLECTIONS.has(effective) ? (
         <ContentRow key="scope" label="Scope">
           <Checkbox checked={block.scopedToParent !== false} disabled={disabled} onChange={on => onPatch({ scopedToParent: on })} label={`Only ${COLLECTION_LABELS_LOCAL[effective] || 'items'} in this ${PARENT_LABELS[parentCollection] || 'item'}`} />
         </ContentRow>
