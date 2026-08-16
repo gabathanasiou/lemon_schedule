@@ -28,6 +28,14 @@ item is done, committed, and pushed.
 3. **NEVER edit `docs/` or `AGENTS.md`.** Architecture is the orchestrator's
    domain. You file a report instead (step 5).
 
+4. **Shared node_modules gotcha**: your worktree's `node_modules` (and Vite's
+   `.vite` optimize cache) are SYMLINKED to the main tree and shared with all
+   other workers. Never run two vite dev servers at once; if the app shows
+   stale/corrupt behavior (e.g. "Invalid hook call", old code rendering),
+   stop your server, `rm -rf node_modules/.vite`, and restart it. Prefer
+   `npx playwright test` (auto-starts its own server) over a long-lived
+   manual dev server.
+
 ## Questions: the two-tier protocol
 
 - **Blocking** (a product decision you shouldn't guess): write the question to
