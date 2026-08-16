@@ -1,5 +1,5 @@
 ---
-description: Spawn a feature worker for a roadmap item in an isolated git worktree. Usage: /spawn-feature <item>
+description: DEPRECATED — parallel worktree spawning is retired; use /roadmap-item <n> instead. Dormant on disk for possible revival. Spawn a feature worker for a roadmap item in an isolated git worktree. Usage: /spawn-feature <item>
 ---
 
 # Spawn feature worker: roadmap item $1

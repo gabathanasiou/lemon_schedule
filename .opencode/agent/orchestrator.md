@@ -1,5 +1,5 @@
 ---
-description: Orchestrates parallel roadmap work — picks file-disjoint roadmap items, spawns feature workers in isolated git worktrees, dispatches code reviews, merges branches, curates docs, updates the roadmap. Use when running roadmap sprints, spawning feature workers, or managing parallel agent work.
+description: DEPRECATED — parallel worktree orchestration is retired. Dormant on disk for possible revival; the live flow is single-agent `/roadmap-item <n>` (see AGENTS.md "Roadmap Work"). Orchestrates parallel roadmap work — picks file-disjoint roadmap items, spawns feature workers in isolated git worktrees, dispatches code reviews, merges branches, curates docs, updates the roadmap. Use when running roadmap sprints, spawning feature workers, or managing parallel agent work.
 mode: primary
 permission:
   task:

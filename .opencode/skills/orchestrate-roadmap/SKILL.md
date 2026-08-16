@@ -1,9 +1,14 @@
 ---
 name: orchestrate-roadmap
-description: Run parallel feature workers on roadmap items using git worktrees + headless opencode runs, with the decisions hand-off channel, serialized verification, and the docs-curator loop. Use when the user says "roadmap sprint", "spawn feature workers", "orchestrate subagents", "parallel agents", "worktree", or asks to implement several roadmap items at once.
+description: DEPRECATED — parallel worktree sprints are retired; the live flow is single-agent /roadmap-item <n> (see AGENTS.md "Roadmap Work"). Dormant on disk for possible revival. Run parallel feature workers on roadmap items using git worktrees + headless opencode runs, with the decisions hand-off channel, serialized verification, and the docs-curator loop. Use when the user says "roadmap sprint", "spawn feature workers", "orchestrate subagents", "parallel agents", "worktree", or asks to implement several roadmap items at once.
 ---
 
 # Orchestrating Roadmap Sprints
+
+> DEPRECATED — the parallel pipeline is dormant. Single-agent flow: run
+> `/roadmap-item <n>`; one agent implements, self-reviews, and updates docs on
+> the current branch. This skill is kept for possible revival and describes the
+> retired machinery below.
 
 The repo's workflow for running several `docs/ROADMAP.md` items at once on one
 machine: one orchestrator (you), N feature workers in isolated git worktrees,

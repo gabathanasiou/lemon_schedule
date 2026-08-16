@@ -127,12 +127,17 @@ New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Secti
 ## Reports Designer
 Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation.
 
-## Orchestrated Sessions (parallel roadmap work)
-- Pipeline: load the **orchestrate-roadmap** skill (`.opencode/skills/orchestrate-roadmap/SKILL.md`); agents in `.opencode/agent/` (`orchestrator` primary, `feature-worker`/`code-reviewer`/`docs-curator` subagents); commands `/spawn-feature` + `/roadmap-sprint`.
-- Feature workers run headlessly in git worktrees (`../lemon_schedule-wt/<item>`, branch `feat/<item>`, `node_modules`/`.env` symlinked). They READ the docs first, NEVER edit `docs/`/`AGENTS.md`, and file `.opencode/reports/<item>.md` (changes / invariants / docs-needed / assumptions / verification). Blocking questions go to `.opencode/decisions/<item>.md` and are relayed by the orchestrator.
-- **Docs are written only by the docs-curator** (loads the `write-agent-docs` skill) — feature workers must never touch them.
-- Never parallel workers on shared reports files (`blockControls.tsx`, `reportBlocks.ts`, `types.ts` ReportBlock, `ReportBlockView.tsx`, `ReportDesignerCanvas.tsx`, `reportData.ts`, `ribbonUtils.ts`). Never run two playwright suites concurrently (ports 3001/4173).
+## Roadmap Work (single agent)
+- **One agent per item, on the current branch, in this tree** — no worktrees, no orchestrator, no parallel workers. Run `/roadmap-item <n>` (or just ask) and the agent works until the item is done.
+- The agent: reads `AGENTS.md` + domain docs FIRST (same READ-FIRST list the old feature-worker had), implements with small focused commits, asks you blocking questions directly (question tool — no decisions channel), then **self-reviews**: verifies its diff against the documented invariants (canonical models in AGENTS.md/docs — no re-derivation), checks for duplicated logic/monoliths, runs `npm run lint` + `npx playwright test`.
+- Then it **updates the docs itself**: loads the `write-agent-docs` skill, applies the `docs/*.md`/AGENTS.md updates its change calls for, and flips the item's `docs/ROADMAP.md` status `[ ]` → `[x]` with a one-line "Done:" note.
+- **Optional second pair of eyes**: dispatch the `code-reviewer` subagent (read-only) on `git diff` whenever you want an independent pass before or after committing docs.
+- **Phone notifications**: the agent pings ntfy (`NTFY_TOPIC` in `.env`, subscribed in the ntfy iOS app) before asking a blocking question and when the item is done — the streaming tab can sit idle; the phone still pings.
 - Live phone streaming requires the TUI attached to the web server: `opencode attach http://localhost:4096` (`.opencode/scripts/tui.sh`). Web server: `.opencode/scripts/start-web.sh`, auto-started by a `~/.zshrc` guard.
+
+## Legacy parallel machinery (DORMANT — do not use)
+- The old worktree-orchestration pipeline is retired but left on disk for possible revival: `orchestrator`/`docs-curator` agents, `/spawn-feature` `/roadmap-sprint` `/cleanup-worker` commands, the `orchestrate-roadmap` skill, and scripts `hub-server.mjs` (`npm run hub`), `preview-workers.sh`, `worker-ports.sh`, `watch-workers.sh`. All carry a DEPRECATED banner; the `code-reviewer` agent stays LIVE as the on-demand reviewer.
+- The **hub** (`hub-server.mjs`, port 3101+idx*10) only discovers `../lemon_schedule-wt/*` worktrees to serve per-worker dev tabs — with single-agent work in the main tree it has nothing to serve and is inert. It still works if parallel sprints ever return; nothing depends on it being stopped or started.
 
 ## File Layout (post-refactor — see `docs/REFACTOR-PLAN.md`)
 - `src/store/` — barrel + storage/reducer(+actions)/provider/rows

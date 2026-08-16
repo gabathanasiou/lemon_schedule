@@ -1,5 +1,5 @@
 ---
-description: Clean up a finished worker — stop its dev server, remove its worktree and its branch (local + remote). Usage: /cleanup-worker <item>
+description: DEPRECATED — worktree cleanup is retired; use /roadmap-item <n> instead. Dormant on disk for possible revival. Clean up a finished worker — stop its dev server, remove its worktree and its branch (local + remote). Usage: /cleanup-worker <item>
 ---
 
 # Cleanup worker $1

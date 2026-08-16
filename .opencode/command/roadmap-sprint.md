@@ -1,5 +1,5 @@
 ---
-description: Run a full roadmap sprint — spawn parallel feature workers, collect decisions, review, merge, curate docs, update the roadmap. Usage: /roadmap-sprint <item> [item...]
+description: DEPRECATED — parallel sprints are retired; use /roadmap-item <n> (one at a time). Dormant on disk for possible revival. Run a full roadmap sprint — spawn parallel feature workers, collect decisions, review, merge, curate docs, update the roadmap. Usage: /roadmap-sprint <item> [item...]
 ---
 
 # Roadmap sprint: $ARGUMENTS

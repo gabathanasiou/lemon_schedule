@@ -1,5 +1,5 @@
 ---
-description: Curates agent-facing documentation (AGENTS.md, docs/*.md, ROADMAP.md statuses) from feature-worker architecture reports. MUST load the write-agent-docs skill. Use when a feature worker files a report in .opencode/reports/ or the orchestrator hands one over.
+description: DEPRECATED — the docs-curator role is folded into the solo roadmap worker (it updates docs itself). Dormant on disk for possible revival. Curates agent-facing documentation (AGENTS.md, docs/*.md, ROADMAP.md statuses) from feature-worker architecture reports. MUST load the write-agent-docs skill. Use when a feature worker files a report in .opencode/reports/ or the orchestrator hands one over.
 mode: subagent
 permission:
   bash:
