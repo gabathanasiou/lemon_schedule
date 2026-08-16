@@ -536,6 +536,12 @@ export function parseToken(raw: string): { field: string; opts: TokenItemOpts } 
   };
 }
 
+/** Compose a piped token key from parts (omits pipes when all empty). */
+export function composeTokenKey(field: string, prefix: string, suffix: string, separator: string): string {
+  if (!prefix && !suffix && !separator) return field;
+  return `${field}|${prefix}|${suffix}|${separator}`;
+}
+
 export interface TokenResolveOptions {
   /** Designer canvas: render the raw token ({{field}}) when its value is empty
    *  so templates stay visible instead of showing a blank spot. Print/preview

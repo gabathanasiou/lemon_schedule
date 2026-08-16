@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ToolButton, Seg, SectionHeader, ContentRow, ChromeHeader, StructureControls, FormatToolbar, FontMenu, RICH_TEXT_STATE_IDLE, TB_BTN, TB_BTN_ICON, TB_DANGER, TB_TOGGLE, TB_TOGGLE_ON, TB_TOGGLE_OFF, TB_INPUT, TB_NUM, TB_DIVIDER, TB_SEG, TB_PICKER } from '@gabriel/ui-kit';
 import { ReportBlock, ReportCollection, Project, ReportTextStyle } from '../../types';
 import { baseValidCollections, contextualCollectionsFor, tableItemCollection, tableFieldScope, COLLECTION_LABELS } from '../../lib/reportBlocks';
-import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel } from '../../lib/reportFields';
+import { getReportFieldDefs, fieldsForScope, ReportFieldDef, DAY_LIST_FIELD_KEYS, smartFieldLabel, parseToken, composeTokenKey } from '../../lib/reportFields';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { DAY_FORMAT_OPTIONS, DayFormatMode } from '../../lib/utils';
 import { getTextStyles, getTextStyleById, newTextStyle } from '../../lib/reportTextStyles';
@@ -61,9 +61,18 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   const meta = BLOCK_TYPE_META[block.type] || { label: block.type, icon: null };
   const ctx: BlockCtx = { block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles };
   const isTextLike = block.type === 'text' || block.type === 'field' || block.type === 'link';
-  const { contextFields } = useReportControlContext(project, parentCollection);
+  const { allFields, contextFields } = useReportControlContext(project, parentCollection);
   const isField = block.type === 'field';
   const emptyHidden = block.emptyBehavior === 'hideBlock';
+  // Text blocks: the item-formatting editor targets the last-clicked chip
+  // (list attributes only). Lifted here so the affix section can live in the
+  // panel where the Layout section used to be.
+  const editorRef = React.useRef<RichTextEditorHandle>(null);
+  const [chipKey, setChipKey] = React.useState<string | null>(null);
+  React.useEffect(() => { setChipKey(null); }, [block.id]);
+  const chipField = chipKey ? parseToken(chipKey).field : null;
+  const chipDef = chipField ? allFields.find(f => f.key === chipField) : undefined;
+  const chipIsList = !!chipDef?.multiValue;
   const styleLayoutCell = isTextLike ? (
     <div className="flex flex-col gap-1.5 px-2.5 py-1.5 min-w-max">
       <SectionHeader>Style</SectionHeader>
@@ -71,10 +80,27 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
         <StyleControls {...ctx} />
       </div>
       <div className="h-px bg-zinc-800 my-1" />
-      <SectionHeader>Layout</SectionHeader>
-      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
-        <LayoutControls {...ctx} />
-      </div>
+      {block.type === 'text' ? (
+        chipKey && chipIsList ? (
+          <ChipAffixSection
+            chipKey={chipKey}
+            fieldLabel={chipDef?.label ?? chipField}
+            readOnly={readOnly}
+            onChange={key => {
+              setChipKey(key);
+              editorRef.current?.replaceToken(key);
+            }}
+            onClose={() => setChipKey(null)}
+          />
+        ) : null
+      ) : (
+        <>
+          <SectionHeader>Layout</SectionHeader>
+          <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+            <LayoutControls {...ctx} />
+          </div>
+        </>
+      )}
     </div>
   ) : null;
   return (
@@ -133,7 +159,7 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       {block.type !== 'pageBreak' && (
         <div className="flex flex-col gap-1.5 px-2.5 py-1.5">
           <SectionHeader>Content</SectionHeader>
-          <ContentControls {...ctx} />
+          <ContentControls {...ctx} editorRef={editorRef} onTokenClick={(key) => setChipKey(key)} />
         </div>
       )}
     </div>
@@ -150,6 +176,10 @@ export interface BlockCtx {
   readOnly: boolean;
   onPatch: (patch: Partial<ReportBlock>) => void;
   onSaveTextStyles?: (styles: ReportTextStyle[]) => void;
+  /** Text blocks only: the editor handle (formatting + chip rewriting). */
+  editorRef?: React.MutableRefObject<RichTextEditorHandle | null>;
+  /** Text blocks only: a token chip was clicked (its full key + rect). */
+  onTokenClick?: (key: string, rect: DOMRect) => void;
 }
 
 // ---- named text styles (Word/Pages-like) ---------------------------------------
@@ -554,14 +584,10 @@ const RibbonShowToggles: React.FC<{ block: ReportBlock; disabled: boolean; onPat
   );
 };
 
-export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch }) => {
+export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentCollection, parentCategory, readOnly, onPatch, editorRef, onTokenClick }) => {
   const { allFields, contextFields, categoryKeys, categoryLabels } = useReportControlContext(project, parentCollection);
   const disabled = readOnly;
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
-  // Hoisted hooks — must run unconditionally (a useRef inside `if (block.type
-  // === 'text')` changes the hook order when switching between block types,
-  // which crashes React with a "Rendered more hooks" error).
-  const editorRef = React.useRef<RichTextEditorHandle>(null);
   const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const [locationOpen, setLocationOpen] = useState(false);
 
@@ -621,6 +647,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             value={block.text || ''}
             onChange={text => onPatch({ text })}
             onStateChange={setRtActive}
+            onTokenClick={onTokenClick}
             placeholder="Type text… type @ to insert an attribute"
             disabled={disabled}
             fields={contextFields}
@@ -1111,6 +1138,44 @@ export const LayoutControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch })
     </Tooltip>
   </>
 );
+
+// ---- chip item-formatting (text blocks — list attributes only) ----------------
+
+export const ChipAffixSection: React.FC<{
+  chipKey: string;
+  fieldLabel: string;
+  readOnly: boolean;
+  onChange: (key: string) => void;
+  onClose: () => void;
+}> = ({ chipKey, fieldLabel, readOnly, onChange, onClose }) => {
+  const { field, opts } = parseToken(chipKey);
+  const setOpt = (kind: 'itemPrefix' | 'itemSuffix' | 'itemSeparator', value: string) => {
+    onChange(composeTokenKey(
+      field,
+      kind === 'itemPrefix' ? value : (opts.itemPrefix ?? ''),
+      kind === 'itemSuffix' ? value : (opts.itemSuffix ?? ''),
+      kind === 'itemSeparator' ? value : (opts.itemSeparator ?? ''),
+    ));
+  };
+  return (
+    <>
+      <SectionHeader>
+        <span className="flex items-center gap-1.5">
+          <span>Item formatting — {fieldLabel}</span>
+          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-200 cursor-pointer">✕</button>
+        </span>
+      </SectionHeader>
+      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+        <span className="text-[10px] text-zinc-500 shrink-0">Prefix</span>
+        <input aria-label="Item prefix" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemPrefix ?? ''} onChange={e => setOpt('itemPrefix', e.target.value)} />
+        <span className="text-[10px] text-zinc-500 shrink-0">Suffix</span>
+        <input aria-label="Item suffix" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemSuffix ?? ''} onChange={e => setOpt('itemSuffix', e.target.value)} />
+        <span className="text-[10px] text-zinc-500 shrink-0">Sep</span>
+        <input aria-label="Item separator" readOnly={readOnly} className={TB_INPUT + ' w-20'} value={opts.itemSeparator ?? ''} onChange={e => setOpt('itemSeparator', e.target.value)} />
+      </div>
+    </>
+  );
+};
 
 // ---- day format menu ------------------------------------------------------------
 

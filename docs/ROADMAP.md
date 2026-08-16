@@ -165,7 +165,9 @@ Related bugs to fix while here:
 - Editor UX: clicking a token chip in the text editor opens an "Item
   formatting" popover (Item prefix / Item suffix / Item separator); Apply
   rewrites ONLY that chip's token via the kit's `replaceToken` handle
-  (ui-kit v0.1.29 `onTokenClick`/`replaceToken`).
+  (ui-kit v0.1.29 `onTokenClick`/`replaceToken`). **Superseded by item 19** —
+  the popover is gone; the controls now live in the block properties panel
+  (list attributes only).
 - Visual cue: chips with custom formatting render with a `*` on their label
   (editor chips + canvas `TokenPreview`).
 
@@ -200,7 +202,7 @@ Related bugs to fix while here:
   (`updateProjectMeta`) and the Drive index entry (new optional param on
   `pushProjectAndUpdateIndex`).
 
-## 19. Token chip affix editor: list-only + inline in the properties panel (`[ ]`)
+## 19. Token chip affix editor: list-only + inline in the properties panel (`[x]`)
 
 - Today, clicking ANY token chip in the text block editor opens the "Item
   formatting" popover (`ChipOptionsPopover` in
@@ -221,6 +223,11 @@ Related bugs to fix while here:
   (the `onTokenClick` handle already exists at the adapter level — forward it
   to `ContentControls`) and have the panel's affix inputs patch ONLY that
   chip's token via `replaceToken`. Keep the `*` customized-chip cue.
+- Fixed: popover deleted; `RichTextEditor` forwards `onTokenClick` up;
+  `BlockEditorContent` tracks the clicked chip and renders `ChipAffixSection`
+  in the former Layout slot (text blocks only, multi-value fields only, live
+  per-keystroke patches via `replaceToken`, ✕ clears the selection);
+  `parseToken`/`composeTokenKey` shared in `lib/reportFields.ts`.
 
 ---
 
