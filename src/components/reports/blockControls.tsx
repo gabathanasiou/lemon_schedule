@@ -1011,6 +1011,18 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
   }
 
+  // Block gap (roadmap 26): every block type gets a "Gap (px)" input — the
+  // vertical margin above the block in a stacked list (default 10; pageBreak
+  // blocks never render one, spacer blocks keep the default like everything
+  // else and zero their own gap for exact manual spacing).
+  if (block.type !== 'pageBreak') {
+    push('Layout',
+      <ContentRow key="gap" label="Gap (px)">
+        <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.blockGap ?? 10} onChange={e => onPatch({ blockGap: Math.max(0, Number(e.target.value) || 0) })} />
+      </ContentRow>,
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2 min-w-max">
       {sections.map((s, i) => (

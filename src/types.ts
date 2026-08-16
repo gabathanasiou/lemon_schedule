@@ -388,6 +388,11 @@ export interface ReportBlock {
   paddingV?: number;
   paddingH?: number;
   textStyle?: string;              // id of a project.reportTextStyles entry (linked style)
+  /** Vertical gap (px) above the block in a stacked list (roadmap 26).
+   *  Absent = the render-time default 10 — existing designs get spacing with
+   *  no migration. pageBreak blocks never get a margin; the first block in
+   *  each stack stays flush. */
+  blockGap?: number;
   // spacer
   height?: number;
   spacerStyle?: 'none' | 'black' | 'line' | 'dotted';

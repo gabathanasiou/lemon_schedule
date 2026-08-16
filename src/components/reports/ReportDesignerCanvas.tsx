@@ -8,6 +8,7 @@ import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, l
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
+import { blockGapMargin } from './reportStyle';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
 import {
   BLOCK_TYPE_META, useReportControlContext,
@@ -284,7 +285,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
 
       out.push(
         <div key={`z-${b.id}`}>{renderZone(b, 'before', depth)}</div>,
-        <div key={b.id}>
+        <div key={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
           <div
             data-block-id={b.id}
             className={`block-card block-type-${b.type}${selected ? ' selected' : ''}`}
