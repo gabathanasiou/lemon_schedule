@@ -27,12 +27,16 @@ interface CollectionMenuProps {
   width?: string;
   parentCollection?: ReportCollection;
   scopedToParent?: boolean;
+  /** Categories grayed out in the Elements submenu (self-redundant picks).
+   *  The current value is always exempted — existing designs stay editable. */
+  disabledCategories?: string[];
   onChange: (collection: ReportCollection, category?: string) => void;
 }
 
 const CollectionMenu: React.FC<CollectionMenuProps> = ({
   value, category, collections, categoryKeys, categoryLabels, customCategories,
-  disabled, width = 'w-40', parentCollection, scopedToParent = true, onChange,
+  disabled, width = 'w-40', parentCollection, scopedToParent = true, disabledCategories,
+  onChange,
 }) => {
   const [open, setOpen] = useState(false);
   const scoped = scopedToParent !== false;
@@ -43,6 +47,13 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
   const pick = (collection: ReportCollection, cat?: string) => {
     onChange(collection, cat);
     setOpen(false);
+  };
+
+  const categoryDisabled = (key: string) => {
+    // Always exempt the current value — a self-repeat pick that's already the
+    // block's value must stay selectable so existing designs keep editing.
+    if (value === 'elements' && category === key) return false;
+    return !!disabledCategories?.includes(key);
   };
 
   return (
@@ -75,6 +86,7 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
                     <DropdownItem
                       key={key}
                       onClick={() => pick('elements', key)}
+                      disabled={categoryDisabled(key)}
                       icon={value === 'elements' && category === key ? <Check className="w-3.5 h-3.5" /> : Icon ? <Icon className="w-3.5 h-3.5" /> : undefined}
                     >
                       {categoryLabels[key] || key}
