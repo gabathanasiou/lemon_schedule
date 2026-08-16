@@ -8,7 +8,7 @@ import {defineConfig} from 'vite';
 // across worker tabs). No effect in production builds or direct tabs.
 const hubStorageBridge = () => ({
   name: 'hub-storage-bridge',
-  apply: 'serve',
+  apply: 'serve' as const,
   transformIndexHtml(html: string) {
     return html.replace('</head>', '<script src="/lemon_schedule/hub-bridge.js"></script></head>');
   },
