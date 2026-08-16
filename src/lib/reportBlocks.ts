@@ -377,6 +377,41 @@ export function validCollections(parentCollection?: ReportCollection): ReportCol
   });
 }
 
+/**
+ * True when a nested repeat/table over `collection` inside a parent of
+ * `parentCollection` would be self-redundant — iterating the parent's own item
+ * type ("days of this day", "scenes of this scene", "crew of this crew
+ * member"). `parentCategory` is the parent block's own category (elements
+ * parents) and `category` the candidate category of an `elements` selection.
+ * Self-redundant base collections are HIDDEN from the nested menus; the
+ * parent's own category under element/cast-item parents is GRAYED OUT instead
+ * (CollectionMenu `disabledCategories` — the `elements` entry itself stays).
+ * Kept on purpose: `categories` under `categories` (≈ all categories in the
+ * parent's scenes) and `violationTypes` under `violationTypes`.
+ */
+export function isSelfRepeat(
+  parent: ReportCollection | undefined,
+  collection: ReportCollection,
+  parentCategory?: string,
+  category?: string,
+): boolean {
+  if (!parent) return false;
+  // day-item parents (days, daysOfCast)
+  if (collection === 'days') return parent === 'days' || parent === 'daysOfCast';
+  // scene-item parents (scenes, scenesOfDay, scenesOfElement, scenesOfCast)
+  if (collection === 'scenes') {
+    return parent === 'scenes' || parent === 'scenesOfDay' || parent === 'scenesOfElement' || parent === 'scenesOfCast';
+  }
+  // crew under crew
+  if (collection === 'crew') return parent === 'crew';
+  // Elements submenu: the parent's own category under element/cast-item parents
+  if (collection === 'elements') {
+    if ((parent === 'elements' || parent === 'elementsOfCategory') && category !== undefined && category === parentCategory) return true;
+    if ((parent === 'cast' || parent === 'scenesOfCast') && category === 'cast') return true;
+  }
+  return false;
+}
+
 /** Contextual sub-collections available for a table nested in a parent repeat. */
 export function contextualCollectionsFor(parentCollection?: ReportCollection): ReportCollection[] {
   if (parentCollection === 'days') return ['scenesOfDay'];
@@ -414,11 +449,14 @@ export function parentNoun(parentCollection?: ReportCollection): string {
 /**
  * Display label for a nested block: surfaces Lego scoping so it's obvious the
  * repeater is scoped to its parent ("Scenes (of this day)", "Categories (of
- * this scene)", …). Already-contextual labels pass through unchanged.
+ * this scene)", …). Already-contextual labels pass through unchanged. Crew
+ * parents are exempt (roadmap 25 crew interim until item 11 makes crew
+ * rule-bearing): crew has no scene data, so the "(of this crew member)"
+ * decoration would be a lie — the label stays plain.
  */
 export function scopedCollectionLabel(effective: string, parentCollection?: ReportCollection, scoped = true): string {
   const base = COLLECTION_LABELS[effective] || effective;
-  if (!parentCollection || !scoped || base.includes('(of this')) return base;
+  if (!parentCollection || !scoped || parentCollection === 'crew' || base.includes('(of this')) return base;
   return `${base} (of this ${parentNoun(parentCollection)})`;
 }
 
