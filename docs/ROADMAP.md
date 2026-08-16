@@ -555,6 +555,31 @@ Related bugs to fix while here:
   project shows the design on canvas/preview, custom category cells show the
   label in italics, lint + playwright.
 
+## 30. Bug: repeaters auto page-break when NO pageBreak is present (`[ ]`)
+
+- **Reported**: a repeat with no `pageBreak` block inside it still splits its
+  items across pages ("auto page break") — expected: without an explicit
+  pageBreak the repeat's items keep together (the repeat moves whole, or at
+  most fills pages contiguously) — per-item page breaks only come from a
+  pageBreak child ("one page per item", the Call Sheet pattern).
+- Suspects to check first (read `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md`
+  before touching):
+  - `hasItemBreaks` (`lib/reportPagination.ts:53`) fires "one page per item"
+    on ANY pageBreak child — verify it isn't matching a break nested in a
+    child container (columns/relative/callSheetEdit children) or a
+    pageBreak the design didn't intentionally place.
+  - `buildReportPages` (`reportPagination.ts:58`) expands repeats with item
+    breaks into one fragment per item — confirm the trigger, not the shape.
+  - The measured paginator (`useReportPaginator.tsx` `fillPages`) splits
+    repeats BETWEEN items to fill the page budget — confirm whether the
+    reported "auto page break" is this budget split being too aggressive
+    (e.g. first item pushed to a new page when the repeat would fit) or the
+    per-item expansion above.
+- Verify: repeat without pageBreaks renders items back-to-back (canvas =
+  preview = print), one page when it fits, contiguous overflow pages when it
+  doesn't; repeat WITH a pageBreak child still does one item per page;
+  seeded project + lint + playwright.
+
 ---
 
 ## Session handoff
