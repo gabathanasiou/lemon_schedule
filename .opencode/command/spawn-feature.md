@@ -15,8 +15,10 @@ Read the item text verbatim from `docs/ROADMAP.md` (item $1), then:
    worker has deps without a fresh install.
 3. **Spawn headlessly** (run with `OPENCODE_SERVER_PASSWORD` exported from
    `.env` — workers attach to the web server so they stream live to the
-   phone):
-   `nohup opencode run --attach http://localhost:4096 --dir ../lemon_schedule-wt/$1 --agent feature-worker --auto --title "roadmap $1" "<the roadmap item text verbatim, plus: implement exactly this, follow feature-worker.md, push when done>" >> .opencode/logs/worker-$1.log 2>&1 &`
+   phone). Derive the session title from the roadmap heading so sessions are
+   identifiable on the phone:
+   `TITLE=$(grep -m1 "^## $1\." docs/ROADMAP.md | sed 's/^## //')`
+   `nohup opencode run --attach http://localhost:4096 --dir ../lemon_schedule-wt/$1 --agent feature-worker --auto --title "roadmap $1 — $TITLE" "<the roadmap item text verbatim, plus: implement exactly this, follow feature-worker.md, push when done>" >> .opencode/logs/worker-$1.log 2>&1 &`
 4. Report: worktree path, branch name, log path, PID. Tell the user they can
    watch progress on the phone (http://opencode.local:4096) and that worker
    questions land via the decisions channel.
