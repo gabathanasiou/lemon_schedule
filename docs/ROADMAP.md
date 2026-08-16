@@ -580,6 +580,31 @@ Related bugs to fix while here:
   doesn't; repeat WITH a pageBreak child still does one item per page;
   seeded project + lint + playwright.
 
+## 31. Bug: location types (`[ ]`)
+
+Known issues to fix together (all in the locations/type machinery):
+
+- **Weather prefetch skips per-type location tables**: `designLocationsIn`
+  (`reportData.ts`) filters a `locationsOfType` block's pins by
+  `b.category` — that collection has no category picker, so the filter
+  matches nothing and NO location pins get warmed for weather fields inside
+  a Location Types → "Locations (of this type)" table. Per-type tables must
+  warm ALL pinned locations (the parent type repeat picks per-type at render
+  time); only flat `locations` blocks filter by `b.category`.
+- **Restore loses the type's human label**: `caseRestoreLocation`
+  (`store/actions/reports.ts`) recreates a deleted type with
+  `{ key: location.type, label: location.type }` — the label is the slug
+  ("unitbase"), not the original label ("Unit Base"). Delete should record
+  the type's label with the trashed locations (or with the type itself) so
+  restore re-creates it faithfully.
+- **No way to clear the Locations type filter**: the CollectionMenu
+  Locations submenu sets `block.category` but nothing clears it — once a
+  repeat/table is filtered to one type it can never go back to "all
+  locations". Add an "All types" option (mirroring the default state).
+- Verify: per-type table weather resolves (mock API), delete + restore a
+  type keeps the label, type filter clears back to all locations, lint +
+  playwright.
+
 ---
 
 ## Session handoff
