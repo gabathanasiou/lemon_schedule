@@ -15,12 +15,14 @@ Read the item text verbatim from `docs/ROADMAP.md` (item $1), then:
    worker has deps without a fresh install.
 3. **Spawn headlessly** (run with `OPENCODE_SERVER_PASSWORD` exported from
    `.env` — workers attach to the web server so they stream live to the
-   phone). Derive the session title from the roadmap heading so sessions are
-   identifiable on the phone, and assign the worker its OWN playwright port
-   (3001 + workerIndex*10 → 3001/3011/3021/…) so test runs never collide:
+   phone). Derive the session title from the roadmap heading, and allocate the
+   worker's OWN ports from the single source of truth
+   (`.opencode/scripts/worker-ports.sh` — `PLAYWRIGHT_PORT` = 3001+idx*10,
+   `HUB_PORT` = 3101+idx*10; deterministic, never collide):
    `TITLE=$(grep -m1 "^## $1\." docs/ROADMAP.md | sed 's/^## //')`
-   `export PLAYWRIGHT_PORT=30$((10 + WORKER_INDEX * 10))1`
-   `nohup opencode run --attach http://localhost:4096 --dir ../lemon_schedule-wt/$1 --agent feature-worker --auto --title "roadmap $1 — $TITLE" "<the roadmap item text verbatim, plus: your PLAYWRIGHT_PORT is $PLAYWRIGHT_PORT — implement exactly this, follow feature-worker.md, push when done>" >> .opencode/logs/worker-$1.log 2>&1 &`
+   `source .opencode/scripts/worker-ports.sh $1`
+   `nohup opencode run --attach http://localhost:4096 --dir ../lemon_schedule-wt/$1 --agent feature-worker --auto --title "roadmap $1 — $TITLE" "<the roadmap item text verbatim, plus: your PLAYWRIGHT_PORT is $PLAYWRIGHT_PORT (always run npx playwright test with it, your spec + seeded-smoke only) — implement exactly this, follow feature-worker.md, push when done>" >> .opencode/logs/worker-$1.log 2>&1 &`
+   Log the allocation (`PLAYWRIGHT_PORT=$PLAYWRIGHT_PORT HUB_PORT=$HUB_PORT`).
 4. Report: worktree path, branch name, log path, PID. Tell the user they can
    watch progress on the phone (http://opencode.local:4096) and that worker
    questions land via the decisions channel.

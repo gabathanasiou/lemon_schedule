@@ -32,11 +32,14 @@ item is done, committed, and pushed.
    - **NEVER run `npm run dev` or any long-lived dev server.** Port 3000 is
      the main tree's; 3001 is the shared default; running one yourself steals
      ports and serves stale code to others (`reuseExistingServer`).
-   - Run tests ONLY via `npx playwright test` (default config). Your personal
-     port is in your spawn env as `PLAYWRIGHT_PORT` (3001/3011/3021/…) — the
-     config reads it, owns it exclusively, and never reuses another server.
-     If `PLAYWRIGHT_PORT` is missing, use `npx playwright test` only when no
-     other worker is testing.
+   - Your personal `PLAYWRIGHT_PORT` is pre-assigned in your spawn env
+     (3001/3011/3021… — see `.opencode/scripts/worker-ports.sh`, one source of
+     truth). Always run `npx playwright test` with it; the config owns it
+     exclusively (`--strictPort`, no reuse).
+   - **Run only YOUR spec + `e2e/seeded-smoke.spec.ts`** — never the full
+     suite (cost/contention; the orchestrator runs the full suite serialized
+     after merge). If `PLAYWRIGHT_PORT` is missing, do NOT run playwright at
+     all — ask the orchestrator via the decisions channel.
    - The 4173 "edit-toggle"/perf configs belong to the user — never run them.
    - If you MUST eyeball the app: `npm run build` then
      `npx vite preview --port 41XX --strictPort` (your own preview port), and

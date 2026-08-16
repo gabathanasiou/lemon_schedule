@@ -3,10 +3,21 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+// Dev-only: injects the hub storage bridge into every page served inside a
+// worker-preview-hub iframe (see public/hub-bridge.js — shared localStorage
+// across worker tabs). No effect in production builds or direct tabs.
+const hubStorageBridge = () => ({
+  name: 'hub-storage-bridge',
+  apply: 'serve',
+  transformIndexHtml(html: string) {
+    return html.replace('</head>', '<script src="/lemon_schedule/hub-bridge.js"></script></head>');
+  },
+});
+
 export default defineConfig(() => {
   return {
     base: '/lemon_schedule/',
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), hubStorageBridge()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

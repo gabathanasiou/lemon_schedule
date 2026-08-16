@@ -16,7 +16,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: `npm run dev -- --port=${PORT}`,
+    command: `npm run dev -- --port=${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !isolated,
     timeout: 30000,

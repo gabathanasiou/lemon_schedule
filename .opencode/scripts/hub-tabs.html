@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><title>Worker preview tabs</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; background: #0c0c0e; color: #e4e4e7; }
+  .tabs { display: flex; gap: 6px; padding: 10px 12px; background: #16161a; border-bottom: 1px solid #27272a; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #3f3f46 transparent; }
+  .tab { font: inherit; font-size: 13px; color: #a1a1aa; background: #1f1f23; border: 1px solid #2e2e33; border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; flex: 0 0 auto; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+  .tab:hover { background: #26262b; color: #fff; }
+  .tab.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+  .tab .port { opacity: .55; margin-left: 6px; font-size: 11px; }
+  .panel { display: none; height: calc(100vh - 48px); }
+  .panel.active { display: flex; flex-direction: column; }
+  .bar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: 12px; color: #71717a; background: #101013; border-bottom: 1px solid #1f1f23; }
+  .bar button { font: inherit; font-size: 11px; background: #1f1f23; border: 1px solid #2e2e33; color: #a1a1aa; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .hint { margin-left: auto; font-size: 11px; color: #52525b; }
+  iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+</style>
+</head>
+<body>
+<div class="tabs">
+  <button class="tab active" data-panel="pmain">main<span class="port">3000</span></button>
+  __TABS__
+</div>
+<div class="panel active" id="pmain"><div class="bar">main — http://localhost:3000 <button class="reload">Reload</button><span class="hint">project data is shared across tabs</span></div><iframe src="http://localhost:3000"></iframe></div>
+__PANELS__
+<script>
+  // --- tab switching + reload ---
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+    document.querySelectorAll('.panel').forEach(pp => pp.classList.toggle('active', pp.id === t.dataset.panel));
+  }));
+  document.querySelectorAll('.reload').forEach(b => b.addEventListener('click', () => {
+    const pp = b.closest('.panel'); const f = pp.querySelector('iframe');
+    const base = f.src.split('?')[0];
+    f.src = base + '?t=' + Date.now();
+  }));
+
+  // --- shared localStorage store (parent side of the hub-bridge) ---
+  const store = new Map();
+  const frames = new Set();
+  const broadcast = (type, data) => { for (const f of frames) f.postMessage({ hubBridge: 'store', type, data }, '*'); };
+  window.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.hubBridge !== 'hello' && d.hubBridge !== 'set' && d.hubBridge !== 'remove' && d.hubBridge !== 'clear') return;
+    if (d.hubBridge === 'hello') {
+      frames.add(e.source);
+      for (const k in d.native || {}) if (k.indexOf('lemon_schedule_') === 0) store.set(k, d.native[k]);
+      e.source.postMessage({ hubBridge: 'store', type: 'snapshot', data: Object.fromEntries(store) }, '*');
+    } else if (d.hubBridge === 'set') {
+      store.set(d.key, d.value);
+      broadcast('set', d);
+    } else if (d.hubBridge === 'remove') {
+      store.delete(d.key);
+      broadcast('remove', d);
+    } else if (d.hubBridge === 'clear') {
+      store.clear();
+      broadcast('clear');
+    }
+  });
+</script>
+</body>
+</html>
