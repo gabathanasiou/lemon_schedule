@@ -678,6 +678,28 @@ Known issues to fix together (all in the locations/type machinery):
   `npm run lint` + `npx playwright test --config=playwright.ipad.config.ts
   report-pagination` (budget assertion, both engines) + standard suite.
 
+## 34. Table block resize grabbers: match the ribbon designer's style (`[ ]`)
+
+- **Requested**: the table block's resize grabbers should look and behave
+  like the ribbon designer's resize tabs. Both already share the same
+  dragger (`useColumnResize`, `src/components/columnResize.tsx` — roadmap
+  24) but render different visuals: the ribbon grid uses
+  `ColumnResizeStrip variant="tab"` (triangle tab + line, blue hover, the
+  gold standard), the table's `TableResizeBar`
+  (`ReportDesignerCanvas.tsx:1019`) uses `variant="bar"` (slim 6px blue
+  bars).
+- Fix: `TableResizeBar` switches to the tab variant (or the bar variant is
+  deleted and tab is the only visual). Watch the strip geometry: the table's
+  handle strip is top-anchored (`absolute -top-2.5 h-5`,
+  `ReportDesignerCanvas.tsx:1018`) while the tab variant anchors at the
+  strip's bottom (`bottom-0`) — tabs would hug the table's top edge; give
+  the strip room (taller strip and/or reposition) so the tabs sit like the
+  ribbon's. Coarse-pointer sizing variants (`IS_COARSE`) come free with the
+  shared strip.
+- Verify: table resize looks/behaves like the ribbon designer (desktop +
+  touch), item 23 regression (multi-row widths track) still passes, lint +
+  playwright.
+
 ---
 
 ## Session handoff
