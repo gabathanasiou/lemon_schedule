@@ -28,13 +28,23 @@ item is done, committed, and pushed.
 3. **NEVER edit `docs/` or `AGENTS.md`.** Architecture is the orchestrator's
    domain. You file a report instead (step 5).
 
-4. **Shared node_modules gotcha**: your worktree's `node_modules` (and Vite's
-   `.vite` optimize cache) are SYMLINKED to the main tree and shared with all
-   other workers. Never run two vite dev servers at once; if the app shows
-   stale/corrupt behavior (e.g. "Invalid hook call", old code rendering),
-   stop your server, `rm -rf node_modules/.vite`, and restart it. Prefer
-   `npx playwright test` (auto-starts its own server) over a long-lived
-   manual dev server.
+4. **Ports & servers (HARD RULES)** — this is how past workers broke things:
+   - **NEVER run `npm run dev` or any long-lived dev server.** Port 3000 is
+     the main tree's; 3001 is the shared default; running one yourself steals
+     ports and serves stale code to others (`reuseExistingServer`).
+   - Run tests ONLY via `npx playwright test` (default config). Your personal
+     port is in your spawn env as `PLAYWRIGHT_PORT` (3001/3011/3021/…) — the
+     config reads it, owns it exclusively, and never reuses another server.
+     If `PLAYWRIGHT_PORT` is missing, use `npx playwright test` only when no
+     other worker is testing.
+   - The 4173 "edit-toggle"/perf configs belong to the user — never run them.
+   - If you MUST eyeball the app: `npm run build` then
+     `npx vite preview --port 41XX --strictPort` (your own preview port), and
+     kill it when done.
+   - Your worktree's `node_modules` (and Vite's `.vite` cache) are SYMLINKED
+     to the main tree and shared with all other workers. If the app shows
+     stale/corrupt behavior (e.g. "Invalid hook call", old code rendering),
+     stop your server, `rm -rf node_modules/.vite`, and retry.
 
 ## Questions: the two-tier protocol
 
