@@ -391,6 +391,7 @@ export interface ReportBlock {
   // spacer
   height?: number;
   spacerStyle?: 'none' | 'black' | 'line' | 'dotted';
+  spacerThickness?: number;      // px; line style only
   // image
   imageDataUrl?: string;         // attached image (data URL, embedded in the design)
   imageHeight?: number;          // px; unset = natural aspect ratio at container width

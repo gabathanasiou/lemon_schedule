@@ -218,7 +218,7 @@ export const ReportBlockView: React.FC<ReportRenderProps> = React.memo(
         }
         return (
           <div style={{ height: h, display: 'flex', alignItems: 'center' }}>
-            <div style={{ width: '100%', borderTop: style === 'dotted' ? '2px dotted #000' : '1px solid #000' }} />
+            <div style={{ width: '100%', borderTop: style === 'dotted' ? '2px dotted #000' : `${block.spacerThickness ?? 1}px solid #000` }} />
           </div>
         );
       }

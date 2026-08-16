@@ -46,7 +46,7 @@ export function makeReportBlock(type: ReportBlock['type'], partial: Partial<Repo
     ]; base.showHeader = true; break;
     case 'columns': base.cols = []; break;
     case 'ribbon': break;
-    case 'spacer': base.height = partial.height ?? 16; break;
+    case 'spacer': base.height = partial.height ?? 16; base.spacerThickness = partial.spacerThickness ?? 1; break;
     case 'image': break;
     case 'map': base.mapHeight = partial.mapHeight ?? 240; base.mapZoom = partial.mapZoom ?? 15; break;
     case 'link': base.text = partial.text ?? 'Open in Maps'; base.url = partial.url ?? '{{dayLocationLink}}'; break;
