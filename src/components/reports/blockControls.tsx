@@ -16,7 +16,7 @@ import DropdownDivider from '../DropdownDivider';
 import Modal, { ModalFooter } from '../Modal';
 import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
-import { Plus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet } from 'lucide-react';
+import { Plus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, RotateCcw } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
 import ColorField from '../ColorField';
 
@@ -82,26 +82,29 @@ export const BlockEditorContent: React.FC<BlockEditorProps> = ({
       <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
         <StyleControls {...ctx} />
       </div>
-      <div className="h-px bg-zinc-800 my-1" />
-      {block.type === 'text' ? (
-        chipKey && chipIsList ? (
-          <ChipAffixSection
-            chipKey={chipKey}
-            fieldLabel={chipDef?.label ?? chipField}
-            readOnly={readOnly}
-            onChange={key => {
-              setChipKey(key);
-              editorRef.current?.replaceToken(key);
-            }}
-          />
-        ) : null
-      ) : (
+      {block.type !== 'link' && (
         <>
-          <SectionHeader>Layout</SectionHeader>
+          <SectionHeader>Outline</SectionHeader>
           <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
-            <LayoutControls {...ctx} />
+            <OutlineControls {...ctx} />
           </div>
         </>
+      )}
+      <div className="h-px bg-zinc-800 my-1" />
+      <SectionHeader>Padding</SectionHeader>
+      <div className="flex items-center gap-1.5 flex-nowrap min-w-max">
+        <LayoutControls {...ctx} />
+      </div>
+      {block.type === 'text' && chipKey && chipIsList && (
+        <ChipAffixSection
+          chipKey={chipKey}
+          fieldLabel={chipDef?.label ?? chipField}
+          readOnly={readOnly}
+          onChange={key => {
+            setChipKey(key);
+            editorRef.current?.replaceToken(key);
+          }}
+        />
       )}
     </div>
   ) : null;
@@ -1021,6 +1024,19 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     push('Layout',
       <ContentRow key="gap" label="Gap (px)">
         <input type="number" min={0} max={60} disabled={disabled} className={TB_INPUT + ' w-14'} value={block.blockGap ?? DEFAULT_BLOCK_GAP} onChange={e => onPatch({ blockGap: Math.max(0, Number(e.target.value) || 0) })} />
+        {block.blockGap !== undefined && (
+          <Tooltip content={`Reset to default (${DEFAULT_BLOCK_GAP}px)`}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onPatch({ blockGap: undefined })}
+              className={TB_BTN_ICON}
+              title="Reset gap to default"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          </Tooltip>
+        )}
       </ContentRow>,
     );
   }
@@ -1143,39 +1159,40 @@ export const StyleControls: React.FC<BlockCtx> = ({ block, project, readOnly, on
           </Tooltip>
         );
       })}
-      {/* Background fill + border (roadmap 28) — text/field blocks only; the
-          link block keeps its fixed link blue (unreadable on dark fills). The
-          text color auto-switches white on dark backgrounds. */}
-      {block.type !== 'link' && (
-        <>
-          <div className={TB_DIVIDER} />
-          <Tooltip content="Background color — text turns white on dark fills">
-            <span className="flex items-center">
-              <ColorField value={block.background ?? '#FFFFFF'} onChange={v => onPatch({ background: v })} size="sm" hexVariant="sm" />
-            </span>
-          </Tooltip>
-          {block.background && (
-            <Tooltip content="Remove background">
-              <button disabled={disabled} onClick={() => onPatch({ background: undefined })} className={TB_BTN_ICON} title="Remove background">
-                <X className="w-3 h-3" />
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip content="Border around the block">
-            <button
-              disabled={disabled}
-              onClick={() => onPatch({ border: !block.border })}
-              className={`${TB_TOGGLE} ${block.border ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
-              title="Border"
-            >
-              <span className="w-3 h-3 border border-current" />
-            </button>
-          </Tooltip>
-        </>
-      )}
     </>
   );
 };
+
+// ---- outline controls (background fill + border — text/field blocks only) ------
+// The link block keeps its fixed link blue (unreadable on dark fills). The text
+// color auto-switches white on dark backgrounds.
+
+export const OutlineControls: React.FC<BlockCtx> = ({ block, readOnly, onPatch }) => (
+  <>
+    <Tooltip content="Background color — text turns white on dark fills">
+      <span className="flex items-center">
+        <ColorField value={block.background ?? '#FFFFFF'} onChange={v => onPatch({ background: v })} size="sm" hexVariant="sm" />
+      </span>
+    </Tooltip>
+    {block.background && (
+      <Tooltip content="Remove background">
+        <button disabled={readOnly} onClick={() => onPatch({ background: undefined })} className={TB_BTN_ICON} title="Remove background">
+          <X className="w-3 h-3" />
+        </button>
+      </Tooltip>
+    )}
+    <Tooltip content="Border around the block">
+      <button
+        disabled={readOnly}
+        onClick={() => onPatch({ border: !block.border })}
+        className={`${TB_TOGGLE} ${block.border ? TB_TOGGLE_ON : TB_TOGGLE_OFF}`}
+        title="Border"
+      >
+        <span className="w-3 h-3 border border-current" />
+      </button>
+    </Tooltip>
+  </>
+);
 
 // ---- layout controls (padding — text/field only) -------------------------------
 

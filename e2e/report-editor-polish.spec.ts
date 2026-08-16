@@ -42,10 +42,11 @@ test('floating block editor shows per-type controls on selection', async ({ page
   // rich text editor + formatting toolbar + token picker
   await expect(chrome.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
   await expect(chrome.getByRole('button', { name: 'Insert attribute…' })).toBeVisible({ timeout: 3000 });
-  // style row; the Layout section is gone for text blocks (replaced by the
-  // per-chip item-formatting section — roadmap 19)
+  // style row + outline row; text blocks keep the Layout section (Pad V/H)
+  // alongside the per-chip item-formatting section (roadmap 19)
   await expect(chrome.getByText('Style', { exact: true })).toBeVisible({ timeout: 3000 });
-  await expect(chrome.getByText('Layout', { exact: true })).toHaveCount(0);
+  await expect(chrome.getByText('Outline', { exact: true })).toBeVisible({ timeout: 3000 });
+  await expect(chrome.getByText('Layout', { exact: true }).first()).toBeVisible({ timeout: 3000 });
 
   // editing the editor updates the canvas render
   await chrome.locator('.richtext-editor').click();

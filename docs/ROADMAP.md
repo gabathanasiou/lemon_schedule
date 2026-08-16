@@ -250,9 +250,12 @@ Related bugs to fix while here:
   chip's token via `replaceToken`. Keep the `*` customized-chip cue.
 - Fixed: popover deleted; `RichTextEditor` forwards `onTokenClick` up;
   `BlockEditorContent` tracks the clicked chip and renders `ChipAffixSection`
-  in the former Layout slot (text blocks only, multi-value fields only, live
-  per-keystroke patches via `replaceToken`, ✕ clears the selection);
-  `parseToken`/`composeTokenKey` shared in `lib/reportFields.ts`.
+  BELOW the Padding (Pad V/H) section (text blocks only, multi-value fields
+  only, live per-keystroke patches via `replaceToken`, ✕ clears the selection);
+  `parseToken`/`composeTokenKey` shared in `lib/reportFields.ts`. The padding
+  controls were kept for text blocks too — they had become unreachable anyway
+  (palette attributes ARE text blocks with a token, so the old field-only
+  Layout slot never rendered).
 
 ## 20. Reports designer: edge-drop inside a column + deselect UX (`[x]`)
 
