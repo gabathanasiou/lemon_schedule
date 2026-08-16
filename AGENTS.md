@@ -127,6 +127,13 @@ New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Secti
 ## Reports Designer
 Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collection resolver / field registry — one canonical implementation each, never re-derive). Note: the designer is under the **Design tab**, not the Reports tab; the Reports tab (DOODs/Element Breakdown) is a separate hand-built feature. There is NO generic sum/count attribute on blocks — check the field registry before building aggregation.
 
+## Orchestrated Sessions (parallel roadmap work)
+- Pipeline: load the **orchestrate-roadmap** skill (`.opencode/skills/orchestrate-roadmap/SKILL.md`); agents in `.opencode/agent/` (`orchestrator` primary, `feature-worker`/`code-reviewer`/`docs-curator` subagents); commands `/spawn-feature` + `/roadmap-sprint`.
+- Feature workers run headlessly in git worktrees (`../lemon_schedule-wt/<item>`, branch `feat/<item>`, `node_modules`/`.env` symlinked). They READ the docs first, NEVER edit `docs/`/`AGENTS.md`, and file `.opencode/reports/<item>.md` (changes / invariants / docs-needed / assumptions / verification). Blocking questions go to `.opencode/decisions/<item>.md` and are relayed by the orchestrator.
+- **Docs are written only by the docs-curator** (loads the `write-agent-docs` skill) — feature workers must never touch them.
+- Never parallel workers on shared reports files (`blockControls.tsx`, `reportBlocks.ts`, `types.ts` ReportBlock, `ReportBlockView.tsx`, `ReportDesignerCanvas.tsx`, `reportData.ts`, `ribbonUtils.ts`). Never run two playwright suites concurrently (ports 3001/4173).
+- Live phone streaming requires the TUI attached to the web server: `opencode attach http://localhost:4096` (`.opencode/scripts/tui.sh`). Web server: `.opencode/scripts/start-web.sh`, auto-started by a `~/.zshrc` guard.
+
 ## File Layout (post-refactor — see `docs/REFACTOR-PLAN.md`)
 - `src/store/` — barrel + storage/reducer(+actions)/provider/rows
 - `src/lib/` — shared: `sceneFactory`, `glideCells`, `glidePaste`, `glideEditor`, `elements`, `paletteOps`, `mergeGroups`, `sceneColors`, `ribbonDefaults` (ribbonUtils re-exports these), `useStripboardContextMenu`, `useDriveProjectList`, `import/`
