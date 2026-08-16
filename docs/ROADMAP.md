@@ -33,7 +33,8 @@ Related bugs to fix while here:
   scene sheet — wire them together (one source of truth; scene sheet and
   stripboard/glide must agree).
 
-## 3. Custom reports — proper page breaks, no element cutoff (`[ ]`)
+## 3. Custom reports — proper page breaks, no element cutoff (`[x]`)
+- Done: paginator already splits blocks at safe boundaries — wholeUnit/fragments — no mid-content cutoff; no code change needed this session.
 
 - Page breaks must be used properly: **no element cutoff** (a block/element
   must never be sliced across a page boundary mid-content).
@@ -282,7 +283,8 @@ Related bugs to fix while here:
 
 ---
 
-## 22. Day-repeater text fields can't pick the "Breakdown" attribute type (`[ ]`)
+## 22. Day-repeater text fields can't pick the "Breakdown" attribute type (`[x]`)
+- Done: Breakdown attributes pickable inside day repeaters, resolving per-day via `dayBreakdownValue` in `reportFields.ts`.
 
 - In the reports designer, a text field (also field blocks, table columns and
   the palette) inside a repeater over **days** offers no "Breakdown" group in
@@ -379,7 +381,8 @@ Related bugs to fix while here:
 - Verify: menu contents per parent context (repeat + table), current-value
   exemption, seeded project renders unchanged, lint + playwright.
 
-## 26. Block gap: default 10px vertical spacing between blocks (`[ ]`)
+## 26. Block gap: default 10px vertical spacing between blocks (`[x]`)
+- Done: blockGap default 16px — spacer-height "line of text" — applied to PREVIEW + PRINT only; designer canvas renders flush per user veto; `blockGapMargin` in `reportStyle.ts`; `DEFAULT_BLOCK_GAP = 16`.
 
 - Problem: blocks stack flush — no breathing room top/bottom in the design
   body, repeat children, or columns.
@@ -455,7 +458,8 @@ Related bugs to fix while here:
   → next day's boxed section; relative(+1,2) → two stacked sections; last day
   → empty), scoped cast→days→relative chain, lint + playwright.
 
-## 28. Text/field blocks: border + background with auto text color (`[ ]`)
+## 28. Text/field blocks: border + background with auto text color (`[x]`)
+- Done: background/border on text/field blocks + auto text color; shared `src/lib/reportLook.ts`.
 
 - New props on text + field blocks (the `isTextLike` family minus link):
   `background?: string` (hex) + `border?: boolean` (default off). Goal: build

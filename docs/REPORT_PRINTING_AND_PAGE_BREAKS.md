@@ -59,6 +59,12 @@ nesting depth):**
 - per-item repeat fragments split between their CHILDREN (`repeatItemPart`
   chunks carry `parts`, one slice per child).
 
+**Block gap:** `.rm-block` wrappers carry the block-gap `marginTop`, read into
+`gapBefore` by `wholeUnit` and the first-unit reads
+(`flattenRepeat`/`flattenTable`/ribbon); `.rm-body > :first-child` /
+`.report-page-content > :first-child` zero the first block's margin on each
+page.
+
 **Canonical geometry:** `REPORT_PAGE_METRICS` (`reportStyle.ts:45`) —
 contentWidth = A4 minus 12mm side margins (697px portrait / 960px landscape);
 contentHeight conservative so one chunk fits EVERY common sheet in Safari

@@ -13,13 +13,13 @@ canonical implementation. Never re-derive them.
 
 ## The three pillars (canonical — don't re-derive)
 
-1. **Block tree** — `types.ts:301` `ReportBlock` (types: `text | field | repeat | table | columns | ribbon | pageBreak | spacer`; repeat/table are containers). `ReportDesign` = `blocks/header/footer/page`. All tree ops go through `lib/reportBlocks.ts` helpers (`insertInto`, `listOwnerOf`, `moveIntoChildren`, …) — never hand-roll tree manipulation. New blocks come from `makeReportBlock(type, partial)`.
+1. **Block tree** — `types.ts:301` `ReportBlock` (types: `text | field | repeat | table | columns | ribbon | pageBreak | spacer`; repeat/table are containers). `ReportDesign` = `blocks/header/footer/page`. All tree ops go through `lib/reportBlocks.ts` helpers (`insertInto`, `listOwnerOf`, `moveIntoChildren`, …) — never hand-roll tree manipulation. New blocks come from `makeReportBlock(type, partial)`. Render-time props: `blockGap` (default 16 — PREVIEW/PRINT only; the designer canvas intentionally renders flush per user decision) and `background`/`border` on text/field blocks (auto text color via relative luminance).
 
 2. **Collection resolver** — `lib/reportData.ts`: `resolveCollection` (base list per collection) + `resolveCollectionItems` (applies category filters, `scopedToParent` Lego intersection, nested context). EVERY repeat/table iterates through it. Never build a parallel item list in a view.
    - Context-passing contract (item/parentCollection/parentCategory/outerItem/scopeFilter/aux): `docs/REPORTS-LEGO-CONTEXT.md` — canonical, read before touching `resolveCollectionItems`/`ReportRepeatView`/`ReportTableView`.
    - `ReportProductionTotals` (shootDays/shootMin/pages/scenes/…) is computed ONCE in `buildReportCtx` from daybreak `SectionInfo` — never recompute day/section math in the designer. `reportData.ts` only derives report-shaped projections on top of the canonical daybreak computation.
 
-3. **Field registry** — `lib/reportFields.ts`: every attribute is a `ReportFieldDef` (`key/label/group/scope/get(ctx, item, aux)`) registered in `getReportFieldDefs(project)`. The palette, token picker, and table pickers all filter by scope (`fieldsForScope`). Views resolve values via `reportFieldValueByKey` — never read raw scene properties in a view.
+3. **Field registry** — `lib/reportFields.ts`: every attribute is a `ReportFieldDef` (`key/label/group/scope/get(ctx, item, aux)`) registered in `getReportFieldDefs(project)`. The palette, token picker, and table pickers all filter by scope (`fieldsForScope`). Views resolve values via `reportFieldValueByKey` — never read raw scene properties in a view. Breakdown attributes (cast, backgroundActors, element/custom categories) are pickable inside day repeaters (`days`/`daysOfCast` scopes) and resolve per-day as the union of that day's scenes' values (`dayBreakdownValue`, `reportFields.ts`), composed with the ancestor `sceneScope` intersection like smart fields. Scene Info/Shooting fields stay scene-only.
 
 ## What already exists (check before building anything)
 
