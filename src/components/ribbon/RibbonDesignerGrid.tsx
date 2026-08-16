@@ -3,6 +3,7 @@ import { Pencil } from 'lucide-react';
 import { RibbonRow, RibbonCell } from '../../types';
 import { getAlign, getRibbonCellBaseStyle, FIELD_MAP } from '../../lib/ribbonUtils';
 import { RibbonCellText } from '../RibbonCellText';
+import { ColumnResizeStrip } from '../columnResize';
 import { IS_COARSE } from '../../lib/device';
 
 interface RibbonDesignerGridProps {
@@ -48,28 +49,16 @@ export default function RibbonDesignerGrid({
 
       <div className="space-y-5 pb-5">
 
-        {/* Column resize tabs */}
+        {/* Column resize tabs (shared dragger — src/components/columnResize.tsx) */}
         <div className={`${IS_COARSE ? 'h-10' : 'h-5'} select-none`} style={{ paddingLeft: edgePadding ?? 2, paddingRight: edgePadding ?? 2, border: '1px solid transparent', boxSizing: 'border-box' }}>
-          <div ref={tabBarRef} className="h-full relative" style={{
-            display: 'grid',
-            gridTemplateColumns: colWidths.map(w => `${w}%`).join(' '),
-          }}>
-            {colWidths.map((_w, i) => (
-              <div key={i} className="relative h-full">
-                {i < colWidths.length - 1 && (
-                  <div
-                    className={`absolute bottom-0 cursor-col-resize group/tab z-10 flex flex-col items-center justify-end${IS_COARSE ? ' transition-transform group-active/tab:-translate-y-2.5 touch-none px-2.5' : ''} ${readOnly ? 'pointer-events-none opacity-30' : ''}`}
-                    style={{ left: '100%', transform: 'translateX(-50%)' }}
-                    onPointerDown={e => !readOnly && startResize(i, e)}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <div className={`${IS_COARSE ? 'border-l-[8px] border-r-[8px] border-t-[10px] group-active/tab:border-l-[10px] group-active/tab:border-r-[10px] group-active/tab:border-t-[14px] group-active/tab:border-t-blue-500 transition-all' : 'border-l-[5px] border-r-[5px] border-t-[6px] transition-colors'} border-l-transparent border-r-transparent border-t-zinc-500/40 group-hover/tab:border-t-blue-400`} />
-                    <div className={`${IS_COARSE ? 'w-px h-5 group-active/tab:h-8 group-active/tab:bg-blue-500 transition-all' : 'w-px h-3.5 transition-colors'} mx-auto bg-zinc-500/40 group-hover/tab:bg-blue-400`} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <ColumnResizeStrip
+            widths={colWidths}
+            startResize={startResize}
+            readOnly={readOnly}
+            variant="tab"
+            containerRef={tabBarRef}
+            className="h-full relative"
+          />
         </div>
 
         {/* Single CSS Grid */}
