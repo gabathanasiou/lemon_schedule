@@ -605,6 +605,38 @@ Known issues to fix together (all in the locations/type machinery):
   type keeps the label, type filter clears back to all locations, lint +
   playwright.
 
+## 32. Bug: blank pages from repeat items that render nothing (e.g. empty location types) (`[ ]`)
+
+- **Reported**: a Repeat over Location Types (one page per item — pageBreak
+  child, the call-sheet pattern) prints a BLANK page for a type with no
+  locations instead of skipping it — the type's only child is the
+  "Locations (of this type)" table, which renders null in print when empty.
+  Universal: ANY page whose content renders nothing shows as a blank page —
+  a per-item page for an empty item, or a top-level block that renders null
+  (empty table/repeat/relative at top level).
+- Root cause: `computeChunks` (`useReportPaginator.tsx:317`) emits a
+  `{ body: [] }` chunk whenever a page has ZERO measurable units — including
+  pages that HAD items (`items.length > 0` — per-item expansion or a
+  top-level block) whose rendered height measured 0. Only pages from
+  consecutive top-level pageBreaks (`items.length === 0`, `paginateBlocks`
+  pushed `[]`) are legitimately blank.
+- Fix (universal, primary): in `computeChunks`, skip pages where
+  `items.length > 0 && measurable.length === 0` (the page rendered nothing →
+  drop it); keep explicit blank pages (`items.length === 0`). This drops
+  header/footer-only pages too (the shared header is on every page — an
+  empty body page is still an empty page).
+- Secondary (design decision, matches "instead of skipping"): skip EMPTY
+  location types by default — `resolveCollectionItems` for `locationTypes`
+  drops `count === 0` types unless opted out (mirror the `categories`
+  skip-empty flag: `skipEmptyCategories !== false` → a parallel flag or
+  reuse it), so empty types never iterate in canvas/preview/print.
+- Related: item 30 (repeaters auto page-break without a pageBreak) — same
+  pagination area; fix both in one session.
+- Verify: empty location type produces no page in canvas/preview/print; a
+  type WITH locations still gets its page; consecutive explicit pageBreaks
+  still produce blank pages; empty top-level table prints nothing; seeded
+  project + lint + playwright.
+
 ---
 
 ## Session handoff
