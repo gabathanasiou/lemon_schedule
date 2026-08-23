@@ -6,6 +6,7 @@ import { deriveDood, DoodTotals } from './nonShootStats';
 import { formatDateShort } from './utils';
 import { computeViolationIndex, violationTypeLabel } from './violations';
 import { typeLabelOf } from './locations';
+import { getDayTypes, codeForType } from './dayTypes';
 import { getBrowserTimeZone } from './timezones';
 import type { ReportLocation } from './reportWeather';
 
@@ -619,6 +620,8 @@ function computeElementStats(
   const matchKey = (e: { id: string; name: string }) => elementMatchId(e, category);
   const idToName = new Map<string, string>();
   for (const e of elements) idToName.set(matchKey(e).toLowerCase(), e.name);
+  const typeCodes = new Map<string, string>();
+  for (const t of getDayTypes(ctx.project)) typeCodes.set(t.key, codeForType(ctx.project.dayTypes, t.key));
   const { totals } = deriveDood(
     ctx.project.scenes,
     ctx.version.rows,
@@ -630,6 +633,7 @@ function computeElementStats(
     category,
     isCast ? ctx.castNames : undefined,
     isCast ? undefined : idToName,
+    typeCodes,
   );
   return totals;
 }

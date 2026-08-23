@@ -312,6 +312,23 @@ export function reducer(state: State, action: Action): State {
     }
     p = ensureAllScenesHaveRows(p);
 
+    // NonShootDate migration: legacy `travel`/`hold`/`castIds` → `lists`
+    // keyed by status (one per-type attachment map for every date).
+    p.versions = p.versions.map(v => ({
+      ...v,
+      nonShootDates: (v.nonShootDates || []).map((n: any) => {
+        if (n.lists || (!n.travel && !n.hold && !n.castIds)) return n;
+        const lists: Record<string, Record<string, string[]>> = {};
+        if (n.travel) lists.travel = n.travel;
+        if (n.hold) lists.hold = n.hold;
+        if (n.status === 'travel' && n.castIds) {
+          const ids = String(n.castIds).split(',').map((x: string) => x.trim()).filter(Boolean);
+          if (ids.length) lists.travel = { ...(lists.travel || {}), cast: [...(lists.travel?.cast || []), ...ids] };
+        }
+        return { date: n.date, status: n.status, lists };
+      }),
+    }));
+
     // Reports Designer + Production Info defaults
     p.productionInfo = p.productionInfo || {};
     p.crewRoles = p.crewRoles?.length ? p.crewRoles : DEFAULT_CREW_ROLES;

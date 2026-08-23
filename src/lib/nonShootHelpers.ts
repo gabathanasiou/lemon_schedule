@@ -2,18 +2,17 @@ import { NonShootDate } from '../types';
 import { getCategoryElements, elementMatchId } from './elements';
 
 /**
- * Single source of truth for per-date travel/hold element annotations
- * (`NonShootDate.travel` / `NonShootDate.hold`).
+ * Single source of truth for per-date element annotations
+ * (`NonShootDate.lists` — keyed by day-type key; travel/hold are just the
+ * built-in attachable types' lists after the LOAD migration).
  *
  * - Element keys follow the canonical rule: cast = IDs, every other category
  *   = names (`elementMatchId`).
  * - `'*'` as a category's only key means the ENTIRE category is marked.
- * - Legacy entries (`status: 'travel'` + `castIds`) are folded into
- *   `travel['cast']` at read time — no data migration needed.
  */
 export const NON_SHOOT_ALL = '*';
 
-/** True when the entry carries a day-level status (hold/travel/holiday) — i.e. a true non-shoot day. */
+/** True when the entry carries a day-level status — i.e. a true non-shoot day. */
 export function hasDayStatus(entry?: NonShootDate | null): boolean {
   return !!entry?.status;
 }
@@ -24,17 +23,26 @@ export function getNonShootEntryMap(dates: NonShootDate[] | undefined | null): M
   return m;
 }
 
-/** Normalized travel/hold category→keys lists, legacy `status:'travel' + castIds` folded into travel['cast']. */
+/** The list map for ONE status key (empty when the entry has none). */
+export function getTypeLists(entry?: NonShootDate | null, statusKey?: string | null): Record<string, string[]> {
+  if (!statusKey) return {};
+  const out: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(entry?.lists?.[statusKey] || {})) if (v.length) out[k] = [...v];
+  return out;
+}
+
+/** Status keys carrying at least one non-empty list on this date. */
+export function getStatusesWithLists(entry?: NonShootDate | null): string[] {
+  return Object.keys(entry?.lists || {}).filter(k => Object.values(entry!.lists![k]).some(v => v.length > 0));
+}
+
+export function hasAnyLists(entry?: NonShootDate | null): boolean {
+  return getStatusesWithLists(entry).length > 0;
+}
+
+/** Normalized travel/hold lists (legacy `status:'travel' + castIds` folded into travel['cast']). */
 export function getTravelHoldLists(entry?: NonShootDate | null): { travel: Record<string, string[]>; hold: Record<string, string[]> } {
-  const travel: Record<string, string[]> = {};
-  const hold: Record<string, string[]> = {};
-  for (const [k, v] of Object.entries(entry?.travel || {})) if (v.length) travel[k] = [...v];
-  for (const [k, v] of Object.entries(entry?.hold || {})) if (v.length) hold[k] = [...v];
-  if (entry?.status === 'travel' && entry.castIds) {
-    const ids = entry.castIds.split(',').map(x => x.trim()).filter(Boolean);
-    if (ids.length) travel.cast = [...(travel.cast || []), ...ids];
-  }
-  return { travel, hold };
+  return { travel: getTypeLists(entry, 'travel'), hold: getTypeLists(entry, 'hold') };
 }
 
 export function hasTravel(entry?: NonShootDate | null): boolean {
@@ -45,10 +53,10 @@ export function hasHold(entry?: NonShootDate | null): boolean {
   return Object.keys(getTravelHoldLists(entry).hold).length > 0;
 }
 
-/** True when the element key is marked for the given kind on this date (`'*'` covers the whole category). */
-export function isElementMarked(entry: NonShootDate | undefined | null, kind: 'travel' | 'hold', category: string, key: string): boolean {
-  if (!entry) return false;
-  const list = (kind === 'travel' ? entry.travel : entry.hold)?.[category];
+/** True when the element key is marked under the given status key on this
+ *  date (`'*'` covers the whole category). */
+export function isElementMarked(entry: NonShootDate | undefined | null, statusKey: string, category: string, key: string): boolean {
+  const list = getTypeLists(entry, statusKey)[category];
   if (!list) return false;
   return list.includes(NON_SHOOT_ALL) || list.includes(key);
 }
@@ -59,12 +67,29 @@ export interface TravelHoldGroup {
   keys: string[];
 }
 
-/** Display groups (travel first, then hold). `'*'` stays as the single key — renders as "All {Category}". */
+/** Travel/hold display groups (travel first, then hold) — the day-modal editor. */
 export function getTravelHoldGroups(entry: NonShootDate | undefined | null): TravelHoldGroup[] {
   const { travel, hold } = getTravelHoldLists(entry);
   const groups: TravelHoldGroup[] = [];
   for (const [cat, keys] of Object.entries(travel)) groups.push({ kind: 'travel', category: cat, keys });
   for (const [cat, keys] of Object.entries(hold)) groups.push({ kind: 'hold', category: cat, keys });
+  return groups;
+}
+
+export interface TypeListGroup {
+  status: string;
+  category: string;
+  keys: string[];
+}
+
+/** All attachment groups on a date, per status key (tooltip display). */
+export function getTypeListGroups(entry: NonShootDate | undefined | null): TypeListGroup[] {
+  const groups: TypeListGroup[] = [];
+  for (const status of getStatusesWithLists(entry)) {
+    for (const [cat, keys] of Object.entries(getTypeLists(entry, status))) {
+      groups.push({ status, category: cat, keys });
+    }
+  }
   return groups;
 }
 

@@ -30,6 +30,8 @@ export interface DoodTotals {
   workDayList: string[];
   holdDayList: string[];
   travelDayList: string[];
+  /** Custom-type attachments: status key → marked iso dates (count columns). */
+  typeDayLists: Record<string, string[]>;
 }
 
 export function getSceneElements(scene: Scene, category: string): string[] {
@@ -60,6 +62,7 @@ export function deriveDood(
   category: string,
   castMemberNames?: Map<string, string>,
   elementNameMap?: Map<string, string>,
+  typeCodes?: Map<string, string> | null,
 ): { days: DoodDay[]; rows: DoodRow[]; totals: Map<string, DoodTotals> } {
   const isCast = category === 'cast';
   const nonShootByDate = new Map(nonShootDates?.map(n => [n.date, n]) || []);
@@ -142,10 +145,15 @@ export function deriveDood(
       }
     }
 
+    const typeDayLists: Record<string, string[]> = {};
     const cells: string[] = days.map(d => {
       const ns = nonShootByDate.get(d.isoDate);
-      if (isElementMarked(ns, 'travel', category, elementId)) return 'T';
-      if (isElementMarked(ns, 'hold', category, elementId)) return 'H';
+      const st = ns?.status;
+      const code = st ? typeCodes?.get(st) : '';
+      if (st && code && isElementMarked(ns, st, category, elementId)) {
+        (typeDayLists[st] = typeDayLists[st] || []).push(d.isoDate);
+        return code;
+      }
       if (!appearSet.has(d.dayInt)) {
         return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
       }
@@ -174,6 +182,7 @@ export function deriveDood(
       workDays, holdDays: holdCount, travelDays: travelCount,
       startDate: firstDate, finishDate: lastDate,
       workDayList, holdDayList, travelDayList,
+      typeDayLists,
     });
   }
 

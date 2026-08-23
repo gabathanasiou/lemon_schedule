@@ -65,6 +65,12 @@ export interface DayTypeDef {
   label: string;
   /** Calendar/DOOD chip color (inline style; built-ins fall back to class defaults). */
   color?: string;
+  /** Status icon (Lucide name, `CUSTOM_ICON_OPTIONS` vocabulary). Built-ins
+   *  have implicit icons (hold→Pause, travel→Plane, holiday→Sun). */
+  icon?: string;
+  /** Whether cast/elements can be attached to days of this type (like
+   *  travel/hold). Built-ins: hold + travel yes, holiday no. */
+  attachable?: boolean;
   /** Built-in types (hold/travel/holiday): keys locked, label/color editable. */
   builtin?: boolean;
 }
@@ -73,11 +79,10 @@ export interface NonShootDate {
   date: string; // YYYY-MM-DD
   /** Day-type key (see `Project.dayTypes`; built-ins: hold/travel/holiday). */
   status?: string;
-  castIds?: string;
-  /** Category → element keys traveling that day (cast = IDs, other categories = names; `'*'` = whole category). */
-  travel?: Record<string, string[]>;
-  /** Category → element keys on hold that day (cast = IDs, other categories = names; `'*'` = whole category). */
-  hold?: Record<string, string[]>;
+  /** Type key → category → element keys attached that day (cast = IDs, other
+   *  categories = names; `'*'` = whole category). `travel`/`hold` lists were
+   *  folded into `lists.travel`/`lists.hold` by the LOAD migration. */
+  lists?: Record<string, Record<string, string[]>>;
 }
 
 export interface ScheduleVersion {
