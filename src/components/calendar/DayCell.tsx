@@ -11,6 +11,7 @@ import { Flag, Plane, Pause, Star } from 'lucide-react';
 import { SceneCard, SceneCardContent } from './SceneCard';
 import { DayDropState, formatFullDate } from './calendarUtils';
 import { TravelHoldTooltip } from './TravelHoldTooltip';
+import { DayTypeVisual, dayTypeTextColor } from '../../lib/dayTypes';
 
 export const DayCell: React.FC<{
   dateKey: string; date: Date; isToday: boolean;
@@ -20,6 +21,7 @@ export const DayCell: React.FC<{
   onToggle: (dateKey: string) => void;
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   nonShootStatus?: string;
+  dayTypeVisual?: DayTypeVisual | null;
   travelHoldEntry?: NonShootDate;
   onEditTravelHold?: (dateKey: string) => void;
   sectionIndex?: number;
@@ -40,7 +42,7 @@ export const DayCell: React.FC<{
   activeDragDay?: number | null;
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
   const { readOnly, state } = useProject();
   const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
@@ -81,17 +83,22 @@ export const DayCell: React.FC<{
     return () => ro.disconnect();
   }, [checkScroll, rows.length]);
 
-  const statusBadge = nonShootStatus === 'hold' ? 'H' : nonShootStatus === 'travel' ? 'T' : nonShootStatus === 'holiday' ? 'DO' : null;
-  const statusBg = nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : nonShootStatus === 'holiday' ? 'bg-zinc-100' : '';
+  const visual = dayTypeVisual || null;
+  const statusBg = nonShootStatus
+    ? (visual?.color ? undefined : nonShootStatus === 'hold' ? 'bg-red-50' : nonShootStatus === 'travel' ? 'bg-purple-50' : 'bg-zinc-100')
+    : '';
+  const statusBgStyle = visual?.color ? { background: `${visual.color}1A` } : undefined;
   const hdr = getDayHeaderColors(palette);
-  const headerColor = nonShootStatus === 'hold' ? 'bg-red-600 text-white'
+  const statusHeaderStyle = visual?.color ? { background: visual.color, color: dayTypeTextColor(visual.color) } : undefined;
+  const headerColor = statusHeaderStyle ? ''
+    : nonShootStatus === 'hold' ? 'bg-red-600 text-white'
     : nonShootStatus === 'travel' ? 'bg-purple-600 text-white'
     : nonShootStatus === 'holiday' ? 'bg-zinc-400 text-zinc-800'
     : sectionLabel ? ''
     : 'bg-zinc-200 text-zinc-600';
-  const headerStyle = sectionLabel && !nonShootStatus ? { background: hdr.background, color: hdr.color } : undefined;
+  const headerStyle = statusHeaderStyle || (sectionLabel && !nonShootStatus ? { background: hdr.background, color: hdr.color } : undefined);
 
-  const headerLabel = nonShootStatus === 'hold' ? 'HOLD' : nonShootStatus === 'travel' ? 'TRAVEL' : nonShootStatus === 'holiday' ? 'DAY OFF' : sectionLabel || '';
+  const headerLabel = visual ? visual.label.toUpperCase() : sectionLabel || '';
 
   const isNonShoot = !!nonShootStatus;
   const isWorking = sectionIndex != null;
@@ -104,6 +111,7 @@ export const DayCell: React.FC<{
         ${!isWorking && !nonShootStatus ? 'border-b border-dashed border-zinc-200' : 'border-b border-zinc-200'}
         ${!isWorking && !nonShootStatus ? 'bg-zinc-50 text-zinc-400' : statusBg || 'bg-zinc-50'}
         ${!drop && isOver && !isNonShoot ? '!bg-blue-50' : ''}`}
+      style={statusBgStyle}
     >
         {drop?.zone === 'insert' && drop.side === 'before' && (
           <div className="absolute inset-y-0 left-0 w-[4px] bg-blue-500 z-30 pointer-events-none" />

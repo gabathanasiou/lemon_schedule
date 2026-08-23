@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate } from '../../types';
 import { getTravelHoldLists, NON_SHOOT_ALL } from '../../lib/nonShootHelpers';
+import { getDayTypes } from '../../lib/dayTypes';
 import { getCategoryElements } from '../../lib/elements';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { IS_COARSE } from '../../lib/device';
@@ -10,7 +11,7 @@ import { EntityDropdown } from '../EntityDropdown';
 import { CategoryDropdown } from '../rules/CategoryDropdown';
 import { ruleModalSizes } from '../rules/ColorRuleFormParts';
 import { usePortalTarget } from '../../lib/popoutTarget';
-import { Plane, Pause, Plus, X, Check } from 'lucide-react';
+import { Plane, Pause, Plus, X, Check, Sun } from 'lucide-react';
 
 interface TravelHoldRow {
   kind: 'travel' | 'hold';
@@ -66,6 +67,8 @@ export const TravelHoldModal: React.FC<TravelHoldModalProps> = ({ dateKey, entry
   });
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [statusKey, setStatusKey] = useState<string | null>(entry?.status || null);
+  const dayTypes = useMemo(() => getDayTypes(project), [project]);
 
   const addRow = (kind: 'travel' | 'hold') => {
     const first = allCategoryKeys[0];
@@ -98,7 +101,7 @@ export const TravelHoldModal: React.FC<TravelHoldModalProps> = ({ dateKey, entry
     }
     const next: NonShootDate = {
       date: dateKey,
-      ...(entry?.status ? { status: entry.status } : {}),
+      ...(statusKey ? { status: statusKey } : {}),
       ...(Object.keys(travel).length > 0 ? { travel } : {}),
       ...(Object.keys(hold).length > 0 ? { hold } : {}),
     };
@@ -122,6 +125,34 @@ export const TravelHoldModal: React.FC<TravelHoldModalProps> = ({ dateKey, entry
       }
     >
       <div className={CREM_BODY}>
+        <div className="mb-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5 mb-2.5">
+            <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider flex items-center gap-1.5`}>
+              <Sun className={`${XSZ} text-zinc-500`} />
+              Day Status
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onPointerDown={(e) => { e.preventDefault(); setStatusKey(null); }}
+              title="No status (working day)"
+              className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${statusKey === null ? 'bg-zinc-800 text-white border-zinc-600' : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:bg-zinc-800 hover:text-zinc-200'}`}
+            >
+              None
+            </button>
+            {dayTypes.map(t => (
+              <button
+                key={t.key}
+                onPointerDown={(e) => { e.preventDefault(); setStatusKey(t.key); }}
+                title={t.label}
+                className={`px-2.5 py-1 rounded-md text-xs border transition-colors flex items-center gap-1.5 ${statusKey === t.key ? 'bg-zinc-800 text-white border-zinc-600' : 'bg-zinc-900 text-zinc-300 border-zinc-700 hover:bg-zinc-800'}`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-zinc-600" style={t.color ? { background: t.color } : undefined} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {(['travel', 'hold'] as const).map(kind => {
           const kindRows = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.kind === kind);
           const isTravel = kind === 'travel';

@@ -29,6 +29,8 @@ import PageToolbar from './PageToolbar';
 import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { TravelHoldModal } from './calendar/TravelHoldModal';
+import { DayTypesManagerModal } from './calendar/DayTypesManagerModal';
+import { getDayTypes, getDayTypeVisual, getDayTypeLabel } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasTravel, hasHold } from '../lib/nonShootHelpers';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
@@ -95,10 +97,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   }, [boneyardCollapsed]);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string } | null>(null);
+  const [dayTypesModalOpen, setDayTypesModalOpen] = useState(false);
   const [autoDayOffOpen, setAutoDayOffOpen] = useState(false);
   const [autoDayOffDays, setAutoDayOffDays] = useState<Set<number>>(new Set([5, 6]));
 
-  const handleNonShootToggle = useCallback((dateKey: string, status: 'hold' | 'travel' | 'holiday' | null) => {
+  const handleNonShootToggle = useCallback((dateKey: string, status: string | null) => {
     if (!activeVersion) return;
     const current = activeVersion.nonShootDates || [];
     let next: NonShootDate[];
@@ -422,7 +425,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       if (activeTool === 'remove') {
         handleNonShootToggle(dateKey, null);
       } else {
-        handleNonShootToggle(dateKey, activeTool as 'hold' | 'travel' | 'holiday');
+        handleNonShootToggle(dateKey, activeTool as string);
       }
       return;
     }
@@ -891,6 +894,10 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     </span>
                     {showConflicts ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                   </button>
+                  <DropdownDivider />
+                  <DropdownItem onClick={() => { setViewMenuOpen(false); setDayTypesModalOpen(true); }} icon={<CalendarDays className="w-3.5 h-3.5" />}>
+                    Day Types…
+                  </DropdownItem>
                 </DropdownMenu>
               </div>
             }
@@ -898,9 +905,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           <PageToolbar theme="light" justify="start">
             {[
               { key: null, label: <Pointer className="w-3 h-3" />, title: 'Select' },
-              { key: 'hold', label: 'H', title: 'Hold' },
-              { key: 'travel', label: 'T', title: 'Travel' },
-              { key: 'holiday', label: 'DO', title: 'Day Off' },
+              { key: 'hold', label: 'H', title: getDayTypeLabel(project, 'hold') || 'Hold' },
+              { key: 'travel', label: 'T', title: getDayTypeLabel(project, 'travel') || 'Travel' },
+              { key: 'holiday', label: 'DO', title: getDayTypeLabel(project, 'holiday') || 'Day Off' },
               { key: 'remove', label: <Eraser className="w-3 h-3" />, title: 'Erase' },
             ].map(t => (
               <button key={t.key || 'none'} type="button"
@@ -977,6 +984,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                         <DayCell key={day.dateKey}
                           dateKey={day.dateKey} date={day.date} isToday={day.isToday}
                           nonShootStatus={nonShootDateMap.get(day.dateKey)}
+                          dayTypeVisual={getDayTypeVisual(project, nonShootDateMap.get(day.dateKey))}
                           travelHoldEntry={nonShootEntryByDate.get(day.dateKey)}
                           onEditTravelHold={(dk) => setTravelHoldModal({ dateKey: dk })}
                           sectionIndex={dateSectionIdx ?? undefined}
@@ -1039,9 +1047,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
 
       {contextMenuDate && contextMenu && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuDate(null); }}>
-          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'hold'); setContextMenu(null); setContextMenuDate(null); }} icon={<Pause className="w-3.5 h-3.5" />}>Hold</ContextMenuItem>
-          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'travel'); setContextMenu(null); setContextMenuDate(null); }} icon={<Plane className="w-3.5 h-3.5" />}>Travel</ContextMenuItem>
-          <ContextMenuItem onClick={() => { handleNonShootToggle(contextMenuDate, 'holiday'); setContextMenu(null); setContextMenuDate(null); }} icon={<Sun className="w-3.5 h-3.5" />}>Day Off</ContextMenuItem>
+          {getDayTypes(project).map(t => {
+            const icon = t.key === 'hold'
+              ? <Pause className="w-3.5 h-3.5" />
+              : t.key === 'travel'
+                ? <Plane className="w-3.5 h-3.5" />
+                : t.key === 'holiday'
+                  ? <Sun className="w-3.5 h-3.5" />
+                  : (
+                    <span className="w-3 h-3 rounded-full shrink-0 border border-zinc-600" style={t.color ? { background: t.color } : undefined} />
+                  );
+            return (
+              <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }} icon={icon}>
+                {t.label}
+              </ContextMenuItem>
+            );
+          })}
           <ContextMenuDivider />
           <ContextMenuItem onClick={() => { setTravelHoldModal({ dateKey: contextMenuDate }); setContextMenu(null); setContextMenuDate(null); }} icon={<><Plane className="w-3 h-3" /><Pause className="w-3 h-3" /></>}>Manage Travel/Hold…</ContextMenuItem>
           {nonShootDateMap.has(contextMenuDate) && (
@@ -1166,6 +1187,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           onClose={() => setTravelHoldModal(null)}
         />
       )}
+      <DayTypesManagerModal open={dayTypesModalOpen} onClose={() => setDayTypesModalOpen(false)} />
     </DndContext>
     </>
   );
