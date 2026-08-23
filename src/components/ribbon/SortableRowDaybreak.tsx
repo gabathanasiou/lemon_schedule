@@ -5,6 +5,7 @@ import { getRibbonCellBaseStyle, getNoteBreakPad, getDayHeaderColors, getDayFoot
 import { RibbonCellText } from '../RibbonCellText';
 import { CellInput } from '../CellInput';
 import { RowRenderCtx } from './rowRenderTypes';
+import { TEST_IDS } from '../../lib/testIds';
 
 export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInput; ctx: RowRenderCtx }) {
   const {
@@ -219,12 +220,12 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
   }
 
   return (
-    <div className="flex items-stretch min-w-0">
+    <div data-testid={TEST_IDS.daybreakRow} className="flex items-stretch min-w-0">
       <div className="flex-1 min-w-0 flex flex-col">
         {!row.pinned && (
         <table className="schedule-table flex-1 min-w-0">
           <tbody>
-            <tr className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+            <tr data-testid={TEST_IDS.sectionFooter} className="row-note" style={{ ...daybreakStyle, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
               <td className="col-sc" />
               {!isCompact ? (
                 <>
@@ -256,7 +257,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
         {nextDaybreakNum > 0 && (
           <table className="schedule-table flex-1 min-w-0">
             <tbody>
-              <tr className="row-note" style={{ background: (isSelected && !isFaded) ? sel.background : dh.background, color: (isSelected && !isFaded) ? sel.color : dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
+              <tr data-testid={TEST_IDS.nextDayHeader} className="row-note" style={{ background: (isSelected && !isFaded) ? sel.background : dh.background, color: (isSelected && !isFaded) ? sel.color : dh.color, '--note-row-py': `${getNoteBreakPad(cellPaddingV ?? 6, ribbon?.length || 1)}px` } as any}>
                 <td className="col-sc" />
                 <td className="col-call">
                   <CellInput

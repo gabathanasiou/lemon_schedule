@@ -9,6 +9,7 @@ import { getFieldValue, FIELD_MAP, resolveSceneColor, getNoteBannerColors, getDa
 import { checkSection } from '../lib/rulesEngine';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { ComputedRowInput } from '../lib/daybreakUtils';
+import { TEST_IDS } from '../lib/testIds';
 
 /** Rows per virtualized chunk (≈ 12 × 43px, matched by the CSS intrinsic size). */
 const CHUNK_SIZE = 12;
@@ -291,7 +292,7 @@ export const StripBlock: React.FC<{ dayInt: number, rows: ScheduleRow[], selecte
   };
 
   return (
-    <div className="flex flex-col">
+    <div data-testid={TEST_IDS.stripboardDay} className="flex flex-col">
     <div style={{ ...baseStyle, borderBottom: 'none' }} className="bg-white flex flex-col border-[2px] border-black">
 
       {/* Drop zone */}

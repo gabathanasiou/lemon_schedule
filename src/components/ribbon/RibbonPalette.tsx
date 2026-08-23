@@ -2,6 +2,7 @@ import React from 'react';
 import { Eye, GripHorizontal, Tag } from 'lucide-react';
 import { RibbonRow } from '../../types';
 import { FIELD_ICONS, getCustomIcon } from './ribbonPaletteMeta';
+import { TEST_IDS } from '../../lib/testIds';
 
 export interface RibbonFieldDef {
   key: string;
@@ -57,6 +58,8 @@ export default function RibbonPalette({
                   return (
                     <button
                       key={f.key}
+                      data-testid={TEST_IDS.paletteItem}
+                      data-field={f.key}
                       onClick={() => { if (!readOnly && selId) assign(selId, f.key); }}
                       draggable
                       onDragStart={e => e.dataTransfer.setData('text/field', f.key)}
