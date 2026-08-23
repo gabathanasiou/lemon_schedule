@@ -17,7 +17,7 @@ Every nested block receives, and must forward (containers pass-through):
 | `scopeFilter` | print scope selection | print dialog (top-level) |
 | `aux` | counter index / page / pageSize / counterStart | repeat loop + page renderer |
 | `showKeys` / `hint` / `onceTable` | view chrome | the renderer |
-| `parentItems` | the parent repeat/relative's post-scope resolved list — the `relative` block slices it (roadmap 27) | the parent repeat/relative view (exact); FragmentBody re-resolves it for top-level fragments |
+| `parentItems` | the parent repeat/relative's post-scope resolved list — the `relative` block slices it (roadmap 27) | the parent repeat/relative view (unchanged on split pages too: chunk parts slice the same view, never a re-resolve) |
 | `itemIndex` | the current item's index in `parentItems` | same as above |
 
 Rules:

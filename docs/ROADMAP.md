@@ -447,7 +447,8 @@ Related bugs to fix while here:
 - Done: `relative` block type (offset/count steppers + resolved-target label
   in chrome); `resolveRelativeItems` slices the parent repeat's post-scope
   list via `parentItems`/`itemIndex` threading (exact in repeat/relative
-  views; fragment fallback resolves the top-level list in `FragmentBody`);
+  views — repeat items dissolve to children in the measured walker, the same
+  views render split chunks);
   `ReportRelativeView` mirrors the repeat view (`.rm-repeat-col`/`.rm-item`)
   so paginator fragment splitting applies; palette gated to repeat contexts;
   `insertInto`/context menu treat it as a container; print dialog collects
@@ -563,7 +564,8 @@ Related bugs to fix while here:
   project shows the design on canvas/preview, custom category cells show the
   label in italics, lint + playwright.
 
-## 30. Bug: repeaters auto page-break when NO pageBreak is present (`[ ]`)
+## 30. Bug: repeaters auto page-break when NO pageBreak is present (`[x]`)
+- Done: the "one page per item" expansion machinery is GONE. `hasItemBreaks` + `buildReportPages` per-item expansion were removed; a `pageBreak` block is now a POSITIONAL hard break in the render (invisible `data-rm-pagebreak` marker → the measured fill closes the page there), so only actually-placed breaks ever split items. Repeats without breaks fill pages contiguously at child granularity (items dissolve into children — whole blocks, ribbons by strips, tables by rows, nested repeats between items). Nested breaks in columns/relative/callSheetEdit no longer misfire (their false-positive trigger was deleted). Verified by `e2e/report-page-breaks.spec.ts` on Chrome + WebKit.
 
 - **Reported**: a repeat with no `pageBreak` block inside it still splits its
   items across pages ("auto page break") — expected: without an explicit
@@ -629,7 +631,8 @@ Known issues to fix together (all in the locations/type machinery):
   type keeps the label, type filter clears back to all locations, lint +
   playwright.
 
-## 32. Bug: blank pages from repeat items that render nothing (e.g. empty location types) (`[ ]`)
+## 32. Bug: blank pages from repeat items that render nothing (e.g. empty location types) (`[x]`)
+- Done: `computeChunks` drops structural pages with content but zero measurable units (header/footer-only and all-null-rendering pages); explicit blank pages survive ONLY from consecutive top-level pageBreaks (`[]` pages). Empty items are doubly harmless: a break at the start of a page is a no-op (the fill closes pages only when they hold real content — zero-height children never close one). Plus the planned secondary: `SKIP_EMPTY_TEST`/`SKIP_EMPTY_LABEL` registry in `reportData.ts` (categories → `elementCount > 0`, locationTypes → `count > 0`, items rolled up in `buildReportCtx`) — the `resolveCollectionItems` filter and the repeat/table "Filters" checkbox light up automatically per collection ("Skip types with no locations", default ON, per-block opt-out via `skipEmptyCategories: false`); a future database plugs in with ctx item info + one registry entry. Verified by `e2e/report-page-breaks.spec.ts` on Chrome + WebKit.
 
 - **Reported**: a Repeat over Location Types (one page per item — pageBreak
   child, the call-sheet pattern) prints a BLANK page for a type with no
@@ -730,6 +733,204 @@ Known issues to fix together (all in the locations/type machinery):
 - Verify: table resize looks/behaves like the ribbon designer (desktop +
   touch), item 23 regression (multi-row widths track) still passes, lint +
   playwright.
+
+---
+
+## 35. Location picker: static center pin, drag the map to place (`[ ]`)
+
+Apple Maps–style placement in `LocationPickerModal`
+(`src/components/location/LocationPickerModal.tsx`) — shared by the Location
+Manager address cells (`locationManagerConfig.tsx:105`), the reports Map
+block's pin control (`blockControls.tsx:1134`), and any future surfaces; one
+modal, all consumers get it.
+
+**Current:** `TapToPin` — click the map to drop a pin (marker at the click
+spot); Attach stays disabled until a pin exists.
+
+**Desired:**
+
+- Replace tap-to-pin with a **static pin fixed at the map's center** — drag
+  the map around, the pin never moves (a `pointer-events: none` overlay
+  centered on the map container, reusing the `locationMarker()` teardrop so
+  it matches existing maps).
+- The picked location = the **map's current center** at confirm time.
+- **Debounced reverse geocode on leaflet `moveend`/`dragend`** so the place
+  label updates as the map settles under the pin (keep the existing
+  `geocodeSeq` stale-response guard).
+- Search results: picking one **centers the map** on it — the static pin
+  lands on the spot (drops the separate `pin` state/`Recenter`-to-pin flow;
+  `Recenter` stays for the locate-me button).
+- **Attach always enabled** (pin always exists at center); footer coords read
+  from center.
+- Remove `TapToPin` from `MapPrimitives.tsx` if no other consumers (grep
+  shows only this modal uses it).
+- Keep the address search dropdown, locate-me button, modal chrome, and the
+  current zoom/scroll settings (`scrollWheelZoom={false}` etc. — user
+  decision: keep as is).
+
+Verify: drag → pin stays centered, label settles after drag; search →
+centered + labeled; Attach with zero map clicks works; both consumers
+updated; `npm run lint` + playwright.
+
+## 36. Map block chrome: click the location name to change it (`[ ]`)
+
+In the map block's properties panel ("Location" section,
+`blockControls.tsx:1060-1085`): today a pinned location renders as a
+truncated name text + a separate **"Change"** button. Make the **location
+name text itself clickable** to open the `LocationPickerModal` (same
+`setLocationOpen(true)` handler as the Change button) with a hover
+affordance (cursor-pointer, title tooltip) so it reads as interactive.
+
+- No-pin state keeps the existing **"Set location…"** button.
+- The **trash (clear)** button stays — it's a distinct action (user asked
+  only about Change).
+- Inherited "Comes from the day's location" row unchanged (different mode).
+- `LocationPickerModal` internals untouched — purely a chrome tweak.
+
+Verify: click name → picker opens; picked location patches and the name
+re-renders; hover affordance visible; trash still clears; lint + playwright.
+
+## 37. Map block chrome: remove the "Address" note row (`[ ]`)
+
+Delete the "Address" ContentRow (`blockControls.tsx:1119-1121` — "Shown as
+a floating label on the map — clickable when an open-in service is set.")
+from the map block's properties. It's obvious — user decision. The floating
+label behavior stays unchanged; only the explanatory row goes.
+
+Verify: chrome panel renders without the row; map block behavior untouched;
+lint + playwright.
+
+## 38. Script version diff — accept a new screenplay against the current one (`[ ]`)
+
+**Requested**: when uploading a newer version of the screenplay, a diff
+viewer / acceptance step before anything changes. Research: Filmustage (same
+domain: breakdown → schedule) ships a compare hub — Scene Diff
+(side-by-side content diff, filter by Modified/Removed), Tags Diff
+(added/removed/changed grouped by category), impact summary. Industry
+consensus: match scenes by scene number, diff per field; `diff` (jsdiff,
+Myers algorithm, word/line level) is the standard JS lib.
+
+**Problem**: `ImportDialog` appends every parsed scene as a brand-new scene
+(fresh UUIDs in `commitImport`) — re-uploading a revised script duplicates
+all scenes and orphans the schedule. When the project already has scenes,
+the import must **diff and update in place** instead of append.
+
+**Matching** (new pure module `src/lib/import/scriptDiff.ts`,
+unit-testable, no store/UI deps) — three escalating signals + order-aware
+alignment:
+
+1. **Primary — normalized scene number** (`1` vs `1A`; tolerate
+   renumber/prefix drift).
+2. **Secondary — heading signature** via `parseSceneHeading` (`intExt` +
+   normalized `set` + `dayNight`).
+3. **Tertiary — content/context similarity** (user-requested): a per-scene
+   fingerprint = normalized description tokens + cast characters (via
+   `normalizeCharacterName`) + element items + location; paired by
+   token-overlap (Jaccard) score against neighbor candidates — high-score
+   pairs match even with no number/heading match (renumbered, retitled
+   heading, broken heading).
+4. **Order-aware alignment**: the pass is an **LCS alignment over the
+   ordered scene lists** keyed by the signals above — an inserted scene
+   mid-list never cascades wrong matches onto the scenes after it (classic
+   ordered-diff pitfall). **Added / Removed** come from the alignment gaps,
+   not per-scene lookups.
+5. **Suspected split/merge tags**: one old scene splitting into two new
+   (or two merging into one) scores high against the same counterpart
+   twice — badge "Scene 8 split into 8A/8B" instead of a confusing
+   "modified + added" pair (same scoring data, cheap).
+
+**Per-scene diff** (vs the current saved scene):
+- Heading fields: `intExt`, `set`, `dayNight`, `pageCount`/`pageCountDecimal`,
+  `scriptDay` — simple equality.
+- `description` — **word-level** diff (jsdiff `diffWords`, added/removed
+  highlighting).
+- `cast` + every element category (props, wardrobe, …) — **item-set** diff
+  (± lists; via `getFieldItems`, never raw `split(',')`).
+- `notes`, `location` — equality.
+- **Unchanged** only when number/heading matched AND context similarity ≈ 1;
+  a heading-only match with big content drift shows as **Modified**.
+
+**Acceptance UI** (new stage in `ImportDialog`, shown when
+`project.scenes.length > 0`):
+- Summary bar: X unchanged · Y modified · Z new · W removed (+ split/merge
+  badges).
+- Filter tabs: All / Modified / New / Removed / Unchanged.
+- Scene rows (script order): scene number + heading + change badges; expand
+  for a **side-by-side per-field diff** (word-level highlights in
+  description, item ± lists for cast/elements, before → after for heading
+  fields). A split/merge row diffs the old scene against each fragment.
+- **Removed scenes default to KEEP** (user decision): per-scene "remove"
+  toggle + "remove all" shortcut — the stripboard/schedule investment is
+  untouched by default.
+- Existing review-stage controls stay (new categories, hidden categories
+  with data, cast ID assignment/ordering).
+- Footer: "Update N Scenes" + Cancel.
+
+**Commit** — one undo entry (`BATCH_START`/`BATCH_COMMIT`; extend/parallel
+`commitImport` with a `commitScriptDiff`):
+- Matched + accepted → `UPDATE_SCENE` patches **in place, ids preserved**
+  (stripboard rows, day assignments, call times, ribbons survive;
+  `caseUpdateScene` re-parses `pageCount` on patch).
+- Added → `ADD_SCENE` — lands **in the boneyard** (`containerId: null`,
+  `maxBoneyardOrder + 1`, schedule.ts:24-31 — user decision: new scenes
+  never shift the stripboard; user restores them where they belong).
+- Confirmed-removed → `DELETE_SCENE` (scene→row invariant: rows removed in
+  every version; copy goes to trash, restorable).
+- New cast → existing `castIdMap` flow (`ADD_CAST_MEMBER` +
+  `ADD_ELEMENT` cast category — cast referenced by ID, names via
+  `normalizeCharacterName`); new elements → `ADD_ELEMENT` per category;
+  new/updated sets as today.
+- No new action types (all exist: `UPDATE_SCENE`/`ADD_SCENE`/`DELETE_SCENE`
+  + element/category/cast actions).
+
+**Dependency**: `diff` (jsdiff) for the word-level description diff — the
+standard, tiny, browser-safe. New-dep rule: imported by ≥1 source file.
+
+**Verify**: re-import the seed script (Town) with a few scenes edited,
+added, removed, one split, one renumbered → only diffs apply; unchanged
+scenes keep ids; schedule + ribbons intact; new scenes in the boneyard;
+removed scenes kept by default; undo restores exactly; filters + expanded
+diffs render; lint + playwright. **Out of scope** (follow-ups): Filmustage-
+style cross-version schedule/budget impact reports, archived-versions hub —
+this item is the import acceptance step only.
+
+## 39. Custom day types — extend the calendar's day-status infrastructure (`[ ]`)
+
+The calendar already models day kinds: `NonShootDate.status` (`types.ts:63-71`),
+edited via the calendar's `TravelHoldModal`, consumed by DOODs
+(`DoodDay.nonShootStatus`, `deriveDood` in `nonShootStats.ts`) and
+section-date skipping (`buildNonShootSet`). Requested: let users define
+**custom day types** ("Rehearsal", "Wrap", "Tech Scout" …) and make the
+calendar the primary surface. No migration concerns (user decision — don't
+design around back-compat; normalize legacy statuses simply, if at all).
+
+- **Registry**: `project.dayTypes: DayTypeDef[]` = `{ key, label, color? }`.
+  Seeded with the existing built-ins (Hold / Travel / Holiday). Managed via
+  `ManagerShell` (the locationManagerConfig pattern): add / rename / recolor /
+  delete custom types; built-ins' keys may be locked (labels/colors
+  editable). Deleting a type in use falls back to no-status.
+- **Model**: `NonShootDate.status` becomes a day-type **key** (`string`);
+  shooting days keep `undefined`. Statuses store as keys without back-compat
+  constraints.
+- **Calendar (primary surface)**: `TravelHoldModal`'s day-status picker
+  renders from `project.dayTypes` — built-ins + customs with their colors;
+  single-status-per-date semantics as today. Calendar day cells show a
+  label + color chip.
+- **DOODs (tab + print — shared `deriveDood`)**: `DoodDay` carries the type
+  key; day headers show the label (+ color fill) instead of the raw status;
+  typed non-shooting days already render as their own grey columns — the
+  type labels them. **Display-only**: W/H/T cell math untouched (a "counts
+  as holding" flag is a natural follow-up).
+- **Report creator integration — yes, label only**: new `dayType` field in
+  the registry's **Days group** (`reportFields.ts`, same shape as
+  `dayLabel`), resolved per-day in the report seam from the day's date →
+  `version.nonShootDates` entry → label (fallback: empty).
+  Call sheets / day tables can print `{{dayType}}`. (Nuance: the `days`
+  collection = stripboard sections; a typed non-shoot date surfaces via its
+  date.)
+- **Verify**: create "Rehearsal" → mark a calendar date → status saved as
+  key, chip colored on calendar + DOOD header (tab and print), report
+  `{{dayType}}` resolves per day, delete-in-use guard, lint + playwright.
 
 ---
 

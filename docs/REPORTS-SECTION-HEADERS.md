@@ -25,9 +25,10 @@ break row become that section's header — "scooter or information for that page
 
 ## Implementation sketch
 
-- `paginateBlocks()` / `buildReportPages()` currently drop break info — they
-  need to carry per-page header lists. `ReportPageItems` already accepts a
-  per-page `header` (global zones), so section headers slot into the same prop.
+- `paginateBlocks()` currently drops break info — it needs to carry per-page
+  header lists. The chunk walker (`useReportPaginator`) applies ONE global
+  header/footer per chunk today; section headers need chunk-level header sets
+  threaded through `useReportPaginator`/`ReportChunkPage`.
 - Designer canvas: the page-break row becomes a dropzone (same chrome as the
   repeat container), with a compact preview of the section header when present.
 - The designer's zone routing (`zoneOf` / `listOfZone` in ReportDesigner.tsx)
