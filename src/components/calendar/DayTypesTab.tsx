@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useProject } from '../../store';
+import { useDaybreakSections } from '../../lib/useDaybreakSections';
 import { useDialog } from '../Dialog';
 import { Pencil, Trash2, CalendarDays } from 'lucide-react';
 import SidebarNav, { SidebarNavRow } from '../SidebarNav';
@@ -17,6 +18,7 @@ export const DayTypesTab: React.FC = () => {
   const dialog = useDialog();
   const project = state.present;
   const activeVersion = project.versions.find(v => v.id === project.activeVersionId);
+  const { productionSections, sectionDateMap, productionChronoDayMap } = useDaybreakSections();
   const dayTypes = useMemo(() => getDayTypes(project), [project]);
 
   const [selectedKey, setSelectedKey] = useState<string>(dayTypes[0]?.key || '');
@@ -29,15 +31,30 @@ export const DayTypesTab: React.FC = () => {
 
   const nonShootDates = useMemo(() => activeVersion?.nonShootDates || [], [activeVersion?.nonShootDates]);
 
-  const countFor = (key: string) => nonShootDates.filter(n => n.status === key).length;
+  // The Production Days built-in shows the schedule's actual working days
+  // (canonical `useDaybreakSections` computation — never re-derived).
+  const productionDays = useMemo(() => {
+    const out: { date: string; day: number }[] = [];
+    for (const s of productionSections) {
+      const d = sectionDateMap.get(s.index);
+      const day = productionChronoDayMap.get(s.index);
+      if (d) out.push({ date: d, day: day ?? 0 });
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date));
+  }, [productionSections, sectionDateMap, productionChronoDayMap]);
+
+  const isProductionRow = selectedKey === 'work';
+
+  const countFor = (key: string) =>
+    key === 'work' ? productionDays.length : nonShootDates.filter(n => n.status === key).length;
 
   const usedDates = useMemo(() => {
-    if (!selectedKey) return [];
+    if (!selectedKey || isProductionRow) return [];
     return nonShootDates
       .filter(n => n.status === selectedKey)
       .map(n => n.date)
       .sort();
-  }, [selectedKey, nonShootDates]);
+  }, [selectedKey, nonShootDates, isProductionRow]);
 
   const selected = dayTypes.find(t => t.key === selectedKey);
   const SelectedIcon = selected ? typeIconComponent(project.dayTypes, selected.key) : null;
@@ -168,10 +185,28 @@ export const DayTypesTab: React.FC = () => {
             <span className="w-3 h-3 rounded-full shrink-0 border border-zinc-300" style={selected?.color ? { background: selected.color } : undefined} />
             <span className="text-sm font-semibold text-zinc-800">{selected?.label || 'Day Types'}</span>
             {selected?.color && <span className="text-[10px] font-mono text-zinc-400 uppercase">{selected.color}</span>}
-            <span className="text-[11px] text-zinc-400 ml-auto">{usedDates.length} {usedDates.length === 1 ? 'day' : 'days'}</span>
+            <span className="text-[11px] text-zinc-400 ml-auto">{isProductionRow ? productionDays.length : usedDates.length} {isProductionRow ? (productionDays.length === 1 ? 'production day' : 'production days') : (usedDates.length === 1 ? 'day' : 'days')}</span>
           </div>
           <div className="flex-1 overflow-y-auto tab-scroll p-4">
-            {usedDates.length === 0 ? (
+            {isProductionRow ? (
+              productionDays.length === 0 ? (
+                <div className="text-xs text-zinc-400 py-10 text-center">
+                  <div className="flex justify-center mb-2"><CalendarDays className="w-5 h-5 text-zinc-300" /></div>
+                  No production days yet.
+                  <div className="text-[11px] text-zinc-400 mt-1">Add days to the schedule to populate production days.</div>
+                </div>
+              ) : (
+                <ul className="space-y-1">
+                  {productionDays.map(pd => (
+                    <li key={pd.date} className="flex items-center gap-2 px-2.5 py-2 rounded-md bg-zinc-50 border border-zinc-100 text-xs text-zinc-700">
+                      <span className="font-bold">DAY {pd.day}</span>
+                      <span className="font-semibold">{new Date(pd.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                      <span className="text-zinc-400 font-mono text-[10px]">{pd.date}</span>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : usedDates.length === 0 ? (
               <div className="text-xs text-zinc-400 py-10 text-center">
                 <div className="flex justify-center mb-2"><CalendarDays className="w-5 h-5 text-zinc-300" /></div>
                 No days marked with this type yet.

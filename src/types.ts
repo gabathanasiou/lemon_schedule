@@ -71,6 +71,10 @@ export interface DayTypeDef {
   /** Whether cast/elements can be attached to days of this type (like
    *  travel/hold). Built-ins: hold + travel yes, holiday no. */
   attachable?: boolean;
+  /** Whether the type can be explicitly marked on calendar days. Built-in
+   *  "Production Days" is the default state of every shooting day — never
+   *  marked (marking would skip the date from the schedule). */
+  markable?: boolean;
   /** Built-in types (hold/travel/holiday): keys locked, label/color editable. */
   builtin?: boolean;
 }

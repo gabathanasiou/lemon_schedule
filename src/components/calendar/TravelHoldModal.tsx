@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useProject } from '../../store';
 import { NonShootDate } from '../../types';
 import { getTypeLists, NON_SHOOT_ALL } from '../../lib/nonShootHelpers';
-import { getDayTypes, getDayType, iconForType } from '../../lib/dayTypes';
+import { getMarkableDayTypes, getDayType, iconForType } from '../../lib/dayTypes';
 import { getCategoryElements } from '../../lib/elements';
 import { ELEMENT_CATEGORIES, getLabel, getCustomIcon } from '../../lib/categories';
 import Modal, { ModalFooter } from '../Modal';
@@ -57,7 +57,7 @@ export const TravelHoldModal: React.FC<TravelHoldModalProps> = ({ dateKey, entry
     return keys;
   }, [project.customCategories]);
 
-  const dayTypes = useMemo(() => getDayTypes(project), [project]);
+  const dayTypes = useMemo(() => getMarkableDayTypes(project), [project]);
   const [statusKey, setStatusKey] = useState<string | null>(entry?.status || null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const activeType = statusKey ? getDayType(project, statusKey) : undefined;

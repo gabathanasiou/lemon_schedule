@@ -36,7 +36,7 @@ import {
   caseSetReportTextStyles, caseSetDayTypes,
 } from './actions/reports';
 import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
-import { DEFAULT_DAY_TYPES } from '../lib/dayTypes';
+import { DEFAULT_DAY_TYPES, DAY_TYPE_BUILTIN_KEYS } from '../lib/dayTypes';
 import { isMultiValue, getFieldItems } from '../lib/categories';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -335,7 +335,17 @@ export function reducer(state: State, action: Action): State {
     p.crew = p.crew || {};
     p.crewTrash = p.crewTrash || [];
     p.locationTypes = p.locationTypes?.length ? p.locationTypes : DEFAULT_LOCATION_TYPES;
-    p.dayTypes = p.dayTypes?.length ? p.dayTypes : DEFAULT_DAY_TYPES;
+    // Day types: built-ins always exist, in DEFAULT order (work first); custom
+    // types follow in stored order. Old projects that predate a built-in get it.
+    {
+      const stored = p.dayTypes || [];
+      const builtins = DEFAULT_DAY_TYPES
+        .map(d => stored.find(s => s.key === d.key))
+        .filter((d): d is DayTypeDef => !!d);
+      const missing = DEFAULT_DAY_TYPES.filter(d => !stored.some(s => s.key === d.key));
+      const customs = stored.filter(t => !DAY_TYPE_BUILTIN_KEYS.has(t.key));
+      p.dayTypes = [...builtins, ...missing, ...customs];
+    }
     p.locations = p.locations || [];
     p.locationsTrash = p.locationsTrash || [];
     p.reportTrash = p.reportTrash || [];

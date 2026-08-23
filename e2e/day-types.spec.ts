@@ -56,14 +56,26 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await expect(sidebar.getByText('Hold', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Travel', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Day Off', { exact: true })).toBeVisible();
-  await expect(sidebar.getByText('Work Day', { exact: true })).toBeVisible();
-  for (const [label, iconCls] of Object.entries({ Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun', 'Work Day': 'lucide-calendar-check' })) {
+  await expect(sidebar.getByText('Production Days', { exact: true })).toBeVisible();
+  for (const [label, iconCls] of Object.entries({ 'Production Days': 'lucide-calendar-check', Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun' })) {
     const row = sidebar.locator('button:has-text("' + label + '")').locator('..');
     await expect(row.locator('svg.' + iconCls).first()).toBeVisible();
     // Built-ins are fully locked: no edit, no delete.
     await expect(row.locator('svg.lucide-pencil')).toHaveCount(0);
     await expect(row.locator('svg.lucide-trash-2')).toHaveCount(0);
   }
+  // Production Days is first, and its count = the schedule's production days.
+  const prodRow = sidebar.getByText('Production Days', { exact: true }).locator('..');
+  const prodFirst = await sidebar.locator('button').first().evaluate(el => el.textContent || '');
+  expect(prodFirst).toContain('Production Days');
+  const prodCount = await page.evaluate(() => {
+    const rows = (window as any).__lemonSchedule?.getRows?.();
+    return (rows?.sections || []).filter((s: any) => !s.isPinned).length;
+  });
+  await expect(prodRow).toContainText(String(prodCount));
+  // The production pane lists the working days (DAY N + date), not marked statuses.
+  await expect(page.getByText('DAY 1', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(`${prodCount} production days`, { exact: true })).toBeVisible();
 
   // ---- Add a custom type with icon + color + attachable ---------------------
   await page.getByRole('button', { name: 'Add Day Type', exact: true }).click();
@@ -80,11 +92,12 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   expect(reh).toMatchObject({ key: 'rehearsal', icon: 'Music', color: '#16A34A', attachable: true });
   await expect(sidebar.getByText('Rehearsal', { exact: true })).toBeVisible();
 
-  // ---- Mark a day: context menu lists the custom type -----------------------
+  // ---- Mark a day: context menu lists the custom type (never Production Days)
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
   const dayCell = page.locator(`[data-date-key="${lastSectionDate}"]`);
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
   await header.click({ button: 'right' });
+  await expect(page.getByText('Production Days', { exact: true })).toHaveCount(0);
   await page.getByText('Rehearsal', { exact: true }).click();
   await expect(dayCell.getByText('REHEARSAL', { exact: true })).toBeVisible();
   await expect(header).toHaveCSS('background-color', 'rgb(22, 163, 74)');
@@ -164,7 +177,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
       statuses: (v.nonShootDates || []).map((n: any) => n.status).filter(Boolean),
     };
   });
-  expect(after.dayTypes).toEqual(['hold', 'travel', 'holiday', 'work']);
+  expect(after.dayTypes).toEqual(['work', 'hold', 'travel', 'holiday']);
   expect(after.statuses).not.toContain('rehearsal');
 
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();

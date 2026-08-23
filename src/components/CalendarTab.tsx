@@ -31,7 +31,7 @@ import { DayCell, FillerCell } from './calendar/DayCell';
 import { TravelHoldModal } from './calendar/TravelHoldModal';
 import { DayTypesTab } from './calendar/DayTypesTab';
 import { PopoutPlaceholder } from './PopoutWindow';
-import { getDayTypes, getDayTypeVisual, getDayTypeLabel, getDayTypeCode, typeIconComponent } from '../lib/dayTypes';
+import { getDayTypes, getMarkableDayTypes, getDayTypeVisual, getDayTypeLabel, getDayTypeCode, typeIconComponent } from '../lib/dayTypes';
 import { getNonShootEntryMap, hasAnyLists } from '../lib/nonShootHelpers';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
@@ -1069,7 +1069,7 @@ export const CalendarTab: React.FC<{
 
       {contextMenuDate && contextMenu && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuDate(null); }}>
-          {getDayTypes(project).map(t => {
+          {getMarkableDayTypes(project).map(t => {
             const Icon = typeIconComponent(project.dayTypes, t.key);
             return (
               <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }}
