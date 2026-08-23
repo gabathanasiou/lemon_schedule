@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Crosshair } from 'lucide-react';
 import Modal, { ModalFooter } from '../Modal';
@@ -13,8 +13,7 @@ import {
 import {
   MapResize,
   Recenter,
-  TapToPin,
-  locationMarker,
+  teardropHTML,
   OSM_TILES,
   OSM_ATTRIBUTION,
 } from '../map/MapPrimitives';
@@ -23,30 +22,58 @@ import { AsyncResultsDropdown, type AsyncResultItem } from './AsyncResultsDropdo
 type PlaceHit = AsyncResultItem & { result: PlaceResult };
 
 // Location picker for map surfaces: address search (results float in a
-// dropdown, never growing the modal) + tap-to-pin (reverse geocode) + a
-// "center on my location" button. Same keyless services as the shared provider.
+// dropdown, never growing the modal) + Apple Maps–style static center pin
+// (drag the map to place — the pin never moves) + a "center on my location"
+// button. The picked location is the map's current center at confirm time;
+// the place label settles via debounced reverse geocode after each move.
+
+function CenterProbe({ onCenterMove }: { onCenterMove: (lat: number, lng: number) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const c = map.getCenter();
+      onCenterMove(c.lat, c.lng);
+    },
+  });
+  return null;
+}
+
+const GEOCODE_DEBOUNCE_MS = 350;
 
 export const LocationPickerModal: React.FC<{
   open: boolean;
   onClose: () => void;
   onConfirm: (loc: PickedLocation) => void;
 }> = ({ open, onClose, onConfirm }) => {
-  const [pin, setPin] = useState<[number, number] | null>(null);
   const [place, setPlace] = useState('');
   const [parts, setParts] = useState<PlaceParts | null>(null);
   const [query, setQuery] = useState('');
   const [center, setCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
   const geocodeSeq = useRef(0);
+  const geocodeTimer = useRef<number | null>(null);
+  // Last acknowledged map center — lets moveend-driven updates that settle on
+  // the SAME coordinates be no-ops (Recenter's setView fires a moveend; without
+  // this guard it would re-setCenter forever).
+  const centerRef = useRef<[number, number]>(DEFAULT_MAP_CENTER);
+  // A search pick centers the map programmatically — its own label is already
+  // the right place name, so the moveend-driven reverse geocode is skipped.
+  const skipNextGeocode = useRef(false);
 
   // Reset on open (no geolocation auto-center — the locate-me button does it).
   useEffect(() => {
     if (!open) return;
-    setPin(null);
     setPlace('');
     setParts(null);
     setQuery('');
     setCenter(DEFAULT_MAP_CENTER);
+    centerRef.current = DEFAULT_MAP_CENTER;
+    skipNextGeocode.current = false;
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (geocodeTimer.current !== null) window.clearTimeout(geocodeTimer.current);
+    };
+  }, []);
 
   const search = async (q: string): Promise<PlaceHit[]> => {
     const found = await getPlacesProvider().forwardGeocode(q);
@@ -55,25 +82,39 @@ export const LocationPickerModal: React.FC<{
 
   const pickResult = (hit: PlaceHit) => {
     const { result } = hit;
-    const c: [number, number] = [result.lat, result.lng];
-    setPin(c);
-    setCenter(c);
+    skipNextGeocode.current = true;
+    setCenter([result.lat, result.lng]);
+    centerRef.current = [result.lat, result.lng];
     setPlace(result.label);
     setParts(result.parts);
     setQuery(result.label);
   };
 
-  const onMapPin = (lat: number, lng: number) => {
-    setPin([lat, lng]);
+  const onCenterMove = (lat: number, lng: number) => {
+    const [clat, clng] = centerRef.current;
+    if (Math.abs(clat - lat) < 1e-7 && Math.abs(clng - lng) < 1e-7) {
+      // Same spot (Recenter driven or a settled drag) — nothing to update.
+      skipNextGeocode.current = false;
+      return;
+    }
+    centerRef.current = [lat, lng];
+    setCenter([lat, lng]);
+    if (skipNextGeocode.current) {
+      skipNextGeocode.current = false;
+      return;
+    }
     const s = ++geocodeSeq.current;
-    getPlacesProvider()
-      .reverseGeocode(lat, lng)
-      .then(r => {
-        if (geocodeSeq.current === s && r) {
-          setPlace(r.label);
-          setParts(r.parts);
-        }
-      });
+    if (geocodeTimer.current !== null) window.clearTimeout(geocodeTimer.current);
+    geocodeTimer.current = window.setTimeout(() => {
+      getPlacesProvider()
+        .reverseGeocode(lat, lng)
+        .then(r => {
+          if (geocodeSeq.current === s && r) {
+            setPlace(r.label);
+            setParts(r.parts);
+          }
+        });
+    }, GEOCODE_DEBOUNCE_MS);
   };
 
   const recenter = () => {
@@ -96,9 +137,8 @@ export const LocationPickerModal: React.FC<{
         <ModalFooter>
           <button onClick={onClose} className="text-[11px] text-zinc-400 hover:text-zinc-200 px-3 py-1.5">Cancel</button>
           <button
-            onClick={() => pin && onConfirm({ lat: pin[0], lng: pin[1], ...(place ? { place } : {}), ...(parts || {}) })}
-            disabled={!pin}
-            className="text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5 disabled:opacity-30"
+            onClick={() => onConfirm({ lat: center[0], lng: center[1], ...(place ? { place } : {}), ...(parts || {}) })}
+            className="text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5"
           >
             Attach pin
           </button>
@@ -115,7 +155,7 @@ export const LocationPickerModal: React.FC<{
         />
         <div className="rounded-md overflow-hidden border border-zinc-700 relative">
           <MapContainer
-            center={pin || center}
+            center={center}
             zoom={14}
             scrollWheelZoom={false}
             keyboard={false}
@@ -123,11 +163,17 @@ export const LocationPickerModal: React.FC<{
             style={{ height: 288 }}
           >
             <TileLayer url={OSM_TILES} attribution={OSM_ATTRIBUTION} />
-            <TapToPin onPin={onMapPin} />
-            <Recenter center={pin || center} />
-            {pin && <Marker position={pin} icon={locationMarker()} interactive={false} />}
+            <CenterProbe onCenterMove={onCenterMove} />
+            <Recenter center={center} />
             <MapResize />
           </MapContainer>
+          {/* Static pin at the map's center — never moves while dragging. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 z-[1000]"
+            style={{ transform: 'translate(-50%, -100%)' }}
+            dangerouslySetInnerHTML={{ __html: teardropHTML }}
+          />
           <button
             onClick={recenter}
             className="absolute right-2 top-2 z-[1000] bg-zinc-900/90 border border-zinc-700 rounded p-1.5 text-zinc-300 hover:bg-zinc-800 transition-colors"
@@ -137,8 +183,8 @@ export const LocationPickerModal: React.FC<{
           </button>
         </div>
         <div className="flex items-center justify-between gap-3 text-[11px] text-zinc-400 min-h-4">
-          <span className="truncate">{place || (pin ? '…' : 'Tap the map to drop a pin')}</span>
-          {pin && <span className="shrink-0 text-zinc-500">{pin[0].toFixed(4)}, {pin[1].toFixed(4)}</span>}
+          <span className="truncate">{place || 'Drag the map to place the pin'}</span>
+          <span className="shrink-0 text-zinc-500">{center[0].toFixed(4)}, {center[1].toFixed(4)}</span>
         </div>
       </div>
     </Modal>
