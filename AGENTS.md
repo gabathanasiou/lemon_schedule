@@ -121,6 +121,18 @@ CSV (PapaParse) / FDX (XML) / Fountain. `parseCSV`/`parseFDX`/`parseFountain` �
 - OAuth token: `useRef` + `sessionStorage` only (never localStorage); exposed via `useGoogleAuth().accessToken`; never log it (log `error?.message` only) or expose in URLs/DOM.
 - Don't add `@google/genai`, `dotenv`, or `express`. New deps must be imported by ≥1 source file.
 
+## Agentic Debug Bridge
+`window.__lemonSchedule` (`src/lib/debugBridge.ts`, installed in `provider.tsx`) — a read/write window over the store so agents can inspect and drive the app via `page.evaluate()`. **Not a product feature — dev tooling.**
+- **Gate:** DEV builds always; prod/preview only when `localStorage LEMON_AGENT === '1'`. NEVER expose OAuth token/session through it.
+- **Reads (deep-cloned, report state truth not DOM):** `getState()` (present/past/future), `getProject()`, `getVersion(id?)`, `getRows(id?)` (computed stripboard rows + sections — call times, daybreak labels, section sums), `getSceneValues()` (every scene × column value — the Glide canvas is opaque to the DOM), `getProjectList()`, `pastCount()/futureCount()`.
+- **Writes (the SAME `Action` union the UI uses, `src/store/reducer.ts`):** `dispatch(action)` — throws on unknown types/shape errors; `undo()/redo()`; `batch(fn)` = `BATCH_START/COMMIT` (one undo entry). UI mutations MUST keep flowing through dispatch — any future feature is agent-reachable automatically.
+- **Observe:** `onAction(cb)` subscribes to every dispatched action (UI + bridge); returns unsubscribe.
+- **Factories:** `makeBlankScene(partial?)`, `makeBlankProject(title?)`, `newId()` — build valid entities; never hand-craft state (cast referenced by ID, scene→row invariant, pinned daybreak).
+- **`dispatch` flushes synchronously** (`flushSync` in provider) — state reads right after a dispatch are fresh; no wait/tick needed.
+- **New action types:** add to BOTH the `Action` union AND the `ACTION_TYPES` set (`src/store/reducer.ts`, marked "KEEP IN SYNC").
+- **Stable anchors:** `TEST_IDS` (`src/lib/testIds.ts`) — stripboard-day, daybreak-row, section-footer, next-day-header, palette-item; `#boneyard_rows_container` id exists. Prefer role/label/text queries first.
+- **Proven by** `e2e/debug-bridge.spec.ts` (inject → mutate → verify → batch → undo/redo). `help()` on the bridge self-documents the full API.
+
 ## Help Modal
 New stripboard shortcuts/controls MUST be documented in `HelpModal.tsx` (`<Section>`/`<Row>`/`<Kbd>`; Unicode keys ⌘ ⌥ ⇧ ⌫ ⏎ ⎋ ↹).
 

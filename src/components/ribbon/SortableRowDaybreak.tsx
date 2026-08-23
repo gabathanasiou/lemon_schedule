@@ -62,7 +62,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
     const estColIdx = mainCellIdx === cells.length - 1 && durationColIdx >= 0 ? durationColIdx : lastCellIdx;
 
     return (
-      <div className="flex items-stretch min-w-0">
+      <div data-testid={TEST_IDS.daybreakRow} className="flex items-stretch min-w-0">
         <div className="flex-1 min-w-0 flex flex-col">
             {!row.pinned && (
             <div className="flex-1 min-w-0 flex flex-col" style={{
@@ -75,7 +75,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
               {cells.map((cell, ci) => {
                 if (ci === mainCellIdx) {
                   return (
-                    <div key={cell.id} style={{
+                    <div key={cell.id} data-testid={TEST_IDS.sectionFooter} style={{
                       gridColumn: ci + 1, gridRow: 1,
                       ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                       padding: daybreakPadPx, overflow: 'visible',
@@ -158,7 +158,7 @@ export default function SortableRowDaybreak({ row, ctx }: { row: ComputedRowInpu
                 {cells.map((cell, ci) => {
                   if (ci === mainCellIdx) {
                     return (
-                      <div key={cell.id} style={{
+                      <div key={cell.id} data-testid={TEST_IDS.nextDayHeader} style={{
                         gridColumn: ci + 1, gridRow: 1,
                         ...getRibbonCellBaseStyle(cell, cellPaddingV, cellPaddingH, 1),
                         padding: daybreakPadPx, overflow: 'visible',
