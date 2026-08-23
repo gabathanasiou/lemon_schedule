@@ -63,6 +63,46 @@ export interface BlockEditorProps {
   availableLocations?: ReportLocation[];
 }
 
+/** "Show location" row — picks WHICH of the item's available locations a
+ *  text/field/map block renders (by type key, `block.locationChoice`), when
+ *  more than one resolves. Shared by the attribute blocks and the map block
+ *  (roadmap 9). */
+const LocationChoiceRow: React.FC<{
+  block: ReportBlock;
+  availableLocations: ReportLocation[];
+  disabled?: boolean;
+  onPatch: (patch: Partial<ReportBlock>) => void;
+}> = ({ block, availableLocations: choices, disabled, onPatch }) => {
+  const [open, setOpen] = useState(false);
+  const current = block.locationChoice || (choices[0].typeKey || '');
+  return (
+    <ContentRow label="Show location">
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        theme="dark"
+        width="w-56"
+        trigger={
+          <button type="button" disabled={disabled} className={`w-44 ${TB_PICKER}`}>
+            <span className="truncate">
+              {choices.find(l => l.typeKey === current)?.info
+                ? (() => { const l = choices.find(x => x.typeKey === current)!; return `${l.info!.name} · ${l.info!.typeLabel}`; })()
+                : reportLocationLabel(choices[0])}
+            </span>
+            <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
+          </button>
+        }
+      >
+        {choices.map(l => (
+          <DropdownItem key={l.typeKey || 'first'} onClick={() => { onPatch({ locationChoice: l.typeKey }); setOpen(false); }} icon={l.typeKey === current ? <Check className="w-3.5 h-3.5" /> : undefined}>
+            {l.info ? `${l.info.name} · ${l.info.typeLabel}` : reportLocationLabel(l)}
+          </DropdownItem>
+        ))}
+      </DropdownMenu>
+    </ContentRow>
+  );
+};
+
 export const BlockEditorContent: React.FC<BlockEditorProps> = ({
   block, project, parentCollection, parentCategory, readOnly, onPatch, onSaveTextStyles,
   onDuplicate, onRemove, onMove, compact, trailing, relativeTarget, availableLocations,
@@ -632,7 +672,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   const fieldPickerCls = `w-36 ${TB_PICKER}`;
   const [rtActive, setRtActive] = useState<RichTextState>(RICH_TEXT_STATE_IDLE);
   const [locationOpen, setLocationOpen] = useState(false);
-  const [locMenuOpen, setLocMenuOpen] = useState(false);
 
   const fieldOptions = (scope: string | null | undefined) => fieldsForScope(allFields, scope, block.category);
 
@@ -904,10 +943,10 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
     );
   }
 
-  // "Show location" — a text/field block carrying a Location attribute renders
-  // the item's FIRST location by default; when the item has several (future:
-  // a day with multiple attached/derived locations), this row picks which one
-  // by type key (roadmap 6 + 9). Hidden until more than one exists.
+  // "Show location" — a text/field/map block carrying a Location attribute
+  // renders the item's FIRST location by default; when the item has several
+  // (future: a day with multiple attached/derived locations), this row picks
+  // which one by type key (roadmap 6 + 9). Hidden until more than one exists.
   const locationTokens = useMemo(() => {
     if (block.type === 'text') return [...(block.text || '').matchAll(TOKEN_RE)].map(m => parseToken(m[1]).field);
     if (block.type === 'field') return block.field ? [block.field] : [];
@@ -915,33 +954,8 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
   }, [block.type, block.text, block.field]);
   const hasLocationAttr = locationTokens.some(f => allFields.find(x => x.key === f)?.scope === 'locations');
   if ((block.type === 'text' || block.type === 'field') && hasLocationAttr && availableLocations && availableLocations.length > 1) {
-    const choices = availableLocations;
-    const current = block.locationChoice || (choices[0].typeKey || '');
     push(null,
-      <ContentRow key="showLoc" label="Show location">
-        <DropdownMenu
-          open={locMenuOpen}
-          onOpenChange={setLocMenuOpen}
-          theme="dark"
-          width="w-56"
-          trigger={
-            <button type="button" disabled={disabled} className={`w-44 ${TB_PICKER}`}>
-              <span className="truncate">
-                {choices.find(l => l.typeKey === current)?.info
-                  ? (() => { const l = choices.find(x => x.typeKey === current)!; return `${l.info!.name} · ${l.info!.typeLabel}`; })()
-                  : reportLocationLabel(choices[0])}
-              </span>
-              <ChevronDown className="w-3 h-3 shrink-0 text-zinc-500" />
-            </button>
-          }
-        >
-          {choices.map(l => (
-            <DropdownItem key={l.typeKey || 'first'} onClick={() => { onPatch({ locationChoice: l.typeKey }); setLocMenuOpen(false); }} icon={l.typeKey === current ? <Check className="w-3.5 h-3.5" /> : undefined}>
-              {l.info ? `${l.info.name} · ${l.info.typeLabel}` : reportLocationLabel(l)}
-            </DropdownItem>
-          ))}
-        </DropdownMenu>
-      </ContentRow>,
+      <LocationChoiceRow key="showLoc" block={block} availableLocations={availableLocations} disabled={disabled} onPatch={onPatch} />,
     );
   }
 
@@ -1080,6 +1094,9 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
       <ContentRow key="inherit" label="Day location">
         <Checkbox checked={inherited} disabled={disabled} onChange={on => onPatch({ mapInheritLocation: on })} label="Use the day's location" />
       </ContentRow>,
+      inherited && availableLocations && availableLocations.length > 1 ? (
+        <LocationChoiceRow key="showLoc" block={block} availableLocations={availableLocations} disabled={disabled} onPatch={onPatch} />
+      ) : null,
       <ContentRow key="open" label="Open in">
         <Seg
           value={block.mapOpenLink || 'none'}

@@ -3,8 +3,8 @@ import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ReportBlock } from '../../types';
-import { ReportCtx } from '../../lib/reportData';
-import { ReportLocation, getReportLocation, reportLocationLinkLabel, reportLocationLink, MapLinkKind } from '../../lib/reportWeather';
+import { ReportCtx, pickLocation } from '../../lib/reportData';
+import { ReportLocation, reportLocationLinkLabel, reportLocationLink, MapLinkKind } from '../../lib/reportWeather';
 import { ReportLocationLink } from './ReportLocationLink';
 import { MapPin } from 'lucide-react';
 
@@ -12,9 +12,11 @@ import { MapPin } from 'lucide-react';
 // designer canvas, preview and print. Tiles are <img> elements, so they print.
 // OSM raster tiles: free, no API key (same setup as the "updates" project).
 //
-// Location resolution: `mapInheritLocation` → getReportLocation(ctx, item)
-// (the same seam the Sun & Weather fields use; London until the per-day
-// location DB lands). Otherwise the block's own pin + structured parts.
+// Location resolution: `mapInheritLocation` → pickLocation(ctx, item,
+// locationChoice) — the same seam fields use: the item's FIRST location, or
+// the per-block "Show location" pick (roadmap 9). Otherwise the block's own
+// pin + structured parts. With neither, the block shows the "Add a location…"
+// hint.
 //
 // The address bar is ALWAYS shown below the map (short label: address, city
 // postcode); when an "Open in" service is selected it becomes the clickable
@@ -68,15 +70,16 @@ export const ReportMapView: React.FC<{
   item?: any;
   hint?: boolean; // designer canvas: anchors inert via .block-card a
 }> = ({ block, ctx, item, hint }) => {
-  // Resolved location: inherited from the day (getReportLocation seam) or the
-  // block's own pin + structured parts (from the location picker).
-  let loc: ReportLocation;
+  // Resolved location: inherited from the item (first location, or the
+  // per-block "Show location" pick like the fields) — or the block's own
+  // pin + structured parts (from the location picker).
+  let loc: ReportLocation | undefined;
   if (block.mapInheritLocation && ctx) {
-    loc = getReportLocation(ctx, item);
-  } else {
+    loc = pickLocation(ctx, item, block.locationChoice);
+  } else if (block.mapLat != null && block.mapLng != null) {
     loc = {
-      lat: block.mapLat ?? 0,
-      lng: block.mapLng ?? 0,
+      lat: block.mapLat,
+      lng: block.mapLng,
       place: block.mapPlace,
       address: block.mapAddress,
       city: block.mapCity,
