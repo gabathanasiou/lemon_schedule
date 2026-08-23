@@ -1067,9 +1067,14 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           <span className="text-[10px] text-zinc-400">Comes from the day's location (London)</span>
         ) : hasPin ? (
           <>
-            <span className="max-w-44 truncate text-[10px] text-zinc-400">
+            <button
+              onClick={() => setLocationOpen(true)}
+              disabled={disabled}
+              title="Change location"
+              className="max-w-44 truncate text-[10px] text-zinc-400 cursor-pointer text-left hover:text-zinc-200 transition-colors"
+            >
               {block.mapPlace || `${block.mapLat!.toFixed(4)}, ${block.mapLng!.toFixed(4)}`}
-            </span>
+            </button>
             <ToolButton onClick={() => setLocationOpen(true)} disabled={disabled} title="Change location" className={TB_BTN}>
               <MapPin className="w-3 h-3" /> Change
             </ToolButton>
@@ -1119,9 +1124,6 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
           onChange={v => onPatch(v === 'none' ? { mapOpenLink: undefined } : { mapOpenLink: v as 'google' | 'apple' | 'citymapper' })}
           disabled={disabled}
         />
-      </ContentRow>,
-      <ContentRow key="note" label="Address">
-        <span className="text-[10px] text-zinc-500">Shown as a floating label on the map — clickable when an open-in service is set.</span>
       </ContentRow>,
     );
   }
