@@ -111,7 +111,8 @@ Related bugs to fix while here:
   (shared `LocationChoiceRow` in blockControls, rendered for map blocks with
   the day-location checkbox when several locations resolve). Unset pins (no
   inherited day, no own pin) show the "Add a location…" hint instead of a
-  bare 0,0 map.
+  bare 0,0 map — the missing `!loc` guard crashed right after placement;
+  regression-covered by report-sun-weather-map.spec (fresh pinless block).
 
 - The **Map block should be smart about which location it shows**, or allow
   picking via a **dropdown**.
@@ -595,6 +596,15 @@ Related bugs to fix while here:
   so restore re-creates the type with the real label, never the slug; the
   CollectionMenu Locations submenu gains an **"All types"** option that
   clears `block.category` back to all locations (checkmark when unfiltered).
+  All three verified by e2e/location-types.spec.ts (prefetch request pins,
+  manager delete → trash labels, menu pick + clear). Restore itself has no
+  UI dispatcher yet — the restore branch is covered by inspection.
+- **Latent bug fixed while verifying**: `updateBlock` spreads
+  (`{...b, ...patch}`) and never deletes absent keys, so switching a block
+  to a collection WITHOUT a category left the old `category` in place
+  (invisible for Scenes/Days, visible for Locations/Elements). The three
+  collection-pick call sites now use `collectionPickPatch` which sets
+  `category: undefined` explicitly.
 
 Known issues to fix together (all in the locations/type machinery):
 
