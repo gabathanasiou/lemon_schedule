@@ -569,10 +569,16 @@ const NestedTableMenu: React.FC<{
       parentCollection={parentCollection}
       scopedToParent={block.scopedToParent !== false}
       disabledCategories={allCategoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
-      onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+      onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
     />
   );
 };
+
+/** Patch for a collection pick: `collection` alone would leave the block's
+ *  old `category` in place (updateBlock spreads — it never deletes absent
+ *  keys), so a category-less pick must clear it explicitly. */
+const collectionPickPatch = (c: ReportCollection, cat?: string): Partial<ReportBlock> =>
+  cat ? { collection: c, category: cat } : { collection: c, category: undefined };
 
 /**
  * Repeat "Repeat over" menu collections — contextual variants first, then the
@@ -793,7 +799,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             parentCollection={parentCollection}
             scopedToParent={block.scopedToParent !== false}
             disabledCategories={categoryKeys.filter(({ key }) => isSelfRepeat(parentCollection, 'elements', parentCategory, key)).map(({ key }) => key)}
-            onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+            onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
           />
         ) : parentCollection ? (
           <NestedTableMenu block={block} parentCollection={parentCollection} parentCategory={parentCategory} allCategoryKeys={categoryKeys} categoryLabelLookup={categoryLabels} customCategories={project.customCategories} locationTypes={project.locationTypes} disabled={disabled} onPatch={onPatch} />
@@ -807,7 +813,7 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
             customCategories={project.customCategories}
             locationTypes={project.locationTypes}
             disabled={disabled}
-            onChange={(c, cat) => onPatch(cat ? { collection: c, category: cat } : { collection: c })}
+            onChange={(c, cat) => onPatch(collectionPickPatch(c, cat))}
           />
         )}
       </ContentRow>,
