@@ -104,7 +104,14 @@ Related bugs to fix while here:
 - Fixed: `fieldValueNode` auto-detects scheme-guarded URLs in plain attribute
   values (field blocks AND table cells).
 
-## 9. Map block location awareness (`[ ]`)
+## 9. Map block location awareness (`[x]`)
+- Done: the map block's inherited-location mode now resolves through the same
+  seam as the location fields — `pickLocation(ctx, item, locationChoice)`:
+  first location by default, or the per-block "Show location" picker
+  (shared `LocationChoiceRow` in blockControls, rendered for map blocks with
+  the day-location checkbox when several locations resolve). Unset pins (no
+  inherited day, no own pin) show the "Add a location…" hint instead of a
+  bare 0,0 map.
 
 - The **Map block should be smart about which location it shows**, or allow
   picking via a **dropdown**.
@@ -580,7 +587,14 @@ Related bugs to fix while here:
   doesn't; repeat WITH a pageBreak child still does one item per page;
   seeded project + lint + playwright.
 
-## 31. Bug: location types (`[ ]`)
+## 31. Bug: location types (`[x]`)
+- Done: per-type ("Locations (of this type)") tables now warm ALL location
+  pins for the weather prefetch (`designLocationsIn` — only flat
+  `locations` blocks filter by `b.category`); deleting a type records its
+  human label on the trashed locations (`LocationTrashItem.typeLabel`),
+  so restore re-creates the type with the real label, never the slug; the
+  CollectionMenu Locations submenu gains an **"All types"** option that
+  clears `block.category` back to all locations (checkmark when unfiltered).
 
 Known issues to fix together (all in the locations/type machinery):
 
@@ -678,7 +692,14 @@ Known issues to fix together (all in the locations/type machinery):
   `npm run lint` + `npx playwright test --config=playwright.ipad.config.ts
   report-pagination` (budget assertion, both engines) + standard suite.
 
-## 34. Table block resize grabbers: match the ribbon designer's style (`[ ]`)
+## 34. Table block resize grabbers: match the ribbon designer's style (`[x]`)
+- Done: `TableResizeBar` switched to the shared `ColumnResizeStrip` tab
+  variant (the slim bar variant deleted — the tab is the only visual);
+  the handle strip is an IN-FLOW band between the table's label row and
+  the table itself (`-mb-2` flush against the table's top), so the tabs
+  never overlap the header cells and the selected block's floating chrome
+  can never cover them. Tabs reset the old `title` tooltip. Spec updated
+  for the canvas truncation reality (+N more bar from roadmap 12).
 
 - **Requested**: the table block's resize grabbers should look and behave
   like the ribbon designer's resize tabs. Both already share the same
