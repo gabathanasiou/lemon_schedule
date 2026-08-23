@@ -1,4 +1,4 @@
-import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation } from '../types';
+import { Project, Scene, ScheduleVersion, ScheduleRow, ProjectRule, CastMember, SceneRibbonColumn, SCENE_RIBBON_DEFAULTS, RibbonDesign, RibbonRow, CustomCategoryDef, SceneColorPalette, ColorRule, ReportBlock, CrewRole, CrewPerson, ProductionInfo, ReportTextStyle, ProjectLocation, DayTypeDef } from '../types';
 import { generateUUID, normalizePunctuation } from '../lib/utils';
 import { getBrowserTimeZone } from '../lib/timezones';
 import { getDefaultRibbonRows, getDefaultColWidths, DEFAULT_COLOR_PALETTE } from '../lib/ribbonUtils';
@@ -33,9 +33,10 @@ import {
   caseRestoreCrewPersonFromTrash, caseSortCrewBy,
   caseAddLocationType, caseRenameLocationType, caseDeleteLocationType,
   caseAddLocation, caseUpdateLocation, caseDeleteLocation, caseRestoreLocation, caseSortLocationsBy,
-  caseSetReportTextStyles,
+  caseSetReportTextStyles, caseSetDayTypes,
 } from './actions/reports';
 import { DEFAULT_CREW_ROLES, getDefaultReportDesigns } from '../lib/reportTemplates';
+import { DEFAULT_DAY_TYPES } from '../lib/dayTypes';
 import { isMultiValue, getFieldItems } from '../lib/categories';
 
 export const BUILTIN_SCENE_KEYS = new Set([
@@ -133,6 +134,7 @@ export function makeBlankProject(title = 'Untitled Project'): Project {
     locationTypes: DEFAULT_LOCATION_TYPES,
     locations: [],
     locationsTrash: [],
+    dayTypes: DEFAULT_DAY_TYPES,
     reportDesigns: defaultReports,
     activeReportId: defaultReport.id,
     reportTrash: [],
@@ -226,6 +228,7 @@ export type Action =
   | { type: 'DELETE_LOCATION'; payload: string }
   | { type: 'RESTORE_LOCATION'; payload: string }
   | { type: 'SORT_LOCATIONS_BY'; payload: { key: 'type' | 'name' | 'address' | 'contactName' | 'phone' | 'email'; direction: 'asc' | 'desc' } }
+  | { type: 'SET_DAY_TYPES'; payload: { dayTypes: DayTypeDef[] } }
 
 /**
  * Runtime mirror of the `Action` union above — consumed by the agentic debug
@@ -260,6 +263,7 @@ export const ACTION_TYPES = new Set<string>([
   'ADD_LOCATION_TYPE', 'RENAME_LOCATION_TYPE', 'DELETE_LOCATION_TYPE',
   'ADD_LOCATION', 'UPDATE_LOCATION', 'DELETE_LOCATION', 'RESTORE_LOCATION',
   'SORT_LOCATIONS_BY',
+  'SET_DAY_TYPES',
 ]);
 
 export interface State {
@@ -314,6 +318,7 @@ export function reducer(state: State, action: Action): State {
     p.crew = p.crew || {};
     p.crewTrash = p.crewTrash || [];
     p.locationTypes = p.locationTypes?.length ? p.locationTypes : DEFAULT_LOCATION_TYPES;
+    p.dayTypes = p.dayTypes?.length ? p.dayTypes : DEFAULT_DAY_TYPES;
     p.locations = p.locations || [];
     p.locationsTrash = p.locationsTrash || [];
     p.reportTrash = p.reportTrash || [];
@@ -479,6 +484,7 @@ export function reducer(state: State, action: Action): State {
     case 'DELETE_LOCATION': return caseDeleteLocation(state, action, applyChange);
     case 'RESTORE_LOCATION': return caseRestoreLocation(state, action, applyChange);
     case 'SORT_LOCATIONS_BY': return caseSortLocationsBy(state, action, applyChange);
+    case 'SET_DAY_TYPES': return caseSetDayTypes(state, action, applyChange);
     default:
       return state;
   }

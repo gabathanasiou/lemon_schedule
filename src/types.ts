@@ -60,9 +60,19 @@ export interface ScheduleRow {
   pinned?: boolean;
 }
 
+export interface DayTypeDef {
+  key: string;
+  label: string;
+  /** Calendar/DOOD chip color (inline style; built-ins fall back to class defaults). */
+  color?: string;
+  /** Built-in types (hold/travel/holiday): keys locked, label/color editable. */
+  builtin?: boolean;
+}
+
 export interface NonShootDate {
   date: string; // YYYY-MM-DD
-  status?: 'hold' | 'travel' | 'holiday';
+  /** Day-type key (see `Project.dayTypes`; built-ins: hold/travel/holiday). */
+  status?: string;
   castIds?: string;
   /** Category → element keys traveling that day (cast = IDs, other categories = names; `'*'` = whole category). */
   travel?: Record<string, string[]>;
@@ -483,6 +493,9 @@ export interface Project {
   locationTypes?: CrewRole[];
   locations?: ProjectLocation[];
   locationsTrash?: LocationTrashItem[];
+  /** Custom day types (calendar day statuses). Built-ins present unless
+   *  untouched (old projects fall back via `getDayTypes` in lib/dayTypes). */
+  dayTypes?: DayTypeDef[];
   reportDesigns?: ReportDesign[];
   activeReportId?: string;
   reportTrash?: ReportTrashItem[];

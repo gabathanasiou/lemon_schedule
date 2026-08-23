@@ -1,4 +1,4 @@
-import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, CrewTrashItem, ProductionInfo, ProjectLocation, LocationTrashItem } from '../../types';
+import { Project, ReportDesign, ReportTrashItem, CrewRole, CrewPerson, CrewTrashItem, ProductionInfo, ProjectLocation, LocationTrashItem, DayTypeDef } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { getDefaultReportDesign } from '../../lib/reportTemplates';
 import type { Action, State } from '../reducer';
@@ -385,4 +385,24 @@ export function caseSortLocationsBy(state: State, action: Action, applyChange: A
     return direction === 'asc' ? c : -c;
   });
   return applyChange({ ...state.present, locations });
+}
+
+// ---- day types ---------------------------------------------------------------
+
+/** Whole-registry commit from the Day Types manager. Also prunes any
+ *  non-shoot status whose key no longer exists (deleting a type in use falls
+ *  back to no status — same single rule for every version). */
+export function caseSetDayTypes(state: State, action: Action, applyChange: ApplyChange): State {
+  if (action.type !== 'SET_DAY_TYPES') return state;
+  const keys = new Set(action.payload.dayTypes.map(t => t.key));
+  const versions = state.present.versions.map(v => {
+    const nonShootDates = (v.nonShootDates || []).filter(n => !n.status || keys.has(n.status));
+    if (nonShootDates.length === (v.nonShootDates?.length || 0)) return v;
+    return { ...v, nonShootDates };
+  });
+  return applyChange({
+    ...state.present,
+    dayTypes: action.payload.dayTypes,
+    versions,
+  });
 }
