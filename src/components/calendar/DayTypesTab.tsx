@@ -125,27 +125,25 @@ export const DayTypesTab: React.FC = () => {
   };
 
   const renderRowActions = (row: SidebarNavRow, active: boolean) => {
-    const isBuiltin = DAY_TYPE_BUILTIN_KEYS.has(row.key);
+    if (DAY_TYPE_BUILTIN_KEYS.has(row.key)) return null;
     const hoverCls = active ? 'hover:bg-zinc-700' : 'hover:bg-zinc-300';
     return (
       <>
         <button
           onClick={(e) => { e.stopPropagation(); openEdit(row.key); }}
           disabled={readOnly}
-          title={isBuiltin ? 'Edit (label, icon, color)' : 'Edit'}
+          title="Edit"
           className={`p-0.5 rounded transition-colors ${hoverCls} disabled:opacity-30 disabled:cursor-not-allowed`}
         >
           <Pencil className="w-3 h-3 text-zinc-400" />
         </button>
-        {!isBuiltin && (
-          <button
-            onClick={async (e) => { e.stopPropagation(); await remove(row.key); }}
-            disabled={readOnly}
-            className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
-          >
-            <Trash2 className="w-3 h-3 text-red-400" />
-          </button>
-        )}
+        <button
+          onClick={async (e) => { e.stopPropagation(); await remove(row.key); }}
+          disabled={readOnly}
+          className={`p-0.5 rounded transition-colors ${active ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} disabled:opacity-30 disabled:cursor-not-allowed`}
+        >
+          <Trash2 className="w-3 h-3 text-red-400" />
+        </button>
       </>
     );
   };

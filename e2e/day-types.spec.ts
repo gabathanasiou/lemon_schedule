@@ -50,19 +50,20 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   });
   expect(lastSectionDate).toBeTruthy();
 
-  // ---- Day Types sub-tab: built-ins with icons, locked (no trash) -----------
+  // ---- Day Types sub-tab: built-ins with icons, fully locked (no actions) -----
   await page.getByRole('button', { name: 'Day Types', exact: true }).click();
   const sidebar = page.locator('aside');
   await expect(sidebar.getByText('Hold', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Travel', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Day Off', { exact: true })).toBeVisible();
-  for (const [label, iconCls] of Object.entries({ Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun' })) {
+  await expect(sidebar.getByText('Work Day', { exact: true })).toBeVisible();
+  for (const [label, iconCls] of Object.entries({ Hold: 'lucide-pause', Travel: 'lucide-plane', 'Day Off': 'lucide-sun', 'Work Day': 'lucide-calendar-check' })) {
     const row = sidebar.locator('button:has-text("' + label + '")').locator('..');
     await expect(row.locator('svg.' + iconCls).first()).toBeVisible();
+    // Built-ins are fully locked: no edit, no delete.
+    await expect(row.locator('svg.lucide-pencil')).toHaveCount(0);
+    await expect(row.locator('svg.lucide-trash-2')).toHaveCount(0);
   }
-  const holdRow = sidebar.getByText('Hold', { exact: true }).locator('..');
-  await expect(holdRow.locator('button[title*="Edit"]')).toBeVisible();
-  await expect(holdRow.locator('button', { has: page.locator('svg.lucide-trash-2') })).toHaveCount(0);
 
   // ---- Add a custom type with icon + color + attachable ---------------------
   await page.getByRole('button', { name: 'Add Day Type', exact: true }).click();
@@ -74,19 +75,10 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await modal.getByRole('button', { name: 'Create', exact: true }).click();
 
   let types = await page.evaluate(() => (window as any).__lemonSchedule.getProject().dayTypes);
-  expect(types).toHaveLength(4);
+  expect(types).toHaveLength(5);
   const reh = types.find((t: any) => t.label === 'Rehearsal');
   expect(reh).toMatchObject({ key: 'rehearsal', icon: 'Music', color: '#16A34A', attachable: true });
   await expect(sidebar.getByText('Rehearsal', { exact: true })).toBeVisible();
-
-  // ---- Edit a built-in (label only — key stays locked) ----------------------
-  const holdEditBtn = page.locator('button[title*="Edit (label, icon, color)"]').first();
-  await holdEditBtn.click();
-  await modal.getByPlaceholder('e.g. Rehearsal, Wrap, Tech Scout...').fill('Rest Day');
-  await modal.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(sidebar.getByText('Rest Day', { exact: true })).toBeVisible();
-  types = await page.evaluate(() => (window as any).__lemonSchedule.getProject().dayTypes);
-  expect(types.find((t: any) => t.key === 'hold')?.label).toBe('Rest Day');
 
   // ---- Mark a day: context menu lists the custom type -----------------------
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
@@ -172,7 +164,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
       statuses: (v.nonShootDates || []).map((n: any) => n.status).filter(Boolean),
     };
   });
-  expect(after.dayTypes).toEqual(['hold', 'travel', 'holiday']);
+  expect(after.dayTypes).toEqual(['hold', 'travel', 'holiday', 'work']);
   expect(after.statuses).not.toContain('rehearsal');
 
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();

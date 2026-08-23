@@ -238,7 +238,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   const typeColumns = useMemo(() => {
     const used = new Set<string>();
     for (const d of sectionDayEntries) if (d.status) used.add(d.status);
-    return getDayTypes(project).filter(t => t.attachable !== false && t.key !== 'travel' && t.key !== 'hold' && used.has(t.key));
+    return getDayTypes(project).filter(t => t.attachable === true && t.key !== 'travel' && t.key !== 'hold' && used.has(t.key));
   }, [sectionDayEntries, project]);
 
   const codeToType = useMemo(() => {

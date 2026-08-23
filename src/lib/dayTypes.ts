@@ -1,12 +1,13 @@
 import React from 'react';
 import { DayTypeDef, NonShootDate, Project } from '../types';
 import { CUSTOM_ICON_OPTIONS } from './categories';
-import { Pause, Plane, Sun, Tag } from 'lucide-react';
+import { Pause, Plane, Sun, Tag, CalendarCheck } from 'lucide-react';
 
 const BUILTIN_ICON_COMPONENTS: Record<string, React.ElementType> = {
   hold: Pause,
   travel: Plane,
   holiday: Sun,
+  work: CalendarCheck,
 };
 
 // Day types — the single source for calendar day statuses ("Hold", "Travel",
@@ -19,12 +20,14 @@ export const DAY_TYPE_BUILTIN_ICONS: Record<string, string> = {
   hold: 'Pause',
   travel: 'Plane',
   holiday: 'Sun',
+  work: 'CalendarCheck',
 };
 
 export const DEFAULT_DAY_TYPES: DayTypeDef[] = [
   { key: 'hold', label: 'Hold', color: '#dc2626', attachable: true, builtin: true },
   { key: 'travel', label: 'Travel', color: '#9333ea', attachable: true, builtin: true },
   { key: 'holiday', label: 'Day Off', color: '#71717a', builtin: true },
+  { key: 'work', label: 'Work Day', color: '#2563eb', builtin: true },
 ];
 
 export const DAY_TYPE_BUILTIN_KEYS = new Set(DEFAULT_DAY_TYPES.map(t => t.key));

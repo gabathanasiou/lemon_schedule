@@ -144,7 +144,7 @@ const Dood: React.FC<DoodProps> = ({
   // their own Work/Hold/Travel columns).
   const usedStatuses = new Set(data.days.map(d => d.nonShootStatus).filter(Boolean) as string[]);
   const typeColumns = resolveDayTypes(dayTypes).filter(t =>
-    t.attachable !== false && t.key !== 'travel' && t.key !== 'hold' && usedStatuses.has(t.key));
+    t.attachable === true && t.key !== 'travel' && t.key !== 'hold' && usedStatuses.has(t.key));
 
   return (
     <div className="dood-root">
