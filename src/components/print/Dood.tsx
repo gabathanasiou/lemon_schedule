@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { Scene, ScheduleRow, CastMember, NonShootDate } from '../../types';
+import { Scene, ScheduleRow, CastMember, NonShootDate, DayTypeDef } from '../../types';
 import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
 import { deriveDood, DoodDay } from '../../lib/nonShootStats';
+import { visualForType, dayTypeTextColor } from '../../lib/dayTypes';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -80,6 +81,7 @@ interface DoodProps {
   includeNonShooting: boolean;
   showTotals: boolean;
   category?: string;
+  dayTypes?: DayTypeDef[];
 }
 
 const Dood: React.FC<DoodProps> = ({
@@ -94,6 +96,7 @@ const Dood: React.FC<DoodProps> = ({
   includeNonShooting,
   showTotals,
   category = 'cast',
+  dayTypes,
 }) => {
   const castMemberNames = useMemo(() => {
     const m = new Map<string, string>();
@@ -192,11 +195,15 @@ const Dood: React.FC<DoodProps> = ({
                 </tr>
                 <tr>
                   <th className="dood-col-cast">Shooting Day</th>
-                  {group.days.map((d, ci) => (
-                    <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}>
-                      {d.isShooting ? chronoDayMap.get(d.dayInt) : d.nonShootStatus === 'hold' ? 'H' : d.nonShootStatus === 'travel' ? 'T' : d.nonShootStatus === 'holiday' ? 'DO' : ''}
-                    </th>
-                  ))}
+                  {group.days.map((d, ci) => {
+                    const v = visualForType(dayTypes, d.nonShootStatus);
+                    return (
+                      <th key={d.dayInt} className={`dood-day-cell ${d.isShooting ? '' : 'dood-grey'} ${d.hasGap ? 'dood-gap-cell' : ''}`}
+                        style={!d.isShooting && v?.color ? { background: v.color, color: dayTypeTextColor(v.color) } : undefined}>
+                        {d.isShooting ? chronoDayMap.get(d.dayInt) : v?.label ?? ''}
+                      </th>
+                    );
+                  })}
                   {isLast && showTotals && (
                     <>
                       <th className="dood-total-border" />

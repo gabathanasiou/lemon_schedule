@@ -3,6 +3,7 @@ import { ELEMENT_CATEGORIES, getLabel, isMultiValue } from './categories';
 import { formatDateCustom, formatDayList, formatDuration, formatPageCount, DayFormatMode } from './utils';
 import { escapeHtml, normalizeSpaces } from './richText';
 import { parentNoun } from './reportBlocks';
+import { dayTypeLabelForDate } from './dayTypes';
 import { sunWeatherFieldValue, reportLocationLabel, reportLocationLinkLabel, reportLocationLink, MapLinkKind, type ReportLocation } from './reportWeather';
 import {
   ReportCtx, ReportSceneInfo, ReportDayInfo, ReportElementInfo, ReportCategoryInfo, ReportCrewItem, ReportViolationTypeInfo, flaggedIdsOf,
@@ -148,6 +149,7 @@ const DOCUMENT_FIELDS: ReportFieldDef[] = [
 const DAY_FIELDS: ReportFieldDef[] = [
   { key: 'dayNumber', label: 'Day #', group: 'Days', scope: 'days', align: 'center', defaultWidth: 7, get: (_c, it: ReportDayInfo) => s(it.chronoDay) },
   { key: 'dayLabel', label: 'Day Label', group: 'Days', scope: 'days', defaultWidth: 12, get: (_c, it: ReportDayInfo) => s(it.label) },
+  { key: 'dayType', label: 'Day Type', group: 'Days', scope: 'days', defaultWidth: 14, get: (ctx, it: ReportDayInfo) => s(dayTypeLabelForDate(ctx.project, ctx.version.nonShootDates, it.date)) },
   { key: 'dayDate', label: 'Date', group: 'Days', scope: 'days', defaultWidth: 16, separator: true, get: (ctx, it: ReportDayInfo) => formatDateCustom(it.date, dateKey(ctx)) },
   { key: 'dayCallTime', label: 'Call Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.callTime) },
   { key: 'dayEnd', label: 'End Time', group: 'Days', scope: 'days', defaultWidth: 9, get: (_c, it: ReportDayInfo) => s(it.endTime) },

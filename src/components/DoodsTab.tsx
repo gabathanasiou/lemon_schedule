@@ -6,6 +6,7 @@ import { useColumnResize } from '../lib/useColumnResize';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { addDays } from '../lib/daybreakUtils';
 import { isElementMarked } from '../lib/nonShootHelpers';
+import { getDayTypeVisual, dayTypeTextColor } from '../lib/dayTypes';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -322,12 +323,18 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 Shooting Day
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('name', e)} />
               </th>
-              {data.days.map((d, ci) => (
-                <th key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  {d.isShooting ? chronoDayMap.get(d.sectionIndex) : d.status === 'hold' ? 'H' : d.status === 'travel' ? 'T' : d.status === 'holiday' ? 'DO' : ''}
-                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
-                </th>
-              ))}
+              {data.days.map((d, ci) => {
+                const v = getDayTypeVisual(project, d.status);
+                return (
+                  <th key={d.isoDate} className={`relative px-2 py-1 text-center font-medium whitespace-nowrap border-b border-zinc-800 text-[10px] bg-zinc-900 cursor-default ${d.hasGap ? 'border-l [border-left-style:dotted] border-l-zinc-600' : ''} ${d.isShooting ? 'text-zinc-400' : 'text-zinc-600'}`}
+                    style={!d.isShooting && v?.color ? { background: v.color, color: dayTypeTextColor(v.color) } : undefined}>
+                    <span className="block overflow-hidden text-ellipsis max-w-[3.5rem]" title={d.isShooting ? '' : v?.label}>
+                      {d.isShooting ? chronoDayMap.get(d.sectionIndex) : v?.label ?? ''}
+                    </span>
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
+                  </th>
+                );
+              })}
               <th className="relative px-2 py-1 border-b border-zinc-800 border-l border-l-zinc-800 bg-zinc-900 cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('work', e)} />
               </th>

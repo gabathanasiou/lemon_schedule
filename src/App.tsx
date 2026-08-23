@@ -547,6 +547,7 @@ function AppContent() {
           includeNonShooting={doodOptions.includeNonShooting}
           showTotals={doodOptions.showTotals}
           category={category}
+          dayTypes={project.dayTypes}
         />
       </div>
     );
