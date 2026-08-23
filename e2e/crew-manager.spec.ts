@@ -8,10 +8,7 @@ test.describe('Crew Manager', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Production' }).click();
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Crew', exact: true }).click();
-    await page.waitForTimeout(500);
-
+        await page.getByRole('button', { name: 'Crew', exact: true }).click();
     // Roles sidebar with seeded roles, counts, and add button
     await expect(page.getByText('Roles', { exact: true })).toBeVisible();
     const directorRow = page.locator('button', { hasText: 'Director' }).first();
@@ -27,19 +24,14 @@ test.describe('Crew Manager', () => {
     await page.getByRole('button', { name: 'Add Member' }).click();
     await page.getByPlaceholder('Name').last().fill('Jane Doe');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
-    await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
+        await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
 
     // Phone buffers, then save
     await page.getByPlaceholder('Phone').fill('555-0123');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
-
-    // Verify the save committed: switch role and back, buffer reloads from store
+    await page.getByRole('button', { name: 'Save', exact: true })    // Verify the save committed: switch role and back, buffer reloads from store
     await page.locator('button', { hasText: 'Producer' }).first().click();
     await page.locator('button', { hasText: 'Director' }).first().click();
-    await page.waitForTimeout(300);
-    await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
+        await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
     await expect(page.getByText('1 member', { exact: true })).toBeVisible();
 
     // Cmd+Z undoes the last buffered edit locally
@@ -55,8 +47,7 @@ test.describe('Crew Manager', () => {
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('dialog')).toContainText('Merge Members');
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(500);
-    await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
+        await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
     await expect(page.locator('input[value="jane doe"]')).toHaveCount(0);
     await expect(page.getByText('1 member', { exact: true })).toBeVisible();
 
@@ -67,8 +58,7 @@ test.describe('Crew Manager', () => {
     // Delete member -> save -> crew trash has it; restore brings it back
     await page.locator('button[title="Delete member"]').click();
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
-    await expect(page.getByText('0 members', { exact: true })).toBeVisible();
+        await expect(page.getByText('0 members', { exact: true })).toBeVisible();
 
     await page.getByRole('button', { name: 'File' }).click();
     await page.getByRole('menuitem', { name: 'Trash...' }).click();
@@ -77,11 +67,9 @@ test.describe('Crew Manager', () => {
     const janeTrashRow = trashOverlay.locator('div.flex.items-center.justify-between').filter({ hasText: 'Jane Doe' });
     await expect(janeTrashRow).toBeVisible();
     await janeTrashRow.getByTitle('Restore').click();
-    await page.waitForTimeout(400);
-    await expect(janeTrashRow).toHaveCount(0);
+        await expect(janeTrashRow).toHaveCount(0);
     await trashOverlay.click({ position: { x: 10, y: 10 } });
-    await page.waitForTimeout(400);
-    await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
+        await expect(page.locator('input[value="Jane Doe"]')).toBeVisible();
 
     // Add a custom role via the modal; it becomes the active selection
     await page.getByRole('button', { name: 'Add Role' }).click();
@@ -113,10 +101,8 @@ test.describe('Crew Manager', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Production' }).click();
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Crew', exact: true }).click();
-    await page.waitForTimeout(500);
-
+        await page.getByRole('button', { name: 'Crew', exact: true }).click();
+    
     await page.locator('button', { hasText: 'Director' }).first().click();
     await page.getByRole('button', { name: 'Add Member' }).click();
     await page.getByPlaceholder('Name').last().fill('Unsaved Person');
@@ -125,12 +111,9 @@ test.describe('Crew Manager', () => {
     await page.getByRole('button', { name: 'Project Details' }).click();
     await expect(page.getByRole('dialog')).toContainText('Unsaved Changes', { timeout: 5000 });
     await page.getByRole('button', { name: 'Confirm' }).click();
-    await page.waitForTimeout(500);
-
     // Save ran during the prompt -> back to Crew, the member persisted
     await page.getByRole('button', { name: 'Crew', exact: true }).click();
-    await page.waitForTimeout(300);
-    await page.locator('button', { hasText: 'Director' }).first().click();
+        await page.locator('button', { hasText: 'Director' }).first().click();
     await expect(page.locator('input[value="Unsaved Person"]')).toBeVisible();
   });
 });

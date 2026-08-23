@@ -13,13 +13,11 @@ test('probe: arrow navigation across multiple chips + text', async ({ page }) =>
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   const title = page.getByText('Town - Jason — One-Liner').first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
-  await page.waitForTimeout(300);
-  const editor = page.locator('.block-chrome .richtext-editor').first();
+    const editor = page.locator('.block-chrome .richtext-editor').first();
   await expect(editor).toBeVisible({ timeout: 3000 });
 
   const sel = () => editor.evaluate((el: HTMLElement) => {
@@ -35,8 +33,7 @@ test('probe: arrow navigation across multiple chips + text', async ({ page }) =>
   // seed: 3 chips with text around them
   await editor.click();
   await page.keyboard.press('End');
-  await page.waitForTimeout(200);
-  await editor.evaluate(el => {
+    await editor.evaluate(el => {
     const obs = new MutationObserver(muts => {
       for (const m of muts) {
         if (m.type !== 'childList') continue;
@@ -50,8 +47,7 @@ test('probe: arrow navigation across multiple chips + text', async ({ page }) =>
   await page.keyboard.type(' {{company}} x {{pageNumber}} y');
   const structNow = await editor.evaluate(el => el.textContent + ' ||| ' + Array.from(el.childNodes).map(c => c.nodeType === Node.TEXT_NODE ? `"${c.textContent}"` : `[${(c as HTMLElement).getAttribute('data-rt-raw')}]`).join(' '));
   console.log('STRUCT_NOW:', structNow);
-  await page.waitForTimeout(250);
-  console.log('SEED chips=', await chips().count());
+    console.log('SEED chips=', await chips().count());
   const struct = await editor.evaluate(el => {
     const walk = (n: Node, d: number): string => {
       const ind = '  '.repeat(d);
@@ -69,30 +65,25 @@ test('probe: arrow navigation across multiple chips + text', async ({ page }) =>
 
   // walk LEFT from the end, printing every caret position
   await page.keyboard.press('End');
-  await page.waitForTimeout(150);
-  console.log('END  :', await sel());
+    console.log('END  :', await sel());
   for (let i = 0; i < 20; i++) {
     await page.keyboard.press('ArrowLeft');
-    await page.waitForTimeout(60);
-    const s = await sel();
+        const s = await sel();
     if (i % 2 === 0 || i > 14) console.log(`LEFT${String(i).padStart(2, '0')}:`, s);
   }
 
   // walk RIGHT back
   for (let i = 0; i < 20; i++) {
     await page.keyboard.press('ArrowRight');
-    await page.waitForTimeout(60);
-    const s = await sel();
+        const s = await sel();
     if (i % 2 === 0 || i > 14) console.log(`RGHT${String(i).padStart(2, '0')}:`, s);
   }
 
   // Home (intercepted) then arrow RIGHT across the leading chip
   await page.keyboard.press('Home');
-  await page.waitForTimeout(150);
-  console.log('HOME :', await sel());
+    console.log('HOME :', await sel());
   for (let i = 0; i < 6; i++) {
     await page.keyboard.press('ArrowRight');
-    await page.waitForTimeout(60);
-    console.log(`HOME>${i}:`, await sel());
+        console.log(`HOME>${i}:`, await sel());
   }
 });

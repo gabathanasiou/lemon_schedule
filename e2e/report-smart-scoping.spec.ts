@@ -22,15 +22,12 @@ test('cast → days → scenes chain: smart Shoot Time resolves per scene', asyn
 
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-
+  
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(1500);
-
+  
   const body = await page.evaluate(() => document.body.innerText);
   const perScene = body.includes('30m');
   const dayTotal = body.includes('9h 30m');

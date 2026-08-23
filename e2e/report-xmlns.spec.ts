@@ -1,11 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject } from './helpers';
+import { openSeededProject, loadSeedProject, waitForPersistedProject } from './helpers';
 
 test('xmlns fix: editor round-trip, old polluted data, keys/values modes, preview', async ({ page }) => {
+  const seed = loadSeedProject();
   await openSeededProject(page);
   page.on('pageerror', err => console.log('PAGE-ERR:', err.message.slice(0, 300)));
 
-  // 1) simulate OLD polluted stored data in the active design
+  // Open the designer once: the default designs (incl. Scene Breakdown) are
+  // created here and persisted. Then pollute the STORED design and boot the
+  // app from that data — the polluted markup enters via the load pipeline.
+  await page.getByRole('button', { name: 'Design', exact: true }).click();
+  await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
+  await waitForPersistedProject(page, "(p.reportDesigns || []).some(d => d.name === 'Scene Breakdown')");
   await page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1_'));
     if (!key) return;
@@ -21,13 +27,15 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
     localStorage.setItem(key, JSON.stringify(p));
   });
 
+  // Boot the app from the polluted storage, then re-enter the designer.
+  await page.reload();
+  await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
+  await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
   await page.getByText('Editing: One-Liner', { exact: true }).click();
   await page.getByRole('menuitem', { name: 'Scene Breakdown' }).click();
-  await page.waitForTimeout(600);
-
+  
   // 2) VALUES mode (default): no xmlns anywhere in the DOM
   const valuesDump = await page.evaluate(() => {
     const bad = Array.from(document.querySelectorAll('[xmlns]')).filter(el => el.tagName !== 'svg');
@@ -45,8 +53,7 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   // 3) KEYS mode: no literal tags in the template text
   await page.getByRole('button', { name: /A4 Portrait|A4 Landscape|Full Width/ }).click();
   await page.getByRole('menuitem', { name: 'Show field keys' }).click();
-  await page.waitForTimeout(500);
-  const keysText = await page.evaluate(() =>
+    const keysText = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.block-card.block-type-text, .report-repeat .block-card')).map(el => (el as HTMLElement).innerText?.slice(0, 90)).filter(Boolean).slice(0, 10),
   );
   console.log('KEYS-MODE:', JSON.stringify(keysText, null, 1));
@@ -56,16 +63,14 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
   // 4) back to VALUES + edit the polluted block → save must store CLEAN text
   await page.getByRole('button', { name: /A4 Portrait|A4 Landscape|Full Width/ }).click();
   await page.getByRole('menuitem', { name: 'Show field values' }).click();
-  await page.waitForTimeout(400);
-  const propsCard = page.locator('.block-card.block-type-text').filter({ hasText: 'Props' }).first();
+    const propsCard = page.locator('.block-card.block-type-text').filter({ hasText: 'Props' }).first();
   await propsCard.click();
-  await page.waitForTimeout(400);
-  const editor = page.locator('.block-chrome .richtext-editor');
+    const editor = page.locator('.block-chrome .richtext-editor');
   await editor.click();
   await page.keyboard.press('End');
   await page.keyboard.type('x');
-  await page.waitForTimeout(900);
-  const stored = await page.evaluate(() => {
+  await waitForPersistedProject(page, "(p.reportDesigns || []).some(d => JSON.stringify(d.blocks).includes('{{props}}x') && !JSON.stringify(d.blocks).includes('xmlns'))");
+    const stored = await page.evaluate(() => {
     const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1_'));
     if (!key) return null;
     const p = JSON.parse(localStorage.getItem(key)!);
@@ -83,8 +88,7 @@ test('xmlns fix: editor round-trip, old polluted data, keys/values modes, previe
 
   // 5) preview: no xmlns anywhere
   await page.getByRole('button', { name: 'Preview', exact: true }).click();
-  await page.waitForTimeout(2500);
-  const previewDump = await page.evaluate(() => ({
+    const previewDump = await page.evaluate(() => ({
     xmlnsEls: Array.from(document.querySelectorAll('[xmlns]')).filter(el => el.tagName !== 'svg').length,
     xmlnsText: Array.from(document.querySelectorAll('.report-text-block')).filter(el => (el as HTMLElement).innerText.includes('xmlns')).length,
   }));

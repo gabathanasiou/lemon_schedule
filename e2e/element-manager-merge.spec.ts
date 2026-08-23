@@ -3,21 +3,17 @@ import { openSeededProject } from './helpers';
 
 type Project = any;
 
+/** The live project straight from the store (sync post-dispatch) — faster and
+ *  more correct than waiting for the debounced localStorage save. */
 async function getProject(page: import('@playwright/test').Page): Promise<Project> {
-  return page.evaluate(() => {
-    const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-    return key ? JSON.parse(localStorage.getItem(key)!) : null;
-  });
+  return page.evaluate(() => (window as any).__lemonSchedule?.getProject());
 }
 
 async function openElementManagerCategory(page: import('@playwright/test').Page, category: string) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
-  await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'Element Manager' }).click();
-  await page.waitForTimeout(600);
   await page.locator('aside').getByRole('button', { name: new RegExp(category) }).click();
-  await page.waitForTimeout(400);
 }
 
 async function renameRow(page: import('@playwright/test').Page, from: string, to: string) {
@@ -26,7 +22,6 @@ async function renameRow(page: import('@playwright/test').Page, from: string, to
   await page.keyboard.press('Meta+A');
   await page.keyboard.type(to, { delay: 20 });
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(200);
 }
 
 function sceneCounts(project: Project): Record<string, number> {
@@ -54,7 +49,6 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'FISHING BOAT', 'fishing boat');
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
 
     // Warning dialog lists the merge with the affected scene count
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
@@ -63,7 +57,6 @@ test.describe('Element Manager merge/save', () => {
     await expect(block).toBeVisible();
 
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const project = await getProject(page);
     const ids = vehicleNames(project);
@@ -85,14 +78,12 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'fishing boat', 'boat');
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
 
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('dialog')).toContainText('fishing boat');
     await expect(page.getByRole('dialog')).toContainText('boat');
 
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const project = await getProject(page);
     const counts = sceneCounts(project);
@@ -107,14 +98,12 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'FISHING BOAT', 'ski boat');
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
 
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     const block = page.getByRole('dialog').getByText('fishing boat, FISHING BOAT', { exact: false });
     await expect(block).toBeVisible();
 
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const project = await getProject(page);
     const ids = vehicleNames(project);
@@ -132,7 +121,6 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'gun', 'cannon');
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(800);
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'Saved', exact: true })).toBeVisible({ timeout: 5000 });
@@ -158,15 +146,12 @@ test.describe('Element Manager merge/save', () => {
     // Delete the FISHING BOAT row (case-variant of fishing boat, used in 3 scenes)
     const row = page.locator('tr', { has: page.locator('input[value="FISHING BOAT"]') });
     await row.locator('button').last().click();
-    await page.waitForTimeout(200);
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
 
     // The dialog reports the pending case-variant absorption (car/CAR pair) — confirm the save
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const project = await getProject(page);
     const ids = vehicleNames(project);
@@ -186,15 +171,12 @@ test.describe('Element Manager merge/save', () => {
     // ship is unique: 1 scene, 1 element
     const row = page.locator('tr', { has: page.locator('input[value="ship"]') });
     await row.locator('button').last().click();
-    await page.waitForTimeout(200);
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
 
     // car/CAR absorption is reported — confirm the save
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const project = await getProject(page);
     expect(vehicleNames(project)).not.toContain('ship');
@@ -212,11 +194,9 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'fishing boat', 'boat');
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
 
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const project = await getProject(page);
     const counts = sceneCounts(project);
@@ -231,10 +211,8 @@ test.describe('Element Manager merge/save', () => {
 
     await renameRow(page, 'FISHING BOAT', 'fishing boat');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1200);
 
     const afterMerge = await getProject(page);
     expect(afterMerge.breakdownElements.vehicles.some((e: any) => e.id === 'FISHING BOAT')).toBe(false);
@@ -260,18 +238,15 @@ test.describe('Element Manager merge/save', () => {
 
     // click a top tab -> the prompt fires while the element manager is still mounted
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(500);
     await expect(page.getByRole('dialog')).toContainText('Unsaved Changes', { timeout: 5000 });
     await expect(page.locator('main')).toContainText('Element Manager');
 
     // confirm -> the save runs in place, so the merge modal can appear
     await page.getByRole('button', { name: 'Confirm' }).click();
-    await page.waitForTimeout(600);
     await expect(page.getByRole('dialog')).toContainText('Merge Elements', { timeout: 5000 });
 
     // merge & save -> merge applies AND the pending tab switch completes
     await page.getByRole('button', { name: 'Merge & Save' }).click();
-    await page.waitForTimeout(1500);
     await expect(page.locator('main')).toContainText('Day Breaks');
 
     const project = await getProject(page);
@@ -286,10 +261,8 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'FISHING BOAT', 'fishing boat');
 
     await page.getByRole('button', { name: 'Calendar' }).click();
-    await page.waitForTimeout(500);
     await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await page.waitForTimeout(800);
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
     await expect(page.locator('main')).toContainText('Boneyard');
@@ -303,10 +276,8 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'gun', 'cannon');
 
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(500);
     await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
     await page.getByRole('button', { name: 'Confirm' }).click();
-    await page.waitForTimeout(1500);
 
     await expect(page.locator('main')).toContainText('Day Breaks');
     const project = await getProject(page);
@@ -321,7 +292,6 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'FISHING BOAT', 'fishing boat');
 
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
-    await page.waitForTimeout(500);
     await expect(page.getByRole('dialog')).toContainText('Unsaved Changes');
     await expect(page.locator('main')).toContainText('Element Manager');
   });
@@ -339,14 +309,12 @@ test.describe('Element Manager merge/save', () => {
     await expect(redoBtn).toBeDisabled();
 
     await undoBtn.click();
-    await page.waitForTimeout(300);
     await expect(page.locator('input[value="FISHING BOAT"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('input[value="ski boat"]')).toHaveCount(0);
     await expect(undoBtn).toBeDisabled();
     await expect(redoBtn).toBeEnabled();
 
     await redoBtn.click();
-    await page.waitForTimeout(300);
     await expect(page.locator('input[value="ski boat"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('input[value="FISHING BOAT"]')).toHaveCount(0);
     await expect(undoBtn).toBeEnabled();
@@ -358,11 +326,9 @@ test.describe('Element Manager merge/save', () => {
     await renameRow(page, 'FISHING BOAT', 'ski boat');
 
     await page.keyboard.press('Meta+z');
-    await page.waitForTimeout(300);
     await expect(page.locator('input[value="FISHING BOAT"]')).toBeVisible({ timeout: 5000 });
 
     await page.keyboard.press('Meta+Shift+z');
-    await page.waitForTimeout(300);
     await expect(page.locator('input[value="ski boat"]')).toBeVisible({ timeout: 5000 });
   });
 
@@ -370,21 +336,18 @@ test.describe('Element Manager merge/save', () => {
     await openElementManagerCategory(page, 'Props');
 
     const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
+    const beforeCount = await page.locator('tbody tr').count();
 
     await page.getByRole('button', { name: 'Add Props' }).click();
-    await page.waitForTimeout(300);
-    const rowCount = await page.locator('tbody tr').count();
+    await expect(page.locator('tbody tr')).toHaveCount(beforeCount + 1);
     await undoBtn.click();
-    await page.waitForTimeout(300);
-    expect(await page.locator('tbody tr').count()).toBe(rowCount - 1);
+    await expect(page.locator('tbody tr')).toHaveCount(beforeCount);
 
     // delete the 'gun' row, then undo brings it back
     const gunRow = page.locator('tr', { has: page.locator('input[value="gun"]') });
     await gunRow.locator('button').last().click();
-    await page.waitForTimeout(300);
     await expect(page.locator('input[value="gun"]')).toHaveCount(0);
     await undoBtn.click();
-    await page.waitForTimeout(300);
     await expect(page.locator('input[value="gun"]')).toBeVisible({ timeout: 5000 });
   });
 
@@ -393,15 +356,16 @@ test.describe('Element Manager merge/save', () => {
 
     const namesBefore = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
     const undoBtn = page.getByRole('button', { name: 'Undo (Cmd+Z)' });
+    const firstValue = await page.locator('tbody input').first().inputValue();
 
     await page.getByRole('button', { name: 'Sort ▾' }).click();
     await page.getByRole('menuitem', { name: 'By Name' }).click();
-    await page.waitForTimeout(300);
+    await expect(page.locator('tbody input').first()).not.toHaveValue(firstValue, { timeout: 5000 });
     const namesSorted = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
     expect(namesSorted).not.toEqual(namesBefore);
 
     await undoBtn.click();
-    await page.waitForTimeout(300);
+    await expect(page.locator('tbody input').first()).toHaveValue(firstValue, { timeout: 5000 });
     const namesAfter = await page.locator('tbody input').evaluateAll(inputs => inputs.map(i => (i as HTMLInputElement).value));
     expect(namesAfter).toEqual(namesBefore);
   });

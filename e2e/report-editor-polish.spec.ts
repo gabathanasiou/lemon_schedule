@@ -5,8 +5,7 @@ async function openDesigner(page: any) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-}
+  }
 
 test('palette search finds out-of-scope attributes and marks them unavailable', async ({ page }) => {
   await openDesigner(page);
@@ -35,25 +34,23 @@ test('floating block editor shows per-type controls on selection', async ({ page
   const title = page.getByText('Town - Jason — One-Liner').first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
-  await page.waitForTimeout(300);
-
+  
   const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
   // rich text editor + formatting toolbar + token picker
   await expect(chrome.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
   await expect(chrome.getByRole('button', { name: 'Insert attribute…' })).toBeVisible({ timeout: 3000 });
-  // style row + outline row; text blocks keep the Layout section (Pad V/H)
+  // style row + outline row; text blocks keep the Padding section (Pad V/H)
   // alongside the per-chip item-formatting section (roadmap 19)
   await expect(chrome.getByText('Style', { exact: true })).toBeVisible({ timeout: 3000 });
   await expect(chrome.getByText('Outline', { exact: true })).toBeVisible({ timeout: 3000 });
-  await expect(chrome.getByText('Layout', { exact: true }).first()).toBeVisible({ timeout: 3000 });
+  await expect(chrome.getByText('Padding', { exact: true }).first()).toBeVisible({ timeout: 3000 });
 
   // editing the editor updates the canvas render
   await chrome.locator('.richtext-editor').click();
   await page.keyboard.press('End');
   await page.keyboard.type(' — DRAFT');
-  await page.waitForTimeout(300);
-  await expect(page.getByText('Town - Jason — One-Liner — DRAFT')).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText('Town - Jason — One-Liner — DRAFT')).toBeVisible({ timeout: 3000 });
 });
 
 async function countColumns(page: any, table: any): Promise<number> {
@@ -70,8 +67,7 @@ test('text styles: applying a heading style overrides direct formatting', async 
   await expect(title).toHaveCSS('font-size', '16px');
 
   await title.click();
-  await page.waitForTimeout(300);
-  const chrome = page.locator('.block-chrome');
+    const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
 
   // apply Heading 1 from the text-style menu
@@ -95,31 +91,26 @@ test('status bar: deselect clears selection; editor switches between chrome and 
   const title = page.getByText('Town - Jason — One-Liner').first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
-  await page.waitForTimeout(300);
-  await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
 
   // pin the editor into the toolbar → chrome disappears, editor appears in the bar
   await page.getByRole('button', { name: 'Toolbar editor', exact: true }).click();
-  await page.waitForTimeout(300);
-  await expect(page.locator('.block-chrome')).toHaveCount(0);
+    await expect(page.locator('.block-chrome')).toHaveCount(0);
   await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
 
   // deselect from the pinned editor → editor gone, hint back
   await page.getByRole('button', { name: 'Deselect block', exact: true }).click();
-  await page.waitForTimeout(300);
-  await expect(page.locator('.richtext-editor')).toHaveCount(0);
+    await expect(page.locator('.richtext-editor')).toHaveCount(0);
   await expect(page.getByText('Select a block to edit it. Click an item in the palette to add it.')).toBeVisible({ timeout: 3000 });
 
   // re-select → still pinned in the toolbar (mode persists per session)
   await page.getByText('Town - Jason — One-Liner').first().click();
-  await page.waitForTimeout(300);
-  await expect(page.locator('.block-chrome')).toHaveCount(0);
+    await expect(page.locator('.block-chrome')).toHaveCount(0);
   await expect(page.locator('.richtext-editor')).toBeVisible({ timeout: 3000 });
 
   // switch back to the floating editor
   await page.getByRole('button', { name: 'Floating editor', exact: true }).click();
-  await page.waitForTimeout(300);
-  await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
   await expect(page.locator('.block-chrome .richtext-editor')).toBeVisible({ timeout: 3000 });
 });
 
@@ -132,28 +123,24 @@ test('table columns edit on the canvas: select, insert, reorder', async ({ page 
 
   // click the first data cell of column 1 → column chrome appears
   await table.locator('[data-table-col-ci="0"]').nth(1).click({ position: { x: 5, y: 3 } });
-  await page.waitForTimeout(300);
-
+  
   const colChrome = page.locator('.table-column-chrome');
   await expect(colChrome).toBeVisible({ timeout: 3000 });
   await expect(colChrome).toContainText('Column 1 of 8');
 
   // insert a column before → count grows, empty column lands at index 0
   await colChrome.getByLabel('Insert column before').click();
-  await page.waitForTimeout(300);
-  await expect(colChrome).toContainText('Column 1 of 9');
+    await expect(colChrome).toContainText('Column 1 of 9');
   expect(await countColumns(page, table)).toBe(9);
 
   // move the (empty) selected column right → the original column takes index 0
   await colChrome.getByLabel('Move column right').click();
-  await page.waitForTimeout(300);
-  await expect(colChrome).toContainText('Column 2 of 9');
+    await expect(colChrome).toContainText('Column 2 of 9');
   await expect(table.locator('[data-table-col-ci="0"]').first()).toContainText('Day', { timeout: 3000 });
 
   // delete the inserted column → back to 8
   await colChrome.getByLabel('Delete column').click();
-  await page.waitForTimeout(300);
-  expect(await countColumns(page, table)).toBe(8);
+    expect(await countColumns(page, table)).toBe(8);
 });
 
 test('drag-reorder moves a table column via the header grip', async ({ page }) => {
@@ -176,8 +163,7 @@ test('drag-reorder moves a table column via the header grip', async ({ page }) =
   await page.mouse.down();
   await page.mouse.move(box1.x + box1.width / 2, box1.y + box1.height / 2, { steps: 8 });
   await page.mouse.up();
-  await page.waitForTimeout(400);
-
+  
   // column 0 is now the former column 1 (Scene #)
   await expect(table.locator('[data-table-col-ci="0"]').first()).toContainText('Scene #', { timeout: 3000 });
   await expect(table.locator('[data-table-col-ci="1"]').first()).toContainText('Day', { timeout: 3000 });
@@ -194,17 +180,13 @@ test('header/footer zones: footer repeats in preview, skip first page hides it',
   // preview shows the footer on page 1 (the preview paginates the report —
   // one card per measured page, footer repeats on every card)
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(600);
-  await expect(page.getByText(/Page 1 of \d+/, { exact: true }).first()).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText(/Page 1 of \d+/, { exact: true }).first()).toBeVisible({ timeout: 3000 });
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  await page.waitForTimeout(300);
-
+  
   // toggle "Skip first page" → footer gone from page 1
   await footerZone.getByText('Skip first page').click();
-  await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(600);
-  await expect(page.getByText(/Page 1 of \d+/, { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Preview' }).click();
+    await expect(page.getByText(/Page 1 of \d+/, { exact: true })).toHaveCount(0);
 });
 
 test('clicking an empty zone inserts a text block into it', async ({ page }) => {
@@ -216,7 +198,6 @@ test('clicking an empty zone inserts a text block into it', async ({ page }) => 
   await expect(headerZone.getByText('Empty — click or drag palette items here')).toBeVisible({ timeout: 3000 });
 
   await headerZone.getByText('Empty — click or drag palette items here').click();
-  await page.waitForTimeout(300);
-  await expect(headerZone.locator('[data-block-id]')).toHaveCount(1);
+    await expect(headerZone.locator('[data-block-id]')).toHaveCount(1);
   await expect(page.locator('.block-chrome')).toBeVisible({ timeout: 3000 });
 });

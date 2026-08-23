@@ -27,10 +27,8 @@ test.describe('Crew Glide', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Production', exact: true }).click();
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
-    await page.waitForTimeout(1500);
-
+        await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
+    
     await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Info' })).toBeVisible();
 
@@ -62,15 +60,14 @@ test.describe('Crew Glide', () => {
       const y = g.y + g.headerH + row * g.rowH + g.rowH / 2;
       if (await isCoarse()) {
         await page.touchscreen.tap(x, y);
-        await page.waitForTimeout(300);
         await page.touchscreen.tap(x, y);
       } else {
         await page.mouse.dblclick(x, y);
       }
-      await page.waitForTimeout(400);
+      // editor mount settle — the first keystroke would otherwise land on the canvas
+      await page.waitForTimeout(350);
       await page.keyboard.type(text, { delay: 30 });
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(700);
     };
 
     // --- Add two members via the add-row Name cell (falls back to the first role) ---
@@ -100,8 +97,7 @@ test.describe('Crew Glide', () => {
     {
       const g = await gridGeo();
       await tapAt(g.x + g.colX(1), g.y + g.headerH / 2, 'right');
-      await page.waitForTimeout(400);
-      await page.getByText('Sort A to Z', { exact: true }).click();
+            await page.getByText('Sort A to Z', { exact: true }).click();
       await page.waitForTimeout(700);
     }
     // Grip now holds Alice + the empty add-row member (empty sorts last)
@@ -122,8 +118,7 @@ test.describe('Crew Glide', () => {
     {
       const g = await gridGeo();
       await tapAt(g.x + g.colX(1), g.y + g.headerH + 2 * g.rowH + g.rowH / 2, 'right');
-      await page.waitForTimeout(400);
-      const item = page.getByText('Go to Crew Manager → Grip', { exact: true });
+            const item = page.getByText('Go to Crew Manager → Grip', { exact: true });
       await expect(item).toBeVisible();
       await item.click();
       await page.waitForTimeout(700);
@@ -135,7 +130,6 @@ test.describe('Crew Glide', () => {
 
     // --- Back to the glide: CSV export ---
     await page.getByRole('button', { name: 'Crew Glide', exact: true }).click();
-    await page.waitForTimeout(1200);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Edit' }).click();
     await page.getByRole('menuitem', { name: 'Export Crew to CSV' }).click();
@@ -161,8 +155,7 @@ test.describe('Crew Glide', () => {
     await expect(page.getByText('3 crew members')).toBeVisible();
     await expect(page.getByText('Green Team', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Import', exact: true }).click();
-    await page.waitForTimeout(800);
-
+    
     await expect.poll(async () => {
       const s = await crewState(page);
       return s!.roles.includes('greenteam');

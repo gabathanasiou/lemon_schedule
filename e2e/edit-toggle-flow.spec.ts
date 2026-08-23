@@ -1,4 +1,4 @@
-import { test, Page } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { loadSeedProject, seedProjectScript } from './helpers';
 
 async function openSeeded(page: Page) {
@@ -7,7 +7,7 @@ async function openSeeded(page: Page) {
   await page.goto('/lemon_schedule/');
   const title = JSON.parse(seed.raw).title;
   await page.getByText(title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1200);
+  await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 async function dragAt(page: Page, nth: number, xFrac: number, yFrac: number) {
@@ -51,7 +51,6 @@ test('user-flow drag perf', async ({ page }) => {
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();
   await page.waitForSelector('[data-row-id]', { timeout: 15000 });
-  await page.waitForTimeout(1000);
 
   await round(page, 'baseline', 5, 0.5, 0.5);
 

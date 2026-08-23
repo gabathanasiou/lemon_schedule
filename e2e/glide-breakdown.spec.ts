@@ -13,7 +13,6 @@ test.describe('Glide Breakdown Tab', () => {
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
     await glideBtn.click();
-    await page.waitForTimeout(1000);
 
     await expect(page.getByRole('button', { name: /Add Scene/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'View' })).toBeVisible();
@@ -34,16 +33,13 @@ test.describe('Glide Breakdown Tab', () => {
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
     await glideBtn.click();
-    await page.waitForTimeout(500);
 
     const viewBtn = page.getByRole('button', { name: 'View' });
     await viewBtn.click();
-    await page.waitForTimeout(200);
 
     const biggerItem = page.getByRole('menuitem', { name: 'Bigger' });
     await expect(biggerItem).toBeVisible({ timeout: 3000 });
     await biggerItem.click();
-    await page.waitForTimeout(200);
   });
 
   test('adds scene via button and verifies persistence between views', async ({ page }) => {
@@ -53,27 +49,15 @@ test.describe('Glide Breakdown Tab', () => {
     const sheetBtn = page.getByRole('button', { name: 'Sheet' });
     await expect(sheetBtn).toBeVisible({ timeout: 5000 });
     await sheetBtn.click();
-    await page.waitForTimeout(500);
 
     const createFirst = page.getByRole('button', { name: 'Create First Scene' });
     await createFirst.click();
-    await page.waitForTimeout(300);
 
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await glideBtn.click();
-    await page.waitForTimeout(1000);
-
     await sheetBtn.click();
-    await page.waitForTimeout(500);
 
-    const sceneCount = await page.evaluate(() => {
-      try {
-        const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-        if (!key) return 0;
-        const project = JSON.parse(localStorage.getItem(key)!);
-        return project.scenes?.length || 0;
-      } catch { return 0; }
-    });
+    const sceneCount = await page.evaluate(() => (window as any).__lemonSchedule?.getProject()?.scenes?.length ?? 0);
     expect(sceneCount).toBeGreaterThanOrEqual(1);
   });
 
@@ -84,30 +68,13 @@ test.describe('Glide Breakdown Tab', () => {
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
     await glideBtn.click();
-    await page.waitForTimeout(500);
 
-    const initialState = await page.evaluate(() => {
-      try {
-        const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-        if (!key) return { sceneCount: 0 };
-        const project = JSON.parse(localStorage.getItem(key)!);
-        return { sceneCount: project.scenes?.length || 0 };
-      } catch { return { sceneCount: -1 }; }
-    });
+    const sceneCount = () => (window as any).__lemonSchedule?.getState()?.present?.scenes?.length ?? -1;
+    const initialState = { sceneCount: await page.evaluate(sceneCount) };
 
     await page.getByRole('button', { name: /Add Scene/ }).click();
-    await page.waitForTimeout(500);
 
-    const afterState = await page.evaluate(() => {
-      try {
-        const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-        if (!key) return { sceneCount: 0 };
-        const project = JSON.parse(localStorage.getItem(key)!);
-        return { sceneCount: project.scenes?.length || 0 };
-      } catch { return { sceneCount: -1 }; }
-    });
-
-    expect(afterState.sceneCount).toBe(initialState.sceneCount + 1);
+    await expect.poll(() => page.evaluate(sceneCount), { timeout: 5000 }).toBe(initialState.sceneCount + 1);
   });
 
   test('edits a cell via double-click and commits to store', async ({ page }) => {
@@ -117,10 +84,9 @@ test.describe('Glide Breakdown Tab', () => {
     const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
     await expect(glideBtn).toBeVisible({ timeout: 5000 });
     await glideBtn.click();
-    await page.waitForTimeout(500);
 
     await page.getByRole('button', { name: /Add Scene/ }).click();
-    await page.waitForTimeout(500);
+    await expect.poll(() => page.evaluate(() => (window as any).__lemonSchedule?.getProject()?.scenes?.length ?? 0), { timeout: 5000 }).toBeGreaterThan(0);
 
     // Verify portal exists
     expect(await page.evaluate(() => !!document.getElementById('portal'))).toBe(true);
@@ -178,15 +144,8 @@ test.describe('Glide Breakdown Tab', () => {
       }
     }
 
-    // Verify the edit by checking localStorage
-    const sceneNum = await page.evaluate(() => {
-      try {
-        const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-        if (!key) return null;
-        const project = JSON.parse(localStorage.getItem(key)!);
-        return project.scenes?.[0]?.sceneNumber || null;
-      } catch { return null; }
-    });
+    // Verify the edit via live store state
+    const sceneNum = await page.evaluate(() => (window as any).__lemonSchedule?.getProject()?.scenes?.[0]?.sceneNumber ?? null);
 
     if (overlayInput) {
       expect(sceneNum).toBe('77');

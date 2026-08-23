@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openSeededProject, loadSeedProject } from './helpers';
+import { openSeededProject, loadSeedProject, waitForPersistedProject } from './helpers';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -38,28 +38,22 @@ async function seedLegacyProject(page: import('@playwright/test').Page, legacy: 
   }, { projectJson, meta });
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(legacy.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
+  await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 async function openElementManagerCast(page: import('@playwright/test').Page) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
-  await page.waitForTimeout(400);
   await page.getByRole('button', { name: 'Element Manager' }).click();
-  await page.waitForTimeout(600);
   await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
-  await page.waitForTimeout(400);
 }
 
 async function importFile(page: import('@playwright/test').Page, filePath: string, sceneCount: number) {
   await page.getByRole('button', { name: 'File' }).click();
   await page.getByRole('menuitem', { name: /Import Screenplay/ }).click();
-  await page.waitForTimeout(500);
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
-  await page.waitForTimeout(1500);
   await expect(page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) })).toBeVisible({ timeout: 8000 });
   await page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) }).click();
-  await page.waitForTimeout(1500);
 }
 
 test.describe('cast single source of truth (castMembers)', () => {
@@ -67,9 +61,9 @@ test.describe('cast single source of truth (castMembers)', () => {
 
   test('legacy projects are migrated: breakdownElements.cast is stripped on load', async ({ page }) => {
     await openSeededProject(page);
-    await page.waitForTimeout(1500);
 
-    // castMembers must survive migration untouched
+    // Wait for the persisted (normalized) state: mirror stripped, castMembers kept
+    await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length === 23');
     await expect.poll(async () => {
       const p = await getProject(page);
       return p ? (p.castMembers || []).length : 0;
@@ -124,8 +118,7 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.goto('http://localhost:3001/lemon_schedule/');
     await page.getByRole('button', { name: /Import/i }).click({ timeout: 8000 });
     await page.locator('input[type="file"][accept=".lemon,.json"]').setInputFiles(lemonPath);
-    await page.waitForTimeout(1500);
-
+    await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length > 0');
     const project = await getProject(page);
     expect(project).toBeTruthy();
     const names = (project.castMembers || []).map((m: any) => m.name);
@@ -144,10 +137,9 @@ test.describe('cast single source of truth (castMembers)', () => {
     await page.keyboard.press('Meta+A');
     await page.keyboard.type('FISHERMAN II', { delay: 15 });
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(200);
 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(1500);
+    await waitForPersistedProject(page, "(p.castMembers.find(m => m.id === '1') || {}).name === 'FISHERMAN II'");
 
     const project = await getProject(page);
     const member = (project.castMembers || []).find((m: any) => m.id === '1');
@@ -162,14 +154,11 @@ test.describe('cast single source of truth (castMembers)', () => {
   test('scene sheet cast dropdown lists members from castMembers', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
-    await page.waitForTimeout(400);
     await page.getByRole('button', { name: 'Sheet', exact: true }).click();
-    await page.waitForTimeout(800);
 
     // The Cast box renders an EntityDropdown; clicking it opens a panel with member items
     const castInput = page.locator('input[value="4, 11"]').first();
     await castInput.click();
-    await page.waitForTimeout(400);
 
     await expect(page.getByText('FISHERMAN', { exact: true }).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('SENKAR', { exact: true }).first()).toBeVisible({ timeout: 5000 });
@@ -179,11 +168,8 @@ test.describe('cast single source of truth (castMembers)', () => {
   test('reports element breakdown shows cast members for the cast category', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Reports' }).click();
-    await page.waitForTimeout(400);
     await page.getByRole('button', { name: 'Element Breakdown' }).click();
-    await page.waitForTimeout(600);
     await page.locator('aside').getByRole('button', { name: /Cast/ }).click();
-    await page.waitForTimeout(600);
 
     // members with scenes show as "id. name"
     await expect(page.getByText('1. FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
@@ -202,6 +188,7 @@ test.describe('cast single source of truth (castMembers)', () => {
 
     await openSeededProject(page);
     await importFile(page, csvPath, 2);
+    await waitForPersistedProject(page, "(p.castMembers || []).some(m => m.name === 'AMY')");
 
     const project = await getProject(page);
     const names = (project.castMembers || []).map((m: any) => m.name);
@@ -241,6 +228,7 @@ test.describe('cast single source of truth (castMembers)', () => {
 
     await openSeededProject(page);
     await importFile(page, fdxPath, 2);
+    await waitForPersistedProject(page, "(p.castMembers || []).some(m => m.name === 'AMY')");
 
     const project = await getProject(page);
     const names = (project.castMembers || []).map((m: any) => m.name);
@@ -261,27 +249,20 @@ test.describe('cast single source of truth (castMembers)', () => {
 
     // Rules tab — color rule cards render cast conditions as "id. name"
     await page.getByRole('button', { name: 'Rules' }).click();
-    await page.waitForTimeout(600);
     await expect(page.getByText('1. FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
 
     // Reports -> Day Out of Days -> Print dialog lists members
     await page.getByRole('button', { name: 'Reports' }).click();
-    await page.waitForTimeout(400);
     await page.getByRole('button', { name: 'Print' }).click();
-    await page.waitForTimeout(600);
     await expect(page.getByText('1. FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('4. JO', { exact: false }).first()).toBeVisible({ timeout: 5000 });
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
 
     // Schedule -> Print -> Cast List renders in the print output
     await page.evaluate(() => { window.print = () => {}; });
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(800);
     await page.getByRole('button', { name: 'Print' }).click();
-    await page.waitForTimeout(500);
     await page.getByRole('button', { name: 'Print / Save PDF' }).click();
-    await page.waitForTimeout(1200);
     await expect(page.locator('.print-root')).toBeAttached({ timeout: 5000 });
     await expect(page.getByText('FISHERMAN', { exact: false }).first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('JO', { exact: false }).first()).toBeVisible({ timeout: 5000 });

@@ -21,9 +21,7 @@ test.describe('Locations', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Production', exact: true }).click();
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'Locations', exact: true }).click();
-    await page.waitForTimeout(500);
+        await page.getByRole('button', { name: 'Locations', exact: true }).click();
 
     // Types sidebar with seeded types
     await expect(page.getByText('Types', { exact: true })).toBeVisible();
@@ -33,14 +31,12 @@ test.describe('Locations', () => {
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio One');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
-    await expect(page.locator('input[value="Studio One"]')).toBeVisible();
+        await expect(page.locator('input[value="Studio One"]')).toBeVisible();
 
     // A second, different-named location saves cleanly (no merge dialog)
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('Studio Two');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(400);
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(2);
 
     // Same-name duplicate in the same type → merge dialog on save
@@ -49,7 +45,6 @@ test.describe('Locations', () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(page.getByText('Merge Locations', { exact: true })).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Merge' }).click();
-    await page.waitForTimeout(500);
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(2);
 
     // Switch to another type and add there — grouped by the sidebar
@@ -57,13 +52,11 @@ test.describe('Locations', () => {
     await page.getByRole('button', { name: 'Add Location', exact: true }).click();
     await page.getByPlaceholder('Name').last().fill('River Lot');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
-    await page.waitForTimeout(500);
     await expect.poll(async () => (await locationState(page))!.locations.length, { timeout: 8000 }).toBe(3);
 
     // ---- Glide ----
     await page.getByRole('button', { name: 'Locations Glide', exact: true }).click();
-    await page.waitForTimeout(1500);
-    await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Info' })).toBeVisible();
 
     const isCoarse = () => page.evaluate(() => window.matchMedia('(pointer: coarse)').matches);
@@ -94,15 +87,12 @@ test.describe('Locations', () => {
       const y = g.y + g.headerH + row * g.rowH + g.rowH / 2;
       if (await isCoarse()) {
         await page.touchscreen.tap(x, y);
-        await page.waitForTimeout(300);
-        await page.touchscreen.tap(x, y);
+                await page.touchscreen.tap(x, y);
       } else {
         await page.mouse.dblclick(x, y);
       }
-      await page.waitForTimeout(400);
-      await page.keyboard.type(text, { delay: 30 });
+            await page.keyboard.type(text, { delay: 30 });
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(700);
     };
 
     // Add a location via the add-row Name cell (falls back to the first type)
@@ -119,26 +109,23 @@ test.describe('Locations', () => {
     {
       const g = await gridGeo();
       await tapAt(g.x + g.colX(1), g.y + g.headerH / 2, 'right');
-      await page.waitForTimeout(400);
-      await page.getByText('Sort A to Z', { exact: true }).click();
-      await page.waitForTimeout(700);
+            await page.getByText('Sort A to Z', { exact: true }).click();
+      // the context menu dismissed — the next tap targets row 2's fresh spot
+      await expect(page.getByText('Sort A to Z', { exact: true })).not.toBeVisible({ timeout: 5000 });
     }
 
     // Right-click a row -> Go to Locations Manager → type
     {
       const g = await gridGeo();
       await tapAt(g.x + g.colX(1), g.y + g.headerH + g.rowH + g.rowH / 2, 'right');
-      await page.waitForTimeout(400);
       const item = page.getByText('Go to Locations Manager', { exact: false }).first();
       await expect(item).toBeVisible();
       await item.click();
-      await page.waitForTimeout(700);
     }
     await expect(page.getByText('Types', { exact: true })).toBeVisible();
 
     // ---- CSV export from the glide ----
     await page.getByRole('button', { name: 'Locations Glide', exact: true }).click();
-    await page.waitForTimeout(1200);
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Edit' }).click();
     await page.getByRole('menuitem', { name: 'Export Locations to CSV' }).click();
@@ -162,8 +149,6 @@ test.describe('Locations', () => {
     await expect(page.getByText('Import Locations CSV')).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('3 locations')).toBeVisible();
     await page.getByRole('button', { name: 'Import', exact: true }).click();
-    await page.waitForTimeout(800);
-
     await expect.poll(async () => {
       const s = await locationState(page);
       const setLoc = s!.locations.filter((l: any) => l.name === 'Green Field');

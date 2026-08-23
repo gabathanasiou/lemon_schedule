@@ -51,11 +51,9 @@ async function openDesignerWithDesign(page: any, project: any) {
   });
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(800);
-}
+  }
 
 test('canvas stays flush; preview applies the 8px block gap to every stack', async ({ page }) => {
   const seed = loadSeedProject();

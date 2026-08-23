@@ -5,16 +5,14 @@ async function openDesigner(page: any) {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-}
+  }
 
 async function openTitleChrome(page: any) {
   await openDesigner(page);
   const title = page.getByText('Town - Jason — One-Liner').first();
   await expect(title).toBeVisible({ timeout: 5000 });
   await title.click();
-  await page.waitForTimeout(300);
-  const chrome = page.locator('.block-chrome');
+    const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
   return chrome;
 }
@@ -26,8 +24,7 @@ async function insertFreshTextBlock(page: any) {
   const headerZone = page.locator('.report-zone[data-zone-list="header"]');
   await expect(headerZone).toBeVisible({ timeout: 5000 });
   await headerZone.getByText('Empty — click or drag palette items here').click();
-  await page.waitForTimeout(300);
-  const chrome = page.locator('.block-chrome');
+    const chrome = page.locator('.block-chrome');
   await expect(chrome).toBeVisible({ timeout: 3000 });
   return { chrome, block: headerZone.locator('.report-text-block') };
 }
@@ -85,8 +82,7 @@ test('bold with empty selection lights the button immediately', async ({ page })
 
   // and the next keystroke really is bold
   await page.keyboard.type('x');
-  await page.waitForTimeout(300);
-  const htmlAfter = await block.evaluate(el => el.innerHTML);
+    const htmlAfter = await block.evaluate(el => el.innerHTML);
   expect(htmlAfter).toContain('<b>x</b>');
 });
 
@@ -100,8 +96,7 @@ test('empty line from Enter renders in the canvas as a <br> paragraph', async ({
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
   await page.keyboard.type('second line');
-  await page.waitForTimeout(300);
-
+  
   // stored/render HTML keeps an empty paragraph with a <br> (not <p></p>)
   const html = await canvasBlock.evaluate(el => el.innerHTML);
   expect(html).toContain('<br></p>');
@@ -121,14 +116,12 @@ test('default color swatch removes the color (editor light, print black)', async
   // apply red → canvas stores the color (innerHTML normalizes hex → rgb)
   await chrome.getByRole('button', { name: 'Text color' }).click();
   await page.locator('.ui-menu').getByTitle('#b91c1c').click();
-  await page.waitForTimeout(300);
-  expect(await canvasBlock.evaluate(el => el.innerHTML)).toContain('color: rgb(185, 28, 28)');
+    expect(await canvasBlock.evaluate(el => el.innerHTML)).toContain('color: rgb(185, 28, 28)');
 
   // pick "Default" → color span gone, swatch back to the default glyph
   await chrome.getByRole('button', { name: 'Text color' }).click();
   await page.locator('.ui-menu').getByTitle('Default (black ink)').click();
-  await page.waitForTimeout(300);
-  expect(await canvasBlock.evaluate(el => el.innerHTML)).not.toContain('color:');
+    expect(await canvasBlock.evaluate(el => el.innerHTML)).not.toContain('color:');
 });
 
 test('named style locks redundant B/I but keeps per-word italic + underline', async ({ page }) => {
@@ -145,8 +138,7 @@ test('named style locks redundant B/I but keeps per-word italic + underline', as
   // apply Heading 1 (bold named style) → still locked
   await chrome.getByRole('button', { name: /Direct formatting/ }).click();
   await page.locator('.ui-menu').getByText('Heading 1', { exact: true }).click();
-  await page.waitForTimeout(300);
-  await expect(bold).toBeDisabled();
+    await expect(bold).toBeDisabled();
   await expect(bold).toHaveClass(new RegExp(ON_CLS));
   await expect(italic).toBeEnabled();
 
@@ -156,8 +148,7 @@ test('named style locks redundant B/I but keeps per-word italic + underline', as
   await page.keyboard.type(' one');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
   await italic.click();
-  await page.waitForTimeout(300);
-  expect(await page.locator('.report-text-block').first().evaluate(el => el.innerHTML)).toContain('<i>one</i>');
+    expect(await page.locator('.report-text-block').first().evaluate(el => el.innerHTML)).toContain('<i>one</i>');
 });
 
 test('text styles modal: version-picker editing — create, rename, live preview, persist', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { test, Page } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { loadSeedProject, seedProjectScript } from './helpers';
 
 async function openSeeded(page: Page) {
@@ -7,7 +7,7 @@ async function openSeeded(page: Page) {
   await page.goto('/lemon_schedule/');
   const title = JSON.parse(seed.raw).title;
   await page.getByText(title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1200);
+  await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 test('row renders during edit toggle', async ({ page }) => {
@@ -15,7 +15,6 @@ test('row renders during edit toggle', async ({ page }) => {
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();
   await page.waitForSelector('[data-row-id]', { timeout: 15000 });
-  await page.waitForTimeout(1000);
 
   const editBtn = page.locator('button:has-text("Edit")').last();
 

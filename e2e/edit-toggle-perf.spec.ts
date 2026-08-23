@@ -1,4 +1,4 @@
-import { test, Page, CDPSession } from '@playwright/test';
+import { test, expect, Page, CDPSession } from '@playwright/test';
 import { loadSeedProject, seedProjectScript } from './helpers';
 
 async function openSeeded(page: Page) {
@@ -167,7 +167,7 @@ async function snapshot(page: Page, label: string) {
   console.log(`[snap] ${label}: ${JSON.stringify(s)}`);
 }
 
-test('edit-toggle lag reproduction', async ({ page }) => {
+test('@perf edit-toggle lag reproduction', async ({ page }) => {
   test.setTimeout(300000);
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();

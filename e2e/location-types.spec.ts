@@ -103,11 +103,9 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   await page.addInitScript(seedProjectScript({ raw: JSON.stringify(project) }));
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   // ---- B. prefetch warms the per-type table's pins (Unit Base coords) ----
   await expect.poll(() => weatherRequests.length, { timeout: 8000 }).toBeGreaterThan(0);
   const coords = weatherRequests.map(u => {
@@ -123,28 +121,25 @@ test('location types: All-types clear, per-type prefetch, delete records the lab
   // select the repeat card via its LABEL row (the card's center hits the inner
   // text block)
   await page.locator('[data-block-id="rep-loc"]').getByText('Repeat: Locations (Studio)', { exact: true }).click();
-  await page.waitForTimeout(400);
-
+  
   const pickMenu = async (itemName: string) => {
     // Radix submenus reposition between open and first click (a known flake —
     // the panel re-renders under the cursor) — retry the pick until the
     // design state actually changes.
+    const goal = itemName === 'All types' ? undefined : 'unitbase';
     for (let attempt = 0; attempt < 2; attempt++) {
       const trigger = page.getByRole('button', { name: /Locations( · .*)?/ });
       await trigger.click();
       const locItem = page.locator('.ui-menu [role="menuitem"]').getByText('Locations', { exact: true });
       await locItem.hover();
-      await page.waitForTimeout(300);
       const item = page.locator('.ui-menu [role="menuitem"]').getByText(itemName, { exact: true });
       await expect(item).toBeVisible({ timeout: 3000 });
       await item.click();
-      await page.waitForTimeout(300);
-      const cat = await locCategory(page);
-      const goal = itemName === 'All types' ? undefined : 'unitbase';
-      if (Object.is(cat, goal)) return;
+      await expect.poll(() => locCategory(page), { timeout: 5000 }).toBe(goal as never);
+      return;
     }
     throw new Error('menu pick did not apply: ' + itemName);
-  };
+  };;
 
   await pickMenu('Unit Base');
   await expect(page.getByRole('button', { name: 'Locations · Unit Base', exact: true })).toBeVisible({ timeout: 3000 });

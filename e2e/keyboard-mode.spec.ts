@@ -14,8 +14,7 @@ async function openGlideWithScene(page: Page) {
   const glideBtn = page.getByRole('button', { name: 'Glide Breakdown' });
   await expect(glideBtn).toBeVisible({ timeout: 5000 });
   await glideBtn.click();
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: /Add Scene/ }).click();
+    await page.getByRole('button', { name: /Add Scene/ }).click();
   await page.waitForTimeout(500);
 }
 
@@ -83,15 +82,10 @@ test.describe('Keyboard Mode (coarse pointer)', () => {
     const toggle = page.getByRole('button', { name: /Keyboard input/ });
     await expect(toggle).toBeVisible();
     await toggle.click();
-    await page.waitForTimeout(300);
-
     const descPos = await cellCenter(page, 'description');
     await page.mouse.dblclick(descPos.x, descPos.y);
-    await page.waitForTimeout(500);
 
-    const state = await editorState(page);
-    expect(state.hasEditor).toBe(true);
-    expect(state.readOnly).toBe(false);
+    await expect.poll(() => editorState(page), { timeout: 5000 }).toMatchObject({ hasEditor: true, readOnly: false });
   });
 
   test('tap selects a cell; double-tap with a jiggly second press starts editing', async ({ page }) => {
@@ -146,11 +140,9 @@ test.describe('Keyboard Mode (coarse pointer)', () => {
 
     // The amber state is still tappable: toggling flips the stored mode
     await hwToggle.click({ force: true });
-    await page.waitForTimeout(300);
-    await expect(page.evaluate(() => localStorage.getItem('lemon_schedule_keyboard_mode'))).resolves.toBe('on');
+        await expect(page.evaluate(() => localStorage.getItem('lemon_schedule_keyboard_mode'))).resolves.toBe('on');
 
     await hwToggle.click({ force: true });
-    await page.waitForTimeout(300);
-    await expect(page.evaluate(() => localStorage.getItem('lemon_schedule_keyboard_mode'))).resolves.toBe('off');
+        await expect(page.evaluate(() => localStorage.getItem('lemon_schedule_keyboard_mode'))).resolves.toBe('off');
   });
 });

@@ -92,15 +92,12 @@ test('smart Element/Scene Count resolve per day and per category (scoped to the 
 
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-
+  
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(1500);
-
+  
   const body = await page.evaluate(() => document.body.innerText);
   expect(body).toContain(`Total Elements: ${totalElements}`);
   expect(body).toContain(`Total Scenes: ${totalScenes}`);

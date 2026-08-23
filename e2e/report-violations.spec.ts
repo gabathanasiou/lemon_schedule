@@ -96,15 +96,12 @@ test('violation count/details render smart per day and grouped per rule type', a
 
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-
+  
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(1500);
-
+  
   const body = await page.evaluate(() => document.body.innerText);
   expect(maxHoursTotal).toBeGreaterThan(0);
   expect(conflictTotal).toBeGreaterThan(0);

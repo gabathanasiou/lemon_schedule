@@ -63,11 +63,9 @@ async function seedWithRibbon(page: any, mutateProject: (p: any) => void, extraC
   });
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-}
+  }
 
 function emptySchedule(p: any) {
   p.scenes = [];

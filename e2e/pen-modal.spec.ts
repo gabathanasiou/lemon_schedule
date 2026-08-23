@@ -31,20 +31,17 @@ test.describe('Apple Pencil in modals', () => {
   test('shared Modal (Help): item tap stays open, close tap works', async ({ page }) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(500);
-    await page.getByTitle('Keyboard Shortcuts & Help').click();
+        await page.getByTitle('Keyboard Shortcuts & Help').click();
     await page.waitForTimeout(400);
 
     const table = page.locator('[role="dialog"] table').first();
     await expect(table).toBeVisible();
     const tb = await table.boundingBox();
     await penTapAt(page, tb!.x + 50, tb!.y + 20);
-    await page.waitForTimeout(400);
-    expect(await dialogVisible(page)).toBe(true);
+    await expect.poll(() => dialogVisible(page), { timeout: 5000 }).toBe(true);
 
     await penTap(page, page.getByRole('button', { name: 'Close' }));
-    await page.waitForTimeout(400);
-    expect(await dialogVisible(page)).toBe(false);
+    await expect.poll(() => dialogVisible(page), { timeout: 5000 }).toBe(false);
   });
 
   test('note editor (Edit Banner): pen taps work', async ({ page }) => {
@@ -56,7 +53,9 @@ test.describe('Apple Pencil in modals', () => {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
       if (!key) return null;
       const p = JSON.parse(localStorage.getItem(key)!);
-      const v = p.versions?.[p.activeVersionId] || p.versions?.[0];
+      const v = Array.isArray(p.versions)
+        ? p.versions.find((x: any) => x.id === p.activeVersionId) || p.versions[0]
+        : p.versions?.[p.activeVersionId];
       return v?.rows?.find((r: any) => r.type === 'NOTE')?.id ?? null;
     });
     expect(noteId).not.toBeNull();
@@ -77,20 +76,17 @@ test.describe('Apple Pencil in modals', () => {
     await expect(textarea).toBeVisible();
     const ta = await textarea.boundingBox();
     await penTapAt(page, ta!.x + 20, ta!.y + 20);
-    await page.waitForTimeout(400);
-    expect(await dialogVisible(page)).toBe(true);
+    await expect.poll(() => dialogVisible(page), { timeout: 5000 }).toBe(true);
 
     // pen tap Cancel closes
     await penTap(page, page.getByRole('button', { name: 'Cancel' }));
-    await page.waitForTimeout(400);
-    expect(await dialogVisible(page)).toBe(false);
+    await expect.poll(() => dialogVisible(page), { timeout: 5000 }).toBe(false);
   });
 
   test('custom overlay (RuleFormModal): pen taps work', async ({ page }) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Rules' }).click();
-    await page.waitForTimeout(500);
-    await page.getByRole('button', { name: 'New Rule' }).click();
+        await page.getByRole('button', { name: 'New Rule' }).click();
     await page.waitForTimeout(400);
 
     const saveBtn = page.getByRole('button', { name: /Add Rule|Save Changes/ });
@@ -101,14 +97,12 @@ test.describe('Apple Pencil in modals', () => {
     const mb = await modal.boundingBox();
     expect(mb).not.toBeNull();
     await penTapAt(page, mb!.x + 40, mb!.y + 60);
-    await page.waitForTimeout(400);
-    expect(await customModalVisible(page)).toBe(true);
+    await expect.poll(() => customModalVisible(page), { timeout: 5000 }).toBe(true);
 
     // pen tap the X close button
     const closeBtn = modal.locator('button').first();
     await penTap(page, closeBtn);
-    await page.waitForTimeout(400);
-    expect(await saveBtn.isVisible().catch(() => false)).toBe(false);
+    await expect.poll(() => saveBtn.isVisible().catch(() => false), { timeout: 5000 }).toBe(false);
   });
 
   test('color picker (ColorField): pen tap opens via showPicker', async ({ page }) => {
@@ -120,7 +114,9 @@ test.describe('Apple Pencil in modals', () => {
       const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
       if (!key) return null;
       const p = JSON.parse(localStorage.getItem(key)!);
-      const v = p.versions?.[p.activeVersionId] || p.versions?.[0];
+      const v = Array.isArray(p.versions)
+        ? p.versions.find((x: any) => x.id === p.activeVersionId) || p.versions[0]
+        : p.versions?.[p.activeVersionId];
       return v?.rows?.find((r: any) => r.type === 'NOTE')?.id ?? null;
     });
     expect(noteId).not.toBeNull();
@@ -131,8 +127,7 @@ test.describe('Apple Pencil in modals', () => {
       const r = el.getBoundingClientRect();
       el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
     });
-    await page.waitForTimeout(600);
-    await expect(page.getByText('Edit Banner')).toBeVisible({ timeout: 5000 });
+        await expect(page.getByText('Edit Banner')).toBeVisible({ timeout: 5000 });
 
     // spy on showPicker
     await page.evaluate(() => {
@@ -148,7 +143,6 @@ test.describe('Apple Pencil in modals', () => {
     const swatch = page.locator('[role="dialog"] input[type="color"]').first();
     await expect(swatch).toBeVisible();
     await penTap(page, swatch);
-    await page.waitForTimeout(400);
 
     const calls = await page.evaluate(() => (window as any).__pickerCalls);
     console.log('PICKER CALLS: ' + JSON.stringify(calls));

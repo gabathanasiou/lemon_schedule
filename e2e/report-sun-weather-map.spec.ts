@@ -122,12 +122,10 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
 
     await page.goto('http://localhost:3001/lemon_schedule/');
     await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-    await page.waitForTimeout(1000);
-
+    
     await page.getByRole('button', { name: 'Design', exact: true }).click();
     await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-    await page.waitForTimeout(500);
-
+    
     // ---- Sun & Weather: day tokens resolve from the (mocked) cache ----
     await expect(page.getByText('Sunrise 05:44 · Sunset 20:25 · Weather Partly cloudy · 18–24°C', { exact: false })).toBeVisible({ timeout: 8000 });
 
@@ -185,15 +183,12 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     // re-center (react-leaflet's center prop is init-only).
     const paneBefore = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     await page.locator('[data-block-id="map-block"]').click({ force: true });
-    await page.waitForTimeout(300);
-    await page.getByRole('button', { name: 'Change location' }).click();
+        await page.getByRole('button', { name: 'Change location' }).click();
     await expect(page.getByText('Attach a location')).toBeVisible();
     await page.getByPlaceholder('Search an address or place…').fill('Big Ben');
-    await page.waitForTimeout(700);
-    await page.getByRole('dialog').getByText('Big Ben, Bridge Street', { exact: false }).click();
+        await page.getByRole('dialog').getByText('Big Ben, Bridge Street', { exact: false }).click();
     await page.getByRole('button', { name: 'Attach pin' }).click();
-    await page.waitForTimeout(500);
-    const paneAfter = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
+        const paneAfter = await page.locator('[data-block-id="map-block"] .leaflet-map-pane').evaluate(el => el.style.transform);
     expect(paneAfter).not.toBe(paneBefore);
     // The address bar formats the picker's structured parts (address, city, postcode).
     await expect(page.locator('[data-block-id="map-block"]')).toContainText('1 Bridge Street, London SW1A 2JR');
@@ -202,20 +197,17 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
     // ---- image block: attach a file → data URL renders in the block ----
     // Deselect first: the map block's floating chrome overlaps the image card.
     await page.locator('.flex-1.overflow-auto.p-8').click({ position: { x: 8, y: 300 } });
-    await page.waitForTimeout(200);
-    await page.locator('[data-block-id="img-block"]').click();
-    await page.waitForTimeout(300);
-    await page.locator('#report-image-input-img-block').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG_1PX });
+        await page.locator('[data-block-id="img-block"]').click();
+        await page.locator('#report-image-input-img-block').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: PNG_1PX });
     await expect(page.locator('[data-block-id="img-block"] img[src^="data:image/png"]')).toBeVisible({ timeout: 5000 });
 
     // ---- text block: a typed URL becomes a clickable link ----
     // Deselect (map chrome overlaps the repeat card), then select the text block.
     await page.locator('.flex-1.overflow-auto.p-8').click({ position: { x: 8, y: 300 } });
-    await page.waitForTimeout(200);
-    await page.locator('[data-block-id="t-env"]').click();
-    await page.waitForTimeout(300);
-    const prose = page.locator('.block-chrome .richtext-editor .ProseMirror');
+        await page.locator('[data-block-id="t-env"]').click();
+        const prose = page.locator('.block-chrome .richtext-editor .ProseMirror');
     await prose.click();
+    await expect(prose).toBeFocused({ timeout: 5000 });
     await page.keyboard.press('End');
     await page.keyboard.type(' https://example.com ');
     await expect(page.locator('[data-block-id="t-env"] a[href="https://example.com"]')).toBeAttached({ timeout: 5000 });

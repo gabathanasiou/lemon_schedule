@@ -48,8 +48,7 @@ test.describe('Glide Breakdown clipboard', () => {
   const openGlide = async (page: any) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Glide Breakdown' }).click();
-    await page.waitForTimeout(1500);
-  };
+    };
 
   const isCoarse = (page: any) => page.evaluate(() => window.matchMedia('(pointer: coarse)').matches);
 
@@ -83,14 +82,12 @@ test.describe('Glide Breakdown clipboard', () => {
     } else {
       await page.mouse.click(g.x + g.markerW / 2, g.y + g.headerH + row * g.rowH + g.rowH / 2, { button: 'right' });
     }
-    await page.waitForTimeout(700);
-  };
+    };
 
   const tapCell = async (page: any, row: number, colIndex: number) => {
     const g = await gridGeo(page);
     await tapAt(page, g.x + g.markerW + g.actionsW + colIndex * g.colW + g.colW / 2, g.y + g.headerH + row * g.rowH + g.rowH / 2);
-    await page.waitForTimeout(600);
-  };
+    };
 
   const clipRead = (page: any) =>
     page.evaluate(async () => {
@@ -135,8 +132,7 @@ test.describe('Glide Breakdown clipboard', () => {
     const copyItem = page.getByText('Copy', { exact: true }).last();
     await expect(copyItem).toBeVisible();
     await copyItem.click();
-    await page.waitForTimeout(700);
-    expect(await clipRead(page)).toMatch(FIRST_ROW_CLIP);
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toMatch(FIRST_ROW_CLIP);
   });
 
   test('CTX: Cut row clears it and copies to clipboard', async ({ page }) => {
@@ -145,8 +141,7 @@ test.describe('Glide Breakdown clipboard', () => {
     const cutItem = page.getByText('Cut', { exact: true }).last();
     await expect(cutItem).toBeVisible();
     await cutItem.click();
-    await page.waitForTimeout(700);
-    expect(await clipRead(page)).toMatch(FIRST_ROW_CLIP);
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toMatch(FIRST_ROW_CLIP);
     await expectSceneNum(page, 0, '');
   });
 
@@ -176,8 +171,7 @@ test.describe('Glide Breakdown clipboard', () => {
     await openGlide(page);
     await tapCell(page, 0, 0);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+c' : 'Control+c');
-    await page.waitForTimeout(600);
-    expect(await clipRead(page)).toBe('1');
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toBe('1');
   });
 
   test('KB: Cmd+V pastes into the focused cell', async ({ page }) => {
@@ -192,8 +186,7 @@ test.describe('Glide Breakdown clipboard', () => {
     await openGlide(page);
     await tapCell(page, 0, 0);
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+x' : 'Control+x');
-    await page.waitForTimeout(700);
-    expect(await clipRead(page)).toBe('1');
+        await expect.poll(() => clipRead(page), { timeout: 5000 }).toBe('1');
     await expectSceneNum(page, 0, '');
   });
 

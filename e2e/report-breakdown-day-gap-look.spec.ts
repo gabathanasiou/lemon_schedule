@@ -97,11 +97,9 @@ async function openDesignerWithDesign(page: any, project: any) {
   });
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(800);
-}
+  }
 
 test('days repeat resolves Breakdown attributes per-day; palette offers the Breakdown group', async ({ page }) => {
   const seed = loadSeedProject();
@@ -145,8 +143,7 @@ test('days repeat resolves Breakdown attributes per-day; palette offers the Brea
   // Selecting a block inside the days repeat offers the Breakdown group in
   // the attribute palette.
   await page.locator(`[data-block-id="${B('d1c1')}"]`).click({ force: true });
-  await page.waitForTimeout(200);
-  await expect(page.locator('aside').first().getByText('Breakdown', { exact: true })).toBeVisible();
+    await expect(page.locator('aside').first().getByText('Breakdown', { exact: true })).toBeVisible();
 });
 
 test('preview renders a different Breakdown union for every day', async ({ page }) => {

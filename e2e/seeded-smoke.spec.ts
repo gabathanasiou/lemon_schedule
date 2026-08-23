@@ -10,7 +10,6 @@ test.describe('Seeded Project Smoke Tests', () => {
     const scheduleBtn = page.getByRole('button', { name: 'Schedule' });
     await expect(scheduleBtn).toBeVisible({ timeout: 8000 });
     await scheduleBtn.click();
-    await page.waitForTimeout(800);
 
     await expect(page.locator('[data-row-id]').first()).toBeAttached({ timeout: 5000 });
     const rowCount = await page.locator('[data-row-id]').count();
@@ -24,7 +23,6 @@ test.describe('Seeded Project Smoke Tests', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Calendar' }).click();
-    await page.waitForTimeout(800);
 
     await expect(page.locator('.dvn-underlay')).not.toBeAttached();
     await expect(page.locator('[data-cal-month]').first()).toBeAttached({ timeout: 5000 });
@@ -34,7 +32,6 @@ test.describe('Seeded Project Smoke Tests', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Glide Breakdown' }).click();
-    await page.waitForTimeout(1000);
 
     const scroller = page.locator('.dvn-scroller');
     await expect(scroller).toBeAttached({ timeout: 5000 });
@@ -55,7 +52,6 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
   test('toolbar renders with days count, Edit, Print, Day Breaks and Banners', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(800);
 
     await expect(page.getByRole('button', { name: 'Edit' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Print' })).toBeVisible();
@@ -67,12 +63,9 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
   test('context menu opens on right-click of a strip', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(800);
 
     const row = page.locator('[data-row-id]').first();
     await row.click({ button: 'right', force: true });
-    await page.waitForTimeout(300);
-
     await expect(page.getByRole('button', { name: 'Add Note Below' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add Day Break Below' })).toBeVisible();
     await page.keyboard.press('Escape');
@@ -81,10 +74,8 @@ test.describe('Schedule Tab Toolbar & Context Menu', () => {
   test('view menu shows ribbon layouts and stripboard view', async ({ page }) => {
     await openSeededProject(page);
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(800);
 
     await page.getByRole('button', { name: 'View', exact: true }).click();
-    await page.waitForTimeout(200);
     await expect(page.getByRole('menuitem', { name: 'Ribbon Layout' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Cell Borders' })).toBeVisible();
     await page.keyboard.press('Escape');
@@ -95,8 +86,6 @@ test.describe('Design Tab', () => {
   test('design tab renders ribbon designer with palette and toolbar', async ({ page }) => {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Design' }).click();
-  await page.waitForTimeout(800);
-
   await expect(page.getByText('Editing:')).toBeVisible();
   await expect(page.getByText('Fields')).toBeVisible();
   await expect(page.getByText('Structure', { exact: true })).toBeVisible();
@@ -115,12 +104,9 @@ test.describe('Print', () => {
     await openSeededProject(page);
 
     await page.getByRole('button', { name: 'Schedule' }).click();
-    await page.waitForTimeout(800);
     await page.getByRole('button', { name: 'Print' }).click();
-    await page.waitForTimeout(500);
 
     await page.getByRole('button', { name: 'Print / Save PDF' }).click();
-    await page.waitForTimeout(1200);
 
     await expect(page.locator('.print-root').first()).toBeAttached({ timeout: 5000 });
     await expect(page.locator('text=START OF DAY').first()).toBeVisible();
@@ -130,47 +116,28 @@ test.describe('Print', () => {
   });
 });
 
-
 test.describe('Daybreak Context Actions', () => {
   test('add day break via context menu creates a DAYBREAK row', async ({ page }) => {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Schedule' }).click();
-  await page.waitForTimeout(800);
 
-  const before = await page.evaluate(() => {
-    try {
-      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-      const project = JSON.parse(localStorage.getItem(key)!);
-      const v = project.versions.find((x: any) => x.id === project.activeVersionId);
-      return v.rows.filter((r: any) => r.type === 'DAYBREAK').length;
-    } catch { return -1; }
-  });
+  const daybreakCount = () => (window as any).__lemonSchedule?.getRows()?.rows.filter((r: any) => r.type === 'DAYBREAK').length ?? -1;
 
   // Right-click the first scene row (2nd [data-row-id], first is pinned daybreak)
+  const before = await page.evaluate(daybreakCount);
   const row = page.locator('[data-row-id]').nth(1);
   await row.click({ button: 'right', force: true });
-  await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Add Day Break Below' }).click();
-  await page.waitForTimeout(600);
-
-  const after = await page.evaluate(() => {
-    try {
-      const key = Object.keys(localStorage).find(k => k.startsWith('lemon_schedule_project_v1'));
-      const project = JSON.parse(localStorage.getItem(key)!);
-      const v = project.versions.find((x: any) => x.id === project.activeVersionId);
-      return v.rows.filter((r: any) => r.type === 'DAYBREAK').length;
-    } catch { return -1; }
-  });
+  await expect(page.locator('[data-testid="daybreak-row"]').first()).toBeAttached({ timeout: 5000 });
+  const after = await page.evaluate(daybreakCount);
   expect(after).toBe(before + 1);
 });
 });
-
 
 test.describe('Calendar Keyboard', () => {
   test('calendar arrow keys navigate selection in boneyard', async ({ page }) => {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Calendar' }).click();
-  await page.waitForTimeout(800);
 
   // Select a boneyard card then arrow-down
   const boneyardCard = page.locator('#boneyard_rows_container [data-row-id], [data-row-id]').last();
@@ -178,8 +145,7 @@ test.describe('Calendar Keyboard', () => {
   await page.waitForTimeout(200);
 
   await page.keyboard.press('ArrowDown');
-  await page.waitForTimeout(200);
-  await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
 
   // Escape clears selection without errors; page still renders
@@ -187,26 +153,19 @@ test.describe('Calendar Keyboard', () => {
 });
 });
 
-
 test.describe('Stripboard Keyboard', () => {
   test('stripboard keyboard: Cmd+A selects all and arrows navigate', async ({ page }) => {
   await openSeededProject(page);
   await page.getByRole('button', { name: 'Schedule' }).click();
-  await page.waitForTimeout(800);
 
   await page.locator('[data-row-id]').nth(1).click();
-  await page.waitForTimeout(200);
   await page.keyboard.press('Meta+A');
-  await page.waitForTimeout(300);
-
   await expect(page.locator('text=strips selected').first()).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
+  await page.keyboard.press('Escape');
 
   await page.locator('[data-row-id]').nth(1).click();
-  await page.waitForTimeout(200);
   await page.keyboard.press('ArrowDown');
-  await page.waitForTimeout(200);
 
   // No crash, stripboard still renders
   await expect(page.locator('[data-row-id]').first()).toBeAttached({ timeout: 3000 });

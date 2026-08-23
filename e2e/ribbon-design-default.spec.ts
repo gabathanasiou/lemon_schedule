@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loadSeedProject } from './helpers';
+import { loadSeedProject, waitForPersistedProject } from './helpers';
 
 type Project = any;
 
@@ -23,12 +23,11 @@ async function seedProject(page: import('@playwright/test').Page, mutate: (p: Pr
   }, { projectJson, meta });
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
+  await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
 async function openDesignTab(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Design' }).click();
-  await page.waitForTimeout(800);
 }
 
 test.describe('ribbon design default save', () => {
@@ -37,17 +36,16 @@ test.describe('ribbon design default save', () => {
     await seedProject(page, p => { p.activeRibbonId = 'nonexistent-design-id'; });
 
     await openDesignTab(page);
-    await page.waitForTimeout(800);
 
     // no prompt on entering the tab either (StrictMode double-mount)
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
     // leave the design tab without touching anything
     await page.getByRole('button', { name: 'Reports', exact: true }).click();
-    await page.waitForTimeout(800);
-
+    
     await expect(page.getByRole('dialog')).toHaveCount(0);
     // the stale active id was repaired to a real design on load
+    await waitForPersistedProject(page, "p.activeRibbonId === p.ribbonDesigns[0].id");
     const project = await getProject(page);
     expect(project.activeRibbonId).toBe(project.ribbonDesigns[0].id);
   });
@@ -58,13 +56,11 @@ test.describe('ribbon design default save', () => {
     await openDesignTab(page);
     // select a cell, then assign the Wardrobe field from the palette
     await page.locator('[data-cell-id]').first().click();
-    await page.waitForTimeout(300);
     await page.getByRole('button', { name: /Wardrobe/ }).click();
-    await page.waitForTimeout(500);
+    await waitForPersistedProject(page, "JSON.stringify(p.ribbonDesigns).includes('wardrobe')");
 
     await page.getByRole('button', { name: 'Reports', exact: true }).click();
-    await page.waitForTimeout(800);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+        await expect(page.getByRole('dialog')).toHaveCount(0);
 
     const project = await getProject(page);
     const active = project.ribbonDesigns.find((d: any) => d.id === project.activeRibbonId);

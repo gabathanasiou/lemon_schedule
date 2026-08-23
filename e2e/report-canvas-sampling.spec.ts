@@ -10,14 +10,11 @@ async function openSceneBreakdown(page: any, project: any) {
   }, { projectJson: JSON.stringify(project), metaJson: meta });
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(project.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-  await page.getByText('Editing: One-Liner', { exact: true }).click();
+    await page.getByText('Editing: One-Liner', { exact: true }).click();
   await page.getByRole('menuitem', { name: 'Scene Breakdown' }).click();
-  await page.waitForTimeout(600);
-}
+  }
 
 test('canvas repeat samples the first scene WITH data, not the first row', async ({ page }) => {
   const seed = loadSeedProject();

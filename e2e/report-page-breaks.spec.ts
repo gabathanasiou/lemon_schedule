@@ -49,11 +49,9 @@ async function openDesigner(page: any) {
   const seed = loadSeedProject();
   const card = page.getByText(seed.data.title, { exact: true }).first();
   await card.click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-  await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-}
+  }
 
 async function openPrintView(page: any) {
   await openDesigner(page);

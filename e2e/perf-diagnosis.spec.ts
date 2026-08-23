@@ -70,7 +70,7 @@ function fmtDelta(a: CpuCounters, b: CpuCounters, label: string): void {
   console.log(`[cpu] ${label}: script=${d('script')}ms task=${d('task')}ms layout=${d('layout')}ms recalc=${d('recalc')}ms`);
 }
 
-test('diagnosis: memory + cpu over repeated workflows (Town project)', async ({ page }) => {
+test('@perf diagnosis: memory + cpu over repeated workflows (Town project)', async ({ page }) => {
   test.setTimeout(600000);
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule' }).click();
@@ -114,13 +114,11 @@ test('diagnosis: memory + cpu over repeated workflows (Town project)', async ({ 
     for (let i = 0; i < 3; i++) {
       const printBtn = page.locator('button:has-text("Print")').last();
       await printBtn.click({ timeout: 5000 });
-      await page.waitForTimeout(300);
-      await page.keyboard.press('Escape');
+            await page.keyboard.press('Escape');
       await page.waitForTimeout(300);
       const row = page.locator('[data-row-id]:not([aria-disabled="true"])').first();
       await row.click({ button: 'right', timeout: 5000 });
-      await page.waitForTimeout(300);
-      await page.mouse.click(8, 8);
+            await page.mouse.click(8, 8);
       await page.waitForTimeout(300);
     }
   });
@@ -166,10 +164,8 @@ test('diagnosis: memory + cpu over repeated workflows (Town project)', async ({ 
       if (!box) continue;
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.down();
-      await page.waitForTimeout(120);
-      await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 160, { steps: 8 });
-      await page.waitForTimeout(120);
-      await page.mouse.up();
+            await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 160, { steps: 8 });
+            await page.mouse.up();
       await page.waitForTimeout(300);
     }
   });
@@ -179,8 +175,7 @@ test('diagnosis: memory + cpu over repeated workflows (Town project)', async ({ 
     await page.waitForTimeout(1500);
     for (let i = 0; i < 3; i++) {
       await page.mouse.click(300 + i * 60, 220);
-      await page.waitForTimeout(300);
-      await page.keyboard.type('42');
+            await page.keyboard.type('42');
       await page.keyboard.press('Enter');
       await page.waitForTimeout(400);
     }

@@ -2,9 +2,10 @@
 
 ## Commands
 - `npm run dev` — dev server (port 3000). `npm run lint` — `tsc --noEmit` (no ESLint/prettier). `npm run build` / `npm run preview`.
-- `npx playwright test` — E2E (auto-starts dev server on 3001; tests in `e2e/`).
-- `npx playwright test --config=playwright.perf.config.ts` / `playwright.perf-prod.config.ts` — perf/memory harness (dev :3001 / prod preview :4173; seeds Town; see `docs/PERF-DIAGNOSIS.md`).
-- `e2e/helpers.ts`: `ensureProject(page)` (creates a project from Project Manager), `openSeededProject(page)` (loads "Town - Jason" from `~/Downloads` into localStorage pre-boot; override via `LEMON_SEED_PATH`). `seeded-smoke.spec.ts` exercises the real project: stripboard, calendar, glide, designer, print.
+- `npx playwright test` — E2E against the **production preview build** (auto `npm run build` ~4s + `vite preview` on 3001; ~2× faster than dev since no per-module transforms). Set `PLAYWRIGHT_DEV=1` to run against the dev server instead. Tests in `e2e/`.
+- Perf/memory harnesses are tagged `@perf` and EXCLUDED from the default run (`grepInvert`) — run them explicitly: `npx playwright test --config=playwright.perf.config.ts` (dev :3001) / `playwright.perf-prod.config.ts` (preview :4173); see `docs/PERF-DIAGNOSIS.md`.
+- The suite opens agent mode in prod builds (`LEMON_AGENT=1` via `storageState` in `playwright.config.ts`) so specs can read `window.__lemonSchedule` state — prefer the bridge over localStorage reads (sync, no debounced-save waits). Prefer `expect`/`expect.poll`/`waitForFunction` over `waitForTimeout` (web-first; remaining waits are true interaction pacing: drags, canvas settles).
+- `e2e/helpers.ts`: `ensureProject(page)`, `openSeededProject(page)` (seeds "Town - Jason" from `~/Downloads` pre-boot; override via `LEMON_SEED_PATH`; boots to the header anchor — no sleeps), `waitForPersistedProject(page, expr)` (polls localStorage for a normalized state — use before reads when persistence is under test). Seed + seed-script cached per project JSON/worker.
 - `DISABLE_HMR=true` — disable HMR/file watching (AI Studio sets this).
 
 ## Core Rules (read first — these override convenience)

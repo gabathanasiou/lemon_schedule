@@ -21,11 +21,9 @@ test('table over menu drops cast and nests categories in an elements submenu', a
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Table', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   const tableOver = page.getByRole('button', { name: 'Scenes', exact: true });
   await tableOver.click();
 
@@ -49,19 +47,16 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
   await page.addInitScript(() => localStorage.setItem('lemon_schedule_view_mode', 'portrait'));
   await page.goto('http://localhost:3001/lemon_schedule/');
   await page.getByText(seed.data.title, { exact: true }).first().click({ timeout: 8000 });
-  await page.waitForTimeout(1000);
-
+  
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   const sheet = page.locator('div[style*="rgb(228, 228, 231)"]').first();
   const w0 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.getByText('A4 Landscape', { exact: true }).click();
-  await page.waitForTimeout(300);
-  const w1 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
+    const w1 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
   expect(w1).toBe(1060);
   expect(w1).toBeGreaterThan(w0);
 
@@ -74,15 +69,13 @@ test('reports designer view toggle switches canvas width (portrait/landscape/ful
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.getByText('Full Width', { exact: true }).click();
-  await page.waitForTimeout(300);
-  const w2 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
+    const w2 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
   const cw = await sheet.evaluate(el => (el.parentElement as HTMLElement).clientWidth);
   expect(w2).toBe(cw - 64);
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.getByText('A4 Portrait', { exact: true }).click();
-  await page.waitForTimeout(300);
-  const w3 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
+    const w3 = await sheet.evaluate(el => (el as HTMLElement).offsetWidth);
   expect(w3).toBe(730);
 });
 
@@ -91,45 +84,37 @@ test('keys/values toggle switches text blocks and table cells', async ({ page })
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 5000 });
   await expect(page.getByText('FISHERMAN, BLACK')).toBeVisible({ timeout: 3000 });
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.locator('.ui-menu').getByText('Show field keys', { exact: true }).click();
-  await page.waitForTimeout(300);
-
+  
   await expect(page.getByText('{{title}} — One-Liner')).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('{{cast}}').first()).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('FISHERMAN, BLACK')).toHaveCount(0);
 
   await page.getByRole('button', { name: /View:/ }).click();
   await page.locator('.ui-menu').getByText('Show field values', { exact: true }).click();
-  await page.waitForTimeout(300);
-
+  
   await expect(page.getByText('Town - Jason — One-Liner')).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('FISHERMAN, BLACK')).toBeVisible({ timeout: 3000 });
 });
-
 
 test('repeat nested in a categories repeat offers Elements (of this category)', async ({ page }) => {
   await openSeededProject(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByText('Editing:', { exact: false }).click();
   await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByText('Repeat: Categories', { exact: true }).click();
-  await page.waitForTimeout(300);
-
+  
   await page.getByRole('button', { name: 'Repeat', exact: true }).dragTo(page.locator('.repeat-children .block-dropzone').last());
-  await page.waitForTimeout(500);
-
+  
   const repeatOver = page.getByRole('button', { name: 'Scenes (of this category)', exact: true });
   await expect(repeatOver).toBeVisible({ timeout: 3000 });
   await repeatOver.click();
@@ -147,11 +132,9 @@ test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them',
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Repeat', exact: true }).click();
-  await page.waitForTimeout(300);
-
+  
   const paletteCast = page.getByRole('button', { name: 'Cast ID', exact: true });
   await expect(paletteCast).toHaveCount(0);
 
@@ -165,8 +148,7 @@ test('cast repeat exposes Cast ID / Cast ID & Name attributes and renders them',
   await expect(page.getByRole('button', { name: 'Cast ID & Name', exact: true })).toBeVisible({ timeout: 3000 });
 
   await page.getByRole('button', { name: 'Cast ID & Name', exact: true }).dragTo(page.getByText('Drop inside repeat (or click to add text)'));
-  await page.waitForTimeout(500);
-  await expect(page.getByText('1. FISHERMAN', { exact: true })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText('1. FISHERMAN', { exact: true })).toBeVisible({ timeout: 3000 });
 });
 
 test('element work/shoot day attributes fill for mixed-case elements', async ({ page }) => {
@@ -174,15 +156,12 @@ test('element work/shoot day attributes fill for mixed-case elements', async ({ 
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByText('Editing:', { exact: false }).click();
   await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(800);
-
+  
   // "Sunny's gun" is a capitalized props element — its Shoot Days cell was
   // empty before the case-insensitive element match; it now lists real days.
   const row = page.locator('.report-table-cols > div').filter({ hasText: "Sunny's gun" }).first();
@@ -191,21 +170,17 @@ test('element work/shoot day attributes fill for mixed-case elements', async ({ 
   await expect(row).toContainText('Day 12 (Tue, Aug 25)');
 });
 
-
 test('category breakdown template iterates categories; skip empty + exclude work', async ({ page }) => {
   await openSeededProject(page);
 
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   await page.getByRole('button', { name: 'Reports Designer', exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByText('Editing:', { exact: false }).click();
   await page.locator('.ui-menu').getByText('Category Breakdown', { exact: true }).click();
-  await page.waitForTimeout(500);
-
+  
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(800);
-  for (const label of ['Cast', 'Props', 'Wardrobe']) {
+    for (const label of ['Cast', 'Props', 'Wardrobe']) {
     await expect(page.getByText(label, { exact: true })).toBeVisible({ timeout: 3000 });
   }
   await expect(page.getByText('FISHERMAN', { exact: true })).toBeVisible({ timeout: 3000 });
@@ -213,18 +188,15 @@ test('category breakdown template iterates categories; skip empty + exclude work
 
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.getByText('Repeat: Categories').click();
-  await page.waitForTimeout(300);
-
+  
   const skipEmpty = page.getByText('Skip categories with no elements');
   await expect(skipEmpty).toBeVisible({ timeout: 3000 });
 
   await page.getByRole('button', { name: 'None' }).click();
   await page.locator('.ui-menu').getByText('Cast', { exact: true }).click();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
-
+  
   await page.getByRole('button', { name: 'Preview' }).click();
-  await page.waitForTimeout(800);
-  await expect(page.getByText('Props', { exact: true })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByText('Props', { exact: true })).toBeVisible({ timeout: 3000 });
   await expect(page.getByText('Cast', { exact: true })).toHaveCount(0);
 });
