@@ -2,19 +2,28 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { ReportBlock } from '../../types';
 import { ReportCtx, ReportScopeFilter, RibbonPrintOptions } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
-import { BodyChunk, FragmentPartUnit, PageChunk, PageItem } from '../../lib/reportPagination';
+import { BodyChunk, FragmentPartUnit, PageChunk } from '../../lib/reportPagination';
 import { REPORT_PAGE_METRICS } from './reportStyle';
-import { PageItemBody, ReportBlockView } from './ReportBlockView';
+import { ReportBlockView } from './ReportBlockView';
 
-// Measured pagination for reports. The structural pages from buildReportPages
-// are rendered offscreen ONCE (ReportMeasureContainer), element heights are
-// read from the real engine's layout, and content is split into page-sized
-// chunks. Both print and preview render the SAME chunks, so the preview always
-// equals the print (reportPagination.md rule 7).
+// Measured pagination for reports. The structural pages from paginateBlocks
+// (top-level pageBreak splits) are rendered offscreen ONCE (ReportMeasureContainer),
+// element heights are read from the real engine's layout, and content is split
+// into page-sized chunks. Both print and preview render the SAME chunks, so the
+// preview always equals the print (reportPagination.md rule 7).
 //
-// Granularity:
+// A `pageBreak` block ANYWHERE in the render is a hard chunk boundary: the
+// block renders a zero-height `data-rm-pagebreak` marker, the walker emits a
+// `break` unit for it, and fillPages closes the current page there (a break at
+// the START of a page is a no-op — items that render nothing produce no pages).
+// Containers that cannot be sliced (columns/callSheetEdit) get `breakBefore`:
+// the whole container starts a new page when it contains a break.
+//
+// Granularity (universal):
 //  - whole blocks keep together (move to the next page when they don't fit);
-//  - repeats split between ITEMS;
+//  - repeat/relative items dissolve into their CHILDREN (whole blocks, split
+//    ribbons between strips, split tables between rows repeating the header,
+//    split nested repeats between items) — items fill pages contiguously;
 //  - tables split between ROWS, repeating the column header on continuation
 //    pages (classic "thead repeats" behavior);
 //  - ribbons split between STRIPS/note/break/daybreak units — never mid-strip;
@@ -25,7 +34,7 @@ import { PageItemBody, ReportBlockView } from './ReportBlockView';
 
 interface PaginatorParams {
   measureRef: React.RefObject<HTMLDivElement | null>;
-  pages: PageItem[][];
+  pages: ReportBlock[][];
   headerBlocks?: ReportBlock[];
   footerBlocks?: ReportBlock[];
   headerSkipFirst?: boolean;
@@ -49,27 +58,32 @@ interface FlatUnit {
   el: HTMLElement;
   local: number;
   blockEl: HTMLElement;
-  /** Fragment-split metadata: which child of the repeat fragment this unit
+  /** Dissolved repeat metadata: which child of which repeat item this unit
    *  belongs to, and the splittable kind of that child. Whole children and
-   *  non-splittable blocks carry `unitKind: 'whole'`. */
+   *  non-splittable blocks carry `unitKind: 'whole'`; pageBreak markers carry
+   *  `unitKind: 'break'` (h = 0, a hard page boundary). */
   fragChild?: number;
-  unitKind?: 'whole' | 'ribbon' | 'table' | 'repeat';
+  itemLocal?: number;
+  unitKind?: 'whole' | 'ribbon' | 'table' | 'repeat' | 'break';
+  /** Unit must START a new page (a pageBreak exists inside an unsplittable
+   *  container — the whole container moves to the next page). */
+  breakBefore?: boolean;
 }
 
-function wholeUnit(wrapper: HTMLElement): FlatUnit {
-  return { h: wrapper.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: wrapper, local: 0, blockEl: wrapper };
+function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUnit {
+  return { h: wrapper.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: wrapper, local: 0, blockEl: wrapper, ...extra };
 }
 
 
 /** Columns-grid table: one unit per row, plus a header unit (local -1) when
  *  showHeader. Continuation rows reserve the repeated header height. */
-function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', fragChild?: number): FlatUnit[] {
+function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', fragChild?: number, itemLocal?: number): FlatUnit[] {
   const containers = scope.querySelectorAll('.report-table-cols');
   const first = containers[0] as HTMLElement | undefined;
   if (first && first.classList.contains('rm-row')) {
     // rows-matrix: one self-contained grid per row group (label header is
     // inside each group) — no repeated header needed.
-    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, unitKind: 'table' }));
+    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, itemLocal, unitKind: 'table' }));
   }
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
@@ -86,60 +100,93 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       local: i,
       blockEl,
       fragChild,
+      itemLocal,
       unitKind: 'table',
     }));
-    if (headerEl) units.unshift({ h: headerH, gapBefore: 0, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, unitKind: 'table' } as FlatUnit);
+    if (headerEl) units.unshift({ h: headerH, gapBefore: 0, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, itemLocal, unitKind: 'table' } as FlatUnit);
     return units;
   }
-  return [{ ...wholeUnit(scope), blockEl, fragChild, unitKind: kind } as FlatUnit];
+  return [{ ...wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: kind }) } as FlatUnit];
 }
 
-function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: number): FlatUnit[] {
+/** One dissolved repeat item's children: each child block flows independently
+ *  (whole children move whole, ribbons split between strips, tables between
+ *  rows, nested repeats between items) and a pageBreak child is a hard break. */
+function flattenFragChildren(
+  fragChildren: HTMLElement[],
+  blockEl: HTMLElement,
+  fragChild: number,
+  itemLocal: number,
+  unitKindForWhole: 'whole' | 'repeat',
+): FlatUnit[] {
+  const units: FlatUnit[] = [];
+  for (let ci = 0; ci < fragChildren.length; ci++) {
+    const el = fragChildren[ci];
+    if (el.querySelector(':scope > [data-rm-pagebreak]')) {
+      units.push({ h: 0, gapBefore: 0, pageStartExtra: 0, el, local: -1, blockEl, fragChild: ci, itemLocal, unitKind: 'break' });
+      continue;
+    }
+    const ribbonUnits = Array.from(el.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
+    if (ribbonUnits.length > 0) {
+      for (const [ri, ru] of ribbonUnits.entries()) {
+        units.push({ h: ru.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: ru, local: ri, blockEl, fragChild: ci, itemLocal, unitKind: 'ribbon' });
+      }
+      continue;
+    }
+    if (el.querySelector('.report-table-cols')) {
+      units.push(...flattenTable(el, blockEl, 'table', ci, itemLocal));
+      continue;
+    }
+    if (el.querySelector('.rm-repeat-col')) {
+      units.push(...flattenRepeat(el, blockEl, ci, itemLocal));
+      continue;
+    }
+    units.push({
+      ...wholeUnit(el, { blockEl, fragChild: ci, itemLocal, unitKind: unitKindForWhole, local: -1, breakBefore: !!el.querySelector('[data-rm-pagebreak]') }),
+    });
+  }
+  return units;
+}
+
+/** Repeat/relative items. When the item has child wrappers (`.rm-frag-child`)
+ *  they dissolve into independent units (universal fragment splitting); an
+ *  item without children stays one atomic unit. Nested repeats resolve here
+ *  too (their items stay atomic — split between ITEMS via itemRange parts). */
+function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: number, itemLocal?: number): FlatUnit[] {
   const col = scope.querySelector('.rm-repeat-col');
   const items = col ? Array.from(col.children).filter(c => c.classList.contains('rm-item')) as HTMLElement[] : [];
-  if (items.length === 0) return [{ ...wholeUnit(scope), blockEl, fragChild, unitKind: 'repeat' } as FlatUnit];
+  if (items.length === 0) return [{ ...wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: 'repeat' }) } as FlatUnit];
   const gap = parseFloat(getComputedStyle(col).rowGap || '') || 8;
   const once = scope.querySelector('.rm-once') as HTMLElement | null;
-  const units = items.map((el, i): FlatUnit => ({ h: el.offsetHeight, gapBefore: i === 0 ? 0 : gap, pageStartExtra: 0, el, local: i, blockEl, fragChild, unitKind: 'repeat' }));
-  if (once) units[units.length - 1].h += once.offsetHeight + gap;
+  const units: FlatUnit[] = [];
+  for (let ii = 0; ii < items.length; ii++) {
+    const itemEl = items[ii];
+    const children = Array.from(itemEl.children).filter(c => c.classList.contains('rm-frag-child')) as HTMLElement[];
+    if (children.length === 0) {
+      units.push({ h: itemEl.offsetHeight, gapBefore: ii === 0 ? 0 : gap, pageStartExtra: 0, el: itemEl, local: ii, blockEl, fragChild: fragChild ?? 0, itemLocal: itemLocal ?? ii, unitKind: 'whole' });
+      continue;
+    }
+    const start = units.length;
+    units.push(...flattenFragChildren(children, blockEl, fragChild ?? 0, itemLocal ?? ii, 'whole'));
+    if (ii > 0) {
+      // The item gap applies before the item's first CONTENT unit (breaks
+      // never consume it).
+      const firstContent = units.slice(start).findIndex(u => u.unitKind !== 'break');
+      if (firstContent >= 0) units[start + firstContent].gapBefore = gap;
+    }
+  }
+  // Summary tables (`rm-once` — e.g. elementsOfCategory tables) fold into the
+  // last item: they render once after the final item (renderOnce logic).
+  if (once) {
+    const lastUnit = [...units].reverse().find(u => u.unitKind !== 'break');
+    if (lastUnit) lastUnit.h += once.offsetHeight + gap;
+    else return [wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: 'repeat' })];
+  }
   return units;
 }
 
 function flattenBlock(wrapper: HTMLElement): FlatUnit[] {
   const kind = wrapper.getAttribute('data-rm-kind') || 'block';
-  if (kind === 'block' && wrapper.hasAttribute('data-rm-fragment-index')) {
-    // A per-item repeat fragment. Universal split: every child block can flow
-    // to the next page on its own — whole blocks move whole, ribbons split
-    // between strips, tables split between rows (header repeats), nested
-    // repeats split between items.
-    const fragChildren = Array.from(wrapper.querySelectorAll('.rm-frag-child')) as HTMLElement[];
-    if (fragChildren.length > 0) {
-      const units: FlatUnit[] = [];
-      let splittable = 0;
-      for (let ci = 0; ci < fragChildren.length; ci++) {
-        const el = fragChildren[ci];
-        const ribbonUnits = Array.from(el.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
-        if (ribbonUnits.length > 0) {
-          splittable++;
-          for (const [ri, ru] of ribbonUnits.entries()) {
-            units.push({ h: ru.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: ru, local: ri, blockEl: wrapper, fragChild: ci, unitKind: 'ribbon' });
-          }
-          continue;
-        }
-        if (el.querySelector('.report-table-cols')) {
-          units.push(...flattenTable(el, wrapper, 'table', ci));
-          continue;
-        }
-        if (el.querySelector('.rm-repeat-col')) {
-          units.push(...flattenRepeat(el, wrapper, ci));
-          continue;
-        }
-        units.push({ h: el.offsetHeight, gapBefore: 0, pageStartExtra: 0, el, local: -1, blockEl: wrapper, fragChild: ci, unitKind: 'whole' });
-      }
-      if (units.length > 0) return units;
-    }
-    return [wholeUnit(wrapper)];
-  }
   if (kind === 'repeat') {
     return flattenRepeat(wrapper, wrapper);
   }
@@ -151,37 +198,63 @@ function flattenBlock(wrapper: HTMLElement): FlatUnit[] {
     if (units.length === 0) return [wholeUnit(wrapper)];
     return units.map((el, i) => ({ h: el.offsetHeight, gapBefore: 0, pageStartExtra: 0, el, local: i, blockEl: wrapper, unitKind: 'ribbon' }));
   }
-  return [wholeUnit(wrapper)];
+  // 'block' (whole): text/field/columns/callSheetEdit/… — an unsplittable
+  // container (columns/callSheetEdit) with a pageBreak inside starts a new
+  // page as a unit.
+  return [{ ...wholeUnit(wrapper, { breakBefore: !!wrapper.querySelector('[data-rm-pagebreak]') }) } as FlatUnit];
 }
 
 /** Greedy page fill over a flat unit list. Returns unit-index lists, one per
- *  page. Units taller than the whole budget stay put and overflow (today's
- *  browser behavior). */
+ *  page. `break` units close the current page (no-op at the page start so
+ *  empty items produce no pages); `breakBefore` units force a new page first.
+ *  Units taller than the whole budget stay put and overflow (today's browser
+ *  behavior). */
 function fillPages(units: FlatUnit[], budget: number): number[][] {
   const pages: number[][] = [];
   let cur: number[] = [];
   let used = 0;
+  let curHasContent = false;
   units.forEach((u, i) => {
-    const opening = cur.length === 0;
-    if (!opening && used + u.gapBefore + u.h > budget) {
+    if (u.unitKind === 'break') {
+      // A break closes the page only when the page holds real content — a
+      // break behind all-nothing children (an empty item) is a no-op, so
+      // empty items never produce blank pages.
+      if (curHasContent) {
+        pages.push(cur);
+        cur = [];
+        used = 0;
+        curHasContent = false;
+      }
+      return;
+    }
+    if (u.breakBefore && curHasContent) {
+      pages.push(cur);
+      cur = [];
+      used = 0;
+      curHasContent = false;
+    }
+    if (cur.length > 0 && used + u.gapBefore + u.h > budget) {
       if (u.h > budget) {
         cur.push(i);
         used += u.gapBefore + u.h;
+        if (u.h > 0) curHasContent = true;
         return;
       }
       pages.push(cur);
       cur = [i];
       used = u.pageStartExtra + u.h;
+      curHasContent = u.h > 0;
       return;
     }
-    used += (opening ? u.pageStartExtra : u.gapBefore) + u.h;
+    used += (cur.length === 0 ? u.pageStartExtra : u.gapBefore) + u.h;
     cur.push(i);
+    if (u.h > 0) curHasContent = true;
   });
   pages.push(cur);
   return pages;
 }
 
-function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string, ReportBlock>, items: PageItem[]): BodyChunk[] {
+function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string, ReportBlock>): BodyChunk[] {
   const out: BodyChunk[] = [];
   let i = 0;
   while (i < page.length) {
@@ -194,71 +267,86 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
     const last = flat[page[j]];
     i = j + 1;
     if (kind === 'block') {
-      // Per-item repeat fragments carry only a fragment index on the WRAPPER
-      // (unit elements are strips/children inside it).
-      const fragIdxAttr = blockEl.getAttribute('data-rm-fragment-index');
-      if (fragIdxAttr !== null) {
-        const frag = items[Number.parseInt(fragIdxAttr, 10)];
-        if (frag && 'repeatItem' in frag) {
-          const total = flat.filter(u => u.blockEl === blockEl).length;
-          const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl);
-          if (pageUnits.length === total) {
-            out.push({ kind: 'repeatItem', repeatItem: frag.repeatItem, item: frag.item, itemIndex: frag.itemIndex });
-            continue;
-          }
-          // Split: group this page's units by child, build a part per child.
-          const parts: FragmentPartUnit[] = [];
-          const byChild = new Map<number, FlatUnit[]>();
-          for (const u of pageUnits) {
-            if (u.fragChild === undefined) continue;
-            const arr = byChild.get(u.fragChild) || [];
-            arr.push(u);
-            byChild.set(u.fragChild, arr);
-          }
-          const totals = new Map<number, number>();
-          for (const u of flat) {
-            if (u.blockEl === blockEl && u.fragChild !== undefined) totals.set(u.fragChild, (totals.get(u.fragChild) || 0) + 1);
-          }
-          for (const [ci, units] of [...byChild.entries()].sort((a, b) => a[0] - b[0])) {
-            const kind2 = units[0]?.unitKind || 'whole';
-            if (kind2 === 'whole' || units.length === (totals.get(ci) || units.length)) {
-              parts.push({ childIndex: ci });
-              continue;
-            }
-            const locals = units.filter(u => u.local >= 0).map(u => u.local);
-            if (kind2 === 'ribbon') {
-              parts.push({ childIndex: ci, ribbonRange: [Math.min(...locals), Math.max(...locals) + 1] });
-            } else if (kind2 === 'repeat') {
-              parts.push({ childIndex: ci, itemRange: [Math.min(...locals), Math.max(...locals) + 1] });
-            } else if (kind2 === 'table') {
-              const hasHeader = units.some(u => u.local === -1);
-              parts.push({
-                childIndex: ci,
-                tableRowRange: [Math.min(...locals), Math.max(...locals) + 1],
-                repeatTableHeader: !hasHeader && Math.min(...locals) > 0,
-              });
-            }
-          }
-          out.push({ kind: 'repeatItemPart', repeatItem: frag.repeatItem, item: frag.item, itemIndex: frag.itemIndex, parts });
-          continue;
-        }
-      }
       if (block) out.push({ kind: 'block', block });
       continue;
     }
-    const total = flat.filter(u => u.blockEl === blockEl).length;
+    if (kind === 'repeat') {
+      // Dissolved repeat: group the page's units per item, then per child.
+      // A page may hold whole items (part = null) and partial items (parts).
+      const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl && u.unitKind !== 'break');
+      if (!pageUnits.some(u => u.itemLocal !== undefined)) {
+        // Not dissolved (empty/once-only repeat): the whole block moves as one.
+        if (block) out.push({ kind: 'block', block });
+        continue;
+      }
+      const totals = new Map<string, number>();
+      for (const u of flat) {
+        if (u.blockEl === blockEl && u.itemLocal !== undefined && u.fragChild !== undefined && u.unitKind !== 'break') {
+          const k = `${u.itemLocal}:${u.fragChild}`;
+          totals.set(k, (totals.get(k) || 0) + 1);
+        }
+      }
+      const byItem = new Map<number, Map<number, FlatUnit[]>>();
+      for (const u of pageUnits) {
+        if (u.itemLocal === undefined || u.fragChild === undefined) continue;
+        const item = byItem.get(u.itemLocal) || new Map<number, FlatUnit[]>();
+        const arr = item.get(u.fragChild) || [];
+        arr.push(u);
+        item.set(u.fragChild, arr);
+        byItem.set(u.itemLocal, item);
+      }
+      const locals = [...byItem.keys()].sort((a, b) => a - b);
+      if (locals.length === 0) continue;
+      const itemStart = locals[0];
+      const itemEnd = locals[locals.length - 1] + 1;
+      const perItemParts: (FragmentPartUnit[] | null)[] = Array.from({ length: itemEnd - itemStart }, () => null);
+      for (const [itemLocal, byChild] of byItem) {
+        const parts: FragmentPartUnit[] = [];
+        for (const [ci, units] of [...byChild.entries()].sort((a, b) => a[0] - b[0])) {
+          const total = totals.get(`${itemLocal}:${ci}`);
+          const kind2 = units[0]?.unitKind || 'whole';
+          if (total === undefined || kind2 === 'whole' || units.length === total) {
+            parts.push({ childIndex: ci });
+            continue;
+          }
+          const childLocals = units.filter(u => u.local >= 0).map(u => u.local);
+          const min = Math.min(...childLocals);
+          const max = Math.max(...childLocals);
+          if (kind2 === 'ribbon') {
+            parts.push({ childIndex: ci, ribbonRange: [min, max + 1] });
+          } else if (kind2 === 'repeat') {
+            parts.push({ childIndex: ci, itemRange: [min, max + 1] });
+          } else if (kind2 === 'table') {
+            const hasHeader = units.some(u => u.local === -1);
+            parts.push({ childIndex: ci, tableRowRange: [min, max + 1], repeatTableHeader: !hasHeader && min > 0 });
+          }
+        }
+        // An item is WHOLE only when EVERY one of its non-break children is
+        // fully present on this page — a missing child (split across pages by
+        // a mid-item pageBreak or the budget) makes the item partial, so the
+        // chunk renders only the child parts that landed here.
+        const itemTotals = [...totals.keys()].filter(k => k.startsWith(`${itemLocal}:`));
+        const allPresent = itemTotals.length > 0 && itemTotals.every(k => {
+          const ci = Number(k.slice(k.indexOf(':') + 1));
+          const units = byChild.get(ci);
+          return units !== undefined && units.length === totals.get(k);
+        });
+        perItemParts[itemLocal - itemStart] = allPresent ? null : parts;
+      }
+      if (block) out.push({ kind: 'repeat', block, itemStart, itemEnd, perItemParts });
+      continue;
+    }
+    const total = flat.filter(u => u.blockEl === blockEl && u.unitKind !== 'break').length;
     if (first.local === 0 && last.local === total - 1) {
       out.push({ kind: 'block', block });
       continue;
     }
-    if (kind === 'repeat') {
-      out.push({ kind: 'repeat', block, itemStart: first.local, itemEnd: last.local + 1 });
-    } else if (kind === 'table') {
+    if (kind === 'table') {
       // Table units include the column-header unit (local -1) when showHeader
       // — rowStart/rowEnd are ROW indices (locals >= 0). The header repeats on
       // continuation chunks (rowStart > 0); the chunk holding the header unit
       // renders the real header (rowStart === 0).
-      const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl);
+      const pageUnits = page.map(k => flat[k]).filter(u => u.blockEl === blockEl && u.unitKind !== 'break');
       const pageRows = pageUnits.filter(u => u.local >= 0);
       const pageHasHeader = pageUnits.some(u => u.local === -1);
       const minRow = pageRows.length > 0 ? pageRows[0].local : -1;
@@ -278,7 +366,7 @@ function assembleChunks(page: number[], flat: FlatUnit[], blockById: Map<string,
 
 function computeChunks(
   container: HTMLElement,
-  pages: PageItem[][],
+  pages: ReportBlock[][],
   headerSkipFirst: boolean,
   footerSkipFirst: boolean,
   contentHeight: number,
@@ -302,24 +390,27 @@ for (let pi = 0; pi < pageEls.length; pi++) {
     const items = pages[pi] || [];
     for (const wrapper of blocks) {
       const id = wrapper.getAttribute('data-rm-block-id') || '';
-      const block = id ? items.find(it => !('repeatItem' in it) && it.id === id) as ReportBlock | undefined : undefined;
+      const block = id ? items.find(it => it.id === id) : undefined;
       if (block) blockById.set(id, block);
       flat.push(...flattenBlock(wrapper));
     }
-    const measurable = flat
-      .map((u, i) => ({ u, i }))
-      .filter(x => x.u.h > 0);
-    const fill = fillPages(measurable.map(x => x.u), budget);
+    // A structural page whose blocks rendered nothing (empty table/repeat at
+    // top level, header/footer-only pages) is dropped — only pages from
+    // consecutive top-level pageBreaks ([], items.length === 0) are blank.
+    if (items.length > 0 && !flat.some(u => u.h > 0)) continue;
+    const fill = fillPages(flat, budget);
+    const globalIdx = out.length;
+    const header = !(headerSkipFirst && globalIdx === 0);
+    const footer = !(footerSkipFirst && globalIdx === 0);
+    if (items.length === 0 && flat.length === 0) {
+      out.push({ header, footer, body: [] });
+      continue;
+    }
     for (const page of fill) {
-      const globalIdx = out.length;
-      const header = !(headerSkipFirst && globalIdx === 0);
-      const footer = !(footerSkipFirst && globalIdx === 0);
-      if (page.length === 0 && measurable.length === 0) {
-        out.push({ header, footer, body: [] });
-        continue;
-      }
-      const reindexed = page.map(k => measurable[k].i);
-      out.push({ header, footer, body: assembleChunks(reindexed, flat, blockById, items) });
+      const idx = out.length;
+      const h = !(headerSkipFirst && idx === 0);
+      const f = !(footerSkipFirst && idx === 0);
+      out.push({ header: h, footer: f, body: assembleChunks(page, flat, blockById) });
     }
   }
   return out;
@@ -335,18 +426,9 @@ function chunkSigEq(a: PageChunk[], b: PageChunk[]): boolean {
       const x = ca.body[j] as any;
       const y = cb.body[j] as any;
       if (x.kind !== y.kind) return false;
-      if (x.kind === 'repeatItem') {
-        if (x.block.id !== y.block.id || x.item !== y.item) return false;
-      } else if (x.kind === 'repeatItemPart') {
-        if (x.block.id !== y.block.id || x.item !== y.item || x.parts.length !== y.parts.length) return false;
-        for (let p = 0; p < x.parts.length; p++) {
-          const xp = x.parts[p] as any;
-          const yp = y.parts[p] as any;
-          if (xp.childIndex !== yp.childIndex) return false;
-          if (JSON.stringify([xp.ribbonRange, xp.tableRowRange, xp.repeatTableHeader, xp.itemRange]) !== JSON.stringify([yp.ribbonRange, yp.tableRowRange, yp.repeatTableHeader, yp.itemRange])) return false;
-        }
-      } else if (x.kind === 'repeat') {
+      if (x.kind === 'repeat') {
         if (x.block.id !== y.block.id || x.itemStart !== y.itemStart || x.itemEnd !== y.itemEnd) return false;
+        if (JSON.stringify(x.perItemParts) !== JSON.stringify(y.perItemParts)) return false;
       } else if (x.kind === 'table') {
         if (x.block.id !== y.block.id || x.rowStart !== y.rowStart || x.rowEnd !== y.rowEnd || x.repeatHeader !== y.repeatHeader) return false;
       } else if (x.kind === 'ribbon') {
@@ -362,7 +444,7 @@ function chunkSigEq(a: PageChunk[], b: PageChunk[]): boolean {
 /** Offscreen render of the structural pages. Heights are read from here in a
  *  layout effect; it must stay in the DOM while the chunks are displayed. */
 export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
-  pages: PageItem[][];
+  pages: ReportBlock[][];
   headerBlocks?: ReportBlock[];
   footerBlocks?: ReportBlock[];
   headerSkipFirst?: boolean;
@@ -390,16 +472,10 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
             </div>
           )}
           <div className="rm-body">
-            {items.map((it, k) => (
-              'repeatItem' in it ? (
-                <div key={k} className="rm-block" data-rm-kind="block" data-rm-fragment-index={k}>
-                  <PageItemBody pi={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
-                </div>
-              ) : (
-                <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0}>
-                  <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
-                </div>
-              )
+            {items.map((it) => (
+              <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0}>
+                <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
+              </div>
             ))}
           </div>
           {!(footerSkipFirst && pi === 0) && footerBlocks && footerBlocks.length > 0 && (

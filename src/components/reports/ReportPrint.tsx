@@ -3,7 +3,7 @@ import { Project, ScheduleVersion, ReportDesign } from '../../types';
 import { buildReportCtx, ReportDaybreakData, ReportScopeFilter, ReportPrintOptions } from '../../lib/reportData';
 import { getReportFieldMap } from '../../lib/reportFields';
 import { ReportChunkPage } from './ReportBlockView';
-import { buildReportPages } from '../../lib/reportPagination';
+import { paginateBlocks } from '../../lib/reportPagination';
 import { BASE_PRINT_RESET } from '../print/shared/basePrintCss';
 import { REPORT_PAGE_METRICS } from './reportStyle';
 import { useReportPaginator, ReportMeasureContainer } from './useReportPaginator';
@@ -22,7 +22,7 @@ const ReportPrint: React.FC<ReportPrintProps> = ({ project, version, design, day
   const ctx = useMemo(() => buildReportCtx(project, version, daybreak), [project, version, daybreak]);
   const fieldMap = useMemo(() => getReportFieldMap(project), [project]);
   const page = printOptions?.page || design.page;
-  const pages = useMemo(() => buildReportPages(design.blocks || [], ctx, scopeFilter), [design.blocks, ctx, scopeFilter]);
+  const pages = useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);
   const metrics = REPORT_PAGE_METRICS[page];
   const measureRef = React.useRef<HTMLDivElement>(null);
   const { chunks, measured } = useReportPaginator({

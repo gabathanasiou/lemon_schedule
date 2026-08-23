@@ -4,7 +4,7 @@ import { ReportCtx, ReportScopeFilter } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
 import { ReportChunkPage } from './ReportBlockView';
 import { REPORT_PAGE_METRICS, REPORT_PAGE_PADDING } from './reportStyle';
-import { buildReportPages } from '../../lib/reportPagination';
+import { paginateBlocks } from '../../lib/reportPagination';
 import { useReportPaginator, ReportMeasureContainer } from './useReportPaginator';
 import { X } from 'lucide-react';
 
@@ -22,7 +22,7 @@ interface ReportPreviewProps {
 }
 
 const ReportPreview: React.FC<ReportPreviewProps> = ({ design, ctx, fieldMap, scopeFilter, onExit }) => {
-  const pages = React.useMemo(() => buildReportPages(design.blocks || [], ctx, scopeFilter), [design.blocks, ctx, scopeFilter]);
+  const pages = React.useMemo(() => paginateBlocks(design.blocks || []), [design.blocks]);
   const metrics = REPORT_PAGE_METRICS[design.page];
   const measureRef = React.useRef<HTMLDivElement>(null);
   const { chunks, measured } = useReportPaginator({
