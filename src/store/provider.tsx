@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useState, useRef, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { Project } from '../types';
 import { generateUUID } from '../lib/utils';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
@@ -18,6 +19,7 @@ import {
   consumePendingLegacyMigrationNotice,
 } from './storage';
 import { Action, State, reducer, makeBlankProject } from './reducer';
+import { installAgentBridge, notifyAgentBridge } from '../lib/debugBridge';
 
 export interface ProjectContextType {
   state: State;
@@ -61,6 +63,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     future: [],
     _batchDepth: 0,
   });
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const presentRef = useRef(state.present);
   presentRef.current = state.present;
 
@@ -140,6 +144,28 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     if (!realOnline && action.type !== 'LOAD' && isCurrentCloudProject()) return;
     dispatch(action);
   }, [realOnline, isCurrentCloudProject]);
+
+  // Agentic debug bridge (dev builds or localStorage LEMON_AGENT=1): exposes
+  // state reads + dispatch as window.__lemonSchedule — see AGENTS.md.
+  // Notify the bridge of every action (it no-ops when uninstalled).
+  const bridgeDispatch = useCallback((action: Action) => {
+    // flushSync: agent dispatches must be visible to an immediately-following
+    // getState() read (React would otherwise batch the update to the next
+    // render, making same-tick dispatch→read pairs return stale state).
+    flushSync(() => { guardedDispatch(action); });
+    notifyAgentBridge(action);
+  }, [guardedDispatch]);
+
+  useEffect(() => {
+    const uninstall = installAgentBridge({
+      getState: () => stateRef.current,
+      getProject: () => stateRef.current.present,
+      dispatch: (action) => bridgeDispatch(action),
+      getProjectList: () => projectListRef.current,
+      getCurrentProjectId: () => currentProjectIdRef.current,
+    });
+    return uninstall;
+  }, [bridgeDispatch]);
 
   // On mount: migrate legacy data or load project list (no auto-open)
   useEffect(() => {
