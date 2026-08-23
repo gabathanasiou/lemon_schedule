@@ -58,6 +58,11 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 ### Scene Strip Colors
 `sceneStyle(scene, sceneColors, fallback, rules)` from `lib/sceneColors.ts` (re-exported by `ribbonUtils`). Fallbacks: INT DAY white, EXT DAY `#d7da50`, INT NIGHT `#41a31a`, EXT NIGHT `#005c93`, MORNING `#ff9ca2`, EVENING `#ff9d25`. Text white for INT/EXT NIGHT, black otherwise.
 
+### Day Types & Non-Shoot Status
+- `project.dayTypes` (`DayTypeDef[]` = `{key,label,color?,builtin?}`) is the status registry; built-ins `hold|travel|holiday` (`DEFAULT_DAY_TYPES`). `NonShootDate.status` stores a **type key (string)**, never a literal — resolve display via `getDayType`/`visualForType`/`dayTypeTextColor` (`lib/dayTypes.ts`, single source); never hardcode H/T/DO badge strings (DayCell, DoodsTab, print Dood were migrated).
+- One write path: `SET_DAY_TYPES` → `caseSetDayTypes` (`store/actions/reports.ts`) prunes statuses whose key vanished from **every version** — "delete-in-use falls back to no status" lives there, nowhere else. Manager UI = shared ManagerShell `flat` config (`lib/dayTypesManagerConfig.tsx`; `flat`/`rowLocked` are generic shell knobs, `managerShell.tsx`) in a modal from the calendar View menu.
+- **Invariant**: the section date cursor skips statused dates (`computeRowData` `getDate`) — a section can never sit on a statused date. Consequence: the reports `dayType` field (Days group) resolves per-day by date but prints EMPTY inside a `days` repeat unless a section date carries a status (legacy data only) — not a bug; don't "fix" it by shifting the cursor.
+
 ## Tabs & Toolbars
 - Top tabs (App header): breakdown, schedule, calendar, design, rules, reports. Shift+click / right-click = pop-out (desktop only, `!IS_COARSE`).
 - `PageToolbar` (`src/components/PageToolbar.tsx`): reusable toolbar with optional sub-tabs. Active tab `bg-zinc-950 text-white rounded px-3 py-1.5` (cloud: `bg-blue-950 text-blue-50`); inactive `text-zinc-500 hover:text-zinc-900`. Scrolls horizontally with edge fades. Usage: Breakdown (light; Sheet/Element Manager/Glide Breakdown), Design (dark; Ribbon Designer/Colors), Reports (dark; DOODs/Element Breakdown), Schedule (light, justify end, no tabs), Calendar (two light instances).

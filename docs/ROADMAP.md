@@ -898,7 +898,8 @@ diffs render; lint + playwright. **Out of scope** (follow-ups): Filmustage-
 style cross-version schedule/budget impact reports, archived-versions hub —
 this item is the import acceptance step only.
 
-## 39. Custom day types — extend the calendar's day-status infrastructure (`[ ]`)
+## 39. Custom day types — extend the calendar's day-status infrastructure (`[x]`)
+- Done: `project.dayTypes` registry (`DayTypeDef[]` — built-ins hold/travel/holiday, materialized on LOAD, fallback `getDayTypes`); `NonShootDate.status` is now a day-type KEY (string), not a literal. Single write path `SET_DAY_TYPES` → `caseSetDayTypes` (`store/actions/reports.ts`) also prunes orphaned statuses in EVERY version — "deleting a type in use falls back to no status" lives in exactly one place. Manager = shared ManagerShell `flat` config (`lib/dayTypesManagerConfig.tsx`; new `flat`/`rowLocked` knobs in `managerShell.tsx`) in a modal off the calendar View menu ("Day Types…"); built-ins are locked rows (label/color editable, delete disabled, key-guarded in commit). Marking surfaces: calendar context menu lists all types (built-ins keep Plane/Pause/Sun icons, customs a color dot), toolbar H/T/DO quick tools stay, `TravelHoldModal` gained a Day Status picker. Display: DayCell, DoodsTab and the DOOD print resolve labels/colors through `lib/dayTypes` (`visualForType`/`dayTypeTextColor`) — the old hardcoded ternaries are gone. Reports gained a `dayType` field (Days group, same shape as `dayLabel`), resolving per-day by date. Known nuance (invariant, not a bug): the section date cursor skips statused dates (`computeRowData` `getDate`) so sections never sit on statused dates — a `days` repeat prints the column EMPTY in practice; the seam resolves faithfully per day.
 
 The calendar already models day kinds: `NonShootDate.status` (`types.ts:63-71`),
 edited via the calendar's `TravelHoldModal`, consumed by DOODs
