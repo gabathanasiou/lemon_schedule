@@ -50,3 +50,24 @@ export const REPORT_PAGE_METRICS: Record<'portrait' | 'landscape', { width: numb
   portrait: { width: 697 + REPORT_PAGE_PADDING.h * 2, contentWidth: 697, contentHeight: 880 },
   landscape: { width: 960 + REPORT_PAGE_PADDING.h * 2, contentWidth: 960, contentHeight: 620 },
 };
+
+// ---- block gap (roadmap 33) ---------------------------------------------------
+// Every stacked block gets a vertical margin above it in the PREVIEW and PRINT
+// (the designer canvas stays flush per the item 26 veto). The single global
+// default matches the repeat item gap (`gap ?? 8`); there is NO per-block
+// control (user decision). pageBreak blocks never get a margin; spacer blocks
+// stay exact manual spacing tools. Repeat ITEM spacing remains the flex `gap`
+// on `.rm-repeat-col` — item wrappers are not blocks, so the item gap is never
+// doubled; the blocks INSIDE an item get this margin instead (first child of
+// the item suppressed). The paginator reads the wrapper margin into `gapBefore`
+// so page budgets include the spacing.
+
+export const DEFAULT_BLOCK_GAP = 8;
+
+/** The vertical gap (px) above a block in a stacked list. The first block in
+ *  each stack stays flush (clean page top); pageBreak/spacer blocks never get
+ *  one. */
+export function blockGapMargin(b: ReportBlock, isFirst: boolean): number {
+  if (isFirst || b.type === 'pageBreak' || b.type === 'spacer') return 0;
+  return DEFAULT_BLOCK_GAP;
+}

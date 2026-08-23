@@ -137,6 +137,17 @@ input, textarea, [contenteditable] {
 
 /* ---- Reports Designer canvas ---- */
 
+/* Block gap (roadmap 33): in the preview and PRINT stacks, every block carries
+   a vertical margin above it (matching the repeat item gap, 8px) — block-card
+   canvas wrappers stay flush (item 26 veto). The first mount of a page must
+   stay flush so page tops are clean: the inline marginTop on the mounts is
+   zeroed for the first child here, and the paginator mirrors it (the opening
+   unit never pays its gapBefore). */
+.rm-body > :first-child,
+.report-page-content > :first-child {
+  margin-top: 0 !important;
+}
+
 .block-card {
   position: relative;
   background: #ffffff;

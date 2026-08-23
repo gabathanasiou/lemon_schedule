@@ -3,7 +3,7 @@ import { ReportBlock } from '../../types';
 import { ReportCtx, ReportScopeFilter, RibbonPrintOptions } from '../../lib/reportData';
 import { ReportFieldDef } from '../../lib/reportFields';
 import { BodyChunk, FragmentPartUnit, PageChunk } from '../../lib/reportPagination';
-import { REPORT_PAGE_METRICS } from './reportStyle';
+import { REPORT_PAGE_METRICS, blockGapMargin } from './reportStyle';
 import { ReportBlockView } from './ReportBlockView';
 
 // Measured pagination for reports. The structural pages from paginateBlocks
@@ -70,8 +70,17 @@ interface FlatUnit {
   breakBefore?: boolean;
 }
 
+function marginTopOf(el: HTMLElement): number {
+  return parseFloat(getComputedStyle(el).marginTop) || 0;
+}
+
 function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUnit {
-  return { h: wrapper.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: wrapper, local: 0, blockEl: wrapper, ...extra };
+  // The wrapper's marginTop is the block's gap (roadmap 33) — read it into
+  // gapBefore so page budgets include the spacing between stacked blocks
+  // (mirrors the header-margin and repeat rowGap reads). The first wrapper in
+  // a page has margin 0 (.rm-body > :first-child / inline isFirst), so a block
+  // that opens a page never pays the gap.
+  return { h: wrapper.offsetHeight, gapBefore: marginTopOf(wrapper), pageStartExtra: 0, el: wrapper, local: 0, blockEl: wrapper, ...extra };
 }
 
 
@@ -80,10 +89,13 @@ function wholeUnit(wrapper: HTMLElement, extra: Partial<FlatUnit> = {}): FlatUni
 function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 'whole', fragChild?: number, itemLocal?: number): FlatUnit[] {
   const containers = scope.querySelectorAll('.report-table-cols');
   const first = containers[0] as HTMLElement | undefined;
+  // The scope wrapper's marginTop is the block's gap (roadmap 33) — paid
+  // before the block's first unit so tables budget their spacing too.
+  const blockGap = marginTopOf(scope);
   if (first && first.classList.contains('rm-row')) {
     // rows-matrix: one self-contained grid per row group (label header is
     // inside each group) — no repeated header needed.
-    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, itemLocal, unitKind: 'table' }));
+    return Array.from(containers).map((c, i): FlatUnit => ({ h: (c as HTMLElement).offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el: c as HTMLElement, local: i, blockEl, fragChild, itemLocal, unitKind: 'table' }));
   }
   if (first) {
     const headerEl = first.querySelector(':scope > .rm-header') as HTMLElement | null;
@@ -91,7 +103,9 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
     const rows = Array.from(first.children).filter(c => c.classList.contains('rm-row')) as HTMLElement[];
     const units = rows.map((el, i): FlatUnit => ({
       h: el.offsetHeight,
-      gapBefore: 0,
+      // The block's own gap rides on the FIRST row's gapBefore (a header-less
+      // table) — a header unit below gets it instead.
+      gapBefore: i === 0 && !headerEl ? blockGap : 0,
       // A continuation chunk renders the column header again at its top
       // (classic "thead repeats") — reserve that height when a row opens a
       // page. local -1 marks the header unit (folded into row ranges below).
@@ -103,7 +117,7 @@ function flattenTable(scope: HTMLElement, blockEl: HTMLElement, kind: 'table' | 
       itemLocal,
       unitKind: 'table',
     }));
-    if (headerEl) units.unshift({ h: headerH, gapBefore: 0, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, itemLocal, unitKind: 'table' } as FlatUnit);
+    if (headerEl) units.unshift({ h: headerH, gapBefore: blockGap, pageStartExtra: 0, el: headerEl, local: -1, blockEl, fragChild, itemLocal, unitKind: 'table' } as FlatUnit);
     return units;
   }
   return [{ ...wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: kind }) } as FlatUnit];
@@ -128,8 +142,9 @@ function flattenFragChildren(
     }
     const ribbonUnits = Array.from(el.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
     if (ribbonUnits.length > 0) {
+      const blockGap = marginTopOf(el);
       for (const [ri, ru] of ribbonUnits.entries()) {
-        units.push({ h: ru.offsetHeight, gapBefore: 0, pageStartExtra: 0, el: ru, local: ri, blockEl, fragChild: ci, itemLocal, unitKind: 'ribbon' });
+        units.push({ h: ru.offsetHeight, gapBefore: ri === 0 ? blockGap : 0, pageStartExtra: 0, el: ru, local: ri, blockEl, fragChild: ci, itemLocal, unitKind: 'ribbon' });
       }
       continue;
     }
@@ -158,22 +173,25 @@ function flattenRepeat(scope: HTMLElement, blockEl: HTMLElement, fragChild?: num
   if (items.length === 0) return [{ ...wholeUnit(scope, { blockEl, fragChild, itemLocal, unitKind: 'repeat' }) } as FlatUnit];
   const gap = parseFloat(getComputedStyle(col).rowGap || '') || 8;
   const once = scope.querySelector('.rm-once') as HTMLElement | null;
+  // The scope wrapper's marginTop is the block's gap (roadmap 33) — paid
+  // before the repeat's FIRST content unit so it budgets its spacing too.
+  // Fragment-internal calls (fragChild set) read the .rm-frag-child wrapper's
+  // margin, which dissolves items' children already account for individually.
+  const blockGap = marginTopOf(scope);
   const units: FlatUnit[] = [];
   for (let ii = 0; ii < items.length; ii++) {
     const itemEl = items[ii];
     const children = Array.from(itemEl.children).filter(c => c.classList.contains('rm-frag-child')) as HTMLElement[];
     if (children.length === 0) {
-      units.push({ h: itemEl.offsetHeight, gapBefore: ii === 0 ? 0 : gap, pageStartExtra: 0, el: itemEl, local: ii, blockEl, fragChild: fragChild ?? 0, itemLocal: itemLocal ?? ii, unitKind: 'whole' });
+      units.push({ h: itemEl.offsetHeight, gapBefore: ii === 0 ? blockGap : gap, pageStartExtra: 0, el: itemEl, local: ii, blockEl, fragChild: fragChild ?? 0, itemLocal: itemLocal ?? ii, unitKind: 'whole' });
       continue;
     }
     const start = units.length;
     units.push(...flattenFragChildren(children, blockEl, fragChild ?? 0, itemLocal ?? ii, 'whole'));
-    if (ii > 0) {
-      // The item gap applies before the item's first CONTENT unit (breaks
-      // never consume it).
-      const firstContent = units.slice(start).findIndex(u => u.unitKind !== 'break');
-      if (firstContent >= 0) units[start + firstContent].gapBefore = gap;
-    }
+    // The block gap (first item) / item gap (later items) applies before the
+    // item's first CONTENT unit (breaks never consume it).
+    const firstContent = units.slice(start).findIndex(u => u.unitKind !== 'break');
+    if (firstContent >= 0) units[start + firstContent].gapBefore += ii === 0 ? blockGap : gap;
   }
   // Summary tables (`rm-once` — e.g. elementsOfCategory tables) fold into the
   // last item: they render once after the final item (renderOnce logic).
@@ -196,7 +214,8 @@ function flattenBlock(wrapper: HTMLElement): FlatUnit[] {
   if (kind === 'ribbon') {
     const units = Array.from(wrapper.querySelectorAll('.rm-ribbon-unit')) as HTMLElement[];
     if (units.length === 0) return [wholeUnit(wrapper)];
-    return units.map((el, i) => ({ h: el.offsetHeight, gapBefore: 0, pageStartExtra: 0, el, local: i, blockEl: wrapper, unitKind: 'ribbon' }));
+    const blockGap = marginTopOf(wrapper);
+    return units.map((el, i) => ({ h: el.offsetHeight, gapBefore: i === 0 ? blockGap : 0, pageStartExtra: 0, el, local: i, blockEl: wrapper, unitKind: 'ribbon' }));
   }
   // 'block' (whole): text/field/columns/callSheetEdit/… — an unsplittable
   // container (columns/callSheetEdit) with a pageBreak inside starts a new
@@ -465,15 +484,15 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           {!(headerSkipFirst && pi === 0) && headerBlocks && headerBlocks.length > 0 && (
             <div className="rm-header-zone" style={{ marginBottom: '8pt' }}>
               {headerBlocks.map((b, i) => (
-                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id}>
+                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ))}
             </div>
           )}
           <div className="rm-body">
-            {items.map((it) => (
-              <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0}>
+            {items.map((it, k) => (
+              <div key={it.id} className="rm-block" data-rm-kind={it.type === 'repeat' || it.type === 'table' || it.type === 'ribbon' ? it.type : 'block'} data-rm-block-id={it.id} data-rm-gap={it.type === 'repeat' ? (it.gap ?? 8) : 0} style={{ marginTop: blockGapMargin(it, k === 0) }}>
                 <ReportBlockView block={it} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
               </div>
             ))}
@@ -481,7 +500,7 @@ export const ReportMeasureContainer = React.forwardRef<HTMLDivElement, {
           {!(footerSkipFirst && pi === 0) && footerBlocks && footerBlocks.length > 0 && (
             <div className="rm-footer-zone" style={{ paddingTop: "8pt" }}>
               {footerBlocks.map((b, i) => (
-                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id}>
+                <div key={b.id} className="rm-block" data-rm-kind="block" data-rm-block-id={b.id} style={{ marginTop: blockGapMargin(b, i === 0) }}>
                   <ReportBlockView block={b} ctx={ctx} fieldMap={fieldMap} scopeFilter={scopeFilter} aux={{ pageIndex: pi, pageCount: pages.length }} previewLimit={previewLimit} ribbonOverrides={ribbonOverrides} />
                 </div>
               ))}
