@@ -807,7 +807,7 @@ export const CalendarTab: React.FC<{
     <PageToolbar
       tabs={[
         { id: 'calendar', label: 'Calendar' },
-        { id: 'dayTypes', label: 'Day Types' },
+        { id: 'dayTypes', label: 'Day Breakdown' },
       ]}
       activeTab={subTab}
       onChange={(t) => onSubTabChange?.(t as 'calendar' | 'dayTypes')}
@@ -815,7 +815,7 @@ export const CalendarTab: React.FC<{
       shiftHeld={poppedShiftHeld}
     />
     {poppedOutSubTabs.has(subTab) ? (
-      <PopoutPlaceholder title={subTab === 'dayTypes' ? 'Day Types' : 'Calendar'} onBringBack={() => onCloseSubPopout?.(subTab)} />
+      <PopoutPlaceholder title={subTab === 'dayTypes' ? 'Day Breakdown' : 'Calendar'} onBringBack={() => onCloseSubPopout?.(subTab)} />
     ) : subTab === 'dayTypes' ? (
       <DayTypesTab />
     ) : (

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loadSeedProject, seedProjectScript } from './helpers';
 
-// Custom day types (roadmap 39) live in the Calendar tab's Day Types sub-tab —
+// Custom day types (roadmap 39) live in the Calendar tab's Day Breakdown sub-tab —
 // an ElementManager-style sidebar (icon + label + usage count) with edit
 // modals (name/icon/color/attachable). Days carry per-type attachment lists
 // (cast/elements like travel/hold) that render as DOOD cell letters + count
@@ -50,8 +50,8 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   });
   expect(lastSectionDate).toBeTruthy();
 
-  // ---- Day Types sub-tab: built-ins with icons, fully locked (no actions) -----
-  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
+  // ---- Day Breakdown sub-tab: built-ins with icons, fully locked (no actions) -----
+  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
   const sidebar = page.locator('aside');
   await expect(sidebar.getByText('Hold', { exact: true })).toBeVisible();
   await expect(sidebar.getByText('Travel', { exact: true })).toBeVisible();
@@ -126,8 +126,8 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   // Custom-type day marker: the code chip (R) shows on the day header.
   await expect(dayCell.getByText('R', { exact: true }).first()).toBeVisible();
 
-  // ---- Day Types sub-tab: usage count + used-on list -------------------------
-  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
+  // ---- Day Breakdown sub-tab: usage count + used-on list -------------------------
+  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
   const rehSide = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
   await rehSide.click();
   await expect(rehSide).toContainText('1');
@@ -164,7 +164,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   // ---- Delete the custom type → in-use status falls back to no status ------
   await page.getByRole('banner').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
-  await page.getByRole('button', { name: 'Day Types', exact: true }).click();
+  await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
   const rehRow = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
   await rehRow.locator('button', { has: page.locator('svg.lucide-trash-2') }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();

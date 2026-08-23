@@ -816,7 +816,7 @@ function AppContent() {
         </SubTabPopoutFrame>
       )}
       {poppedOutSubTabs.calendar?.has('dayTypes') && popoutSubWindowsRef.current.get('sub_calendar_dayTypes') && (
-        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Day Types`} win={popoutSubWindowsRef.current.get('sub_calendar_dayTypes')!} onClose={() => closeSubPopout('calendar', 'dayTypes')} tabName="Calendar" subTabId="dayTypes" tabLabel="Day Types" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_calendar_dayTypes']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_calendar_dayTypes: el }))}>
+        <SubTabPopoutFrame title={`${project.title || 'Untitled'} - Day Breakdown`} win={popoutSubWindowsRef.current.get('sub_calendar_dayTypes')!} onClose={() => closeSubPopout('calendar', 'dayTypes')} tabName="Calendar" subTabId="dayTypes" tabLabel="Day Breakdown" projectTitle={project.title} onProjectTitleChange={v => renameProject(currentProjectId!, v, projectList.find(p => p.id === currentProjectId)?.driveFileId)} headerTarget={subHeaderTargets['sub_calendar_dayTypes']} setHeaderTarget={el => setSubHeaderTargets(prev => ({ ...prev, sub_calendar_dayTypes: el }))}>
           <DayTypesTab />
         </SubTabPopoutFrame>
       )}

@@ -389,7 +389,7 @@ export function caseSortLocationsBy(state: State, action: Action, applyChange: A
 
 // ---- day types ---------------------------------------------------------------
 
-/** Whole-registry commit from the Day Types manager. Also prunes any
+/** Whole-registry commit from the Day Breakdown manager. Also prunes any
  *  non-shoot status whose key no longer exists (deleting a type in use falls
  *  back to no status — same single rule for every version). */
 export function caseSetDayTypes(state: State, action: Action, applyChange: ApplyChange): State {

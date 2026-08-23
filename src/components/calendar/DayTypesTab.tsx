@@ -9,7 +9,7 @@ import {
 } from '../../lib/dayTypes';
 import { AddDayTypeModal, EditDayTypeModal } from './DayTypeModals';
 
-/** Day Types manager — ElementManager-style: sidebar of types (icon + label +
+/** Day Breakdown manager — ElementManager-style: sidebar of types (icon + label +
  *  usage count), edit modals (name/icon/color/attachable), delete with confirm.
  *  Edits dispatch SET_DAY_TYPES immediately (one undo entry per modal save);
  *  the reducer prunes statuses whose key vanished. */
@@ -168,7 +168,7 @@ export const DayTypesTab: React.FC = () => {
   return (
     <div className="flex-1 flex overflow-hidden bg-zinc-100">
       <SidebarNav
-        title="Day Types"
+        title="Day Breakdown"
         rows={rows}
         activeKey={selectedKey}
         onSelect={setSelectedKey}
@@ -183,7 +183,7 @@ export const DayTypesTab: React.FC = () => {
           <div className="flex items-center gap-2.5 px-4 py-3 border-b border-zinc-100 shrink-0">
             {SelectedIcon && <SelectedIcon className="w-4 h-4 text-zinc-500" />}
             <span className="w-3 h-3 rounded-full shrink-0 border border-zinc-300" style={selected?.color ? { background: selected.color } : undefined} />
-            <span className="text-sm font-semibold text-zinc-800">{selected?.label || 'Day Types'}</span>
+            <span className="text-sm font-semibold text-zinc-800">{selected?.label || 'Day Breakdown'}</span>
             {selected?.color && <span className="text-[10px] font-mono text-zinc-400 uppercase">{selected.color}</span>}
             <span className="text-[11px] text-zinc-400 ml-auto">{isProductionRow ? productionDays.length : usedDates.length} {isProductionRow ? (productionDays.length === 1 ? 'production day' : 'production days') : (usedDates.length === 1 ? 'day' : 'days')}</span>
           </div>
