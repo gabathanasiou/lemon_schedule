@@ -4,7 +4,7 @@ import { getElementsFromScenes } from '../../store';
 import { BASE_PRINT_RESET } from './shared/basePrintCss';
 import { DEFAULT_CATEGORY_LABELS } from '../../lib/categories';
 import { deriveDood, DoodDay } from '../../lib/nonShootStats';
-import { visualForType, dayTypeTextColor } from '../../lib/dayTypes';
+import { visualForType, dayTypeTextColor, codeForType, resolveDayTypes } from '../../lib/dayTypes';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -112,9 +112,15 @@ const Dood: React.FC<DoodProps> = ({
     return m;
   }, [scenes, category]);
 
+  const typeCodes = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of resolveDayTypes(dayTypes)) m.set(t.key, codeForType(dayTypes, t.key));
+    return m;
+  }, [dayTypes]);
+
   const data = useMemo(() => deriveDood(
-    scenes, scheduleRows, productionStart || new Date().toISOString().slice(0, 10), nonShootDates || [], elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap,
-  ), [scenes, scheduleRows, productionStart, nonShootDates, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap]);
+    scenes, scheduleRows, productionStart || new Date().toISOString().slice(0, 10), nonShootDates || [], elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap, typeCodes,
+  ), [scenes, scheduleRows, productionStart, nonShootDates, elementIds, dayInts, includeNonShooting, category, castMemberNames, elementNameMap, typeCodes]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -133,6 +139,12 @@ const Dood: React.FC<DoodProps> = ({
   for (let i = 0; i < data.days.length; i += DAYS_PER_PAGE) {
     groups.push({ days: data.days.slice(i, i + DAYS_PER_PAGE), startIdx: i });
   }
+
+  // Count columns for in-use custom attachable types (travel/hold already have
+  // their own Work/Hold/Travel columns).
+  const usedStatuses = new Set(data.days.map(d => d.nonShootStatus).filter(Boolean) as string[]);
+  const typeColumns = resolveDayTypes(dayTypes).filter(t =>
+    t.attachable !== false && t.key !== 'travel' && t.key !== 'hold' && usedStatuses.has(t.key));
 
   return (
     <div className="dood-root">
@@ -157,6 +169,7 @@ const Dood: React.FC<DoodProps> = ({
                 <col style={{ width: '30pt' }} />
                 {group.days.map((_, ci) => <col key={ci} style={{ width: '16pt' }} />)}
                 {isLast && showTotals && <col span={5} style={{ width: '14pt' }} />}
+                {isLast && showTotals && typeColumns.map(t => <col key={t.key} style={{ width: '14pt' }} />)}
               </colgroup>
               <thead>
                 <tr>
@@ -173,6 +186,7 @@ const Dood: React.FC<DoodProps> = ({
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
+                      {typeColumns.map(t => <th key={t.key} className="dood-total-border">{codeForType(dayTypes, t.key)}</th>)}
                     </>
                   )}
                 </tr>
@@ -190,6 +204,7 @@ const Dood: React.FC<DoodProps> = ({
                       <th className="dood-total-border">Travel</th>
                       <th className="dood-total-border">Start</th>
                       <th className="dood-total-border">Finish</th>
+                      {typeColumns.map(t => <th key={t.key} className="dood-total-border">{t.label}</th>)}
                     </>
                   )}
                 </tr>
@@ -211,6 +226,7 @@ const Dood: React.FC<DoodProps> = ({
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
                       <th className="dood-total-border" />
+                      {typeColumns.map(t => <th key={t.key} className="dood-total-border">{codeForType(dayTypes, t.key)}</th>)}
                     </>
                   )}
                 </tr>
@@ -237,6 +253,9 @@ const Dood: React.FC<DoodProps> = ({
                           <td className="dood-total-border">{t.workDays > 0 ? t.workDays : ''}</td>
                           <td className="dood-total-border">{t.holdDays > 0 ? t.holdDays : ''}</td>
                           <td className="dood-total-border">{t.travelDays > 0 ? t.travelDays : ''}</td>
+                          {typeColumns.map(tc => (
+                            <td key={tc.key} className="dood-total-border">{((t.typeDayLists[tc.key] || []).length > 0) ? t.typeDayLists[tc.key]!.length : ''}</td>
+                          ))}
                           <td className="dood-total-border">{startStr || ''}</td>
                           <td className="dood-total-border">{finishStr || ''}</td>
                         </>

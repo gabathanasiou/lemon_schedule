@@ -6,7 +6,7 @@ import { useColumnResize } from '../lib/useColumnResize';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { addDays } from '../lib/daybreakUtils';
 import { isElementMarked } from '../lib/nonShootHelpers';
-import { getDayTypeVisual, dayTypeTextColor } from '../lib/dayTypes';
+import { getDayTypes, codeForType, getDayTypeVisual, dayTypeTextColor, getDayType } from '../lib/dayTypes';
 
 function formatDateShort(iso: string): string {
   const d = new Date(iso + 'T00:00:00');
@@ -85,6 +85,12 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
     { name: 200, day: 42, work: 50, hold: 50, trav: 50, start: 70, finish: 70 },
   );
 
+  const typeCodes = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of getDayTypes(project)) m.set(t.key, codeForType(project.dayTypes, t.key));
+    return m;
+  }, [project]);
+
   const elementIds = useMemo(() => {
     const allIds = new Set<string>();
     for (const s of project.scenes) {
@@ -151,7 +157,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
       scenesBySection.get(secIdx)!.push(scene);
     }
 
-    const doodRows: { elementId: string; elementName: string; cells: string[]; workDays: number; holdDays: number; travelDays: number; startDate: string | null; finishDate: string | null }[] = [];
+    const doodRows: { elementId: string; elementName: string; cells: string[]; workDays: number; holdDays: number; travelDays: number; startDate: string | null; finishDate: string | null; typeCounts: Record<string, number> }[] = [];
 
     for (const elementId of elementIds) {
       const appearSet = new Set<number>();
@@ -169,10 +175,15 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
 
       const nonShootDates = (state.present.versions.find(v => v.id === state.present.activeVersionId)?.nonShootDates || []);
 
+      const typeCounts: Record<string, number> = {};
       const cells: string[] = sectionDayEntries.map(d => {
         const nd = nonShootDates.find(n => n.date === d.isoDate);
-        if (isElementMarked(nd, 'travel', selectedCategory, elementId)) return 'T';
-        if (isElementMarked(nd, 'hold', selectedCategory, elementId)) return 'H';
+        const st = nd?.status;
+        const code = st ? typeCodes.get(st) : '';
+        if (st && code && isElementMarked(nd, st, selectedCategory, elementId)) {
+          typeCounts[st] = (typeCounts[st] || 0) + 1;
+          return code;
+        }
         if (!appearSet.has(d.sectionIndex)) {
           if (d.sectionIndex === -1) return '';
           return (firstDate && lastDate && d.isoDate > firstDate && d.isoDate < lastDate) ? 'H' : '';
@@ -204,11 +215,12 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
         travelDays: travelCount,
         startDate: firstDate,
         finishDate: lastDate,
+        typeCounts,
       });
     }
 
     return { days: sectionDayEntries, rows: doodRows };
-  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, selectedCategory, isCast, state.present.versions, state.present.activeVersionId]);
+  }, [project.scenes, sections, sectionDayEntries, sceneToSection, elementIds, castMembers, selectedCategory, isCast, state.present.versions, state.present.activeVersionId, typeCodes]);
 
   const chronoDayMap = useMemo(() => {
     const m = new Map<number, number>();
@@ -220,6 +232,20 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
   }, [data.days]);
 
   const categoryLabel = getCategoryLabel(selectedCategory, project.customCategories || []);
+
+  // Count columns for in-use custom attachable types (travel/hold already have
+  // their own Work/Hold/Travel columns).
+  const typeColumns = useMemo(() => {
+    const used = new Set<string>();
+    for (const d of sectionDayEntries) if (d.status) used.add(d.status);
+    return getDayTypes(project).filter(t => t.attachable !== false && t.key !== 'travel' && t.key !== 'hold' && used.has(t.key));
+  }, [sectionDayEntries, project]);
+
+  const codeToType = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of getDayTypes(project)) m.set(codeForType(project.dayTypes, t.key), t.label);
+    return m;
+  }, [project]);
 
   if (data.days.length === 0) {
     return (
@@ -241,6 +267,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
           <span><span className="inline-block w-2 h-2 rounded-sm bg-lime-900/40 mr-1"></span>W=Work</span>
           <span><span className="inline-block w-2 h-2 rounded-sm bg-amber-900/30 mr-1"></span>H=Hold</span>
           {isCast && <span><span className="inline-block w-2 h-2 rounded-sm bg-sky-900/30 mr-1"></span>T=Travel</span>}
+          {typeColumns.map(tc => <span key={tc.key}><span className="inline-block w-2 h-2 rounded-sm mr-1" style={{ background: tc.color || '#52525b' }}></span>{codeForType(project.dayTypes, tc.key)}={tc.label}</span>)}
           <span>SW=Start</span>
           <span>WF=Finish</span>
           <span>SWF=Only</span>
@@ -255,6 +282,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
             <col style={{ width: widths.work }} />
             <col style={{ width: widths.hold }} />
             {isCast && <col style={{ width: widths.trav }} />}
+            {typeColumns.map(tc => <col key={tc.key} style={{ width: 50 }} />)}
             <col style={{ width: widths.start }} />
             <col style={{ width: widths.finish }} />
           </colgroup>
@@ -282,6 +310,12 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                 Trav
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
+              {typeColumns.map(tc => (
+                <th key={tc.key} className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
+                  {tc.label}
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                </th>
+              ))}
               <th className="relative px-2 py-1.5 text-center text-zinc-500 font-medium bg-zinc-900 cursor-default">
                 Start
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
@@ -311,6 +345,11 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
               {isCast && <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
+              {typeColumns.map(tc => (
+                <th key={tc.key} className="relative px-2 py-1 bg-zinc-900 cursor-default">
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                </th>
+              ))}
               <th className="relative px-2 py-1 bg-zinc-900 cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
               </th>
@@ -344,6 +383,11 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
               {isCast && <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
               </th>}
+              {typeColumns.map(tc => (
+                <th key={tc.key} className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
+                  <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                </th>
+              ))}
               <th className="relative px-2 py-1 border-b border-zinc-800 bg-zinc-900 cursor-default">
                 <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />
               </th>
@@ -365,7 +409,7 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                   const isSwCell = code === 'SW' || code === 'SWF';
                   const gapClass = (d.hasGap && !isSwCell) ? 'border-l [border-left-style:dotted] border-l-zinc-600' : '';
                   return (
-                    <td key={ci} className={`relative px-2 py-1.5 text-center border-b border-zinc-800 text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code)}>
+                    <td key={ci} className={`relative px-2 py-1.5 text-center border-b border-zinc-800 text-xs font-medium cursor-default ${gapClass} ${cls}`} title={getCellTooltip(code) || (code ? codeToType.get(code) : '')}>
                       <span className={!d.isShooting ? 'opacity-40' : ''}>{code}</span>
                       <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('day', e)} />
                     </td>
@@ -383,6 +427,12 @@ export default function DoodsTab({ selectedCategory }: DoodsTabProps) {
                   {row.travelDays > 0 ? row.travelDays : ''}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('trav', e)} />
                 </td>}
+                {typeColumns.map(tc => (
+                  <td key={tc.key} className="relative px-2 py-1.5 text-center text-xs text-zinc-400 border-b border-zinc-800 cursor-default">
+                    {row.typeCounts[tc.key] > 0 ? row.typeCounts[tc.key] : ''}
+                    <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize(`type-${tc.key}`, e)} />
+                  </td>
+                ))}
                 <td className="relative px-2 py-1.5 text-center text-xs text-zinc-500 border-b border-zinc-800 cursor-default">
                   {row.startDate ? formatDateShort(row.startDate) : ''}
                   <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-zinc-600/40" onPointerDown={(e) => startResize('start', e)} />

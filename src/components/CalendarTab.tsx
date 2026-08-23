@@ -29,9 +29,10 @@ import PageToolbar from './PageToolbar';
 import ColorField from './ColorField';
 import { DayCell, FillerCell } from './calendar/DayCell';
 import { TravelHoldModal } from './calendar/TravelHoldModal';
-import { DayTypesManagerModal } from './calendar/DayTypesManagerModal';
-import { getDayTypes, getDayTypeVisual, getDayTypeLabel } from '../lib/dayTypes';
-import { getNonShootEntryMap, hasTravel, hasHold } from '../lib/nonShootHelpers';
+import { DayTypesTab } from './calendar/DayTypesTab';
+import { PopoutPlaceholder } from './PopoutWindow';
+import { getDayTypes, getDayTypeVisual, getDayTypeLabel, getDayTypeCode, typeIconComponent } from '../lib/dayTypes';
+import { getNonShootEntryMap, hasAnyLists } from '../lib/nonShootHelpers';
 import { useCalendarKeyboard } from './calendar/useCalendarKeyboard';
 import { useCalendarDrag } from './calendar/useCalendarDrag';
 import { SceneCardContent } from './calendar/SceneCard';
@@ -40,7 +41,16 @@ import { BoneyardExpandButton } from './BoneyardExpandButton';
 import { DayDropState, MonthSlot, MonthTrim, DAY_CELL_HEIGHT, toDateKey, DAY_NAMES, formatFullDate, monthsInRange, estimateMonthHeight, buildMonthSlots, monthTitle } from './calendar/calendarUtils';
 const SCROLL_KEY = 'lemon_schedule_calendar_scroll';
 
-export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; onOpenSceneInPopout?: (sceneId: string) => void }> = ({ onOpenScene, onOpenSceneInPopout }) => {
+export const CalendarTab: React.FC<{
+  onOpenScene?: (sceneId: string) => void;
+  onOpenSceneInPopout?: (sceneId: string) => void;
+  subTab?: 'calendar' | 'dayTypes';
+  onSubTabChange?: (t: 'calendar' | 'dayTypes') => void;
+  poppedOutSubTabs?: Set<string>;
+  onToggleSubPopout?: (id: string) => void;
+  onCloseSubPopout?: (id: string) => void;
+  shiftHeld?: boolean;
+}> = ({ onOpenScene, onOpenSceneInPopout, subTab = 'calendar', onSubTabChange, poppedOutSubTabs = new Set(), onToggleSubPopout, onCloseSubPopout, shiftHeld: poppedShiftHeld = false }) => {
   const { state, dispatch } = useProject();
   const currentWindow = useCurrentWindow();
   const project = state.present;
@@ -97,7 +107,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   }, [boneyardCollapsed]);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [travelHoldModal, setTravelHoldModal] = useState<{ dateKey: string } | null>(null);
-  const [dayTypesModalOpen, setDayTypesModalOpen] = useState(false);
   const [autoDayOffOpen, setAutoDayOffOpen] = useState(false);
   const [autoDayOffDays, setAutoDayOffDays] = useState<Set<number>>(new Set([5, 6]));
 
@@ -280,7 +289,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
     if (!activeVersion) return;
     const current = activeVersion.nonShootDates || [];
     const idx = current.findIndex(ns => ns.date === dateKey);
-    const hasLists = hasTravel(entry) || hasHold(entry);
+    const hasLists = hasAnyLists(entry);
     let next: NonShootDate[];
     if (!entry.status && !hasLists) {
       next = idx >= 0 ? current.filter(ns => ns.date !== dateKey) : current;
@@ -776,7 +785,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
   if (!activeVersion) return <div className="p-8 text-zinc-500">No active version</div>;
 
   return (
-    <>
+    <div className="flex flex-col h-full bg-white overflow-hidden">
     <style>{`
       @keyframes cal-day-flash {
         0% { background-color: rgba(59,130,246,0.55); }
@@ -795,6 +804,22 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
         animation: cal-day-flash-b 0.9s ease-out;
       }
     `}</style>
+    <PageToolbar
+      tabs={[
+        { id: 'calendar', label: 'Calendar' },
+        { id: 'dayTypes', label: 'Day Types' },
+      ]}
+      activeTab={subTab}
+      onChange={(t) => onSubTabChange?.(t as 'calendar' | 'dayTypes')}
+      onPopout={(id) => onToggleSubPopout?.(id)}
+      shiftHeld={poppedShiftHeld}
+    />
+    {poppedOutSubTabs.has(subTab) ? (
+      <PopoutPlaceholder title={subTab === 'dayTypes' ? 'Day Types' : 'Calendar'} onBringBack={() => onCloseSubPopout?.(subTab)} />
+    ) : subTab === 'dayTypes' ? (
+      <DayTypesTab />
+    ) : (
+    <>
     <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => {
       setActiveId(null);
       setActiveDragRow(null);
@@ -894,10 +919,6 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                     </span>
                     {showConflicts ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                   </button>
-                  <DropdownDivider />
-                  <DropdownItem onClick={() => { setViewMenuOpen(false); setDayTypesModalOpen(true); }} icon={<CalendarDays className="w-3.5 h-3.5" />}>
-                    Day Types…
-                  </DropdownItem>
                 </DropdownMenu>
               </div>
             }
@@ -985,6 +1006,7 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
                           dateKey={day.dateKey} date={day.date} isToday={day.isToday}
                           nonShootStatus={nonShootDateMap.get(day.dateKey)}
                           dayTypeVisual={getDayTypeVisual(project, nonShootDateMap.get(day.dateKey))}
+                          dayTypeCode={getDayTypeCode(project, nonShootDateMap.get(day.dateKey))}
                           travelHoldEntry={nonShootEntryByDate.get(day.dateKey)}
                           onEditTravelHold={(dk) => setTravelHoldModal({ dateKey: dk })}
                           sectionIndex={dateSectionIdx ?? undefined}
@@ -1048,17 +1070,11 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
       {contextMenuDate && contextMenu && (
         <ContextMenu open={true} x={contextMenu.x} y={contextMenu.y} onClose={() => { setContextMenu(null); setContextMenuDate(null); }}>
           {getDayTypes(project).map(t => {
-            const icon = t.key === 'hold'
-              ? <Pause className="w-3.5 h-3.5" />
-              : t.key === 'travel'
-                ? <Plane className="w-3.5 h-3.5" />
-                : t.key === 'holiday'
-                  ? <Sun className="w-3.5 h-3.5" />
-                  : (
-                    <span className="w-3 h-3 rounded-full shrink-0 border border-zinc-600" style={t.color ? { background: t.color } : undefined} />
-                  );
+            const Icon = typeIconComponent(project.dayTypes, t.key);
             return (
-              <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }} icon={icon}>
+              <ContextMenuItem key={t.key} onClick={() => { handleNonShootToggle(contextMenuDate, t.key); setContextMenu(null); setContextMenuDate(null); }}
+                icon={<Icon className="w-3.5 h-3.5" />}
+              >
                 {t.label}
               </ContextMenuItem>
             );
@@ -1187,8 +1203,9 @@ export const CalendarTab: React.FC<{ onOpenScene?: (sceneId: string) => void; on
           onClose={() => setTravelHoldModal(null)}
         />
       )}
-      <DayTypesManagerModal open={dayTypesModalOpen} onClose={() => setDayTypesModalOpen(false)} />
     </DndContext>
     </>
+    )}
+  </div>
   );
 };

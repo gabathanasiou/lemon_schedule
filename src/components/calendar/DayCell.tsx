@@ -12,6 +12,7 @@ import { SceneCard, SceneCardContent } from './SceneCard';
 import { DayDropState, formatFullDate } from './calendarUtils';
 import { TravelHoldTooltip } from './TravelHoldTooltip';
 import { DayTypeVisual, dayTypeTextColor } from '../../lib/dayTypes';
+import { getStatusesWithLists } from '../../lib/nonShootHelpers';
 
 export const DayCell: React.FC<{
   dateKey: string; date: Date; isToday: boolean;
@@ -22,6 +23,7 @@ export const DayCell: React.FC<{
   onContextMenu?: (e: React.MouseEvent, dateKey: string) => void;
   nonShootStatus?: string;
   dayTypeVisual?: DayTypeVisual | null;
+  dayTypeCode?: string;
   travelHoldEntry?: NonShootDate;
   onEditTravelHold?: (dateKey: string) => void;
   sectionIndex?: number;
@@ -42,7 +44,7 @@ export const DayCell: React.FC<{
   activeDragDay?: number | null;
   dropState?: DayDropState;
   flashColor?: 'a' | 'b';
-}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, dayTypeVisual, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
+}> = ({ dateKey, date, isToday, rows, scenes, displayField, violations, sceneViolationMap, onToggle, onContextMenu, nonShootStatus, dayTypeVisual, dayTypeCode, travelHoldEntry, onEditTravelHold, sectionIndex, sectionLabel, activeTool, selectedIds, activeDragIds, onRowClick, insertBeforeId, activeDragRow, activeDragRows = [], activeRowId, onRowDoubleClick, onRowContextMenu, onBodyContextMenu, bodyTargetRowId, palette, activeDragDay, dropState, flashColor }) => {
   const { readOnly, state } = useProject();
   const project = state.present;
   const { setNodeRef, isOver } = useDroppable({
@@ -137,7 +139,23 @@ export const DayCell: React.FC<{
           className={`relative flex items-center justify-between mx-0.5 my-0.5 px-1.5 py-1 select-none min-h-[34px] ${headerColor} ${isToday ? 'ring-2 ring-blue-400' : ''}`}
         >
           <span className="w-5 shrink-0 flex justify-start items-center gap-0.5">
-            {hasTravel(travelHoldEntry) && hasHold(travelHoldEntry) ? (
+            {nonShootStatus && nonShootStatus !== 'hold' && nonShootStatus !== 'travel' && getStatusesWithLists(travelHoldEntry).includes(nonShootStatus) ? (
+              <TravelHoldTooltip entry={travelHoldEntry} project={project}>
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => { e.stopPropagation(); onEditTravelHold?.(dateKey); }}
+                  className="pointer-events-auto shrink-0"
+                  title={dayTypeCode ? `${dayTypeCode} — ${dayTypeVisual?.label || ''}` : undefined}
+                >
+                  <span
+                    className="w-3 h-3 rounded-sm text-[7px] font-bold text-white flex items-center justify-center leading-none"
+                    style={dayTypeVisual?.color ? { background: dayTypeVisual.color } : { background: '#52525b' }}
+                  >
+                    {dayTypeCode || '•'}
+                  </span>
+                </button>
+              </TravelHoldTooltip>
+            ) : hasTravel(travelHoldEntry) && hasHold(travelHoldEntry) ? (
               <TravelHoldTooltip entry={travelHoldEntry} project={project}>
                 <button
                   onPointerDown={(e) => e.stopPropagation()}
