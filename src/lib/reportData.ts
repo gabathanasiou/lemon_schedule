@@ -85,15 +85,17 @@ export function designLocationsIn(ctx: ReportCtx, design: ReportDesign): ReportL
   const walk = (list: ReportBlock[] | undefined) => {
     if (!list) return;
     for (const b of list) {
-      if (b.collection === 'locations' || b.collection === 'locationsOfType') {
-        const byType = b.collection === 'locationsOfType'
+      if (b.collection === 'locations') {
+        // Flat locations blocks carry the type filter (block.category).
+        const byType = b.category
           ? ctx.locationInfos.filter(l => l.type === b.category)
           : ctx.locationInfos;
-        if (b.collection === 'locations' && b.category) {
-          for (const l of byType) if (l.type === b.category) refs.add(l);
-        } else {
-          for (const l of byType) refs.add(l);
-        }
+        for (const l of byType) refs.add(l);
+      } else if (b.collection === 'locationsOfType') {
+        // Per-type tables have NO type picker (roadmap 6) — the parent
+        // locationTypes repeat picks per-type at render time, so every pin
+        // must warm for the weather fields inside (roadmap 31).
+        for (const l of ctx.locationInfos) refs.add(l);
       }
       if (b.type === 'columns') for (const c of b.cols || []) walk(c.blocks);
       if (b.children) walk(b.children);

@@ -43,7 +43,12 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const scoped = scopedToParent !== false;
-  const typeLabel = (locationTypes || []).find(t => t.key === category)?.label;
+  // Locations: callers default an unset category to 'props' — for locations
+  // that's the "All types" state (a real type key can never be 'props').
+  const locCategory = value === 'locations' && category === 'props' ? undefined : category;
+  const typeLabel = value === 'locations'
+    ? (locationTypes || []).find(t => t.key === locCategory)?.label
+    : undefined;
   const label = value === 'elements'
     ? `${scopedCollectionLabel('elements', parentCollection, scoped)} · ${categoryLabels[category] || category}`
     : value === 'locations'
@@ -107,11 +112,17 @@ const CollectionMenu: React.FC<CollectionMenuProps> = ({
           return (
             <React.Fragment key="locations">
               <DropdownSubmenu id="locations" label="Locations" width={width}>
+                <DropdownItem
+                  onClick={() => pick('locations', undefined)}
+                  icon={value === 'locations' && !locCategory ? <Check className="w-3.5 h-3.5" /> : undefined}
+                >
+                  All types
+                </DropdownItem>
                 {locationTypes.map(t => (
                   <DropdownItem
                     key={t.key}
                     onClick={() => pick('locations', t.key)}
-                    icon={value === 'locations' && category === t.key ? <Check className="w-3.5 h-3.5" /> : undefined}
+                    icon={value === 'locations' && locCategory === t.key ? <Check className="w-3.5 h-3.5" /> : undefined}
                   >
                     {t.label}
                   </DropdownItem>

@@ -293,6 +293,9 @@ export interface ProjectLocation {
 export interface LocationTrashItem {
   location: ProjectLocation;
   deletedAt: number;
+  /** The type's human label at delete time — restore re-creates a deleted
+   *  type with this, not the slug (roadmap 31). */
+  typeLabel?: string;
 }
 
 export interface ProductionInfo {

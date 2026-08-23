@@ -304,9 +304,10 @@ export function caseRenameLocationType(state: State, action: Action, applyChange
 export function caseDeleteLocationType(state: State, action: Action, applyChange: ApplyChange): State {
   if (action.type !== 'DELETE_LOCATION_TYPE') return state;
   const locations = state.present.locations || [];
+  const type = (state.present.locationTypes || []).find(t => t.key === action.payload);
   const trashItems: LocationTrashItem[] = locations
     .filter(l => l.type === action.payload)
-    .map(location => ({ location, deletedAt: Date.now() }));
+    .map(location => ({ location, deletedAt: Date.now(), typeLabel: type?.label }));
   return applyChange({
     ...state.present,
     locationTypes: (state.present.locationTypes || []).filter(t => t.key !== action.payload),
@@ -339,11 +340,12 @@ export function caseDeleteLocation(state: State, action: Action, applyChange: Ap
   if (action.type !== 'DELETE_LOCATION') return state;
   const locations = state.present.locations || [];
   const location = locations.find(l => l.id === action.payload);
+  const typeLabel = (state.present.locationTypes || []).find(t => t.key === location?.type)?.label;
   return applyChange({
     ...state.present,
     locations: locations.filter(l => l.id !== action.payload),
     locationsTrash: location
-      ? [...(state.present.locationsTrash || []), { location, deletedAt: Date.now() }]
+      ? [...(state.present.locationsTrash || []), { location, deletedAt: Date.now(), typeLabel }]
       : state.present.locationsTrash || [],
   });
 }
@@ -354,7 +356,7 @@ export function caseRestoreLocation(state: State, action: Action, applyChange: A
   if (!item) return state;
   const locationTypes = [...(state.present.locationTypes || [])];
   if (!locationTypes.some(t => t.key === item.location.type)) {
-    locationTypes.push({ key: item.location.type, label: item.location.type });
+    locationTypes.push({ key: item.location.type, label: item.typeLabel || item.location.type });
   }
   return applyChange({
     ...state.present,
