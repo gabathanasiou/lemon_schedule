@@ -129,6 +129,19 @@ instead of only the first/last.
     close a page — a break after all-nothing content is a no-op; `breakBefore`
     (columns/callSheetEdit with a break inside) only forces the next page when
     the current one holds content.
+11. **Block gap (roadmap 33) rides on wrapper margins, not units.** Preview and
+    print give every stacked block an 8px `marginTop` (`blockGapMargin` in
+    `reportStyle.ts`; canvas stays flush per the item 26 veto). The measure
+    container's `.rm-block` wrappers, the fragment children (`.rm-frag-child`),
+    once tables and columns children all carry the same inline margin as the
+    chunk-page mounts, and the walker reads wrapper `marginTop` into
+    `gapBefore` (`wholeUnit` + the first unit of splittable blocks — tables
+    ride it on the header unit, repeats on the first item's first content unit,
+    ribbons on the first strip). First-child margins are suppressed per stack
+    (`.rm-body > :first-child`, `.report-page-content > :first-child`), so a
+    page-opening unit never pays a `gapBefore` — mirrors the CSS. Repeat ITEM
+    spacing stays the flex `gap` on `.rm-repeat-col`; pageBreak and spacer
+    blocks get no margin.
 
 ## 4. Safari specifics
 

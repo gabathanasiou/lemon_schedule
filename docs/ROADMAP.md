@@ -664,7 +664,8 @@ Known issues to fix together (all in the locations/type machinery):
   still produce blank pages; empty top-level table prints nothing; seeded
   project + lint + playwright.
 
-## 33. Block gap in preview + print (like the repeat item gap) (`[ ]`)
+## 33. Block gap in preview + print (like the repeat item gap) (`[x]`)
+- Done: `DEFAULT_BLOCK_GAP = 8` + `blockGapMargin` (`reportStyle.ts`) — every stacked block carries the uniform 8px marginTop in preview and print only (no `blockGap` prop, no chrome input — single global default). Applied by the `.rm-block` measure wrappers, chunk-page body/header/footer mounts, repeat/relative item children (`.rm-frag-child`), once tables (`.rm-repeat-child`) and columns children (their hardcoded flex `gap: 8` is gone — one spacing mechanism everywhere). First-child suppressed per stack (`.rm-body > :first-child`, `.report-page-content > :first-child`). Repeat ITEM spacing stays the flex `gap` on `.rm-repeat-col` (items are not blocks — never doubled). pageBreak + spacer blocks excluded. The paginator reads wrapper margins into `gapBefore` (`wholeUnit` + the first unit of splittable blocks: tables, repeats, ribbons) so budgets hold — verified by `e2e/report-block-gap.spec.ts` (canvas flush, preview margins per stack) + `report-pagination` on Chrome and WebKit/iPad.
 
 - **Requested**: EVERY block gets the same vertical gap the repeat's ITEMS
   have (the `gap ?? 8` between `.rm-item`s) — body/header/footer blocks,
@@ -736,7 +737,8 @@ Known issues to fix together (all in the locations/type machinery):
 
 ---
 
-## 35. Location picker: static center pin, drag the map to place (`[ ]`)
+## 35. Location picker: static center pin, drag the map to place (`[x]`)
+- Done: `LocationPickerModal` is now Apple Maps–style — a static teardrop pin locked at the map's center (`teardropHTML` shared with `locationMarker` in `MapPrimitives.tsx`, `pointer-events-none` overlay, `translate(-50%,-100%)` tip at center); the picked location is the map's center at confirm time. `CenterProbe` (`useMapEvents` moveend) tracks the center with a same-coords guard (breaks the `Recenter` setView → moveend → setCenter loop that would otherwise run forever) and triggers debounced (350ms) reverse geocode that settles the label under the pin (existing `geocodeSeq` stale-response guard kept). Search picks center the map on the spot (label kept — no geocode overwrite via `skipNextGeocode`); Attach is always enabled; footer coords read from center. `TapToPin` deleted from `MapPrimitives` (no other consumers).
 
 Apple Maps–style placement in `LocationPickerModal`
 (`src/components/location/LocationPickerModal.tsx`) — shared by the Location
@@ -772,7 +774,8 @@ Verify: drag → pin stays centered, label settles after drag; search →
 centered + labeled; Attach with zero map clicks works; both consumers
 updated; `npm run lint` + playwright.
 
-## 36. Map block chrome: click the location name to change it (`[ ]`)
+## 36. Map block chrome: click the location name to change it (`[x]`)
+- Done: the pinned location's name text is now a button (cursor-pointer, title tooltip, truncating) that opens the `LocationPickerModal` with the same `setLocationOpen(true)` handler as the Change button, which stays. The trash (clear) button and the inherited "Comes from the day's location" row are unchanged. Purely a chrome tweak.
 
 In the map block's properties panel ("Location" section,
 `blockControls.tsx:1060-1085`): today a pinned location renders as a
@@ -790,7 +793,8 @@ affordance (cursor-pointer, title tooltip) so it reads as interactive.
 Verify: click name → picker opens; picked location patches and the name
 re-renders; hover affordance visible; trash still clears; lint + playwright.
 
-## 37. Map block chrome: remove the "Address" note row (`[ ]`)
+## 37. Map block chrome: remove the "Address" note row (`[x]`)
+- Done: the "Address" explanatory ContentRow is deleted from the map block's properties; the floating label behavior is untouched.
 
 Delete the "Address" ContentRow (`blockControls.tsx:1119-1121` — "Shown as
 a floating label on the map — clickable when an open-in service is set.")
