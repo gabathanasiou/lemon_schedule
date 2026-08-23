@@ -87,11 +87,15 @@ async function designWidths(page: any, tableId: string): Promise<number[]> {
 test('table resize: multi-row table — header + all rows track live, commit lands, unchanged columns keep widths', async ({ page }) => {
   await openDesigner(page);
 
-  // the multi-row scenes table is the first table on the canvas
+  // the multi-row scenes table is the first table on the canvas. The canvas
+  // truncates tables at TABLE_PREVIEW_LIMIT (6) rows + a "+N more" bar
+  // (roadmap 12 — preview/print render every row); the cap applies to the
+  // canvas only.
   const table = page.locator('.report-table-cols').first();
   await expect(table).toBeVisible({ timeout: 5000 });
   const rowCount = await table.locator('.rm-row').count();
-  expect(rowCount).toBeGreaterThan(10); // seeded project: 178 scenes
+  expect(rowCount).toBe(6); // canvas truncation of the 174-row scenes table
+  await expect(page.getByText(/^\+\d+ more$/)).toBeVisible(); // the truncation bar
 
   const card = table.locator('xpath=ancestor::*[@data-block-id]').first();
   await card.click({ position: { x: 5, y: 5 } });
@@ -144,8 +148,11 @@ test('table resize: multi-row table — header + all rows track live, commit lan
 test('table resize: single-row (skeleton) table works too', async ({ page }) => {
   await openDesigner(page);
 
-  // the second table (empty category) renders the hint skeleton — 1 data row
-  const table = page.locator('.report-table-cols').nth(1);
+  // the second table (empty category) renders the hint skeleton — 1 data row.
+  // Locate it by block id: the truncated scenes table above it ALSO emits a
+  // ".report-table-cols" element (its "+N more" bar), so positional nth()
+  // is unreliable.
+  const table = page.locator('[data-block-id="rsz-t2"] .report-table-cols');
   await expect(table).toBeVisible({ timeout: 5000 });
   const rowCount = await table.locator('.rm-row').count();
   expect(rowCount).toBe(1);

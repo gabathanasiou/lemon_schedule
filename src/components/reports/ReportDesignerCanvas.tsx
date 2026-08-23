@@ -6,6 +6,7 @@ import { FieldAux } from '../../lib/reportFields';
 import { ReportFieldDef, fieldsForScope, reportFieldValueByKey, ITEM_SCOPES, TOKEN_RE, parseToken } from '../../lib/reportFields';
 import { COLLECTION_LABELS, findBlock, parentCollectionOf, insideColumnsBlock, listOwnerOf, tableItemCollection, tableFieldScope, scopedCollectionLabel } from '../../lib/reportBlocks';
 import { normalizeColWidths } from '../../lib/ribbonDefaults';
+import { IS_COARSE } from '../../lib/device';
 import { useColumnResize, ColumnResizeStrip } from '../columnResize';
 import { ReportBlockView } from './ReportBlockView';
 import { DROP_MIME, PaletteDropPayload } from './ReportPalette';
@@ -291,7 +292,7 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
       const relTarget = b.type === 'relative' && relItems && relItems.length > 0 && parentCollection
         ? `→ ${reportItemLabel(parentCollection, relItems[0])}`
         : null;
-      const itemLocations = (b.type === 'text' || b.type === 'field') && parentItem ? locationsOfItem(ctx, parentItem) : [];
+      const itemLocations = (b.type === 'text' || b.type === 'field' || b.type === 'map') && parentItem ? locationsOfItem(ctx, parentItem) : [];
 
       out.push(
         <div key={`z-${b.id}`}>{renderZone(b, 'before', depth)}</div>,
@@ -318,13 +319,6 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
               transition: 'opacity 150ms ease',
             }}
           >
-            {resizeTarget && resizeTarget.id === b.id && (
-              <TableResizeBar
-                block={resizeTarget}
-                canvasRef={containerRef}
-                onResize={widths => onPatch(resizeTarget.id, { columns: (resizeTarget.columns || []).map((c, i) => ({ ...c, width: widths[i] ?? c.width })) })}
-              />
-            )}
             {dragging && (!insideColumnsBlock(allBlocks, b.id) || listOwnerOf(allBlocks, b.id)?.colIndex !== undefined) && (
               <>
                 <EdgeZone side="left" b={b} depth={depth} onWrap={(id, payload, side) => { onWrap(id, payload, side); endDrag(); }} pendingRef={pendingRef} />
@@ -376,6 +370,13 @@ const ReportDesignerCanvas: React.FC<ReportDesignerCanvasProps> = ({ blocks, hea
                   {b.collection === 'locations' && b.category ? ` (${(project.locationTypes || []).find(t => t.key === b.category)?.label || b.category})` : ''}
                   {b.type === 'table' && (b.axis ?? 'columns') === 'rows' ? ' · rows mode' : ''}
                 </div>
+                {resizeTarget && resizeTarget.id === b.id && (
+                  <TableResizeBar
+                    block={resizeTarget}
+                    canvasRef={containerRef}
+                    onResize={widths => onPatch(resizeTarget.id, { columns: (resizeTarget.columns || []).map((c, i) => ({ ...c, width: widths[i] ?? c.width })) })}
+                  />
+                )}
                 {b.type === 'repeat' && b.children && b.children.length > 0 ? (
                   <div className="repeat-children" style={{ display: 'flex', flexDirection: 'column' }}>
                     {(() => {
@@ -1014,9 +1015,15 @@ const TableResizeBar: React.FC<{ block: ReportBlock; onResize: (widths: number[]
 
   if (widths.length < 2) return null;
 
+  // The handle strip is IN FLOW: it occupies its own band between the label
+  // row and the table, pushing the table down while selected — the tabs
+  // (anchored bottom-0) sit in that gap, flush against the table's top edge
+  // (-mb-2 cancels the container's gap-2), never overlapping the header
+  // cells. No part reaches above the card, so the selected block's floating
+  // chrome can never cover the handles.
   return (
-    <div className="absolute -top-2.5 left-0 right-0 h-5 pointer-events-none" style={{ zIndex: 40 }}>
-      <ColumnResizeStrip variant="bar" widths={widths} startResize={startResize} containerRef={stripRef} />
+    <div className={`${IS_COARSE ? 'h-10' : 'h-5'} -mb-2 select-none`}>
+      <ColumnResizeStrip widths={widths} startResize={startResize} containerRef={stripRef} />
     </div>
   );
 };

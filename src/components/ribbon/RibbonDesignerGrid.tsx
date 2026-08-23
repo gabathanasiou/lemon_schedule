@@ -55,7 +55,6 @@ export default function RibbonDesignerGrid({
             widths={colWidths}
             startResize={startResize}
             readOnly={readOnly}
-            variant="tab"
             containerRef={tabBarRef}
             className="h-full relative"
           />
