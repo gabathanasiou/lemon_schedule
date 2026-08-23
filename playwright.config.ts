@@ -14,11 +14,32 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     headless: true,
     screenshot: 'only-on-failure',
+    // The agentic debug bridge (window.__lemonSchedule) is gated behind
+    // LEMON_AGENT in production builds — the suite runs the PRODUCTION
+    // preview, so every test context opens agent mode. Inert unless a spec
+    // calls the bridge (debug-bridge.spec.ts, report-page-breaks.spec.ts).
+    storageState: {
+      cookies: [],
+      origins: [{ origin: `http://localhost:${PORT}`, localStorage: [{ name: 'LEMON_AGENT', value: '1' }] }],
+    },
   },
-  webServer: {
-    command: `npm run dev -- --port=${PORT} --strictPort`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !isolated,
-    timeout: 30000,
-  },
+  // Tests run against the PRODUCTION build (vite build is ~4s): boots and page
+  // loads are far faster than the dev server (no per-module transforms, no
+  // HMR). To run against the dev server instead: PLAYWRIGHT_DEV=1.
+  webServer: process.env.PLAYWRIGHT_DEV
+    ? {
+        command: `npm run dev -- --port=${PORT} --strictPort`,
+        url: `http://localhost:${PORT}`,
+        reuseExistingServer: !isolated,
+        timeout: 30000,
+      }
+    : {
+        command: `npm run build && npm run preview -- --port=${PORT} --strictPort`,
+        url: `http://localhost:${PORT}`,
+        reuseExistingServer: !isolated,
+        timeout: 120000,
+      },
+  // The perf/memory harnesses have their own configs (playwright.perf*.config.ts)
+  // and are NOT part of the default suite — run them explicitly via grep.
+  grepInvert: /@perf/,
 });

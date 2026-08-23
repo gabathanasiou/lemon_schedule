@@ -243,7 +243,13 @@ export default function ReportDesigner({ headerTarget, onPrint }: ReportDesigner
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setMenu(null); setPreview(false); setSelId(null); setSelCol(null); return; }
+      // Escape inside an open dialog (styles modal, print dialog…) belongs to
+      // the dialog — never hijack it to deselect the block (the chrome and
+      // everything mounted inside it, like the modal, would unmount).
+      if (e.key === 'Escape') {
+        if (currentWin.document.querySelector('[role="dialog"]')) return;
+        setMenu(null); setPreview(false); setSelId(null); setSelCol(null); return;
+      }
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
       const col = selColRef.current;
