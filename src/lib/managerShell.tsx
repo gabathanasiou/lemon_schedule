@@ -64,6 +64,11 @@ export interface ManagerShellConfig {
   /** First field is the merge identity (name). */
   fields: ManagerFieldDef[];
   mergeableFields: string[];
+  /** Flat managers (e.g. Day Types): a single fixed scope — no sidebar
+   *  add/rename/delete chrome, no category modals. */
+  flat?: boolean;
+  /** Rows that cannot be deleted (built-ins). Delete button renders disabled. */
+  rowLocked?: (row: ManagerRow) => boolean;
   categories(project: Project): CrewRole[];
   addCategory(dispatch: (action: any) => void, label: string, categories: CrewRole[]): string | null;
   renameCategory(dispatch: (action: any) => void, key: string, label: string): void;
@@ -430,10 +435,10 @@ export const DatabaseManagerView: React.FC<{
         rows={sidebarRows}
         activeKey={categoryKey}
         onSelect={switchCategory}
-        onAdd={() => { setNewCategoryName(''); setShowAddCategory(true); }}
+        onAdd={config.flat ? undefined : () => { setNewCategoryName(''); setShowAddCategory(true); }}
         addLabel={config.addScopeLabel}
         addDisabled={readOnly}
-        renderRowActions={renderRowActions}
+        renderRowActions={config.flat ? undefined : renderRowActions}
       />
 
       <div className="flex-1 flex flex-col h-full bg-zinc-100 overflow-hidden">
@@ -443,7 +448,7 @@ export const DatabaseManagerView: React.FC<{
             <div className="h-full overflow-auto tab-scroll pb-10">
               {category && rows.length === 0 && (
                 <div className="text-xs text-zinc-400 py-8 text-center border-b border-zinc-100">
-                  No {config.nounPlural} in this {config.categorySingular} yet.
+                  {config.flat ? `No ${config.nounPlural} yet.` : `No ${config.nounPlural} in this ${config.categorySingular} yet.`}
                 </div>
               )}
               {rows.length > 0 && (
@@ -467,7 +472,7 @@ export const DatabaseManagerView: React.FC<{
                           </td>
                         ))}
                         <td className="px-3 py-1 text-center">
-                          <button title={`Delete ${config.nounSingular}`} onClick={() => buf.deleteRow(r.key)} disabled={readOnly} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
+                          <button title={`Delete ${config.nounSingular}`} onClick={() => buf.deleteRow(r.key)} disabled={readOnly || config.rowLocked?.(r)} className="p-1 rounded-md hover:bg-red-50 transition-colors opacity-40 hover:opacity-100 disabled:opacity-20 disabled:cursor-not-allowed">
                             <Trash2 className="w-3.5 h-3.5 text-red-400" />
                           </button>
                         </td>
