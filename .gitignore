@@ -9,3 +9,9 @@ coverage/
 test-results/
 .playwright-cli/
 node_modules
+
+# Obsidian vault config (repo root is the vault)
+.obsidian/
+
+# Playwright MCP artifacts
+.playwright-mcp/
