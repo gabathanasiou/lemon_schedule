@@ -88,7 +88,7 @@ export const ReportMapView: React.FC<{
       timezone: 'UTC',
     };
   }
-  if (loc.lat == null || loc.lng == null) {
+  if (!loc || loc.lat == null || loc.lng == null) {
     return <div style={{ color: '#a1a1aa', fontStyle: 'italic' }}>Add a location…</div>;
   }
   const position: [number, number] = [loc.lat, loc.lng];

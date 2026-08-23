@@ -85,6 +85,9 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
         // Legacy pin: only a full display_name, no structured parts — the
         // address bar must still derive the short label from it.
         { id: 'map-legacy', type: 'map', mapLat: 51.5007, mapLng: -0.1246, mapPlace: 'Big Ben, Bridge Street, Westminster, London SW1A 2JR, United Kingdom', mapHeight: 120, mapZoom: 13 },
+        // Freshly placed block: no pin, no inherited day — must render the
+        // "Add a location…" hint, never crash on undefined loc (roadmap 9).
+        { id: 'map-blank', type: 'map', mapHeight: 120 },
       ],
       header: [], footer: [],
     };
@@ -173,6 +176,9 @@ test.describe('Reports Designer — Sun & Weather, Image, Map', () => {
 
     // ---- legacy pin (place-only): address bar derives street/city/postcode ----
     await expect(page.locator('[data-block-id="map-legacy"]')).toContainText('Westminster, London SW1A 2JR');
+
+    // ---- fresh pinless map block: "Add a location…" hint, no crash ----
+    await expect(page.locator('[data-block-id="map-blank"]')).toContainText('Add a location…');
 
     // ---- location picker: search → pin → attach (modal, results in a dropdown) ----
     // Capture the map pane position — after attaching a new pin the map must
