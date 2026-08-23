@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Pencil } from 'lucide-react';
-import { CUSTOM_ICON_OPTIONS } from '../../lib/categories';
+import { IconGrid } from './IconGrid';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 
@@ -48,23 +48,7 @@ function CategoryFormModal({ open, onClose, title, submitLabel, icon, name, onNa
           <>
             <div>
               <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Icon</label>
-              <div className="mt-1 grid grid-cols-4 gap-1.5">
-                {CUSTOM_ICON_OPTIONS.map(opt => {
-                  const Icon = opt.Icon;
-                  const selected = catIcon === opt.name;
-                  return (
-                    <button
-                      key={opt.name}
-                      onClick={() => onIconChange(opt.name)}
-                      className={`p-2 rounded-md transition-colors flex items-center justify-center ${
-                        selected ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </button>
-                  );
-                })}
-              </div>
+              <IconGrid value={catIcon} onChange={onIconChange} />
             </div>
             <div>
               <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Value Type</label>

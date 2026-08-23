@@ -11,7 +11,7 @@ interface ColorFieldProps {
   defaultValue?: string;
 }
 
-export function normalizeHex(raw: string): string | null {
+function normalizeHex(raw: string): string | null {
   const cleaned = raw.trim().replace(/^#/, '');
   if (!/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(cleaned)) return null;
   const hex = cleaned.length === 3
