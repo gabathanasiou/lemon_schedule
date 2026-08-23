@@ -17,6 +17,7 @@ import Checkbox from '../Checkbox';
 import { Tooltip } from '../Tooltip';
 import { Plus, Minus, Check, ChevronDown, Trash2, X, AlignLeft, AlignCenter, AlignRight, Type, Repeat, Table2, Columns3, Printer, FilePlus, Ruler, Pencil, Wand2, Eye, EyeOff, Image as ImageIcon, MapPin, Clock, Timer, StickyNote, Coffee, PanelTop, Sheet, SkipForward } from 'lucide-react';
 import { LocationPickerModal } from '../location/LocationPickerModal';
+import { SKIP_EMPTY_TEST, SKIP_EMPTY_LABEL } from '../../lib/reportData';
 import ColorField from '../ColorField';
 import { reportLocationLabel } from '../../lib/reportWeather';
 import type { ReportLocation } from '../../lib/reportWeather';
@@ -875,20 +876,23 @@ export const ContentControls: React.FC<BlockCtx> = ({ block, project, parentColl
         </ContentRow>
       ) : null,
     );
-    if (block.collection === 'categories') {
+    const skipEmpty = block.collection ? SKIP_EMPTY_TEST[block.collection] : undefined;
+    if (skipEmpty) {
       push('Filters',
         <ContentRow key="skipEmpty" label="Skip empty">
-          <Checkbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label="Skip categories with no elements" />
+          <Checkbox checked={block.skipEmptyCategories !== false} disabled={disabled} onChange={on => onPatch({ skipEmptyCategories: on })} label={block.collection ? (SKIP_EMPTY_LABEL[block.collection] || 'Skip empty items') : 'Skip empty items'} />
         </ContentRow>,
-        <ContentRow key="exclude" label="Exclude categories">
-          <ExcludeCategoriesMenu
-            excluded={block.excludedCategories || []}
-            categoryKeys={categoryKeys}
-            categoryLabels={categoryLabels}
-            disabled={disabled}
-            onChange={list => onPatch({ excludedCategories: list })}
-          />
-        </ContentRow>,
+        block.collection === 'categories' ? (
+          <ContentRow key="exclude" label="Exclude categories">
+            <ExcludeCategoriesMenu
+              excluded={block.excludedCategories || []}
+              categoryKeys={categoryKeys}
+              categoryLabels={categoryLabels}
+              disabled={disabled}
+              onChange={list => onPatch({ excludedCategories: list })}
+            />
+          </ContentRow>
+        ) : null,
       );
     }
   }

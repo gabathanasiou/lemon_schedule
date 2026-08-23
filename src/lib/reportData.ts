@@ -745,6 +745,24 @@ export function resolveCollection(
  * renderer resolves through here so the designer, preview and page expansion
  * all agree.
  */
+/**
+ * "Skip empty" registry — which repeat/table collections can skip items that
+ * have no children (typed-parent rollups: categories → elementCount,
+ * locationTypes → count). Default is ON (`skipEmptyCategories !== false`),
+ * per-block opt-out via the block chrome checkbox. New databases (roadmap 6
+ * typed-parent pattern) register here + their item's count field; the
+ * resolveCollectionItems filter and the "Filters" checkbox follow.
+ */
+export const SKIP_EMPTY_TEST: Partial<Record<ReportCollection, (item: ReportCollectionItem) => boolean>> = {
+  categories: (c: any) => c.elementCount > 0,
+  locationTypes: (t: any) => (t as ReportLocationTypeInfo).count > 0,
+};
+
+export const SKIP_EMPTY_LABEL: Partial<Record<ReportCollection, string>> = {
+  categories: 'Skip categories with no elements',
+  locationTypes: 'Skip types with no locations',
+};
+
 export function resolveCollectionItems(
   ctx: ReportCtx,
   collection: ReportCollection | undefined,
@@ -791,14 +809,21 @@ export function resolveCollectionItems(
       }
     }
   }
-  // categories block filters apply LAST — to the global OR the scoped list.
-  if (collection === 'categories' && block) {
-    if (block.skipEmptyCategories !== false) {
-      items = items.filter((c: any) => c.elementCount > 0);
+  // Block filters apply LAST — to the global OR the scoped list. "Skip empty"
+  // is registered per collection (typed-parent rollups — categories → elements,
+  // locationTypes → locations — carry their child count on the item info; a
+  // future database plugs in here + its resolveCollection branch and both the
+  // filter and the block-chrome checkbox light up automatically).
+  if (block && collection) {
+    const skipEmpty = SKIP_EMPTY_TEST[collection];
+    if (skipEmpty && block.skipEmptyCategories !== false) {
+      items = items.filter(it => skipEmpty(it));
     }
-    const excluded = new Set(block.excludedCategories || []);
-    if (excluded.size > 0) {
-      items = items.filter((c: any) => !excluded.has(c.key));
+    if (collection === 'categories') {
+      const excluded = new Set(block.excludedCategories || []);
+      if (excluded.size > 0) {
+        items = items.filter((c: any) => !excluded.has(c.key));
+      }
     }
   }
   return items;
