@@ -1144,6 +1144,16 @@ schedule in; export = Lemon Schedule out to the industry-standard tools.
   parser and round-trips through our own import with identical scene order +
   cast + pages; lint + playwright.
 
+## 42. Element Manager: per-day-type columns (`[ ]`)
+
+Update the **Element Manager** (Breakdown → Element Manager, `src/components/ElementManager.tsx`) to show per-element scheduling info like the MMS "Studio" view: Board ID, Locked, Element Name, Occu, **Start Date, Finish Date, Total Days, Co. Tra** — plus a **column per day type** (Work, Hold, Holiday, Travel, Rehearsal, Fitting…).
+
+- **Scope**: this is the element manager (breakdown elements — cast, props, etc.), the entities with day presence. Crew/Locations managers (`DatabaseManagerView` in `src/lib/managerShell.tsx`, shared by CrewManager/LocationsManager) have no day-type schedule semantics — leave them out unless the user asks for it. **Note:** ElementManager does NOT use the shared `managerShell` — it's standalone; don't force a migration for this item.
+- **Columns are derived from `project.dayTypes`** (`getDayTypes` in `src/lib/dayTypes.ts`) — all built-ins **plus every custom day type from the Calendar tab** (Day Types sub-tab, `DayTypesTab`). No hardcoded key lists; a custom type added in the calendar appears as a column automatically.
+- Per-day-type cell = count of days that status occurs for that element (derived from `nonShootDates` lists + schedule sections, resolved through the canonical status registry — never hardcode `travel`/`hold` literals).
+- **Horizontal scroll**: already structurally free — the table wrapper is `overflow-auto` (ElementManager.tsx:547); just don't shrink the name column as columns are added.
+- Shared helper in `src/lib/` for the per-element day-type counts (one source of truth — the future home for this in `managerShell`/other views too).
+
 ---
 
 ## Session handoff
