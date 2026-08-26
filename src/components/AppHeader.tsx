@@ -32,6 +32,7 @@ interface AppHeaderProps {
   onTabContextMenu: (e: React.MouseEvent, tabId: AppTabId) => void;
   onOpenProjectManager: () => void;
   onImportClick: () => void;
+  onImportNewProject: () => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
   onExportSex: () => void;
@@ -53,7 +54,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const version = project.versions.find(v => v.id === project.activeVersionId);
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
-    onOpenProjectManager, onImportClick, onExportCSV, onExportJSON, onExportSex,
+    onOpenProjectManager, onImportClick, onImportNewProject, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, driveCtx, closeProject, createProject,
   } = props;
@@ -103,23 +104,25 @@ export default function AppHeader(props: AppHeaderProps) {
               </button>
             }
           >
-            <DropdownItem onClick={async () => { setShowFileMenu(false); const name = await dialog.prompt({ title: 'Name the Project', defaultValue: 'Untitled Project', placeholder: 'Project name' }); if (name) { await createProject(name); } }} icon={<Plus className="w-3.5 h-3.5" />}>
-              New Project
-            </DropdownItem>
             <DropdownItem onClick={() => { setShowFileMenu(false); onOpenProjectManager(); }} icon={<FolderOpen className="w-3.5 h-3.5" />}>
               Project Manager
             </DropdownItem>
             <DropdownDivider />
-            <DropdownItem onClick={() => { setShowFileMenu(false); onImportClick(); }} icon={<FileUp className="w-3.5 h-3.5" />}>
-              Import Screenplay (FDX, Fountain, TXT, CSV)...
-            </DropdownItem>
+            <DropdownSubmenu id="import-file" label="Import" icon={<FileUp className="w-3.5 h-3.5" />} width="w-56">
+              <DropdownItem onClick={() => { setShowFileMenu(false); onImportClick(); }}>
+                .fdx, .fountain, .csv, .txt
+              </DropdownItem>
+              <DropdownItem onClick={() => { setShowFileMenu(false); onImportNewProject(); }}>
+                .msd, .sex, .lemon, .json
+              </DropdownItem>
+            </DropdownSubmenu>
             <DropdownDivider />
             <DropdownSubmenu id="export-file" label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
               <DropdownItem onClick={() => { setShowFileMenu(false); onExportCSV(); }}>
-                Breakdown to CSV
+                Breakdown to .csv
               </DropdownItem>
-              <DropdownItem icon={<Download className="w-3.5 h-3.5" />} onClick={() => { setShowFileMenu(false); onExportSex(); }}>
-                Schedule to SEX (Movie Magic)
+              <DropdownItem onClick={() => { setShowFileMenu(false); onExportSex(); }}>
+                Schedule to .sex
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); onExportJSON(); }}>
                 Export Project

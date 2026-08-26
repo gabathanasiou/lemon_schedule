@@ -32,10 +32,13 @@ function bridge<T>(page: import('@playwright/test').Page, fn: string): Promise<T
 async function importFixture(page: import('@playwright/test').Page, fixturePath: string) {
   const chooserPromise = page.waitForEvent('filechooser');
   await page.goto('http://localhost:' + (process.env.PLAYWRIGHT_PORT || '3001') + '/lemon_schedule/');
-  await expect(page.getByRole('button', { name: 'Import Schedule' })).toBeVisible();
-  await page.getByRole('button', { name: 'Import Schedule' }).click();
+  await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
   const chooser = await chooserPromise;
   await chooser.setFiles(fixturePath);
+  // schedule files import as a NEW project — confirm the notice
+  await expect(page.getByRole('button', { name: 'Confirm' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm' }).click();
   await expect(APP_BOOT_ANCHOR(page)).toBeVisible({ timeout: 15000 });
   await waitForPersistedProject(page, `p.scenes.length === ${GOLDEN.scenes.length}`);
 }
@@ -86,11 +89,11 @@ test.describe('SEX import/export (Movie Magic Scheduling Exchange)', () => {
   test('exports .sex and re-imports it (round trip)', async ({ page }) => {
     await importFixture(page, FIXTURE);
 
-    // File > Export > Schedule to SEX (Movie Magic)
+    // File > Export > Schedule to .sex
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'File' }).first().click();
     await page.getByRole('menuitem', { name: /Export/ }).click();
-    await page.getByRole('menuitem', { name: 'Schedule to SEX (Movie Magic)' }).click();
+    await page.getByRole('menuitem', { name: 'Schedule to .sex' }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/\.sex$/);
     const exportPath = path.join(FIXTURE_PATH, 'roundtrip.sex');
@@ -99,11 +102,13 @@ test.describe('SEX import/export (Movie Magic Scheduling Exchange)', () => {
     // re-import through the manager — identical breakdown
     await page.getByRole('button', { name: 'File' }).first().click();
     await page.getByRole('menuitem', { name: 'Project Manager' }).click();
-    await expect(page.getByRole('button', { name: 'Import Schedule' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
     const chooserPromise = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Import Schedule' }).click();
+    await page.getByRole('button', { name: 'Import', exact: true }).click();
     const chooser = await chooserPromise;
     await chooser.setFiles(exportPath);
+    await expect(page.getByRole('button', { name: 'Confirm' })).toBeVisible();
+    await page.getByRole('button', { name: 'Confirm' }).click();
     await waitForPersistedProject(page, `p.scenes.length === ${GOLDEN.scenes.length}`);
 
     const state = await bridge<PState>(page, `b.getState()`);

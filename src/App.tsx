@@ -47,7 +47,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
-import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile } from './lib/import';
+import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile, parseMsdFile, parseSexFile } from './lib/import';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { formatDriveError } from './lib/googleDriveStorage';
 import { SaveIndicator } from './components/SaveIndicator';
@@ -347,6 +347,7 @@ function AppContent() {
   const [printDialogCategory, setPrintDialogCategory] = useState<string | undefined>(undefined);
   const [pendingImport, setPendingImport] = useState<{ result: ImportResult; fileName: string } | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const newProjectFileRef = useRef<HTMLInputElement>(null);
 
   const handleImportFile = useCallback(async (file: File) => {
     try {
@@ -424,6 +425,39 @@ function AppContent() {
   const storage = useStorage();
   const ctx = useProject();
   const importProjectFromData = ctx.importProjectFromData;
+
+  // File menu "Import as new project" — .msd/.sex/.lemon/.json always create
+  // a brand-new project, so warn before switching.
+  const handleNewProjectImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (newProjectFileRef.current) newProjectFileRef.current.value = '';
+    if (!file) return;
+    const ok = await dialog.confirm({
+      title: 'Import as New Project',
+      message: `"${file.name}" will be imported as a NEW project. Your current work stays saved — continue?`,
+    });
+    if (!ok) return;
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const fallbackTitle = file.name.replace(/\.[^.]+$/, '').trim() || 'Imported Schedule';
+      let project: Project;
+      if (ext === 'msd') {
+        project = await parseMsdFile(file, fallbackTitle);
+      } else if (ext === 'sex') {
+        project = await parseSexFile(file, fallbackTitle);
+      } else {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data || typeof data !== 'object' || !('scenes' in data) || !('versions' in data)) {
+          throw new Error('Missing scenes or versions.');
+        }
+        project = data as Project;
+      }
+      importProjectFromData(project);
+    } catch (err: any) {
+      dialog.alert({ title: 'Import Error', message: err?.message || 'Failed to import file' });
+    }
+  }, [dialog, importProjectFromData]);
 
   // Long-press on rows opens the context menu; on marquee containers it
   // starts a transient marquee selection (gated by the marquee tool mode).
@@ -674,6 +708,7 @@ function AppContent() {
       )}
       {pendingImport && <ImportDialog initialResult={pendingImport.result} initialFileName={pendingImport.fileName} onClose={() => setPendingImport(null)} />}
       <input ref={importFileRef} type="file" accept=".csv,.fdx,.fountain,.txt" onChange={e => { const f = e.target.files?.[0]; if (f) handleImportFile(f); if (importFileRef.current) importFileRef.current.value = ''; }} className="hidden" />
+      <input ref={newProjectFileRef} type="file" accept=".lemon,.json,.msd,.sex" onChange={handleNewProjectImport} className="hidden" />
 
       <OfflineStatus
         readOnly={readOnly}
@@ -698,6 +733,7 @@ function AppContent() {
         onTabContextMenu={(e, tabId) => setTabContextMenu({ x: e.clientX, y: e.clientY, tabId })}
         onOpenProjectManager={() => setShowProjectManager(true)}
         onImportClick={() => importFileRef.current?.click()}
+        onImportNewProject={() => newProjectFileRef.current?.click()}
         onExportCSV={handleExportCSV}
         onExportJSON={handleExportJSON}
         onExportSex={handleExportSex}

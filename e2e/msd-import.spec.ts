@@ -47,10 +47,13 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
   test('imports the demo schedule and matches the golden reference', async ({ page }) => {
     const chooserPromise = page.waitForEvent('filechooser');
     await page.goto('http://localhost:' + (process.env.PLAYWRIGHT_PORT || '3001') + '/lemon_schedule/');
-    await expect(page.getByRole('button', { name: 'Import Schedule' })).toBeVisible();
-    await page.getByRole('button', { name: 'Import Schedule' }).click();
+    await expect(page.getByRole('button', { name: 'Import', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Import', exact: true }).click();
     const chooser = await chooserPromise;
     await chooser.setFiles(FIXTURE);
+    // schedule files import as a NEW project — confirm the notice
+    await expect(page.getByRole('button', { name: 'Confirm' })).toBeVisible();
+    await page.getByRole('button', { name: 'Confirm' }).click();
 
     // project manager closes, app header shows the imported production title
     await expect(APP_BOOT_ANCHOR(page)).toBeVisible({ timeout: 15000 });

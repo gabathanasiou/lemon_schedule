@@ -50,7 +50,8 @@ async function openElementManagerCast(page: import('@playwright/test').Page) {
 
 async function importFile(page: import('@playwright/test').Page, filePath: string, sceneCount: number) {
   await page.getByRole('button', { name: 'File' }).click();
-  await page.getByRole('menuitem', { name: /Import Screenplay/ }).click();
+  await page.getByRole('menuitem', { name: 'Import', exact: true }).click();
+  await page.getByRole('menuitem', { name: /\.fdx, \.fountain, \.csv/ }).click();
   await page.locator('input[type="file"]').first().setInputFiles(filePath);
   await expect(page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) })).toBeVisible({ timeout: 8000 });
   await page.getByRole('button', { name: new RegExp(`Import ${sceneCount} Scenes`) }).click();
@@ -117,7 +118,7 @@ test.describe('cast single source of truth (castMembers)', () => {
 
     await page.goto('http://localhost:3001/lemon_schedule/');
     await page.getByRole('button', { name: 'Import', exact: true }).click({ timeout: 8000 });
-    await page.locator('input[type="file"][accept=".lemon,.json"]').setInputFiles(lemonPath);
+    await page.locator('input[type="file"][accept=".lemon,.json,.msd,.sex"]').setInputFiles(lemonPath);
     await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length > 0');
     const project = await getProject(page);
     expect(project).toBeTruthy();

@@ -61,7 +61,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const scheduleFileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [parsingSchedule, setParsingSchedule] = useState<string | null>(null);
 
@@ -134,9 +133,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
 
   const hasProjects = sortedList.length > 0;
 
-  const handleImportJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImportJSON = async (file: File) => {
     setImporting(true);
     try {
       const text = await file.text();
@@ -151,23 +148,45 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
         dialog.alert({ title: 'Invalid File', message: 'Missing scenes or versions.' });
         return;
       }
-      const newId = importProjectFromData(data as Project);
-      if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
-        try {
-          const proj = loadProjectFromStorage(newId);
-          if (proj) {
-            const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
-            updateProjectMeta(newId, { driveFileId });
-            refetchDrive();
-          }
-        } catch (err: any) {
-          dialog.alert({ title: 'Upload Failed', message: formatDriveError(err, 'The project was imported locally, but uploading it to Drive failed.') });
-        }
-      }
-      onClose?.();
+      await importImportedProject(data as Project);
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const importScheduleFile = async (file: File, ext: 'msd' | 'sex') => {
+    setParsingSchedule(file.name);
+    try {
+      const fallbackTitle = file.name.replace(/\.(msd|sex)$/i, '').trim() || 'Imported Schedule';
+      const project = ext === 'msd'
+        ? await parseMsdFile(file, fallbackTitle)
+        : await parseSexFile(file, fallbackTitle);
+      await importImportedProject(project);
+    } catch (err: any) {
+      dialog.alert({ title: 'Import Error', message: formatDriveError(err, err?.message || 'Failed to parse file') });
+    } finally {
+      setParsingSchedule(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'msd' || ext === 'sex') {
+      const ok = await dialog.confirm({
+        title: 'Import as New Project',
+        message: `"${file.name}" will be imported as a NEW project. Continue?`,
+      });
+      if (!ok) {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      await importScheduleFile(file, ext);
+    } else {
+      await handleImportJSON(file);
     }
   };
 
@@ -186,33 +205,6 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
       }
     }
     onClose?.();
-  };
-
-  const handleImportSchedule = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setParsingSchedule(file.name);
-    try {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'sex') {
-        const fallbackTitle = file.name.replace(/\.sex$/i, '').trim() || 'Imported Schedule';
-        const project = await parseSexFile(file, fallbackTitle);
-        await importImportedProject(project);
-        return;
-      }
-      if (ext !== 'msd') {
-        dialog.alert({ title: 'Unknown File', message: 'Choose a .sex Scheduling Exchange file or a .msd Movie Magic Scheduling file.' });
-        return;
-      }
-      const fallbackTitle = file.name.replace(/\.msd$/i, '').trim() || 'Imported Schedule';
-      const project = await parseMsdFile(file, fallbackTitle);
-      await importImportedProject(project);
-    } catch (err: any) {
-      dialog.alert({ title: 'Import Error', message: formatDriveError(err, err?.message || 'Failed to parse file') });
-    } finally {
-      setParsingSchedule(null);
-      if (scheduleFileRef.current) scheduleFileRef.current.value = '';
-    }
   };
 
   const handleExportJSON = async (e: React.MouseEvent, p: ProjectMeta) => {
@@ -350,18 +342,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
+                disabled={importing || !!parsingSchedule}
+                title="Import a project (.lemon/.json) or schedule (.msd/.sex) as a new project"
                 className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
-              </button>
-              <button
-                onClick={() => scheduleFileRef.current?.click()}
-                disabled={!!parsingSchedule || importing}
-                title="Import a Movie Magic Scheduling (.msd) or Scheduling Exchange (.sex) schedule as a new project"
-                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : 'Import Schedule'}
+                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
               </button>
               <button
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(false); }}
@@ -374,18 +359,11 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             <>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={importing}
+                disabled={importing || !!parsingSchedule}
+                title="Import a project (.lemon/.json) or schedule (.msd/.sex) as a new project"
                 className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
-              </button>
-              <button
-                onClick={() => scheduleFileRef.current?.click()}
-                disabled={!!parsingSchedule || importing}
-                title="Import a Movie Magic Scheduling (.msd) or Scheduling Exchange (.sex) schedule as a new project"
-                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : 'Import Schedule'}
+                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : importing ? 'Importing...' : 'Import'}
               </button>
               <button
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(true); }}
@@ -403,8 +381,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <Cloud className="w-3.5 h-3.5" /> Sign in with Google
             </button>
           )}
-          <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
-          <input type="file" accept=".msd,.sex" ref={scheduleFileRef} onChange={handleImportSchedule} className="hidden" />
+          <input type="file" accept=".lemon,.json,.msd,.sex" ref={fileInputRef} onChange={handleImportFile} className="hidden" />
         </ModalFooter>
       }
     >
