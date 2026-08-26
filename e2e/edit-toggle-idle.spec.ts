@@ -10,7 +10,7 @@ async function openSeeded(page: Page) {
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
-test('idle render churn after edit toggle', async ({ page }) => {
+test('@perf idle render churn after edit toggle', async ({ page }) => {
   test.setTimeout(120000);
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();

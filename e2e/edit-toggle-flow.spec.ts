@@ -46,7 +46,7 @@ async function round(page: Page, label: string, nth: number, xFrac: number, yFra
   console.log(`[round] ${label}: renders=${renders} drag=${JSON.stringify(drag)} insertChanges=${total.insertChanges} overCalls=${total.overCount}`);
 }
 
-test('user-flow drag perf', async ({ page }) => {
+test('@perf user-flow drag perf', async ({ page }) => {
   test.setTimeout(300000);
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();

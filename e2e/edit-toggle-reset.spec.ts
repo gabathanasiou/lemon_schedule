@@ -24,7 +24,7 @@ async function rowCellInfo(page: Page, selector: string) {
   }, selector);
 }
 
-test('edit toggle reset check', async ({ page }) => {
+test('@perf edit toggle reset check', async ({ page }) => {
   test.setTimeout(120000);
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();

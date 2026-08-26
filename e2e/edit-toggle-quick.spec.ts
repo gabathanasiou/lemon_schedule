@@ -10,7 +10,7 @@ async function openSeeded(page: Page) {
   await expect(page.getByRole('button', { name: 'Breakdown', exact: true })).toBeVisible({ timeout: 10000 });
 }
 
-test('quick toggle leaves edit mode stuck', async ({ page }) => {
+test('@perf quick toggle leaves edit mode stuck', async ({ page }) => {
   test.setTimeout(120000);
   await openSeeded(page);
   await page.getByRole('button', { name: 'Schedule', exact: true }).click();
