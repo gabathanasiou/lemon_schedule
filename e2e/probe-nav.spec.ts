@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { openSeededProject } from './helpers';
 
-test('probe: arrow navigation across multiple chips + text', async ({ page }) => {
+test('@perf probe: arrow navigation across multiple chips + text', async ({ page }) => {
   const logs: string[] = [];
   page.on('console', m => {
     const t = m.text();
