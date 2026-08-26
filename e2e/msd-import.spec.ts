@@ -18,6 +18,12 @@ type PState = {
     crew?: Record<string, { id: string; name: string }[]>;
     customCategories: { key: string }[];
     breakdownElements: Record<string, { id: string; name: string }[]>;
+    colorPalette?: {
+      sceneColors: { intExt: string; dayNight: string; background: string; text: string }[];
+      selectedStripBg: string;
+      dayHeaderBg: string;
+      noteBg: string;
+    };
     versions: any[];
     activeVersionId: string;
   };
@@ -61,12 +67,27 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
     expect(p.castMembers.map((c: any) => c.name)).toEqual(goldenCast);
     expect(p.castMembers.every((c: any) => /^\d+$/.test(c.id))).toBe(true);
     expect(new Set(p.castMembers.map((c: any) => c.id)).size).toBe(p.castMembers.length);
+    // Board IDs follow the MMS roster order (George=1, Mary=2)
+    expect(p.castMembers.find((c: any) => c.name === 'GEORGE')?.id).toBe('1');
+    expect(p.castMembers.find((c: any) => c.name === 'MARY')?.id).toBe('2');
 
     // crew — MMS ProductionInfo named roles land in the crew roster
     for (const [roleKey, names] of Object.entries(GOLDEN.crew || {})) {
       expect((p.crew?.[roleKey] || []).map((m: any) => m.name)).toEqual(names);
     }
     expect((p.crew?.director || []).map((m: any) => m.name)).toContain('Frank Capra');
+
+    // strip colors — the MMS ColorSettings matrix + strip preferences
+    const goldenColors = GOLDEN.colors;
+    const pal = p.colorPalette!;
+    expect(pal.sceneColors).toEqual(
+      goldenColors.sceneColors.map((e: any) => ({
+        intExt: e.ie, dayNight: e.dn, background: e.bg, text: e.fg,
+      })),
+    );
+    expect(pal.selectedStripBg).toBe(goldenColors.prefs.Hilite.bg);
+    expect(pal.dayHeaderBg).toBe(goldenColors.prefs.DayStrip.bg);
+    expect(pal.noteBg).toBe(goldenColors.prefs.Banner.bg);
 
     // custom categories
     expect(p.customCategories.map((c) => c.key).sort()).toEqual(
@@ -83,10 +104,14 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
     const scene0 = p.scenes[0];
     const g0 = GOLDEN.scenes[0];
     expect(scene0.sceneNumber).toBe(g0.n);
+    expect(scene0.sheetNumber).toBe(g0.sheetNumber);
     expect(scene0.scriptPageNumbers).toBe(g0.spn || undefined);
     expect(scene0.pageCount).toBe(g0.pgStr);
     expect(scene0.pageCountDecimal).toBe(g0.pgDec);
     expect(scene0.intExt).toBe(g0.ie);
+    // scenes sorted by MMS sheet numbers (script order): sheet 1 is scene 1
+    expect(scene0.sceneNumber).toBe('1');
+    expect(scene0.sheetNumber).toBe('1');
     expect(scene0.dayNight).toBe(g0.dn);
     expect(scene0.set).toBe(g0.set);
     expect(scene0.scriptDay).toBe(g0.sd);
@@ -96,7 +121,11 @@ test.describe('MSD import (Movie Magic Scheduling .msd → new project)', () => 
     const castNamesOf = (idStr: string) =>
       idStr.split(', ').filter(Boolean).map(id => p.castMembers.find(c => c.id === id)?.name);
     expect(castNamesOf(scene0.cast)).toEqual(g0.cast);
-    expect(scene0.props.split(', ')).toEqual(g0.elems.props);
+    const s18 = p.scenes.find((s: any) => s.sceneNumber === '18');
+    const g18 = GOLDEN.scenes.find((g: any) => g.n === '18');
+    expect(s18.sheetNumber).toBe(g18.sheetNumber);
+    expect(castNamesOf(s18.cast)).toEqual(g18.cast);
+    expect(s18.props.split(', ')).toEqual(g18.elems.props);
 
     const multi = p.scenes.find((s: any) => s.sceneNumber === '135, 137');
     expect(multi).toBeTruthy();

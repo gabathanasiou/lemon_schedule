@@ -254,6 +254,8 @@ def parse_all(parts):
             _parse_boards(m, root)
         elif tag == "CalendarMgr":
             _parse_calendars(m, root)
+        elif tag == "ColorSettings":
+            _parse_colors(m, root)
         # DOODLayoutMgr / PrintViewOptions / ColorSettings /
         # StripBoardLayoutMgr / ReportLayoutMgr / RedFlagMgr -> skipped (chrome)
     return m, layers
@@ -355,6 +357,48 @@ def _parse_boards(m, root):
             "unscheduled": unscheduled,
         })
     m.active_board = active
+
+
+def _parse_colors(m, root):
+    """Strip color matrix (ColorGrid) + StripColorPreferences -> hex colors."""
+    col_labels, row_labels = {}, {}
+    for c in root.iter("ColumnLabel"):
+        n = c.get("ColumnNumber")
+        if n is not None and c.get("Name"):
+            col_labels[int(n)] = c.get("Name").upper()
+    for r in root.iter("RowLabel"):
+        n = r.get("RowNumber")
+        if n is not None and r.get("Name"):
+            row_labels[int(n)] = r.get("Name").upper()
+
+    def rgb(v):
+        if not v:
+            return None
+        p = [int(x.strip()) for x in v.split(",")]
+        if len(p) != 3:
+            return None
+        return "#" + "".join(f"{max(0, min(255, x)):02x}" for x in p)
+
+    cells = []
+    for cell in root.iter("ColorGridCell"):
+        r = cell.get("RowNumber")
+        c = cell.get("ColumnNumber")
+        if r is None or c is None:
+            continue
+        ie = col_labels.get(int(c))
+        dn = row_labels.get(int(r))
+        if not ie or not dn or ie == "OTHER" or dn == "OTHER":
+            continue
+        bg, fg = rgb(cell.get("Bg")), rgb(cell.get("Fg"))
+        if bg and fg:
+            cells.append({"ie": ie, "dn": dn, "bg": bg, "fg": fg})
+    prefs = {}
+    for pref in root.iter("StripColorPreference"):
+        name = pref.get("Name")
+        bg, fg = rgb(pref.get("Bg")), rgb(pref.get("Fg"))
+        if name and bg and fg:
+            prefs[name] = {"bg": bg, "fg": fg}
+    m.colors = {"sceneColors": cells, "prefs": prefs}
 
 
 def _parse_calendars(m, root):
@@ -486,17 +530,24 @@ def build_scenes(m, by_bdsid):
 
 
 def build_cast_and_elements(m, scenes):
-    """Cast registry (normalized, ordered by first appearance in sheets) and
+    """Cast registry (normalized, ordered by the MMS ElementMgr roster — the
+    Board IDs MMS assigns — then first appearance in sheets as a fallback) and
     per-category element list (from ElementMgr + refs)."""
     cast_order, cast_seen = [], set()
+    for name, cat in m.elements:
+        if cat != "Cast Members":
+            continue
+        norm = normalize_character_name(name)
+        if norm and norm not in cast_seen:
+            cast_seen.add(norm)
+            cast_order.append(norm)
     cast_scenes = {}
     for i, sc in enumerate(scenes):
         for name in sc["cast"]:
             if name not in cast_seen:
                 cast_seen.add(name)
                 cast_order.append(name)
-                cast_scenes[name] = []
-            cast_scenes[name].append(sc["n"])
+            cast_scenes.setdefault(name, []).append(sc["n"])
     elems_by_cat = {}
     # register ElementMgr elements under their mapped keys ('set' elements feed
     # lemon's set registry even though scene.set is a field)
@@ -709,6 +760,7 @@ def emit_golden(m, scenes, cast_order, cast_scenes, elems_by_cat, versions, cale
         if name:
             crew[role_key] = [name]
     active = next((v["name"] for v in versions if v["active"]), versions[0]["name"] if versions else None)
+    colors = getattr(m, "colors", None)
     return {
         "source": "Wonderful Life Demo V5.msd",
         "title": m.title,
@@ -716,6 +768,7 @@ def emit_golden(m, scenes, cast_order, cast_scenes, elems_by_cat, versions, cale
         "customCategories": custom,
         "elements": elements,
         "crew": crew,
+        "colors": colors,
         "cast": [{"name": n, "scenes": cast_scenes.get(n, [])} for n in cast_order],
         "scenes": [{k: v for k, v in sc.items() if k != "bdsid"} for sc in scenes],
         "versions": versions,
@@ -750,6 +803,9 @@ def main():
 
     by_bdsid = sheet_by_bdsid(m)
     scenes = build_scenes(m, by_bdsid)
+    # MMS numbers sheets by script order (scene 18 is sheet 19) — sort the
+    # imported breakdown to mirror MMS (positions = sheet numbers).
+    scenes.sort(key=lambda s: int(s["sheetNumber"]) if s["sheetNumber"].isdigit() else 2**31)
     cast_order, cast_scenes, elems_by_cat, cat_map = build_cast_and_elements(m, scenes)
     versions = build_versions(m, scenes, by_bdsid)
     calendars = build_calendar_model(m, versions)

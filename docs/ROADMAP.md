@@ -1035,6 +1035,15 @@ versions. Sections, contents → Lemon mapping:
   people under built-in role keys (`director`/`producer`/`upm`/`firstAD`/
   `artDirector`/`setDecorator` — one person per named role; empty values
   skipped). MMS 5 files carry no crew registry — names only, no phone/email.
+- Scenes: imported in MMS **SheetNumber order** (= script order — MMS numbers
+  sheets by script position, scene 18 lives on sheet 19; the breakdown sheet
+  then starts at sheet 1 and the glide row positions equal the MMS numbers)
+  and each scene keeps its `sheetNumber`.
+- Colors (`ColorSettings`): the **ColorGrid** strip matrix (columns
+  INT/EXT/INT-EXT × rows Day/Night/Morning/Evening — same vocabulary as
+  Lemon's palette) maps 1:1 into `colorPalette.sceneColors` (RGB→hex; the
+  empty/`Other` cells skipped); `StripColorPreferences` → `Hilite`→
+  selectedStripBg/Text, `DayStrip`→dayHeaderBg/Text, `Banner`→noteBg/Text.
 - Elements: Cast Members + Background Actors → cast members (name via
   `normalizeCharacterName`; cast referenced by ID — build the `castIdMap`),
   everything else → `ADD_ELEMENT` per mapped category; `Set Dressing`/
@@ -1051,8 +1060,9 @@ versions. Sections, contents → Lemon mapping:
   label/date by one — verified bug, do not reintroduce); `BannerStrip` →
   **NOTE rows** (user decision — not breaks), `RemainingScheduledStrips` +
   `UnscheduledStrips` (both undated board zones) → Boneyard. Cast member
-  ids are per-project sequential integers ("1", "2", … — user decision;
-  measured/printed in the strip; scene.cast = comma-joined numeric ids).
+  ids are per-project sequential integers in MMS ElementMgr roster order —
+  the "Board IDs" MMS assigns (George=1, Mary=2; sheet-only names append
+  after the roster; the UI labels the cast numbering "Board ID");
 - Calendar (per board, via `CalendarName`): `ProductionStartDate` →
   `version.productionStart`; `DaysOff` weekly pattern + `SpecialDays`
   **materialized into explicit `nonShootDates`** bounded to the production

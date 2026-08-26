@@ -380,10 +380,10 @@ export default function ImportDialog({ initialResult, initialFileName, onClose, 
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                    Cast ID Assignment
+                    Board ID Assignment
                   </h3>
                 </div>
-                <p className="text-zinc-500 text-[10px] mb-2">Drag rows to reorder. IDs are assigned by row position (starting from {startId}).</p>
+                <p className="text-zinc-500 text-[10px] mb-2">Drag rows to reorder. Board IDs are assigned by row position (starting from {startId}).</p>
                 <div className="rounded-lg border border-zinc-800 overflow-hidden">
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={castOrder.map(c => c.name)} strategy={verticalListSortingStrategy}>

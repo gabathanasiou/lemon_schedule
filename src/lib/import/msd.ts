@@ -3,6 +3,7 @@ import {
   CastMember,
   Project,
   ProjectElement,
+  SceneColorEntry,
   ScheduleRow,
   Scene,
 } from '../../types';
@@ -289,6 +290,63 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   const company = propValue('Company');
   if (company) project.productionInfo = { ...project.productionInfo, company };
 
+  // --- strip colors (MMS ColorSettings) -----------------------------------
+  // The ColorGrid is MMS's strip color matrix (columns INT/EXT/INT-EXT,
+  // rows Day/Night/Morning/Evening, per-cell Fg/Bg) — identical vocabulary to
+  // Lemon's palette. StripColorPreferences carry the selected-strip (Hilite),
+  // day-break strip (DayStrip) and banner (Banner) colors.
+  const colorsDoc = docFor('ColorSettings');
+  if (colorsDoc) {
+    const rgb = (v: string | null): string | undefined => {
+      if (!v) return undefined;
+      const p = v.split(',').map(s => parseInt(s.trim(), 10));
+      if (p.length !== 3 || p.some(n => isNaN(n))) return undefined;
+      return '#' + p.map(n => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')).join('');
+    };
+    const colLabels = new Map<number, string>();
+    const rowLabels = new Map<number, string>();
+    for (const col of colorsDoc.getElementsByTagName('ColumnLabel')) {
+      const n = col.getAttribute('ColumnNumber');
+      const name = col.getAttribute('Name');
+      if (n !== null && name) colLabels.set(parseInt(n, 10), name.toUpperCase());
+    }
+    for (const row of colorsDoc.getElementsByTagName('RowLabel')) {
+      const n = row.getAttribute('RowNumber');
+      const name = row.getAttribute('Name');
+      if (n !== null && name) rowLabels.set(parseInt(n, 10), name.toUpperCase());
+    }
+    const cells: SceneColorEntry[] = [];
+    for (const cell of colorsDoc.getElementsByTagName('ColorGridCell')) {
+      const r = cell.getAttribute('RowNumber');
+      const c = cell.getAttribute('ColumnNumber');
+      if (r === null || c === null) continue;
+      const ie = colLabels.get(parseInt(c, 10));
+      const dn = rowLabels.get(parseInt(r, 10));
+      if (!ie || !dn || ie === 'OTHER' || dn === 'OTHER') continue; // no Lemon slot
+      const background = rgb(cell.getAttribute('Bg'));
+      const text = rgb(cell.getAttribute('Fg'));
+      if (!background || !text) continue;
+      cells.push({ intExt: ie, dayNight: dn, background, text });
+    }
+    if (cells.length > 0) project.colorPalette.sceneColors = cells;
+    for (const pref of colorsDoc.getElementsByTagName('StripColorPreference')) {
+      const name = pref.getAttribute('Name');
+      const background = rgb(pref.getAttribute('Bg'));
+      const text = rgb(pref.getAttribute('Fg'));
+      if (!name || !background || !text) continue;
+      if (name === 'Hilite') {
+        project.colorPalette.selectedStripBg = background;
+        project.colorPalette.selectedStripText = text;
+      } else if (name === 'DayStrip') {
+        project.colorPalette.dayHeaderBg = background;
+        project.colorPalette.dayHeaderText = text;
+      } else if (name === 'Banner') {
+        project.colorPalette.noteBg = background;
+        project.colorPalette.noteText = text;
+      }
+    }
+  }
+
   // Cast ids are sequential integers per project (user decision — readable
   // ids, no UUID noise in the imported breakdown).
   const castNameToId = new Map<string, string>();
@@ -304,12 +362,39 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
 
   const catMap = mappedCategories(categoriesDoc);
 
-  // --- scenes (sheet order = file order) --------------------------------
+  // --- cast roster: Board IDs follow MMS's ElementMgr order ----------------
+  // MMS numbers cast by registry position (George is 1, Mary 2, …). Build the
+  // roster in that order and PRE-ASSIGN ids so scene building below picks
+  // them up regardless of sheet iteration. Sheet-only names (absent from the
+  // registry) append in first-appearance order.
+  const castOrder: string[] = [];
+  const castSeen = new Set<string>();
+  for (const el of elementsDoc.getElementsByTagName('Element')) {
+    const name = el.getAttribute('Name');
+    const catLabel = el.getAttribute('CategoryName');
+    if (!name || catLabel !== 'Cast Members') continue;
+    const normalized = normalizeCharacterName(name);
+    if (normalized && !castSeen.has(normalized)) {
+      castSeen.add(normalized);
+      castOrder.push(normalized);
+    }
+  }
+  for (const name of castOrder) castIdFor(name);
+
+  // --- scenes (sheet order = MMS sheet numbers = script order) -------------
   const sheets = collectSheets(breakdownDoc, catMap);
   const sceneIdByBdsid = new Map(sheets.filter(s => s.bdsid).map(s => [s.bdsid, s.sceneId]));
   const estimateById = new Map<string, number>(
     sheets.filter(s => s.estimateMinutes !== null).map(s => [s.sceneId, s.estimateMinutes!]),
   );
+  // MMS numbers breakdown sheets by script order (scene 18 lives on sheet 19).
+  // Sort by SheetNumber so the imported breakdown mirrors MMS: sheet 1 is the
+  // first scene and row positions equal the sheets' numbers.
+  sheets.sort((a, b) => {
+    const na = parseInt(a.sheetNumber, 10);
+    const nb = parseInt(b.sheetNumber, 10);
+    return (isNaN(na) ? Infinity : na) - (isNaN(nb) ? Infinity : nb);
+  });
 
   const scenes: Scene[] = sheets.map(sheet => {
     const pg = parseEighths(sheet.numScriptPages);
@@ -320,6 +405,7 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
     const scene: any = {
       id: sheet.sceneId,
       sceneNumber: sheet.sceneNumber,
+      ...(sheet.sheetNumber ? { sheetNumber: sheet.sheetNumber } : {}),
       scriptPageNumbers: sheet.scriptPageNumbers || undefined,
       pageCount: formatPageCount(totalPages),
       pageCountDecimal: totalPages,
@@ -356,14 +442,14 @@ function buildProject(docs: Document[], fallbackTitle?: string): Project {
   project.scenes = scenes;
 
   // --- cast + elements registry ------------------------------------------
-  // Cast: normalized names, ordered by first appearance in sheets.
-  const castOrder: string[] = [];
-  const castSeen = new Set<string>();
+  // Cast: Board IDs pre-assigned above in ElementMgr roster order; sheets'
+  // first-appearance fills registry-missing names.
   for (const sheet of sheets) {
     for (const name of sheet.castRefs) {
       if (!castSeen.has(name)) {
         castSeen.add(name);
         castOrder.push(name);
+        castIdFor(name);
       }
     }
   }

@@ -6,6 +6,9 @@ export interface Scene {
   id: string;
   ghostOf?: string;
   sceneNumber: string;
+  /** MMS sheet number (BreakdownSheetMgr order by number = script order;
+   *  the glide breakdown positions match it). */
+  sheetNumber?: string;
   /** Script page range the scene occupies (e.g. "21-24"); imported from MSD,
    *  kept for future full-FDX import/render support. */
   scriptPageNumbers?: string;

@@ -421,7 +421,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
       >
         {isCast && (
           <DropdownItem onClick={() => applySort('id')} icon={sortMode === 'id' ? <Check className="w-3.5 h-3.5" /> : undefined}>
-            By ID
+            By Board ID
           </DropdownItem>
         )}
         <DropdownItem onClick={() => applySort('name')} icon={sortMode === 'name' ? <Check className="w-3.5 h-3.5" /> : undefined}>
@@ -548,7 +548,7 @@ export function ElementManager({ initialCategory, onCategoryChange, headerTarget
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-zinc-50 border-b border-zinc-200">
-                    {isCast && <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-16">ID</th>}
+                    {isCast && <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-16">Board ID</th>}
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-left text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Name</th>
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center text-[10px] font-semibold text-zinc-400 uppercase tracking-wider w-14">Occ</th>
                     <th className="sticky top-0 z-10 bg-zinc-50 px-3 py-2 text-center w-10" />

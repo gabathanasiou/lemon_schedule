@@ -208,7 +208,7 @@ export const RuleFormModal: React.FC<RuleFormModalProps> = ({
           {form.type !== 'CAST_SCENE_FLAG' && form.type !== 'CAST_CONFLICT' && (
           <div>
             <label className={`${RFM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-2 block`}>
-              Cast IDs
+              Board IDs
             </label>
             <EntityDropdown
               value={form.castIds.join(', ')}
