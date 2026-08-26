@@ -1154,6 +1154,15 @@ Update the **Element Manager** (Breakdown → Element Manager, `src/components/E
 - **Horizontal scroll**: already structurally free — the table wrapper is `overflow-auto` (ElementManager.tsx:547); just don't shrink the name column as columns are added.
 - Shared helper in `src/lib/` for the per-element day-type counts (one source of truth — the future home for this in `managerShell`/other views too).
 
+## 43. Import `.mmx` / `.MMS10` (Movie Magic Screenwriter XML) (`[ ]`)
+
+**Requested**: someday — optional import path for EP's Screenwriter XML interchange (`.mmx`, rebadged `.MMS10` for MMS 10's "Import Script"). Producers would arrive with scripts/tagged breakdowns exported from Movie Magic Screenwriter, Filmustage, Shamel Studio or StoryboardCanvas.
+
+- **BLOCKED — no sample file.** The schema is undocumented in the open; nothing in `open-moviemagic-toolkit` or anywhere public. An XML parser needs a real sample to build and verify against.
+- **Unblock**: one `.mmx` file with known content (2–3 scenes + tagged elements) — e.g. a Filmustage free-tier export, or a Screenwriter trial export. That single file makes it a contained task (XML with a known schema — like the FDX parser; the `TagData`/tag-resolution machinery in `fdx.ts` is the template).
+- **Scope if implemented**: NEW-PROJECT-ONLY import (same as `.msd`/`.sex` — update `parseMsdFile`-style flow + Project Manager "Import" accept list + e2e). Breakdown side only — script data (headings, characters, tagged elements, synopses, page counts), no stripboard. Do NOT build an .mmx export unless a user asks (screenwriter XML fans mostly read-side).
+- **Priority: low — parked knowingly.** `.sex` (item 41) already covers every real scheduling tool, and `.fdx` covers script-with-tags. This is a "who knows, maybe in the future" item; skip until a sample exists.
+
 ---
 
 ## Session handoff
