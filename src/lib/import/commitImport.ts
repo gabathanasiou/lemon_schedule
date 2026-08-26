@@ -97,6 +97,7 @@ export function commitImport({
     const sceneBase: any = {
       id: generateUUID(),
       sceneNumber: ps.sceneNumber,
+      ...(ps.scriptPageNumbers ? { scriptPageNumbers: ps.scriptPageNumbers } : {}),
       pageCount: ps.pageCount ?? '0',
       pageCountDecimal: ps.pageCountDecimal ?? 0,
       scriptDay: breakdownFields.scriptDay || '',
@@ -128,7 +129,7 @@ export function commitImport({
       if (breakdownFields[key]) sceneBase[key] = breakdownFields[key];
     }
     const BUILTIN_SCENE_KEYS = new Set([
-      'id', 'sceneNumber', 'pageCount', 'pageCountDecimal', 'scriptDay',
+      'id', 'sceneNumber', 'scriptPageNumbers', 'pageCount', 'pageCountDecimal', 'scriptDay',
       'intExt', 'set', 'dayNight', 'description', 'cast', 'notes', 'location',
       'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
       'sfx', 'vfx', 'sound', 'music', 'animalsAndWranglers', 'weapons', 'greenery', 'artDept',

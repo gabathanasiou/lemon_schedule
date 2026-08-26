@@ -1,0 +1,7517 @@
+{
+ "source": "Wonderful Life Demo V5.msd",
+ "title": "IT'S A WONDERFUL LIFE",
+ "production": {
+  "ProdNo": "541",
+  "Company": "RKO Productions Inc.",
+  "Director": "Frank Capra",
+  "Producer": "Frank Capra",
+  "Upm": "John Doe",
+  "AsstDirector": "Arthur S. Black",
+  "ScriptDated": "March 4, 1947",
+  "PreparedBy": "EPS User"
+ },
+ "customCategories": [
+  {
+   "label": "Sequence",
+   "key": "sequence"
+  },
+  {
+   "label": "Set Dressing",
+   "key": "setDressing"
+  },
+  {
+   "label": "Unit",
+   "key": "unit"
+  }
+ ],
+ "elements": {
+  "sequence": [
+   "Back Story",
+   "Ending",
+   "Heaven",
+   "Life without George"
+  ],
+  "stunts": [
+   "Car crash into tree",
+   "Car screeches to a stop",
+   "Fall in snow",
+   "Falls into swimming pool",
+   "George decks Bert",
+   "Gun shots",
+   "Jump off bridge",
+   "Stunt driver",
+   "Truck almost hits George"
+  ],
+  "sfx": [
+   "Breaking Glass",
+   "Breaking Ice",
+   "Broken Banister Knob",
+   "Crackling Fire",
+   "Fire in Fireplace",
+   "Flash Bulbs",
+   "Flashes",
+   "Gate Sticks",
+   "Opening Dance Floor",
+   "Rain",
+   "Snow",
+   "Twinkling Stars",
+   "Water Tank",
+   "Wind"
+  ],
+  "vfx": [
+   "Bridge w/ Snow",
+   "Clarence Disappears",
+   "Freeze Frame",
+   "Snow"
+  ],
+  "makeup": [
+   "George's Mouth Bleeding",
+   "Violet's Smeary Lipstick"
+  ],
+  "vehicles": [
+   "Bailey's Car",
+   "Bert's Motorcycle",
+   "Bert's Police Car",
+   "Ernie's Cab",
+   "George's Rickety Car",
+   "Martini's Rickety Truck",
+   "Ornate Carriage",
+   "Period Cars",
+   "Sam's Black Town Car",
+   "Steam Engine Train",
+   "Stunt Car"
+  ],
+  "greenery": [
+   "Hydrangea Bush",
+   "Undamaged Tree"
+  ],
+  "props": [
+   "\"Bridal Suite\" Sign",
+   "\"Buffalo Gals\" Record",
+   "\"Tom Sawyer\" Book",
+   "10 Travel Posters",
+   "24 Bank Passbooks",
+   "3 Highballs",
+   "4 Old Rubber Tires",
+   "4 Pies",
+   "6 Shovels",
+   "Assorted Wrapped Gifts",
+   "Bag of Peanuts",
+   "Banners and Bunting",
+   "Banquet Plates",
+   "Bert's Watch",
+   "Blueprints",
+   "Bottle of Champagne",
+   "Bourbon Bottle",
+   "Bowl of Caviar",
+   "Broom",
+   "Bucket of Ice",
+   "Camera",
+   "Carter's Briefcase",
+   "Cash Register",
+   "Character Letter",
+   "Chickens on a Spit",
+   "Christmas Packages",
+   "Christmas Presents",
+   "Cigar",
+   "Cigar Lighter",
+   "Clothes Basket Full of Money",
+   "Coffee Pots of Money",
+   "Coffee and Doughnuts",
+   "Dance Programs",
+   "Deposit Slip",
+   "Dictaphone",
+   "Draft Papers",
+   "Drawing Pad",
+   "Easel",
+   "Envelope of Money",
+   "Fat Roll of Dollar Bills",
+   "Flash Bulbs",
+   "Flower",
+   "Glass Jar of Notes",
+   "Glass of Beer",
+   "Glasses",
+   "Gun",
+   "Handkerchief",
+   "Ice Cream",
+   "Ice Cream Scoop",
+   "Jar",
+   "Large Bank Door Lock & Key",
+   "Large Brown Bottle",
+   "Large Suitcase",
+   "Legal Papers",
+   "Library Books",
+   "Library Key",
+   "Licorice Shoelaces",
+   "Liquor Bottle",
+   "Long Black Stocking with Money",
+   "Luggage",
+   "Megaphone",
+   "Mixing Bowl of Money",
+   "Money",
+   "Musical Instruments",
+   "Newspapers (w/ Headline)",
+   "Overnight Bag",
+   "Packing Boxes",
+   "Pad and Pencil",
+   "Paper Bag",
+   "Pen",
+   "Phonograph",
+   "Photographer's Camera",
+   "Poison Capsules",
+   "Popcorn",
+   "Powder",
+   "Prescription Box",
+   "Punch",
+   "Punch Bowl and Glasses",
+   "Rice",
+   "Rifle with Bayonet",
+   "Rocks",
+   "Seltzer Bottle",
+   "Silver Bell Ornament",
+   "Sketch of George",
+   "Spotlight on Cab",
+   "Telegram",
+   "Telephone",
+   "Toy Vacuum",
+   "Trash Can",
+   "Travel Magazine",
+   "Tripod",
+   "USO Cart",
+   "Warrent",
+   "Waste Paper Basket",
+   "Wedding Cigars",
+   "Wheelbarrow of Scrap",
+   "Wheelchair",
+   "Whistle",
+   "Wine"
+  ],
+  "backgroundActors": [
+   "10 Soldiers",
+   "100 High School Students",
+   "12 High School Kids",
+   "12 Mixed Bar Crowd",
+   "15 Mixed Rough Bar Crowd",
+   "15 Red Cross Women",
+   "15 Train Passengers",
+   "2 Army Officers",
+   "2 Bouncers",
+   "2 Drinking Friends",
+   "20 Bond Rallyers",
+   "20 Onlookers",
+   "20 Restaurant Patrons",
+   "20 Townspeople",
+   "24 Anxious Bank Customers",
+   "25 Shouting Ration People",
+   "25 Wedding Well-wishers",
+   "3 Dance Judges",
+   "3 Martini Kids",
+   "3 Soda Jerks",
+   "30 Newly Drafted Men",
+   "4 Children",
+   "4 Decorating Men",
+   "4 Draft Board Members",
+   "40 Church Goers",
+   "5 Bank Patrons",
+   "5 Boys",
+   "6 Onlookers",
+   "6 Policemen",
+   "7 Late Shoppers",
+   "8 Train Passengers",
+   "Baby Boy",
+   "Conductor",
+   "Crowd of Onlookers (20)",
+   "Elderly Man",
+   "Girl",
+   "Newspaper Reporter",
+   "Orchestra",
+   "Orchestra Leader",
+   "Photographer",
+   "School Faculty"
+  ],
+  "music": [
+   "Piano Music"
+  ],
+  "wardrobe": [
+   "Air Raid Warden Uniform",
+   "Apron",
+   "Army Uniform",
+   "Bathrobe",
+   "Cap",
+   "Clarence's Underwear",
+   "Curlers",
+   "Derby",
+   "Expensive Furs",
+   "Expensive Jewelry",
+   "Finger Strings",
+   "George's Coat",
+   "George's Hat",
+   "Hat",
+   "Jersey & Football Pants",
+   "Mary's Glasses",
+   "Mrs. Hatch's Bathrobe",
+   "New Dress",
+   "Nighie",
+   "Old Coachman's Hat",
+   "Pajamas",
+   "Pilot Uniform",
+   "Wet Clothes"
+  ],
+  "unit": [
+   "1st Unit",
+   "2nd Unit",
+   "Green Screen",
+   "Stunts",
+   "VisFX Unit"
+  ],
+  "sound": [
+   "\"Buffalo Gals\" Music",
+   "\"Song of the Islands\"",
+   "Crash of Bottles Breaking",
+   "George's Voice",
+   "MOS",
+   "Phonograph Music",
+   "Potter's Secretary's Voice",
+   "Potter's Voice",
+   "Sharp Whistle",
+   "Train Whistle",
+   "Whistling Wind"
+  ],
+  "set": [
+   "BACK ROOM DRUGSTORE",
+   "BAILEY BUILDING AND LOAN OFFICE",
+   "BAILEY BUILDING AND LOAN SIGN OVER ENTRANCE",
+   "BAILEY DINING ROOM",
+   "BAILEY HOME",
+   "BAILEY PARK",
+   "BAILEY'S PRIVATE OFFICE",
+   "BANK",
+   "BATTLEFIELD",
+   "BEDFORD FALLS",
+   "BEDFORD FALLS EMPORIUM",
+   "BEDFORD FALLS STREET - WINTER",
+   "BEDROOM - GEORGE AND MARY'S HOUSE",
+   "BEDROOM WINDOW - HATCH HOME",
+   "BLUE MOON",
+   "BRIDGE AT RAILING",
+   "BRIDGE OVER RIVER",
+   "BUILDING AND LOAN",
+   "BUILDING AND LOAN OFFICES",
+   "CAB",
+   "CEMETARY",
+   "CHURCH",
+   "CHURCH - ANOTHER ANGLE",
+   "DOORWAY",
+   "DOORWAY TO UNCLE BILLY'S OFFICE",
+   "DRAFT BOARD OFFICE",
+   "DRUGSTORE",
+   "DUMP",
+   "ENTRANCE HALL",
+   "ERNIE'S CAB",
+   "FACTORY",
+   "FRONT HALL BAILEY HOME",
+   "FRONT PORCH - BAILEY HOME",
+   "FRONT PORCH OF HOUSE",
+   "FRONT ROOM DRUGSTORE",
+   "FROZEN RIVER AND HILL",
+   "GEORGE'S HOME",
+   "GEORGE'S HOUSE",
+   "GEORGE'S LIVING ROOM",
+   "GEORGE'S OFFICE",
+   "GOWER'S DRUGSTORE",
+   "GRANVILLE HOUSE",
+   "HALL",
+   "HALLWAY",
+   "HALLWAY GEORGE'S HOUSE",
+   "HATCH HALL",
+   "HATCH HOME",
+   "HEAVEN",
+   "HIGH SCHOOL GYM",
+   "HOSPITAL",
+   "HOUSE",
+   "KITCHEN",
+   "LIBRARY",
+   "LIVING ROOM",
+   "LUGGAGE SHOP",
+   "MAIN STREET",
+   "MAIN STREET BEDFORD FALLS",
+   "MARTINI'S BAR",
+   "MARTINI'S NEW HOUSE",
+   "NICK'S BAR",
+   "OCEAN FROM DECK OF CARRIER",
+   "OLD GRANVILLE HOUSE",
+   "OUTER OFFICE",
+   "OUTER OFFICE - BLDG. AND LOAN",
+   "PARLOR",
+   "PORCH OF BAILEY HOUSE",
+   "POTTER'S LIBRARY",
+   "POTTER'S OFFICE",
+   "POTTER'S OFFICE IN BANK",
+   "PRESCRIPTION ROOM OF DRUGSTORE",
+   "RAILROAD STATION",
+   "RATION OFFICE",
+   "READY ROOM ON AIRCRAFT CARRIER",
+   "RECRUITING GROUNDS",
+   "RED CROSS WORKROOM",
+   "REMAGEN BRIDGE OVER THE RHINE",
+   "RESIDENTIAL STREET",
+   "RIVER",
+   "SAM'S NEW YORK OFFICE",
+   "SIDE OF HOUSE",
+   "SITTING ROOM",
+   "SKY",
+   "SLUM STREET BEDFORD FALLS",
+   "STAIRS",
+   "STREET",
+   "STREET - BAILEY PARK",
+   "STREET IN BAILEY PARK",
+   "STREET IN BEDFORD FALLS",
+   "THEATRE",
+   "TOLL HOUSE ON BRIDGE",
+   "TRAIN",
+   "TRAIN IN RAILROAD STATION",
+   "TREE-LINED RESIDENTIAL STREET",
+   "UNCLE BILLY'S LIVING ROOM",
+   "UPPER HALLWAY",
+   "VIOLET BICK'S BEAUTY SHOP",
+   "ZUZU'S BEDROOM"
+  ],
+  "setDressing": [
+   "\"Ma Bailey's Boarding House\" Sign",
+   "\"Welcome Jitterbugs\" Sign",
+   "2 Office Chairs",
+   "Apothecary Bottles",
+   "Arm Chair",
+   "Bedford Falls Sign",
+   "Bldg. & Loan Sign",
+   "Boothes",
+   "Broken Roof",
+   "Broken Stairs",
+   "Broken Windows",
+   "Candy Counter",
+   "Christmas Tree",
+   "Cobwebs",
+   "Counter",
+   "Desk",
+   "Dining Room Set",
+   "Dishes",
+   "Divan",
+   "Door Bell",
+   "Executive Desk",
+   "Gas Lights",
+   "Gravestones",
+   "Hanging Wallpaper",
+   "Harry Bailey's Tombstone",
+   "Honky Tonk Atmosphere",
+   "Hospital Room",
+   "Juke Box",
+   "Mailbox",
+   "Mirror",
+   "New Paint",
+   "Nick's Place Sign",
+   "Old Dresser",
+   "Piano",
+   "Pottersville Sign",
+   "Rocking Chair",
+   "Sagging Porch",
+   "Shutters and Doors Askew",
+   "Sign",
+   "Small Tables",
+   "Snow",
+   "Soda Fountain",
+   "Wallpaper",
+   "Wood Burning Stove",
+   "Worn Furniture"
+  ]
+ },
+ "crew": {
+  "director": [
+   "Frank Capra"
+  ],
+  "producer": [
+   "Frank Capra"
+  ],
+  "upm": [
+   "John Doe"
+  ],
+  "firstAD": [
+   "Arthur S. Black"
+  ]
+ },
+ "cast": [
+  {
+   "name": "ERNIE",
+   "scenes": [
+    "18",
+    "104",
+    "51",
+    "146, 149",
+    "151",
+    "49",
+    "47",
+    "147, 148",
+    "68, 70",
+    "171",
+    "63",
+    "69, 71",
+    "144, 145",
+    "50",
+    "26"
+   ]
+  },
+  {
+   "name": "MR. REINEMAN",
+   "scenes": [
+    "18",
+    "77"
+   ]
+  },
+  {
+   "name": "VIOLET",
+   "scenes": [
+    "18",
+    "5",
+    "47",
+    "113",
+    "171",
+    "114",
+    "112",
+    "144, 145",
+    "33",
+    "20"
+   ]
+  },
+  {
+   "name": "GEORGE",
+   "scenes": [
+    "18",
+    "152",
+    "12",
+    "14",
+    "10",
+    "162",
+    "104",
+    "80",
+    "35",
+    "156",
+    "135, 137",
+    "133",
+    "158",
+    "163",
+    "51",
+    "146, 149",
+    "154",
+    "38",
+    "151",
+    "115",
+    "5",
+    "7",
+    "166, 169",
+    "49",
+    "47",
+    "3",
+    "147, 148",
+    "119, 120, 121, 122, 124, 126",
+    "54",
+    "56, 58, 60, 62",
+    "113",
+    "65",
+    "68, 70",
+    "85",
+    "42",
+    "46",
+    "150",
+    "44",
+    "99",
+    "153",
+    "123",
+    "155, 156",
+    "171",
+    "4",
+    "17",
+    "117",
+    "81",
+    "129",
+    "160",
+    "32",
+    "131",
+    "74, 76",
+    "141, 143",
+    "140, 142",
+    "66",
+    "114",
+    "116",
+    "9",
+    "11",
+    "53",
+    "63",
+    "106",
+    "112",
+    "64",
+    "39",
+    "41",
+    "48",
+    "79",
+    "164",
+    "128",
+    "6",
+    "28",
+    "97",
+    "132",
+    "159",
+    "34",
+    "134",
+    "72",
+    "167, 168, 170",
+    "8",
+    "98",
+    "139",
+    "144, 145",
+    "36",
+    "78",
+    "161",
+    "136",
+    "138",
+    "29",
+    "118",
+    "33",
+    "125",
+    "25",
+    "19",
+    "50",
+    "52",
+    "30",
+    "16",
+    "20",
+    "31",
+    "15",
+    "26",
+    "23",
+    "21"
+   ]
+  },
+  {
+   "name": "BERT",
+   "scenes": [
+    "18",
+    "92",
+    "158",
+    "146, 149",
+    "151",
+    "155, 156",
+    "171",
+    "67",
+    "69, 71"
+   ]
+  },
+  {
+   "name": "MA BAILEY",
+   "scenes": [
+    "152",
+    "47",
+    "171",
+    "48",
+    "87",
+    "19",
+    "30",
+    "31"
+   ]
+  },
+  {
+   "name": "MR. GOWER",
+   "scenes": [
+    "12",
+    "104",
+    "5",
+    "171",
+    "140, 142",
+    "6",
+    "91",
+    "16"
+   ]
+  },
+  {
+   "name": "GOON",
+   "scenes": [
+    "10",
+    "107",
+    "90",
+    "55, 57, 59, 61",
+    "79",
+    "108, 110",
+    "164",
+    "77",
+    "128",
+    "25"
+   ]
+  },
+  {
+   "name": "MR. POTTER",
+   "scenes": [
+    "10",
+    "107",
+    "90",
+    "4",
+    "55, 57, 59, 61",
+    "79",
+    "108, 110",
+    "164",
+    "77",
+    "128",
+    "25"
+   ]
+  },
+  {
+   "name": "PETER BAILEY",
+   "scenes": [
+    "10",
+    "47",
+    "119, 120, 121, 122, 124, 126",
+    "123",
+    "19",
+    "30"
+   ]
+  },
+  {
+   "name": "BANK TELLER",
+   "scenes": [
+    "107"
+   ]
+  },
+  {
+   "name": "UNCLE BILLY",
+   "scenes": [
+    "107",
+    "109",
+    "115",
+    "54",
+    "56, 58, 60, 62",
+    "123",
+    "171",
+    "17",
+    "117",
+    "9",
+    "53",
+    "112",
+    "64",
+    "28",
+    "105",
+    "111",
+    "91",
+    "29",
+    "118",
+    "25",
+    "30",
+    "26",
+    "23"
+   ]
+  },
+  {
+   "name": "HARRY",
+   "scenes": [
+    "104",
+    "166, 169",
+    "47",
+    "3",
+    "171",
+    "95",
+    "29",
+    "19",
+    "30",
+    "20",
+    "31",
+    "23"
+   ]
+  },
+  {
+   "name": "MARY",
+   "scenes": [
+    "80",
+    "35",
+    "156",
+    "51",
+    "38",
+    "5",
+    "7",
+    "166, 169",
+    "49",
+    "47",
+    "13",
+    "119, 120, 121, 122, 124, 126",
+    "84",
+    "68, 70",
+    "42",
+    "46",
+    "44",
+    "37",
+    "123",
+    "155, 156",
+    "171",
+    "74, 76",
+    "63",
+    "39",
+    "41",
+    "83",
+    "72",
+    "167, 168, 170",
+    "36",
+    "78",
+    "88",
+    "50",
+    "20",
+    "23",
+    "21"
+   ]
+  },
+  {
+   "name": "CHARLIE",
+   "scenes": [
+    "156",
+    "171",
+    "63"
+   ]
+  },
+  {
+   "name": "ED",
+   "scenes": [
+    "156",
+    "63"
+   ]
+  },
+  {
+   "name": "TOM",
+   "scenes": [
+    "156",
+    "63"
+   ]
+  },
+  {
+   "name": "CLARENCE",
+   "scenes": [
+    "135, 137",
+    "154",
+    "151",
+    "150",
+    "153",
+    "141, 143",
+    "140, 142",
+    "139",
+    "136",
+    "138"
+   ]
+  },
+  {
+   "name": "TRUCK DRIVER",
+   "scenes": [
+    "133"
+   ]
+  },
+  {
+   "name": "PETE BAILEY",
+   "scenes": [
+    "166, 169",
+    "171",
+    "167, 168, 170"
+   ]
+  },
+  {
+   "name": "CARTER",
+   "scenes": [
+    "166, 169",
+    "171",
+    "9"
+   ]
+  },
+  {
+   "name": "JANIE BAILEY",
+   "scenes": [
+    "166, 169",
+    "119, 120, 121, 122, 124, 126",
+    "171",
+    "167, 168, 170"
+   ]
+  },
+  {
+   "name": "SHERIFF",
+   "scenes": [
+    "166, 169"
+   ]
+  },
+  {
+   "name": "TOMMY BAILEY",
+   "scenes": [
+    "166, 169",
+    "119, 120, 121, 122, 124, 126",
+    "123",
+    "171",
+    "167, 168, 170"
+   ]
+  },
+  {
+   "name": "SAM WAINWRIGHT",
+   "scenes": [
+    "89",
+    "43",
+    "75",
+    "78",
+    "20"
+   ]
+  },
+  {
+   "name": "COUSIN EUSTACE",
+   "scenes": [
+    "47",
+    "171",
+    "17",
+    "114",
+    "116",
+    "9",
+    "11",
+    "106",
+    "112",
+    "64",
+    "48",
+    "30",
+    "26"
+   ]
+  },
+  {
+   "name": "COUSIN TILLY",
+   "scenes": [
+    "47",
+    "171",
+    "17",
+    "114",
+    "116",
+    "9",
+    "11",
+    "106",
+    "112",
+    "64",
+    "30",
+    "26"
+   ]
+  },
+  {
+   "name": "RUTH",
+   "scenes": [
+    "47",
+    "29",
+    "30",
+    "31"
+   ]
+  },
+  {
+   "name": "MRS. HATCH",
+   "scenes": [
+    "42",
+    "37",
+    "171",
+    "41",
+    "40",
+    "45"
+   ]
+  },
+  {
+   "name": "NURSE",
+   "scenes": [
+    "82"
+   ]
+  },
+  {
+   "name": "JANE WAINWRIGHT",
+   "scenes": [
+    "171",
+    "75",
+    "78"
+   ]
+  },
+  {
+   "name": "MR. MARTINI",
+   "scenes": [
+    "171",
+    "131",
+    "74, 76",
+    "72"
+   ]
+  },
+  {
+   "name": "ZUZU BAILEY",
+   "scenes": [
+    "171",
+    "167, 168, 170",
+    "125"
+   ]
+  },
+  {
+   "name": "ANNIE",
+   "scenes": [
+    "171",
+    "48",
+    "19"
+   ]
+  },
+  {
+   "name": "MR. CARTER",
+   "scenes": [
+    "171",
+    "114",
+    "116",
+    "106",
+    "112"
+   ]
+  },
+  {
+   "name": "MR. WELCH",
+   "scenes": [
+    "131"
+   ]
+  },
+  {
+   "name": "NICK",
+   "scenes": [
+    "131",
+    "140, 142"
+   ]
+  },
+  {
+   "name": "MARIA MARTINI",
+   "scenes": [
+    "74, 76",
+    "72"
+   ]
+  },
+  {
+   "name": "MRS. THOMPSON",
+   "scenes": [
+    "63"
+   ]
+  },
+  {
+   "name": "RANDALL",
+   "scenes": [
+    "63"
+   ]
+  },
+  {
+   "name": "MARTY",
+   "scenes": [
+    "94",
+    "20"
+   ]
+  },
+  {
+   "name": "OWNER",
+   "scenes": [
+    "132"
+   ]
+  },
+  {
+   "name": "POSTER MAN",
+   "scenes": [
+    "67"
+   ]
+  },
+  {
+   "name": "SCHULTZ",
+   "scenes": [
+    "72"
+   ]
+  },
+  {
+   "name": "HOUSE OWNER",
+   "scenes": [
+    "139"
+   ]
+  },
+  {
+   "name": "COP",
+   "scenes": [
+    "144, 145"
+   ]
+  },
+  {
+   "name": "TOLLKEEPER",
+   "scenes": [
+    "136",
+    "138"
+   ]
+  },
+  {
+   "name": "SUITOR #1",
+   "scenes": [
+    "33"
+   ]
+  },
+  {
+   "name": "SUITOR #2",
+   "scenes": [
+    "33"
+   ]
+  },
+  {
+   "name": "LAWYER",
+   "scenes": [
+    "25"
+   ]
+  },
+  {
+   "name": "REAL ESTATE SALESMAN",
+   "scenes": [
+    "25"
+   ]
+  },
+  {
+   "name": "DR. CAMPBELL",
+   "scenes": [
+    "25",
+    "26"
+   ]
+  },
+  {
+   "name": "INSURANCE AGENT",
+   "scenes": [
+    "25"
+   ]
+  },
+  {
+   "name": "PASSERBY",
+   "scenes": [
+    "50"
+   ]
+  },
+  {
+   "name": "GRUMPY OLD MAN",
+   "scenes": [
+    "22",
+    "23"
+   ]
+  },
+  {
+   "name": "PRINCIPAL",
+   "scenes": [
+    "20"
+   ]
+  },
+  {
+   "name": "MICKEY",
+   "scenes": [
+    "20"
+   ]
+  },
+  {
+   "name": "FREDDIE",
+   "scenes": [
+    "20"
+   ]
+  },
+  {
+   "name": "JOE",
+   "scenes": [
+    "15"
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "n": "18",
+   "sheetNumber": "19",
+   "spn": "21",
+   "pgStr": "1 2/8",
+   "pgDec": 1.25,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "MAIN STREET",
+   "sd": "1928",
+   "desc": "George takes a cab ride.",
+   "notes": "EPK on Set ",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "ERNIE",
+    "MR. REINEMAN",
+    "VIOLET",
+    "GEORGE",
+    "BERT"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Elderly Man"
+    ],
+    "props": [
+     "Large Suitcase",
+     "Bert's Watch"
+    ],
+    "stunts": [
+     "Car screeches to a stop",
+     "Stunt driver"
+    ],
+    "vehicles": [
+     "Ernie's Cab",
+     "Bert's Motorcycle",
+     "Stunt Car"
+    ]
+   }
+  },
+  {
+   "n": "73",
+   "sheetNumber": "66",
+   "spn": "91",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "BAILEY PARK",
+   "sd": "",
+   "desc": "Establishing \"Bailey Park\".",
+   "notes": "2nd Unit to Shoot Concurrently  ",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "2nd Unit",
+   "cast": [],
+   "elems": {
+    "vehicles": [
+     "George's Rickety Car",
+     "Martini's Rickety Truck"
+    ]
+   }
+  },
+  {
+   "n": "24",
+   "sheetNumber": "25",
+   "spn": "45",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 45,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "BAILEY BUILDING AND LOAN SIGN OVER ENTRANCE",
+   "sd": "1928",
+   "desc": "Establishing Bldg. & Loan sign.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "setDressing": [
+     "Bldg. & Loan Sign"
+    ]
+   }
+  },
+  {
+   "n": "152",
+   "sheetNumber": "131",
+   "spn": "163",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 45,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BAILEY HOME",
+   "sd": "Christmas Eve",
+   "desc": "George is rejected by his mother.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MA BAILEY"
+   ],
+   "elems": {
+    "setDressing": [
+     "Door Bell",
+     "\"Ma Bailey's Boarding House\" Sign"
+    ]
+   }
+  },
+  {
+   "n": "12",
+   "sheetNumber": "13",
+   "spn": "16",
+   "pgStr": "5/8",
+   "pgDec": 0.625,
+   "est": 90,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "BACK ROOM DRUGSTORE",
+   "sd": "",
+   "desc": "Mr. Gower hits George in a drunken fury.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. GOWER"
+   ],
+   "elems": {
+    "props": [
+     "Poison Capsules",
+     "Prescription Box",
+     "Liquor Bottle",
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "14",
+   "sheetNumber": "15",
+   "spn": "16",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 144,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "BACK ROOM DRUGSTORE",
+   "sd": "",
+   "desc": "Gower discovers his mistake.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "props": [
+     "Poison Capsules",
+     "Prescription Box",
+     "Trash Can",
+     "Powder",
+     "Large Brown Bottle"
+    ]
+   }
+  },
+  {
+   "n": "10",
+   "sheetNumber": "11",
+   "spn": "13",
+   "pgStr": "2",
+   "pgDec": 2.0,
+   "est": 360,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "BAILEY'S PRIVATE OFFICE",
+   "sd": "",
+   "desc": "Potter and Peter Bailey fight - George intervenes.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "GOON",
+    "MR. POTTER",
+    "PETER BAILEY"
+   ],
+   "elems": {
+    "props": [
+     "Pen",
+     "Drawing Pad",
+     "Wheelchair"
+    ],
+    "setDressing": [
+     "Executive Desk",
+     "2 Office Chairs"
+    ],
+    "wardrobe": [
+     "Derby"
+    ]
+   }
+  },
+  {
+   "n": "107",
+   "sheetNumber": "99",
+   "spn": "112",
+   "pgStr": "1 7/8",
+   "pgDec": 1.875,
+   "est": 225,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "BANK",
+   "sd": "",
+   "desc": "Uncle Billy taunts Potter, loses money.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GOON",
+    "MR. POTTER",
+    "BANK TELLER",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "props": [
+     "Newspapers (w/ Headline)",
+     "Deposit Slip",
+     "Envelope of Money"
+    ]
+   }
+  },
+  {
+   "n": "109",
+   "sheetNumber": "101",
+   "spn": "114",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "BANK",
+   "sd": "",
+   "desc": "Uncle Billy searches pockets for money.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "props": [
+     "Waste Paper Basket"
+    ]
+   }
+  },
+  {
+   "n": "92",
+   "sheetNumber": "84",
+   "spn": "104",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 50,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BATTLEFIELD",
+   "sd": "War Years",
+   "desc": "Bert and his bayonet.",
+   "notes": "Walk Away Location  Voice Over Sequence",
+   "loc": "Backlot",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "BERT"
+   ],
+   "elems": {
+    "props": [
+     "Rifle with Bayonet"
+    ],
+    "wardrobe": [
+     "Army Uniform"
+    ]
+   }
+  },
+  {
+   "n": "1",
+   "sheetNumber": "1",
+   "spn": "1",
+   "pgStr": "6/8",
+   "pgDec": 0.75,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BEDFORD FALLS",
+   "sd": "Present",
+   "desc": "Voice over prayers for George.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Heaven",
+   "unit": "2nd Unit",
+   "cast": [],
+   "elems": {
+    "sfx": [
+     "Snow"
+    ],
+    "sound": [
+     "MOS"
+    ]
+   }
+  },
+  {
+   "n": "162",
+   "sheetNumber": "140",
+   "spn": "172",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 20,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BEDFORD FALLS EMPORIUM",
+   "sd": "Christmas Eve",
+   "desc": "George runs by the emporium.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "1st Unit",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "104",
+   "sheetNumber": "96",
+   "spn": "107",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "BEDFORD FALLS STREET - WINTER",
+   "sd": "Christmas Eve Day",
+   "desc": "George reads newspaper headline about Harry.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. GOWER",
+    "ERNIE",
+    "HARRY"
+   ],
+   "elems": {
+    "props": [
+     "Newspapers (w/ Headline)"
+    ]
+   }
+  },
+  {
+   "n": "80",
+   "sheetNumber": "72",
+   "spn": "100",
+   "pgStr": "1 6/8",
+   "pgDec": 1.75,
+   "est": 150,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "BEDROOM - GEORGE AND MARY'S HOUSE",
+   "sd": "",
+   "desc": "George learns of Mary's pregnancy.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "Green Screen",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Sketch of George"
+    ],
+    "setDressing": [
+     "Mirror"
+    ],
+    "sound": [
+     "Potter's Voice",
+     "George's Voice"
+    ],
+    "wardrobe": [
+     "George's Coat",
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "35",
+   "sheetNumber": "36",
+   "spn": "62",
+   "pgStr": "5/8",
+   "pgDec": 0.625,
+   "est": 50,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "BEDROOM WINDOW - HATCH HOME",
+   "sd": "1932",
+   "desc": "Mary watches George from window.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "wardrobe": [
+     "George's Coat",
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "156",
+   "sheetNumber": "135",
+   "spn": "168",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "BLUE MOON",
+   "sd": "Christmas Eve",
+   "desc": "Mary takes refuge from George in bar.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "CHARLIE",
+    "ED",
+    "GEORGE",
+    "MARY",
+    "TOM"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "12 Mixed Bar Crowd"
+    ],
+    "setDressing": [
+     "Boothes",
+     "Small Tables",
+     "Counter"
+    ]
+   }
+  },
+  {
+   "n": "135, 137",
+   "sheetNumber": "120",
+   "spn": "139",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 130,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BRIDGE AT RAILING",
+   "sd": "Christmas Eve",
+   "desc": "Clarence jumps into the water.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {
+    "stunts": [
+     "Jump off bridge"
+    ]
+   }
+  },
+  {
+   "n": "133",
+   "sheetNumber": "118",
+   "spn": "139",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 50,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BRIDGE OVER RIVER",
+   "sd": "Christmas Eve",
+   "desc": "George walks toward bridge.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "TRUCK DRIVER"
+   ],
+   "elems": {
+    "stunts": [
+     "Truck almost hits George"
+    ]
+   }
+  },
+  {
+   "n": "158",
+   "sheetNumber": "136",
+   "spn": "170",
+   "pgStr": "1 2/8",
+   "pgDec": 1.25,
+   "est": 270,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BRIDGE OVER RIVER",
+   "sd": "Christmas Eve",
+   "desc": "George comes back to real life.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "VisFX Unit",
+   "cast": [
+    "GEORGE",
+    "BERT"
+   ],
+   "elems": {
+    "makeup": [
+     "George's Mouth Bleeding"
+    ],
+    "setDressing": [
+     "Snow"
+    ],
+    "vehicles": [
+     "Bert's Police Car"
+    ],
+    "vfx": [
+     "Snow",
+     "Bridge w/ Snow"
+    ]
+   }
+  },
+  {
+   "n": "163",
+   "sheetNumber": "141",
+   "spn": "172",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "BUILDING AND LOAN OFFICES",
+   "sd": "Christmas Eve",
+   "desc": "George runs over to the Bldg. & Loan.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "1st Unit",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Snow"
+    ],
+    "sfx": [
+     "Snow"
+    ]
+   }
+  },
+  {
+   "n": "51",
+   "sheetNumber": "52",
+   "spn": "75",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 60,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "CAB",
+   "sd": "1932",
+   "desc": "George reacts to the bank crowd.",
+   "notes": "",
+   "loc": "Stage 2",
+   "seq": "Back Story",
+   "unit": "VisFX Unit",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "ERNIE"
+   ],
+   "elems": {
+    "vehicles": [
+     "Ernie's Cab"
+    ]
+   }
+  },
+  {
+   "n": "146, 149",
+   "sheetNumber": "127",
+   "spn": "159",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 20,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "CAB",
+   "sd": "Christmas Eve",
+   "desc": "Ernie thinks George is nuts.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "ERNIE",
+    "BERT"
+   ],
+   "elems": {
+    "props": [
+     "Spotlight on Cab"
+    ],
+    "vehicles": [
+     "Ernie's Cab",
+     "Bert's Police Car"
+    ]
+   }
+  },
+  {
+   "n": "154",
+   "sheetNumber": "133",
+   "spn": "165",
+   "pgStr": "2",
+   "pgDec": 2.0,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "CEMETARY",
+   "sd": "Christmas Eve",
+   "desc": "George discovers his brother's death.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Gravestones",
+     "Harry Bailey's Tombstone"
+    ]
+   }
+  },
+  {
+   "n": "102",
+   "sheetNumber": "94",
+   "spn": "106",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "CHURCH",
+   "sd": "",
+   "desc": "People pray in church.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "backgroundActors": [
+     "40 Church Goers"
+    ]
+   }
+  },
+  {
+   "n": "103",
+   "sheetNumber": "95",
+   "spn": "106",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "CHURCH - ANOTHER ANGLE",
+   "sd": "",
+   "desc": "People enter church.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "backgroundActors": [
+     "40 Church Goers"
+    ]
+   }
+  },
+  {
+   "n": "38",
+   "sheetNumber": "39",
+   "spn": "64",
+   "pgStr": "7/8",
+   "pgDec": 0.875,
+   "est": 120,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "DOORWAY",
+   "sd": "1932",
+   "desc": "George enters Mary's house.",
+   "notes": "Walk Away Location",
+   "loc": "Backlot",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "sfx": [
+     "Gate Sticks"
+    ],
+    "sound": [
+     "\"Buffalo Gals\" Music"
+    ],
+    "wardrobe": [
+     "New Dress"
+    ]
+   }
+  },
+  {
+   "n": "151",
+   "sheetNumber": "130",
+   "spn": "161",
+   "pgStr": "1 4/8",
+   "pgDec": 1.5,
+   "est": 50,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "DOORWAY",
+   "sd": "Christmas Eve",
+   "desc": "George escapes form Bert and Ernie.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "ERNIE",
+    "CLARENCE",
+    "BERT"
+   ],
+   "elems": {
+    "props": [
+     "Gun"
+    ],
+    "vfx": [
+     "Clarence Disappears"
+    ]
+   }
+  },
+  {
+   "n": "115",
+   "sheetNumber": "106",
+   "spn": "118",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "DOORWAY TO UNCLE BILLY'S OFFICE",
+   "sd": "",
+   "desc": "Uncle Billy searches office frantically.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "90",
+   "sheetNumber": "82",
+   "spn": "104",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "DRAFT BOARD OFFICE",
+   "sd": "",
+   "desc": "Potter presiding over draft board.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GOON",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "4 Draft Board Members"
+    ],
+    "props": [
+     "Draft Papers",
+     "Wheelchair"
+    ]
+   }
+  },
+  {
+   "n": "5",
+   "sheetNumber": "5",
+   "spn": "6",
+   "pgStr": "3",
+   "pgDec": 3.0,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "DRUGSTORE",
+   "sd": "",
+   "desc": "George with Mary and Violet. Mr Gower gets telegram.",
+   "notes": "Must be out of Location by 18:00",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "MR. GOWER",
+    "VIOLET",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Licorice Shoelaces",
+     "Liquor Bottle",
+     "Cigar Lighter",
+     "Ice Cream Scoop",
+     "Telegram",
+     "Paper Bag",
+     "Ice Cream"
+    ],
+    "setDressing": [
+     "Soda Fountain",
+     "Candy Counter"
+    ],
+    "wardrobe": [
+     "Apron",
+     "Cap"
+    ]
+   }
+  },
+  {
+   "n": "5",
+   "sheetNumber": "6",
+   "spn": "6",
+   "pgStr": "3",
+   "pgDec": 3.0,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "DRUGSTORE",
+   "sd": "",
+   "desc": "George with Mary and Violet. Mr. Gower gets telegram.",
+   "notes": "Clearances for Travel Magazine",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "props": [
+     "Travel Magazine"
+    ]
+   }
+  },
+  {
+   "n": "7",
+   "sheetNumber": "8",
+   "spn": "11",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "DRUGSTORE",
+   "sd": "",
+   "desc": "George reads sign \"ASK DAD HE KNOWS\".",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "setDressing": [
+     "Sign"
+    ],
+    "wardrobe": [
+     "Cap"
+    ]
+   }
+  },
+  {
+   "n": "100",
+   "sheetNumber": "92",
+   "spn": "106",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "DUMP",
+   "sd": "",
+   "desc": "Wheelbarrow of junk.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "props": [
+     "Wheelbarrow of Scrap"
+    ]
+   }
+  },
+  {
+   "n": "166, 169",
+   "sheetNumber": "144",
+   "spn": "173",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "ENTRANCE HALL",
+   "sd": "",
+   "desc": "George greets bank examiner and sheriff.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "PETE BAILEY",
+    "CARTER",
+    "HARRY",
+    "JANIE BAILEY",
+    "SHERIFF",
+    "TOMMY BAILEY",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Newspaper Reporter",
+     "Photographer"
+    ],
+    "props": [
+     "Warrent",
+     "Photographer's Camera",
+     "Flash Bulbs"
+    ],
+    "sfx": [
+     "Flashes"
+    ]
+   }
+  },
+  {
+   "n": "49",
+   "sheetNumber": "50",
+   "spn": "73",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "ERNIE'S CAB",
+   "sd": "1932",
+   "desc": "George and Mary talk of honeymoon fantasy.",
+   "notes": "",
+   "loc": "Backlot",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "ERNIE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "24 Anxious Bank Customers"
+    ],
+    "props": [
+     "Fat Roll of Dollar Bills",
+     "Bottle of Champagne"
+    ],
+    "vehicles": [
+     "Ernie's Cab"
+    ]
+   }
+  },
+  {
+   "n": "89",
+   "sheetNumber": "81",
+   "spn": "104",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "FACTORY",
+   "sd": "",
+   "desc": "Sam shows blueprints.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "SAM WAINWRIGHT"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "2 Army Officers"
+    ],
+    "props": [
+     "Blueprints"
+    ]
+   }
+  },
+  {
+   "n": "47",
+   "sheetNumber": "48",
+   "spn": "73",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 60,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "FRONT HALL BAILEY HOME",
+   "sd": "1932",
+   "desc": "George and Mary exit their wedding.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "ERNIE",
+    "COUSIN EUSTACE",
+    "HARRY",
+    "MA BAILEY",
+    "PETER BAILEY",
+    "VIOLET",
+    "COUSIN TILLY",
+    "GEORGE",
+    "MARY",
+    "RUTH"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "25 Wedding Well-wishers"
+    ],
+    "props": [
+     "Rice",
+     "Tripod"
+    ],
+    "sfx": [
+     "Flash Bulbs",
+     "Rain"
+    ],
+    "vehicles": [
+     "Ernie's Cab"
+    ]
+   }
+  },
+  {
+   "n": "13",
+   "sheetNumber": "14",
+   "spn": "16",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "FRONT ROOM DRUGSTORE",
+   "sd": "",
+   "desc": "Mary hears beating.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Ice Cream"
+    ],
+    "setDressing": [
+     "Soda Fountain",
+     "Candy Counter"
+    ]
+   }
+  },
+  {
+   "n": "3",
+   "sheetNumber": "3",
+   "spn": "4",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 150,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "FROZEN RIVER AND HILL",
+   "sd": "Winter, 1919",
+   "desc": "George saves Harry from drowning.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "HARRY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "5 Boys"
+    ],
+    "props": [
+     "Megaphone",
+     "6 Shovels"
+    ],
+    "setDressing": [
+     "Snow"
+    ],
+    "sfx": [
+     "Breaking Ice",
+     "Water Tank",
+     "Snow"
+    ]
+   }
+  },
+  {
+   "n": "165",
+   "sheetNumber": "143",
+   "spn": "173",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 20,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "GEORGE'S HOME",
+   "sd": "Christmas Eve",
+   "desc": "George's home is ready for Christmas.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "2nd Unit",
+   "cast": [],
+   "elems": {
+    "props": [
+     "Christmas Presents"
+    ],
+    "setDressing": [
+     "Christmas Tree"
+    ],
+    "sfx": [
+     "Fire in Fireplace"
+    ]
+   }
+  },
+  {
+   "n": "147, 148",
+   "sheetNumber": "128",
+   "spn": "160",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 45,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "GEORGE'S HOUSE",
+   "sd": "Christmas Eve",
+   "desc": "George finds his house abandoned.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "ERNIE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Broken Windows",
+     "Broken Roof",
+     "Shutters and Doors Askew",
+     "Sagging Porch"
+    ],
+    "vehicles": [
+     "Ernie's Cab"
+    ]
+   }
+  },
+  {
+   "n": "119, 120, 121, 122, 124, 126",
+   "sheetNumber": "110",
+   "spn": "121",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "GEORGE'S LIVING ROOM",
+   "sd": "",
+   "desc": "George returns home to family, angry and upset.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "JANIE BAILEY",
+    "PETER BAILEY",
+    "TOMMY BAILEY",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Pad and Pencil",
+     "Assorted Wrapped Gifts",
+     "Toy Vacuum",
+     "Telephone"
+    ],
+    "setDressing": [
+     "Christmas Tree",
+     "Arm Chair",
+     "Piano"
+    ]
+   }
+  },
+  {
+   "n": "54",
+   "sheetNumber": "55",
+   "spn": "76",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "GEORGE'S OFFICE",
+   "sd": "1932",
+   "desc": "George learns of stock crash.",
+   "notes": "CLOSED SET",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "56, 58, 60, 62",
+   "sheetNumber": "57",
+   "spn": "78",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 60,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "GEORGE'S OFFICE",
+   "sd": "1932",
+   "desc": "George speaks to Potter about crash.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "113",
+   "sheetNumber": "104",
+   "spn": "116",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "GEORGE'S OFFICE",
+   "sd": "",
+   "desc": "George gives Violet money.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "VIOLET"
+   ],
+   "elems": {
+    "makeup": [
+     "Violet's Smeary Lipstick"
+    ],
+    "props": [
+     "Character Letter",
+     "Money"
+    ]
+   }
+  },
+  {
+   "n": "65",
+   "sheetNumber": "60",
+   "spn": "87",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "GEORGE'S OFFICE",
+   "sd": "1932",
+   "desc": "George talks to his new wife on phone.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "84",
+   "sheetNumber": "76",
+   "spn": "103",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 60,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "GRANVILLE HOUSE",
+   "sd": "",
+   "desc": "Mary repairs house.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MARY"
+   ],
+   "elems": {
+    "setDressing": [
+     "New Paint",
+     "Wallpaper"
+    ]
+   }
+  },
+  {
+   "n": "68, 70",
+   "sheetNumber": "63",
+   "spn": "89",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 50,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "GRANVILLE HOUSE",
+   "sd": "1932",
+   "desc": "George enters his new home, speechless.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "Green Screen",
+   "cast": [
+    "ERNIE",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Phonograph",
+     "Packing Boxes",
+     "Bowl of Caviar",
+     "Bottle of Champagne",
+     "Chickens on a Spit",
+     "Bucket of Ice"
+    ],
+    "setDressing": [
+     "Broken Windows"
+    ],
+    "sfx": [
+     "Crackling Fire"
+    ],
+    "sound": [
+     "Sharp Whistle",
+     "Whistling Wind",
+     "\"Song of the Islands\""
+    ],
+    "wardrobe": [
+     "Old Coachman's Hat",
+     "Pajamas",
+     "Nighie"
+    ]
+   }
+  },
+  {
+   "n": "85",
+   "sheetNumber": "77",
+   "spn": "103",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "GRANVILLE HOUSE",
+   "sd": "",
+   "desc": "George returns from work, tired.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "sfx": [
+     "Broken Banister Knob"
+    ]
+   }
+  },
+  {
+   "n": "42",
+   "sheetNumber": "43",
+   "spn": "68",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "HALL",
+   "sd": "1932",
+   "desc": "Sam calls for George.",
+   "notes": "Sam's Voice on Phone",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MRS. HATCH",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Phonograph",
+     "\"Buffalo Gals\" Record",
+     "Telephone"
+    ],
+    "wardrobe": [
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "46",
+   "sheetNumber": "47",
+   "spn": "70",
+   "pgStr": "2",
+   "pgDec": 2.0,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "HALLWAY",
+   "sd": "1932",
+   "desc": "George and Mary fight then kiss.",
+   "notes": "Sam's Voice on Phone",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "150",
+   "sheetNumber": "129",
+   "spn": "160",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "HALLWAY GEORGE'S HOUSE",
+   "sd": "Christmas Eve",
+   "desc": "George searches for Mary and children.",
+   "notes": "Searchlight lighting hallways",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Cobwebs",
+     "Hanging Wallpaper",
+     "Broken Stairs"
+    ]
+   }
+  },
+  {
+   "n": "44",
+   "sheetNumber": "45",
+   "spn": "70",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "HATCH HALL",
+   "sd": "1932",
+   "desc": "George and Mary talk to Sam.",
+   "notes": "Sam's Voice on Phone",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "37",
+   "sheetNumber": "38",
+   "spn": "64",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 120,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "HATCH HOME",
+   "sd": "1928",
+   "desc": "Mary fixes up room for George.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "1st Unit",
+   "cast": [
+    "MRS. HATCH",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "\"Buffalo Gals\" Record",
+     "Easel",
+     "Sketch of George"
+    ],
+    "setDressing": [
+     "Mirror"
+    ],
+    "sound": [
+     "Phonograph Music",
+     "\"Buffalo Gals\" Music"
+    ]
+   }
+  },
+  {
+   "n": "2",
+   "sheetNumber": "2",
+   "spn": "1",
+   "pgStr": "2 1/8",
+   "pgDec": 2.125,
+   "est": 210,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "HEAVEN",
+   "sd": "",
+   "desc": "Joseph and Clarence discuss George Bailey.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Heaven",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "sfx": [
+     "Snow"
+    ],
+    "sound": [
+     "MOS"
+    ]
+   }
+  },
+  {
+   "n": "82",
+   "sheetNumber": "74",
+   "spn": "102",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "HOSPITAL",
+   "sd": "",
+   "desc": "Nurse holds newborn baby.",
+   "notes": "CLOSED SET Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "Stunts",
+   "cast": [
+    "NURSE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Baby Boy"
+    ],
+    "props": [
+     "Wheelchair"
+    ],
+    "setDressing": [
+     "Hospital Room"
+    ]
+   }
+  },
+  {
+   "n": "99",
+   "sheetNumber": "91",
+   "spn": "106",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 45,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "HOUSE",
+   "sd": "",
+   "desc": "Man pulls down window shade.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Elderly Man"
+    ],
+    "props": [
+     "Whistle"
+    ]
+   }
+  },
+  {
+   "n": "153",
+   "sheetNumber": "132",
+   "spn": "164",
+   "pgStr": "6/8",
+   "pgDec": 0.75,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "HOUSE",
+   "sd": "Christmas Eve",
+   "desc": "George rushes to Bailey Park.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {
+    "props": [
+     "\"Tom Sawyer\" Book"
+    ],
+    "setDressing": [
+     "Mailbox"
+    ]
+   }
+  },
+  {
+   "n": "123",
+   "sheetNumber": "111",
+   "spn": "124",
+   "pgStr": "1 4/8",
+   "pgDec": 1.5,
+   "est": 240,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "KITCHEN",
+   "sd": "Christmas Eve",
+   "desc": "George is critical with his family.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "TOMMY BAILEY",
+    "GEORGE",
+    "MARY",
+    "UNCLE BILLY",
+    "PETER BAILEY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "155, 156",
+   "sheetNumber": "134",
+   "spn": "167",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "LIBRARY",
+   "sd": "Christmas Eve",
+   "desc": "George finds Mary at library; escapes Bert.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "1st Unit",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "BERT"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Crowd of Onlookers (20)"
+    ],
+    "props": [
+     "Library Books",
+     "Gun",
+     "Library Key"
+    ],
+    "stunts": [
+     "George decks Bert",
+     "Gun shots"
+    ],
+    "vehicles": [
+     "Bert's Police Car"
+    ],
+    "wardrobe": [
+     "Mary's Glasses"
+    ]
+   }
+  },
+  {
+   "n": "171",
+   "sheetNumber": "146",
+   "spn": "176",
+   "pgStr": "3 4/8",
+   "pgDec": 3.5,
+   "est": 480,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "LIVING ROOM",
+   "sd": "Christmas Eve",
+   "desc": "George is given the money; finale.",
+   "notes": "EPK on Set ",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "CHARLIE",
+    "MR. GOWER",
+    "PETE BAILEY",
+    "ERNIE",
+    "CARTER",
+    "COUSIN EUSTACE",
+    "MA BAILEY",
+    "JANE WAINWRIGHT",
+    "MR. MARTINI",
+    "JANIE BAILEY",
+    "ZUZU BAILEY",
+    "ANNIE",
+    "GEORGE",
+    "BERT",
+    "HARRY",
+    "UNCLE BILLY",
+    "VIOLET",
+    "COUSIN TILLY",
+    "MRS. HATCH",
+    "TOMMY BAILEY",
+    "MARY",
+    "MR. CARTER"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "20 Townspeople"
+    ],
+    "music": [
+     "Piano Music"
+    ],
+    "props": [
+     "Glasses",
+     "Coffee Pots of Money",
+     "Clothes Basket Full of Money",
+     "\"Tom Sawyer\" Book",
+     "Wine",
+     "Long Black Stocking with Money",
+     "Glass Jar of Notes",
+     "Mixing Bowl of Money",
+     "Punch Bowl and Glasses",
+     "Silver Bell Ornament",
+     "Telegram"
+    ],
+    "setDressing": [
+     "Christmas Tree",
+     "Piano"
+    ],
+    "sfx": [
+     "Fire in Fireplace"
+    ]
+   }
+  },
+  {
+   "n": "4",
+   "sheetNumber": "4",
+   "spn": "5",
+   "pgStr": "5/8",
+   "pgDec": 0.625,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "Spring, 1919",
+   "desc": "George and boys go to drugstore.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "5 Boys"
+    ],
+    "vehicles": [
+     "Period Cars",
+     "Ornate Carriage"
+    ]
+   }
+  },
+  {
+   "n": "17",
+   "sheetNumber": "18",
+   "spn": "21",
+   "pgStr": "6/8",
+   "pgDec": 0.75,
+   "est": 54,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "",
+   "desc": "George walks across street.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "COUSIN EUSTACE",
+    "UNCLE BILLY",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "props": [
+     "Large Suitcase"
+    ]
+   }
+  },
+  {
+   "n": "117",
+   "sheetNumber": "108",
+   "spn": "119",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 140,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "",
+   "desc": "George and Uncle Billy search street.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "81",
+   "sheetNumber": "73",
+   "spn": "102",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "Early Family Years",
+   "desc": "George walks along street.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "",
+   "unit": "VisFX Unit",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "129",
+   "sheetNumber": "114",
+   "spn": "135",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "Christmas Eve",
+   "desc": "George exits and drives off.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "vehicles": [
+     "George's Rickety Car"
+    ]
+   }
+  },
+  {
+   "n": "160",
+   "sheetNumber": "138",
+   "spn": "172",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "Christmas Eve",
+   "desc": "George greets Bedford Falls after \"dream\".",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "7 Late Shoppers"
+    ],
+    "props": [
+     "Christmas Packages"
+    ],
+    "setDressing": [
+     "Bedford Falls Sign",
+     "Snow"
+    ],
+    "sfx": [
+     "Snow"
+    ]
+   }
+  },
+  {
+   "n": "32",
+   "sheetNumber": "33",
+   "spn": "60",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 50,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "MAIN STREET BEDFORD FALLS",
+   "sd": "1932",
+   "desc": "George watches the girl.",
+   "notes": "",
+   "loc": "Stage 1",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Girl"
+    ],
+    "wardrobe": [
+     "George's Coat",
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "130",
+   "sheetNumber": "115",
+   "spn": "135",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "MARTINI'S BAR",
+   "sd": "Christmas Eve",
+   "desc": "Establishing.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [],
+   "elems": {}
+  },
+  {
+   "n": "131",
+   "sheetNumber": "116",
+   "spn": "135",
+   "pgStr": "2 1/8",
+   "pgDec": 2.125,
+   "est": 270,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "MARTINI'S BAR",
+   "sd": "Christmas Eve",
+   "desc": "George gets drunk.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. WELCH",
+    "NICK",
+    "MR. MARTINI"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "20 Restaurant Patrons"
+    ],
+    "props": [
+     "Glass of Beer"
+    ]
+   }
+  },
+  {
+   "n": "74, 76",
+   "sheetNumber": "67",
+   "spn": "91",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 240,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "MARTINI'S NEW HOUSE",
+   "sd": "1928",
+   "desc": "The Martinis arrive at their new house. Toasts all around.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "MR. MARTINI",
+    "MARIA MARTINI"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "3 Martini Kids"
+    ]
+   }
+  },
+  {
+   "n": "141, 143",
+   "sheetNumber": "125",
+   "spn": "154",
+   "pgStr": "2 2/8",
+   "pgDec": 2.25,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "NICK'S BAR",
+   "sd": "",
+   "desc": "George and Clarence get thrown out of the bar.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Nick's Place Sign",
+     "Snow"
+    ],
+    "stunts": [
+     "Fall in snow"
+    ]
+   }
+  },
+  {
+   "n": "140, 142",
+   "sheetNumber": "124",
+   "spn": "149",
+   "pgStr": "3 7/8",
+   "pgDec": 3.875,
+   "est": 260,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "NICK'S BAR",
+   "sd": "Christmas Eve",
+   "desc": "George and Clarence go to Nick's bar.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "MR. GOWER",
+    "CLARENCE",
+    "NICK",
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "15 Mixed Rough Bar Crowd",
+     "2 Bouncers"
+    ],
+    "props": [
+     "Glasses",
+     "Cash Register",
+     "Seltzer Bottle",
+     "Bourbon Bottle"
+    ],
+    "setDressing": [
+     "Honky Tonk Atmosphere"
+    ]
+   }
+  },
+  {
+   "n": "96",
+   "sheetNumber": "88",
+   "spn": "105",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "OCEAN FROM DECK OF CARRIER",
+   "sd": "",
+   "desc": "Stock shot - flaming plane crashes into the sea.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {}
+  },
+  {
+   "n": "66",
+   "sheetNumber": "61",
+   "spn": "87",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "OLD GRANVILLE HOUSE",
+   "sd": "",
+   "desc": "Establishing house. George enters.",
+   "notes": "",
+   "loc": "Stage 2",
+   "seq": "Back Story",
+   "unit": "1st Unit",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "sfx": [
+     "Rain"
+    ]
+   }
+  },
+  {
+   "n": "114",
+   "sheetNumber": "105",
+   "spn": "117",
+   "pgStr": "6/8",
+   "pgDec": 0.75,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE",
+   "sd": "",
+   "desc": "George called to see Uncle Billy.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. CARTER",
+    "COUSIN EUSTACE",
+    "VIOLET",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "props": [
+     "Handkerchief"
+    ]
+   }
+  },
+  {
+   "n": "116",
+   "sheetNumber": "107",
+   "spn": "118",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE",
+   "sd": "",
+   "desc": "George searches safe.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. CARTER",
+    "COUSIN EUSTACE",
+    "COUSIN TILLY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "9",
+   "sheetNumber": "10",
+   "spn": "12",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 90,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "",
+   "desc": "Intro Uncle Billy.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CARTER",
+    "COUSIN EUSTACE",
+    "UNCLE BILLY",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "5 Bank Patrons"
+    ],
+    "props": [
+     "Telephone"
+    ],
+    "wardrobe": [
+     "Finger Strings"
+    ]
+   }
+  },
+  {
+   "n": "11",
+   "sheetNumber": "12",
+   "spn": "15",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 54,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "",
+   "desc": "George is shooed from Bldg. and Loan.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "COUSIN EUSTACE",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "5 Bank Patrons"
+    ],
+    "props": [
+     "Poison Capsules",
+     "Prescription Box"
+    ]
+   }
+  },
+  {
+   "n": "53",
+   "sheetNumber": "54",
+   "spn": "76",
+   "pgStr": "5/8",
+   "pgDec": 0.625,
+   "est": 120,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "1932",
+   "desc": "George confronts Uncle Billy about locked door.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "24 Anxious Bank Customers"
+    ],
+    "props": [
+     "Liquor Bottle",
+     "24 Bank Passbooks"
+    ]
+   }
+  },
+  {
+   "n": "63",
+   "sheetNumber": "58",
+   "spn": "79",
+   "pgStr": "4 2/8",
+   "pgDec": 4.25,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "1932",
+   "desc": "George pleads with worried bank crowd.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "CHARLIE",
+    "ED",
+    "GEORGE",
+    "MARY",
+    "ERNIE",
+    "MRS. THOMPSON",
+    "RANDALL",
+    "TOM"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "24 Anxious Bank Customers"
+    ]
+   }
+  },
+  {
+   "n": "106",
+   "sheetNumber": "98",
+   "spn": "108",
+   "pgStr": "2 5/8",
+   "pgDec": 2.625,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "",
+   "desc": "George talks to Hero Harry on phone.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. CARTER",
+    "COUSIN EUSTACE",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "props": [
+     "Carter's Briefcase",
+     "Newspapers (w/ Headline)",
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "112",
+   "sheetNumber": "103",
+   "spn": "115",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "",
+   "desc": "Uncle Billy speaks to Harry on phone.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. CARTER",
+    "COUSIN EUSTACE",
+    "UNCLE BILLY",
+    "VIOLET",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "64",
+   "sheetNumber": "59",
+   "spn": "85",
+   "pgStr": "1 4/8",
+   "pgDec": 1.5,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "1932",
+   "desc": "The bank closes for the day. Celebration.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "COUSIN EUSTACE",
+    "UNCLE BILLY",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "props": [
+     "Wedding Cigars",
+     "Liquor Bottle"
+    ]
+   }
+  },
+  {
+   "n": "39",
+   "sheetNumber": "40",
+   "spn": "65",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 60,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "PARLOR",
+   "sd": "1932",
+   "desc": "George sees sketch.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "2nd Unit",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Phonograph",
+     "\"Buffalo Gals\" Record",
+     "Easel",
+     "Sketch of George"
+    ],
+    "sound": [
+     "\"Buffalo Gals\" Music"
+    ],
+    "wardrobe": [
+     "New Dress"
+    ]
+   }
+  },
+  {
+   "n": "41",
+   "sheetNumber": "42",
+   "spn": "67",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 480,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "PARLOR",
+   "sd": "1932",
+   "desc": "George & Mary's \"violent lovemaking\".",
+   "notes": "CLOSED SET ",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MRS. HATCH",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Phonograph",
+     "\"Buffalo Gals\" Record",
+     "Easel",
+     "Sketch of George",
+     "Telephone"
+    ],
+    "setDressing": [
+     "Divan"
+    ],
+    "sound": [
+     "\"Buffalo Gals\" Music"
+    ]
+   }
+  },
+  {
+   "n": "48",
+   "sheetNumber": "49",
+   "spn": "73",
+   "pgStr": "2",
+   "pgDec": 2.0,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "PORCH OF BAILEY HOUSE",
+   "sd": "War Years",
+   "desc": "Ma Bailey and Annie talk.",
+   "notes": "",
+   "loc": "Stage 1",
+   "seq": "Back Story",
+   "unit": "1st Unit",
+   "cast": [
+    "COUSIN EUSTACE",
+    "MA BAILEY",
+    "ANNIE",
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "20 Townspeople",
+     "15 Train Passengers",
+     "20 Onlookers",
+     "20 Restaurant Patrons"
+    ],
+    "props": [
+     "6 Shovels",
+     "Banquet Plates",
+     "3 Highballs"
+    ],
+    "sfx": [
+     "Opening Dance Floor",
+     "Crackling Fire",
+     "Snow"
+    ],
+    "stunts": [
+     "George decks Bert",
+     "Jump off bridge",
+     "Car screeches to a stop",
+     "Gun shots"
+    ],
+    "vehicles": [
+     "George's Rickety Car",
+     "Sam's Black Town Car",
+     "Martini's Rickety Truck",
+     "Ernie's Cab"
+    ],
+    "wardrobe": [
+     "Army Uniform",
+     "Curlers"
+    ]
+   }
+  },
+  {
+   "n": "55, 57, 59, 61",
+   "sheetNumber": "56",
+   "spn": "77",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 50,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "POTTER'S LIBRARY",
+   "sd": "",
+   "desc": "Potter speaks to George on phone about crash.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GOON",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "79",
+   "sheetNumber": "71",
+   "spn": "96",
+   "pgStr": "3 1/8",
+   "pgDec": 3.125,
+   "est": 270,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "POTTER'S OFFICE",
+   "sd": "",
+   "desc": "Potter tries to seduce George.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "GOON",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "props": [
+     "Cigar",
+     "Wheelchair"
+    ]
+   }
+  },
+  {
+   "n": "108, 110",
+   "sheetNumber": "100",
+   "spn": "114",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 120,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "POTTER'S OFFICE",
+   "sd": "",
+   "desc": "Potter discovers money.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GOON",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "props": [
+     "Newspapers (w/ Headline)",
+     "Envelope of Money",
+     "Wheelchair"
+    ]
+   }
+  },
+  {
+   "n": "164",
+   "sheetNumber": "142",
+   "spn": "172",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "POTTER'S OFFICE",
+   "sd": "Christmas Eve",
+   "desc": "George wishes Potter a Merry Christmas.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "GOON",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "props": [
+     "Wheelchair"
+    ],
+    "setDressing": [
+     "Desk"
+    ]
+   }
+  },
+  {
+   "n": "77",
+   "sheetNumber": "69",
+   "spn": "93",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 240,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "POTTER'S OFFICE IN BANK",
+   "sd": "",
+   "desc": "Reineman warns Potter about Bailey Field.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GOON",
+    "MR. POTTER",
+    "MR. REINEMAN"
+   ],
+   "elems": {
+    "props": [
+     "Dictaphone",
+     "Wheelchair"
+    ],
+    "sound": [
+     "Potter's Secretary's Voice"
+    ]
+   }
+  },
+  {
+   "n": "128",
+   "sheetNumber": "113",
+   "spn": "132",
+   "pgStr": "2 5/8",
+   "pgDec": 2.625,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "POTTER'S OFFICE IN BANK",
+   "sd": "Christmas Eve",
+   "desc": "George talks to Potter about help.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "GOON",
+    "MR. POTTER"
+   ],
+   "elems": {
+    "props": [
+     "Telephone",
+     "Wheelchair"
+    ]
+   }
+  },
+  {
+   "n": "6",
+   "sheetNumber": "7",
+   "spn": "10",
+   "pgStr": "1",
+   "pgDec": 1.0,
+   "est": 210,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "PRESCRIPTION ROOM OF DRUGSTORE",
+   "sd": "",
+   "desc": "Mr. Gower puts poison pills in box.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. GOWER"
+   ],
+   "elems": {
+    "props": [
+     "Jar",
+     "Poison Capsules",
+     "Prescription Box",
+     "Liquor Bottle",
+     "Cigar"
+    ],
+    "setDressing": [
+     "Apothecary Bottles"
+    ]
+   }
+  },
+  {
+   "n": "28",
+   "sheetNumber": "29",
+   "spn": "52",
+   "pgStr": "6/8",
+   "pgDec": 0.75,
+   "est": 45,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "RAILROAD STATION",
+   "sd": "1932",
+   "desc": "George and Uncle Billy wait for train.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "8 Train Passengers"
+    ],
+    "props": [
+     "Bag of Peanuts"
+    ],
+    "sound": [
+     "Train Whistle"
+    ]
+   }
+  },
+  {
+   "n": "97",
+   "sheetNumber": "89",
+   "spn": "105",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "RATION OFFICE",
+   "sd": "",
+   "desc": "George claims ration point crowd.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "25 Shouting Ration People"
+    ]
+   }
+  },
+  {
+   "n": "95",
+   "sheetNumber": "87",
+   "spn": "105",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 50,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "READY ROOM ON AIRCRAFT CARRIER",
+   "sd": "",
+   "desc": "Harry puts on pilot's helmet.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "HARRY"
+   ],
+   "elems": {
+    "wardrobe": [
+     "Pilot Uniform"
+    ]
+   }
+  },
+  {
+   "n": "86",
+   "sheetNumber": "78",
+   "spn": "103",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 135,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "RECRUITING GROUNDS",
+   "sd": "",
+   "desc": "Men march in camp.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "backgroundActors": [
+     "30 Newly Drafted Men"
+    ]
+   }
+  },
+  {
+   "n": "87",
+   "sheetNumber": "79",
+   "spn": "103",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "RED CROSS WORKROOM",
+   "sd": "",
+   "desc": "Red Cross women sew.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MA BAILEY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "15 Red Cross Women"
+    ]
+   }
+  },
+  {
+   "n": "94",
+   "sheetNumber": "86",
+   "spn": "105",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "REMAGEN BRIDGE OVER THE RHINE",
+   "sd": "",
+   "desc": "Marty beckons soldiers.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MARTY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "10 Soldiers"
+    ],
+    "props": [
+     "Rifle with Bayonet"
+    ],
+    "wardrobe": [
+     "Army Uniform"
+    ]
+   }
+  },
+  {
+   "n": "132",
+   "sheetNumber": "117",
+   "spn": "138",
+   "pgStr": "5/8",
+   "pgDec": 0.625,
+   "est": 90,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "RESIDENTIAL STREET",
+   "sd": "Christmas Eve",
+   "desc": "George crashes into tree.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "OWNER"
+   ],
+   "elems": {
+    "stunts": [
+     "Car crash into tree"
+    ],
+    "vehicles": [
+     "George's Rickety Car"
+    ]
+   }
+  },
+  {
+   "n": "159",
+   "sheetNumber": "137",
+   "spn": "172",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "RESIDENTIAL STREET",
+   "sd": "Christmas Eve",
+   "desc": "George finds his crashed car.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Snow"
+    ],
+    "sfx": [
+     "Snow"
+    ],
+    "vehicles": [
+     "George's Rickety Car"
+    ]
+   }
+  },
+  {
+   "n": "34",
+   "sheetNumber": "35",
+   "spn": "62",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "RESIDENTIAL STREET",
+   "sd": "",
+   "desc": "George paces in front of Mary's house.",
+   "notes": "",
+   "loc": "Burman St. Culver City",
+   "seq": "Back Story",
+   "unit": "2nd Unit",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "sfx": [
+     "Snow"
+    ],
+    "vfx": [
+     "Freeze Frame"
+    ],
+    "wardrobe": [
+     "George's Coat",
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "134",
+   "sheetNumber": "119",
+   "spn": "139",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "RIVER",
+   "sd": "Christmas Eve",
+   "desc": "Water swirls by under bridge.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "43",
+   "sheetNumber": "44",
+   "spn": "69",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "SAM'S NEW YORK OFFICE",
+   "sd": "1932",
+   "desc": "Sam talks to George on phone.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "SAM WAINWRIGHT"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "2 Drinking Friends"
+    ],
+    "props": [
+     "Telephone",
+     "3 Highballs"
+    ]
+   }
+  },
+  {
+   "n": "67",
+   "sheetNumber": "62",
+   "spn": "87",
+   "pgStr": "1 2/8",
+   "pgDec": 1.25,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "SIDE OF HOUSE",
+   "sd": "1932",
+   "desc": "Bert and Poster Man work in rain.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "Stunts",
+   "cast": [
+    "POSTER MAN",
+    "BERT"
+   ],
+   "elems": {
+    "props": [
+     "10 Travel Posters",
+     "\"Bridal Suite\" Sign"
+    ],
+    "setDressing": [
+     "Broken Windows"
+    ]
+   }
+  },
+  {
+   "n": "69, 71",
+   "sheetNumber": "64",
+   "spn": "89",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "SIDE OF HOUSE",
+   "sd": "",
+   "desc": "Bert and Ernie serenade the newlyweds.",
+   "notes": "Sam's Voice on Phone Searchlight lighting hallways",
+   "loc": "Stage 2",
+   "seq": "Back Story",
+   "unit": "1st Unit",
+   "cast": [
+    "ERNIE",
+    "BERT"
+   ],
+   "elems": {
+    "sfx": [
+     "Rain"
+    ]
+   }
+  },
+  {
+   "n": "83",
+   "sheetNumber": "75",
+   "spn": "103",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "SITTING ROOM",
+   "sd": "",
+   "desc": "Mary play with baby.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MARY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Baby Boy"
+    ]
+   }
+  },
+  {
+   "n": "93",
+   "sheetNumber": "85",
+   "spn": "105",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": null,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "SKY",
+   "sd": "",
+   "desc": "Stock shot - planes and parachutes.",
+   "notes": "STOCK FOOTAGE Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {}
+  },
+  {
+   "n": "27",
+   "sheetNumber": "28",
+   "spn": "51",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "SKY",
+   "sd": "",
+   "desc": "Heavenly recap of George's life.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Heaven",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "sfx": [
+     "Twinkling Stars"
+    ],
+    "sound": [
+     "MOS"
+    ]
+   }
+  },
+  {
+   "n": "72",
+   "sheetNumber": "65",
+   "spn": "90",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "SLUM STREET BEDFORD FALLS",
+   "sd": "",
+   "desc": "The Martinis move from Potter's Field.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "SCHULTZ",
+    "MR. MARTINI",
+    "MARIA MARTINI"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "3 Martini Kids"
+    ],
+    "vehicles": [
+     "George's Rickety Car",
+     "Martini's Rickety Truck"
+    ]
+   }
+  },
+  {
+   "n": "40",
+   "sheetNumber": "41",
+   "spn": "66",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 30,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "STAIRS",
+   "sd": "1932",
+   "desc": "Mrs. Hatch yells down stairs.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MRS. HATCH"
+   ],
+   "elems": {
+    "wardrobe": [
+     "Curlers",
+     "Mrs. Hatch's Bathrobe"
+    ]
+   }
+  },
+  {
+   "n": "167, 168, 170",
+   "sheetNumber": "145",
+   "spn": "174",
+   "pgStr": "1 5/8",
+   "pgDec": 1.625,
+   "est": 50,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "STAIRS",
+   "sd": "Christmas Eve",
+   "desc": "George hugs his kids & Mary at the top of the stairs.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "TOMMY BAILEY",
+    "GEORGE",
+    "PETE BAILEY",
+    "MARY",
+    "JANIE BAILEY",
+    "ZUZU BAILEY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "8",
+   "sheetNumber": "9",
+   "spn": "11",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 48,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET",
+   "sd": "Spring, 1919",
+   "desc": "George runs to Bldg. and Loan.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Bldg. & Loan Sign"
+    ]
+   }
+  },
+  {
+   "n": "101",
+   "sheetNumber": "93",
+   "spn": "106",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET",
+   "sd": "",
+   "desc": "Children wheeling old tires.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [],
+   "elems": {
+    "backgroundActors": [
+     "4 Children"
+    ],
+    "props": [
+     "4 Old Rubber Tires"
+    ]
+   }
+  },
+  {
+   "n": "105",
+   "sheetNumber": "97",
+   "spn": "108",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET",
+   "sd": "",
+   "desc": "Uncle Billy supervises decorating.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "4 Decorating Men"
+    ],
+    "props": [
+     "Banners and Bunting"
+    ]
+   }
+  },
+  {
+   "n": "111",
+   "sheetNumber": "102",
+   "spn": "115",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET",
+   "sd": "",
+   "desc": "Uncle Billy runs across street.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "UNCLE BILLY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "98",
+   "sheetNumber": "90",
+   "spn": "106",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "STREET",
+   "sd": "",
+   "desc": "George patrols his beat.",
+   "notes": "Record VO live w/ Talent Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "wardrobe": [
+     "Air Raid Warden Uniform"
+    ]
+   }
+  },
+  {
+   "n": "139",
+   "sheetNumber": "123",
+   "spn": "148",
+   "pgStr": "1 3/8",
+   "pgDec": 1.375,
+   "est": 50,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "STREET",
+   "sd": "Christmas Eve",
+   "desc": "George can't find his car by the tree.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "CLARENCE",
+    "HOUSE OWNER"
+   ],
+   "elems": {
+    "greenery": [
+     "Undamaged Tree"
+    ],
+    "props": [
+     "Christmas Packages"
+    ],
+    "setDressing": [
+     "Snow"
+    ]
+   }
+  },
+  {
+   "n": "144, 145",
+   "sheetNumber": "126",
+   "spn": "157",
+   "pgStr": "1 3/8",
+   "pgDec": 1.375,
+   "est": 240,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "STREET",
+   "sd": "",
+   "desc": "George first glimpses Pottersville.",
+   "notes": "",
+   "loc": "",
+   "seq": "Life without George",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "COP",
+    "ERNIE",
+    "VIOLET"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "20 Onlookers",
+     "6 Policemen"
+    ],
+    "setDressing": [
+     "\"Welcome Jitterbugs\" Sign",
+     "Pottersville Sign"
+    ],
+    "vehicles": [
+     "Ernie's Cab"
+    ]
+   }
+  },
+  {
+   "n": "36",
+   "sheetNumber": "37",
+   "spn": "63",
+   "pgStr": "4/8",
+   "pgDec": 0.5,
+   "est": 45,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "STREET",
+   "sd": "",
+   "desc": "George and Mary's window scene continued.",
+   "notes": "Walk Away Location",
+   "loc": "Backlot",
+   "seq": "Back Story",
+   "unit": "1st Unit",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "75",
+   "sheetNumber": "68",
+   "spn": "92",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 150,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET - BAILEY PARK",
+   "sd": "",
+   "desc": "Sam Wainwright arrives in town.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "SAM WAINWRIGHT",
+    "JANE WAINWRIGHT"
+   ],
+   "elems": {
+    "vehicles": [
+     "Sam's Black Town Car"
+    ],
+    "wardrobe": [
+     "Expensive Furs",
+     "Expensive Jewelry"
+    ]
+   }
+  },
+  {
+   "n": "78",
+   "sheetNumber": "70",
+   "spn": "94",
+   "pgStr": "1 2/8",
+   "pgDec": 1.25,
+   "est": 300,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET IN BAILEY PARK",
+   "sd": "",
+   "desc": "The Wainwrights invite the Baileys to Florida.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "SAM WAINWRIGHT",
+    "JANE WAINWRIGHT"
+   ],
+   "elems": {
+    "vehicles": [
+     "George's Rickety Car",
+     "Sam's Black Town Car"
+    ]
+   }
+  },
+  {
+   "n": "91",
+   "sheetNumber": "83",
+   "spn": "104",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 50,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "STREET IN BEDFORD FALLS",
+   "sd": "",
+   "desc": "Gower and Uncle Billy conduct bond rally.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MR. GOWER",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "20 Bond Rallyers"
+    ]
+   }
+  },
+  {
+   "n": "161",
+   "sheetNumber": "139",
+   "spn": "172",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 240,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "THEATRE",
+   "sd": "Christmas Eve",
+   "desc": "George passes the theater.",
+   "notes": "",
+   "loc": "",
+   "seq": "Ending",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Snow"
+    ],
+    "sfx": [
+     "Snow"
+    ]
+   }
+  },
+  {
+   "n": "136",
+   "sheetNumber": "121",
+   "spn": "140",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "TOLL HOUSE ON BRIDGE",
+   "sd": "Christmas Eve",
+   "desc": "The Tollkeeper shines flashlight.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "TOLLKEEPER",
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {}
+  },
+  {
+   "n": "138",
+   "sheetNumber": "122",
+   "spn": "140",
+   "pgStr": "5 4/8",
+   "pgDec": 5.5,
+   "est": 300,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "TOLL HOUSE ON BRIDGE",
+   "sd": "Christmas Eve",
+   "desc": "George and Clarence dry before the stove.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "TOLLKEEPER",
+    "GEORGE",
+    "CLARENCE"
+   ],
+   "elems": {
+    "setDressing": [
+     "Wood Burning Stove"
+    ],
+    "wardrobe": [
+     "Clarence's Underwear"
+    ]
+   }
+  },
+  {
+   "n": "29",
+   "sheetNumber": "30",
+   "spn": "53",
+   "pgStr": "2 3/8",
+   "pgDec": 2.375,
+   "est": 420,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "TRAIN",
+   "sd": "1932",
+   "desc": "Harry returns from school with wife.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "HARRY",
+    "RUTH",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "Conductor",
+     "15 Train Passengers"
+    ],
+    "props": [
+     "Luggage",
+     "Popcorn"
+    ],
+    "vehicles": [
+     "Steam Engine Train"
+    ]
+   }
+  },
+  {
+   "n": "88",
+   "sheetNumber": "80",
+   "spn": "104",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 180,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "TRAIN IN RAILROAD STATION",
+   "sd": "",
+   "desc": "Mary serves coffee to soldiers.",
+   "notes": "Must be wrapped out of Train Station by 21:50 Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MARY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "10 Soldiers"
+    ],
+    "props": [
+     "USO Cart",
+     "Coffee and Doughnuts"
+    ],
+    "vehicles": [
+     "Steam Engine Train"
+    ]
+   }
+  },
+  {
+   "n": "118",
+   "sheetNumber": "109",
+   "spn": "119",
+   "pgStr": "1 2/8",
+   "pgDec": 1.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "UNCLE BILLY'S LIVING ROOM",
+   "sd": "Christmas Eve",
+   "desc": "George tears through Uncle Billy's apartment.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "UNCLE BILLY"
+   ],
+   "elems": {
+    "setDressing": [
+     "Worn Furniture",
+     "Gas Lights",
+     "Old Dresser"
+    ]
+   }
+  },
+  {
+   "n": "45",
+   "sheetNumber": "46",
+   "spn": "70",
+   "pgStr": "1/8",
+   "pgDec": 0.125,
+   "est": 90,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "UPPER HALLWAY",
+   "sd": "1932",
+   "desc": "Mrs. Hatch hangs up phone.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "MRS. HATCH"
+   ],
+   "elems": {
+    "props": [
+     "Telephone"
+    ]
+   }
+  },
+  {
+   "n": "33",
+   "sheetNumber": "34",
+   "spn": "60",
+   "pgStr": "1 7/8",
+   "pgDec": 1.875,
+   "est": 150,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "VIOLET BICK'S BEAUTY SHOP",
+   "sd": "1932",
+   "desc": "Violet tries picking up George.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "SUITOR #1",
+    "SUITOR #2",
+    "VIOLET"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "6 Onlookers"
+    ],
+    "wardrobe": [
+     "George's Coat",
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "125",
+   "sheetNumber": "112",
+   "spn": "126",
+   "pgStr": "1 2/8",
+   "pgDec": 1.25,
+   "est": 45,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "ZUZU'S BEDROOM",
+   "sd": "Christmas Eve",
+   "desc": "George checks on Zuzu.",
+   "notes": "",
+   "loc": "",
+   "seq": "",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "ZUZU BAILEY"
+   ],
+   "elems": {
+    "props": [
+     "Flower"
+    ]
+   }
+  },
+  {
+   "n": "25",
+   "sheetNumber": "26",
+   "spn": "45",
+   "pgStr": "3 4/8",
+   "pgDec": 3.5,
+   "est": 420,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "BAILEY BUILDING AND LOAN OFFICE",
+   "sd": "1928",
+   "desc": "B & L Directors meeting.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "UNCLE BILLY",
+    "LAWYER",
+    "REAL ESTATE SALESMAN",
+    "GEORGE",
+    "GOON",
+    "MR. POTTER",
+    "DR. CAMPBELL",
+    "INSURANCE AGENT"
+   ],
+   "elems": {
+    "props": [
+     "Legal Papers",
+     "Wheelchair"
+    ],
+    "wardrobe": [
+     "George's Coat"
+    ]
+   }
+  },
+  {
+   "n": "19",
+   "sheetNumber": "20",
+   "spn": "23",
+   "pgStr": "5 1/8",
+   "pgDec": 5.125,
+   "est": 480,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "BAILEY DINING ROOM",
+   "sd": "1928",
+   "desc": "Dinner at the Baileys'.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "HARRY",
+    "MA BAILEY",
+    "PETER BAILEY",
+    "ANNIE"
+   ],
+   "elems": {
+    "props": [
+     "4 Pies",
+     "Broom"
+    ],
+    "setDressing": [
+     "Dining Room Set",
+     "Dishes"
+    ]
+   }
+  },
+  {
+   "n": "50",
+   "sheetNumber": "51",
+   "spn": "74",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "BUILDING AND LOAN",
+   "sd": "1932",
+   "desc": "Anxious crowd outside bank.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY",
+    "ERNIE",
+    "PASSERBY"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "24 Anxious Bank Customers"
+    ],
+    "vehicles": [
+     "Ernie's Cab"
+    ]
+   }
+  },
+  {
+   "n": "52",
+   "sheetNumber": "53",
+   "spn": "75",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 30,
+   "ie": "EXT",
+   "dn": "Day",
+   "set": "BUILDING AND LOAN",
+   "sd": "1932",
+   "desc": "George greets the bank mob.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "24 Anxious Bank Customers"
+    ],
+    "props": [
+     "Large Bank Door Lock & Key"
+    ]
+   }
+  },
+  {
+   "n": "30",
+   "sheetNumber": "31",
+   "spn": "56",
+   "pgStr": "1 1/8",
+   "pgDec": 1.125,
+   "est": 120,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "FRONT PORCH - BAILEY HOME",
+   "sd": "1932",
+   "desc": "Family photo.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "COUSIN EUSTACE",
+    "HARRY",
+    "MA BAILEY",
+    "UNCLE BILLY",
+    "PETER BAILEY",
+    "COUSIN TILLY",
+    "GEORGE",
+    "RUTH"
+   ],
+   "elems": {
+    "props": [
+     "Camera"
+    ],
+    "sfx": [
+     "Flash Bulbs"
+    ],
+    "sound": [
+     "Crash of Bottles Breaking"
+    ],
+    "wardrobe": [
+     "Hat"
+    ]
+   }
+  },
+  {
+   "n": "22",
+   "sheetNumber": "23",
+   "spn": "39",
+   "pgStr": "2/8",
+   "pgDec": 0.25,
+   "est": 60,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "FRONT PORCH OF HOUSE",
+   "sd": "1928",
+   "desc": "Grumpy old man watches George & Mary.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GRUMPY OLD MAN"
+   ],
+   "elems": {
+    "setDressing": [
+     "Rocking Chair"
+    ]
+   }
+  },
+  {
+   "n": "16",
+   "sheetNumber": "17",
+   "spn": "20",
+   "pgStr": "3/8",
+   "pgDec": 0.375,
+   "est": 60,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "GOWER'S DRUGSTORE",
+   "sd": "1928",
+   "desc": "George re-visits drugstore.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MR. GOWER"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "12 High School Kids",
+     "3 Soda Jerks"
+    ],
+    "props": [
+     "Large Suitcase",
+     "Cigar Lighter"
+    ],
+    "setDressing": [
+     "Soda Fountain",
+     "Juke Box",
+     "Candy Counter"
+    ]
+   }
+  },
+  {
+   "n": "20",
+   "sheetNumber": "21",
+   "spn": "30",
+   "pgStr": "5 1/8",
+   "pgDec": 5.125,
+   "est": 600,
+   "ie": "INT",
+   "dn": "Night",
+   "set": "HIGH SCHOOL GYM",
+   "sd": "1928",
+   "desc": "George and Mary at High School Dance.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "SAM WAINWRIGHT",
+    "GEORGE",
+    "PRINCIPAL",
+    "HARRY",
+    "VIOLET",
+    "MARTY",
+    "MARY",
+    "MICKEY",
+    "FREDDIE"
+   ],
+   "elems": {
+    "backgroundActors": [
+     "100 High School Students",
+     "Orchestra",
+     "3 Dance Judges",
+     "Orchestra Leader",
+     "School Faculty"
+    ],
+    "props": [
+     "Punch",
+     "Banquet Plates",
+     "Punch Bowl and Glasses",
+     "4 Pies",
+     "Musical Instruments",
+     "Dance Programs"
+    ],
+    "sfx": [
+     "Opening Dance Floor"
+    ],
+    "stunts": [
+     "Falls into swimming pool"
+    ]
+   }
+  },
+  {
+   "n": "31",
+   "sheetNumber": "32",
+   "spn": "57",
+   "pgStr": "2",
+   "pgDec": 2.0,
+   "est": 240,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "HOUSE",
+   "sd": "1932",
+   "desc": "George & Mother's heart-to-heart.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "HARRY",
+    "MA BAILEY",
+    "RUTH"
+   ],
+   "elems": {
+    "sound": [
+     "Phonograph Music"
+    ],
+    "wardrobe": [
+     "George's Hat"
+    ]
+   }
+  },
+  {
+   "n": "15",
+   "sheetNumber": "16",
+   "spn": "18",
+   "pgStr": "2",
+   "pgDec": 2.0,
+   "est": 180,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "LUGGAGE SHOP",
+   "sd": "1928",
+   "desc": "George buys luggage.",
+   "notes": "Voice Over Sequence",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "JOE"
+   ],
+   "elems": {
+    "props": [
+     "Large Suitcase",
+     "Overnight Bag"
+    ],
+    "vfx": [
+     "Freeze Frame"
+    ]
+   }
+  },
+  {
+   "n": "26",
+   "sheetNumber": "27",
+   "spn": "49",
+   "pgStr": "1 4/8",
+   "pgDec": 1.5,
+   "est": 105,
+   "ie": "INT",
+   "dn": "Day",
+   "set": "OUTER OFFICE - BLDG. AND LOAN",
+   "sd": "1928",
+   "desc": "George is offered B & L job.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "ERNIE",
+    "COUSIN EUSTACE",
+    "DR. CAMPBELL",
+    "UNCLE BILLY",
+    "COUSIN TILLY"
+   ],
+   "elems": {
+    "props": [
+     "Legal Papers"
+    ],
+    "wardrobe": [
+     "George's Coat"
+    ]
+   }
+  },
+  {
+   "n": "23",
+   "sheetNumber": "24",
+   "spn": "40",
+   "pgStr": "3 1/8",
+   "pgDec": 3.125,
+   "est": 300,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "STREET",
+   "sd": "1928",
+   "desc": "George and Mary make a wish.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GRUMPY OLD MAN",
+    "HARRY",
+    "UNCLE BILLY",
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "greenery": [
+     "Hydrangea Bush"
+    ],
+    "props": [
+     "Rocks"
+    ],
+    "setDressing": [
+     "Rocking Chair"
+    ],
+    "sfx": [
+     "Breaking Glass"
+    ],
+    "vehicles": [
+     "Bailey's Car"
+    ],
+    "wardrobe": [
+     "Bathrobe",
+     "Wet Clothes",
+     "Jersey & Football Pants"
+    ]
+   }
+  },
+  {
+   "n": "21",
+   "sheetNumber": "22",
+   "spn": "36",
+   "pgStr": "5 1/8",
+   "pgDec": 5.125,
+   "est": 270,
+   "ie": "EXT",
+   "dn": "Night",
+   "set": "TREE-LINED RESIDENTIAL STREET",
+   "sd": "1928",
+   "desc": "George and Mary's moonlight walk.",
+   "notes": "",
+   "loc": "",
+   "seq": "Back Story",
+   "unit": "",
+   "cast": [
+    "GEORGE",
+    "MARY"
+   ],
+   "elems": {
+    "props": [
+     "Rocks"
+    ],
+    "sfx": [
+     "Breaking Glass"
+    ],
+    "wardrobe": [
+     "Jersey & Football Pants",
+     "Bathrobe",
+     "Wet Clothes"
+    ]
+   }
+  }
+ ],
+ "versions": [
+  {
+   "name": "Scene Order",
+   "calendar": "5 Day Week",
+   "active": false,
+   "rows": [],
+   "dayCount": 0,
+   "remaining": [
+    "5308161910",
+    "5308201350",
+    "5309081970",
+    "5308266050",
+    "5308491520",
+    "5308526890",
+    "5308659590",
+    "5308552870",
+    "5308384310",
+    "5308631030",
+    "5308467460",
+    "5308609340",
+    "5308439230",
+    "5308570780",
+    "5308407980",
+    "5303767540",
+    "5303719040",
+    "5309156010",
+    "5303519550",
+    "5303684060",
+    "5303741840",
+    "5303630780",
+    "5303569040",
+    "5303599970",
+    "5306235620",
+    "5303657470",
+    "5303855590",
+    "5308238810",
+    "5303994710",
+    "5304185970",
+    "5303898210",
+    "5303931990",
+    "5304025970",
+    "5304208760",
+    "5304072820",
+    "5304229190",
+    "5304160320",
+    "5304570550",
+    "5304269450",
+    "5304698480",
+    "5304766140",
+    "5304721380",
+    "5304474100",
+    "5304745600",
+    "5304520790",
+    "5304793280",
+    "5304497940",
+    "5304342940",
+    "5303953300",
+    "5304320310",
+    "5303830380",
+    "5304291090",
+    "5303795340",
+    "5304593400",
+    "5304364910",
+    "5309272620",
+    "5304388370",
+    "5304634820",
+    "5304672550",
+    "5304425990",
+    "5304048980",
+    "5304135930",
+    "5304447470",
+    "5304101870",
+    "5304877310",
+    "5304815470",
+    "5304849790",
+    "5304901100",
+    "5305026820",
+    "5304929660",
+    "5304997270",
+    "5304956900",
+    "5307961100",
+    "5308097430",
+    "5308123850",
+    "5308008560",
+    "5308062060",
+    "5308773450",
+    "5309052580",
+    "5308911810",
+    "5308956630",
+    "5308934820",
+    "5308892750",
+    "5308680460",
+    "5308817450",
+    "5308794210",
+    "5309028750",
+    "5308751980",
+    "5309003970",
+    "5308872370",
+    "5309133100",
+    "5309108440",
+    "5308848870",
+    "5309180620",
+    "5308733190",
+    "5307568220",
+    "5307668630",
+    "5307898870",
+    "5307728170",
+    "5307934250",
+    "5307696470",
+    "5307641880",
+    "5307877230",
+    "5307801990",
+    "5307853340",
+    "5307773860",
+    "5307829940",
+    "5307607050",
+    "5306206950",
+    "5305822360",
+    "5305909860",
+    "5306276480",
+    "5306103030",
+    "5305386800",
+    "5305411020",
+    "5306034320",
+    "5305496100",
+    "5305197200",
+    "5305518840",
+    "5305132720",
+    "5305629350",
+    "5306164550",
+    "5305577280",
+    "5306052280",
+    "5305446120",
+    "5305549490",
+    "5305716630",
+    "5305288700",
+    "5305869760",
+    "5305743600",
+    "5305070540",
+    "5305318750",
+    "5305260800",
+    "5305341870",
+    "5305659730",
+    "5305166550",
+    "5305471660",
+    "5305365380",
+    "5305606670",
+    "5305105750",
+    "5305230760",
+    "5306075240",
+    "5305796880",
+    "5305770730",
+    "5306131870",
+    "5305933750"
+   ],
+   "unscheduled": []
+  },
+  {
+   "name": "Location Scenario",
+   "calendar": "6 Day Week",
+   "active": false,
+   "rows": [
+    {
+     "k": "s",
+     "n": "29",
+     "b": "5304185970"
+    },
+    {
+     "k": "d",
+     "day": 2
+    },
+    {
+     "k": "s",
+     "n": "78",
+     "b": "5304929660"
+    },
+    {
+     "k": "s",
+     "n": "3",
+     "b": "5309081970"
+    },
+    {
+     "k": "d",
+     "day": 3
+    },
+    {
+     "k": "s",
+     "n": "72",
+     "b": "5304877310"
+    },
+    {
+     "k": "s",
+     "n": "104",
+     "b": "5307568220"
+    },
+    {
+     "k": "d",
+     "day": 4
+    },
+    {
+     "k": "s",
+     "n": "28",
+     "b": "5303994710"
+    },
+    {
+     "k": "s",
+     "n": "17",
+     "b": "5309156010"
+    },
+    {
+     "k": "s",
+     "n": "4",
+     "b": "5308266050"
+    },
+    {
+     "k": "s",
+     "n": "74, 76",
+     "b": "5304849790"
+    },
+    {
+     "k": "d",
+     "day": 5
+    },
+    {
+     "k": "s",
+     "n": "117",
+     "b": "5307607050"
+    },
+    {
+     "k": "s",
+     "n": "103",
+     "b": "5308733190"
+    },
+    {
+     "k": "s",
+     "n": "48",
+     "b": "5303953300"
+    },
+    {
+     "k": "s",
+     "n": "73",
+     "b": "5304815470"
+    },
+    {
+     "k": "s",
+     "n": "75",
+     "b": "5304901100"
+    },
+    {
+     "k": "s",
+     "n": "105",
+     "b": "5307668630"
+    },
+    {
+     "k": "s",
+     "n": "8",
+     "b": "5308384310"
+    },
+    {
+     "k": "s",
+     "n": "86",
+     "b": "5308773450"
+    },
+    {
+     "k": "s",
+     "n": "94",
+     "b": "5308794210"
+    },
+    {
+     "k": "s",
+     "n": "93",
+     "b": "5308817450"
+    },
+    {
+     "k": "d",
+     "day": 6
+    },
+    {
+     "k": "s",
+     "n": "91",
+     "b": "5308892750"
+    },
+    {
+     "k": "s",
+     "n": "88",
+     "b": "5308911810"
+    },
+    {
+     "k": "s",
+     "n": "24",
+     "b": "5306235620"
+    },
+    {
+     "k": "s",
+     "n": "111",
+     "b": "5307641880"
+    },
+    {
+     "k": "s",
+     "n": "101",
+     "b": "5308848870"
+    },
+    {
+     "k": "s",
+     "n": "100",
+     "b": "5309108440"
+    },
+    {
+     "k": "d",
+     "day": 7
+    },
+    {
+     "k": "s",
+     "n": "21",
+     "b": "5303630780"
+    },
+    {
+     "k": "d",
+     "day": 8
+    },
+    {
+     "k": "s",
+     "n": "23",
+     "b": "5303599970"
+    },
+    {
+     "k": "d",
+     "day": 9
+    },
+    {
+     "k": "s",
+     "n": "141, 143",
+     "b": "5305446120"
+    },
+    {
+     "k": "d",
+     "day": 10
+    },
+    {
+     "k": "s",
+     "n": "2",
+     "b": "5308201350"
+    },
+    {
+     "k": "d",
+     "day": 11
+    },
+    {
+     "k": "s",
+     "n": "154",
+     "b": "5305260800"
+    },
+    {
+     "k": "d",
+     "day": 12
+    },
+    {
+     "k": "s",
+     "n": "33",
+     "b": "5304208760"
+    },
+    {
+     "k": "d",
+     "day": 13
+    },
+    {
+     "k": "s",
+     "n": "144, 145",
+     "b": "5305549490"
+    },
+    {
+     "k": "d",
+     "day": 14
+    },
+    {
+     "k": "s",
+     "n": "139",
+     "b": "5305577280"
+    },
+    {
+     "k": "d",
+     "day": 15
+    },
+    {
+     "k": "s",
+     "n": "67",
+     "b": "5304135930"
+    },
+    {
+     "k": "d",
+     "day": 16
+    },
+    {
+     "k": "s",
+     "n": "158",
+     "b": "5305166550"
+    },
+    {
+     "k": "s",
+     "n": "152",
+     "b": "5305070540"
+    },
+    {
+     "k": "d",
+     "day": 17
+    },
+    {
+     "k": "s",
+     "n": "155, 156",
+     "b": "5305341870"
+    },
+    {
+     "k": "s",
+     "n": "153",
+     "b": "5305318750"
+    },
+    {
+     "k": "s",
+     "n": "1",
+     "b": "5308161910"
+    },
+    {
+     "k": "d",
+     "day": 18
+    },
+    {
+     "k": "s",
+     "n": "132",
+     "b": "5305496100"
+    },
+    {
+     "k": "s",
+     "n": "135, 137",
+     "b": "5305132720"
+    },
+    {
+     "k": "s",
+     "n": "147, 148",
+     "b": "5305288700"
+    },
+    {
+     "k": "s",
+     "n": "27",
+     "b": "5308238810"
+    },
+    {
+     "k": "s",
+     "n": "160",
+     "b": "5305365380"
+    },
+    {
+     "k": "s",
+     "n": "66",
+     "b": "5304048980"
+    },
+    {
+     "k": "d",
+     "day": 19
+    },
+    {
+     "k": "s",
+     "n": "22",
+     "b": "5303569040"
+    },
+    {
+     "k": "s",
+     "n": "133",
+     "b": "5305197200"
+    },
+    {
+     "k": "s",
+     "n": "81",
+     "b": "5307961100"
+    },
+    {
+     "k": "s",
+     "n": "92",
+     "b": "5308680460"
+    },
+    {
+     "k": "s",
+     "n": "96",
+     "b": "5308751980"
+    },
+    {
+     "k": "s",
+     "n": "98",
+     "b": "5308872370"
+    },
+    {
+     "k": "s",
+     "n": "99",
+     "b": "5309133100"
+    },
+    {
+     "k": "s",
+     "n": "69, 71",
+     "b": "5304101870"
+    },
+    {
+     "k": "s",
+     "n": "32",
+     "b": "5304025970"
+    },
+    {
+     "k": "s",
+     "n": "162",
+     "b": "5305105750"
+    },
+    {
+     "k": "s",
+     "n": "163",
+     "b": "5305230760"
+    },
+    {
+     "k": "s",
+     "n": "129",
+     "b": "5305386800"
+    },
+    {
+     "k": "s",
+     "n": "130",
+     "b": "5305411020"
+    },
+    {
+     "k": "s",
+     "n": "159",
+     "b": "5305471660"
+    },
+    {
+     "k": "s",
+     "n": "134",
+     "b": "5305518840"
+    },
+    {
+     "k": "d",
+     "day": 20
+    },
+    {
+     "k": "s",
+     "n": "161",
+     "b": "5305606670"
+    },
+    {
+     "k": "s",
+     "n": "136",
+     "b": "5305629350"
+    },
+    {
+     "k": "d",
+     "day": 21
+    },
+    {
+     "k": "s",
+     "n": "63",
+     "b": "5304634820"
+    },
+    {
+     "k": "d",
+     "day": 22
+    },
+    {
+     "k": "s",
+     "n": "25",
+     "b": "5303657470"
+    },
+    {
+     "k": "d",
+     "day": 23
+    },
+    {
+     "k": "s",
+     "n": "79",
+     "b": "5304997270"
+    },
+    {
+     "k": "d",
+     "day": 24
+    },
+    {
+     "k": "s",
+     "n": "5",
+     "b": "5308491520"
+    },
+    {
+     "k": "d",
+     "day": 25
+    },
+    {
+     "k": "s",
+     "n": "5",
+     "b": "5308526890"
+    },
+    {
+     "k": "d",
+     "day": 26
+    },
+    {
+     "k": "s",
+     "n": "106",
+     "b": "5307898870"
+    },
+    {
+     "k": "d",
+     "day": 27
+    },
+    {
+     "k": "s",
+     "n": "10",
+     "b": "5308467460"
+    },
+    {
+     "k": "d",
+     "day": 28
+    },
+    {
+     "k": "s",
+     "n": "107",
+     "b": "5307728170"
+    },
+    {
+     "k": "d",
+     "day": 29
+    },
+    {
+     "k": "s",
+     "n": "77",
+     "b": "5305026820"
+    },
+    {
+     "k": "s",
+     "n": "49",
+     "b": "5304320310"
+    },
+    {
+     "k": "d",
+     "day": 30
+    },
+    {
+     "k": "s",
+     "n": "14",
+     "b": "5308407980"
+    },
+    {
+     "k": "s",
+     "n": "6",
+     "b": "5308659590"
+    },
+    {
+     "k": "d",
+     "day": 31
+    },
+    {
+     "k": "s",
+     "n": "113",
+     "b": "5307801990"
+    },
+    {
+     "k": "s",
+     "n": "112",
+     "b": "5307877230"
+    },
+    {
+     "k": "d",
+     "day": 32
+    },
+    {
+     "k": "s",
+     "n": "9",
+     "b": "5308631030"
+    },
+    {
+     "k": "s",
+     "n": "54",
+     "b": "5304364910"
+    },
+    {
+     "k": "d",
+     "day": 33
+    },
+    {
+     "k": "s",
+     "n": "114",
+     "b": "5307853340"
+    },
+    {
+     "k": "s",
+     "n": "53",
+     "b": "5304593400"
+    },
+    {
+     "k": "s",
+     "n": "12",
+     "b": "5308439230"
+    },
+    {
+     "k": "s",
+     "n": "51",
+     "b": "5304291090"
+    },
+    {
+     "k": "d",
+     "day": 34
+    },
+    {
+     "k": "s",
+     "n": "115",
+     "b": "5307773860"
+    },
+    {
+     "k": "s",
+     "n": "16",
+     "b": "5303719040"
+    },
+    {
+     "k": "s",
+     "n": "47",
+     "b": "5304342940"
+    },
+    {
+     "k": "s",
+     "n": "108, 110",
+     "b": "5307934250"
+    },
+    {
+     "k": "s",
+     "n": "11",
+     "b": "5308609340"
+    },
+    {
+     "k": "s",
+     "n": "97",
+     "b": "5309003970"
+    },
+    {
+     "k": "s",
+     "n": "55, 57, 59, 61",
+     "b": "5309272620"
+    },
+    {
+     "k": "d",
+     "day": 35
+    },
+    {
+     "k": "s",
+     "n": "56, 58, 60, 62",
+     "b": "5304388370"
+    },
+    {
+     "k": "s",
+     "n": "109",
+     "b": "5307696470"
+    },
+    {
+     "k": "s",
+     "n": "116",
+     "b": "5307829940"
+    },
+    {
+     "k": "s",
+     "n": "84",
+     "b": "5308008560"
+    },
+    {
+     "k": "s",
+     "n": "82",
+     "b": "5308097430"
+    },
+    {
+     "k": "s",
+     "n": "83",
+     "b": "5308123850"
+    },
+    {
+     "k": "s",
+     "n": "7",
+     "b": "5308552870"
+    },
+    {
+     "k": "s",
+     "n": "90",
+     "b": "5308934820"
+    },
+    {
+     "k": "s",
+     "n": "89",
+     "b": "5308956630"
+    },
+    {
+     "k": "s",
+     "n": "87",
+     "b": "5309052580"
+    },
+    {
+     "k": "s",
+     "n": "102",
+     "b": "5309180620"
+    },
+    {
+     "k": "d",
+     "day": 36
+    },
+    {
+     "k": "s",
+     "n": "13",
+     "b": "5308570780"
+    },
+    {
+     "k": "d",
+     "day": 37
+    },
+    {
+     "k": "s",
+     "n": "138",
+     "b": "5306164550"
+    },
+    {
+     "k": "d",
+     "day": 38
+    },
+    {
+     "k": "s",
+     "n": "19",
+     "b": "5303684060"
+    },
+    {
+     "k": "d",
+     "day": 39
+    },
+    {
+     "k": "s",
+     "n": "20",
+     "b": "5303741840"
+    },
+    {
+     "k": "d",
+     "day": 40
+    },
+    {
+     "k": "s",
+     "n": "140, 142",
+     "b": "5306052280"
+    },
+    {
+     "k": "d",
+     "day": 41
+    },
+    {
+     "k": "s",
+     "n": "171",
+     "b": "5305933750"
+    },
+    {
+     "k": "d",
+     "day": 42
+    },
+    {
+     "k": "s",
+     "n": "128",
+     "b": "5306103030"
+    },
+    {
+     "k": "d",
+     "day": 43
+    },
+    {
+     "k": "s",
+     "n": "131",
+     "b": "5306034320"
+    },
+    {
+     "k": "d",
+     "day": 44
+    },
+    {
+     "k": "s",
+     "n": "80",
+     "b": "5304956900"
+    },
+    {
+     "k": "d",
+     "day": 45
+    },
+    {
+     "k": "s",
+     "n": "167, 168, 170",
+     "b": "5306131870"
+    },
+    {
+     "k": "d",
+     "day": 46
+    },
+    {
+     "k": "s",
+     "n": "64",
+     "b": "5304672550"
+    },
+    {
+     "k": "d",
+     "day": 47
+    },
+    {
+     "k": "s",
+     "n": "151",
+     "b": "5305743600"
+    },
+    {
+     "k": "d",
+     "day": 48
+    },
+    {
+     "k": "s",
+     "n": "123",
+     "b": "5305909860"
+    },
+    {
+     "k": "d",
+     "day": 49
+    },
+    {
+     "k": "s",
+     "n": "118",
+     "b": "5306206950"
+    },
+    {
+     "k": "d",
+     "day": 50
+    },
+    {
+     "k": "s",
+     "n": "125",
+     "b": "5306276480"
+    },
+    {
+     "k": "d",
+     "day": 51
+    },
+    {
+     "k": "s",
+     "n": "39",
+     "b": "5304698480"
+    },
+    {
+     "k": "s",
+     "n": "41",
+     "b": "5304721380"
+    },
+    {
+     "k": "d",
+     "day": 52
+    },
+    {
+     "k": "s",
+     "n": "166, 169",
+     "b": "5305770730"
+    },
+    {
+     "k": "s",
+     "n": "156",
+     "b": "5305659730"
+    },
+    {
+     "k": "d",
+     "day": 53
+    },
+    {
+     "k": "s",
+     "n": "146, 149",
+     "b": "5305716630"
+    },
+    {
+     "k": "s",
+     "n": "38",
+     "b": "5304269450"
+    },
+    {
+     "k": "s",
+     "n": "35",
+     "b": "5304229190"
+    },
+    {
+     "k": "d",
+     "day": 54
+    },
+    {
+     "k": "s",
+     "n": "68, 70",
+     "b": "5304447470"
+    },
+    {
+     "k": "s",
+     "n": "37",
+     "b": "5304570550"
+    },
+    {
+     "k": "s",
+     "n": "150",
+     "b": "5305869760"
+    },
+    {
+     "k": "s",
+     "n": "65",
+     "b": "5304425990"
+    },
+    {
+     "k": "s",
+     "n": "43",
+     "b": "5304745600"
+    },
+    {
+     "k": "s",
+     "n": "164",
+     "b": "5306075240"
+    },
+    {
+     "k": "d",
+     "day": 55
+    },
+    {
+     "k": "s",
+     "n": "40",
+     "b": "5304766140"
+    },
+    {
+     "k": "s",
+     "n": "119, 120, 121, 122, 124, 126",
+     "b": "5305822360"
+    },
+    {
+     "k": "s",
+     "n": "85",
+     "b": "5308062060"
+    },
+    {
+     "k": "s",
+     "n": "95",
+     "b": "5309028750"
+    },
+    {
+     "k": "s",
+     "n": "45",
+     "b": "5304793280"
+    },
+    {
+     "k": "s",
+     "n": "165",
+     "b": "5305796880"
+    }
+   ],
+   "dayCount": 55,
+   "remaining": [],
+   "unscheduled": [
+    "5303519550",
+    "5303795340",
+    "5303830380",
+    "5303931990",
+    "5303898210",
+    "5304160320",
+    "5304072820",
+    "5303767540",
+    "5303855590",
+    "5304497940",
+    "5304474100",
+    "5304520790"
+   ]
+  },
+  {
+   "name": "Actor Scenario",
+   "calendar": "5 Day Week",
+   "active": true,
+   "rows": [
+    {
+     "k": "n",
+     "t": "2ND Unit to shoot exteriors"
+    },
+    {
+     "k": "s",
+     "n": "18",
+     "b": "5303519550"
+    },
+    {
+     "k": "s",
+     "n": "73",
+     "b": "5304815470"
+    },
+    {
+     "k": "s",
+     "n": "24",
+     "b": "5306235620"
+    },
+    {
+     "k": "s",
+     "n": "152",
+     "b": "5305070540"
+    },
+    {
+     "k": "s",
+     "n": "12",
+     "b": "5308439230"
+    },
+    {
+     "k": "s",
+     "n": "14",
+     "b": "5308407980"
+    },
+    {
+     "k": "d",
+     "day": 2
+    },
+    {
+     "k": "s",
+     "n": "10",
+     "b": "5308467460"
+    },
+    {
+     "k": "s",
+     "n": "107",
+     "b": "5307728170"
+    },
+    {
+     "k": "s",
+     "n": "109",
+     "b": "5307696470"
+    },
+    {
+     "k": "n",
+     "t": "Company Move"
+    },
+    {
+     "k": "s",
+     "n": "92",
+     "b": "5308680460"
+    },
+    {
+     "k": "d",
+     "day": 3
+    },
+    {
+     "k": "n",
+     "t": "B CAM  on set today"
+    },
+    {
+     "k": "s",
+     "n": "1",
+     "b": "5308161910"
+    },
+    {
+     "k": "s",
+     "n": "162",
+     "b": "5305105750"
+    },
+    {
+     "k": "s",
+     "n": "104",
+     "b": "5307568220"
+    },
+    {
+     "k": "s",
+     "n": "80",
+     "b": "5304956900"
+    },
+    {
+     "k": "s",
+     "n": "35",
+     "b": "5304229190"
+    },
+    {
+     "k": "d",
+     "day": 4
+    },
+    {
+     "k": "s",
+     "n": "156",
+     "b": "5305659730"
+    },
+    {
+     "k": "s",
+     "n": "135, 137",
+     "b": "5305132720"
+    },
+    {
+     "k": "s",
+     "n": "133",
+     "b": "5305197200"
+    },
+    {
+     "k": "s",
+     "n": "158",
+     "b": "5305166550"
+    },
+    {
+     "k": "s",
+     "n": "163",
+     "b": "5305230760"
+    },
+    {
+     "k": "n",
+     "t": "COMPANY MOVE"
+    },
+    {
+     "k": "s",
+     "n": "51",
+     "b": "5304291090"
+    },
+    {
+     "k": "s",
+     "n": "146, 149",
+     "b": "5305716630"
+    },
+    {
+     "k": "d",
+     "day": 5
+    },
+    {
+     "k": "s",
+     "n": "154",
+     "b": "5305260800"
+    },
+    {
+     "k": "s",
+     "n": "102",
+     "b": "5309180620"
+    },
+    {
+     "k": "s",
+     "n": "103",
+     "b": "5308733190"
+    },
+    {
+     "k": "s",
+     "n": "38",
+     "b": "5304269450"
+    },
+    {
+     "k": "d",
+     "day": 6
+    },
+    {
+     "k": "s",
+     "n": "151",
+     "b": "5305743600"
+    },
+    {
+     "k": "s",
+     "n": "115",
+     "b": "5307773860"
+    },
+    {
+     "k": "s",
+     "n": "90",
+     "b": "5308934820"
+    },
+    {
+     "k": "d",
+     "day": 7
+    },
+    {
+     "k": "s",
+     "n": "5",
+     "b": "5308491520"
+    },
+    {
+     "k": "d",
+     "day": 8
+    },
+    {
+     "k": "s",
+     "n": "5",
+     "b": "5308526890"
+    },
+    {
+     "k": "s",
+     "n": "7",
+     "b": "5308552870"
+    },
+    {
+     "k": "n",
+     "t": "2ND Unit works today"
+    },
+    {
+     "k": "s",
+     "n": "100",
+     "b": "5309108440"
+    },
+    {
+     "k": "d",
+     "day": 9
+    },
+    {
+     "k": "s",
+     "n": "166, 169",
+     "b": "5305770730"
+    },
+    {
+     "k": "s",
+     "n": "49",
+     "b": "5304320310"
+    },
+    {
+     "k": "s",
+     "n": "89",
+     "b": "5308956630"
+    },
+    {
+     "k": "n",
+     "t": "COMPANY MOVE"
+    },
+    {
+     "k": "s",
+     "n": "47",
+     "b": "5304342940"
+    },
+    {
+     "k": "s",
+     "n": "13",
+     "b": "5308570780"
+    },
+    {
+     "k": "s",
+     "n": "3",
+     "b": "5309081970"
+    },
+    {
+     "k": "n",
+     "t": "B CAM  on set today"
+    },
+    {
+     "k": "s",
+     "n": "165",
+     "b": "5305796880"
+    },
+    {
+     "k": "d",
+     "day": 10
+    },
+    {
+     "k": "s",
+     "n": "147, 148",
+     "b": "5305288700"
+    },
+    {
+     "k": "s",
+     "n": "119, 120, 121, 122, 124, 126",
+     "b": "5305822360"
+    },
+    {
+     "k": "s",
+     "n": "54",
+     "b": "5304364910"
+    },
+    {
+     "k": "s",
+     "n": "56, 58, 60, 62",
+     "b": "5304388370"
+    },
+    {
+     "k": "s",
+     "n": "113",
+     "b": "5307801990"
+    },
+    {
+     "k": "s",
+     "n": "65",
+     "b": "5304425990"
+    },
+    {
+     "k": "s",
+     "n": "84",
+     "b": "5308008560"
+    },
+    {
+     "k": "s",
+     "n": "68, 70",
+     "b": "5304447470"
+    },
+    {
+     "k": "s",
+     "n": "85",
+     "b": "5308062060"
+    },
+    {
+     "k": "d",
+     "day": 11
+    },
+    {
+     "k": "s",
+     "n": "42",
+     "b": "5304474100"
+    },
+    {
+     "k": "s",
+     "n": "46",
+     "b": "5304497940"
+    },
+    {
+     "k": "s",
+     "n": "150",
+     "b": "5305869760"
+    },
+    {
+     "k": "s",
+     "n": "44",
+     "b": "5304520790"
+    },
+    {
+     "k": "s",
+     "n": "37",
+     "b": "5304570550"
+    },
+    {
+     "k": "d",
+     "day": 12
+    },
+    {
+     "k": "n",
+     "t": "B CAM  on set today"
+    },
+    {
+     "k": "s",
+     "n": "2",
+     "b": "5308201350"
+    },
+    {
+     "k": "s",
+     "n": "82",
+     "b": "5308097430"
+    },
+    {
+     "k": "s",
+     "n": "99",
+     "b": "5309133100"
+    },
+    {
+     "k": "s",
+     "n": "153",
+     "b": "5305318750"
+    },
+    {
+     "k": "d",
+     "day": 13
+    },
+    {
+     "k": "s",
+     "n": "123",
+     "b": "5305909860"
+    },
+    {
+     "k": "s",
+     "n": "155, 156",
+     "b": "5305341870"
+    },
+    {
+     "k": "d",
+     "day": 14
+    },
+    {
+     "k": "n",
+     "t": "EPK on set today"
+    },
+    {
+     "k": "s",
+     "n": "171",
+     "b": "5305933750"
+    },
+    {
+     "k": "s",
+     "n": "4",
+     "b": "5308266050"
+    },
+    {
+     "k": "d",
+     "day": 15
+    },
+    {
+     "k": "s",
+     "n": "17",
+     "b": "5309156010"
+    },
+    {
+     "k": "s",
+     "n": "117",
+     "b": "5307607050"
+    },
+    {
+     "k": "s",
+     "n": "81",
+     "b": "5307961100"
+    },
+    {
+     "k": "s",
+     "n": "129",
+     "b": "5305386800"
+    },
+    {
+     "k": "n",
+     "t": "B CAM  on set today"
+    },
+    {
+     "k": "s",
+     "n": "160",
+     "b": "5305365380"
+    },
+    {
+     "k": "s",
+     "n": "32",
+     "b": "5304025970"
+    },
+    {
+     "k": "s",
+     "n": "130",
+     "b": "5305411020"
+    },
+    {
+     "k": "n",
+     "t": "If Time Permits"
+    },
+    {
+     "k": "s",
+     "n": "131",
+     "b": "5306034320"
+    },
+    {
+     "k": "d",
+     "day": 16
+    },
+    {
+     "k": "s",
+     "n": "74, 76",
+     "b": "5304849790"
+    },
+    {
+     "k": "s",
+     "n": "141, 143",
+     "b": "5305446120"
+    },
+    {
+     "k": "d",
+     "day": 17
+    },
+    {
+     "k": "s",
+     "n": "140, 142",
+     "b": "5306052280"
+    },
+    {
+     "k": "s",
+     "n": "96",
+     "b": "5308751980"
+    },
+    {
+     "k": "d",
+     "day": 18
+    },
+    {
+     "k": "s",
+     "n": "66",
+     "b": "5304048980"
+    },
+    {
+     "k": "s",
+     "n": "114",
+     "b": "5307853340"
+    },
+    {
+     "k": "s",
+     "n": "116",
+     "b": "5307829940"
+    },
+    {
+     "k": "s",
+     "n": "9",
+     "b": "5308631030"
+    },
+    {
+     "k": "s",
+     "n": "11",
+     "b": "5308609340"
+    },
+    {
+     "k": "s",
+     "n": "53",
+     "b": "5304593400"
+    },
+    {
+     "k": "d",
+     "day": 19
+    },
+    {
+     "k": "s",
+     "n": "63",
+     "b": "5304634820"
+    },
+    {
+     "k": "d",
+     "day": 20
+    },
+    {
+     "k": "s",
+     "n": "106",
+     "b": "5307898870"
+    },
+    {
+     "k": "s",
+     "n": "112",
+     "b": "5307877230"
+    },
+    {
+     "k": "d",
+     "day": 21
+    },
+    {
+     "k": "s",
+     "n": "64",
+     "b": "5304672550"
+    },
+    {
+     "k": "s",
+     "n": "39",
+     "b": "5304698480"
+    },
+    {
+     "k": "s",
+     "n": "41",
+     "b": "5304721380"
+    },
+    {
+     "k": "d",
+     "day": 22
+    },
+    {
+     "k": "s",
+     "n": "48",
+     "b": "5303953300"
+    },
+    {
+     "k": "s",
+     "n": "55, 57, 59, 61",
+     "b": "5309272620"
+    },
+    {
+     "k": "d",
+     "day": 23
+    },
+    {
+     "k": "s",
+     "n": "79",
+     "b": "5304997270"
+    },
+    {
+     "k": "s",
+     "n": "108, 110",
+     "b": "5307934250"
+    },
+    {
+     "k": "s",
+     "n": "164",
+     "b": "5306075240"
+    },
+    {
+     "k": "d",
+     "day": 24
+    },
+    {
+     "k": "s",
+     "n": "77",
+     "b": "5305026820"
+    },
+    {
+     "k": "s",
+     "n": "128",
+     "b": "5306103030"
+    },
+    {
+     "k": "d",
+     "day": 25
+    },
+    {
+     "k": "s",
+     "n": "6",
+     "b": "5308659590"
+    },
+    {
+     "k": "n",
+     "t": "2ND Unit to shoot exteriors"
+    },
+    {
+     "k": "s",
+     "n": "28",
+     "b": "5303994710"
+    },
+    {
+     "k": "s",
+     "n": "97",
+     "b": "5309003970"
+    },
+    {
+     "k": "s",
+     "n": "95",
+     "b": "5309028750"
+    },
+    {
+     "k": "s",
+     "n": "86",
+     "b": "5308773450"
+    },
+    {
+     "k": "s",
+     "n": "87",
+     "b": "5309052580"
+    },
+    {
+     "k": "s",
+     "n": "94",
+     "b": "5308794210"
+    },
+    {
+     "k": "s",
+     "n": "132",
+     "b": "5305496100"
+    },
+    {
+     "k": "s",
+     "n": "159",
+     "b": "5305471660"
+    },
+    {
+     "k": "s",
+     "n": "34",
+     "b": "5304072820"
+    },
+    {
+     "k": "s",
+     "n": "134",
+     "b": "5305518840"
+    },
+    {
+     "k": "s",
+     "n": "43",
+     "b": "5304745600"
+    },
+    {
+     "k": "d",
+     "day": 26
+    },
+    {
+     "k": "s",
+     "n": "67",
+     "b": "5304135930"
+    },
+    {
+     "k": "s",
+     "n": "69, 71",
+     "b": "5304101870"
+    },
+    {
+     "k": "s",
+     "n": "83",
+     "b": "5308123850"
+    },
+    {
+     "k": "s",
+     "n": "93",
+     "b": "5308817450"
+    },
+    {
+     "k": "s",
+     "n": "27",
+     "b": "5308238810"
+    },
+    {
+     "k": "s",
+     "n": "72",
+     "b": "5304877310"
+    },
+    {
+     "k": "s",
+     "n": "40",
+     "b": "5304766140"
+    },
+    {
+     "k": "d",
+     "day": 27
+    },
+    {
+     "k": "s",
+     "n": "167, 168, 170",
+     "b": "5306131870"
+    },
+    {
+     "k": "s",
+     "n": "8",
+     "b": "5308384310"
+    },
+    {
+     "k": "s",
+     "n": "101",
+     "b": "5308848870"
+    },
+    {
+     "k": "s",
+     "n": "105",
+     "b": "5307668630"
+    },
+    {
+     "k": "s",
+     "n": "111",
+     "b": "5307641880"
+    },
+    {
+     "k": "s",
+     "n": "98",
+     "b": "5308872370"
+    },
+    {
+     "k": "s",
+     "n": "139",
+     "b": "5305577280"
+    },
+    {
+     "k": "d",
+     "day": 28
+    },
+    {
+     "k": "s",
+     "n": "144, 145",
+     "b": "5305549490"
+    },
+    {
+     "k": "s",
+     "n": "36",
+     "b": "5304160320"
+    },
+    {
+     "k": "s",
+     "n": "75",
+     "b": "5304901100"
+    },
+    {
+     "k": "s",
+     "n": "78",
+     "b": "5304929660"
+    },
+    {
+     "k": "s",
+     "n": "91",
+     "b": "5308892750"
+    },
+    {
+     "k": "s",
+     "n": "161",
+     "b": "5305606670"
+    },
+    {
+     "k": "s",
+     "n": "136",
+     "b": "5305629350"
+    },
+    {
+     "k": "d",
+     "day": 29
+    },
+    {
+     "k": "s",
+     "n": "138",
+     "b": "5306164550"
+    },
+    {
+     "k": "d",
+     "day": 30
+    },
+    {
+     "k": "s",
+     "n": "29",
+     "b": "5304185970"
+    },
+    {
+     "k": "s",
+     "n": "88",
+     "b": "5308911810"
+    },
+    {
+     "k": "s",
+     "n": "118",
+     "b": "5306206950"
+    },
+    {
+     "k": "s",
+     "n": "45",
+     "b": "5304793280"
+    },
+    {
+     "k": "d",
+     "day": 31
+    },
+    {
+     "k": "s",
+     "n": "33",
+     "b": "5304208760"
+    },
+    {
+     "k": "s",
+     "n": "125",
+     "b": "5306276480"
+    }
+   ],
+   "dayCount": 31,
+   "remaining": [],
+   "unscheduled": [
+    "5303657470",
+    "5303684060",
+    "5303830380",
+    "5303795340",
+    "5303898210",
+    "5303569040",
+    "5303719040",
+    "5303741840",
+    "5303931990",
+    "5303767540",
+    "5303855590",
+    "5303599970",
+    "5303630780"
+   ]
+  }
+ ],
+ "activeVersion": "Actor Scenario",
+ "calendars": {
+  "5 Day Week": {
+   "productionStart": "2009-04-06",
+   "productionEnd": "2009-05-19",
+   "nonShootDates": [
+    {
+     "date": "2009-04-11",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-12",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-18",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-19",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-25",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-26",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-02",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-03",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-09",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-10",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-16",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-17",
+     "status": "holiday"
+    }
+   ]
+  },
+  "6 Day Week": {
+   "productionStart": "2009-04-01",
+   "productionEnd": "2009-06-03",
+   "nonShootDates": [
+    {
+     "date": "2009-04-06",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-13",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-20",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-04-27",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-04",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-11",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-18",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-05-25",
+     "status": "holiday"
+    },
+    {
+     "date": "2009-06-01",
+     "status": "holiday"
+    }
+   ]
+  }
+ }
+}

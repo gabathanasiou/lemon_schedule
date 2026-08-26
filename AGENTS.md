@@ -116,7 +116,7 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 `checkDay()`/`checkAllDays()`/`checkSection()`; rule types: MAX_HOURS, DATE_RESTRICTION, TIME_WINDOW, CAST_CONFLICT, CAST_SCENE_FLAG. Violations show as red Flag icons on day headers + scene strips (Schedule + Calendar).
 
 ## Import/Export (`src/lib/import/` — barrel)
-CSV (PapaParse) / FDX (XML) / Fountain. `parseCSV`/`parseFDX`/`parseFountain` → `ImportResult`; `commitImport()` batches all dispatches for one undo entry; `exportBreakdownCSV()` exports visible columns. Shared `parseSceneHeading`, `FDX_CATEGORY_MAP`, `buildCSVLabelToKeyMap()`.
+CSV (PapaParse) / FDX (XML) / Fountain / **MSD** (EPSF Movie Magic Scheduling, roadmap item 40 — `parseMsdFile` builds a COMPLETE `Project` via `importProjectFromData`, new-project-only; reference parser `tools/msd_probe.py`, golden `e2e/fixtures/wonderful-life.expected.json`; cast ids sequential integers; pageCount = `formatPageCount(total)` + total `pageCountDecimal`; `scriptPageNumbers` (script start page — MSD attr / FDX `<Page>` break markers, first-class Scene field for future full-FDX render); ProductionInfo named roles → crew roster (director/producer/upm/firstAD/artDirector/setDecorator); daybreaks ONLY between ScheduleDay groups, pinned anchors day 1). `parseCSV`/`parseFDX`/`parseFountain` → `ImportResult`; `commitImport()` batches all dispatches for one undo entry; `exportBreakdownCSV()` exports visible columns. Shared `parseSceneHeading`, `FDX_CATEGORY_MAP`, `buildCSVLabelToKeyMap()`.
 
 ## Pop-out Windows (`PopoutWindow.tsx`)
 - Desktop-only (`!IS_COARSE`): tabs/sub-tabs open in separate windows sharing state via `createPortal` (window opened synchronously in the click handler to dodge popup blockers; `cascadePosition()` tiles).
@@ -153,11 +153,8 @@ Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collecti
 - Then it **updates the docs itself**: loads the `write-agent-docs` skill, applies the `docs/*.md`/AGENTS.md updates its change calls for, and flips the item's `docs/ROADMAP.md` status `[ ]` → `[x]` with a one-line "Done:" note.
 - **Optional second pair of eyes**: dispatch the `code-reviewer` subagent (read-only) on `git diff` whenever you want an independent pass before or after committing docs.
 - **Phone notifications**: the agent pings ntfy (`NTFY_TOPIC` in `.env`, subscribed in the ntfy iOS app) before asking a blocking question and when the item is done — the streaming tab can sit idle; the phone still pings.
-- Live phone streaming requires the TUI attached to the web server: `opencode attach http://localhost:4096` (`.opencode/scripts/tui.sh`). Web server: `.opencode/scripts/start-web.sh`, auto-started by a `~/.zshrc` guard.
-
-## Legacy parallel machinery (DORMANT — do not use)
-- The old worktree-orchestration pipeline is retired but left on disk for possible revival: `orchestrator`/`docs-curator` agents, `/spawn-feature` `/roadmap-sprint` `/cleanup-worker` commands, the `orchestrate-roadmap` skill, and scripts `hub-server.mjs` (`npm run hub`), `preview-workers.sh`, `worker-ports.sh`, `watch-workers.sh`. All carry a DEPRECATED banner; the `code-reviewer` agent stays LIVE as the on-demand reviewer.
-- The **hub** (`hub-server.mjs`, port 3101+idx*10) only discovers `../lemon_schedule-wt/*` worktrees to serve per-worker dev tabs — with single-agent work in the main tree it has nothing to serve and is inert. It still works if parallel sprints ever return; nothing depends on it being stopped or started.
+## Legacy parallel machinery (REMOVED — do not use)
+- The old worktree-orchestration pipeline was retired and removed from disk: `orchestrator`/`docs-curator` agents, `/spawn-feature` `/roadmap-sprint` `/cleanup-worker` commands, the `orchestrate-roadmap` skill, and the phone web-hub scripts (`hub-server.mjs`/`npm run hub`, `start-web.sh`, `tui.sh`, `preview-workers.sh`, `worker-ports.sh`, `watch-workers.sh`) plus the `~/.zshrc` autostart guard. If ever revived, all removed files are preserved in `.opencode/.trash-deprecated/`. The `code-reviewer` subagent stays LIVE as the on-demand reviewer.
 
 ## File Layout (post-refactor — see `docs/REFACTOR-PLAN.md`)
 - `src/store/` — barrel + storage/reducer(+actions)/provider/rows

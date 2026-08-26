@@ -85,6 +85,11 @@ export async function parseFDX(file: File): Promise<ImportResult> {
   let currentHeading = '';
   let currentPageCount: string | undefined;
   let currentPageCountDecimal: number | undefined;
+  // Script page of the last <Page Number> break marker — the page the current
+  // scene heading starts on (scriptPageNumbers; single-value like MSD's
+  // ScriptPageNumbers until full-FDX rendering lands).
+  let currentScriptPage: string | undefined;
+  let currentScriptPageForScene: string | undefined;
   const sceneCharacters = new Set<string>();
   const sceneTaggedElements = new Map<string, Set<string>>();
   let lastDayNight: DayNight = 'DAY';
@@ -102,6 +107,7 @@ export async function parseFDX(file: File): Promise<ImportResult> {
     lastDayNight = dn;
     scenes.push({
       sceneNumber: currentSceneNumber,
+      scriptPageNumbers: currentScriptPageForScene,
       pageCount: currentPageCount,
       pageCountDecimal: currentPageCountDecimal,
       intExt: heading?.intExt || 'INT',
@@ -116,6 +122,7 @@ export async function parseFDX(file: File): Promise<ImportResult> {
     currentDescription = '';
     currentPageCount = undefined;
     currentPageCountDecimal = undefined;
+    currentScriptPageForScene = undefined;
     sceneCharacters.clear();
     sceneTaggedElements.clear();
   }
@@ -144,15 +151,18 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       currentHeading = textContent;
 
       for (const child of Array.from(p.children)) {
-        if (child.tagName === 'SceneProperties') {
+        if (child.tagName === 'Page') {
+          const n = child.getAttribute('Number');
+          if (n) currentScriptPage = n;
+        } else if (child.tagName === 'SceneProperties') {
           const length = child.getAttribute('Length');
           if (length) {
             currentPageCount = length;
             currentPageCountDecimal = parsePageCount(length);
           }
-          break;
         }
       }
+      currentScriptPageForScene = currentScriptPage;
     } else if (pType === 'Character') {
       const name = normalizeCharacterName(textContent);
       if (name) sceneCharacters.add(name);
@@ -160,6 +170,17 @@ export async function parseFDX(file: File): Promise<ImportResult> {
       if (scenes.length === 0 && !currentSceneNumber) {
         currentSceneNumber = pNum || String(scenes.length + 1);
         currentHeading = textContent;
+      }
+    }
+
+    // print page-break markers (FDX embeds <Page Number> inside paragraphs);
+    // the last one seen is the script page of whatever scene follows
+    if (pType !== 'Scene Heading') {
+      for (const child of Array.from(p.children)) {
+        if (child.tagName === 'Page') {
+          const n = child.getAttribute('Number');
+          if (n) currentScriptPage = n;
+        }
       }
     }
 

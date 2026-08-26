@@ -1,3 +1,4 @@
+
 # Roadmap — Future Implementations Checklist
 
 Checklist of features narrated by the user for future sessions. Read this before
@@ -11,7 +12,6 @@ starting a new session; work items here are the pending product work. Status:
 Block types today: `text | field | repeat | table | columns | ribbon | pageBreak | spacer`
 (see `docs/REPORTS-DESIGNER.md`). A **Ribbon block placed outside any Repeater**
 should:
-
 - **Default to showing ALL ribbons of the schedule** (not just a sample).
 - **Preview**: show only the first four + an indication that there are more
   ("+ N more" style hint).
@@ -939,6 +939,190 @@ design around back-compat; normalize legacy statuses simply, if at all).
 - **Verify**: create "Rehearsal" → mark a calendar date → status saved as
   key, chip colored on calendar + DOOD header (tab and print), report
   `{{dayType}}` resolves per day, delete-in-use guard, lint + playwright.
+
+---
+
+## 40. Import legacy Movie Magic Scheduling `.msd` files (`[ ]`)
+
+**Requested**: import `.msd` ("Movie Schedule Data") files — the native
+schedule format of legacy **Movie Magic Scheduling 6** (EP) — so full
+schedules (stripboard + day breaks + call times + breakdown) made in MMS 6 can
+move into Lemon Schedule. Sibling of item 41 (SEX import/export); share the
+pipeline work where possible.
+
+**Format — CRACKED (structure verified on `~/Downloads/Wonderful Life Demo
+V5.msd`, MMS 5.00.326, 2009)**: the `.msd` is an ASCII-delimited container
+**("EPSF" = EPS Schedule File)** — no custom compression, no encryption:
+
+```
+/********* EPSF FILE ********/           ← 716B header: "00.01.001",
+    "EPS Schedule File", "05.00.000", "Movie Magic Scheduling 5", version, timestamp
+/********* EPSF SECTION *********/       ← repeated delimiter (+ space)
+  [34-byte section header]              ← fixed skip
+  <payload>
+```
+
+Two payload kinds: **image records** (sections 1–6: an embedded path string
+like `;C:\...\henrytravers.jpg` + raw JFIF/PNG/BMP — cast photos/stills, not
+needed for v1) and **data records** (sections 7–18): a **raw deflate stream
+starting at byte 34** that inflates to a plain **UTF-8 XML manager document**
+(`zlib.decompress(p[34:], -15)` — verified on all 12 data sections, 100%
+printable). A trailing plaintext "EPSF SECTION MAP" lists the managers +
+versions. Sections, contents → Lemon mapping:
+
+- `ProductionInfo` — PictureTitle/Company/Director/Producer/UPM/AD (PropertyList)
+  → project metadata.
+- `CategoryMgr` + `ElementMgr` — 20 MMS categories (Cast Members, Props,
+  Wardrobe, Makeup/Hair, Set Dressing, Greenery, Stunts, Vehicles, SFX, music,
+  Sound, Mechanical Effects, Visual Effects, Background Actors…) + all elements
+  (Name, CategoryName, Property CDATA blobs → pay/min/etc, drop). **MMS models
+  "Sequence", "Set", "Unit", "Script Day", "Location" as element CATEGORIES** —
+  these must map to Lemon scene FIELDS, not element categories (dedupe list).
+- `BreakdownSheetMgr` — one `BreakdownSheet` per scene: `BDSID` (stable ID),
+  `Scenes` (scene number), `SheetNumber` (auto sheet #), `IE`/`DN`
+  (INT/EXT + Day/Night), `Set`, `Location`, `Synopsis` (description),
+  `ScriptDay`, `ScriptPageNumbers` + `NumScriptPages` (page count data),
+  `Unit` (2nd unit…), `EstimateTimeB`/`EstimateTimeA`, `Sequence`,
+  `Comments`, `ElementRefs` (CategoryName + ElementName pairs — the per-scene
+  breakdown), `Attachments` → scenes.
+- `StripBoardMgr` — multiple stripboards as **scenarios**: "Scene Order",
+  "Location Scenario", "Actor Scenario" (demo has 3; `ActiveStripBoard` pref
+  picks the real one). Per board: `ScheduleDay` groups — **day breaks** with
+  the strip order inside each day (BDSID refs), `RemainingScheduledStrips`
+  (unscheduled → Boneyard), `BannerStrip` (unit banner rows) → stripboard.
+  Day breaks carry NO call times in this demo file — parse them when a
+  real-world file has them, gracefully absent otherwise.
+- DOODLayoutMgr / CalendarMgr / PrintViewOptions / ColorSettings /
+  StripBoardLayoutMgr / ReportLayoutMgr / RedFlagMgr — UI chrome, skip.
+
+**Integration (same pipeline as item 41 / FDX / CSV)**:
+- **NEW-PROJECT-ONLY (user decision)**: `.msd` (and `.sex`, item 41) imports are
+  gated to project creation — no append-into-current flow, no ImportDialog
+  review stage. The parser builds a COMPLETE `Project` (project-shaped, like
+  `makeBlankProject` + content: scenes/elements/cast/customCategories +
+  versions with full rows arrays in board order) and hands it to
+  `importProjectFromData` (provider.tsx:603, the JSON-project import path) —
+  migration + LOAD normalize the rest (pinned daybreak, rows invariants via
+  `ensurePinnedDaybreak`/`ensureAllScenesHaveRows`, dayTypes defaults).
+- New `src/lib/import/msd.ts` — container splitter (marker scan; try-inflate
+  at offset 34 with a small offset probe fallback for robustness across MMS
+  versions; detect image sections via JFIF/PNG/BM signatures and skip them)
+  + XML → complete Project. Verify-against reference: `tools/msd_probe.py`
+  (committed Python reference parser — same mapping rules; emits
+  `e2e/fixtures/wonderful-life.expected.json`, the golden the Playwright spec
+  asserts against). Fixture: `e2e/fixtures/wonderful-life.msd` (1.5MB copy of
+  the demo).
+- Entry point: ProjectManager import ("New project from .msd/.sex…") and/or
+  the Project Manager import button — file picker accepts `.msd,.sex,.fdx,
+  .csv`; new-project-only applies to msd/sex (fdx/csv/fountain keep the
+  existing append flow).
+- Scene field mapping: `Scenes` → scene number (multi-scene sheets like
+  "108, 110" stay ONE scene with the composite label — matches the strip),
+  `Synopsis` → description, `IE`/`DN` → `intExt`/`dayNight`, `Set` → set,
+  `ScriptPageNumbers` (script page the scene starts on) →
+  **`scene.scriptPageNumbers`** (first-class Scene field, shared with FDX
+  `<Page>` break markers — future full-FDX import/render support),
+  `NumScriptPages` → `pageCount`/`pageCountDecimal`
+  (MMS eighths: last char = eighths, "12" = 1 2/8 → **total** 1.25. Lemon
+  stores the TOTAL decimal in `pageCountDecimal` and the "1 2/8" eighths
+  string in `pageCount` via `formatPageCount` — NOT the fractional part;
+  section page sums and report totals add `pageCountDecimal` raw), `Sequence`/
+  `Unit` → **custom category fields** (user decision), `Comments` + `Notes`-
+  category refs → notes, `Location` attr → location (stays per-scene text
+  until roadmap item 2 wires id-linked locations into scenes).
+- Production info: `Company` → `productionInfo.company`; `Director`/
+  `Producer`/`Upm`/`AsstDirector`/`ArtDirector`/`SetDresser` → **crew roster**
+  people under built-in role keys (`director`/`producer`/`upm`/`firstAD`/
+  `artDirector`/`setDecorator` — one person per named role; empty values
+  skipped). MMS 5 files carry no crew registry — names only, no phone/email.
+- Elements: Cast Members + Background Actors → cast members (name via
+  `normalizeCharacterName`; cast referenced by ID — build the `castIdMap`),
+  everything else → `ADD_ELEMENT` per mapped category; `Set Dressing`/
+  `Sequence`/`Unit`/unknown → custom categories (registry entry +
+  scene fields).
+- Schedule: boards → **versions** (user decision — each MMS stripboard is a
+  Lemon ScheduleVersion: same breakdown, own days/order). Version rows built
+  directly (rows arrays are the single source of truth): active board =
+  primary version (`ActiveStripBoard` pref; demo: "Actor Scenario"),
+  others = extra versions; `ScheduleDay` groups → **sections** with a
+  DAYBREAK row ONLY between consecutive groups (canonical layout:
+  `[pinned] [day 1] [break] [day 2] [break] …` — N days = N−1 breaks; a
+  break before day 1 would create a phantom empty Day 1 and shift every
+  label/date by one — verified bug, do not reintroduce); `BannerStrip` →
+  **NOTE rows** (user decision — not breaks), `RemainingScheduledStrips` +
+  `UnscheduledStrips` (both undated board zones) → Boneyard. Cast member
+  ids are per-project sequential integers ("1", "2", … — user decision;
+  measured/printed in the strip; scene.cast = comma-joined numeric ids).
+- Calendar (per board, via `CalendarName`): `ProductionStartDate` →
+  `version.productionStart`; `DaysOff` weekly pattern + `SpecialDays`
+  **materialized into explicit `nonShootDates`** bounded to the production
+  window (start..wrap; the demo's SpecialDays are 2003–2007 template junk —
+  the window bound keeps them out). Off days + weekends + MMS Holidays all →
+  `holiday` ("Day Off" — user decision; weekends are days off, not holds),
+  CompanyTravel→`travel`, ExceptionWorkday→nothing (work is the default).
+- No ImportResult/commitImport involvement for msd (that machinery stays for
+  fdx/csv/fountain appends). .sex import (item 41) reuses the
+  project-building + board→version + calendar materialization helpers.
+
+**Verify**: demo .msd fixture → 146 scenes + 20 categories + 445 elements +
+  the active board's ScheduleDay groups as sections in exact strip order — no
+  phantom empty Day 1 (pinned anchor + N−1 breaks; Day 1 carries the first
+  group's strips, dates land day 1 = production start); cast ids numeric;
+  page counts render as app eighths ("1 2/8"); scene→row invariant holds;
+  unscheduled strips in the Boneyard; undo restores exactly; lint +
+  playwright (seeded-project import flow).
+
+## 41. Import & export `.sex` (Scheduling Exchange) files (`[ ]`)
+
+**Requested**: import `.sex` files AND export the schedule to `.sex` — the
+open-ish interchange format for Movie Magic Scheduling 5/6, EP Scheduling,
+Gorilla, Final Draft Tagger and Screenwriter (binary, `SSI*` header; carries
+scene headers, page counts, breakdown categories/elements, and — from a
+scheduling app — strip order, day breaks and start times). Import = full
+schedule in; export = Lemon Schedule out to the industry-standard tools.
+
+**Format (well documented — no feasibility risk like item 40)**:
+- Reverse-engineered spec exists: `MMS_SPEC.md` in
+  `github.com/sfingali/open-moviemagic-toolkit` (MIT, zero deps) + sample
+  files in the repo; its Python parser/generator (`tools/pyoms`, `sex_parser`)
+  is the reference — **port to TS** in `src/lib/import/sex.ts` (no npm
+  package; the toolkit is Python. New-dep rule is satisfied without one).
+- **Version incompatibility trap**: MMS 5/6/10 use different header bytes
+  (offsets 0x04–0x0D) and reject foreign headers. Import: sniff/accept all
+  variants (parse what's there). Export: use the **Final Draft–style neutral
+  header that every version accepts** (the toolkit's `export_for = 5`-style
+  write path) so exported files open everywhere.
+- SEX files come in two flavors: breakdown-only (Final Draft Tagger /
+  Screenwriter — scenes + elements, no schedule) and full schedule (MMS/EP
+  Scheduling — includes day breaks + strip order + start times). Import must
+  handle both: day breaks present → rebuild sections; absent → fall back to
+  the current single-section behavior (don't fabricate days).
+
+**Integration**:
+- `src/lib/import/sex.ts` parser + writer (`exportSex()` mirrors
+  `exportBreakdownCSV`), barrel exports in `src/lib/import/index.ts`.
+- Extend the import payload: `ImportResult` (or a schedule-carrying sibling
+  consumed by the same commit) gains day-break records (order + call time) so
+  `commitImport` can build DAYBREAK rows in import order — reuse for item 40.
+  Category labels → `categoryNameToKey` / a `SEX_CATEGORY_MAP` mirroring
+  `FDX_CATEGORY_MAP`; cast via `normalizeCharacterName` + `castIdMap`; page
+  counts into `pageCount`/`pageCountDecimal`; slugline through
+  `parseSceneHeading`.
+- Wire into `handleImportFile` (`App.tsx:351`) + `ImportDialog.tsx`
+  (`fileFilter` gains `.sex`) for import; export entry mirrors the CSV export
+  UX (breakdown glide toolbar / Schedule tab toolbar — pick the schedule
+  surface since the payload is the schedule: stripboard order from
+  `version.rows`, daybreaks' `daybreakCallTime`, scenes, elements, cast names
+  via `castMembers`).
+- One undo entry for import; export is a pure download (no state change).
+- Cross-link item 40 (`msd` imports can route through SEX as the documented
+  fallback path).
+
+**Verify**: import a full-schedule .sex fixture → sections/call times/order
+match; breakdown-only .sex → scenes+elements import, no sections invented;
+export → re-import the exported file in MMS (5/6/10 if available — else
+round-trip through our own parser + spec conformance checks); scene→row
+invariant; lint + playwright.
 
 ---
 

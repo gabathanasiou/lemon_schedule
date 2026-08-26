@@ -6,6 +6,9 @@ export interface Scene {
   id: string;
   ghostOf?: string;
   sceneNumber: string;
+  /** Script page range the scene occupies (e.g. "21-24"); imported from MSD,
+   *  kept for future full-FDX import/render support. */
+  scriptPageNumbers?: string;
   pageCount: string;
   pageCountDecimal: number;
   scriptDay: string;

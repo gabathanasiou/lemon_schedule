@@ -5,11 +5,12 @@ import { Project } from '../types';
 import { exportProjectFromStorage, exportProjectData } from '../lib/utils';
 import { pushProjectAndUpdateIndex } from '../lib/syncManager';
 import { listDriveProjectMetas, deleteDriveProject, readDriveProject, removeFromDriveIndex, clearAllDriveData, formatDriveError, getDriveErrorStatus } from '../lib/googleDriveStorage';
-import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull } from 'lucide-react';
+import { Plus, Download, Trash2, FolderOpen, ArrowUpDown, ChevronDown, Cloud, CloudOff, HardDrive, AlertTriangle, Loader2, RefreshCw, Skull, FileUp } from 'lucide-react';
 import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
+import { parseMsdFile } from '../lib/import';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { useDriveProjectList } from '../lib/useDriveProjectList';
@@ -60,7 +61,9 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<ProjectTab>('local');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const scheduleFileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [parsingSchedule, setParsingSchedule] = useState<string | null>(null);
 
   const [showDebug, setShowDebug] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
@@ -165,6 +168,44 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImportSchedule = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParsingSchedule(file.name);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'sex') {
+        dialog.alert({ title: 'Not Supported Yet', message: '.sex imports are coming soon. Start from a .msd (Movie Magic Scheduling 5/6) file for now.' });
+        return;
+      }
+      if (ext !== 'msd') {
+        dialog.alert({ title: 'Unknown File', message: 'Choose a .msd Movie Magic Scheduling file (or a .sex Scheduling Exchange file once supported).' });
+        return;
+      }
+      const fallbackTitle = file.name.replace(/\.msd$/i, '').trim() || 'Imported Schedule';
+      const project = await parseMsdFile(file, fallbackTitle);
+      const newId = importProjectFromData(project);
+      if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
+        try {
+          const proj = loadProjectFromStorage(newId);
+          if (proj) {
+            const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
+            updateProjectMeta(newId, { driveFileId });
+            refetchDrive();
+          }
+        } catch (err: any) {
+          dialog.alert({ title: 'Upload Failed', message: formatDriveError(err, 'The schedule was imported locally, but uploading it to Drive failed.') });
+        }
+      }
+      onClose?.();
+    } catch (err: any) {
+      dialog.alert({ title: 'Import Error', message: formatDriveError(err, err?.message || 'Failed to parse file') });
+    } finally {
+      setParsingSchedule(null);
+      if (scheduleFileRef.current) scheduleFileRef.current.value = '';
     }
   };
 
@@ -309,6 +350,14 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
               </button>
               <button
+                onClick={() => scheduleFileRef.current?.click()}
+                disabled={!!parsingSchedule || importing}
+                title="Import a Movie Magic Scheduling (.msd) schedule as a new project"
+                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : 'Import Schedule'}
+              </button>
+              <button
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(false); }}
                 className="px-4 py-1.5 bg-zinc-800 text-white text-xs font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors flex items-center gap-2"
               >
@@ -323,6 +372,14 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
                 className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <Download className="w-3.5 h-3.5" /> {importing ? 'Importing...' : 'Import'}
+              </button>
+              <button
+                onClick={() => scheduleFileRef.current?.click()}
+                disabled={!!parsingSchedule || importing}
+                title="Import a Movie Magic Scheduling (.msd) schedule as a new project"
+                className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : 'Import Schedule'}
               </button>
               <button
                 onClick={() => { setShowNewProjectModal(true); setNewProjectName('Untitled Project'); setNewProjectCloud(true); }}
@@ -341,10 +398,19 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
             </button>
           )}
           <input type="file" accept=".lemon,.json" ref={fileInputRef} onChange={handleImportJSON} className="hidden" />
+          <input type="file" accept=".msd,.sex" ref={scheduleFileRef} onChange={handleImportSchedule} className="hidden" />
         </ModalFooter>
       }
     >
       <div className="relative">
+        {parsingSchedule && (
+          <div className="absolute inset-0 z-20 bg-zinc-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg" data-testid="schedule-import-progress">
+            <Loader2 className="w-8 h-8 text-zinc-300 animate-spin" />
+            <div className="text-xs text-zinc-400">
+              Parsing schedule… <span className="text-zinc-500">{parsingSchedule}</span>
+            </div>
+          </div>
+        )}
         <NewProjectModal
           open={showNewProjectModal}
           isCloud={newProjectCloud}

@@ -116,7 +116,7 @@ test.describe('cast single source of truth (castMembers)', () => {
     fs.writeFileSync(lemonPath, JSON.stringify(legacy));
 
     await page.goto('http://localhost:3001/lemon_schedule/');
-    await page.getByRole('button', { name: /Import/i }).click({ timeout: 8000 });
+    await page.getByRole('button', { name: 'Import', exact: true }).click({ timeout: 8000 });
     await page.locator('input[type="file"][accept=".lemon,.json"]').setInputFiles(lemonPath);
     await waitForPersistedProject(page, '!p.breakdownElements.cast && (p.castMembers || []).length > 0');
     const project = await getProject(page);
@@ -218,7 +218,7 @@ test.describe('cast single source of truth (castMembers)', () => {
 <Content>
 <Paragraph Type="Scene Heading" Number="1"><Text>INT. KITCHEN - DAY</Text><SceneProperties Length="1.0"/></Paragraph>
 <Paragraph Type="Character"><Text>AMY</Text></Paragraph>
-<Paragraph Type="Action"><Text>AMY talks to BOB.</Text></Paragraph>
+<Paragraph Type="Action"><Page Number="2"/><Text>AMY talks to BOB.</Text></Paragraph>
 <Paragraph Type="Scene Heading" Number="2"><Text>EXT. STREET - NIGHT</Text><SceneProperties Length="1.0"/></Paragraph>
 <Paragraph Type="Character"><Text>BOB</Text></Paragraph>
 <Paragraph Type="Action"><Text>BOB watches.</Text></Paragraph>
@@ -242,6 +242,11 @@ test.describe('cast single source of truth (castMembers)', () => {
     expect(scene1.cast.split(',').map((x: string) => x.trim())).toContain(String(amy.id));
     expect(scene1.cast.toLowerCase()).not.toContain('amy');
     expect(project.breakdownElements.cast).toBeUndefined();
+    // script page numbers from FDX <Page> break markers (scene 2 starts on p.2).
+    // FDX import APPENDS scenes, so the imported ones are the last '1'/'2'.
+    const scene2 = [...project.scenes].reverse().find((s: any) => s.sceneNumber === '2');
+    expect(scene2.scriptPageNumbers).toBe('2');
+    expect(scene1.scriptPageNumbers).toBeUndefined();
   });
 
   test('modals & prints: DOODs dialog, rule cards and printed cast list all read castMembers', async ({ page }) => {

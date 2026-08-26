@@ -3,6 +3,8 @@ import { normalizePunctuation } from '../utils';
 
 export interface ParsedScene {
   sceneNumber: string;
+  /** Script page the scene starts on (FDX <Page> markers / MSD ScriptPageNumbers). */
+  scriptPageNumbers?: string;
   pageCount?: string;
   pageCountDecimal?: number;
   intExt: IntExt;
