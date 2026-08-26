@@ -13,6 +13,7 @@ export { buildCSVLabelToKeyMap, parseCSV } from './csv';
 export { parseFDX } from './fdx';
 export { parseFountain } from './fountain';
 export { parseMsd, parseMsdFile } from './msd';
+export { parseSex, parseSexFile, exportSex, exportSexFile } from './sex';
 export { commitImport } from './commitImport';
 export type { CommitImportParams } from './commitImport';
 export { exportBreakdownCSV } from './exportCsv';

@@ -47,7 +47,7 @@ import { useStorage, SaveStatus, ProjectIndexEntry } from './components/StorageS
 import { RULE_TYPE_META, describeRule, getRuleSearchText } from './components/rules/ruleMeta';
 import { writeProjectToFolder } from './lib/persistentStorage';
 import ImportDialog from './components/ImportDialog';
-import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV } from './lib/import';
+import { parseFDX, parseFountain, parseCSV, ImportResult, exportBreakdownCSV, exportSexFile } from './lib/import';
 import { generateUUID, exportProjectFromStorage, exportProjectData } from './lib/utils';
 import { formatDriveError } from './lib/googleDriveStorage';
 import { SaveIndicator } from './components/SaveIndicator';
@@ -641,6 +641,10 @@ function AppContent() {
     exportBreakdownCSV(project);
   };
 
+  const handleExportSex = () => {
+    exportSexFile(project, state.present?.title || 'schedule');
+  };
+
   return (
     <LongPressMenuProvider
       targetSelector="[data-row-id], [data-marquee-container]"
@@ -696,6 +700,7 @@ function AppContent() {
         onImportClick={() => importFileRef.current?.click()}
         onExportCSV={handleExportCSV}
         onExportJSON={handleExportJSON}
+        onExportSex={handleExportSex}
         onPrintSchedule={() => setShowPrintDialog(true)}
         onPrintDood={() => setShowDoodDialog(true)}
         onPrintBreakdownSheet={() => setShowBreakdownSheetDialog(true)}

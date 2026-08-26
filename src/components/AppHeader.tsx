@@ -34,6 +34,7 @@ interface AppHeaderProps {
   onImportClick: () => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
+  onExportSex: () => void;
   onPrintSchedule: () => void;
   onPrintDood: () => void;
   onPrintBreakdownSheet: () => void;
@@ -52,7 +53,7 @@ export default function AppHeader(props: AppHeaderProps) {
   const version = project.versions.find(v => v.id === project.activeVersionId);
   const {
     activeTab, setActiveTab, isCloudProject, shiftHeld, togglePopout, onTabContextMenu,
-    onOpenProjectManager, onImportClick, onExportCSV, onExportJSON,
+    onOpenProjectManager, onImportClick, onExportCSV, onExportJSON, onExportSex,
     onPrintSchedule, onPrintDood, onPrintBreakdownSheet, onPrintReport,
     onShowTrash, driveCtx, closeProject, createProject,
   } = props;
@@ -116,6 +117,9 @@ export default function AppHeader(props: AppHeaderProps) {
             <DropdownSubmenu id="export-file" label="Export" icon={<Download className="w-3.5 h-3.5" />} width="w-48">
               <DropdownItem onClick={() => { setShowFileMenu(false); onExportCSV(); }}>
                 Breakdown to CSV
+              </DropdownItem>
+              <DropdownItem icon={<Download className="w-3.5 h-3.5" />} onClick={() => { setShowFileMenu(false); onExportSex(); }}>
+                Schedule to SEX (Movie Magic)
               </DropdownItem>
               <DropdownItem onClick={() => { setShowFileMenu(false); onExportJSON(); }}>
                 Export Project

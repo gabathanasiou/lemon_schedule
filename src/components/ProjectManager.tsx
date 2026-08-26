@@ -10,7 +10,7 @@ import { useDialog } from './Dialog';
 import Modal, { ModalFooter } from './Modal';
 import ProjectCard from './ProjectCard';
 import NewProjectModal from './NewProjectModal';
-import { parseMsdFile } from '../lib/import';
+import { parseMsdFile, parseSexFile } from '../lib/import';
 import { PM_BTN_PAD, PM_ICON, PM_ICON_SM, PM_INPUT, PM_TITLE, PM_SUBTITLE } from './projectManagerStyles';
 import { useGoogleAuth } from '../lib/googleDriveAuth';
 import { useDriveProjectList } from '../lib/useDriveProjectList';
@@ -171,6 +171,23 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     }
   };
 
+  const importImportedProject = async (project: Project): Promise<void> => {
+    const newId = importProjectFromData(project);
+    if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
+      try {
+        const proj = loadProjectFromStorage(newId);
+        if (proj) {
+          const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
+          updateProjectMeta(newId, { driveFileId });
+          refetchDrive();
+        }
+      } catch (err: any) {
+        dialog.alert({ title: 'Upload Failed', message: formatDriveError(err, 'The schedule was imported locally, but uploading it to Drive failed.') });
+      }
+    }
+    onClose?.();
+  };
+
   const handleImportSchedule = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -178,29 +195,18 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
     try {
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (ext === 'sex') {
-        dialog.alert({ title: 'Not Supported Yet', message: '.sex imports are coming soon. Start from a .msd (Movie Magic Scheduling 5/6) file for now.' });
+        const fallbackTitle = file.name.replace(/\.sex$/i, '').trim() || 'Imported Schedule';
+        const project = await parseSexFile(file, fallbackTitle);
+        await importImportedProject(project);
         return;
       }
       if (ext !== 'msd') {
-        dialog.alert({ title: 'Unknown File', message: 'Choose a .msd Movie Magic Scheduling file (or a .sex Scheduling Exchange file once supported).' });
+        dialog.alert({ title: 'Unknown File', message: 'Choose a .sex Scheduling Exchange file or a .msd Movie Magic Scheduling file.' });
         return;
       }
       const fallbackTitle = file.name.replace(/\.msd$/i, '').trim() || 'Imported Schedule';
       const project = await parseMsdFile(file, fallbackTitle);
-      const newId = importProjectFromData(project);
-      if (activeTab === 'cloud' && auth.isSignedIn && auth.accessToken) {
-        try {
-          const proj = loadProjectFromStorage(newId);
-          if (proj) {
-            const driveFileId = await pushProjectAndUpdateIndex(auth.accessToken, proj);
-            updateProjectMeta(newId, { driveFileId });
-            refetchDrive();
-          }
-        } catch (err: any) {
-          dialog.alert({ title: 'Upload Failed', message: formatDriveError(err, 'The schedule was imported locally, but uploading it to Drive failed.') });
-        }
-      }
-      onClose?.();
+      await importImportedProject(project);
     } catch (err: any) {
       dialog.alert({ title: 'Import Error', message: formatDriveError(err, err?.message || 'Failed to parse file') });
     } finally {
@@ -352,7 +358,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <button
                 onClick={() => scheduleFileRef.current?.click()}
                 disabled={!!parsingSchedule || importing}
-                title="Import a Movie Magic Scheduling (.msd) schedule as a new project"
+                title="Import a Movie Magic Scheduling (.msd) or Scheduling Exchange (.sex) schedule as a new project"
                 className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : 'Import Schedule'}
@@ -376,7 +382,7 @@ export function ProjectManager({ onClose }: ProjectManagerProps) {
               <button
                 onClick={() => scheduleFileRef.current?.click()}
                 disabled={!!parsingSchedule || importing}
-                title="Import a Movie Magic Scheduling (.msd) schedule as a new project"
+                title="Import a Movie Magic Scheduling (.msd) or Scheduling Exchange (.sex) schedule as a new project"
                 className="px-4 py-1.5 text-zinc-400 text-xs font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {parsingSchedule ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />} {parsingSchedule ? 'Parsing...' : 'Import Schedule'}

@@ -1072,7 +1072,16 @@ versions. Sections, contents → Lemon mapping:
   unscheduled strips in the Boneyard; undo restores exactly; lint +
   playwright (seeded-project import flow).
 
-## 41. Import & export `.sex` (Scheduling Exchange) files (`[ ]`)
+## 41. Import & export `.sex` (Scheduling Exchange) files (`[x]`)
+- Done: binary `SSI*` parser + writer in `src/lib/import/sex.ts`, verified against
+  the real "Lair (LOCKED) V10" MMS 6 export (144 scenes, 21 categories, 289
+  cast-only element records) + reference parser `tools/sex_probe.py` + golden
+  `e2e/fixtures/lair-v10.expected.json` + e2e (import + export round-trip).
+  Import: NEW-PROJECT-ONLY via Project Manager "Import Schedule" (accepts
+  `.sex,.msd`); scenes land in the Boneyard (SEX carries NO schedule data in
+  the wild — no day breaks/order to rebuild). Export: File > "Schedule to SEX
+  (Movie Magic)" — breakdown shape from project scenes, Final-Draft-neutral
+  zero-filled header so MMS 5/6/10 all accept it.
 
 **Requested**: import `.sex` files AND export the schedule to `.sex` — the
 open-ish interchange format for Movie Magic Scheduling 5/6, EP Scheduling,
@@ -1118,11 +1127,12 @@ schedule in; export = Lemon Schedule out to the industry-standard tools.
 - Cross-link item 40 (`msd` imports can route through SEX as the documented
   fallback path).
 
-**Verify**: import a full-schedule .sex fixture → sections/call times/order
-match; breakdown-only .sex → scenes+elements import, no sections invented;
-export → re-import the exported file in MMS (5/6/10 if available — else
-round-trip through our own parser + spec conformance checks); scene→row
-invariant; lint + playwright.
+**Verify**: import a real MMS 6 .sex fixture → scenes/cast/page counts match
+  the golden (144 scenes, 21 cast, eighths page counts, script start pages);
+  breakdown-only → no sections invented (pinned daybreak + Boneyard only,
+  scene→row invariant holds); export → the .sex re-parses with the reference
+  parser and round-trips through our own import with identical scene order +
+  cast + pages; lint + playwright.
 
 ---
 
