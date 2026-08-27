@@ -996,10 +996,10 @@ export const CalendarTab: React.FC<{
                       );
                     })}
                     <DropdownDivider />
-                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Attachment Cards</div>
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Cast &amp; Elements</div>
                     <button onClick={() => updateCal({ eventsFilter: { ...eventsFilter, attachments: !eventsFilter.attachments } })} className={FILTER_ROW}>
                       <FilterCheck on={eventsFilter.attachments} />
-                      <span className="text-zinc-900">Show attachment cards</span>
+                      <span className="text-zinc-900">Show cast &amp; element cards</span>
                     </button>
                     <DropdownDivider />
                     <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Rules</div>
