@@ -123,8 +123,13 @@ Exactly three containers via `row.containerId`: `null` = Boneyard, `1` = Stripbo
 ## Rules Engine (`src/lib/rulesEngine.ts`)
 `checkDay()`/`checkAllDays()`/`checkSection()`; rule types: MAX_HOURS, DATE_RESTRICTION, TIME_WINDOW, CAST_CONFLICT, CAST_SCENE_FLAG. Violations show as red Flag icons on day headers + scene strips (Schedule + Calendar).
 
-## Import/Export (`src/lib/import/` — barrel)
-CSV (PapaParse) / FDX (XML) / Fountain / **MSD** (EPSF Movie Magic Scheduling, roadmap item 40 — `parseMsdFile` builds a COMPLETE `Project` via `importProjectFromData`, new-project-only; reference parser `tools/msd_probe.py`, golden `e2e/fixtures/wonderful-life.expected.json`; cast ids sequential integers in MMS roster order = the Board IDs MMS assigns (ElementMgr registry order — George=1, Mary=2; the UI calls them "Board ID"; scene.cast stores the ids; sheet-only names append after the roster); pageCount = `formatPageCount(total)` + total `pageCountDecimal`; `scriptPageNumbers` (script start page — MSD attr / FDX `<Page>` break markers, first-class Scene field for future full-FDX render); ProductionInfo named roles → crew roster (director/producer/upm/firstAD/artDirector/setDecorator); scenes sorted by MMS SheetNumber (= script order; the glide positions match); ColorSettings → palette (ColorGrid → `colorPalette.sceneColors`, Hilite→selectedStrip*, DayStrip→dayHeader*, Banner→note*); daybreaks ONLY between ScheduleDay groups, pinned anchors day 1) / **SEX** (Scheduling Exchange `SSI*`, item 41 — `parseSexFile`/`exportSexFile`, breakdown-only, scenes → Boneyard; `#\0\0\0` records: type 1 scene header / type 2 element (flag = category index) / type 3 page eighths; export writes the Final-Draft-neutral zero-filled header; reference `tools/sex_probe.py`, golden `e2e/fixtures/lair-v10.expected.json`). `parseCSV`/`parseFDX`/`parseFountain` → `ImportResult`; `commitImport()` batches all dispatches for one undo entry; `exportBreakdownCSV()` exports visible columns. Shared `parseSceneHeading`, `FDX_CATEGORY_MAP`, `buildCSVLabelToKeyMap()`.
+## Import/Export
+Read `docs/IMPORT-EXPORT.md` before any import/export work (the single manual
+for the `src/lib/import/` barrel). Key gates to remember: append parsers
+CSV/FDX/Fountain → `ImportResult`; **MSD/SEX are NEW-PROJECT-ONLY** (build a
+complete `Project` via `importProjectFromData` — no append, no review stage);
+`commitImport()` batches dispatches into one undo entry; golden fixtures +
+reference parsers live in `tools/` / `e2e/fixtures/`.
 
 ## Pop-out Windows (`PopoutWindow.tsx`)
 - Desktop-only (`!IS_COARSE`): tabs/sub-tabs open in separate windows sharing state via `createPortal` (window opened synchronously in the click handler to dodge popup blockers; `cascadePosition()` tiles).
@@ -158,7 +163,14 @@ Read `docs/REPORTS-DESIGNER.md` first (three-pillar model: block tree / collecti
 ## Roadmap Work (single agent)
 - **One agent per item, on the current branch, in this tree** — no worktrees, no orchestrator, no parallel workers. Run `/roadmap-item <n>` (or just ask) and the agent works until the item is done.
 - The agent: reads `AGENTS.md` + domain docs FIRST (same READ-FIRST list the old feature-worker had), implements with small focused commits, asks you blocking questions directly (question tool — no decisions channel), then **self-reviews**: verifies its diff against the documented invariants (canonical models in AGENTS.md/docs — no re-derivation), checks for duplicated logic/monoliths, runs `npm run lint` + `npx playwright test`.
-- Then it **updates the docs itself**: loads the `write-agent-docs` skill, applies the `docs/*.md`/AGENTS.md updates its change calls for, and flips the item's `docs/ROADMAP.md` status `[ ]` → `[x]` with a one-line "Done:" note.
+- Then it **updates the docs itself**: loads the `write-agent-docs` skill, applies the `docs/*.md`/AGENTS.md updates its change calls for, and flips the item's `docs/ROADMAP.md` status `[ ]` → `[x]` with a one-line "Done:" note. Completed items' FULL narratives stay in git history; the live roadmap keeps only open items, and the completed index (`docs/ROADMAP-ARCHIVE.md`) is refreshed when an item closes.
+
+## Requests & Triage (new asks → roadmap)
+- **All feature asks funnel into `docs/ROADMAP.md` — no orphan features.** Before starting any work from a user ask (or numbering a new item), run the dedupe search in this order: live `docs/ROADMAP.md` → `docs/ROADMAP-ARCHIVE.md` (completed index) → AGENTS.md + `docs/*.md` → `git log --oneline --grep=<term>` → source code.
+- Outcome: ask matches an **open** item → tell the user and run/merge into that item, never add a duplicate; matches an **in-progress** item → never implement in parallel; matches a **done** item → answer with the pointer (AGENTS.md/doc section + code path), no new work; overlaps **several** items → merge into ONE item; matches nothing → new numbered item.
+- Items that relate to each other carry a `Relations:` line (`depends on` / `merges` / `supersedes` / `blocked by`) so future workers see the graph without re-reading the archive.
+- **Doc budgets** (measured with `wc -l`): `AGENTS.md` ≤ ~200 lines — it is loaded every session, so when a section is added, compact or move detail to `docs/*.md` (see `write-agent-docs` skill, Maintenance); per-feature `docs/*.md` ≤ ~200-400 lines each; the roadmap archive is index-only.
+
 - **Optional second pair of eyes**: dispatch the `code-reviewer` subagent (read-only) on `git diff` whenever you want an independent pass before or after committing docs.
 - **Phone notifications**: the agent pings ntfy (`NTFY_TOPIC` in `.env`, subscribed in the ntfy iOS app) before asking a blocking question and when the item is done — the streaming tab can sit idle; the phone still pings.
 ## Legacy parallel machinery (REMOVED — do not use)

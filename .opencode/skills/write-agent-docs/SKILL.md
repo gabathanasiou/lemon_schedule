@@ -121,3 +121,20 @@ Rule: <the "never store derived data" rule in one line>.
 3. Write the doc from the template above, keeping it under ~200 lines.
 4. Confirm key claims against `file:line` before finishing. If a line number is
    off by one, the whole doc loses trust.
+
+## Maintenance (keep docs from growing stale and fat)
+
+- **Budgets** (measure with `wc -l`): `AGENTS.md` ≤ ~200 lines — it is loaded
+  by every agent every session, so it is the most expensive doc; per-feature
+  `docs/*.md` ≤ ~200-400 lines each (read on demand); a roadmap archive is
+  index-only by design.
+- **Compaction step**: every time you edit `AGENTS.md` (or finish a feature
+  that adds a section), run the golden-rule sweep — move procedural detail to
+  the feature's on-demand doc, replace prose with `file:line` pointers, delete
+  superseded lines. Never append-only.
+- **Tombstones**: removed machinery gets ONE line ("REMOVED — see
+  `.opencode/.trash-deprecated/`"), never a kept-outline section.
+- **Archive policy**: completed roadmap items collapse to one index line
+  (with a knowledge/code pointer); the narrative lives in git history.
+- **Prevent regrowth**: new knowledge replaces or relocates — it must never be
+  appended to `AGENTS.md` without a compaction trade-off.

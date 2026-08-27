@@ -12,7 +12,13 @@ the item is done — code, self-review, and docs in one pass.
 
 ## Order of operations (mandatory)
 
-1. **READ FIRST, then code.** In order:
+1. **TRIAGE FIRST, then READ, then code.**
+   - **Triage/dedupe**: before implementing, verify the item isn't already
+     done/superseded — grep `docs/ROADMAP-ARCHIVE.md` (completed index),
+     AGENTS.md, `docs/*.md`, `git log --oneline --grep=<term>` and the code
+     for the item's domain. If the ask duplicates a DONE feature, STOP and
+     report the knowledge pointer instead of implementing. Read the item's
+     `Relations:` deps/mergers first (AGENTS.md §Roadmap Work).
    - `AGENTS.md` (full) — core rules override convenience.
    - The roadmap item text in `docs/ROADMAP.md` — implement exactly that.
    - The domain docs the item touches — reports designer work MUST read
@@ -59,7 +65,10 @@ the item is done — code, self-review, and docs in one pass.
    - `docs/*.md` — extend the existing doc for the touched feature; never
      re-derive a canonical spec, never create a doc for feature trivia.
    - `docs/ROADMAP.md` — flip the implemented item `[ ]` → `[x]` with a
-     one-line "Done:" note.
+      one-line "Done:" note (full narrative stays in git history); add or
+      refresh the item's one-line entry in `docs/ROADMAP-ARCHIVE.md`.
+   - Check the budgets (AGENTS.md ≤ ~200 lines; per-feature docs ≤ ~200-400):
+     `wc -l` them, compact or move detail to `docs/*.md` as needed.
    Commit the docs in the same unit as (or right after) the code.
 
 ## Done
