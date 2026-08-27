@@ -141,11 +141,14 @@ rounded-lg shadow-lg`, `DD_PANEL_CLASS_LIB` `:21-24`; items `DD_ITEM_CLASS_LIB` 
 `px-2 py-1 text-xs text-zinc-400 text-center "No matches"` (`:71`), commit hint footer
 `text-[10px] text-zinc-400 border-t border-zinc-100` (`:78`).
 
-**EntityDropdown chip version** (`variant="chip"` — modal rows: Link Manager, Color Rules rows;
-`days-status` pattern, TravelHoldModal). Trigger = dark chip: `bg-zinc-800 border border-zinc-700
+**EntityDropdown chip version** (`variant="chip"` — modal rows: Link Manager, Color Rules rows,
+`days-status` pattern, DayEventsModal attachment rows + inline rule editor cast pickers,
+ProductionDatesModal-adjacent modals). Trigger = dark chip: `bg-zinc-800 border border-zinc-700
 rounded text-zinc-300 hover:bg-zinc-750 px-2.5 py-1.5 flex items-center gap-1.5` + chevron
 (`w-3 h-3 text-zinc-500 absolute right-2`) + value/placeholder overlay; committed value stays raw,
 the overlay resolves cast as Glide-style (`1. FISHERMAN`, `—` fallback) via the `items` prop.
+**Every entity dropdown rendered inside a dark modal uses `variant="chip"`** — the dark trigger +
+dark panel are the modal theme (the light default is for light cells/forms only).
 Clicking the chip prepares the text: single selects all (retype replaces), multi sets the caret at
 the end (typing appends a segment). **Escape inside any open dropdown dismisses only the dropdown,
 never the enclosing modal** (`useEscapeCapture` in `src/lib/dropdown.ts` — a mount-registered
