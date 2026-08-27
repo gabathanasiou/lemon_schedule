@@ -13,7 +13,8 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
   await expect(page.getByRole('button', { name: 'Add Rule' })).toBeVisible();
 
   // DATE_RESTRICTION: DatePicker visible immediately (no "Applies every day.")
-  await page.getByRole('button', { name: /Date Restriction/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /Max Hours/ }).click();
+  await page.getByText('Date Restriction', { exact: true }).click();
   await expect(page.getByText('Applies every day.', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog').getByRole('button', { name: '17', exact: true })).toBeVisible();
 
@@ -28,7 +29,7 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
 
   // MAX_HOURS keeps the every-day toggle; switching to it preserves a workable state
   await page.getByRole('button', { name: 'New Rule' }).click();
-  await page.getByRole('button', { name: /Max Hours/ }).click();
+  await expect(page.getByRole('dialog').getByRole('button', { name: /Max Hours/ })).toBeVisible();
   await expect(page.getByText('Applies every day.', { exact: true })).toBeVisible();
   await page.getByText('Every day', { exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: '18', exact: true })).toBeVisible();
@@ -41,7 +42,8 @@ test('rules tab: date restriction picks dates; max hours + time window keep ever
 
   // TIME_WINDOW window modes (after/before) still render after the toggle refactor
   await page.getByRole('button', { name: 'New Rule' }).click();
-  await page.getByRole('button', { name: /Time Window/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /Max Hours/ }).click();
+  await page.getByText('Time Window', { exact: true }).click();
   await page.getByRole('button', { name: 'After A' }).click();
   await expect(page.getByText('From', { exact: true })).toBeVisible();
   await page.getByRole('dialog').locator('input').first().click();

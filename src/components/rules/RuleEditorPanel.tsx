@@ -5,12 +5,15 @@ import { usePortalTarget } from '../../lib/popoutTarget';
 import { EntityDropdown } from '../EntityDropdown';
 import DatePicker from '../DatePicker';
 import Checkbox from '../Checkbox';
+import DropdownMenu from '../DropdownMenu';
+import DropdownItem from '../DropdownItem';
+import Button from '../Button';
 import {
   RULE_TYPE_META, RULE_TYPES,
   RuleFormState, blankRuleForm, formFromRule, validateRuleForm, buildRulesFromForm,
 } from './ruleMeta';
 import { ruleModalSizes } from './ColorRuleFormParts';
-import { X, Trash2, AlertCircle } from 'lucide-react';
+import { X, Trash2, AlertCircle, ChevronDown } from 'lucide-react';
 
 /** The shared dark rule editor (roadmap 46's shared shell) — one copy used by
  *  the Calendar's Day Events modal (inline, pre-seeded with the day) AND the
@@ -41,9 +44,12 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
     return blankRuleForm();
   });
   const [error, setError] = useState('');
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
   const { XSZ, CREM_LABEL, CREM_FOOTER_BTN } = sizes;
+  const selectedMeta = RULE_TYPE_META[form.type];
+  const SelectedIcon = selectedMeta.icon;
 
   const castOptions = useMemo(() => {
     const ids = [...new Set([
@@ -138,23 +144,31 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
 
       {/* Rule type */}
       <FieldBox label="Rule Type">
-      <div className="grid grid-cols-2 gap-1.5">
+      <DropdownMenu
+        open={typeMenuOpen}
+        onOpenChange={setTypeMenuOpen}
+        width="w-52"
+        theme="dark"
+        trigger={
+          <Button theme="dark" variant="subtle" className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 flex items-center gap-2" data-rule-type>
+            <SelectedIcon className={`w-3.5 h-3.5 shrink-0 ${selectedMeta.chipIcon}`} />
+            <span className="truncate text-zinc-200">{selectedMeta.label}</span>
+            <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0" />
+          </Button>
+        }
+      >
         {RULE_TYPES.map(t => {
           const m = RULE_TYPE_META[t];
           const Icon = m.icon;
-          const selected = form.type === t;
           return (
-            <button key={t} type="button" onClick={() => setForm(f => ({ ...f, type: t, datesMode: t === 'DATE_RESTRICTION' ? 'specific' : f.datesMode }))}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] font-semibold transition-colors text-left border ${
-                selected ? m.chip : `bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border-zinc-800`
-              }`}
+            <DropdownItem key={t} onClick={() => { setForm(f => ({ ...f, type: t, datesMode: t === 'DATE_RESTRICTION' ? 'specific' : f.datesMode })); setTypeMenuOpen(false); }}
+              icon={<Icon className={`w-3.5 h-3.5 ${m.chipIcon}`} />}
             >
-              <Icon className={`w-3 h-3 shrink-0 ${m.chipIcon}`} />
-              <span className="truncate">{m.label}</span>
-            </button>
+              <span className={m.chipIcon}>{m.label}</span>
+            </DropdownItem>
           );
         })}
-      </div>
+      </DropdownMenu>
       </FieldBox>
 
       {/* Cast */}
