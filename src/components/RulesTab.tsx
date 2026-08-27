@@ -233,6 +233,7 @@ export const RulesTab: React.FC = () => {
         >
           <div className="p-6">
             <RuleEditorPanel
+              bare
               initial={editingRule}
               scenes={scenes}
               castMembers={castMembers}

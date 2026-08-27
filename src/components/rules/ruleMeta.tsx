@@ -15,6 +15,9 @@ export interface RuleTypeMeta {
   border: string;
   text: string;
   badge: string;
+  /** Dark RuleEditorPanel type-chip: selected state + always-on icon color. */
+  chip: string;
+  chipIcon: string;
 }
 
 export function getRuleGroupKey(rule: ProjectRule): string {
@@ -47,6 +50,8 @@ export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
     border: 'border-sky-200',
     text: 'text-sky-700',
     badge: 'bg-sky-100 text-sky-700',
+    chip: 'bg-sky-950 border-sky-700 text-sky-200',
+    chipIcon: 'text-sky-400',
   },
   DATE_RESTRICTION: {
     label: 'Date Restriction',
@@ -58,6 +63,8 @@ export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
     border: 'border-rose-200',
     text: 'text-rose-700',
     badge: 'bg-rose-100 text-rose-700',
+    chip: 'bg-rose-950 border-rose-700 text-rose-200',
+    chipIcon: 'text-rose-400',
   },
   TIME_WINDOW: {
     label: 'Time Window',
@@ -69,6 +76,8 @@ export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
     border: 'border-amber-200',
     text: 'text-amber-700',
     badge: 'bg-amber-100 text-amber-700',
+    chip: 'bg-amber-950 border-amber-700 text-amber-200',
+    chipIcon: 'text-amber-400',
   },
   CAST_CONFLICT: {
     label: 'Cast Conflict',
@@ -80,6 +89,8 @@ export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
     border: 'border-violet-200',
     text: 'text-violet-700',
     badge: 'bg-violet-100 text-violet-700',
+    chip: 'bg-violet-950 border-violet-700 text-violet-200',
+    chipIcon: 'text-violet-400',
   },
   CAST_SCENE_FLAG: {
     label: 'Cast Scene Flag',
@@ -91,6 +102,8 @@ export const RULE_TYPE_META: Record<RuleType, RuleTypeMeta> = {
     border: 'border-emerald-200',
     text: 'text-emerald-700',
     badge: 'bg-emerald-100 text-emerald-700',
+    chip: 'bg-emerald-950 border-emerald-700 text-emerald-200',
+    chipIcon: 'text-emerald-400',
   },
 };
 

@@ -1,15 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { ProjectRule, Scene, CastMember } from '../../types';
-import { getUniqueCastIds } from '../../lib/utils';
+import { getUniqueCastIds, formatRuleDateShort } from '../../lib/utils';
 import { usePortalTarget } from '../../lib/popoutTarget';
 import { EntityDropdown } from '../EntityDropdown';
 import DatePicker from '../DatePicker';
+import Checkbox from '../Checkbox';
 import {
   RULE_TYPE_META, RULE_TYPES,
   RuleFormState, blankRuleForm, formFromRule, validateRuleForm, buildRulesFromForm,
 } from './ruleMeta';
 import { ruleModalSizes } from './ColorRuleFormParts';
-import { X, Check, Trash2, AlertCircle } from 'lucide-react';
+import { X, Trash2, AlertCircle } from 'lucide-react';
 
 /** The shared dark rule editor (roadmap 46's shared shell) — one copy used by
  *  the Calendar's Day Events modal (inline, pre-seeded with the day) AND the
@@ -26,10 +27,13 @@ export interface RuleEditorPanelProps {
   onSave: (rules: ProjectRule[]) => void;
   onDelete?: () => void;
   onClose: () => void;
+  /** Rendered inside a Modal shell (Rules tab): the Modal provides the title
+   *  + close button; the panel renders fields + footer only, no box/header. */
+  bare?: boolean;
 }
 
 export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
-  initial, preseedDateKey, scenes, castMembers, onSave, onDelete, onClose,
+  initial, preseedDateKey, scenes, castMembers, onSave, onDelete, onClose, bare,
 }) => {
   const [form, setForm] = useState<RuleFormState>(() => {
     if (initial) return formFromRule(initial);
@@ -39,7 +43,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
   const [error, setError] = useState('');
   const portalTarget = usePortalTarget();
   const sizes = ruleModalSizes();
-  const { XSZ, CREM_LABEL } = sizes;
+  const { XSZ, CREM_LABEL, CREM_FOOTER_BTN } = sizes;
 
   const castOptions = useMemo(() => {
     const ids = [...new Set([
@@ -106,48 +110,56 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
     />
   );
 
+  /** Adding from a specific day (events UI) locks the rule to that day:
+   *  single date, no every-day toggle, no multi-date picker. Editing keeps
+   *  the full surface (an existing rule may span days). */
+  const dayLocked = !!preseedDateKey && !initial;
+
+  const FieldBox: React.FC<{ label: string; children: React.ReactNode; className?: string }> = ({ label, children, className }) => (
+    <div className={`border border-zinc-700 rounded-lg p-3 space-y-3 ${className ?? ''}`}>
+      <span className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider block`}>{label}</span>
+      {children}
+    </div>
+  );
+
+
   return (
-    <div className="border border-zinc-700 rounded-lg p-3 space-y-4" data-rule-editor>
-      <div className="flex items-center justify-between">
-        <span className={`${CREM_LABEL} text-zinc-300 uppercase font-semibold tracking-wider`}>
-          {initial ? 'Edit Rule' : 'Add Rule'}
-        </span>
-        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 transition-colors p-0.5">
-          <X className={XSZ} />
-        </button>
-      </div>
+    <div className="space-y-4" data-rule-editor>
+      {!bare && (
+        <div className="flex items-center justify-between">
+          <span className={`${CREM_LABEL} text-zinc-300 uppercase font-semibold tracking-wider`}>
+            {initial ? 'Edit Rule' : 'Add Rule'}
+          </span>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 transition-colors p-0.5">
+            <X className={XSZ} />
+          </button>
+        </div>
+      )}
 
       {/* Rule type */}
+      <FieldBox label="Rule Type">
       <div className="grid grid-cols-2 gap-1.5">
         {RULE_TYPES.map(t => {
           const m = RULE_TYPE_META[t];
           const Icon = m.icon;
           const selected = form.type === t;
           return (
-            <button key={t} type="button" onClick={() => setForm(f => ({ ...f, type: t }))}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] font-semibold transition-colors text-left ${
-                selected ? 'bg-zinc-700 text-white' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+            <button key={t} type="button" onClick={() => setForm(f => ({ ...f, type: t, datesMode: t === 'DATE_RESTRICTION' ? 'specific' : f.datesMode }))}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-[10px] font-semibold transition-colors text-left border ${
+                selected ? m.chip : `bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border-zinc-800`
               }`}
             >
-              <Icon className="w-3 h-3 shrink-0" />
+              <Icon className={`w-3 h-3 shrink-0 ${m.chipIcon}`} />
               <span className="truncate">{m.label}</span>
             </button>
           );
         })}
       </div>
+      </FieldBox>
 
       {/* Cast */}
-      {form.type !== 'CAST_CONFLICT' && form.type !== 'CAST_SCENE_FLAG' ? (
-        <div>
-          <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Board IDs</label>
-          {castField(form.castIds, v => setForm(f => ({ ...f, castIds: v })), 'e.g. 1, 2, JOHN')}
-        </div>
-      ) : form.type === 'CAST_SCENE_FLAG' ? (
-        <div>
-          <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Cast</label>
-          {castField(form.castIds, v => setForm(f => ({ ...f, castIds: v })), 'e.g. 1, 2')}
-        </div>
-      ) : (
+      <FieldBox label={form.type === 'CAST_CONFLICT' || form.type === 'CAST_SCENE_FLAG' ? 'Cast' : 'Board IDs'}>
+      {form.type === 'CAST_CONFLICT' ? (
         <div className="space-y-2">
           <div>
             <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Group A</label>
@@ -158,30 +170,32 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
             {castField(form.conflictCastIds, v => setForm(f => ({ ...f, conflictCastIds: v })), 'e.g. 3, 4')}
           </div>
         </div>
+      ) : (
+        castField(form.castIds, v => setForm(f => ({ ...f, castIds: v })), form.type === 'CAST_SCENE_FLAG' ? 'e.g. 1, 2' : 'e.g. 1, 2, JOHN')
       )}
+      </FieldBox>
 
       {/* Dates */}
       {(form.type === 'DATE_RESTRICTION' || form.type === 'MAX_HOURS' || form.type === 'TIME_WINDOW') && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider`}>Dates</label>
-            {form.type !== 'DATE_RESTRICTION' && (
-              <button
-                onClick={() => setForm(f => ({
+        <FieldBox label="Dates">
+          <div className="flex items-center justify-end mb-1.5">
+            {form.type !== 'DATE_RESTRICTION' && !dayLocked && (
+              <Checkbox
+                checked={form.datesMode === 'all'}
+                onChange={on => setForm(f => ({
                   ...f,
-                  datesMode: f.datesMode === 'all' ? 'specific' : 'all',
-                  dates: f.datesMode === 'all' && preseedDateKey ? [preseedDateKey] : [],
+                  datesMode: on ? 'all' : 'specific',
+                  dates: on ? [] : preseedDateKey ? [preseedDateKey] : f.dates,
                 }))}
-                className={`${CREM_LABEL} font-medium flex items-center gap-1.5 transition-colors ${form.datesMode === 'all' ? 'text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${form.datesMode === 'all' ? 'bg-zinc-600 border-zinc-500' : 'border-zinc-700'}`}>
-                  {form.datesMode === 'all' && <Check className="w-2.5 h-2.5 text-zinc-200" />}
-                </span>
-                Every day
-              </button>
+                label="Every day"
+              />
             )}
           </div>
-          {form.datesMode === 'all' ? (
+          {dayLocked ? (
+            <p className={`${CREM_LABEL} text-zinc-500 italic`}>
+              Applies to this day only — {formatRuleDateShort(preseedDateKey!)}.
+            </p>
+          ) : form.datesMode === 'all' && form.type !== 'DATE_RESTRICTION' ? (
             <p className={`${CREM_LABEL} text-zinc-500 italic`}>Applies every day.</p>
           ) : (
             <DatePicker
@@ -190,13 +204,12 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
               theme="dark"
             />
           )}
-        </div>
+        </FieldBox>
       )}
 
       {/* Max hours */}
       {form.type === 'MAX_HOURS' && (
-        <div>
-          <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider mb-1.5 block`}>Max hours per day</label>
+        <FieldBox label="Max Hours per Day">
           <input
             type="number"
             min={0.5}
@@ -205,13 +218,12 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
             onChange={e => setForm(f => ({ ...f, maxHours: e.target.value }))}
             className={`${sizes.CREM_TEXT} w-24 px-2.5 py-1.5 rounded bg-zinc-900 border border-zinc-700 outline-none focus:border-zinc-500`}
           />
-        </div>
+        </FieldBox>
       )}
 
       {/* Time window */}
       {form.type === 'TIME_WINDOW' && (
-        <div className="space-y-2">
-          <label className={`${CREM_LABEL} text-zinc-500 uppercase font-semibold tracking-wider block`}>Time restriction</label>
+        <FieldBox label="Time Restriction">
           <div className="grid grid-cols-2 gap-1.5">
             {windowModes.map(wm => (
               <button
@@ -250,7 +262,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
           {form.windowMode === 'allday' && (
             <p className={`${CREM_LABEL} text-zinc-500 italic`}>Available the entire day — no time restriction.</p>
           )}
-        </div>
+        </FieldBox>
       )}
 
       {error && (
@@ -264,14 +276,14 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
         {onDelete ? (
           <button
             onClick={onDelete}
-            className={`${CREM_LABEL} text-red-400 hover:text-red-300 font-medium flex items-center gap-1 transition-colors`}
+            className={`${CREM_FOOTER_BTN} text-red-400 hover:bg-zinc-800 hover:text-red-300 font-medium rounded-lg transition-colors flex items-center gap-1.5`}
           >
             <Trash2 className={XSZ} /> Delete
           </button>
         ) : <div />}
         <div className="flex items-center gap-2">
-          <button onClick={onClose} className={`${CREM_LABEL} text-zinc-400 hover:text-zinc-200 font-medium transition-colors`}>Cancel</button>
-          <button onClick={handleSave} className={`${CREM_LABEL} bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-3 py-1.5 rounded transition-colors`}>
+          <button onClick={onClose} className={`${CREM_FOOTER_BTN} text-zinc-400 font-medium rounded-lg hover:bg-zinc-800 hover:text-zinc-200 transition-colors`}>Cancel</button>
+          <button onClick={handleSave} className={`${CREM_FOOTER_BTN} bg-zinc-800 text-white font-semibold rounded-lg border border-zinc-700 hover:bg-zinc-700 transition-colors`}>
             {initial ? 'Save Changes' : 'Add Rule'}
           </button>
         </div>
