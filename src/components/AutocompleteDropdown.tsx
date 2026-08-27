@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useDropdown, useOpenHandler, DD_ITEM } from '../lib/dropdown';
+import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { IS_COARSE, useHardwareKeyboard } from '../lib/device';
 import { useKeyboardMode } from '../lib/persist';
@@ -66,6 +66,9 @@ export const AutocompleteDropdown: React.FC<AutocompleteDropdownProps> = ({
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const handleOpen = useOpenHandler(setOpen);
+
+  // Escape dismisses ONLY this dropdown — never the enclosing modal.
+  useEscapeCapture(open, () => { setOpen(false); setVal(value); });
 
   useSmartPosition(ref, positioning === 'relative' && open);
 

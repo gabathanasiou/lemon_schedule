@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { useDropdown, useOpenHandler, DD_ITEM } from '../lib/dropdown';
+import { useDropdown, useOpenHandler, useEscapeCapture, DD_ITEM } from '../lib/dropdown';
 import { useSmartPosition, useFixedPosition } from '../lib/useSmartPosition';
 import { advanceRibbonFocus } from '../lib/ribbonEditNav';
 import { IS_COARSE } from '../lib/device';
@@ -41,6 +41,9 @@ export const SelectDropdown: React.FC<SelectDropdownProps> = ({
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0, maxH: 288 } as { top: number; left: number; width: number; maxH: number; bottom?: number; ready?: boolean });
 
   const handleOpen = useOpenHandler(setOpen);
+
+  // Escape dismisses ONLY this dropdown — never the enclosing modal.
+  useEscapeCapture(open, () => setOpen(false));
 
   useEffect(() => {
     if (autoFocus && !readOnly && ref.current) {

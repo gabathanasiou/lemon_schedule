@@ -12,8 +12,10 @@ async function seedRibbonElement(page: any) {
   await page.evaluate(() => {
     const b = (window as any).__lemonSchedule;
     const p = b.getProject();
-    if (!(p.breakdownElements?.props || []).some((e: any) => e.name === 'LINKED RIBBON')) {
-      b.dispatch({ type: 'ADD_ELEMENT', payload: { category: 'props', element: { id: 'LINKED RIBBON', name: 'LINKED RIBBON' } } });
+    for (const name of ['LINKED RIBBON', 'SECOND RIBBON']) {
+      if (!(p.breakdownElements?.props || []).some((e: any) => e.name === name)) {
+        b.dispatch({ type: 'ADD_ELEMENT', payload: { category: 'props', element: { id: name, name } } });
+      }
     }
   });
 }
@@ -146,7 +148,7 @@ test('scene sheet: removing an anchor with links warns — cancel keeps it, conf
   expect(afterConfirm.props.split(',').map((x: string) => x.trim())).not.toContain('LINKED RIBBON');
 });
 
-test('link manager: add a link and retroactively apply to existing scenes', async ({ page }) => {
+test('link manager: anchor card links multiple elements and applies retroactively', async ({ page }) => {
   await openSeededProject(page);
   await seedRibbonElement(page);
   const anchorId = '1';
@@ -169,15 +171,43 @@ test('link manager: add a link and retroactively apply to existing scenes', asyn
   await expect(modal).toBeVisible();
   await expect(modal).toContainText('Element Links');
 
-  // Draft row: anchor = FISHERMAN (cast), linked = LINKED RIBBON (props).
-  await modal.locator('button', { hasText: 'Select...' }).first().click();
+  // Day-status-modal style rows: type to filter, CLICK the item (mouse).
+  const elementInput = modal.locator('[data-el-dropdown] input');
+  await elementInput.nth(0).click();
+  await page.keyboard.type('fish');
   await page.getByText('FISHERMAN', { exact: true }).last().click();
-  await modal.locator('button', { hasText: 'Select...' }).first().click();
-  await page.getByText('LINKED RIBBON', { exact: true }).last().click();
+  await expect(elementInput.nth(0)).toHaveValue('1');
 
-  // Apply retroactively: every scene containing the anchor gains the linked props.
-  await modal.getByRole('button', { name: 'Apply', exact: true }).click();
-  await expect(modal.getByText(/Applied: linked element added to/)).toBeVisible();
+  // Linked row = multi-select per category: pick BOTH ribbon props in it.
+  await elementInput.nth(1).click();
+  await page.keyboard.type('linked');
+  await page.getByText('LINKED RIBBON', { exact: true }).last().click();
+  await expect(elementInput.nth(1)).toHaveValue(/LINKED RIBBON/);
+  await elementInput.nth(1).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(', second');
+  await page.getByText('SECOND RIBBON', { exact: true }).last().click();
+  await expect(elementInput.nth(1)).toHaveValue(/SECOND RIBBON/);
+  await expect(elementInput.nth(1)).toHaveValue(/LINKED RIBBON/);
+
+  // One linked row per category: Add pre-fills the NEXT unused category
+  // (cast + sets skipped → Background Actors), so a duplicate Props row
+  // can't be created by adding.
+  await modal.getByRole('button', { name: 'Add Linked Element' }).click();
+  await expect(modal.getByRole('button', { name: 'Background Actors', exact: true })).toBeVisible();
+
+  // Used categories are DISABLED in the linked row's category menu…
+  await modal.getByRole('button', { name: 'Background Actors', exact: true }).click();
+  const propsItem = page.locator('[role="menuitem"]').filter({ hasText: /^Props$/ });
+  await expect(propsItem).toHaveAttribute('aria-disabled', 'true');
+  // …and Sets is anchor-only — never offered as a linked category.
+  await expect(page.locator('[role="menuitem"]').filter({ hasText: /^Sets$/ })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeVisible();
+
+  // Apply the whole card: both linked elements land in every scene with the anchor.
+  await modal.getByRole('button', { name: 'Apply linked elements to existing scenes' }).click();
+  await expect(modal.getByText(/Applied: linked elements added to/)).toBeVisible();
 
   const applied = await page.evaluate(({ id, aId }) => {
     const b = (window as any).__lemonSchedule;
@@ -186,15 +216,36 @@ test('link manager: add a link and retroactively apply to existing scenes', asyn
     return {
       anchorScenes: p.scenes.filter((x: any) => (x.cast || '').split(',').map((c: string) => c.trim()).includes(String(aId))).length,
       anchoredSceneProps: s?.props || '',
+      links: p.elementLinks || [],
     };
   }, { id: target.id, aId: anchorId });
 
   expect((applied.anchoredSceneProps || '').split(',').map((x: string) => x.trim())).toContain('LINKED RIBBON');
+  expect((applied.anchoredSceneProps || '').split(',').map((x: string) => x.trim())).toContain('SECOND RIBBON');
   expect(applied.anchorScenes).toBeGreaterThan(0);
 
-  // Link persisted on the project.
-  const links = await page.evaluate(() => {
-    return (window as any).__lemonSchedule.getProject().elementLinks || [];
-  });
-  expect(links.some((l: any) => l.anchorCategory === 'cast' && l.anchorValue === '1' && l.linkedCategory === 'props')).toBe(true);
+  // Both links persisted under the same anchor.
+  const anchorLinks = applied.links.filter((l: any) => l.anchorCategory === 'cast' && l.anchorValue === String(anchorId));
+  expect(anchorLinks).toHaveLength(2);
+  expect(anchorLinks.map((l: any) => l.linkedCategory)).toEqual(['props', 'props']);
+
+  // Close + reopen: flat storage regroups into ONE Props row again (the
+  // per-value rows bug — four links must not reopen as four rows).
+  await modal.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(modal).toBeHidden();
+  await page.getByRole('button', { name: 'Links', exact: true }).click();
+  await expect(modal).toBeVisible();
+  await expect(elementInput).toHaveCount(2);
+  await expect(elementInput.nth(0)).toHaveValue('1');
+  await expect(elementInput.nth(1)).toHaveValue(/LINKED RIBBON/);
+  await expect(elementInput.nth(1)).toHaveValue(/SECOND RIBBON/);
+
+  // A gibberish query shows the synthetic "Add" row (day-modal behavior)…
+  await elementInput.nth(1).click();
+  await page.keyboard.press('Meta+A');
+  await page.keyboard.type('zzz');
+  await expect(page.getByText(/Add "zzz"/)).toBeVisible();
+  // …and Escape dismisses ONLY the dropdown — the modal stays open.
+  await page.keyboard.press('Escape');
+  await expect(modal).toBeVisible();
 });

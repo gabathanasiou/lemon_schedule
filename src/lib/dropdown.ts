@@ -1,4 +1,4 @@
-import { useEffect, useCallback, type RefObject } from 'react';
+import { useEffect, useCallback, useRef, type RefObject } from 'react';
 import { CastMember } from '../types';
 import { IS_COARSE } from './device';
 import { useCurrentDocument } from './popoutTarget';
@@ -58,6 +58,35 @@ export function useOpenHandler(setOpen: (v: boolean) => void) {
     globalDropdownCloseRef.current?.();
     setOpen(true);
   }, [setOpen]);
+}
+
+/**
+ * Escape inside an open dropdown must dismiss ONLY the dropdown — NEVER the
+ * enclosing app Modal (a Radix dialog closes on Escape via a document
+ * CAPTURE listener registered when the dialog opens). This interceptor is
+ * registered at MOUNT (capture listeners run in registration order, so a
+ * mount-time registration always wins over the dialog's later one) and, while
+ * `active`, swallows Escape at the very start (stopImmediatePropagation) and
+ * runs `onEscape` (the dropdown's own dismiss logic — its input-level handler
+ * never fires because the native event is stopped before it reaches the tree).
+ * When no dropdown is open the interceptor stays silent and the modal closes
+ * as usual.
+ */
+export function useEscapeCapture(active: boolean, onEscape: () => void) {
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
+  const currentDocument = useCurrentDocument();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !activeRef.current) return;
+      e.stopImmediatePropagation();
+      onEscapeRef.current();
+    };
+    currentDocument.addEventListener('keydown', onKey, { capture: true });
+    return () => currentDocument.removeEventListener('keydown', onKey, { capture: true });
+  }, [currentDocument]);
 }
 
 export function sortCastMembers(list: CastMember[], currentIds: string[], displayMode: 'id' | 'name' = 'id') {

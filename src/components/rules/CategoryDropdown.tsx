@@ -13,12 +13,15 @@ export const CategoryDropdown: React.FC<{
   allCategoryKeys: { key: string; isCustom: boolean }[];
   categoryLabelLookup: Record<string, string>;
   customCategories?: { key: string; icon?: string }[];
+  /** Categories disabled in the menu (e.g. already used by another linked
+   *  row) — shown visibly disabled, not hidden. */
+  disabledKeys?: ReadonlySet<string>;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   btnClass: string;
   itemClass: string;
   minWidth?: string;
-}> = ({ value, onChange, allCategoryKeys, categoryLabelLookup, customCategories, open, onOpenChange, btnClass, itemClass, minWidth }) => {
+}> = ({ value, onChange, allCategoryKeys, categoryLabelLookup, customCategories, disabledKeys, open, onOpenChange, btnClass, itemClass, minWidth }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,13 +54,17 @@ export const CategoryDropdown: React.FC<{
               ? getCustomIcon(customCategories?.find(c => c.key === key)?.icon || 'Tag')
               : CAT_ICONS[key] || null;
             const active = key === value;
+            const disabled = !!disabledKeys?.has(key);
             return (
               <RadixDropdownMenu.Item
                 key={key}
                 data-cat={key}
+                disabled={disabled}
                 onSelect={() => onChange(key)}
                 className={`flex items-center gap-2 ${itemClass} rounded transition-colors outline-none cursor-pointer select-none ${
-                  active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                  disabled
+                    ? 'text-zinc-600 opacity-60 cursor-not-allowed'
+                    : active ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
                 }`}
               >
                 {Icon && <Icon className="w-3.5 h-3.5 shrink-0" />}

@@ -232,7 +232,6 @@ export const ColorRuleEditModal: React.FC<Props> = ({ rule, onSave, onDelete, on
                   setConditionCategory={setConditionCategory}
                   setConditionElement={setConditionElement}
                   removeCondition={removeCondition}
-                  getElementName={getElementName}
                   sizes={sizes}
                 />
                 </React.Fragment>

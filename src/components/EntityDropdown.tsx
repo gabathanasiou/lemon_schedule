@@ -24,8 +24,9 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Scene } from '../types';
-import { useDropdown, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB } from '../lib/dropdown';
+import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB } from '../lib/dropdown';
 import { buildDropdownItems } from '../lib/dropdownItems';
 import DropdownPanel from './DropdownPanel';
 
@@ -88,6 +89,10 @@ interface EntityDropdownProps {
   /** Skip the auto-append of ', ' when opening a cell - used when a key press replaced the cell value */
   skipComma?: boolean;
   style?: React.CSSProperties;
+  /** Visual style: 'default' (thin transparent inline editor) or 'chip' (dark
+   *  bordered button-like trigger with chevron — for modal rows like the link
+   *  manager / color rules; panel behavior identical). */
+  variant?: 'default' | 'chip';
 }
 
 /**
@@ -218,6 +223,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   portalTarget,
   skipComma = false,
   style,
+  variant = 'default',
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -227,11 +233,24 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   const syntheticRef = useRef(false);
   const [keyboardMode] = useKeyboardMode();
   const hwKeyboard = useHardwareKeyboard();
+  // Who moved the highlight last — pointer hover or the keyboard arrows. The
+  // highLighter state is shared, so the latest interaction wins; leaving the
+  // list clears a POINTER-driven highlight so it can't linger next to a
+  // keyboard one (single-highlight rule for chip panels).
+  const hoverRef = useRef(false);
 
   const forceOpen = useCallback(() => {
     committedRef.current = false;
     setOpen(true);
   }, [setOpen]);
+
+  // Escape dismisses ONLY this dropdown — never the enclosing modal.
+  useEscapeCapture(open, () => {
+    committedRef.current = true;
+    setOpen(false);
+    setQuery('');
+    setHighlightedIndex(-1);
+  });
 
   useSmartPosition(ref, positioning === 'relative' && open);
 
@@ -424,16 +443,45 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     </>
   );
 
-  if (readOnly && !open) {
-    return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;
-  }
-
   const displayValue = open
     ? (mode === 'multi' || mode === 'select' ? val : (standalone ? query : (query || localIds.join(', '))))
     : (value || '');
 
+  // Chip trigger (closed): resolve values against the passed items so cast
+  // reads like the Glide breakdown ("1. FISHERMAN") instead of raw ids. The
+  // underlying committed value stays untouched. NOTE: hooks MUST stay above
+  // the readOnly early return — a conditional hook breaks the hook order.
+  const chipDisplay = useMemo(() => {
+    if (variant !== 'chip' || open || !displayValue) return '';
+    return displayValue.split(',').map((segRaw: string) => {
+      const seg = segRaw.trim();
+      if (!seg) return '';
+      const item = displayMode === 'id'
+        ? items.find(i => i.id === seg)
+        : items.find(i => (i.name || i.id) === seg);
+      if (!item) return seg;
+      return displayMode === 'id'
+        ? `${item.id}. ${item.name && item.name !== item.id ? item.name : '—'}`
+        : (item.name || item.id);
+    }).filter(Boolean).join(', ');
+  }, [variant, open, displayValue, items, displayMode]);
+
+  if (readOnly && !open) {
+    return <span className={className} onAuxClick={forceOpen}>{value || '?'}</span>;
+  }
+
   return (
-    <div ref={ref} className={standalone ? '' : `relative h-[1lh] ${className || ''}`} onMouseDown={e => e.stopPropagation()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }} onAuxClick={forceOpen}>
+    <div
+      ref={ref}
+      className={
+        variant === 'chip'
+          ? `flex items-center gap-1.5 px-2.5 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-750 relative ${className || ''}`
+          : (standalone ? '' : `relative h-[1lh] ${className || ''}`)
+      }
+      onMouseDown={e => e.stopPropagation()}
+      onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
+      onAuxClick={forceOpen}
+    >
       <input
         autoFocus={autoFocusProp}
         readOnly={IS_COARSE && !hwKeyboard && keyboardMode === 'off'}
@@ -445,10 +493,21 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           forceOpen();
         }}
         onFocus={forceOpen}
-        onClick={forceOpen}
+        onClick={(e) => {
+          // Clicking an open picker prepares the text SYNCHRONOUSLY (no rAF —
+          // a deferred selection can land between e.g. Cmd+A and the next
+          // keystroke, turning a replace into an append): single (search-then-
+          // select) selects all so typing replaces; multi (comma list) puts
+          // the caret at the end so typing appends a new segment.
+          forceOpen();
+          const el = e.currentTarget;
+          const len = el.value.length;
+          if (mode === 'single') el.setSelectionRange(0, len);
+          else el.setSelectionRange(len, len);
+        }}
         onBlur={() => commit()}
         placeholder={standalone ? placeholder : ''}
-        className={`${DD_INPUT_CLASS(standalone)} ${standalone ? '' : (className || '')} ${standalone ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
+        className={`${DD_INPUT_CLASS(standalone)} ${variant === 'chip' ? 'cursor-pointer pr-5' : ''} ${standalone ? '' : (className || '')} ${(standalone || variant === 'chip') ? '' : 'hover:bg-black/[0.09] focus:bg-black/[0.18]'}`}
         style={standalone ? style : { ...style, color: 'transparent', caretColor: '#2563eb' }}
         onKeyDown={e => {
           if (e.key === 'Escape') { committedRef.current = true; setOpen(false); setQuery(''); setHighlightedIndex(-1); }
@@ -505,11 +564,13 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           if (e.key === 'ArrowDown') {
             e.preventDefault();
             if (dropdownItems.length === 0) return;
+            hoverRef.current = false;
             setHighlightedIndex(prev => Math.min(prev + 1, dropdownItems.length - 1));
           }
           if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (dropdownItems.length === 0) return;
+            hoverRef.current = false;
             setHighlightedIndex(prev => Math.max(prev - 1, 0));
           }
           if (e.key === 'Enter') {
@@ -563,9 +624,15 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
         }}
       />
       {!standalone && (
-        <span className={`absolute inset-0 truncate pointer-events-none whitespace-nowrap text-left ${displayValue ? '' : 'italic opacity-50'}`} style={style}>
-          {displayValue || placeholder}
+        <span
+          className={`absolute inset-y-0 truncate pointer-events-none whitespace-nowrap text-left flex items-center ${variant === 'chip' ? 'left-2.5 right-5' : 'inset-x-0'} ${displayValue ? '' : 'italic opacity-50'}`}
+          style={style}
+        >
+          {chipDisplay || displayValue || placeholder}
         </span>
+      )}
+      {variant === 'chip' && (
+        <ChevronDown className="w-3 h-3 text-zinc-500 shrink-0 absolute right-2 pointer-events-none" />
       )}
       {open && (
         <DropdownPanel
@@ -622,10 +689,12 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
               toggle(itemKey(m));
             }
           }}
-          onItemHover={mode === 'single' ? (idx) => setHighlightedIndex(idx) : () => {}}
+          onItemHover={(idx) => { hoverRef.current = true; setHighlightedIndex(idx); }}
+          onHoverLeave={() => { if (hoverRef.current) { hoverRef.current = false; setHighlightedIndex(-1); } }}
           commitHint={commitHint}
           onCommit={() => commit()}
           portalTarget={portalTarget}
+          dark={variant === 'chip'}
         />
       )}
     </div>

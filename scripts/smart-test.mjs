@@ -131,6 +131,7 @@ const RULES = [
   { g: 'src/lib/elementDayStats.ts', s: ELEM },
   { g: 'src/lib/elementLinks.ts', s: LINKED },
   { g: 'src/lib/useLinkedEditGuard.ts', s: LINKED },
+  { g: 'src/components/rules/ElementPicker.tsx', s: [...RIBBON, ...LINKED] },
   { g: 'src/components/elements/LinkManagerModal.tsx', s: LINKED },
   { g: 'src/components/elements/**', s: ELEM },
   { g: 'src/components/CastTab.tsx', s: CAST },
@@ -155,6 +156,9 @@ const RULES = [
   // color rules + shared element pickers (rules tab + colors tab)
   { g: 'src/components/rules/**', s: RIBBON },
   { g: 'src/components/ColorRule*.tsx', s: RIBBON },
+  // entity dropdowns are shared app-wide (sheets, glide, stripboard, modals)
+  { g: 'src/components/EntityDropdown.tsx', s: 'ALL' },
+  { g: 'src/components/DropdownPanel.tsx', s: 'ALL' },
 ];
 
 // ---- tiny glob: supports `**` (any depth), `*` (within a segment) ----

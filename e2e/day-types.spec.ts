@@ -166,7 +166,7 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
   await page.getByRole('button', { name: 'Day Breakdown', exact: true }).click();
   const rehRow = sidebar.getByText('Rehearsal', { exact: true }).locator('..');
-  await rehRow.locator('button', { has: page.locator('svg.lucide-trash-2') }).click();
+  await rehRow.locator('svg.lucide-trash-2').click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
 
   const after = await page.evaluate(() => {
