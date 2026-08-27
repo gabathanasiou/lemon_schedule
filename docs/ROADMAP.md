@@ -341,26 +341,27 @@ versions. Sections, contents → Lemon mapping:
 - **Scope if implemented**: NEW-PROJECT-ONLY import (same as `.msd`/`.sex` — update `parseMsdFile`-style flow + Project Manager "Import" accept list + e2e). Breakdown side only — script data (headings, characters, tagged elements, synopses, page counts), no stripboard. Do NOT build an .mmx export unless a user asks (screenwriter XML fans mostly read-side).
 - **Priority: low — parked knowingly.** `.sex` (item 41) already covers every real scheduling tool, and `.fdx` covers script-with-tags. This is a "who knows, maybe in the future" item; skip until a sample exists.
 
-## 45. Calendar Events mode — day event cards + Day Events modal (`[ ]`)
+## 45. Calendar Events mode — day event cards + Day Events modal (`[x]` Done)
 
 A second **view mode** for the Calendar tab: instead of strips, each day renders **event cards** from **existing data only** (no new data model). Events attach to **any** date — the internal storage type is named `NonShootDate` (legacy), but nothing is "non-shoot"-specific (a "Rehearsal" custom day type with cast attachments is just another event day).
 
-- **Mode toggle**: segmented `Strips | Events` in the calendar toolbar (next to the View menu). Persist `viewMode` in the existing calendar prefs (`usePersistState` `lemon_schedule_calendar_view`, CalendarTab.tsx:91 — extend the inline `{displayField, showBreaks, showConflicts}` type + `updateCal`). Paint-tool row hidden in Events mode (cards are the surface).
+- **Mode toggle**: segmented `Strips | Events` in the calendar toolbar (next to the View menu). Persist `viewMode` in the existing calendar prefs (`usePersistState` `lemon_schedule_calendar_view` — the inline `{displayField, showBreaks, showConflicts}` type gained `viewMode` + `eventsFilter` + `updateCal`). Paint-tool row hidden in Events mode (cards are the surface).
 - **Cards per day, sorted by event type, then element** (no manual reordering):
-  1. **status card** — the day's day type, colored/iconed via `getDayTypeVisual`; one per date (status is single-valued per date),
-  2. **attachment cards** — one per list group (`getTravelHoldGroups`): "Travel — Cast: Fisherman", "Hold — All Makeup"; category order (cast first), then element name,
-  3. **flag card** — that day's rule violations (`violations.length > 0`),
-  4. **rule chips** — date-scoped rules (`DATE_RESTRICTION`, dated `TIME_WINDOW`/`MAX_HOURS`): **consecutive `dates` collapse into one spanning chip across the day cells, wrapping across week rows (Apple-month-view style); non-consecutive dates = separate chips** — one chip per contiguous run, labeled via `describeRule`.
-  5. Empty days → an "add event" affordance.
-- **Event-type filter (view)**: toolbar `Filter` control (DropdownMenu, same pattern as the View menu) with checkbox groups — **Day statuses** (per existing day type), **Attachments**, **Flags/Conflicts**, **Rules** (per rule type). Hidden kinds drop their cards from every day (empty days keep the add affordance). Persisted alongside `viewMode` in the same prefs (`eventsFilter`).
-- **Day Events modal** (`TravelHoldModal` → `DayEventsModal`): status picker + **any-category attachment rows** (cast by ID, others by name — existing rows machinery); read-only **Conflicts** section (that day's violations); **Rules section** — rules whose `dates` include this date (edit → `RuleFormModal`) + "Add rule" pre-seeded with this date; global/no-date rules (`CAST_*`, every-day `MAX_HOURS`/`TIME_WINDOW`) stay on the Rules tab (kept this item). **Event-type filter inside the modal body** (same checkbox groups, collapses sections by kind — per-open state, not persisted). Save paths: `UPDATE_VERSION` nonShootDates + `ADD_RULE`/`UPDATE_RULE` (actions/breakdown.ts). Opened by: card click, empty-day add, day double-click, body right-click "Manage Events…".
-- **Selection + batch drag (strip-view parity)**: cards support marquee drag-select over the grid (existing `MarqueeOverlay` + `useMarquee`), shift+click ranges, `Cmd+A` + arrow-key navigation (extend `useCalendarKeyboard`; events mode = its own per-container cursor, mode-local selection state per AGENTS.md §Container Model). Dragging any selected card moves the whole selection; **collision rules on drop**: attachment cards merge into the target day's `lists` per category, a status card replaces the target's status (single status per date), rule chips each remap per the chip-drag rule below. Clipboard copy/paste of events is NOT included.
-- **Card/chip single-drag** (dnd-kit, `data-date-key` targeting): status/attachment card → another day moves the date's `NonShootDate` (swap with an existing one); **rule chip body → another date moves the run** (adds target to `rule.dates`, removes the run's original dates; `DATE_RESTRICTION` floors at 1 date — last-date drag-away blocked with a tooltip; date-optional types drop to "every day").
-- **Day drag in Events mode moves the day's whole event state — status, attachments, AND rule chips**: a swap/insert drag performs a **date permutation** applied symmetrically — `NonShootDate` entries exchange `.date`, and every rule's `dates` get the same transposition/cycle (`date(A)↔date(B)` for a swap; the cyclic shift across involved dates for an insert-move). A rule covering both dates stays; one covering only one follows the day, so the chips on day A after the drag are exactly the chips it had before. No `DATE_RESTRICTION` floor issue (dates exchanged, never deleted). **Strips mode keeps today's behavior** (swaps strips + call times only) — regression-guarded.
-- **Invariant trap**: the section date cursor skips statused dates — event/date swaps can shift section dates; reuse `daybreakUtils` cursor logic (never re-derive), respect the pinned daybreak.
-- **Verify**: lint + playwright on the seeded project — sorted cards render (status/attachments/flags/rule); spanning chips collapse consecutive runs and wrap weeks; filter hides/shows cards per event type (view + modal); modal edits status + attachments + rules; multi-select via marquee/shift+click/Cmd+A/arrows; batch drag merges/replaces per collision rules; rule-chip move mutates `dates`; events-mode day swap swaps events + re-maps rule dates but not strips; strips-mode day swap regression unchanged.
+  1. **attachment cards** — one per list group (`getTypeListGroups`): the day-type **symbol + color**, then all elements **comma-separated** (cast "1. FISHERMAN" style); cards grow to fit (no truncation). Whole-day info (status label/color, conflicts flag) lives in the day header — **no status/flag cards**,
+  2. **rule chips** — date-scoped rules (`DATE_RESTRICTION`, dated `TIME_WINDOW`/`MAX_HOURS`): **consecutive `dates` collapse into one spanning chip across the day cells, wrapping across week rows (Apple-month-view style); non-consecutive dates = separate chips** — one chip per contiguous run, labeled via `describeRule`, rendered in a per-week overlay layer (`EventsChipLayer`),
+  3. Empty days → an "add event" affordance.
+- **Event comments**: every event (status × category group) carries a comment (`NonShootDate.comments` = `Record<statusKey, Record<category, string>>`, e.g. "Traveling from Singapore") — tooltip on the card (amber glyph) + edited in the modal.
+- **Event-type filter (view)**: toolbar `Filter` control (DropdownMenu, same pattern as the View menu) with checkbox groups — **Day statuses** (per existing day type), **Attachments**, **Rules** (per rule type). Hidden kinds drop their cards from every day (empty days keep the add affordance). Persisted alongside `viewMode` in the same prefs (`eventsFilter`; arrays only — Sets aren't serializable).
+- **Day Events modal** (`DayEventsModal`, evolved from `TravelHoldModal` — the shared editor shell item 46 reuses): a day can carry **MULTIPLE event types** — one section per attached status (type chip + category rows + All + per-row comment), a single **Day Status** picker (header status), read-only **Conflicts**, and an **inline rule editor** (type chips, cast picker, dates via kit `DatePicker` dark, max-hours/window fields — shared `validateRuleForm`/`buildRulesFromForm` in `ruleMeta.tsx`, one source of truth with the Rules tab). Per-open section filter collapses by kind. Save paths: `UPDATE_VERSION` nonShootDates + `ADD_RULE`/`UPDATE_RULE`. Opened by: header click, empty-day add, day double-click, **card double-click (focused on that event type)**, body right-click "Manage Events…".
+- **Selection + batch drag (strip-view parity)**: cards support marquee drag-select over the grid (`useMarquee` gained a target-selector param — `[data-event-key]`), shift+click ranges, `Cmd+A` + arrow-key navigation (`useEventsKeyboard` — its own mode-local cursor). Dragging any selected card moves the whole selection; **collision rules on drop**: attachment cards merge into the target day's `lists` per category (comment travels with the group), a status card replaces the target's status, rule chips each remap per the chip-drag rule. Clipboard copy/paste of events is NOT included.
+- **Card/chip single-drag** (dnd-kit, `data-date-key` targeting): an attachment card moves **just that group** (merge into target + remove from source); **rule chip body → another date moves the run** (adds target to `rule.dates`, removes the run's original dates; `DATE_RESTRICTION` floors at 1 date — last-date drag-away blocked; date-optional types drop to "every day"). Drag ghost = the card itself (via `EventCardView`/`RuleChipView`); drop targets highlight the day cell (swap ring / insert edge bars).
+- **Day drag in Events mode moves the day's whole event state — status, attachments, AND rule chips**: a swap/insert drag performs a **date permutation** applied symmetrically — `NonShootDate` entries exchange `.date`, and every rule's `dates` get the same transposition/cycle (`date(A)↔date(B)` for a swap; the cyclic shift across involved dates for an insert-move). A rule covering both dates stays; one covering only one follows the day. No `DATE_RESTRICTION` floor issue (dates exchanged, never deleted). **Strips mode keeps today's behavior** (swaps strips + call times only) — regression-guarded.
+- **Canonical module**: everything event-related lives in `src/lib/events.ts` (card model, `computeRuleRuns`, `computeDayEvents`, `applyDatePermutation`, `buildPermutation`, `moveRuleRun`, `mergeAttachmentInto`/`removeAttachmentFrom` — comments travel with groups) — UI never re-derives.
+- **Invariant trap**: the section date cursor skips statused dates — event/date swaps can shift section dates; the `useDaybreakSections` cursor recomputes automatically (never re-derived, pinned daybreak respected).
+- **DatePicker → ui-kit** (landed here): `DatePicker` is now `@gabriel/ui-kit` v0.1.34 (themeable light/dark, multi-select); the app consumes it via the `src/components/DatePicker.tsx` barrel; the Rules-tab form and the day modal's inline rule editor both use it.
+- **Verify**: lint + playwright on the seeded project (`e2e/calendar-events.spec.ts`) — attachment cards with symbol+color+comma elements; spanning chips collapse consecutive runs and cross weeks; filter hides/shows per event type; modal multi-status sections + comments persist (bridge); card double-click opens the modal focused on the type; inline rule editor pre-seeds the date; chip drag mutates `dates`; attachment card drag moves only its group; events-mode day swap permutes dates but not strips; strips-mode day swap regression unchanged (`calendar-travel-hold`, `day-types` updated to the new modal).
 
-**Relations**: builds on item 39's day-status/attachments infra (AGENTS.md §Day Types & Non-Shoot Status). Follow-up: item 46.
+**Relations**: builds on item 39's day-status/attachments infra (AGENTS.md §Day Types & Non-Shoot Status). Follow-up: item 46 (span-chip resize, Element Manager events, DayTypesTab summaries, Rules-tab retirement).
 
 ## 46. Events everywhere — resizable span chips, reusable editors, ui-kit DatePicker, Rules-tab path (`[ ]`)
 
@@ -370,7 +371,7 @@ Reuses the Days Events surface (from 45) beyond the calendar, so events are mana
 - **Shared editor shell**: extract the modal (45) into one component rendering in day-centric *and* element-centric contexts (AGENTS.md Rule 1/4 — no second copy).
 - **Element Manager events**: an "Events" action (LinkManager pattern — `elements/LinkManagerModal.tsx` grouped-card modal, header slot; buffered rows untouched): per element, lists every date it appears on (attachment in any `lists` category, or covered by a rule) + "Add event on a date" (date picker → shared modal for that date, pre-attached).
 - **Day manager (DayTypesTab) events data**: a selected day type's pane lists its dates' event summaries (attachments/conflicts) and opens the shared modal per date (currently dates-only list).
-- **`DatePicker` → ui-kit**: move `src/components/DatePicker.tsx` (116 lines, no store deps) into `@gabriel/ui-kit` (no date component there today); app consumes the kit export; DESIGN-LANGUAGE primitive-row entry (per AGENTS.md §UI Primitives).
+- **`DatePicker` → ui-kit** (DONE — landed with item 45): the picker is now `@gabriel/ui-kit` v0.1.34 (`DatePicker`, themeable light/dark, multi-select); the app consumes it via the `src/components/DatePicker.tsx` barrel; DESIGN-LANGUAGE primitive-row entry (per AGENTS.md §UI Primitives).
 - **Rules-tab retirement** (tracked, NOT this item's scope): remove the tab only after the events UI edits every rule type (incl. a global/no-date surface for `CAST_CONFLICT`, `CAST_SCENE_FLAG`, every-day `MAX_HOURS`/`TIME_WINDOW`).
 
 **Relations**: depends on item 45 (shared modal + chips first).
@@ -491,6 +492,34 @@ persists across reload; stripboard + undo/redo untouched.
 
 **Relations**: stripboard order derives from the canonical rows model
 (AGENTS.md §Rows & Sections, same source the reports/calendar consume).
+
+## 54. Production Dates Manager — prep/prod/post + days off modal (`[x]` Done)
+
+**Requested**: replace the Calendar toolbar's separate **START** date input
+and **Days Off** button with ONE **Production Dates** button that opens a
+modal where the production dates are set MMS-style: **Prep start, Production
+start, Post end** plus the weekly **days-off** pattern.
+
+- **Model**: `ScheduleVersion` gains `prepStart?: string` and `postEnd?:
+  string` (`productionStart` exists). Days-off becomes an explicit weekly
+  pattern — `version.weeklyDaysOff?: number[]` (Mon=0..Sun=6), replacing the
+  transient `autoDayOffDays` modal state in CalendarTab. The calendar range
+  (months rendered, trim bounds) spans prepStart..postEnd; the production-day
+  cursor logic is untouched (dates only).
+- **UI**: a "Production Dates" button (replacing the START input + Days Off
+  button) → dark modal (DayEventsModal styling): three date fields (Prep /
+  Production / Post) + a Mon..Sun days-off multi-toggle + **Apply Days Off**
+  materializing holidays across the range via the existing auto-day-off path
+  (bounded prepStart..postEnd; existing statused dates respected, never
+  overwritten).
+- **Done**: `ProductionDatesModal` (`src/components/calendar/ProductionDatesModal.tsx`) + `prepStart`/`postEnd`/`weeklyDaysOff` on `ScheduleVersion`; calendar range spans the window; verified by `e2e/production-dates.spec.ts`.
+- **Verify**: lint + playwright on the seeded project — set prep/prod/post +
+  days off → the calendar range spans the full window, weekly holidays
+  materialize within the bounds, pre-existing statuses survive; the old
+  START input and Days Off button are gone; strips/events modes unaffected.
+
+**Relations**: calendar toolbar territory (items 45/46 events mode); the
+day-types registry (`work`/`holiday` keys) is untouched.
 
 ---
 
