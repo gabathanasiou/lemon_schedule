@@ -523,6 +523,15 @@ day-types registry (`work`/`holiday` keys) is untouched.
 
 ---
 
+## 55. Calendar view: expandable day cells (`[x]` Done)
+
+**Requested**: strips-mode day cells are a fixed 170px; make cell sizing a View-menu option.
+
+- **Done**: `expandDays` pref in the calendar view settings (`lemon_schedule_calendar_view`,
+  default **expanded** = cells size to their content, `gridAutoRows: 'auto'`; off = the fixed
+  `DAY_CELL_HEIGHT` rows). View menu toggle ("Expand Day Cells"), verified by
+  `e2e/calendar-view.spec.ts`. Events-mode weeks were already content-sized.
+
 ## Session handoff
 
 - Repo branch: `main` (push before ending session).

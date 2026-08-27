@@ -5,7 +5,7 @@ import { useProject } from '../store';
 import { useAppDragSensors } from '../lib/dndSensors';
 import { ScheduleRow, Scene, RuleViolation, SceneColorPalette, NonShootDate, ProjectRule, RuleType } from '../types';
 import { resolveSceneColor, getNoteBannerColors, getFallbackStripColors } from '../lib/ribbonUtils';
-import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, X, Pointer, Eraser, Pause, Plane, Sun, Check, ChevronDown, AlignLeft, StickyNote, Eye, EyeOff, CalendarDays, ClipboardPaste, Coffee, ListFilter, Maximize2, Minimize2 } from 'lucide-react';
 import { ContextMenu, ContextMenuItem, ContextMenuDivider } from './ContextMenu';
 import Button from './Button';
 import { StripboardContextMenuContent } from './StripboardContextMenuContent';
@@ -197,14 +197,17 @@ export const CalendarTab: React.FC<{
     showConflicts: boolean;
     viewMode: 'strips' | 'events';
     eventsFilter: { statuses: string[] | null; attachments: boolean; flags: boolean; rules: RuleType[] | null };
+    /** Day cells size to their content (default) vs the fixed 170px grid row. */
+    expandDays: boolean;
   }>('lemon_schedule_calendar_view', {
     displayField: 'set',
     showBreaks: true,
     showConflicts: true,
     viewMode: 'strips',
     eventsFilter: { ...DEFAULT_EVENTS_FILTER },
+    expandDays: true,
   });
-  const { displayField, showBreaks, showConflicts } = calSettings;
+  const { displayField, showBreaks, showConflicts, expandDays } = calSettings;
   const viewMode = calSettings.viewMode === 'events' ? 'events' : 'strips';
   const eventsFilter = calSettings.eventsFilter || DEFAULT_EVENTS_FILTER;
   const updateCal = (patch: Partial<typeof calSettings>) => setCalSettings(prev => ({ ...prev, ...patch }));
@@ -1165,6 +1168,17 @@ export const CalendarTab: React.FC<{
                     </span>
                     {showConflicts ? <Eye className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <EyeOff className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
                   </button>
+                  <DropdownDivider />
+                  <button
+                    onClick={() => updateCal({ expandDays: !expandDays })}
+                    className="w-full text-left px-3 py-2 rounded flex items-center justify-between gap-2 text-xs transition-colors outline-none cursor-pointer select-none text-zinc-700 hover:bg-zinc-100"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Maximize2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                      Expand Day Cells
+                    </span>
+                    {expandDays ? <Maximize2 className="w-3.5 h-3.5 text-zinc-500 shrink-0" /> : <Minimize2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" />}
+                  </button>
                 </DropdownMenu>
               </div>
             }
@@ -1192,7 +1206,7 @@ export const CalendarTab: React.FC<{
             setViewMenuOpen(false);
             setContextMenuDate(null);
             setContextMenu(null);
-          }} onScroll={() => { updateRenderWindow(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
+          }} onScroll={() => { updateRenderWindow(); if (calendarGridRef.current) saveScrollPos(calendarGridRef.current.scrollTop); }} className="flex-1 overflow-y-auto min-h-0 relative overscroll-contain" data-cal-grid style={{ touchAction: IS_COARSE ? 'pan-y pan-x' : undefined }}>
             <div className="grid grid-cols-7 sticky top-0 z-10 border-l border-t border-zinc-200 bg-zinc-50" data-cal-sticky>
               {DAY_NAMES.map(n => <div key={n} className="text-center text-[10px] font-semibold text-zinc-500 py-1.5 border-r border-b border-zinc-200 bg-zinc-50">{n}</div>)}
             </div>
@@ -1279,7 +1293,7 @@ export const CalendarTab: React.FC<{
                       });
                     })()
                   ) : (
-                  <div className="grid grid-cols-7 border-l border-t border-zinc-200" style={{ gridAutoRows: DAY_CELL_HEIGHT }}>
+                  <div className="grid grid-cols-7 border-l border-t border-zinc-200" style={{ gridAutoRows: expandDays ? 'auto' : DAY_CELL_HEIGHT }}>
                     {buildMonthSlots(m.year, m.month, trim).map(slot => {
                       if (slot.filler) return <FillerCell key={slot.key} />;
                       const day = slot as Extract<MonthSlot, { filler: false }>;

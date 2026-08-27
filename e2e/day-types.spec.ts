@@ -94,7 +94,12 @@ test('day types: manager sub-tab CRUD, attachments, DOOD letters + counts, repor
 
   // ---- Mark a day: context menu lists the custom type (never Work)
   await page.getByRole('main').getByRole('button', { name: 'Calendar', exact: true }).click();
+  // Expanded cells make the last month fall outside the virtual render window —
+  // scroll the grid so September's real cells mount (auto-scroll can't reach a
+  // month that isn't rendered yet).
+  await page.locator('[data-cal-grid]').evaluate(el => { el.scrollTop = el.scrollHeight; });
   const dayCell = page.locator(`[data-date-key="${lastSectionDate}"]`);
+  await expect(dayCell).toBeVisible();
   const header = dayCell.locator('[class*="flex items-center justify-between"]').first();
   await header.click({ button: 'right' });
   await expect(page.getByText('Work', { exact: true })).toHaveCount(0);
