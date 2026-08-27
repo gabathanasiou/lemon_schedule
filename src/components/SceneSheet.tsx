@@ -13,6 +13,7 @@ import { sceneStyle, getIntExtOptions, getDayNightOptions, getFallbackStripColor
 import { getFieldItems, isMultiValue } from '../lib/categories';
 import { useDaybreakSections } from '../lib/useDaybreakSections';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
+import { anchoredKeysFor } from '../lib/elementLinks';
 
 const BREAKDOWN_CATS = [
   'set', 'cast', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -70,6 +71,16 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
   const currentEdits = scene ? (edits[scene.id] || {}) : {};
 
   const linkGuard = useLinkedEditGuard(project.elementLinks, project.customCategories, dispatch);
+
+  // Per-category anchor item keys — Anchor icons in the sheet's entity
+  // dropdowns next to elements that anchor element links.
+  const anchoredByCategory = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
+      map[cat] = anchoredKeysFor(project.elementLinks, cat);
+    }
+    return map;
+  }, [project.elementLinks]);
 
   const { sceneToSection, sectionLabelMap, sectionDateMap } = useDaybreakSections();
 
@@ -364,6 +375,7 @@ export function SceneSheet({ initialIndex, onIndexChange, headerTarget, onOpenSc
           allBreakdownLabel={allBreakdownLabel}
           palette={project.colorPalette}
           customCategories={project.customCategories}
+          anchoredByCategory={anchoredByCategory}
           sheetNumber={index + 1}
         />
 

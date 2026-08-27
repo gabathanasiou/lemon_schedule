@@ -22,13 +22,15 @@ interface SceneSheetFieldsProps {
   allBreakdownLabel: Record<string, string>;
   palette?: SceneColorPalette;
   customCategories: CustomCategoryDef[] | undefined;
+  /** Per-category anchor item keys — Anchor icon next to anchored elements. */
+  anchoredByCategory?: Record<string, Set<string>>;
   sheetNumber: number;
 }
 
 /** Header table + category grid of the Scene Sheet (matches the print layout). */
 export default function SceneSheetFields({
   scene, val, update, commitField, commitTextEdits, readOnly, inputCls, blurOnEnter,
-  setItems, breakdownItems, allBreakdownCats, allBreakdownLabel, palette, customCategories, sheetNumber,
+  setItems, breakdownItems, allBreakdownCats, allBreakdownLabel, palette, customCategories, anchoredByCategory, sheetNumber,
 }: SceneSheetFieldsProps) {
   return (
     <>
@@ -50,7 +52,7 @@ export default function SceneSheetFields({
             </tr>
             <tr className="border-b border-zinc-300">
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Set</td>
-              <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="text-xs" /></td>
+              <td className="px-2.5 py-1.5 border-r border-zinc-300"><EntityDropdown value={val('set')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'set', v.toUpperCase())} items={setItems} mode="single" keepAlphabetical panelMinWidth="min-w-[220px]" placeholder="Set" className="text-xs" anchoredKeys={anchoredByCategory?.['set']} /></td>
               <td className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-700 uppercase bg-zinc-100 border-r border-zinc-300">Location</td>
               <td className="px-2.5 py-1.5"><input className={inputCls} readOnly onKeyDown={blurOnEnter} /></td>
             </tr>
@@ -85,9 +87,9 @@ export default function SceneSheetFields({
                     onBlur={commitTextEdits}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.target as HTMLElement).blur(); } }} />
                 ) : cat === 'cast' ? (
-                  <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '?'}</span></>} />
+                  <EntityDropdown value={val('cast')} readOnly={readOnly} onChange={v => scene && commitField(scene.id, 'cast', v)} items={breakdownItems['cast'] || []} positioning="fixed" mode="multi" placeholder="Cast" className="text-xs" displayMode="id" anchoredKeys={anchoredByCategory?.['cast']} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name || '?'}</span></>} />
                 ) : (
-                  <EntityDropdown value={val(cat)} readOnly={readOnly} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="text-xs" renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
+                  <EntityDropdown value={val(cat)} readOnly={readOnly} onChange={v => scene && commitField(scene.id, cat, v)} items={breakdownItems[cat] || []} positioning="fixed" mode={isMultiValue(cat, customCategories) ? 'multi' : 'single'} placeholder={allBreakdownLabel[cat]} className="text-xs" anchoredKeys={anchoredByCategory?.[cat]} renderItem={(item) => <span className="truncate flex-1">{item.name}</span>} />
                 )}
               </div>
             </div>

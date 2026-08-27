@@ -249,3 +249,54 @@ test('link manager: anchor card links multiple elements and applies retroactivel
   await page.keyboard.press('Escape');
   await expect(modal).toBeVisible();
 });
+
+test('anchored elements show an anchor icon in pickers (link manager + scene sheet)', async ({ page }) => {
+  await openSeededProject(page);
+  await seedRibbonElement(page);
+  await page.evaluate(() => {
+    const b = (window as any).__lemonSchedule;
+    b.dispatch({
+      type: 'UPDATE_PROJECT',
+      payload: {
+        elementLinks: [
+          { id: 'link-1', anchorCategory: 'cast', anchorValue: '1', linkedCategory: 'props', linkedValue: 'LINKED RIBBON' },
+        ],
+      },
+    });
+  });
+
+  // Link Manager: the anchor picker shows the icon next to FISHERMAN (cast 1)…
+  await page.getByRole('button', { name: 'Breakdown', exact: true }).click();
+  await page.getByRole('button', { name: 'Element Manager' }).click();
+  await page.getByRole('button', { name: 'Links', exact: true }).click();
+  const modal = page.getByRole('dialog');
+  await expect(modal).toBeVisible();
+  const elementInput = modal.locator('[data-el-dropdown] input');
+
+  await elementInput.nth(0).click();
+  await page.keyboard.type('fish');
+  const anchorRow = page.getByText('FISHERMAN', { exact: true }).last();
+  await expect(anchorRow).toBeVisible();
+  await expect(anchorRow.locator('xpath=ancestor::button').locator('svg.lucide-anchor')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // …and the linked row (props, no anchor there) shows none.
+  await elementInput.nth(1).click();
+  await page.keyboard.type('linked');
+  const linkedRow = page.getByText('LINKED RIBBON', { exact: true }).last();
+  await expect(linkedRow).toBeVisible();
+  await expect(linkedRow.locator('xpath=ancestor::button').locator('svg.lucide-anchor')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await modal.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(modal).toBeHidden();
+
+  // Scene Sheet cast picker: the anchored cast member carries the icon too.
+  await gotoSheet(page, 0);
+  const castBox = page.locator('div.rounded.overflow-hidden', { has: page.getByText('Cast', { exact: true }) }).first();
+  const castInput = castBox.locator('input').first();
+  await castInput.click();
+  await page.keyboard.type('fish');
+  const sheetRow = page.getByText('FISHERMAN', { exact: true }).last();
+  await expect(sheetRow).toBeVisible();
+  await expect(sheetRow.locator('xpath=ancestor::button').locator('svg.lucide-anchor')).toBeVisible();
+});

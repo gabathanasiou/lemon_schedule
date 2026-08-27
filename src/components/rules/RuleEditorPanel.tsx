@@ -27,6 +27,8 @@ export interface RuleEditorPanelProps {
   preseedDateKey?: string;
   scenes: Scene[];
   castMembers: CastMember[];
+  /** Cast item keys that are element-link anchors — Anchor icons in the picker. */
+  anchoredKeys?: Set<string>;
   onSave: (rules: ProjectRule[]) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -36,7 +38,7 @@ export interface RuleEditorPanelProps {
 }
 
 export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
-  initial, preseedDateKey, scenes, castMembers, onSave, onDelete, onClose, bare,
+  initial, preseedDateKey, scenes, castMembers, anchoredKeys, onSave, onDelete, onClose, bare,
 }) => {
   const [form, setForm] = useState<RuleFormState>(() => {
     if (initial) return formFromRule(initial);
@@ -93,6 +95,7 @@ export const RuleEditorPanel: React.FC<RuleEditorPanelProps> = ({
       placeholder={placeholder}
       className="text-xs"
       displayMode="id"
+      anchoredKeys={anchoredKeys}
       renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
     />
   );

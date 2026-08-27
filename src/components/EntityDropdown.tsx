@@ -24,7 +24,7 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Anchor } from 'lucide-react';
 import { Scene } from '../types';
 import { useDropdown, useEscapeCapture, DD_ITEM_BASE_LIB, DD_ITEM_CLASS_LIB, DD_PANEL_CLASS_LIB, DD_INPUT_CLASS_LIB } from '../lib/dropdown';
 import { buildDropdownItems } from '../lib/dropdownItems';
@@ -93,6 +93,10 @@ interface EntityDropdownProps {
    *  bordered button-like trigger with chevron — for modal rows like the link
    *  manager / color rules; panel behavior identical). */
   variant?: 'default' | 'chip';
+  /** Item keys that act as element-link anchors — an Anchor icon is shown next
+   *  to them in the panel. Keys use `itemKey` space (cast: `e.id`, others:
+   *  `e.name`; names matched case-insensitively). See `anchoredKeysFor`. */
+  anchoredKeys?: Set<string>;
 }
 
 /**
@@ -224,6 +228,7 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
   skipComma = false,
   style,
   variant = 'default',
+  anchoredKeys,
 }) => {
   const items = externalItems ?? [];
   const [open, setOpen] = useState(defaultOpen);
@@ -443,6 +448,33 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
     </>
   );
 
+  // Anchored elements (element-link anchors) get an Anchor icon next to the
+  // name — cast keys are exact IDs, name keys match case-insensitively.
+  const anchoredLower = useMemo(() => new Set([...(anchoredKeys || [])].map(v => v.toLowerCase())), [anchoredKeys]);
+  const isAnchored = useCallback((item: EntityItem): boolean => {
+    if (!anchoredKeys || anchoredKeys.size === 0) return false;
+    const key = itemKey(item);
+    return displayMode === 'id' ? anchoredKeys.has(key) : anchoredLower.has(key.toLowerCase());
+  }, [anchoredKeys, anchoredLower, displayMode, itemKey]);
+
+  const itemRenderer = useCallback((item: EntityItem, checked: boolean) => {
+    const content = renderItem ? renderItem(item, checked) : defaultRenderer(item, checked);
+    return (
+      <>
+        {content}
+        {isAnchored(item) && (
+          <span
+            title="Element link anchor — linked elements follow this one"
+            aria-label="Element link anchor"
+            className="shrink-0 inline-flex"
+          >
+            <Anchor className="w-3.5 h-3.5 text-amber-500" />
+          </span>
+        )}
+      </>
+    );
+  }, [renderItem, defaultRenderer, isAnchored]);
+
   const displayValue = open
     ? (mode === 'multi' || mode === 'select' ? val : (standalone ? query : (query || localIds.join(', '))))
     : (value || '');
@@ -647,8 +679,8 @@ export const EntityDropdown: React.FC<EntityDropdownProps> = ({
           itemKey={itemKey}
           searchQuery={searchQuery}
           hasExactMatch={hasExactMatch}
-          renderItem={renderItem}
-          defaultRenderer={defaultRenderer}
+          renderItem={itemRenderer}
+          defaultRenderer={itemRenderer}
           onItemClick={(m, isSynthetic) => {
             if (isSynthetic) {
               const key = itemKey(m);

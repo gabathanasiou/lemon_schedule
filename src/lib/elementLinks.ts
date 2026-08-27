@@ -37,6 +37,16 @@ export function getAnchorLinks(links: ElementLink[], category: string, value: st
   );
 }
 
+/** Item keys (`elementMatchId` space: cast = Board ID, others = name) that act
+ *  as an anchor in any link for `category` — for anchor indicators in pickers. */
+export function anchoredKeysFor(links: ElementLink[], category: string): Set<string> {
+  const keys = new Set<string>();
+  for (const l of links || []) {
+    if (l.anchorCategory === category && l.anchorValue) keys.add(l.anchorValue);
+  }
+  return keys;
+}
+
 const itemsOf = (category: string, raw: string | undefined | null): string[] => {
   const items = getFieldItems(category, raw || '');
   return category === 'cast' ? items : items.map(i => i.toLowerCase());

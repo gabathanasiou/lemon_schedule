@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { RULE_TYPE_META, RuleType, describeRule, getRuleGroupKey, getRuleSearchText } from './rules/ruleMeta';
 import { RuleCard } from './rules/RuleCard';
 import { RuleEditorPanel } from './rules/RuleEditorPanel';
+import { anchoredKeysFor } from '../lib/elementLinks';
 import Modal from './Modal';
 import { Plus, Search, Clock4, ChevronRight, ChevronDown } from 'lucide-react';
 
@@ -238,6 +239,7 @@ export const RulesTab: React.FC = () => {
               initial={editingRule}
               scenes={scenes}
               castMembers={castMembers}
+              anchoredKeys={anchoredKeysFor(project.elementLinks, 'cast')}
               onSave={handleSave}
               onDelete={editingRule ? () => { handleDelete(editingRule); setShowForm(false); setEditingRule(null); } : undefined}
               onClose={() => { setShowForm(false); setEditingRule(null); }}

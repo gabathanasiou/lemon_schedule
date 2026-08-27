@@ -14,6 +14,8 @@ export type GlideColumnEditor =
       uppercase?: boolean;
       keepAlphabetical?: boolean;
       renderItem?: (item: any, selected: boolean) => React.ReactNode;
+      /** Item keys that are element-link anchors — Anchor icon in the panel. */
+      anchoredKeys?: Set<string>;
     };
 
 export interface GlideEditorOptions {
@@ -77,7 +79,7 @@ export function createGlideCellEditor(opts: GlideEditorOptions) {
         return <AutocompleteDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} options={editorCfg.options} showAll positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={editorCfg.placeholder} />;
       }
       const cfg = editorCfg;
-      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} />;
+      return <EntityDropdown value={currentVal} onChange={handleChange} onExit={handleClose} onTabExit={handleTabClose} items={cfg.items} mode={cfg.mode} displayMode={cfg.displayMode} skipComma={skipComma} positioning="fixed" portalTarget={portalRef.current} defaultOpen autoFocus placeholder={cfg.placeholder} className="text-xs" uppercase={cfg.uppercase} keepAlphabetical={cfg.keepAlphabetical} renderItem={cfg.renderItem} anchoredKeys={cfg.anchoredKeys} />;
     };
     return { editor, disablePadding: true, styleOverride: { overflow: 'visible' } };
   };

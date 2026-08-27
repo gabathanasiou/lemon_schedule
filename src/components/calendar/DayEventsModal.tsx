@@ -4,6 +4,7 @@ import { NonShootDate, ProjectRule, RuleViolation } from '../../types';
 import { getTypeLists, NON_SHOOT_ALL } from '../../lib/nonShootHelpers';
 import { getMarkableDayTypes, getDayType, typeIconComponent } from '../../lib/dayTypes';
 import { getCategoryElements } from '../../lib/elements';
+import { anchoredKeysFor } from '../../lib/elementLinks';
 import { ELEMENT_CATEGORIES, getLabel } from '../../lib/categories';
 import { getUniqueCastIds } from '../../lib/utils';
 import Modal, { ModalFooter } from '../Modal';
@@ -93,6 +94,15 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
     for (const c of project.customCategories || []) { if (!seen.has(c.key)) { seen.add(c.key); keys.push({ key: c.key, isCustom: true }); } }
     return keys;
   }, [project.customCategories]);
+
+  // Per-category anchor item keys — Anchor icons in the attachment pickers.
+  const anchoredByCategory = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
+      map.set(cat, anchoredKeysFor(project.elementLinks, cat));
+    }
+    return map;
+  }, [project.elementLinks]);
 
   const dayTypes = useMemo(() => getMarkableDayTypes(project), [project]);
   const [statusKey, setStatusKey] = useState<string | null>(entry?.status || null);
@@ -421,6 +431,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
                                     className="text-xs flex-1 min-w-0"
                                     displayMode={isCast ? 'id' : 'name'}
                                     readOnly={r.all}
+                                    anchoredKeys={anchoredByCategory.get(r.category)}
                                     renderItem={isCast ? (item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></> : undefined}
                                   />
                                   <Checkbox
@@ -533,6 +544,7 @@ export const DayEventsModal: React.FC<DayEventsModalProps> = ({ dateKey, entry, 
             preseedDateKey={dateKey}
             scenes={project.scenes}
             castMembers={project.castMembers || []}
+            anchoredKeys={anchoredByCategory.get('cast')}
             onSave={(rules) => {
               for (const r of rules) {
                 dispatch({ type: ruleEditor?.rule ? 'UPDATE_RULE' : 'ADD_RULE', payload: r });

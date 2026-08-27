@@ -4,7 +4,7 @@ import { ElementLink } from '../../types';
 import { generateUUID } from '../../lib/utils';
 import { ELEMENT_CATEGORIES, getLabel, getFieldItems, isMultiValue } from '../../lib/categories';
 import { getCategoryElements } from '../../lib/elements';
-import { applyLinkToScenes, isLinkableCategory } from '../../lib/elementLinks';
+import { applyLinkToScenes, isLinkableCategory, anchoredKeysFor } from '../../lib/elementLinks';
 import Modal from '../Modal';
 import { ModalFooter } from '../Modal';
 import { ElementPickerRow } from '../rules/ElementPicker';
@@ -110,6 +110,17 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
   }, [project.categoryLabels, project.customCategories]);
 
   const elementsFor = useCallback((cat: string) => getCategoryElements(project, cat), [project]);
+
+  // Per-category sets of item keys that are anchors of a link — Anchor icons
+  // in the pickers (incl. elements that are a linked target here but anchor
+  // another card).
+  const anchoredByCategory = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
+      map.set(cat, anchoredKeysFor(project.elementLinks, cat));
+    }
+    return map;
+  }, [project.elementLinks]);
 
   /** Flattens a draft into flat links. Multi-value picks (comma lists) expand
    *  to one link per value; incomplete rows and exact duplicates are dropped. */
@@ -276,6 +287,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                       idPrefix={`a${gi}`}
                       btnClass={ANCHOR_BTN}
                       itemClass={ITEM}
+                      anchoredKeys={anchoredByCategory.get(g.category)}
                       trailing={
                         <button
                           onClick={() => applyGroup(g.id)}
@@ -319,6 +331,7 @@ export function LinkManagerModal({ initialAnchorCategory, onClose }: { initialAn
                         idPrefix={`l${gi}-${li}`}
                         btnClass={BTN}
                         itemClass={ITEM}
+                        anchoredKeys={anchoredByCategory.get(l.linkedCategory)}
                         onRemove={() => removeLink(g.id, l.id)}
                         removeIcon={<X className="w-3.5 h-3.5" />}
                         removeBtnClass={REMOVE_BTN}

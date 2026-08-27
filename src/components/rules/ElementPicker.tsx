@@ -43,7 +43,9 @@ export const ElementPickerRow: React.FC<{
   /** Categories disabled in the row's category dropdown (already used by
    *  another linked row in the same card). */
   disabledCategoryKeys?: ReadonlySet<string>;
-}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, itemClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys }) => {
+  /** Item keys that are element-link anchors — Anchor icon in the picker panel. */
+  anchoredKeys?: Set<string>;
+}> = ({ category, elementValue, onCategoryChange, onElementChange, allCategoryKeys, categoryLabelLookup, customCategories, items, openDropdown, setOpenDropdown, idPrefix, btnClass, itemClass, onRemove, removeIcon, removeBtnClass, trailing, placeholder, mode = 'single', disabledCategoryKeys, anchoredKeys }) => {
   const portalTarget = usePortalTarget();
   const isCast = category === 'cast';
   return (
@@ -75,6 +77,7 @@ export const ElementPickerRow: React.FC<{
           className="flex-1 min-w-0 text-xs"
           displayMode={isCast ? 'id' : 'name'}
           placeholder={placeholder || 'Select...'}
+          anchoredKeys={anchoredKeys}
           renderItem={isCast ? (item) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '—'}</span></>) : undefined}
         />
       </span>

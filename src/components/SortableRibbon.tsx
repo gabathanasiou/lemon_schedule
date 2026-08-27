@@ -25,6 +25,7 @@ import SortableRowDaybreak from './ribbon/SortableRowDaybreak';
 import SortableRowScene from './ribbon/SortableRowScene';
 import { RowRenderCtx } from './ribbon/rowRenderTypes';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
+import { anchoredKeysFor } from '../lib/elementLinks';
 
 const ENTITY_KEYS = new Set([
   'cast', 'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -90,6 +91,16 @@ const SortableRowContent: React.FC<{
   const isTouchMode = useTouchMode();
 
   const linkGuard = useLinkedEditGuard(elementLinks, customCategories, dispatch);
+
+  // Per-category anchor item keys — Anchor icons in the stripboard's entity
+  // dropdown panels (light theme) next to anchored elements.
+  const anchoredByCategory = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const cat of new Set((elementLinks || []).map(l => l.anchorCategory))) {
+      map.set(cat, anchoredKeysFor(elementLinks, cat));
+    }
+    return map;
+  }, [elementLinks]);
 
   const scene = sceneProp !== undefined ? sceneProp : (row.type === 'SCENE' ? scenes.find(s => s.id === row.sceneId) ?? null : null);
 
@@ -324,6 +335,7 @@ const SortableRowContent: React.FC<{
             placeholder="Cast"
             displayMode="id"
             items={castItems}
+            anchoredKeys={anchoredByCategory.get('cast')}
             renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>}
           />
         </td>
@@ -408,7 +420,7 @@ const SortableRowContent: React.FC<{
       const entityItems = entityItemsMap[field] || [];
       return (
         <td key={cellId} style={{ width: `10%`, padding: '3pt 1pt', verticalAlign: 'top', textAlign: a as any, borderBottom: '1px solid #000', overflow: 'hidden' }}>
-          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full text-xs" readOnly={!isEditable} placeholder={fieldLabels[field] || field} />
+          <EntityDropdown value={v} onChange={val => updateEntityField(field, val)} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full text-xs" readOnly={!isEditable} placeholder={fieldLabels[field] || field} anchoredKeys={anchoredByCategory.get(field)} />
         </td>
       );
     }
@@ -527,7 +539,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>} />
+            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({cast: val})} items={castItems} className="text-left w-full" readOnly={!isEditable} mode="multi" positioning="fixed" placeholder="Cast" displayMode="id" anchoredKeys={anchoredByCategory.get('cast')} renderItem={(item) => <><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '?'}</span></>} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}
@@ -608,7 +620,7 @@ const SortableRowContent: React.FC<{
       return (
         <div key={cellId} data-ribbon-field={field} style={style}>
           {isEditable ? (
-            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} />
+            <EntityDropdown autoFocus={focusField === field} defaultOpen={focusField === field} onTabExit={(el) => advanceRibbonFocus(el, onRowNavigate)} value={v} onChange={val => updateScene({[field]: val})} items={entityItems} mode={isMultiValue(field, customCategories) ? 'multi' : 'single'} uppercase={field === 'set'} keepAlphabetical={field === 'set'} positioning="fixed" className="text-left w-full" readOnly={!isEditable} placeholder={fieldLabel} anchoredKeys={anchoredByCategory.get(field)} />
           ) : (
             <RibbonCellText cell={cell} span={span || 1} cellPadding={cellPaddingV} style={!v ? emptyStyle : undefined}>{v ? fmt(prefix, v, suffix) : fieldLabel}</RibbonCellText>
           )}

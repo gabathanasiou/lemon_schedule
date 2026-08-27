@@ -45,6 +45,7 @@ import { useGlideColumnWidths } from '../lib/glideColumns';
 import { useDedupeCellCommit } from '../lib/glideEditGuard';
 import { createBlankScene } from '../lib/sceneFactory';
 import { useLinkedEditGuard } from '../lib/useLinkedEditGuard';
+import { anchoredKeysFor } from '../lib/elementLinks';
 
 const BREAKDOWN_CATEGORIES = [
   'set', 'backgroundActors', 'stunts', 'vehicles', 'props', 'wardrobe', 'makeup',
@@ -490,12 +491,17 @@ export function GlideBreakdownTab({
   }, [COLUMNS, dispatch, commitEdit, getNextSceneNumber, dedupeCellCommit]);
 
   const glideEditors = useMemo<Record<string, GlideColumnEditor>>(() => {
+    const anchoredByCategory = new Map<string, Set<string>>();
+    for (const cat of new Set((project.elementLinks || []).map(l => l.anchorCategory))) {
+      anchoredByCategory.set(cat, anchoredKeysFor(project.elementLinks, cat));
+    }
+    const anchored = (cat: string) => anchoredByCategory.get(cat);
     const editors: Record<string, GlideColumnEditor> = {
       intExt: { kind: 'enum', options: intExtOptions, placeholder: 'INT, EXT, D/E...' },
       dayNight: { kind: 'enum', options: dayNightOptions, placeholder: 'DAY, NIGHT, MORNING...' },
-      set: { kind: 'entity', mode: 'single', uppercase: true, keepAlphabetical: true, items: setItems, placeholder: 'Set' },
+      set: { kind: 'entity', mode: 'single', uppercase: true, keepAlphabetical: true, items: setItems, placeholder: 'Set', anchoredKeys: anchored('set') },
       cast: {
-        kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast',
+        kind: 'entity', mode: 'multi', displayMode: 'id', items: castItems, placeholder: 'Cast', anchoredKeys: anchored('cast'),
         renderItem: (item: any, _sel: any) => (<><span className="text-zinc-400 shrink-0">{item.id}.</span><span className="truncate flex-1">{item.name && item.name !== item.id ? item.name : '\u2014'}</span></>),
       },
     };
@@ -506,10 +512,11 @@ export function GlideBreakdownTab({
         mode: isMultiValue(cat, project.customCategories) ? 'multi' : 'single',
         items: breakdownEditorItems.get(cat) || [],
         placeholder: allBreakdownLabels[cat] || cat,
+        anchoredKeys: anchored(cat),
       };
     }
     return editors;
-  }, [intExtOptions, dayNightOptions, setItems, castItems, allBreakdownCategories, allBreakdownLabels, project.customCategories, breakdownEditorItems]);
+  }, [intExtOptions, dayNightOptions, setItems, castItems, allBreakdownCategories, allBreakdownLabels, project.customCategories, project.elementLinks, breakdownEditorItems]);
 
   const provideEditor = useMemo(() => createGlideCellEditor({
     readOnlyRef,

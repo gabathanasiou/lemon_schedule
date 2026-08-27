@@ -533,8 +533,6 @@ day-types registry (`work`/`holiday` keys) is untouched.
   `DAY_CELL_HEIGHT` rows). View menu toggle ("Expand Day Cells"), verified by
   `e2e/calendar-view.spec.ts`. Events-mode weeks were already content-sized.
 
-## Session handoff
-
 ## 56. Promote shared bespoke components into @gabriel/ui-kit (`[ ]`)
 
 DESIGN-LANGUAGE §Mental model #2: "All interaction primitives come from `@gabriel/ui-kit`… extend the
@@ -559,3 +557,49 @@ same commit. The events-mode day cells, section tabs, and icon-only buttons stay
   before touching the designer, `docs/REPORT_PRINTING_AND_PAGE_BREAKS.md`
   before print/pagination work, `docs/IMPORT-EXPORT.md` before import/export
   work.
+
+## 57. Anchor icon in EntityDropdown for anchored elements (`[x]` Done)
+
+**Requested**: when an element is an **anchor** (it appears as `anchorCategory`/`anchorValue` in
+`project.elementLinks`), show a small anchor icon next to it in the entity dropdown.
+
+**Facts**:
+- Anchor = any `ElementLink` whose anchor side matches the element (`getAnchorLinks(links, category, elementMatchId(e, category))`,
+  `src/lib/elementLinks.ts:32` — canonical, never re-derive). The Link Manager's anchor picker
+  (`rules/ElementPicker.tsx`) is the surface where anchored-ness is chosen; the SceneSheet, Glide,
+  stripboard and attachment/status rows use the same `EntityDropdown`.
+- `EntityDropdown` (`src/components/EntityDropdown.tsx`) is a per-row component that MUST NOT call
+  `useProject()` (AGENTS.md store rules) — anchored-ness data must arrive via props, not context:
+  extend it with an optional lookup (e.g. `anchoredKeys?: Set<string>` or a
+  `(category, key) => boolean` predicate, memoized by the caller) rather than threading raw links.
+  Call sites that own `project.elementLinks` (LinkManagerModal, SceneSheet/Glide shell, TravelHold
+  rows) build the predicate once via `getAnchorLinks`.
+
+**Design** (narrow scope first):
+- Indicator = small Lucide `Anchor` icon (ui-kit icon sizing `w-3.5 h-3.5`) at the row's trailing
+  side, tooltip "Anchor — linked elements follow" (or similar); distinct but subtle in BOTH dropdown
+  themes (light panel + dark `variant="chip"` panel per DESIGN-LANGUAGE — the day-status modal
+  pattern). Checked/highlighted rows keep their existing affordances.
+- Scope decision for the worker: **all** entity dropdown panels vs only the Link Manager anchor
+  picker. Recommendation: panel rows everywhere `EntityDropdown` is used (one prop, consistent
+  affordance); the anchor picker itself is the minimum viable slice if prop-plumbing looks noisy at
+  34 call sites (re-check item 50's call-site census).
+- Optional: same icon on the closed chip trigger (anchor picker + multi-value rows) only if it fits
+  the chip overlay without cramping — else panel-only, no double-affordance.
+
+- **Done**: `anchoredKeys` prop on `EntityDropdown` (optional `Set<string>` in `itemKey` space; names
+  matched case-insensitively) — the item renderer appends a Lucide `Anchor` icon (`w-3.5 h-3.5
+  text-amber-500`, native `title` tooltip) next to anchored elements, in BOTH panel themes (light
+  `default` + dark `chip`). Wired in every picker that owns element links: Link Manager anchor +
+  linked pickers, Scene Sheet set/cast/entity dropdowns, stripboard cast/entity cell editors,
+  Glide cell editors, day-modal attachment rows and rule-editor cast pickers (`anchoredKeysFor`
+  helper in `elementLinks.ts`; per-category memo in each host). Verified by `e2e/linked-elements.spec.ts`
+  (anchor icon in the Link Manager picker + scene sheet cast picker; absent for non-anchors).
+
+**Verify**: lint + playwright on the seeded project — add a link in the Link Manager, then assert
+the anchor icon renders next to that element in the anchor picker AND a plain entity dropdown
+(SceneSheet field / status-row row); non-anchored elements have no icon; dark chip variant styling
+intact; bridge reads untouched.
+
+**Relations**: rides item 44's model (`elementLinks.ts`); EntityDropdown may move into `@gabriel/ui-kit`
+(item 56) — the `anchoredKeys` prop (added here) must ride along in the migration.
